@@ -1,8 +1,5 @@
-import { useState } from 'react';
-import { Crown, Check, Ticket } from 'lucide-react';
+import { Crown, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { LoadingButton } from '@/components/ui/LoadingButton';
 import {
   Dialog,
   DialogContent,
@@ -13,8 +10,8 @@ import {
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { usePlan } from '@/hooks/usePlan';
+import { useRevenueCat, isPurchaseCancelled } from '@/hooks/useRevenueCat';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface UpgradeDialogProps {
   open: boolean;
@@ -38,10 +35,8 @@ export function UpgradeDialog({
   features,
 }: UpgradeDialogProps) {
   const navigate = useNavigate();
-  const { refetch } = usePlan();
-  const [couponCode, setCouponCode] = useState('');
-  const [redeeming, setRedeeming] = useState(false);
-  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { packages, loadingOfferings, purchasing, purchase } = useRevenueCat();
 
   const handleViewPlans = () => {
     haptics.light();
@@ -49,26 +44,24 @@ export function UpgradeDialog({
     navigate('/subscription');
   };
 
-  const handleRedeemCoupon = async () => {
-    if (!couponCode.trim()) return;
-    haptics.light();
-    setRedeeming(true);
+  const handlePurchase = async () => {
+    haptics.medium();
+    // Pick the package matching requiredPlan by price tier (cheapest = pro)
+    if (packages.length === 0) {
+      toast.error('Packages not loaded. Please try again.');
+      return;
+    }
+    const targetIndex = requiredPlan === 'pro' ? 0 : packages.length - 1;
+    const pkg = packages[targetIndex];
     try {
-      const { data, error } = await appwriteFunctions.invoke('redeem-coupon', {
-        body: { code: couponCode.trim().toUpperCase() },
-      });
-      if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; message?: string; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Invalid or expired code');
-      const msg = result.message ?? 'Coupon applied!';
-      setCouponSuccess(msg);
-      toast.success(msg);
-      setCouponCode('');
-      refetch?.();
+      await purchase(pkg);
+      toast.success(`Welcome to ${planLabel(requiredPlan)}!`);
+      await queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+      onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to redeem coupon');
-    } finally {
-      setRedeeming(false);
+      if (!isPurchaseCancelled(e)) {
+        toast.error(e instanceof Error ? e.message : 'Purchase failed. Please try again.');
+      }
     }
   };
 
@@ -102,45 +95,32 @@ export function UpgradeDialog({
         )}
 
         <div className="flex flex-col gap-3 pt-2">
-          <Button className="w-full gap-2" onClick={handleViewPlans}>
-            <Crown className="w-4 h-4" />
-            View plans
+          {/* Upgrade CTA — shows price from RC if loaded */}
+          <Button
+            className="w-full gap-2"
+            onClick={handlePurchase}
+            disabled={purchasing || loadingOfferings}
+          >
+            {purchasing || loadingOfferings ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Crown className="w-4 h-4" />
+            )}
+            {(() => {
+              if (purchasing) return 'Processing…';
+              if (loadingOfferings) return 'Loading…';
+              const targetIndex = requiredPlan === 'pro' ? 0 : packages.length - 1;
+              const pkg = packages[targetIndex];
+              const price = pkg?.webBillingProduct?.currentPrice?.formattedPrice;
+              return price
+                ? `Upgrade to ${planLabel(requiredPlan)} — ${price}/mo`
+                : `Upgrade to ${planLabel(requiredPlan)}`;
+            })()}
           </Button>
 
-          {/* Inline coupon */}
-          <div className="border-t border-border pt-3 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Ticket className="w-3.5 h-3.5" />
-              <span>Have an early access code?</span>
-            </div>
-            {couponSuccess ? (
-              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-xs text-green-600 dark:text-green-400">
-                <Check className="w-3.5 h-3.5 shrink-0" />
-                {couponSuccess}
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="EARLYACCESS"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRedeemCoupon()}
-                  className="font-mono uppercase tracking-widest text-xs h-9"
-                  disabled={redeeming}
-                />
-                <LoadingButton
-                  size="sm"
-                  onClick={handleRedeemCoupon}
-                  isLoading={redeeming}
-                  loadingText="…"
-                  disabled={!couponCode.trim()}
-                  className="shrink-0 h-9"
-                >
-                  Apply
-                </LoadingButton>
-              </div>
-            )}
-          </div>
+          <Button variant="outline" className="w-full gap-2 text-muted-foreground" onClick={handleViewPlans}>
+            View all plans
+          </Button>
 
           <Button
             variant="ghost"

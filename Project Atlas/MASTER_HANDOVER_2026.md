@@ -2,6 +2,60 @@
 
 ---
 
+## Session Summary — 2026-05-20 (RevenueCat Payment Integration)
+
+### Overview
+Integrated RevenueCat as the payment gateway (RC Billing + Stripe) for both the web app and mobile (Expo). Replaced all "coming soon" upgrade CTAs with real purchase flows. Created a new Appwrite Function `revenuecat-webhook` for webhook-driven subscription sync. Removed the coupon UI from the upgrade surfaces (replaced by RC native promo codes).
+
+### Architecture Decisions
+- **Billing engine**: RC Billing + Stripe (RC manages checkout UI, Stripe processes payments)
+- **Entitlement IDs**: `pro` and `premium` — exact match to existing plan strings in Appwrite `subscriptions` collection
+- **No schema changes**: webhook writes to existing fields (`plan`, `effective_plan`, `status`, `trial_plan`, `trial_expires_at`)
+- **Sync strategy**: RC fires webhooks → `revenuecat-webhook` Appwrite Function verifies signature and upserts subscription document
+- **Mobile RC init**: configured in `mobile/app/_layout.tsx` after `getStoredIdentity()` resolves
+
+### What Changed
+| File | Change |
+|------|--------|
+| `src/lib/revenuecat.ts` | NEW — singleton `configureRevenueCat(userId)` / `getRevenueCat()` |
+| `src/providers/RevenueCatProvider.tsx` | NEW — auth-aware provider, inits SDK once after `authReady` |
+| `src/hooks/useRevenueCat.ts` | NEW — `getOfferings`, `purchase`, `getCustomerInfo`, `isPurchaseCancelled` |
+| `src/AppInterior.tsx` | Added `<RevenueCatProvider>` inside `<AuthProvider>` |
+| `src/components/plan/UpgradeDialog.tsx` | Replaced coupon form with RC purchase button + live price |
+| `src/components/plan/UpgradeWall.tsx` | Replaced "coming soon" toast with RC purchase + live price |
+| `src/pages/SubscriptionPage.tsx` | RC purchase buttons, manage subscription link, coupon card removed |
+| `src/lib/appwrite-functions.ts` | Removed `validate-coupon` / `redeem-coupon` from `COUPON_FUNCTIONS` |
+| `appwrite-hubs/revenuecat-webhook/` | NEW Appwrite Function — HMAC-verified, handles 6 event types |
+| `scripts/deploy_hubs.cjs` | Added `revenuecat-webhook` hub + env var provisioning |
+| `.env.example` | Added `VITE_REVENUECAT_WEB_API_KEY` |
+| `mobile/app/_layout.tsx` | RC init after user identity loads |
+
+### Verification
+- `npm exec tsc -- --noEmit` — zero errors
+- `node --check appwrite-hubs/revenuecat-webhook/src/main.js` — clean
+
+### Where We Stopped
+- Code is complete and TypeScript-clean. **No commits yet.**
+- The coupon `validate` and `redeem` actions still exist in `appwrite-hubs/coupons/src/main.js` (kept as deprecated, unused from frontend).
+
+### Prerequisites — User Must Complete in RC Dashboard
+1. Create a **Web Billing app** in TheWiseCloud RC project → get `VITE_REVENUECAT_WEB_API_KEY`
+2. Connect Stripe account to RC Billing
+3. Create products: Pro ($9/mo) and Premium ($19/mo)
+4. Create entitlements: `pro` and `premium`
+5. Create one Offering with two packages linked to the entitlements
+6. In RC dashboard → Integrations → Webhooks: set webhook URL to the `revenuecat-webhook` Appwrite Function HTTP endpoint, set `REVENUECAT_WEBHOOK_SECRET` (must also be added as Appwrite Function env var)
+7. Add iOS + Android apps → get platform API keys → add to Expo env
+
+### Next Agent
+- Commit all changes to branch and push
+- Deploy `revenuecat-webhook` Appwrite Function: `APPWRITE_API_KEY=<key> node scripts/deploy_hubs.cjs`
+- Add `VITE_REVENUECAT_WEB_API_KEY` to Vercel environment variables
+- Add `REVENUECAT_WEBHOOK_SECRET` to Appwrite Function variables
+- Test: sign in → click any gated feature → UpgradeDialog shows real prices → purchase opens RC checkout modal → on success, plan updates in SubscriptionPage
+
+---
+
 ## Session Summary — 2026-05-19 (Editor + Gap Finder — see session logs)
 
 **Canonical detail (do not duplicate here):**
