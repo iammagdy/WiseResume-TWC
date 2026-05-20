@@ -30,7 +30,7 @@ type SerializedFile = {
   base64: string;
 };
 
-const COUPON_FUNCTIONS = new Set(['validate-coupon', 'redeem-coupon', 'coupons', 'get-subscription']);
+const COUPON_FUNCTIONS = new Set(['coupons', 'get-subscription']);
 const WISEHIRE_FUNCTIONS = new Set([
   'wisehire-write-jd',
   'wisehire-generate-brief',

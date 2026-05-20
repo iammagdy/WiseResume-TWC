@@ -4,6 +4,7 @@
 import '@expo/metro-runtime';
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { Slot, SplashScreen } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,6 +18,19 @@ import { getStoredIdentity } from '@/lib/auth';
 import { BiometricLockOverlay } from '@/components/BiometricLockOverlay';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+async function configureRevenueCatForUser(userId: string) {
+  try {
+    const Purchases = (await import('react-native-purchases')).default;
+    const iosKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
+    const androidKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
+    const apiKey = Platform.OS === 'ios' ? iosKey : androidKey;
+    if (!apiKey) return; // keys not set in dev
+    Purchases.configure({ apiKey, appUserID: userId });
+  } catch {
+    // react-native-purchases not available or keys missing — silent fail
+  }
+}
 
 function ThemedShell({ children }: { children: React.ReactNode }) {
   const scheme = useColorSchemeResolved();
@@ -37,7 +51,10 @@ export default function RootLayout() {
     (async () => {
       try {
         const id = await getStoredIdentity();
-        if (id) setIdentity(id);
+        if (id) {
+          setIdentity(id);
+          await configureRevenueCatForUser(id.userId);
+        }
       } finally {
         setReady(true);
         setBootstrapped(true);

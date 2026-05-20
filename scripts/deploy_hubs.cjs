@@ -146,6 +146,7 @@ async function run() {
         { id: 'admin-impersonate',         name: 'Admin Impersonate Hub',         file: 'admin-impersonate.tar.gz' },
         { id: 'inspect-ai-keys',           name: 'Inspect AI Keys Hub',           file: 'inspect-ai-keys.tar.gz' },
         { id: 'admin-deploy-hubs',         name: 'Admin Deploy Hubs',             file: 'admin-deploy-hubs.tar.gz' },
+        { id: 'revenuecat-webhook',        name: 'RevenueCat Webhook Hub',        file: 'revenuecat-webhook.tar.gz' },
     ];
 
     for (const hub of hubs) {
@@ -255,6 +256,16 @@ async function run() {
         }
     } catch (e) {
         console.warn(`  Could not update jobs collection permissions: ${e.message}`);
+    }
+
+    console.log('\nEnsuring revenuecat-webhook variables...');
+    for (const [key, value] of [
+        ['REVENUECAT_WEBHOOK_SECRET', process.env.REVENUECAT_WEBHOOK_SECRET],
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+    ]) {
+        await ensureVariable('revenuecat-webhook', key, value);
     }
 
     console.log('\nEnsuring admin-deploy-hubs GitHub credentials...');

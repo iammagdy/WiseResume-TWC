@@ -11,6 +11,46 @@
 
 ---
 
+## 2026-05-20 — RevenueCat Web + Mobile Payments Integration
+
+### Summary
+Integrated RevenueCat as the payment gateway for web and mobile. Web SDK (`@revenuecat/purchases-js`) initialized after auth, real purchase flow replaces all "coming soon" upgrade CTAs, a new Appwrite Function (`revenuecat-webhook`) receives RC events and syncs subscription state, and the mobile paywall's RC initialization is wired up in the root layout.
+
+### Architecture
+- Billing engine: RC Billing + Stripe
+- Entitlement IDs: `pro` and `premium` — match existing plan strings
+- Sync: Webhook-driven — RC fires `INITIAL_PURCHASE` / `RENEWAL` / `CANCELLATION` → `revenuecat-webhook` Appwrite Function updates `subscriptions` collection
+- Coupon UI removed from `UpgradeDialog`, `UpgradeWall`, `SubscriptionPage` (replaced by RC promo codes)
+
+### Files changed
+- `src/lib/revenuecat.ts` — NEW singleton configure/get
+- `src/providers/RevenueCatProvider.tsx` — NEW auth-aware SDK init context
+- `src/hooks/useRevenueCat.ts` — NEW offerings, purchase, getCustomerInfo hook
+- `src/AppInterior.tsx` — added `<RevenueCatProvider>`
+- `src/components/plan/UpgradeDialog.tsx` — replaced coupon form with RC purchase buttons + live prices
+- `src/components/plan/UpgradeWall.tsx` — replaced "coming soon" toast with RC purchase + live prices
+- `src/pages/SubscriptionPage.tsx` — RC purchase buttons, manage subscription link, coupon UI removed
+- `src/lib/appwrite-functions.ts` — removed `validate-coupon` / `redeem-coupon` from COUPON_FUNCTIONS
+- `appwrite-hubs/revenuecat-webhook/` — NEW Appwrite Function (signature verified, handles 6 event types)
+- `scripts/deploy_hubs.cjs` — added `revenuecat-webhook` hub + env var block
+- `.env.example` — added `VITE_REVENUECAT_WEB_API_KEY`
+- `mobile/app/_layout.tsx` — RC initialization after user identity loads
+
+### Verification
+- `npm exec tsc -- --noEmit` — zero errors
+- `node --check appwrite-hubs/revenuecat-webhook/src/main.js` — clean
+
+### Prerequisites (RC dashboard — user action required)
+1. Create Web Billing app → get `VITE_REVENUECAT_WEB_API_KEY`
+2. Connect Stripe account
+3. Create Pro ($9/mo) and Premium ($19/mo) products
+4. Create entitlements `pro` and `premium`
+5. Create one Offering with two packages linked to those entitlements
+6. Set `REVENUECAT_WEBHOOK_SECRET` → configure webhook URL (Appwrite Function HTTP endpoint)
+7. Add iOS + Android apps → set `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` / `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` in Expo env
+
+---
+
 ## 2026-05-19 — Page break control popup (Editor + Preview)
 
 ### Summary
