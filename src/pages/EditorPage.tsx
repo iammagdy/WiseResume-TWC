@@ -17,6 +17,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SectionSidebar } from '@/components/editor/SectionSidebar';
 import { LivePreviewPanel } from '@/components/editor/LivePreviewPanel';
+import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -739,6 +740,7 @@ export default function EditorPage() {
 
   // Keyboard shortcuts
   const [showExport, setShowExport] = useState(false);
+  const [showStylePanel, setShowStylePanel] = useState(false);
   useEditorShortcuts({
     onSave: saveToCloud,
     onExport: () => setShowExport(true),
@@ -948,7 +950,7 @@ export default function EditorPage() {
   const handleOnePage = useCallback(() => sheets.open('onePage'), [sheets.open]);
   const handleCareerPath = useCallback(() => sheets.open('careerPath'), [sheets.open]);
   const handleGetIdeas = useCallback(() => sheets.open('contentLibrary'), [sheets.open]);
-  const handleCustomize = useCallback(() => sheets.open('customize'), [sheets.open]);
+  const handleCustomize = useCallback(() => setShowStylePanel(true), []);
 
   const handleMoreSectionSelect = useCallback((sectionId: string) => {
     if (useAIEnhancingStore.getState().count > 0) {
@@ -1500,16 +1502,7 @@ export default function EditorPage() {
             />
           )}
           {sheets.is('contentLibrary') && <ContentLibrarySheet open onOpenChange={(open) => open ? sheets.open('contentLibrary') : sheets.close()} onInsert={handleContentInsert} />}
-          {sheets.is('customize') && (() => {
-            const rd = currentResume ? (() => {
-              const name = currentResume.contactInfo?.fullName || '';
-              const latestJob = currentResume.experience?.[0];
-              const subtitle = latestJob ? `${latestJob.position} – ${latestJob.company}` : currentResume.contactInfo?.location || '';
-              const skills = currentResume.skills?.slice(0, 3) || [];
-              return name ? { name, subtitle, skills } : undefined;
-            })() : undefined;
-            return <CustomizeSheet open onOpenChange={(open) => open ? sheets.open('customize') : sheets.close()} customization={currentResume?.customization} onApply={handleCustomizeApply} resumeData={rd} />;
-          })()}
+          <StyleCustomizationPanel open={showStylePanel} onOpenChange={setShowStylePanel} />
           {sheets.is('atsScan') && <ATSScanSheet open onOpenChange={(open) => open ? sheets.open('atsScan') : sheets.close()} summary={scanSummary} onJumpToSection={handleTabChange} />}
           {sheets.is('snapshots') && (
             <ResumeSnapshotsSheet

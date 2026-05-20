@@ -123,6 +123,7 @@ export default {
       zIndex: {
         'editor-shell': '40',
         'editor-header': '50',
+        'tooltip': '55',
         'keyboard-toolbar': '60',
         'ai-dialog': '65',
         'toast': '70',

@@ -1,9 +1,5 @@
-import { lazy, Suspense, useCallback, useState } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, RotateCcw, Wand2 } from 'lucide-react';
-
-const SmartFitWizardSheet = lazy(() =>
-  import('@/components/editor/ai/SmartFitWizardSheet').then(m => ({ default: m.SmartFitWizardSheet })),
-);
+import { useCallback } from 'react';
+import { AlignLeft, AlignCenter, AlignRight, RotateCcw, Check } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -31,8 +27,7 @@ import {
 import { useResumeStore } from '@/store/resumeStore';
 import {
   FONT_OPTIONS,
-  getDefaultCustomization,
-  COMPACT_SCALE_MIN,
+  PRESET_PALETTES,
 } from '@/lib/templateCustomization';
 import type { TemplateCustomization } from '@/types/resume';
 
@@ -44,7 +39,6 @@ interface StyleCustomizationPanelProps {
 }
 
 export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizationPanelProps) {
-  const [smartFitOpen, setSmartFitOpen] = useState(false);
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
 
@@ -90,7 +84,6 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
   const isEnabled = c.enabled !== false;
 
   return (
-    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
@@ -118,90 +111,51 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
 
         <Accordion
           type="multiple"
-          defaultValue={['fit', 'layout', 'typography', 'spacing']}
+          defaultValue={['colors', 'layout', 'typography', 'spacing']}
           className={`mt-4 ${isEnabled ? '' : 'pointer-events-none opacity-50'}`}
           aria-disabled={!isEnabled}
         >
-          {/* AUTO-FIT — drives fontScale automatically so the resume occupies
-              the requested page count. Read useFitToPages to understand the
-              measurement loop. */}
-          <AccordionItem value="fit">
-            <AccordionTrigger>Auto-fit pages</AccordionTrigger>
+          {/* COLORS */}
+          <AccordionItem value="colors">
+            <AccordionTrigger>Colors</AccordionTrigger>
             <AccordionContent className="space-y-3 pt-2">
-              <p className="text-xs text-muted-foreground">
-                Automatically shrink font, line height, and spacing to fit your
-                resume into a target page count. Overrides the manual Font Size
-                slider while active.
-              </p>
-              <ToggleGroup
-                type="single"
-                value={c.targetPageCount ? String(c.targetPageCount) : 'off'}
-                onValueChange={v => {
-                  if (!v || !currentResume) return;
-                  // Both transitions must be a SINGLE atomic updateResume
-                  // call. Calling clearKeys then patch sequentially reads
-                  // stale state in the second call and can reintroduce the
-                  // key we just deleted.
-                  const base = (currentResume.customization ?? {}) as TemplateCustomization;
-                  if (v === 'off') {
-                    // Restore the manual fontScale snapshot taken at the
-                    // moment auto-fit was first enabled. If no snapshot
-                    // exists (auto-fit never engaged), drop fontScale so
-                    // the resume returns to its natural rendering rather
-                    // than being pinned to the auto-computed value.
-                    const next: TemplateCustomization = { ...base };
-                    delete (next as Record<string, unknown>).targetPageCount;
-                    if (typeof base.manualFontScale === 'number') {
-                      next.fontScale = base.manualFontScale;
-                    } else {
-                      delete (next as Record<string, unknown>).fontScale;
-                    }
-                    delete (next as Record<string, unknown>).manualFontScale;
-                    updateResume({ customization: next });
-                  } else {
-                    // Snapshot the current manual fontScale on the first
-                    // transition into auto mode so we can restore it when
-                    // the user toggles Off. Don't overwrite an existing
-                    // snapshot (e.g. when switching between 1/2/3).
-                    const next: TemplateCustomization = {
-                      ...base,
-                      targetPageCount: Number(v) as 1 | 2 | 3,
-                    };
-                    if (base.manualFontScale === undefined && !base.targetPageCount) {
-                      next.manualFontScale = base.fontScale;
-                    }
-                    updateResume({ customization: next });
-                  }
-                }}
-                className="justify-start"
-              >
-                <ToggleGroupItem value="off" aria-label="Auto-fit off">Off</ToggleGroupItem>
-                <ToggleGroupItem value="1" aria-label="Fit to 1 page">1 page</ToggleGroupItem>
-                <ToggleGroupItem value="2" aria-label="Fit to 2 pages">2 pages</ToggleGroupItem>
-                <ToggleGroupItem value="3" aria-label="Fit to 3 pages">3 pages</ToggleGroupItem>
-              </ToggleGroup>
-              {c.targetPageCount && typeof c.fontScale === 'number' && c.fontScale <= COMPACT_SCALE_MIN + 0.001 && (
-                <p className="text-xs text-amber-600">
-                  Resume is too long to fit on {c.targetPageCount} page{c.targetPageCount === 1 ? '' : 's'} at the minimum readable scale. Consider trimming content or raising the target.
-                </p>
-              )}
-              {/* Smart Fit launcher — opens the AI-assisted wizard with the
-                  currently-selected target so the user can review per-edit
-                  cards (rewrite / drop / collapse) before applying. */}
+              <div className="grid grid-cols-4 gap-2">
+                {PRESET_PALETTES.map((pal) => (
+                  <button
+                    key={pal.name}
+                    type="button"
+                    onClick={() => patch({ accentColor: pal.color })}
+                    className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all touch-manipulation active:scale-95 ${
+                      c.accentColor === pal.color ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted'
+                    }`}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-full border-2 border-background shadow-sm flex items-center justify-center"
+                      style={{ backgroundColor: pal.color }}
+                    >
+                      {c.accentColor === pal.color && <Check className="w-3.5 h-3.5 text-white" />}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground leading-none">{pal.name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <label className="text-xs text-muted-foreground">Custom:</label>
+                <input
+                  type="color"
+                  value={c.accentColor ?? '#1e40af'}
+                  onChange={(e) => patch({ accentColor: e.target.value })}
+                  className="w-10 h-10 rounded-lg border-0 cursor-pointer touch-manipulation"
+                />
+              </div>
               <Button
+                variant="ghost"
                 size="sm"
-                variant="outline"
-                className="w-full mt-2 gap-2"
-                onClick={() => {
-                  // Close the style panel first so we don't stack two
-                  // overlapping Sheets (focus-trap + double-overlay on
-                  // mobile). The wizard owns the screen until dismissed.
-                  onOpenChange(false);
-                  setSmartFitOpen(true);
-                }}
+                className="text-xs text-muted-foreground"
+                onClick={() => clearKeys(['accentColor'])}
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                Open Smart Fit ({c.targetPageCount ?? 1} {(c.targetPageCount ?? 1) === 1 ? 'page' : 'pages'})
+                <RotateCcw className="w-3 h-3 mr-1" />
+                Reset to template color
               </Button>
             </AccordionContent>
           </AccordionItem>
@@ -444,15 +398,5 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
         </div>
       </SheetContent>
     </Sheet>
-    {smartFitOpen && (
-      <Suspense fallback={null}>
-        <SmartFitWizardSheet
-          open={smartFitOpen}
-          onOpenChange={setSmartFitOpen}
-          targetPages={(c.targetPageCount ?? 1) as 1 | 2 | 3}
-        />
-      </Suspense>
-    )}
-    </>
   );
 }

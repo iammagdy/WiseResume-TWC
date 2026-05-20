@@ -58,6 +58,10 @@ interface SettingsState {
   lpProduct: 'jobseeker' | 'wisehire';
   setLpProduct: (product: 'jobseeker' | 'wisehire') => void;
   
+  // Default (pinned) resume — protected from unintended overwrites
+  defaultResumeId: string | null;
+  setDefaultResumeId: (id: string | null) => void;
+
   // Export
   lastExportType: string | null;
   
@@ -127,6 +131,7 @@ const defaultSettings = {
   elevenlabsApiKey: '',
   theme: 'system' as 'light' | 'dark' | 'system',
   lpProduct: 'jobseeker' as 'jobseeker' | 'wisehire',
+  defaultResumeId: null as string | null,
   lastExportType: null as string | null,
   aiProvider: 'wiseresume' as AIProvider,
 };
@@ -162,6 +167,7 @@ export const useSettingsStore = create<SettingsState>()(
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       setTheme: (theme) => set({ theme }),
       setLpProduct: (product) => set({ lpProduct: product }),
+      setDefaultResumeId: (id) => set({ defaultResumeId: id }),
       setLastExportType: (type) => set({ lastExportType: type }),
       
       // No-op — flat 6-key pool is the only engine

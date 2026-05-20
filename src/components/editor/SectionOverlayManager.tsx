@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, RefObject } from 'react';
-import { Sliders, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { SectionStylePopover } from './SectionStylePopover';
 import { SectionAIPopover } from './SectionAIPopover';
 
 interface SectionRect {
@@ -21,7 +20,6 @@ export function SectionOverlayManager({ resumeRef, isBreakEditMode }: SectionOve
   const isMobile = useIsMobile();
   const [rects, setRects] = useState<SectionRect[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
-  const [stylePopoverFor, setStylePopoverFor] = useState<string | null>(null);
   const [aiPopoverFor, setAiPopoverFor] = useState<string | null>(null);
 
   const recompute = useCallback(() => {
@@ -72,7 +70,7 @@ export function SectionOverlayManager({ resumeRef, isBreakEditMode }: SectionOve
     >
       {rects.map(rect => {
         const isHovered = hovered === rect.name;
-        const showControls = isHovered || stylePopoverFor === rect.name || aiPopoverFor === rect.name;
+        const showControls = isHovered || aiPopoverFor === rect.name;
 
         return (
           <div
@@ -97,25 +95,6 @@ export function SectionOverlayManager({ resumeRef, isBreakEditMode }: SectionOve
                 onMouseEnter={() => setHovered(rect.name)}
                 onMouseLeave={() => setHovered(prev => (prev === rect.name ? null : prev))}
               >
-                <SectionStylePopover
-                  open={stylePopoverFor === rect.name}
-                  onOpenChange={(o) => setStylePopoverFor(o ? rect.name : null)}
-                  sectionName={rect.name}
-                  trigger={
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setStylePopoverFor(rect.name);
-                      }}
-                      className="h-6 w-6 rounded-md bg-white shadow ring-1 ring-black/10 flex items-center justify-center text-slate-700 hover:bg-slate-50 transition-colors"
-                      title={`Style ${rect.name}`}
-                      aria-label={`Style ${rect.name}`}
-                    >
-                      <Sliders className="w-3.5 h-3.5" />
-                    </button>
-                  }
-                />
                 <button
                   type="button"
                   onClick={(e) => {
@@ -123,8 +102,8 @@ export function SectionOverlayManager({ resumeRef, isBreakEditMode }: SectionOve
                     setAiPopoverFor(rect.name);
                   }}
                   className="h-6 w-6 rounded-md bg-white shadow ring-1 ring-black/10 flex items-center justify-center text-violet-600 hover:bg-violet-50 transition-colors"
-                  title={`Edit ${rect.name} with AI`}
-                  aria-label={`Edit ${rect.name} with AI`}
+                  title={`Improve ${rect.name} with AI`}
+                  aria-label={`Improve ${rect.name} with AI`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                 </button>

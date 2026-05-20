@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 import { useResumeStore } from '@/store/resumeStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { ScoreRing } from './ScoreRing';
 import { MiniTemplateThumbnail } from './MiniTemplateThumbnail';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -149,6 +150,10 @@ export const ResumeListCard = memo(function ResumeListCard({
     const hoursLeft = Math.max(1, Math.round((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)));
     return { label: `Trial · ${hoursLeft}h left`, expired: false, hoursLeft };
   }, [resume.is_trial, resume.trial_expires_at]);
+  const defaultResumeId = useSettingsStore(s => s.defaultResumeId);
+  const setDefaultResumeId = useSettingsStore(s => s.setDefaultResumeId);
+  const isDefault = defaultResumeId === resume.$id;
+
   const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.$id));
   const matchScore = resume.job_match_score;
   const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.$id, resume.$updatedAt]);
@@ -441,6 +446,15 @@ export const ResumeListCard = memo(function ResumeListCard({
                     {trialBadge.label}
                   </Badge>
                 )}
+                {isDefault && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0 border-amber-400/60 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
+                  >
+                    <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                    Default
+                  </Badge>
+                )}
               </div>
 
               {/* Target Job */}
@@ -585,6 +599,18 @@ export const ResumeListCard = memo(function ResumeListCard({
                 <Mic className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Practice Interview</span>
               </button>
             )}
+            <button
+              className={`flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors ${isDefault ? 'text-amber-500' : ''}`}
+              onClick={() => {
+                haptics.medium();
+                setDefaultResumeId(isDefault ? null : resume.$id);
+                setShowActionsSheet(false);
+                toast.success(isDefault ? 'Default resume cleared' : 'Set as default resume', { duration: 2000 });
+              }}
+            >
+              <Star className={`w-5 h-5 ${isDefault ? 'fill-amber-400 text-amber-500' : 'text-muted-foreground'}`} />
+              <span className="text-sm">{isDefault ? 'Unset as Default' : 'Set as Default Resume'}</span>
+            </button>
           </div>
 
           <Separator className="my-2" />
