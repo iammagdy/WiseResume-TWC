@@ -10,8 +10,13 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import chromium from '@sparticuz/chromium';
+// @sparticuz/chromium v120+ is ESM-only. Vercel's ncc bundler outputs CJS, so a
+// static import would cause ERR_MODULE_NOT_FOUND at runtime. Dynamic import()
+// makes ncc treat it as external — Node.js loads it as ESM from node_modules.
+// vercel.json includeFiles ensures the ESM files ship with the function bundle.
 import puppeteer from 'puppeteer-core';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _chromium: any;
 import { PDFDocument } from 'pdf-lib';
 import {
   buildExportPageSegments,
@@ -265,8 +270,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
   try {
-    // @sparticuz/chromium v120+: headless is always true (boolean).
-    // Pass chromium.args directly — they include --no-sandbox, --disable-dev-shm-usage, etc.
+    // Dynamic import keeps ncc from bundling the ESM-only @sparticuz/chromium package.
+    // Cache the module after the first load to avoid repeated dynamic imports.
+    if (!_chromium) {
+      _chromium = (await import('@sparticuz/chromium')).default;
+    }
+    const chromium = _chromium;
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
