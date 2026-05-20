@@ -2,6 +2,40 @@
 
 ---
 
+## Session Summary - 2026-05-20 (PDF Renderer Function Startup Fix)
+
+### Overview
+Verified and fixed the production PDF download failure after restoring real HTML-to-PDF export. The frontend was now calling the correct endpoint, but the Vercel serverless function crashed before handling requests.
+
+### Root cause
+Live checks showed both `GET` and minimal `POST` to `https://resume.thewise.cloud/api/export/pdf-native` returned Vercel `FUNCTION_INVOCATION_FAILED`. That ruled out resume data and request payload size as the first failure point.
+
+Local reproduction with Vercel's bundler confirmed the exact cause: `@sparticuz/chromium` was being bundled/relocated by `ncc`, so at runtime it searched for its compressed browser binaries at the wrong path and failed with:
+
+`The input directory "Y:\bin" does not exist... you must externalize @sparticuz/chromium`
+
+### Fix
+| File | Change |
+|---|---|
+| `api/export/pdf-native.ts` | Added `importExternalModule()` using an indirect dynamic `import()` so `@sparticuz/chromium` remains external and resolves from its package directory. Kept `puppeteer-core` lazy-loaded after request validation. |
+
+`vercel.json` already includes `node_modules/@sparticuz/chromium/**`, so the external package files should be shipped with the function.
+
+### Verification
+- Live pre-fix endpoint: `GET` and minimal `POST` both returned `FUNCTION_INVOCATION_FAILED`.
+- `npx @vercel/ncc build api/export/pdf-native.ts -o .tmp-ncc-pdf --transpile-only` - built a Vercel-style bundle.
+- Imported the bundle locally: `GET` returned `405`; malformed `POST` returned `400`, proving startup/request validation no longer crashes.
+- Valid bundled POST progressed past Chromium package resolution; local Windows then failed at browser launch, which is expected because `@sparticuz/chromium` is a Linux serverless Chromium package. The earlier missing `bin` directory error was gone.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed.
+
+### Deployment Notes
+- Frontend already calls `/api/export/pdf-native`.
+- This fix is in the Vercel serverless API function. It requires pushing to `main` and letting Vercel deploy.
+- After deploy, verify `GET https://resume.thewise.cloud/api/export/pdf-native` returns JSON `405`, not `FUNCTION_INVOCATION_FAILED`, then verify a minimal POST returns `application/pdf`.
+
+---
+
 ## Session Summary - 2026-05-20 (PDF Export: Selectable Text + Clickable Links)
 
 ### Overview

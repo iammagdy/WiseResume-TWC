@@ -14,7 +14,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // static import would cause ERR_MODULE_NOT_FOUND at runtime. Dynamic import()
 // makes ncc treat it as external — Node.js loads it as ESM from node_modules.
 // vercel.json includeFiles ensures the ESM files ship with the function bundle.
-import puppeteer from 'puppeteer-core';
+// Keep puppeteer-core dynamic as well so simple 405/400 responses do not crash
+// when Vercel is resolving the serverless bundle.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _puppeteer: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _chromium: any;
 import { PDFDocument } from 'pdf-lib';
@@ -47,6 +50,16 @@ const PDF_FORMATS = {
 
 const EXPORT_FOOTER_HEIGHT_PX = 44;
 const EXPORT_BRAND_URL = 'https://resume.thewise.cloud';
+
+async function importExternalModule<T = unknown>(specifier: string): Promise<T> {
+  // Vercel's ncc bundler must not relocate @sparticuz/chromium, because the
+  // package resolves its compressed Chromium binaries relative to its own
+  // package directory. An indirect import keeps it external; vercel.json
+  // includeFiles ships node_modules/@sparticuz/chromium/** with the function.
+  const importer = new Function('specifier', 'return import(specifier)') as
+    (specifier: string) => Promise<T>;
+  return importer(specifier);
+}
 
 // ── HTML helpers ──────────────────────────────────────────────────────────────
 
@@ -148,7 +161,8 @@ interface ExportLayoutMetrics {
 }
 
 async function measureExportLayout(
-  browser: Awaited<ReturnType<typeof puppeteer.launch>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  browser: any,
   html: string,
   widthPx: number,
 ): Promise<ExportLayoutMetrics> {
@@ -207,7 +221,8 @@ async function measureExportLayout(
 }
 
 async function renderHtmlToPdfBuffer(
-  browser: Awaited<ReturnType<typeof puppeteer.launch>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  browser: any,
   html: string,
   widthPx: number,
   heightPx: number,
@@ -268,13 +283,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'bad_request', message: 'Missing html body' });
   }
 
-  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let browser: any;
   try {
-    // Dynamic import keeps ncc from bundling the ESM-only @sparticuz/chromium package.
-    // Cache the module after the first load to avoid repeated dynamic imports.
-    if (!_chromium) {
-      _chromium = (await import('@sparticuz/chromium')).default;
+    // Dynamic imports keep Vercel's serverless bundle from crashing during
+    // module startup. Cache modules after the first load to avoid repeated work.
+    if (!_puppeteer) {
+      _puppeteer = (await import('puppeteer-core')).default;
     }
+    if (!_chromium) {
+      _chromium = (await importExternalModule<{ default: unknown }>('@sparticuz/chromium')).default;
+    }
+    const puppeteer = _puppeteer;
     const chromium = _chromium;
     browser = await puppeteer.launch({
       args: chromium.args,
