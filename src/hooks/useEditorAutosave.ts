@@ -173,7 +173,7 @@ export function useEditorAutosave({
           console.error('Auto-save failed after retry:', retryError);
           if (currentResumeId) addPendingChange(currentResumeId, resume);
           if (shouldEmitAutoSaveToast('error')) {
-            toast.warning('Auto-save failed — your changes are saved locally. Tap Save to retry.', { duration: 4000 });
+            toast.warning('Auto-save failed — your changes are saved locally. Tap Save to retry.', { id: 'autosave-fail', duration: 4000 });
           }
         }
       }
