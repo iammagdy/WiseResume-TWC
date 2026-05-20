@@ -17,7 +17,7 @@
  */
 
 import { Client, Databases, Query, ID } from 'node-appwrite';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 
 const DATABASE_ID = 'main';
 const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
@@ -38,16 +38,13 @@ const REVOKE_EVENTS = new Set([
   'BILLING_ISSUE',
 ]);
 
-function verifySignature(rawBody, signature, secret) {
-  if (!signature || !secret) return false;
+function verifyAuthorization(authHeader, secret) {
+  if (!authHeader || !secret) return false;
   try {
-    const expected = createHmac('sha256', secret)
-      .update(rawBody, 'utf8')
-      .digest('hex');
-    const sigBuf = Buffer.from(signature, 'hex');
-    const expBuf = Buffer.from(expected, 'hex');
-    if (sigBuf.length !== expBuf.length) return false;
-    return timingSafeEqual(sigBuf, expBuf);
+    const a = Buffer.from(authHeader);
+    const b = Buffer.from(secret);
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
   } catch {
     return false;
   }
@@ -71,12 +68,11 @@ export default async function handler({ req, res, log, error }) {
   const appwriteEndpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
   const appwriteProject = process.env.APPWRITE_PROJECT_ID;
 
-  // Verify signature
-  const rawBody = req.body ?? '';
-  const signature = req.headers['x-revenuecat-signature'] ?? req.headers['X-RevenueCat-Signature'];
-  if (!verifySignature(rawBody, signature, webhookSecret)) {
-    error('Webhook signature verification failed');
-    return res.json({ ok: false, error: 'Invalid signature' }, 401);
+  // Verify Authorization header (RC sends whatever you configure as Authorization header value)
+  const authHeader = req.headers['authorization'] ?? req.headers['Authorization'] ?? '';
+  if (!verifyAuthorization(authHeader, webhookSecret)) {
+    error('Webhook authorization failed');
+    return res.json({ ok: false, error: 'Unauthorized' }, 401);
   }
 
   let payload;
