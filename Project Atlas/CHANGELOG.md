@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-05-19
+**Last verified:** 2026-05-20
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,45 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-05-20 — 3-Tier AI Enhancement Plan (Approved, Pending Implementation)
+
+### Summary
+Comprehensive plan designed and approved for making all AI assist buttons smarter across every editor section. Plan stored at `Project Atlas/05-Migration to Appwrite/28-Plan-3Tier-AI-Enhancement.md`. No code written yet.
+
+### What is planned
+| Tier | Change |
+|------|--------|
+| **1 — Context enrichment** | `buildResumeContextBlock()` in `resume-section-ai/src/main.js` replaces the raw 1000-char JSON dump; every section prompt gets candidate name, title, recent role, top skills, education |
+| **2 — Clarifying questions** | Generic `AIQuestionsDialog.tsx`; question builders for summary/skills/experience; questions flow wired into `SectionAIAction.tsx` and `ExperienceSection.tsx`; ExperienceSection jobDescription bug fixed |
+| **3 — JD-aware actions** | `tailor_to_job` (summary + experience), `find_skill_gaps` (skills, append-only), `suggest_certifications` (certifications); all JD-gated in `InlineAIButton` |
+
+### Files to be changed (next agent)
+`resume-section-ai/src/main.js`, `useAIEnhance.ts`, `SectionAIAction.tsx`, `ExperienceSection.tsx`, `InlineAIButton.tsx`, `AIQuestionsDialog.tsx` (new), `ProjectAIQuestionsDialog.tsx` (update)
+
+### Deployment required after implementation
+Redeploy `resume-section-ai` — delete existing tar first, then run `deploy_hubs.cjs`.
+
+---
+
+## 2026-05-20 — Fix: AI Gateway Critical Outage (Windows Deploy / dd-trace)
+
+### Root Cause
+`deploy_hubs.cjs` ran `npm install` on Windows, bundling Windows-native C++ binaries for `dd-trace` into `ai-gateway.tar.gz`. On Linux Appwrite, `require('dd-trace')` failed to load at module startup → every `ai-gateway` invocation crashed. Killed: `agentic-chat`, `analyze-resume`, `score-resume`, `tailor-resume`, `generate-cover-letter`.
+
+Secondary bug: `callLLM` in `resume-section-ai` had `timeout: 55000` (55 s) exceeding Appwrite's 30 s function limit.
+
+### What changed
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/package.json` | Removed `dd-trace: ^5.102.0` |
+| `appwrite-hubs/ai-gateway/src/main.js` | Removed all 36 lines of dd-trace/tracer/llmobs code |
+| `appwrite-hubs/resume-section-ai/src/main.js` | `callLLM` timeout `55000` → `10000` ms |
+
+### Deploy note
+Stale `.tar.gz` archives must be deleted before rerunning `deploy_hubs.cjs` — the script skips rebuilding if an archive already exists.
 
 ---
 

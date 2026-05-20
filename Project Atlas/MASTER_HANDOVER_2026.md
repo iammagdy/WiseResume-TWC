@@ -2,6 +2,89 @@
 
 ---
 
+## Session Summary — 2026-05-20 (AI Outage Fix + Smart Tech Suggestions + 3-Tier AI Enhancement Plan)
+
+### Overview
+Diagnosed and fixed a critical AI outage that took down all app AI features after a Windows redeploy. Implemented smart context-aware technology suggestions for the Projects section (clarifying questions + resume-aware output). Designed a full 3-tier AI enhancement plan covering every editor section — plan is approved and saved, ready for implementation by the next agent.
+
+### Fix 1 — AI Gateway down after Windows redeploy (CRITICAL)
+
+**Root cause:** `deploy_hubs.cjs` runs `npm install` locally before packaging. On Windows, `dd-trace` (a Datadog tracing package in `ai-gateway/package.json`) installs Windows-specific C++ native binaries (`.node` files). When archived and deployed to Linux Appwrite, `require('dd-trace')` at module startup failed to load the Windows binary → the entire `ai-gateway` function crashed on every invocation. This killed all AI features routed through the gateway: `agentic-chat`, `analyze-resume`, `score-resume`, `tailor-resume`, `generate-cover-letter`.
+
+**Fixes applied:**
+| File | Change |
+|---|---|
+| `appwrite-hubs/ai-gateway/package.json` | Removed `dd-trace: ^5.102.0` entirely |
+| `appwrite-hubs/ai-gateway/src/main.js` | Removed all 36 lines of `dd-trace` / `tracer` / `llmobs` code; replaced with no-op stubs |
+
+`DATADOG_API_KEY` was never configured in Appwrite — removing dd-trace has zero runtime impact.
+
+**Deployment required:** Both hubs redeployed. User confirmed via Appwrite dashboard — AI health badge green after redeploy.
+
+**Important deploy note:** `deploy_hubs.cjs` skips rebuilding if the `.tar.gz` already exists. Old stale archives must be deleted (`Remove-Item *.tar.gz`) before re-running the script, otherwise the broken Windows build gets reused.
+
+---
+
+### Fix 2 — resume-section-ai timeout mismatch
+
+**Root cause:** `callLLM` had `timeout: 55000` (55 s) but Appwrite function execution limit is 30 s. Any LLM call > 30 s was killed by Appwrite mid-request, returning an opaque error.
+
+**Fix:** `appwrite-hubs/resume-section-ai/src/main.js` — `callLLM` timeout `55000` → `10000`. This allows the provider pool to attempt multiple fallbacks within the 30 s budget.
+
+---
+
+### Feature — Smart Context-Aware Technology Suggestions (Projects section)
+
+**Problem:** "Suggest Technologies" generated the same generic output for every project, ignoring the project's actual description, URL, and the user's resume tech stack.
+
+**Changes:**
+| File | Change |
+|---|---|
+| `appwrite-hubs/resume-section-ai/src/main.js` | `SUGGEST_TECH_SYSTEM` prompt constant; `extractKnownStack(resume)` mines skills/experience/projects for up to 25 known technologies; `buildSuggestTechUserPrompt()` includes name, role, description, url, githubUrl, existing tech, known stack, Q&A answers; `buildSuggestTechMessages()` and `buildSuggestTechWithAnswersMessages()`; `buildSuggestTechQuestionsResponse()` returns 3 fixed questions (domain, purpose, platform); sparsity check: `desc.length >= 80 \|\| (desc.length >= 30 && role.length >= 5)` → skip questions if rich; `suggest_technologies_with_answers` action handler |
+| `src/components/editor/ProjectsSection.tsx` | `questionsAction` state; enriched payload includes `url`/`githubUrl`; `handleQuestionsSubmit` routes to `suggest_technologies_with_answers`; `handleQuestionsSkip` falls back to direct generate |
+| `src/hooks/useAIEnhance.ts` | `ActionType` union extended with `'suggest_technologies_with_answers'` |
+
+**Behaviour:**
+- Sparse context (short description, no role) → 3 clarifying questions dialog → answers sent with `suggest_technologies_with_answers` → tailored output
+- Rich context → generates directly without questions
+- Skip → best-effort direct generation
+
+---
+
+### Plan — 3-Tier AI Enhancement (approved, not yet implemented)
+
+**Plan file:** `Project Atlas/05-Migration to Appwrite/28-Plan-3Tier-AI-Enhancement.md`
+
+| Tier | Scope | Key changes |
+|---|---|---|
+| **1 — Context enrichment** | Backend only | Replace raw 1000-char JSON dump in `buildEnhanceMessages` with `buildResumeContextBlock()` — structured name/title/recent-role/top-skills/education block. All sections benefit immediately. |
+| **2 — Clarifying questions** | Backend + frontend | Question builders for summary (generate), skills (generate), experience (add_metrics). Generic `AIQuestionsDialog.tsx` replaces project-specific dialog. Wire questions flow into `SectionAIAction.tsx` and `ExperienceSection.tsx`. Fix ExperienceSection bug: jobDescription not passed to `enhance()`. |
+| **3 — JD-aware actions** | Backend + frontend | New actions: `tailor_to_job` (summary + experience), `find_skill_gaps` (skills, append-only), `suggest_certifications` (certifications). JD-gated in `InlineAIButton` — disabled with tooltip when no JD present. |
+
+**No code written yet for Tiers 1–3.** Plan is complete, approved, and stored in Atlas.
+
+**Files the next agent must touch (Tiers 1–3):**
+- `appwrite-hubs/resume-section-ai/src/main.js`
+- `src/hooks/useAIEnhance.ts`
+- `src/components/editor/SectionAIAction.tsx`
+- `src/components/editor/ExperienceSection.tsx`
+- `src/components/editor/InlineAIButton.tsx`
+- `src/components/editor/ai/AIQuestionsDialog.tsx` *(new)*
+- `src/components/editor/ai/ProjectAIQuestionsDialog.tsx` *(update to use new dialog)*
+
+---
+
+### Where We Stopped
+
+- **Committed to `main`:** AI gateway dd-trace fix + smart tech suggestions for Projects.
+- **Deployed:** User redeployed both hubs. AI health badge confirmed green.
+- **Plan saved:** `Project Atlas/05-Migration to Appwrite/28-Plan-3Tier-AI-Enhancement.md` — approved, not implemented.
+- **Not started:** Tiers 1, 2, 3 of the AI enhancement plan.
+- **Still pending from prior session:** RevenueCat Dashboard prerequisites (Web Billing app, Stripe connect, products/entitlements, webhook URL). `DEVKIT_PASSWORD` missing on `admin-deploy-hubs` function.
+- **Next agent:** Read the plan file, implement phases 1–8 in order, run `npx tsc --noEmit` after each phase, deploy `resume-section-ai` at the end (delete tar first).
+
+---
+
 ## Session Summary — 2026-05-20 (PDF Export + Auto-save + AI Controls)
 
 ### Overview
