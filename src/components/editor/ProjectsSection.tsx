@@ -156,24 +156,48 @@ export const ProjectsSection = memo(function ProjectsSection() {
   }, [enhance, enhancingProjectId, projects, currentResume]);
 
   const handleAIAction = useCallback(async (actionId: string, proj: Project) => {
+    // Pre-flight guard: both generate and suggest_technologies need at minimum
+    // a project name to produce useful output.
+    if ((actionId === 'generate' || actionId === 'suggest_technologies') && !proj.name.trim()) {
+      toast.error('Enter a project name first so AI knows what to work with.');
+      return;
+    }
+
+    // For suggest_technologies also require some description context; without it
+    // the AI has nothing to base technology suggestions on.
+    if (actionId === 'suggest_technologies' && !proj.description?.trim() && !proj.role?.trim()) {
+      toast.error('Add a short description or role so AI can suggest relevant technologies.');
+      return;
+    }
+
     setEnhancingProjectId(proj.id);
     setOriginalDescription(proj.description || '');
     setCurrentActionId(actionId);
 
-    const singleProject = {
-      id: proj.id,
-      name: proj.name,
-      role: proj.role,
-      startDate: proj.startDate,
-      endDate: proj.endDate,
-      description: proj.description,
-      technologies: proj.technologies,
-      url: proj.url,
-      githubUrl: proj.githubUrl,
-    };
+    // For suggest_technologies pass a focused payload (name + role + description
+    // + existing technologies) instead of the full project object, so the LLM
+    // receives a clean, targeted prompt without irrelevant fields.
+    const singleProject = actionId === 'suggest_technologies'
+      ? {
+          name: proj.name,
+          role: proj.role,
+          description: proj.description,
+          technologies: proj.technologies,
+        }
+      : {
+          id: proj.id,
+          name: proj.name,
+          role: proj.role,
+          startDate: proj.startDate,
+          endDate: proj.endDate,
+          description: proj.description,
+          technologies: proj.technologies,
+          url: proj.url,
+          githubUrl: proj.githubUrl,
+        };
 
     const resp = await enhance(
-      actionId as ActionType,
+      actionId as ActionType, // actionId comes from onAction callback, always a valid string
       singleProject,
       currentResume,
     );
@@ -435,6 +459,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                         <Label htmlFor={`proj-${proj.id}-tech-input`} className="text-sm">Technologies</Label>
                         <InlineAIButton
                           section="projects"
+                          fieldContext="technologies"
                           onAction={(actionId) => handleAIAction(actionId, proj)}
                           isLoading={isEnhancing && enhancingProjectId === proj.id}
                           isAuthenticated={isAuthenticated}
@@ -461,6 +486,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                         <Label htmlFor={`proj-${proj.id}-desc`} className="text-sm">Description</Label>
                         <InlineAIButton
                           section="projects"
+                          fieldContext="description"
                           onAction={(actionId) => handleAIAction(actionId, proj)}
                           isLoading={isEnhancing && enhancingProjectId === proj.id}
                           isAuthenticated={isAuthenticated}

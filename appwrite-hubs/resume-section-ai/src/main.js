@@ -118,6 +118,62 @@ ${currentContentDisplay}`;
   ];
 }
 
+function buildSuggestTechMessages(currentContent, context) {
+  const name = (currentContent && currentContent.name) || '';
+  const role = (currentContent && currentContent.role) || '';
+  const description = (currentContent && currentContent.description) || '';
+  const existing = Array.isArray(currentContent && currentContent.technologies) ? currentContent.technologies : [];
+
+  const systemPrompt = `You are an expert software engineer and resume writer. Given a project's details, suggest relevant technologies and tools that would realistically be used for this type of project.
+
+Return ONLY a valid JSON array of strings — no markdown fences, no explanation, no extra text:
+["Technology1", "Technology2", "Technology3"]
+
+Rules:
+- Return 5-10 suggestions maximum
+- Only suggest technologies directly relevant to the project type and description
+- Do NOT include technologies already listed in the existing stack
+- Use standard, recognizable names (e.g. "React" not "ReactJS", "Node.js" not "NodeJS", "PostgreSQL" not "Postgres")
+- Focus on concrete tools and frameworks — not broad categories like "databases" or "web frameworks"`;
+
+  let userPrompt = `Project: ${name}`;
+  if (role) userPrompt += `\nRole: ${role}`;
+  if (description) userPrompt += `\nDescription: ${description}`;
+  if (existing.length > 0) userPrompt += `\nAlready using: ${existing.join(', ')}`;
+
+  const jobDescription = context?.jobDescription;
+  if (jobDescription) {
+    userPrompt += `\nTarget job description (for context): ${jobDescription.slice(0, 800)}`;
+  }
+
+  userPrompt += '\n\nSuggest additional relevant technologies as a JSON array of strings:';
+
+  return [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ];
+}
+
+function parseSuggestTechResponse(rawContent) {
+  try {
+    const trimmed = rawContent.trim();
+    if (trimmed.startsWith('[')) {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr)) {
+        return { improved: arr.filter(t => typeof t === 'string'), changes: [], suggestions: [] };
+      }
+    }
+    const match = rawContent.match(/\[[\s\S]*?\]/);
+    if (match) {
+      const arr = JSON.parse(match[0]);
+      if (Array.isArray(arr)) {
+        return { improved: arr.filter(t => typeof t === 'string'), changes: [], suggestions: [] };
+      }
+    }
+  } catch (_) { /* fall through */ }
+  return { improved: [], changes: [], suggestions: ['Could not parse technology suggestions'] };
+}
+
 function buildFillGapMessages(body) {
   const { gap, category, userDescription } = body;
   const systemPrompt = `You are a professional resume writer helping someone fill an employment gap on their resume.
@@ -230,6 +286,12 @@ module.exports = async ({ req, res, log, error }) => {
   try {
     // ── Route to action handler ────────────────────────────────────────────────
     if (aiAction === 'enhance') {
+      if (action === 'suggest_technologies') {
+        const messages = buildSuggestTechMessages(currentContent, context);
+        const rawContent = await callLLM(messages, pool);
+        const result = parseSuggestTechResponse(rawContent);
+        return res.json(result);
+      }
       const messages = buildEnhanceMessages(section, action, currentContent, context);
       const rawContent = await callLLM(messages, pool);
       const result = parseEnhanceResponse(rawContent, currentContent);
