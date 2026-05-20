@@ -80,10 +80,9 @@ async function deployFunction(id, name, filePath) {
     const absPath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
     console.log(`\nDeploying ${name} (${id})...`);
 
-    if (!fs.existsSync(absPath)) {
-        console.log(`  Archive not found, building...`);
-        buildHub(id, filePath);
-    }
+    // Always rebuild from source — never reuse a stale archive.
+    // Reusing old tars caused silent deploys of outdated code.
+    buildHub(id, filePath);
 
     try {
         await ensureFunction(id, name, HUB_TIMEOUTS[id] ?? DEFAULT_TIMEOUT);
