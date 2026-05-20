@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-05-20 — Fix: AI Gateway + Resume Section AI Down After Windows Redeploy
+
+### Root Cause
+Running `deploy_hubs.cjs` on Windows compiled `dd-trace`'s native C++ binaries for Windows and bundled them in the `ai-gateway` tar. Appwrite runs on Linux — the Windows `.node` files failed to load at module startup, marking every `ai-gateway` execution as `failed`. This silently killed all AI features routed through the gateway (`agentic-chat`, `analyze-resume`, `tailor-resume`, cover letter generation, etc.).
+
+`resume-section-ai` had a separate latent bug: `callLLM` timeout was 55 000 ms but the Appwrite function execution limit is 30 s. Any LLM call slower than 30 s was killed by Appwrite mid-request.
+
+### Fixes
+- **`appwrite-hubs/ai-gateway/package.json`** — removed `dd-trace` dependency. Datadog LLM observability was best-effort and `DATADOG_API_KEY` was never configured; removing it has zero runtime impact.
+- **`appwrite-hubs/ai-gateway/src/main.js`** — removed all `dd-trace` / `tracer` / `llmobs` code (36 lines).
+- **`appwrite-hubs/resume-section-ai/src/main.js`** — reduced `callLLM` per-call timeout from 55 000 ms → 10 000 ms, matching `ai-gateway`'s fail-fast approach and keeping the total within the 30 s function budget.
+
+### Deployment Required
+Both `ai-gateway` and `resume-section-ai` must be redeployed:
+```
+APPWRITE_API_KEY=<key> node scripts/deploy_hubs.cjs
+```
+
+---
+
 ## 2026-05-20 — RevenueCat Web + Mobile Payments Integration
 
 ### Summary

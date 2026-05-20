@@ -5,7 +5,6 @@
   "main": "src/main.js",
   "dependencies": {
     "axios": "^1.4.0",
-    "dd-trace": "^5.102.0",
     "node-appwrite": "^17.2.0"
   }
 }
