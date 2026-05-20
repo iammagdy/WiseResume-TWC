@@ -2,6 +2,85 @@
 
 ---
 
+## Session Summary — 2026-05-20 (PDF Export + Auto-save + AI Controls)
+
+### Overview
+Fixed three live production bugs (PDF export showing "Export failed", auto-save toast spam, chunk-load errors causing blank screens after deploy). Added a Vercel serverless function so PDF export actually works on the live domain. Fixed the broken "Suggest Technologies" AI action end-to-end. Split the Projects section AI button menus by field context.
+
+### Fixes
+
+#### 1 — PDF "Export Failed" on live domain
+**Root cause:** `callPdfServer` in `src/lib/nativePdfGenerator.ts` POSTs to `/api/export/pdf-native`. Hostinger (static-only host) returns `405 Method Not Allowed` with an HTML body. The `!response.ok` block tried to parse JSON, failed silently, then threw `Error("Server error 405")` — no `.code` property, so `EditorPage.tsx` fell through to the generic "Export failed" toast instead of the proper "PDF export is not available" message.
+
+**Fix:** Added a content-type check in the `!response.ok` block before JSON parsing. Any non-`application/json` error response → `throw new PDFServerUnavailableError()`. File: `src/lib/nativePdfGenerator.ts`.
+
+#### 2 — PDF export never works in production (no server deployed)
+**Root cause:** `server/index.ts` (Express + Puppeteer) only ran locally. Hostinger is static-only and was never going to serve it. No production PDF infrastructure existed.
+
+**Fix:** Created `api/export/pdf-native.ts` — a Vercel serverless function that is an exact port of the Express endpoint. Uses `puppeteer-core` + `@sparticuz/chromium` (serverless-compatible Chromium). Imports pure calculation helpers from `src/lib/exportPagePlan` (no browser deps). Config: `maxDuration: 60`, `bodyParser.sizeLimit: '10mb'`. Same page segmentation, footer/branding, one-page mode logic as the Express version.
+
+Changed `vercel.json` SPA rewrite from `/(.*) → /index.html` to `/((?!api/).*) → /index.html` so `/api/*` routes reach the serverless function instead of SPA fallback.
+
+Added to `package.json`: `puppeteer-core ^25.0.4`, `@sparticuz/chromium ^148.0.0`, `@vercel/node ^5.8.3`.
+
+#### 3 — Auto-save toast spam
+**Root cause:** `toast.warning` in `src/hooks/useEditorAutosave.ts` had no `id`, so every failed save produced a new stacked toast.
+
+**Fix:** Added `{ id: 'autosave-fail' }` to the `toast.warning` call. Sonner deduplicates by id.
+
+#### 4 — Chunk load errors causing blank screen after deploy
+**Root cause:** `lazyWithRetry` retried the same stale chunk URL 3 times (~7 seconds total) before triggering a page reload. During that time the user sees a blank/broken screen.
+
+**Fix:** Changed `lazyWithRetry` in `src/lib/lazyWithRetry.ts` to call `attemptSilentReload` immediately on the first `ChunkLoadError`, then return `new Promise<T>(() => {})` (never resolves) so the UI freezes cleanly while the browser reloads.
+
+#### 5 — "Suggest Technologies" broken end-to-end
+**Root cause (3 failure points):**
+1. `ACTION_INSTRUCTIONS['suggest_technologies']` did not exist in `appwrite-hubs/resume-section-ai/src/main.js` → fell back to `improve` → LLM returned a rewritten project object, not a tech array
+2. `getImprovedDescription()` in `ProjectsSection.tsx` read `improved.description` from the object → dialog showed a paragraph of text, not technology names
+3. `handleDialogApply` for `suggest_technologies` did `Array.isArray(payload)` check → false → no technologies appended
+
+**Fix:**
+- Backend: Added `buildSuggestTechMessages` (constructs a focused prompt: project name, role, description, existing tech, optional JD) and `parseSuggestTechResponse` (parses raw JSON array) in `appwrite-hubs/resume-section-ai/src/main.js`. Added routing branch: `if (action === 'suggest_technologies') { ... }` inside the `enhance` handler.
+- Frontend pre-flight guards in `ProjectsSection.tsx`: block action if `project.name` is empty (for `generate` and `suggest_technologies`); additionally block `suggest_technologies` if neither `description` nor `role` are present.
+- Focused `currentContent` payload for `suggest_technologies`: `{ name, role, description, technologies }` instead of full project object.
+
+#### 6 — AI button menus same on both Projects fields (confusing IA)
+**Fix:** Split `sectionActions['projects']` into `projectsDescActions` (Generate Description, Improve, Shorten) and `projectsTechActions` (Suggest Technologies only). Added `fieldContext?: 'technologies' | 'description'` prop to `InlineAIButton`. Pass `fieldContext="technologies"` to the Technologies field button and `fieldContext="description"` to the Description field button in `ProjectsSection.tsx`. Changed `sectionButtonLabels['projects']` from `'Improve Projects'` to `'AI Assist'`.
+
+#### 7 — TypeScript `ActionType` gap
+**Fix:** Added `'suggest_technologies'` and `'generate_with_answers'` to the `ActionType` union in `src/hooks/useAIEnhance.ts`. Removed the `as ActionType` cast workaround in `ProjectsSection.tsx`.
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `src/lib/nativePdfGenerator.ts` | Content-type check in `!response.ok` → throw `PDFServerUnavailableError` for non-JSON errors |
+| `api/export/pdf-native.ts` | NEW — Vercel serverless PDF function (puppeteer-core + @sparticuz/chromium) |
+| `vercel.json` | SPA rewrite excludes `/api/*` |
+| `package.json` | Added `puppeteer-core`, `@sparticuz/chromium`, `@vercel/node` |
+| `src/hooks/useEditorAutosave.ts` | `{ id: 'autosave-fail' }` on toast |
+| `src/lib/lazyWithRetry.ts` | Immediate reload on first ChunkLoadError |
+| `appwrite-hubs/resume-section-ai/src/main.js` | `buildSuggestTechMessages`, `parseSuggestTechResponse`, routing branch for `suggest_technologies` |
+| `src/components/editor/InlineAIButton.tsx` | `fieldContext` prop, split project action arrays, label → `'AI Assist'` |
+| `src/components/editor/ProjectsSection.tsx` | Pre-flight guards, focused payload, `fieldContext` passed to buttons |
+| `src/hooks/useAIEnhance.ts` | `ActionType` extended with `suggest_technologies`, `generate_with_answers` |
+
+### Deployment Notes
+- All code changes are merged to `main` on GitHub.
+- **Redeploy `resume-section-ai` Appwrite Function** is required for the `suggest_technologies` fix to take effect. Previous user-deployed version was from the old folder without the fix.
+- **Verify `resume.thewise.cloud` points to Vercel** (not Hostinger directly) for the serverless PDF function to be reachable.
+- GitHub Actions minutes were exhausted during this session — manual deploy via `APPWRITE_API_KEY=<key> node scripts/deploy_hubs.cjs` is the fallback.
+
+### Security Note
+The Appwrite API key was exposed in plain text during this session. **Rotate it immediately** in Appwrite Console → API Keys.
+
+### Where We Stopped
+- All code merged to `main`. TypeScript clean (`npm exec tsc -- --noEmit`).
+- Appwrite `resume-section-ai` function NOT yet redeployed with the `suggest_technologies` fix.
+- PDF export on live domain will work once Vercel is serving `resume.thewise.cloud` — confirm in Vercel dashboard that the domain is connected and a deployment is active.
+- RevenueCat integration (previous session) still has prerequisites pending in RC Dashboard (see session below).
+
+---
+
 ## Session Summary — 2026-05-20 (RevenueCat Payment Integration)
 
 ### Overview
