@@ -11,10 +11,33 @@
 
 ---
 
+## 2026-05-20 - PDF export restored to selectable text and clickable links
+
+### Summary
+Replaced the resume PDF export path with the server-side Chromium renderer again so generated PDFs preserve selectable text and clickable hyperlinks instead of embedding screenshots.
+
+### What changed
+- `src/lib/nativePdfGenerator.ts` now serializes the resume DOM and sends HTML to `/api/export/pdf-native` for Chromium/Puppeteer rendering.
+- Removed the resume PDF screenshot/canvas assembly path from `generateNativePDF`; `pdf-lib` remains only for cover-letter generation and merging existing PDFs.
+- Restored server response guards so HTML fallbacks or unavailable PDF services do not download fake `.pdf` files.
+- Added `NativePdfOptions` export alias for callers that already import that type.
+- Updated `src/lib/nativePdfGenerator.test.ts` to assert that HTML, links, page-break data, and branding options are sent to the PDF endpoint.
+
+### Why
+The verified root cause of non-clickable, non-selectable PDFs was architectural: the client-side html2canvas route captures the resume as an image, then inserts that image into a PDF. Even when it is not blank, that output cannot preserve real text or link annotations. Chromium's HTML-to-PDF renderer is the correct path because it prints the actual DOM.
+
+### Verification
+- `npx vitest run src/lib/nativePdfGenerator.test.ts`
+- `npx tsc --noEmit`
+- Local `/api/export/pdf-native` probe with PDF.js: extracted text included `WiseResume Link Test` and annotations included `https://github.com/example`.
+- `npm run build`
+
+---
+
 ## 2026-05-20 - PDF export blank page fix
 
 ### Summary
-Fixed PDF exports producing blank white pages after the client-side PDF generator captured a hidden off-screen clone.
+Superseded by the selectable-text PDF fix above. The earlier client-side screenshot path was corrected for blank captures, but the approach itself was rejected because it cannot preserve text or clickable links.
 
 ### What changed
 - Added `createPdfCaptureContainer()` in `src/lib/exportDomUtils.ts` so export captures use an off-screen but still rendered host.

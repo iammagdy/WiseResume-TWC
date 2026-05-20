@@ -2,10 +2,37 @@
 
 ---
 
+## Session Summary - 2026-05-20 (PDF Export: Selectable Text + Clickable Links)
+
+### Overview
+Corrected the PDF export approach after confirming the prior client-side canvas fix still produced image-only PDFs. Resume PDF export now routes through the real server-side Chromium/Puppeteer renderer again, preserving selectable text and clickable links.
+
+### Root cause
+The immediate blank-page issue was caused by `visibility:hidden`, but the deeper defect was the architecture introduced in commit `18444dbf`: `generateNativePDF()` captured the resume with `html2canvas` and assembled image slices with `pdf-lib`. That can never produce a proper resume PDF because the text becomes pixels and links become non-clickable.
+
+### Fix
+| File | Change |
+|---|---|
+| `src/lib/nativePdfGenerator.ts` | Restored HTML serialization and `/api/export/pdf-native` server call. Removed the resume screenshot/canvas PDF path. Preserved server response guards for non-PDF/HTML fallback responses. Added `NativePdfOptions` alias. |
+| `src/lib/nativePdfGenerator.test.ts` | Tests now assert that export sends serialized HTML with live links and page-break metadata to the PDF endpoint, plus rejects non-PDF success responses. |
+| `src/lib/exportDomUtils.ts` | Removed the screenshot-only capture container helper; not needed for real PDF export. |
+
+### Verification
+- `npx vitest run src/lib/nativePdfGenerator.test.ts` - passed.
+- `npx tsc --noEmit` - passed.
+- Local PDF server probe: posted HTML with text and `https://github.com/example`; PDF.js extracted the text layer and returned the link annotation.
+- `npm run build` - passed.
+
+### Deployment Notes
+- Frontend change plus existing `/api/export/pdf-native` backend route. No Appwrite hub redeploy required.
+- Production must have a working `/api/export/pdf-native` route or `VITE_API_URL` pointing to the deployed PDF renderer; otherwise the app will correctly show PDF server unavailable instead of producing image-only PDFs.
+
+---
+
 ## Session Summary - 2026-05-20 (PDF Export Blank Page Fix)
 
 ### Overview
-Diagnosed and fixed PDF exports that either failed or downloaded as blank white pages. The active PDF path is the client-side `html2canvas` + `pdf-lib` generator in `src/lib/nativePdfGenerator.ts`, not the older Vercel Puppeteer endpoint.
+Superseded by the selectable-text PDF fix above. This session fixed the blank canvas symptom in the client-side screenshot path, but that path has now been removed for resume PDF export because it cannot preserve selectable text or clickable links.
 
 ### Root cause
 `captureTemplateCanvas()` cloned the visible resume into an off-screen container, but the container used `visibility:hidden`. `html2canvas` respects hidden ancestors, so the clone measured correctly but rendered as a white canvas. That white canvas was then embedded into the generated PDF, producing blank white pages.
