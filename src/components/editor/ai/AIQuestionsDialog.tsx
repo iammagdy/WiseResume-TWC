@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,12 @@ export function AIQuestionsDialog({
 }: AIQuestionsDialogProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
+  // Reset answers each time the dialog opens so stale answers from a
+  // previous session don't pre-populate the next set of questions.
+  useEffect(() => {
+    if (isOpen) setAnswers({});
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = () => {
@@ -34,7 +40,7 @@ export function AIQuestionsDialog({
 
   return (
     <div
-      className="fixed inset-0 z-ai-dialog flex items-end sm:items-center justify-center bg-background backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
+      className="fixed inset-0 z-ai-dialog flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
       onClick={onClose}
     >
       <div

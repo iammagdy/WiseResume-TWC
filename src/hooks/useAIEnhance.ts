@@ -206,6 +206,13 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         return null;
       }
 
+      // Control message (clarifying questions) — pass directly to caller.
+      // Do NOT store in result; storing it would open AIEnhanceDialog on top
+      // of the questions dialog since AIEnhanceDialog is gated on `!!result`.
+      if (data && typeof data === 'object' && (data as Record<string, unknown>).type === 'questions') {
+        return data;
+      }
+
       setResult(data);
       return data;
 

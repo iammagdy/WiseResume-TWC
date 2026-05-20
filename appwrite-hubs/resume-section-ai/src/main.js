@@ -299,6 +299,7 @@ function buildSuggestTechQuestionsResponse() {
 }
 
 function parseSuggestTechResponse(rawContent) {
+  // 1. Direct JSON array (LLM followed instructions exactly)
   try {
     const trimmed = rawContent.trim();
     if (trimmed.startsWith('[')) {
@@ -307,14 +308,51 @@ function parseSuggestTechResponse(rawContent) {
         return { improved: arr.filter(t => typeof t === 'string'), changes: [], suggestions: [] };
       }
     }
-    const match = rawContent.match(/\[[\s\S]*?\]/);
-    if (match) {
-      const arr = JSON.parse(match[0]);
-      if (Array.isArray(arr)) {
-        return { improved: arr.filter(t => typeof t === 'string'), changes: [], suggestions: [] };
-      }
-    }
   } catch (_) { /* fall through */ }
+
+  // 2. Markdown code fence extraction (```json [...] ```)
+  const fenceMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) {
+    try {
+      const inner = fenceMatch[1].trim();
+      if (inner.startsWith('[')) {
+        const arr = JSON.parse(inner);
+        if (Array.isArray(arr)) {
+          return { improved: arr.filter(t => typeof t === 'string'), changes: [], suggestions: [] };
+        }
+      }
+    } catch (_) { /* fall through */ }
+  }
+
+  // 3. Walk the string finding ALL bracket-balanced JSON arrays; pick the
+  //    largest valid one. This handles LLMs that add prose before/after the
+  //    array or emit multiple small arrays — we want the richest result.
+  let best = [];
+  let startIdx = 0;
+  while (startIdx < rawContent.length) {
+    const idx = rawContent.indexOf('[', startIdx);
+    if (idx === -1) break;
+    // Walk forward tracking bracket depth to find the matching ]
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = idx; i < rawContent.length; i++) {
+      if (rawContent[i] === '[') depth++;
+      else if (rawContent[i] === ']') { depth--; if (depth === 0) { endIdx = i; break; } }
+    }
+    if (endIdx === -1) break;
+    try {
+      const candidate = rawContent.slice(idx, endIdx + 1);
+      const arr = JSON.parse(candidate);
+      if (Array.isArray(arr) && arr.filter(t => typeof t === 'string').length > best.length) {
+        best = arr.filter(t => typeof t === 'string');
+      }
+    } catch (_) { /* not valid JSON, skip */ }
+    startIdx = idx + 1;
+  }
+  if (best.length > 0) {
+    return { improved: best, changes: [], suggestions: [] };
+  }
+
   return { improved: [], changes: [], suggestions: ['Could not parse technology suggestions'] };
 }
 
