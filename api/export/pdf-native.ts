@@ -10,6 +10,13 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import {
+  buildExportPageSegments,
+  normalizeBreakPositions,
+  scaleBreakPositionsToMeasuredHeight,
+  snapBreakPositionsToSectionHeadings,
+  type ExportSectionBounds,
+} from '../../src/lib/exportPagePlan';
 // @sparticuz/chromium v120+ is ESM-only. Vercel's ncc bundler outputs CJS, so a
 // static import would cause ERR_MODULE_NOT_FOUND at runtime. Dynamic import()
 // makes ncc treat it as external — Node.js loads it as ESM from node_modules.
@@ -22,14 +29,6 @@ let _puppeteer: any;
 let _chromium: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _pdfLib: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _pagePlan: any;
-
-interface ExportSectionBounds {
-  top: number;
-  bottom: number;
-  headingTop: number;
-}
 
 export const config = {
   api: {
@@ -68,13 +67,6 @@ async function loadPdfLib() {
     _pdfLib = await importExternalModule<typeof import('pdf-lib')>('pdf-lib');
   }
   return _pdfLib;
-}
-
-async function loadPagePlan() {
-  if (!_pagePlan) {
-    _pagePlan = await import('../../src/lib/exportPagePlan');
-  }
-  return _pagePlan as typeof import('../../src/lib/exportPagePlan');
 }
 
 // ── HTML helpers ──────────────────────────────────────────────────────────────
@@ -340,12 +332,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await page.close();
       }
     } else {
-      const {
-        buildExportPageSegments,
-        normalizeBreakPositions,
-        scaleBreakPositionsToMeasuredHeight,
-        snapBreakPositionsToSectionHeadings,
-      } = await loadPagePlan();
       const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
       const printableHeight = dims.heightPx - footerHeight;
       const layout = await measureExportLayout(browser, html, dims.widthPx);

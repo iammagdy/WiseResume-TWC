@@ -19,6 +19,7 @@ Local reproduction with Vercel's bundler confirmed the exact cause: `@sparticuz/
 |---|---|
 | `api/export/pdf-native.ts` | Added `importExternalModule()` using an indirect dynamic `import()` so `@sparticuz/chromium` remains external and resolves from its package directory. Kept `puppeteer-core` lazy-loaded after request validation. |
 | `api/export/pdf-native.ts` | Moved `pdf-lib` and export page-planning helpers out of top-level imports and into lazy imports inside the valid PDF render path, minimizing the startup code that can crash before normal `405`/`400` responses. |
+| `api/export/pdf-native.ts` | Follow-up production verification showed startup was fixed but Vercel could not resolve the lazy local `../../src/lib/exportPagePlan` import in the render path. Restored the page-planning helper as a static local import so Vercel bundles it correctly; external packages remain lazy. |
 
 `vercel.json` already includes `node_modules/@sparticuz/chromium/**`, so the external package files should be shipped with the function.
 
@@ -28,6 +29,7 @@ Local reproduction with Vercel's bundler confirmed the exact cause: `@sparticuz/
 - Imported the bundle locally: `GET` returned `405`; malformed `POST` returned `400`, proving startup/request validation no longer crashes.
 - Valid bundled POST progressed past Chromium package resolution; local Windows then failed at browser launch, which is expected because `@sparticuz/chromium` is a Linux serverless Chromium package. The earlier missing `bin` directory error was gone.
 - Rebuilt the Vercel-style bundle after the additional startup hardening; `GET`/malformed `POST` still returned `405`/`400`, and valid render still reached only the expected local Windows Chromium launch limitation.
+- Live after deploy: `GET /api/export/pdf-native` returned `405` JSON instead of `FUNCTION_INVOCATION_FAILED`; minimal `POST` then exposed the second-stage lazy local import resolution error, now addressed by the static local import.
 - `npx tsc --noEmit` - passed.
 - `npm run build` - passed.
 
