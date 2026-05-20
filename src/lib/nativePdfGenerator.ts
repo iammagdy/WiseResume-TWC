@@ -183,6 +183,12 @@ async function callPdfServer(
   }
 
   if (!response.ok) {
+    // Non-JSON error response → static host / proxy returning HTML, not our PDF server.
+    // Treat any 4xx/5xx that isn't application/json as "server not deployed".
+    const errContentType = response.headers.get('content-type') ?? '';
+    if (!errContentType.includes('application/json')) {
+      throw new PDFServerUnavailableError();
+    }
     let msg = `Server error ${response.status}`;
     try {
       const j = await response.json();

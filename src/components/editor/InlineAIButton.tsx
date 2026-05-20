@@ -68,6 +68,17 @@ const sectionActions: Record<SectionType, AIActionConfig[]> = {
   ],
 };
 
+// Field-specific action sets for the Projects section, selected via fieldContext prop.
+const projectsDescActions: AIActionConfig[] = [
+  { id: 'generate', label: 'Generate Description', icon: <Wand2 className="w-4 h-4" />, description: 'Create a compelling project description' },
+  { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" />, description: 'Strengthen the technical narrative' },
+  { id: 'shorten', label: 'Shorten', icon: <Minimize2 className="w-4 h-4" />, description: 'Condense without losing key points' },
+];
+
+const projectsTechActions: AIActionConfig[] = [
+  { id: 'suggest_technologies', label: 'Suggest Technologies', icon: <Plus className="w-4 h-4" />, description: 'Recommend relevant tech stack' },
+];
+
 interface InlineAIButtonProps {
   section: SectionType;
   onAction: (actionId: string) => void;
@@ -76,6 +87,7 @@ interface InlineAIButtonProps {
   isAuthenticated?: boolean;
   onLockedClick?: () => void;
   hasContent?: boolean;
+  fieldContext?: 'technologies' | 'description';
 }
 
 const experienceEmptyActions: AIActionConfig[] = [
@@ -89,7 +101,7 @@ const sectionButtonLabels: Record<SectionType, string> = {
   education: 'Improve Education',
   contact: 'Format & Check',
   awards: 'Improve Awards',
-  projects: 'Improve Projects',
+  projects: 'AI Assist',
   publications: 'Improve Publications',
   volunteering: 'Improve Volunteering',
   certifications: 'Suggest Certifications',
@@ -104,11 +116,22 @@ export const InlineAIButton = memo(function InlineAIButton({
   isAuthenticated = true,
   onLockedClick,
   hasContent = true,
+  fieldContext,
 }: InlineAIButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
   const isMobile = useIsMobile();
-  const actions = (section === 'experience' && !hasContent) ? experienceEmptyActions : sectionActions[section];
+
+  let actions: AIActionConfig[];
+  if (section === 'experience' && !hasContent) {
+    actions = experienceEmptyActions;
+  } else if (section === 'projects' && fieldContext === 'technologies') {
+    actions = projectsTechActions;
+  } else if (section === 'projects' && fieldContext === 'description') {
+    actions = projectsDescActions;
+  } else {
+    actions = sectionActions[section];
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setShowPulse(false), 2000);
