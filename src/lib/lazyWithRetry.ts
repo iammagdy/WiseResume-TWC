@@ -48,10 +48,15 @@ function retryImport<T>(factory: () => Promise<T>, retries = 3, delay = 1000): P
   return factory().then(
     (mod) => { clearReloadGuardOnSuccess(); return mod; },
   ).catch((err) => {
-    if (retries <= 0) {
+    // Chunk 404 (stale hash after a new deploy) cannot be fixed by retrying —
+    // the old file is gone. Reload immediately on the first attempt so the
+    // user gets the fresh HTML + new chunk hashes without waiting 7+ seconds.
+    if (isChunkLoadError(err)) {
       if (attemptSilentReload(err)) {
         return new Promise<T>(() => {});
       }
+    }
+    if (retries <= 0) {
       throw err;
     }
     return new Promise<T>((resolve, reject) => {
