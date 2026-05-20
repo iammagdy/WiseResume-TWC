@@ -504,6 +504,68 @@ function schemaPrompt(featureName, opts) {
   return schemas[featureName] || '{}';
 }
 
+/**
+ * Parse raw LLM output from agentic-chat into a structured response.
+ * Tries: direct JSON → markdown fence → brace-depth walker → text fallback.
+ */
+function parseAgenticChatResponse(rawContent) {
+  if (typeof rawContent !== 'string' || !rawContent.trim()) {
+    return { type: 'text', content: 'I could not generate a response. Please try again.' };
+  }
+
+  function isValidAgenticResponse(parsed) {
+    return parsed && typeof parsed === 'object' && typeof parsed.type === 'string' &&
+      ['text', 'function_call', 'suggestion'].includes(parsed.type);
+  }
+
+  // 1. Direct JSON parse
+  try {
+    const trimmed = rawContent.trim();
+    if (trimmed.startsWith('{')) {
+      const parsed = JSON.parse(trimmed);
+      if (isValidAgenticResponse(parsed)) return parsed;
+    }
+  } catch (_) {}
+
+  // 2. Markdown code fence
+  const fenceMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) {
+    try {
+      const inner = fenceMatch[1].trim();
+      if (inner.startsWith('{')) {
+        const parsed = JSON.parse(inner);
+        if (isValidAgenticResponse(parsed)) return parsed;
+      }
+    } catch (_) {}
+  }
+
+  // 3. Brace-depth walker — find first valid JSON object anywhere in text
+  let startIdx = 0;
+  while (startIdx < rawContent.length) {
+    const idx = rawContent.indexOf('{', startIdx);
+    if (idx === -1) break;
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = idx; i < rawContent.length; i++) {
+      if (rawContent[i] === '{') depth++;
+      else if (rawContent[i] === '}') {
+        depth--;
+        if (depth === 0) { endIdx = i; break; }
+      }
+    }
+    if (endIdx === -1) break;
+    try {
+      const candidate = rawContent.slice(idx, endIdx + 1);
+      const parsed = JSON.parse(candidate);
+      if (isValidAgenticResponse(parsed)) return parsed;
+    } catch (_) {}
+    startIdx = idx + 1;
+  }
+
+  // 4. Fallback — treat entire output as plain text
+  return { type: 'text', content: rawContent };
+}
+
 function buildMessages(featureName, opts) {
   if (featureName === 'parse-resume') {
     const text = asString(opts.text);
@@ -582,19 +644,105 @@ function buildMessages(featureName, opts) {
 
   if (featureName === 'agentic-chat') {
     const history = Array.isArray(opts.conversationHistory) ? opts.conversationHistory : [];
-    const resumeContext = opts.currentResume
-      ? '\n\nUser\'s current resume (summary):\n' + JSON.stringify(opts.currentResume).slice(0, 4000)
-      : '';
-    const systemPrompt =
-      'You are WiseAI, WiseResume\'s intelligent career assistant. ' +
-      'You help users with their resumes, job applications, cover letters, ' +
-      'career decisions, and interview preparation. ' +
-      'Be concise, practical, and encouraging.' +
-      resumeContext;
+    const userMessage = opts.message || '';
+    const functionResponse = opts.functionResponse || null;
+
+    // Detect Arabic in the user's message for language-adaptive replies
+    const hasArabic = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/.test(userMessage);
+    const languageRule = hasArabic
+      ? 'LANGUAGE: The user wrote in Arabic. All JSON "content" and "message" values MUST be in Arabic.'
+      : 'LANGUAGE: Respond in the same language the user used. Arabic → Arabic, English → English.';
+
+    // Build a concise, structured resume profile — NOT a raw JSON dump
+    let resumeBlock = '';
+    if (opts.currentResume) {
+      const r = opts.currentResume;
+      const name      = (r.contactInfo?.fullName || r.contactInfo?.name || '').trim();
+      const title     = (r.contactInfo?.title || r.contactInfo?.headline || '').trim();
+      const location  = (r.contactInfo?.location || '').trim();
+      const recentExp = Array.isArray(r.experience) && r.experience.length > 0
+        ? `${r.experience[0].position || r.experience[0].title || ''} at ${r.experience[0].company || ''}`.trim()
+        : '';
+      const expCount  = Array.isArray(r.experience) ? r.experience.length : 0;
+      const topSkills = Array.isArray(r.skills)
+        ? r.skills.slice(0, 15).map(s => (typeof s === 'string' ? s : (s && s.name) || '')).filter(Boolean).join(', ')
+        : '';
+      const edu       = Array.isArray(r.education) && r.education.length > 0
+        ? [r.education[0].degree, r.education[0].field, r.education[0].institution || r.education[0].school]
+            .filter(Boolean).join(' — ')
+        : '';
+      const summary   = typeof r.summary === 'string' ? r.summary.slice(0, 400) : '';
+      const projCount = Array.isArray(r.projects) ? r.projects.length : 0;
+      const certCount = Array.isArray(r.certifications) ? r.certifications.length : 0;
+
+      const lines = [
+        name      && `Candidate name: ${name}`,
+        title     && `Current title / target role: ${title}`,
+        location  && `Location: ${location}`,
+        recentExp && `Most recent role: ${recentExp}`,
+        expCount  && `Total experience entries: ${expCount}`,
+        topSkills && `Core skills: ${topSkills}`,
+        edu       && `Education: ${edu}`,
+        projCount && `Projects: ${projCount} listed`,
+        certCount && `Certifications: ${certCount} listed`,
+        summary   && `Professional summary: ${summary}${r.summary.length > 400 ? '…' : ''}`,
+      ].filter(Boolean);
+
+      if (lines.length > 0) {
+        resumeBlock = `\n\n=== CANDIDATE'S RESUME (active context) ===\n${lines.join('\n')}\n=== END RESUME ===`;
+      }
+    }
+
+    const systemPrompt = `You are WiseAI, the AI career assistant built into WiseResume.
+
+ROLE: Expert career coach, resume strategist, and job-search advisor. Concise, direct, always tied to the user's specific resume — never generic.
+
+${languageRule}
+
+RESPONSE FORMAT — MANDATORY:
+You MUST always respond with a single valid JSON object. No text outside the JSON. Use EXACTLY ONE of these three formats:
+
+1. Text reply (advice, questions, explanations, interview prep):
+{"type":"text","content":"your response in ≤300 words"}
+
+2. Apply a resume change immediately (non-destructive additions):
+{"type":"function_call","functionName":"<name>","args":{<args>},"message":"brief confirmation shown to user"}
+
+3. Propose edits for the user to review before applying (rewrites of existing content):
+{"type":"suggestion","proposals":[{"section":"summary","original":"old text","suggested":"new improved text","explanation":"why this is better"}],"message":"intro sentence for the user"}
+
+AVAILABLE FUNCTIONS — only call when user explicitly asks to update their resume:
+- add_skills: {"skills":["Skill1","Skill2"]} — appends new skills (safe, use this freely)
+- update_skills: {"skills":["Skill1","Skill2",...]} — replaces full skills list (requires full list)
+- update_contact: {"fullName":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":""} — include only the fields to update
+- add_experience: {"company":"","position":"","startDate":"","endDate":"","current":false,"description":""}
+- add_project: {"name":"","description":"","technologies":[],"role":"","url":""}
+- proofread_and_fix: {"section":"summary","corrections":[{"original":"old","corrected":"new","reason":"why"}]}
+- update_summary: {"summary":"full new summary text"} — only via suggestion type so user can review
+- open_job_tracker: {} — opens the job tracker panel
+
+DECISION RULES:
+- "suggestion" type → rewriting existing summary, bullets, or skills (user must approve first)
+- "function_call" type → adding new items, opening panels, updating contact info
+- "text" type → advice, explanations, questions, anything that doesn't modify the resume
+- Never call update_experience (entry IDs are not available)
+- Never fabricate skills, companies, or achievements not present in the resume
+- If the user's request is ambiguous, ask ONE focused clarifying question using "text" type${resumeBlock}`;
+
+    // When this is a feedback call after a function was applied, inject result context
+    let userContent = userMessage;
+    if (functionResponse && typeof functionResponse === 'object') {
+      const fr = functionResponse;
+      const note = fr.result && fr.result.success
+        ? `\n\n[SYSTEM NOTE: The function "${fr.name}" was just successfully applied to the resume.]`
+        : `\n\n[SYSTEM NOTE: The function "${fr.name}" failed: ${(fr.result && fr.result.error) || 'unknown error'}]`;
+      userContent = userMessage + note;
+    }
+
     return [
       { role: 'system', content: systemPrompt },
       ...history,
-      { role: 'user', content: opts.message || '' },
+      { role: 'user', content: userContent },
     ];
   }
 
@@ -856,9 +1004,12 @@ module.exports = async ({ req, res, log, error }) => {
     const temperature = featureName === 'parse-resume'
       ? (opts.temperature ?? 0.1)
       : (opts.temperature || 0.7);
+    // agentic-chat needs more tokens for full rewrites; parse-resume needs 4k for full resumes
     const maxTokens   = featureName === 'parse-resume'
       ? (opts.maxTokens ?? 4000)
-      : (opts.maxTokens || 1000);
+      : featureName === 'agentic-chat'
+        ? (opts.maxTokens || 1500)
+        : (opts.maxTokens || 1000);
 
     /** Call a single provider candidate with the given per-attempt timeout. */
     async function callCandidate(candidate, timeoutMs = 28000) {
@@ -999,6 +1150,12 @@ module.exports = async ({ req, res, log, error }) => {
             }
             continue;
           }
+        }
+
+        if (featureName === 'agentic-chat') {
+          const structuredResponse = parseAgenticChatResponse(result.content);
+          await flushDD();
+          return res.json({ status: 'success', data: structuredResponse });
         }
 
         break;

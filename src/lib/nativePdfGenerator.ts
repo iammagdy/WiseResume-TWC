@@ -40,40 +40,71 @@ export interface GenerateCoverLetterNativePDFOptions {
 // ── Style collection ──────────────────────────────────────────────────────────
 
 /**
- * Collects all CSS rules from document.styleSheets into a single string.
- * - Same-origin sheets: all rules are inlined with relative URLs made absolute.
- * - Cross-origin sheets (Google Fonts, CDN): added as @import so Puppeteer
- *   fetches them directly (Puppeteer is a full browser and CAN load external URLs).
+ * Collects CSS from document.styleSheets for the Puppeteer PDF renderer.
+ *
+ * Strategy depends on environment:
+ *
+ * PRODUCTION (non-localhost): Linked same-origin stylesheets are emitted as
+ * `@import url(...)` references so Puppeteer fetches them directly from the
+ * public domain. This keeps the HTML payload tiny (< 100 KB) and stays well
+ * within Vercel's serverless function body-size limit (~4.5 MB on Hobby,
+ * 10 MB on Pro). Inline <style> blocks and cross-origin sheets (Google Fonts,
+ * CDN) are also emitted as @import so Puppeteer loads them.
+ *
+ * DEVELOPMENT (localhost): All same-origin rules are inlined with absolute
+ * URLs because Puppeteer running in Vercel/cloud cannot reach localhost.
  */
 function collectDocumentStyles(): string {
   const parts: string[] = [];
   const origin = window.location.origin;
 
+  // In local dev the Vercel function cannot reach localhost — inline everything.
+  // In production all sheets are publicly accessible — use @import to keep payload small.
+  const isLocalDev =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.startsWith('192.168.') ||
+    window.location.hostname.startsWith('10.');
+
   for (const sheet of Array.from(document.styleSheets)) {
+    // Cross-origin sheets (Google Fonts, CDN) — always @import regardless of env
+    const href = sheet.href;
+    const isCrossOrigin = href && !href.startsWith(origin);
+    if (isCrossOrigin) {
+      parts.push(`@import url('${href}');`);
+      continue;
+    }
+
     try {
       const rules = sheet.cssRules;
       if (!rules) continue;
-      for (const rule of Array.from(rules)) {
-        let text = rule.cssText;
-        // Make any relative url(...) references absolute so Puppeteer can fetch them
-        text = text.replace(
-          /url\((['"]?)(?!data:|https?:|ftp:|\/\/)(\/?[^'")]+)\1\)/g,
-          (_match, quote, path) => {
-            try {
-              const abs = new URL(path.startsWith('/') ? path : '/' + path, origin).href;
-              return `url(${quote}${abs}${quote})`;
-            } catch {
-              return _match;
-            }
-          },
-        );
-        parts.push(text);
+
+      if (!isLocalDev && href) {
+        // Production same-origin linked sheet — @import so Puppeteer fetches it
+        // from the public URL (avoids embedding megabytes of Tailwind utilities).
+        parts.push(`@import url('${href}');`);
+      } else {
+        // Local dev OR inline <style> block — embed rules with absolute URLs
+        for (const rule of Array.from(rules)) {
+          let text = rule.cssText;
+          // Make any relative url(...) references absolute so Puppeteer can fetch them
+          text = text.replace(
+            /url\((['"]?)(?!data:|https?:|ftp:|\/\/)(\/?[^'")]+)\1\)/g,
+            (_match, quote, path) => {
+              try {
+                const abs = new URL(path.startsWith('/') ? path : '/' + path, origin).href;
+                return `url(${quote}${abs}${quote})`;
+              } catch {
+                return _match;
+              }
+            },
+          );
+          parts.push(text);
+        }
       }
     } catch {
-      // Cross-origin sheet — Puppeteer will load it via @import
-      if (sheet.href) {
-        parts.push(`@import url('${sheet.href}');`);
-      }
+      // SecurityError on cross-origin (shouldn't reach here after the check above)
+      if (href) parts.push(`@import url('${href}');`);
     }
   }
   return parts.join('\n');

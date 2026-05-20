@@ -24,9 +24,12 @@ import {
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '10mb',
+      // Production payloads are now small (CSS loaded via @import by Puppeteer).
+      // 4mb covers the template HTML + any remaining inline styles safely.
+      sizeLimit: '4mb',
     },
   },
+  // PDF rendering can take 20-45s for multi-page resumes; 60s gives plenty of headroom.
   maxDuration: 60,
 };
 
@@ -262,11 +265,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
   try {
+    // @sparticuz/chromium v120+: headless is always true (boolean).
+    // Pass chromium.args directly — they include --no-sandbox, --disable-dev-shm-usage, etc.
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
+      headless: true,
     });
 
     const isA4 = pageFormat === 'a4';
