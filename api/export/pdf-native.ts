@@ -282,6 +282,29 @@ ${head}
 </html>`;
 }
 
+function buildFooterTemplate(args: {
+  showPageNumbers: boolean;
+  showBranding: boolean;
+}): string {
+  const pageNumber = args.showPageNumbers
+    ? `<span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>`
+    : '';
+  const separator = args.showPageNumbers && args.showBranding ? '<span>&nbsp;-&nbsp;</span>' : '';
+  const branding = args.showBranding ? '<span>Made with WiseResume</span>' : '';
+
+  return `
+    <div style="
+      width: 100%;
+      font: 9px Arial, sans-serif;
+      color: #737373;
+      text-align: center;
+      padding-bottom: 12px;
+    ">
+      ${pageNumber}${separator}${branding}
+    </div>
+  `;
+}
+
 // ── Puppeteer helpers ─────────────────────────────────────────────────────────
 
 interface ExportLayoutMetrics {
@@ -436,68 +459,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isA4 = pageFormat === 'a4';
     const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
 
+    const page = await browser.newPage();
     let pdfBuffer: Uint8Array;
-    if (onePage) {
-      const page = await browser.newPage();
-      try {
-        await page.setViewport({ width: dims.widthPx, height: dims.heightPx, deviceScaleFactor: 2 });
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
-        const onePageBuffer = await page.pdf({
-          format: isA4 ? 'A4' : 'Letter',
-          printBackground: true,
-          margin: { top: '0', right: '0', bottom: '0', left: '0' },
-          pageRanges: '1',
-        });
-        pdfBuffer = new Uint8Array(onePageBuffer);
-      } finally {
-        await page.close();
-      }
-    } else {
-      const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
-      const printableHeight = dims.heightPx - footerHeight;
-      const layout = await measureExportLayout(browser, html, dims.widthPx);
-      const measuredHeight = layout.measuredHeight;
-      const clientHeight =
-        Number.isFinite(totalContentHeightPx) && (totalContentHeightPx as number) > 0
-          ? Math.round(totalContentHeightPx as number)
-          : measuredHeight;
-      const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
-        customBreakPositions,
-        clientHeight,
-        measuredHeight,
-      );
-      const snappedBreaks = snapBreakPositionsToSectionHeadings(
-        scaledBreaks,
-        layout.sections,
-        measuredHeight,
-      );
-      const normalizedBreaks = normalizeBreakPositions(snappedBreaks, measuredHeight);
-      const segments = buildExportPageSegments({
-        totalContentHeightPx: measuredHeight,
-        pageHeightPx: printableHeight,
-        customBreakPositions: normalizedBreaks,
+    try {
+      await page.setViewport({ width: dims.widthPx, height: dims.heightPx, deviceScaleFactor: 2 });
+      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+      const showFooter = showPageNumbers || showBranding;
+      const pdf = await page.pdf({
+        format: isA4 ? 'A4' : 'Letter',
+        printBackground: true,
+        margin: {
+          top: '0',
+          right: '0',
+          bottom: showFooter ? `${EXPORT_FOOTER_HEIGHT_PX}px` : '0',
+          left: '0',
+        },
+        displayHeaderFooter: showFooter,
+        headerTemplate: '<span></span>',
+        footerTemplate: showFooter
+          ? buildFooterTemplate({ showPageNumbers, showBranding })
+          : '<span></span>',
+        pageRanges: onePage ? '1' : undefined,
       });
-      const buffers: Buffer[] = [];
-      for (const segment of segments) {
-        const segmentHtml = buildSegmentHtml({
-          sourceHtml: html,
-          pageWidthPx: dims.widthPx,
-          contentStartPx: segment.startPx,
-          contentHeightPx: segment.heightPx,
-          footerHeightPx: footerHeight,
-          pageNumber: showPageNumbers
-            ? `Page ${segment.index + 1} of ${segments.length}`
-            : undefined,
-          showBranding,
-        });
-        buffers.push(await renderHtmlToPdfBuffer(
-          browser,
-          segmentHtml,
-          dims.widthPx,
-          segment.heightPx + footerHeight,
-        ));
-      }
-      pdfBuffer = await mergePdfBuffers(buffers);
+      pdfBuffer = new Uint8Array(pdf);
+    } finally {
+      await page.close();
     }
 
     res.setHeader('Content-Type', 'application/pdf');
