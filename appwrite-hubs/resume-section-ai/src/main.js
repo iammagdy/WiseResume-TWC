@@ -43,7 +43,7 @@ async function callLLM(messages, pool) {
         max_tokens:  1200,
       }, {
         headers: { 'Authorization': `Bearer ${entry.key}`, 'Content-Type': 'application/json' },
-        timeout: 55000,
+        timeout: 10000,
       });
       return response.data.choices[0].message.content;
     } catch (err) {

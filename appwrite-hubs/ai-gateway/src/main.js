@@ -4,41 +4,8 @@ const axios = require('axios');
 const sdk = require('node-appwrite');
 const extractedPrompts = require('./extracted_prompts.json');
 
-// ─── Datadog LLM Observability ────────────────────────────────────────────────
-// Initialise dd-trace at module level (once per cold start).
-// Agentless mode is required — Appwrite Functions cannot run a Datadog agent sidecar.
-// Observability is best-effort: when the API key is absent all AI calls continue normally.
-const ddTrace = require('dd-trace');
-const tracer = ddTrace.init({ logInjection: false });
-const llmobs = tracer.llmobs;
-
-let _llmobsEnabled = false;
-
-function enableLLMObs() {
-  if (_llmobsEnabled) return;
-  // Accept DATADOG_API_KEY (Appwrite global variable) with fallback to DD_API_KEY.
-  const ddApiKey = process.env.DATADOG_API_KEY || process.env.DD_API_KEY;
-  const ddSite   = process.env.DD_SITE || 'datadoghq.com';
-  if (!ddApiKey) return;
-  try {
-    llmobs.enable({ mlApp: 'wiseresumeai', agentlessEnabled: true, ddApiKey, site: ddSite });
-    _llmobsEnabled = true;
-  } catch (_) {
-    // swallow — never block the AI route
-  }
-}
-
-/**
- * Flush pending LLM spans before the short-lived Function container exits.
- * Always resolves — never throws.
- */
-async function flushDD() {
-  if (!_llmobsEnabled) return;
-  try {
-    llmobs.flush();
-    await new Promise(resolve => tracer.flush(resolve));
-  } catch (_) { /* best-effort */ }
-}
+function enableLLMObs() { /* Datadog removed — dd-trace has native Windows binaries incompatible with Linux Appwrite */ }
+async function flushDD() { /* no-op */ }
 
 // ─── Provider constants ───────────────────────────────────────────────────────
 
