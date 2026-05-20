@@ -10,7 +10,7 @@ import {
   isValidEditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown, Palette, ChevronLeft, ChevronRight, Download, LayoutGrid } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown, Palette, ChevronLeft, ChevronRight, Download, LayoutGrid, Star } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -40,7 +40,7 @@ const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/Agentic
 const CareerPathSheet = lazyWithRetry(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
 const VersionHistorySheet = lazyWithRetry(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
 const ContentLibrarySheet = lazyWithRetry(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
-const CustomizeSheet = lazyWithRetry(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
+// CustomizeSheet removed — StyleCustomizationPanel is now the sole customize entry point
 const ShareSheet = lazyWithRetry(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
 const ExportOptionsSheet = lazyWithRetry(() => import('@/components/editor/ExportOptionsSheet').then(m => ({ default: m.ExportOptionsSheet })));
 const ATSParserPreview = lazyWithRetry(() => import('@/components/editor/ATSParserPreview'));
@@ -86,7 +86,7 @@ export default function EditorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const storeHydrated = useResumeStoreHydration();
-  const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
+  const { hasSeenAIIntro, setHasSeenAIIntro, defaultResumeId } = useSettingsStore();
   const { gate, triggerGate, dialogOpen: tierGateOpen, dialogState: tierGateState, closeDialog: closeTierGate, isPro, isLoading: planLoading } = useTierGate();
   const [templateBtnSeen, setTemplateBtnSeen] = useState(() => localStorage.getItem('template_btn_seen') === 'true');
 
@@ -1083,12 +1083,7 @@ export default function EditorPage() {
     }
   }, [currentResume, activeTab]);
 
-  const handleCustomizeApply = useCallback((customization: import('@/types/resume').TemplateCustomization) => {
-    if (!currentResume) return;
-    const { setCurrentResume } = useResumeStore.getState();
-    setCurrentResume({ ...currentResume, customization });
-    toast.success('Customization applied ✓', { duration: 1500 });
-  }, [currentResume]);
+  // handleCustomizeApply removed — StyleCustomizationPanel patches via updateResume directly
 
   // === GUARDS (all inline, no effects — deterministic) ===
   if (authLoading) return <EditorSkeleton />;
@@ -1159,6 +1154,16 @@ export default function EditorPage() {
           >
             View Original
           </button>
+        </div>
+      )}
+
+      {/* Default Resume Banner — warn user they're editing their pinned default */}
+      {currentResumeId && defaultResumeId === currentResumeId && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-300 dark:border-amber-700" style={{ minHeight: 36 }}>
+          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+          <span className="text-xs text-amber-800 dark:text-amber-300 flex-1 truncate">
+            This is your <strong>default resume</strong> — edits apply directly. Use <em>Tailor</em> to create a safe copy for a specific job.
+          </span>
         </div>
       )}
 
@@ -1628,7 +1633,6 @@ export default function EditorPage() {
                       </div>
                     </button>
                     <button
-                      onPointerEnter={preloadLazy(() => import('@/components/editor/CustomizeSheet'))}
                       onClick={() => { haptics.light(); setShowToolsSheet(false); handleCustomize(); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >
