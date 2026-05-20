@@ -2,6 +2,34 @@
 
 ---
 
+## Session Summary - 2026-05-20 (PDF Export Blank Page Fix)
+
+### Overview
+Diagnosed and fixed PDF exports that either failed or downloaded as blank white pages. The active PDF path is the client-side `html2canvas` + `pdf-lib` generator in `src/lib/nativePdfGenerator.ts`, not the older Vercel Puppeteer endpoint.
+
+### Root cause
+`captureTemplateCanvas()` cloned the visible resume into an off-screen container, but the container used `visibility:hidden`. `html2canvas` respects hidden ancestors, so the clone measured correctly but rendered as a white canvas. That white canvas was then embedded into the generated PDF, producing blank white pages.
+
+### Fix
+| File | Change |
+|---|---|
+| `src/lib/exportDomUtils.ts` | Added `createPdfCaptureContainer(pageWidthPx)` - off-screen capture host that remains rendered for html2canvas; explicitly avoids `visibility:hidden`, `display:none`, and `opacity:0`. |
+| `src/lib/nativePdfGenerator.ts` | Replaced the hidden capture container with `createPdfCaptureContainer()`. |
+| `src/lib/nativePdfGenerator.test.ts` | Updated stale server-call test to cover the rendered capture host and editor-only node stripping. |
+
+### Verification
+- `npx vitest run src/lib/nativePdfGenerator.test.ts` - passed.
+- `npx tsc --noEmit` - passed.
+- Puppeteer/html2canvas probe verified the root cause: hidden host produced a blank canvas (`nonWhite: 0`); rendered off-screen host produced visible pixels (`nonWhite: 10765`).
+- `npm run build` - passed after refreshing local `node_modules` from the existing lockfile because `@revenuecat/purchases-js` was missing locally.
+
+### Deployment Notes
+- Frontend-only change. Deploy through the normal WiseResume frontend workflow to `resume/`.
+- No Appwrite hub redeploy required.
+- The workspace had pre-existing unrelated dirty package-lock/RevenueCat Atlas files; they were not modified by this fix.
+
+---
+
 ## Session Summary — 2026-05-20 (Pre-Launch Editor Audit + Agentic Chat Structured Responses)
 
 ### Overview

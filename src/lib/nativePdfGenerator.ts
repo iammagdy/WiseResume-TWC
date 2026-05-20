@@ -5,7 +5,7 @@ import {
   buildExportPageSegments,
   normalizeBreakPositions,
 } from '@/lib/exportPagePlan';
-import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
+import { cloneResumeTemplateElement, createPdfCaptureContainer } from '@/lib/exportDomUtils';
 import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 import { tagSvgDimensions, convertSvgsToImages } from '@/lib/html2canvasRetry';
 
@@ -124,17 +124,8 @@ async function captureTemplateCanvas(
 ): Promise<{ canvas: HTMLCanvasElement; contentHeightPx: number }> {
   const { captureWithRetry } = await import('@/lib/html2canvasRetry');
 
-  // Build an off-screen container at exact PDF width so layout is correct.
-  const container = document.createElement('div');
-  container.style.cssText = [
-    'position:fixed',
-    'left:-9999px',
-    'top:0',
-    `width:${pageWidthPx}px`,
-    'visibility:hidden',
-    'pointer-events:none',
-    'z-index:-1',
-  ].join(';');
+  // Build an off-screen, rendered container at exact PDF width so layout is correct.
+  const container = createPdfCaptureContainer(pageWidthPx);
   document.body.appendChild(container);
 
   const clone = cloneResumeTemplateElement(templateEl, pageWidthPx);

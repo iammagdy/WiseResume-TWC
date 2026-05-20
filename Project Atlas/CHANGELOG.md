@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-05-20 - PDF export blank page fix
+
+### Summary
+Fixed PDF exports producing blank white pages after the client-side PDF generator captured a hidden off-screen clone.
+
+### What changed
+- Added `createPdfCaptureContainer()` in `src/lib/exportDomUtils.ts` so export captures use an off-screen but still rendered host.
+- Updated `src/lib/nativePdfGenerator.ts` to use that rendered capture host instead of a `visibility:hidden` container.
+- Replaced the stale server-call PDF unit test with regression coverage for the rendered capture host and export clone cleanup.
+
+### Why
+The verified root cause was the capture host style: the resume clone was inserted under an ancestor with `visibility:hidden`. `html2canvas` respects that CSS, so it captured a white canvas even when the resume content existed and layout measurements succeeded. A Puppeteer/html2canvas probe confirmed `visibility:hidden` produced `nonWhite: 0`, while the new off-screen rendered host produced visible pixels.
+
+### Verification
+- `npx vitest run src/lib/nativePdfGenerator.test.ts`
+- `npx tsc --noEmit`
+- Browser html2canvas probe: hidden host captured blank white; rendered off-screen host captured non-white resume pixels.
+- `npm run build`
+
+---
+
 ## 2026-05-20 — 3-Tier AI Enhancement (Implemented)
 
 ### Summary

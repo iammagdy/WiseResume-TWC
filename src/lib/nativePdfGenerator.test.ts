@@ -1,46 +1,37 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { generateNativePDF } from './nativePdfGenerator';
+import {
+  cloneResumeTemplateElement,
+  createPdfCaptureContainer,
+} from './exportDomUtils';
 
 describe('generateNativePDF', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('sends exact page break, content height, page numbering, and branding options to the PDF server', async () => {
+  it('keeps the html2canvas capture host rendered while moving it off-screen', () => {
+    const container = createPdfCaptureContainer(612);
+
+    expect(container.style.position).toBe('fixed');
+    expect(container.style.left).toBe('-10000px');
+    expect(container.style.width).toBe('612px');
+    expect(container.style.visibility).not.toBe('hidden');
+    expect(container.style.display).not.toBe('none');
+    expect(container.style.opacity).not.toBe('0');
+  });
+
+  it('strips editor-only nodes from the exported resume clone', () => {
     const template = document.createElement('div');
     template.setAttribute('data-resume-template', 'true');
     template.innerHTML =
       '<div data-pdf-exclude class="border-dashed border-primary/70">guide</div>' +
       '<section data-section="summary"><a href="https://github.com/example">example</a></section>';
-    Object.defineProperty(template, 'scrollHeight', { value: 1650, configurable: true });
-    Object.defineProperty(template, 'offsetHeight', { value: 1650, configurable: true });
 
-    const fetchSpy = vi.fn().mockResolvedValue(
-      new Response('%PDF-1.7', {
-        status: 200,
-        headers: { 'Content-Type': 'application/pdf' },
-      }),
-    );
-    vi.stubGlobal('fetch', fetchSpy);
+    const clone = cloneResumeTemplateElement(template, 612);
 
-    await generateNativePDF(template, {
-      pageFormat: 'letter',
-      showPageNumbers: true,
-      showBranding: true,
-      customBreakPositions: [1225, 700],
-    });
-
-    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-    expect(body).toMatchObject({
-      pageFormat: 'letter',
-      showPageNumbers: true,
-      showBranding: true,
-      totalContentHeightPx: 1650,
-      customBreakPositions: [700, 1225],
-    });
-    expect(body.html).toContain('https://github.com/example');
-    expect(body.html).not.toContain('data-pdf-exclude');
-    expect(body.html).not.toContain('border-dashed');
-    expect(body.html).toContain('https://resume.thewise.cloud');
+    expect(clone.innerHTML).toContain('https://github.com/example');
+    expect(clone.innerHTML).not.toContain('data-pdf-exclude');
+    expect(clone.innerHTML).not.toContain('border-dashed');
+    expect(clone.style.width).toBe('612px');
   });
 });
