@@ -1,6 +1,9 @@
 # Appwrite CLI local config (generated, not for version control)
 .appwrite/
 
+# Local deploy secrets — never commit
+.env.deploy
+
 # Logs
 logs
 *.log
