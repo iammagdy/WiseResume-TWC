@@ -320,8 +320,10 @@ async function measureExportLayout(
 ): Promise<ExportLayoutMetrics> {
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 2 });
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+    // Wait for fonts so layout heights are accurate (avoids system-font fallback metrics).
+    try { await page.evaluateHandle(() => (document as Document & { fonts: { ready: Promise<unknown> } }).fonts.ready); } catch { /* ignore */ }
     return await page.evaluate(() => {
       const template = document.querySelector('[data-resume-template]') as HTMLElement | null;
       const root = template ?? document.body;
@@ -381,8 +383,10 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 2 });
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+    // Wait for fonts before printing so the PDF uses the correct typefaces.
+    try { await page.evaluateHandle(() => (document as Document & { fonts: { ready: Promise<unknown> } }).fonts.ready); } catch { /* ignore */ }
     const pdf = await page.pdf({
       width: `${widthPx}px`,
       height: `${heightPx}px`,
@@ -441,6 +445,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Dynamic imports keep Vercel's serverless bundle from crashing during
     // module startup. Cache modules after the first load to avoid repeated work.
+    console.log('[pdf] loading modules');
     if (!_puppeteer) {
       _puppeteer = (await import('puppeteer-core')).default;
     }
@@ -449,18 +454,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const puppeteer = _puppeteer;
     const chromium = _chromium;
+
+    console.log('[pdf] launching browser, chromium args count:', chromium.args?.length);
+    const execPath = await chromium.executablePath();
+    console.log('[pdf] executablePath:', execPath ? execPath.slice(-60) : 'undefined');
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: execPath,
       headless: true,
     });
+    console.log('[pdf] browser launched');
 
     const isA4 = pageFormat === 'a4';
     const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
+    console.log('[pdf] html size (bytes):', html.length, 'format:', pageFormat);
 
     // 1. Measure actual layout height and section bounds via Puppeteer.
+    console.log('[pdf] step 1: measuring layout');
     const { measuredHeight, sections } = await measureExportLayout(browser, html, dims.widthPx);
+    console.log('[pdf] measured height:', measuredHeight, 'px, sections:', sections.length);
 
     // 2. Scale client break positions to match server-rendered height.
     const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
@@ -480,10 +493,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pageHeightPx: contentPageHeight,
       customBreakPositions: snappedBreaks,
     });
+    console.log('[pdf] step 4:', segments.length, 'segments, footer:', footerHeight, 'px');
 
     // 5. Render each segment as a separate PDF page.
     const pdfBuffers: Buffer[] = [];
     for (const segment of segments) {
+      console.log('[pdf] step 5: rendering segment', segment.index + 1, 'of', segments.length,
+        '(start:', segment.startPx, 'h:', segment.heightPx, ')');
       const pageLabel = showPageNumbers
         ? `Page ${segment.index + 1} of ${segments.length}`
         : undefined;
@@ -503,20 +519,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         segment.heightPx + footerHeight,
       );
       pdfBuffers.push(buf);
+      console.log('[pdf] segment', segment.index + 1, 'done, buffer:', buf.length, 'bytes');
     }
 
     // 6. onePage: keep only the first segment if requested.
     const buffersToMerge = onePage ? pdfBuffers.slice(0, 1) : pdfBuffers;
+    console.log('[pdf] step 6: merging', buffersToMerge.length, 'buffer(s)');
 
     // 7. Merge segment PDFs into the final file.
     const pdfBuffer = await mergePdfBuffers(buffersToMerge);
+    console.log('[pdf] done, final size:', pdfBuffer.length, 'bytes');
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
     res.send(Buffer.from(pdfBuffer));
   } catch (err) {
-    console.error('[pdf] Puppeteer error:', err);
-    res.status(500).json({ error: 'pdf_failed', message: String(err) });
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? (err.stack ?? '') : '';
+    console.error('[pdf] error:', message);
+    if (stack) console.error('[pdf] stack:', stack);
+    res.status(500).json({ error: 'pdf_failed', message });
   } finally {
     await browser?.close();
   }
