@@ -1,9 +1,7 @@
 import type { ContactInfo } from '@/types/resume';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 import { PDFDocument } from 'pdf-lib';
-import { normalizeBreakPositions } from '@/lib/exportPagePlan';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
-import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 
 const BRANDING_URL = 'https://resume.thewise.cloud';
 
@@ -245,8 +243,13 @@ export async function generateNativePDF(
 
   const templateHTML = cloneResumeTemplateElement(templateEl, pageWidthPx).outerHTML;
   const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { atsMode });
-  const totalContentHeightPx = getExportContentHeightPx(templateEl);
-  const normalizedBreaks = normalizeBreakPositions(customBreakPositions, totalContentHeightPx);
+  // Use the live DOM height — the same coordinate space where custom break
+  // positions are stored. getExportContentHeightPx trims trailing whitespace
+  // and can return a value smaller than scrollHeight; when that trimmed value
+  // is close to a saved break position, normalizeBreakPositions on the server
+  // filters the break out (position > trimmedHeight - minGap), causing automatic
+  // pagination to override the user's custom cuts.
+  const totalContentHeightPx = Math.max(templateEl.scrollHeight, templateEl.offsetHeight, 1);
 
   onProgress?.('finalizing', 50);
 
@@ -258,7 +261,7 @@ export async function generateNativePDF(
     showPageNumbers,
     showBranding,
     totalContentHeightPx,
-    customBreakPositions: normalizedBreaks,
+    customBreakPositions: customBreakPositions ?? [],
   }, onProgress);
 }
 
