@@ -283,6 +283,38 @@ async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
     const pages = await merged.copyPages(doc, doc.getPageIndices());
     pages.forEach((page) => merged.addPage(page));
   }
+}
+
+async function renderHtmlToPdfBuffer(
+  browser: Awaited<ReturnType<typeof puppeteer.launch>>,
+  html: string,
+  widthPx: number,
+  heightPx: number,
+): Promise<Buffer> {
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    const pdf = await page.pdf({
+      width: `${widthPx}px`,
+      height: `${heightPx}px`,
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    });
+    return Buffer.from(pdf);
+  } finally {
+    await page.close();
+  }
+}
+
+async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
+  if (buffers.length === 1) return new Uint8Array(buffers[0]);
+  const merged = await PDFDocument.create();
+  for (const buffer of buffers) {
+    const doc = await PDFDocument.load(buffer);
+    const pages = await merged.copyPages(doc, doc.getPageIndices());
+    pages.forEach((page) => merged.addPage(page));
+  }
   return merged.save();
 }
 
@@ -295,6 +327,7 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     showBranding = true,
     customBreakPositions = [],
     totalContentHeightPx,
+    layoutContentHeightPx,
   } = req.body as {
     html?: string;
     pageFormat?: string;
@@ -303,6 +336,7 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     showBranding?: boolean;
     customBreakPositions?: number[];
     totalContentHeightPx?: number;
+    layoutContentHeightPx?: number;
   };
 
   if (!html || typeof html !== 'string') {
@@ -355,19 +389,45 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
       const exactCustomBreaks = (customBreakPositions ?? [])
         .filter(Number.isFinite)
         .map(Math.round);
-      let contentHeight = clientHeight;
-      let pageBreaks = clampBreakPositions(exactCustomBreaks, contentHeight);
 
-      if (exactCustomBreaks.length === 0) {
-        const layout = await measureExportLayout(browser, html, dims.widthPx);
-        contentHeight = Math.max(clientHeight, Math.round(layout.measuredHeight));
+      let contentHeight = clientHeight;
+
+      // ALWAYS measure layout to fix Chromium-Linux vs Client-OS font drift.
+      const layout = await measureExportLayout(browser, html, dims.widthPx);
+      contentHeight = Math.max(clientHeight, Math.round(layout.measuredHeight));
+
+      const lastCustomBreakPx = exactCustomBreaks.length ? Math.max(...exactCustomBreaks) : 0;
+      const validationHeight = exactCustomBreaks.length
+        ? Math.max(
+            contentHeight,
+            (layoutContentHeightPx && layoutContentHeightPx > 0) ? Math.round(layoutContentHeightPx) : 0,
+            lastCustomBreakPx + 40,
+          )
+        : contentHeight;
+
+      let pageBreaks = clampBreakPositions(exactCustomBreaks, validationHeight);
+
+      if (exactCustomBreaks.length > 0) {
+        if (layoutContentHeightPx && layoutContentHeightPx > 0) {
+          const { scaleBreakPositionsToMeasuredHeight, snapBreakPositionsToSectionHeadings, snapBreakPositionsToAvoidBlocks } = await import('../src/lib/exportPagePlan');
+          pageBreaks = scaleBreakPositionsToMeasuredHeight(
+            pageBreaks,
+            layoutContentHeightPx,
+            layout.measuredHeight
+          );
+          pageBreaks = snapBreakPositionsToSectionHeadings(pageBreaks, layout.sections, layout.measuredHeight, 40);
+          pageBreaks = snapBreakPositionsToAvoidBlocks(pageBreaks, layout.avoidBlocks, printableHeight, layout.measuredHeight, 40);
+        }
+      } else {
         pageBreaks = buildAutomaticBreakPositions({
           totalContentHeightPx: contentHeight,
           pageHeightPx: printableHeight,
           sections: layout.sections,
           avoidBlocks: layout.avoidBlocks,
         });
-      } else if (pageBreaks.length === 0 && contentHeight > printableHeight) {
+      }
+
+      if (pageBreaks.length === 0 && contentHeight > printableHeight && exactCustomBreaks.length > 0) {
         res.status(400).json({
           error: 'invalid_custom_breaks',
           message: 'Saved page cuts are outside the exportable content range.',

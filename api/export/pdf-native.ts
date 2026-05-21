@@ -647,18 +647,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[pdf] exact custom breaks:', exactCustomBreaks);
     }
 
+    // ALWAYS measure the server-side layout! Headless Chromium on Vercel
+    // renders fonts with slightly different metrics than the client OS browser,
+    // causing subpixel shifts that accumulate over the page. If we blindly
+    // use client Y-coordinates, a cut meant to be exactly before "Education"
+    // might accidentally slice through it or leave it stranded on the first page.
+    const layout = await measureExportLayout(browser, html, dims.widthPx);
+    contentHeight = Math.max(Math.round(contentHeight), Math.round(layout.measuredHeight));
+
     // ── Custom-break validation height ─────────────────────────────────
     // clampBreakPositions/normalizeBreakPositions filter positions where:
     //   position < minGap  OR  position > validationHeight − minGap
-    //
-    // BUG (fixed here): if we only use the trimmed contentHeight, a valid
-    // user-placed break near the bottom of visible content (e.g. at 1 000 px
-    // when trimmedH = 1 020 px) gets silently moved/discarded because
-    // 1 000 > 1 020 − 40 = 980.
-    //
-    // FIX: use validationHeight = max(trimmedH, layoutH, lastBreak + minGap).
-    // This is ONLY used to validate/clamp the breaks. The final-page crop still
-    // uses contentHeight so the last PDF page is still trimmed to real content.
     const lastCustomBreakPx = exactCustomBreaks.length
       ? Math.max(...exactCustomBreaks)
       : 0;
@@ -678,12 +677,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'minGap=', DEFAULT_MIN_GAP_PX);
     }
 
-    // Clamp custom breaks against the safe validation height (not trimmedH) so
-    // valid near-bottom cuts are preserved.
+    // Clamp custom breaks against the safe validation height.
     let pageBreaks = clampBreakPositions(exactCustomBreaks, validationHeight);
+
+    if (exactCustomBreaks.length > 0) {
+      // 1. Scale coordinates proportionally if there is a massive difference
+      //    between the client's live DOM height and the server's layout height.
+      if (layoutContentHeightPx && layoutContentHeightPx > 0) {
+        pageBreaks = scaleBreakPositionsToMeasuredHeight(
+          pageBreaks,
+          layoutContentHeightPx,
+          layout.measuredHeight
+        );
+      }
+      // 2. Snap coordinates to EXACT server-side elements!
+      //    This guarantees a cut placed "before Education" on the client stays
+      //    exactly before "Education" on the server, despite layout shift.
+      pageBreaks = snapBreakPositionsToSectionHeadings(
+        pageBreaks,
+        layout.sections,
+        layout.measuredHeight,
+        DEFAULT_MIN_GAP_PX
+      );
+      pageBreaks = snapBreakPositionsToAvoidBlocks(
+        pageBreaks,
+        layout.avoidBlocks,
+        contentPageHeight,
+        layout.measuredHeight,
+        DEFAULT_MIN_GAP_PX
+      );
+      console.log('[pdf] snapped custom breaks:', pageBreaks);
+    }
+
     if (exactCustomBreaks.length === 0) {
-      const layout = await measureExportLayout(browser, html, dims.widthPx);
-      contentHeight = Math.max(Math.round(contentHeight), Math.round(layout.measuredHeight));
       pageBreaks = buildAutomaticBreakPositions({
         totalContentHeightPx: contentHeight,
         pageHeightPx: contentPageHeight,

@@ -30,6 +30,16 @@ Two concepts are now cleanly separated throughout the export pipeline:
 | `api/export/pdf-native.ts` | Reads `layoutContentHeightPx` from the POST body. Computes `validationHeight = max(trimmedH, layoutH, lastBreak+minGap)`. Uses `validationHeight` for `clampBreakPositions` **and** passes it as `breakValidationHeightPx` to `buildExportPageSegments`. Final-page crop still uses `contentHeight` (trimmed). Added `console.error` for the `invalid_custom_breaks` fallback. |
 | `src/lib/exportPagePlan.test.ts` | Added 5 regression tests covering: (1) near-bottom break position preservation, (2) final-page cropping with `breakValidationHeightPx`, (3) boundary-case at exactly `liveH−minGap`, (4) 2-page last-page crop, (5) clamping vs dropping semantics. |
 
+### Session Summary - 2026-05-21 (Part 2: Subpixel Layout Shift Bug)
+User reported that despite the validation height fix, cuts placed before section headings (e.g., "Education") were STILL cutting AFTER the heading on the downloaded PDF. 
+
+**Root Cause**: Subpixel layout shift. The server runs Headless Chromium on Linux (Vercel), which uses different font-rendering metrics than the client OS (Windows/Mac). A subpixel difference of even 0.1px per line accumulates over the document. If "Education" is at Y=800 on the client, it might be at Y=780 on the server. Because the server previously accepted the client's absolute pixel cut (Y=800) without measuring layout, the cut occurred AFTER the heading on the server.
+
+**Fix**: `api/export/pdf-native.ts` and `server/index.ts` were updated to:
+1. ALWAYS `await measureExportLayout(browser)` even if exact custom breaks are provided.
+2. If the client sent `layoutContentHeightPx`, scale the custom break proportionally to the server's measured height using `scaleBreakPositionsToMeasuredHeight`.
+3. Snap the scaled break to the actual server-side structural boundaries using `snapBreakPositionsToSectionHeadings` and `snapBreakPositionsToAvoidBlocks`. This guarantees a cut placed on a section boundary in the client remains on the section boundary on the server, regardless of accumulated font-rendering drift.
+
 ### Verification
 - `npx vitest run src/lib/exportPagePlan.test.ts` — 18 tests passed.
 - `npx tsc --noEmit` — zero errors.
