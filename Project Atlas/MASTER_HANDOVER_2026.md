@@ -2,47 +2,64 @@
 
 ---
 
-## Session Summary — 2026-05-21 (PDF Export — All 4 Issues Fixed)
+## Session Summary — 2026-05-21 (PDF Export 100% Failure Fix + LinkedIn + Page Cuts)
 
 ### Overview
-Found and fixed four PDF export regressions introduced by prior Codex attempts. All root causes were verified by code inspection before any changes were made (no guessing).
+Three bugs fixed across two commits. All root causes confirmed by code inspection before any changes.
 
-### Root Causes
+---
 
-| Issue | Root cause |
-|-------|-----------|
-| Low quality / cheap look | `collectDocumentStyles()` emitted `@import url(...)` for all production stylesheets. Puppeteer on Vercel Lambda had to fetch those URLs at render time; any slow or failed fetch meant the template rendered as unstyled HTML — no fonts, no colors, no layout. |
-| Page cuts not respected | `customBreakPositions` was correctly received in the POST body but the main handler called `page.pdf({format:'Letter'})` directly, bypassing all helper functions (`buildExportPageSegments`, `buildSegmentHtml`, etc.) that were already coded in the file but never wired up. |
-| Footer link not clickable | `buildFooterTemplate()` used `<span>Made with WiseResume</span>` — plain text, no `<a>`. Even with an `<a>` tag, Puppeteer's `footerTemplate` context does not support interactive links in exported PDFs. |
-| Template not respected | Same root cause as "low quality" — CSS not loading reliably meant template-specific styles, fonts, and accent colors were absent. |
+### Fix 1 — PDF export 100% failure rate (commit `05e7de7`, v4.7.2)
 
-### Fix
+**Root cause:** A prior commit changed `puppeteer-core` and `pdf-lib` to load via `importExternalModule()`. That function wraps `import()` in `new Function(...)` so Vercel's `ncc` bundler cannot statically analyse the import — ncc marks both packages as **external** (not bundled). `vercel.json` `includeFiles` only lists `node_modules/@sparticuz/chromium/**`; neither `puppeteer-core` nor `pdf-lib` is listed. The Lambda therefore throws `"Cannot find package 'puppeteer-core'"` on every invocation — including warm starts — causing a 100% 500 error rate.
 
-**2 files changed, no new dependencies, no schema changes, no hub deployments required.**
+Why `@sparticuz/chromium` must remain external: it uses `import.meta.url` to resolve the path to its compressed Chromium binary. If ncc inlines and relocates its source, the binary path breaks. It must stay in `importExternalModule` and travel via `includeFiles`.
 
-| File | Change |
-|------|--------|
-| `src/lib/nativePdfGenerator.ts` | `collectDocumentStyles()` made `async`. Now `fetch()`es each stylesheet and inlines the raw CSS text. HTML payload is fully self-contained — Puppeteer makes zero external network requests at render time. Falls back to `@import url()` only if fetch fails. |
-| `api/export/pdf-native.ts` | Replaced `page.pdf({format:'Letter'})` block with the full segment pipeline already present in the file: `measureExportLayout` → `scaleBreakPositionsToMeasuredHeight` → `snapBreakPositionsToSectionHeadings` → `buildExportPageSegments` → `buildSegmentHtml` per segment (which contains a real `<a href>` footer link) → `renderHtmlToPdfBuffer` per segment → `mergePdfBuffers`. Body parser limit comment updated. |
+Why `puppeteer-core` and `pdf-lib` are safe to bundle: `puppeteer-core@25` has dual CJS/ESM exports pointing to the same `.js` file — ncc bundles it inline via `require()` without any path breakage. `pdf-lib` has no `"type":"module"` and `"main":"cjs/index.js"` — trivially bundleable.
+
+**Fix:** `api/export/pdf-native.ts` — changed two lines:
+- `importExternalModule('puppeteer-core')` → `await import('puppeteer-core')`
+- `importExternalModule('pdf-lib')` (inside `loadPdfLib()`) → `await import('pdf-lib')`
+
+`vercel.json` unchanged. `@sparticuz/chromium` unchanged.
+
+**Cold-start note:** Before this regression, cold-start requests occasionally failed (first Lambda invocation) but warm requests succeeded. The existing `callPdfServer()` retry (3s delay, attempt 1) handles this — no additional fix needed.
+
+---
+
+### Fix 2 — LinkedIn/GitHub links redirect to wrong URL (commit `af5c6dd`, v4.7.3)
+
+**Root cause:** `ContactLinks.tsx` built link hrefs with the generic `ensureUrl(raw)` for all contact fields. `ensureUrl` only checks for `https?://` prefix and prepends `https://` to anything else. If `contact.linkedin` was stored as a bare username (e.g., `magdy-saber` — possible for users whose data predates the current `ContactSection` code which now saves the full URL), `ensureUrl('magdy-saber')` returned `https://magdy-saber` — a non-existent domain — instead of `https://linkedin.com/in/magdy-saber`.
+
+**Fix:** `src/components/templates/shared/ContactLinks.tsx` — added `ensureLinkedinUrl()` and `ensureGithubUrl()` helpers. Each checks: full URL (pass through) → domain-relative (prepend `https://`) → bare username (prepend the canonical profile base URL). `getItems()` now calls these instead of `ensureUrl` for LinkedIn and GitHub fields. Handles all stored formats: bare username, `linkedin.com/in/…`, `https://linkedin.com/in/…`.
+
+---
+
+### Fix 3 — Custom page cuts ignored in exported PDF (commit `af5c6dd`, v4.7.3)
+
+**Root cause:** `nativePdfGenerator.ts` was calling `normalizeBreakPositions(customBreakPositions, totalContentHeightPx)` before sending breaks to the server. `getExportContentHeightPx` can return a value smaller than `getLiveTotalHeight` (it trims trailing whitespace: when `layoutHeight > contentHeight * 1.12`, it returns `contentHeight` rather than `layoutHeight`). Breaks saved against `getLiveTotalHeight` that fell in the trimmed zone (e.g., a break at position 1300 in a template whose `contentHeight` is 1200, causing `minGapPx` guard `1300 > 1160` → filtered out) were silently stripped to an empty array. The server then received `customBreakPositions: []` and fell back to automatic even pagination.
+
+**Fix:** `src/lib/nativePdfGenerator.ts` — removed the client-side `normalizeBreakPositions` call. The raw `customBreakPositions` from options are now sent directly to the server. The server already normalizes them against the same `totalContentHeightPx` value sent alongside, so the normalization is both correct and redundant to perform twice. Removed unused `normalizeBreakPositions` import.
+
+---
+
+### Files Changed
+
+| File | Commits | Change |
+|------|---------|--------|
+| `api/export/pdf-native.ts` | `05e7de7` | `importExternalModule → await import` for puppeteer-core and pdf-lib |
+| `src/components/templates/shared/ContactLinks.tsx` | `af5c6dd` | `ensureLinkedinUrl()` + `ensureGithubUrl()` replacing generic `ensureUrl` for social links |
+| `src/lib/nativePdfGenerator.ts` | `af5c6dd` | Removed client-side `normalizeBreakPositions`; send raw breaks directly to server |
+| `package.json` | both | v4.7.1 → v4.7.2 → v4.7.3 |
 
 ### Verification
-- `npx tsc --noEmit` — zero errors
-- `npx vitest run src/lib/nativePdfGenerator.test.ts` — 2/2 pass
-- Vercel CI check on PR #63 — success
-
-### Deployment Notes
-- Changes are in `api/export/pdf-native.ts` (Vercel serverless function) and `src/lib/nativePdfGenerator.ts` (frontend).
-- Requires Vercel deploy to take effect. No Appwrite hub changes.
-- After deploy, verify:
-  1. `GET /api/export/pdf-native` returns JSON `405`
-  2. PDF export from editor matches live preview template colors/fonts
-  3. Custom page cuts from Page Cut Setup dialog are respected in the exported PDF
-  4. "WiseResume" in the PDF footer is a clickable link
+- `npx tsc --noEmit` — zero errors after each commit
+- All three commits pushed to `main`; Vercel deploy triggered automatically
 
 ### Where We Stopped
-- PR #63 open as draft on branch `claude/read-project-rules-5x3PH`. Vercel preview build succeeded.
-- `admin-sentry` Appwrite bot comment on PR is a pre-existing external function failure, unrelated to this change (function not present in this repo's `appwrite-hubs/`).
-- All other pending items from prior sessions unchanged (RevenueCat prerequisites, hub redeployments for 3-Tier AI Enhancement, `DEVKIT_PASSWORD` on `admin-deploy-hubs`).
+- HEAD `af5c6dd` on `main`. PDF export working (user confirmed download after v4.7.2). LinkedIn links and page cuts fixed in v4.7.3 — pending user verification.
+- No Appwrite hub changes in this session.
+- All other pending items from prior sessions unchanged: RevenueCat prerequisites, hub redeployments for 3-Tier AI Enhancement, `DEVKIT_PASSWORD` on `admin-deploy-hubs`.
 
 ---
 
