@@ -237,16 +237,27 @@ function buildExportPageSegments(args: {
   pageHeightPx: number;
   customBreakPositions?: number[];
   minGapPx?: number;
+  /** Safe height for validating custom breaks. When > totalContentHeightPx,
+   *  near-bottom user-placed cuts are not silently filtered out by the
+   *  trailing-whitespace-trimmed totalContentHeightPx. Segment math (last-page
+   *  height) still uses totalContentHeightPx to preserve last-page cropping. */
+  breakValidationHeightPx?: number;
 }): ExportPageSegment[] {
   const {
     totalContentHeightPx,
     pageHeightPx,
     customBreakPositions,
     minGapPx = DEFAULT_MIN_GAP_PX,
+    breakValidationHeightPx,
   } = args;
   const total = Math.max(1, Math.round(totalContentHeightPx || 0));
   const pageHeight = Math.max(1, Math.round(pageHeightPx || total));
-  const customBreaks = normalizeBreakPositions(customBreakPositions, total, minGapPx);
+  // Use safe validation height for normalizing custom breaks; fall back to
+  // total when no safe height is provided or when it's not larger than total.
+  const validationTotal = (breakValidationHeightPx && breakValidationHeightPx > total)
+    ? Math.round(breakValidationHeightPx)
+    : total;
+  const customBreaks = normalizeBreakPositions(customBreakPositions, validationTotal, minGapPx);
   const breaks = customBreaks.length > 0
     ? customBreaks
     : Array.from(
@@ -254,6 +265,8 @@ function buildExportPageSegments(args: {
         (_unused, index) => pageHeight * (index + 1),
       ).filter((position) => position < total);
 
+  // Always use `total` (trimmed height) as the final point so the last page
+  // is still cropped to real content — not padded to the safe validation height.
   const points = [0, ...breaks, total];
   const segments: ExportPageSegment[] = [];
   for (let index = 0; index < points.length - 1; index++) {
@@ -557,6 +570,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     showBranding = true,
     customBreakPositions = [],
     totalContentHeightPx,
+    layoutContentHeightPx,
   } = req.body as {
     html?: string;
     pageFormat?: string;
@@ -565,6 +579,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     showBranding?: boolean;
     customBreakPositions?: number[];
     totalContentHeightPx?: number;
+    /** Live (untrimmed) layout height sent by the client for safe custom-break
+     *  validation — may be larger than totalContentHeightPx when trailing
+     *  whitespace has been trimmed for final-page cropping. */
+    layoutContentHeightPx?: number;
   };
 
   if (!html || typeof html !== 'string') {
@@ -609,31 +627,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isA4 = pageFormat === 'a4';
     const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
     console.log('[pdf] html size (bytes):', html.length, 'format:', pageFormat,
-      'clientHeight:', totalContentHeightPx);
+      'trimmedContentH:', totalContentHeightPx, 'layoutContentH:', layoutContentHeightPx);
 
-    // Use the client-reported content height directly.
-    // The client measures from the live React DOM; the inlined CSS is identical,
-    // so server and client heights are the same. Skipping a server measurement
-    // pass eliminates one full browser-page open/close cycle (which was the
-    // source of extra load time that caused failures).
+    // contentHeight: the trailing-whitespace-trimmed height used for FINAL-PAGE
+    // CROPPING. This preserves the existing behaviour that the last PDF page is
+    // cropped to real content rather than padded with blank space.
     let contentHeight = (totalContentHeightPx && totalContentHeightPx > 0)
       ? totalContentHeightPx
       : dims.heightPx;
 
-    // Saved custom cuts are authoritative. The server validates/sorts/clamps
-    // them through buildExportPageSegments(), but it must not move them to a
-    // nearby section or keep-together block.
+    // Saved custom cuts are authoritative — do not snap/move them.
     const exactCustomBreaks = (customBreakPositions ?? [])
       .filter(Number.isFinite)
       .map(Math.round);
 
-    // Divide content into page segments.
     const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
     const contentPageHeight = dims.heightPx - footerHeight;
     if (exactCustomBreaks.length > 0) {
       console.log('[pdf] exact custom breaks:', exactCustomBreaks);
     }
-    let pageBreaks = clampBreakPositions(exactCustomBreaks, contentHeight);
+
+    // ── Custom-break validation height ─────────────────────────────────
+    // clampBreakPositions/normalizeBreakPositions filter positions where:
+    //   position < minGap  OR  position > validationHeight − minGap
+    //
+    // BUG (fixed here): if we only use the trimmed contentHeight, a valid
+    // user-placed break near the bottom of visible content (e.g. at 1 000 px
+    // when trimmedH = 1 020 px) gets silently moved/discarded because
+    // 1 000 > 1 020 − 40 = 980.
+    //
+    // FIX: use validationHeight = max(trimmedH, layoutH, lastBreak + minGap).
+    // This is ONLY used to validate/clamp the breaks. The final-page crop still
+    // uses contentHeight so the last PDF page is still trimmed to real content.
+    const lastCustomBreakPx = exactCustomBreaks.length
+      ? Math.max(...exactCustomBreaks)
+      : 0;
+    const validationHeight = exactCustomBreaks.length
+      ? Math.max(
+          contentHeight,
+          (layoutContentHeightPx && layoutContentHeightPx > 0) ? Math.round(layoutContentHeightPx) : 0,
+          lastCustomBreakPx + DEFAULT_MIN_GAP_PX,
+        )
+      : contentHeight;
+
+    if (exactCustomBreaks.length > 0) {
+      console.log('[pdf] break validation: trimmedH=', contentHeight,
+        'layoutH=', layoutContentHeightPx,
+        'lastBreak=', lastCustomBreakPx,
+        'validationH=', validationHeight,
+        'minGap=', DEFAULT_MIN_GAP_PX);
+    }
+
+    // Clamp custom breaks against the safe validation height (not trimmedH) so
+    // valid near-bottom cuts are preserved.
+    let pageBreaks = clampBreakPositions(exactCustomBreaks, validationHeight);
     if (exactCustomBreaks.length === 0) {
       const layout = await measureExportLayout(browser, html, dims.widthPx);
       contentHeight = Math.max(Math.round(contentHeight), Math.round(layout.measuredHeight));
@@ -646,15 +693,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[pdf] automatic breaks:', pageBreaks,
         'sections:', layout.sections.length, 'avoidBlocks:', layout.avoidBlocks.length);
     } else if (pageBreaks.length === 0 && contentHeight > contentPageHeight) {
+      console.error('[pdf] all custom breaks were rejected:',
+        'exactCustomBreaks=', exactCustomBreaks,
+        'validationHeight=', validationHeight,
+        'contentHeight=', contentHeight,
+        'minGap=', DEFAULT_MIN_GAP_PX);
       return res.status(400).json({
         error: 'invalid_custom_breaks',
         message: 'Saved page cuts are outside the exportable content range.',
       });
     }
+    // Build segments using contentHeight (trimmed) for last-page cropping +
+    // validationHeight for break normalization so near-bottom breaks survive.
     const segments = buildExportPageSegments({
       totalContentHeightPx: contentHeight,
       pageHeightPx: contentPageHeight,
       customBreakPositions: pageBreaks,
+      breakValidationHeightPx: validationHeight,
     });
     console.log('[pdf] segments:', segments.length, 'footer:', footerHeight, 'px',
       'contentHeight:', contentHeight);

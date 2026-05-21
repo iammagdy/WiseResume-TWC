@@ -10,6 +10,17 @@ export interface BuildExportPageSegmentsOptions {
   pageHeightPx: number;
   customBreakPositions?: number[];
   minGapPx?: number;
+  /**
+   * When provided, custom break positions are validated against this height
+   * rather than totalContentHeightPx. Use the maximum of the trimmed export
+   * height, the live layout height, and lastBreak+minGap to prevent valid
+   * user-placed cuts near the bottom of visible content from being filtered
+   * out by the trailing-whitespace trimming that reduces totalContentHeightPx.
+   *
+   * totalContentHeightPx is still used for segment math (i.e. the last page
+   * height), so the last-page cropping behaviour is fully preserved.
+   */
+  breakValidationHeightPx?: number;
 }
 
 /** Section geometry measured in Puppeteer (template-root coordinates). */
@@ -33,7 +44,7 @@ export interface BuildAutomaticBreakPositionsOptions {
   minGapPx?: number;
 }
 
-const DEFAULT_MIN_GAP_PX = 40;
+export const DEFAULT_MIN_GAP_PX = 40;
 const SECTION_HEADING_GUARD_PX = 80;
 const NEAR_SECTION_TOP_PX = 24;
 
@@ -205,10 +216,20 @@ export function buildExportPageSegments({
   pageHeightPx,
   customBreakPositions,
   minGapPx = DEFAULT_MIN_GAP_PX,
+  breakValidationHeightPx,
 }: BuildExportPageSegmentsOptions): ExportPageSegment[] {
   const total = Math.max(1, Math.round(totalContentHeightPx || 0));
   const pageHeight = Math.max(1, Math.round(pageHeightPx || total));
-  const customBreaks = normalizeBreakPositions(customBreakPositions, total, minGapPx);
+
+  // When breakValidationHeightPx is supplied, use it to validate/normalize the
+  // custom breaks (so near-bottom breaks are not silently filtered out by a
+  // smaller trimmed totalContentHeightPx). The segment heights are still
+  // computed from `total` so the last PDF page is still cropped to content.
+  const validationTotal = (breakValidationHeightPx && breakValidationHeightPx > total)
+    ? Math.round(breakValidationHeightPx)
+    : total;
+
+  const customBreaks = normalizeBreakPositions(customBreakPositions, validationTotal, minGapPx);
   const breaks = customBreaks.length > 0
     ? customBreaks
     : Array.from(
@@ -216,6 +237,8 @@ export function buildExportPageSegments({
         (_unused, index) => pageHeight * (index + 1),
       ).filter((position) => position < total);
 
+  // Segment endpoint list: always use `total` (trimmed) as the final point so
+  // the last segment height = total - lastBreak, not validationTotal - lastBreak.
   const points = [0, ...breaks, total];
   const segments: ExportPageSegment[] = [];
   for (let index = 0; index < points.length - 1; index++) {

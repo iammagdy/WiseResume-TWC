@@ -2,6 +2,46 @@
 
 ---
 
+## Session Summary - 2026-05-21 (Custom Page Cut – Validation Height vs Crop Height Bug)
+
+### Overview
+User reported that PDF export with custom page cuts (Page Cut Setup tool) did not always respect user-placed page break positions — cuts were being silently moved to the wrong position or replaced by automatic breaks.
+
+### Root Cause (Verified)
+**Two-height confusion** across the export pipeline:
+
+1. **Client** → `getExportContentHeightPx()` trims trailing whitespace → `trimmedH` (e.g. 1 020 px).  
+2. **UI** → user places a cut at Y = 1 000 px (valid because the live DOM is 1 080 px tall).  
+3. **Server `clampBreakPositions`** → receives `trimmedH = 1 020` and rejects the cut because `1 000 > 1 020 − 40 = 980`, silently moving it to 980 instead.  
+4. **Server `buildExportPageSegments`** → receives already-clamped breaks but normalises them again against `trimmedH`, which can drop or further corrupt valid near-bottom breaks.
+
+### Fix
+Two concepts are now cleanly separated throughout the export pipeline:
+
+| Concept | Height used | Purpose |
+|---|---|---|
+| `totalContentHeightPx` | `trimmedH` | Rendering/segment math — preserves last-page cropping |
+| `breakValidationHeightPx` | `max(trimmedH, layoutH, lastBreak+gap)` | Break validation only — prevents valid near-bottom cuts from being rejected |
+
+| File | Change |
+|---|---|
+| `src/lib/nativePdfGenerator.ts` | Sends both `totalContentHeightPx` (trimmed) and `layoutContentHeightPx` (live DOM, untrimmed) in the export POST body. |
+| `src/lib/exportPagePlan.ts` | `buildExportPageSegments` now accepts optional `breakValidationHeightPx`. When provided and greater than `totalContentHeightPx`, custom breaks are normalised against the safe validation height; segment math (last-page height) still uses `totalContentHeightPx`. Also exported `DEFAULT_MIN_GAP_PX`. |
+| `api/export/pdf-native.ts` | Reads `layoutContentHeightPx` from the POST body. Computes `validationHeight = max(trimmedH, layoutH, lastBreak+minGap)`. Uses `validationHeight` for `clampBreakPositions` **and** passes it as `breakValidationHeightPx` to `buildExportPageSegments`. Final-page crop still uses `contentHeight` (trimmed). Added `console.error` for the `invalid_custom_breaks` fallback. |
+| `src/lib/exportPagePlan.test.ts` | Added 5 regression tests covering: (1) near-bottom break position preservation, (2) final-page cropping with `breakValidationHeightPx`, (3) boundary-case at exactly `liveH−minGap`, (4) 2-page last-page crop, (5) clamping vs dropping semantics. |
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts` — 18 tests passed.
+- `npx tsc --noEmit` — zero errors.
+- Dev server running at `http://localhost:5000/`.
+
+### Deployment Notes
+- Push to `main` is required so Vercel rebuilds both the frontend bundle and `/api/export/pdf-native`.
+- No Appwrite hub/function redeploy required.
+- No database schema changes.
+
+---
+
 ## Session Summary - 2026-05-21 (PDF Auto Fallback Split Experience)
 
 ### Overview

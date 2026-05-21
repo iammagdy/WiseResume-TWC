@@ -158,6 +158,10 @@ async function callPdfServer(
     showBranding?: boolean;
     customBreakPositions?: number[];
     totalContentHeightPx?: number;
+    /** Live (untrimed) layout height — used by the server to safely validate
+     *  custom break positions near the bottom of the content without
+     *  rejecting them due to trailing-whitespace trimming. */
+    layoutContentHeightPx?: number;
   },
   onProgress?: OnProgressCallback,
   attempt = 0,
@@ -248,9 +252,22 @@ export async function generateNativePDF(
 
   const templateHTML = cloneResumeTemplateElement(templateEl, pageWidthPx).outerHTML;
   const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { atsMode });
+
+  // exportContentHeightPx: trailing-whitespace-trimmed height — used as the
+  // render/crop height for the final PDF page (preserves the existing
+  // last-page trimming behaviour).
   const exportContentHeightPx = getExportContentHeightPx(templateEl);
+
+  // liveLayoutHeightPx: raw scrollHeight/offsetHeight — used as the safe
+  // validation height so custom breaks near the bottom of visible content are
+  // never discarded by clampBreakPositions on the server.
   const liveLayoutHeightPx = getLiveLayoutHeightPx(templateEl);
+
   const hasCustomBreaks = (customBreakPositions?.length ?? 0) > 0;
+
+  // totalContentHeightPx: the height the server uses to crop the final page.
+  // When custom breaks exist we still include lastBreak+40 as a floor so the
+  // server's trimmed height never undercuts a valid break position.
   const lastCustomBreakPx = hasCustomBreaks
     ? Math.max(...customBreakPositions!.filter(Number.isFinite), 0)
     : 0;
@@ -267,12 +284,14 @@ export async function generateNativePDF(
     atsMode,
     showPageNumbers,
     showBranding,
+    // Render/crop height for the final page — trimmed or guarded as above.
     totalContentHeightPx,
-    // Send the raw saved positions — the server normalizes them against
-    // totalContentHeightPx, which is the same value we just measured.
-    // Skipping a second client-side normalization here prevents valid breaks
-    // near the content bottom from being incorrectly filtered out when
-    // getExportContentHeightPx trims trailing whitespace from the template.
+    // Safe validation height for custom break clamping: always >= real layout
+    // height so breaks near the bottom of visible content are never dropped.
+    layoutContentHeightPx: liveLayoutHeightPx,
+    // Send the raw saved positions — the server validates them against the
+    // safe validation height (not just the trimmed export height) so that
+    // valid breaks near the bottom of the content are preserved.
     customBreakPositions: customBreakPositions ?? [],
   }, onProgress);
 }
