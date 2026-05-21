@@ -246,6 +246,9 @@ export function ExportPageBreakSetup({ active, templateElement, resumeData }: Ex
       <PageBreakDialogPreview
         templateElement={effectiveTemplate}
         breakYs={displayBreaks}
+        pageWidthPx={pageDims.pageWidth}
+        pageHeightPx={pageDims.pageHeight}
+        footerHeightPx={44}
         maxPreviewHeight={maxPreviewHeight}
       />
 

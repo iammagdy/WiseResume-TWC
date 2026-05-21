@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
+import { buildExportPageSegments } from '@/lib/exportPagePlan';
 import { computeDialogPreviewScale } from '@/lib/pageBreakPreviewScale';
 
 interface PageBreakDialogPreviewProps {
   templateElement: HTMLElement | null;
   breakYs: number[];
+  pageWidthPx?: number;
+  pageHeightPx?: number;
+  footerHeightPx?: number;
   maxPreviewHeight?: number;
 }
 
@@ -22,6 +26,9 @@ function measureTemplateHeight(templateElement: HTMLElement, clone: HTMLElement)
 export function PageBreakDialogPreview({
   templateElement,
   breakYs,
+  pageWidthPx = 612,
+  pageHeightPx = 792,
+  footerHeightPx = 44,
   maxPreviewHeight = 320,
 }: PageBreakDialogPreviewProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -60,49 +67,79 @@ export function PageBreakDialogPreview({
     const paint = () => {
       if (cancelled || !mountRef.current) return;
 
-      const designWidth = templateElement.offsetWidth || 612;
+      const designWidth = templateElement.offsetWidth || pageWidthPx;
       const clone = cloneResumeTemplateElement(templateElement, designWidth);
       const contentHeight = measureTemplateHeight(templateElement, clone);
+      const printableHeight = Math.max(1, pageHeightPx - footerHeightPx);
+      const segments = buildExportPageSegments({
+        totalContentHeightPx: contentHeight,
+        pageHeightPx: printableHeight,
+        customBreakPositions: breakYs,
+      });
       const { scale, visualHeight } = computeDialogPreviewScale(
         containerWidth,
         designWidth,
-        contentHeight,
+        segments.reduce((sum, segment) => sum + segment.heightPx + footerHeightPx, 0),
       );
+      const pageGapPx = 10;
+      const scaledGapPx = pageGapPx * Math.max(0.75, scale);
 
       const host = document.createElement('div');
       host.style.position = 'relative';
       host.style.width = `${containerWidth}px`;
-      host.style.height = `${visualHeight}px`;
+      host.style.height = `${visualHeight + Math.max(0, segments.length - 1) * scaledGapPx}px`;
 
-      const pageBounds = [0, ...breakYs, contentHeight];
-      for (let i = 0; i < pageBounds.length - 1; i++) {
-        const top = pageBounds[i] * scale;
-        const height = (pageBounds[i + 1] - pageBounds[i]) * scale;
-        const band = document.createElement('div');
-        band.setAttribute('data-pdf-exclude', '');
-        band.style.position = 'absolute';
-        band.style.left = '0';
-        band.style.width = '100%';
-        band.style.top = `${top}px`;
-        band.style.height = `${height}px`;
-        band.style.background = i % 2 === 1 ? 'rgba(0,0,0,0.03)' : 'transparent';
-        band.style.pointerEvents = 'none';
-        host.appendChild(band);
-      }
+      let pageTop = 0;
+      segments.forEach((segment) => {
+        const page = document.createElement('div');
+        page.setAttribute('data-pdf-exclude', '');
+        page.style.position = 'absolute';
+        page.style.left = '0';
+        page.style.top = `${pageTop}px`;
+        page.style.width = `${designWidth * scale}px`;
+        page.style.height = `${(segment.heightPx + footerHeightPx) * scale}px`;
+        page.style.background = '#fff';
+        page.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12)';
+        page.style.overflow = 'hidden';
 
-      const content = document.createElement('div');
-      content.style.position = 'absolute';
-      content.style.top = '0';
-      content.style.left = '0';
-      content.style.width = `${designWidth}px`;
-      content.style.height = `${contentHeight}px`;
-      content.style.transformOrigin = 'top left';
-      content.style.transform = `scale(${scale})`;
-      content.appendChild(clone);
-      host.appendChild(content);
+        const clip = document.createElement('div');
+        clip.style.position = 'relative';
+        clip.style.width = `${designWidth * scale}px`;
+        clip.style.height = `${segment.heightPx * scale}px`;
+        clip.style.overflow = 'hidden';
+        clip.style.background = '#fff';
+
+        const source = document.createElement('div');
+        source.style.position = 'absolute';
+        source.style.top = `${-segment.startPx * scale}px`;
+        source.style.left = '0';
+        source.style.width = `${designWidth}px`;
+        source.style.height = `${contentHeight}px`;
+        source.style.transformOrigin = 'top left';
+        source.style.transform = `scale(${scale})`;
+        source.appendChild(cloneResumeTemplateElement(templateElement, designWidth));
+        clip.appendChild(source);
+        page.appendChild(clip);
+
+        if (footerHeightPx > 0) {
+          const footer = document.createElement('div');
+          footer.style.height = `${footerHeightPx * scale}px`;
+          footer.style.display = 'flex';
+          footer.style.alignItems = 'center';
+          footer.style.justifyContent = 'center';
+          footer.style.font = `${Math.max(7, 9 * scale)}px Arial, sans-serif`;
+          footer.style.color = '#737373';
+          footer.style.background = '#fff';
+          footer.textContent = `Page ${segment.index + 1} of ${segments.length} - Made with WiseResume`;
+          page.appendChild(footer);
+        }
+
+        host.appendChild(page);
+        pageTop += (segment.heightPx + footerHeightPx) * scale + scaledGapPx;
+      });
 
       mountRef.current.replaceChildren(host);
-      setLayout({ scale, contentHeight, designWidth, visualHeight });
+      setLayout({ scale, contentHeight, designWidth, visualHeight: pageTop - scaledGapPx });
     };
 
     paint();
@@ -116,7 +153,7 @@ export function PageBreakDialogPreview({
       observer.disconnect();
       mount.replaceChildren();
     };
-  }, [templateElement, containerWidth, breakYs.join(','), maxPreviewHeight]);
+  }, [templateElement, containerWidth, breakYs.join(','), pageWidthPx, pageHeightPx, footerHeightPx, maxPreviewHeight]);
 
   if (!templateElement) {
     return (
@@ -144,25 +181,6 @@ export function PageBreakDialogPreview({
         {!layout && (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
             Loading preview…
-          </div>
-        )}
-        {layout && breakYs.length > 0 && (
-          <div
-            className="pointer-events-none absolute inset-0 z-10"
-            aria-hidden
-            data-pdf-exclude
-          >
-            {breakYs.map((breakY, index) => (
-              <div
-                key={`dialog-break-${breakY}-${index}`}
-                className="absolute inset-x-0 border-t-2 border-primary"
-                style={{ top: `${breakY * scale}px` }}
-              >
-                <span className="absolute left-1 -translate-y-1/2 whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground">
-                  P{index + 2}
-                </span>
-              </div>
-            ))}
           </div>
         )}
       </div>

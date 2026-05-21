@@ -444,22 +444,19 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
-    // Block external font requests. The HTML payload embeds @font-face rules from
-    // Google Fonts; without interception Chromium downloads WOFF2 files from
-    // fonts.gstatic.com on every segment, adding 10-30 s each in Lambda
-    // environments where outbound connections are slow or restricted.
-    // System fonts (Liberation/Noto) serve as fallbacks — the PDF still renders
-    // correctly; only the custom typeface is replaced.
+    // Interception remains enabled only to preserve the existing request hook;
+    // every resource is continued so fonts/images match the approved layout.
     await page.setRequestInterception(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     page.on('request', (req: any) => {
       const url: string = req.url() as string;
       const type: string = req.resourceType() as string;
-      if (
+      const shouldBlockResource = false;
+      if (shouldBlockResource && (
         type === 'font' ||
         url.includes('fonts.gstatic.com') ||
         url.includes('fonts.googleapis.com')
-      ) {
+      )) {
         req.abort().catch(() => undefined);
       } else {
         req.continue().catch(() => undefined);
@@ -469,7 +466,8 @@ async function renderHtmlToPdfBuffer(
     await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 1 });
     // domcontentloaded fires as soon as the DOM is parsed; no waiting for external
     // resources (images, fonts). All CSS is already inlined in the payload.
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+    try { await page.evaluateHandle(() => (document as Document & { fonts: { ready: Promise<unknown> } }).fonts.ready); } catch { /* ignore */ }
     const pdf = await page.pdf({
       width: `${widthPx}px`,
       height: `${heightPx}px`,
@@ -572,43 +570,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? totalContentHeightPx
       : dims.heightPx;
 
-    // Start from the client-saved cuts, then re-check them against the actual
-    // HTML Puppeteer will print. This prevents a user cut from bisecting a
-    // keep-together resume entry when live/export layout differs slightly.
-    let snappedBreaks = (customBreakPositions ?? [])
+    // Saved custom cuts are authoritative. The server validates/sorts/clamps
+    // them through buildExportPageSegments(), but it must not move them to a
+    // nearby section or keep-together block.
+    const exactCustomBreaks = (customBreakPositions ?? [])
       .filter(Number.isFinite)
       .map(Math.round);
 
     // Divide content into page segments.
     const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
     const contentPageHeight = dims.heightPx - footerHeight;
-    if (snappedBreaks.length > 0) {
-      console.log('[pdf] step: measure custom break layout');
-      const layout = await measureExportLayout(browser, html, dims.widthPx);
-      const measuredHeight = Math.max(contentHeight, layout.measuredHeight);
-      contentHeight = measuredHeight;
-      const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
-        snappedBreaks,
-        contentHeight,
-        measuredHeight,
-      );
-      const sectionSnappedBreaks = snapBreakPositionsToSectionHeadings(
-        scaledBreaks,
-        layout.sections,
-        measuredHeight,
-      );
-      snappedBreaks = snapBreakPositionsToAvoidBlocks(
-        sectionSnappedBreaks,
-        layout.avoidBlocks,
-        contentPageHeight,
-        measuredHeight,
-      );
-      console.log('[pdf] custom breaks:', customBreakPositions, 'snapped:', snappedBreaks);
+    if (exactCustomBreaks.length > 0) {
+      console.log('[pdf] exact custom breaks:', exactCustomBreaks);
     }
     const segments = buildExportPageSegments({
       totalContentHeightPx: contentHeight,
       pageHeightPx: contentPageHeight,
-      customBreakPositions: snappedBreaks,
+      customBreakPositions: exactCustomBreaks,
     });
     console.log('[pdf] segments:', segments.length, 'footer:', footerHeight, 'px',
       'contentHeight:', contentHeight);

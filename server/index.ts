@@ -24,10 +24,6 @@ import puppeteer from 'puppeteer';
 import { PDFDocument } from 'pdf-lib';
 import {
   buildExportPageSegments,
-  normalizeBreakPositions,
-  scaleBreakPositionsToMeasuredHeight,
-  snapBreakPositionsToAvoidBlocks,
-  snapBreakPositionsToSectionHeadings,
   type ExportAvoidBounds,
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
@@ -350,33 +346,17 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     } else {
       const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
       const printableHeight = dims.heightPx - footerHeight;
-      const layout = await measureExportLayout(browser, html, dims.widthPx);
-      const measuredHeight = layout.measuredHeight;
       const clientHeight =
         Number.isFinite(totalContentHeightPx) && (totalContentHeightPx as number) > 0
           ? Math.round(totalContentHeightPx as number)
-          : measuredHeight;
-      const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
-        customBreakPositions,
-        clientHeight,
-        measuredHeight,
-      );
-      const snappedBreaks = snapBreakPositionsToSectionHeadings(
-        scaledBreaks,
-        layout.sections,
-        measuredHeight,
-      );
-      const avoidSnappedBreaks = snapBreakPositionsToAvoidBlocks(
-        snappedBreaks,
-        layout.avoidBlocks,
-        printableHeight,
-        measuredHeight,
-      );
-      const normalizedBreaks = normalizeBreakPositions(avoidSnappedBreaks, measuredHeight);
+          : dims.heightPx;
+      const exactCustomBreaks = (customBreakPositions ?? [])
+        .filter(Number.isFinite)
+        .map(Math.round);
       const segments = buildExportPageSegments({
-        totalContentHeightPx: measuredHeight,
+        totalContentHeightPx: clientHeight,
         pageHeightPx: printableHeight,
-        customBreakPositions: normalizedBreaks,
+        customBreakPositions: exactCustomBreaks,
       });
       const buffers: Buffer[] = [];
       for (const segment of segments) {

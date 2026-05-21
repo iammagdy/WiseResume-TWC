@@ -2,6 +2,36 @@
 
 ---
 
+## Session Summary - 2026-05-21 (Exact Custom PDF Page Cuts)
+
+### Overview
+Re-investigated the repeated live-domain failure where a user-selected page cut before Education still exported with the final Experience entry at the top of page 2. This session intentionally stopped treating the symptom as another snap-threshold problem.
+
+### Root cause
+The saved custom cut was not authoritative in the export path. The setup UI stored a user-selected Y coordinate, but the Vercel PDF function and local Express renderer re-measured the exported HTML and then ran section/keep-together snapping before rendering. That meant the server could move a saved cut away from the exact place the user chose.
+
+There was also a preview/export contract mismatch: the setup dialog showed a continuous document with break lines, while the exporter renders cropped page segments with footer space. The user could therefore approve a cut in one visual model and receive a different segmented PDF model.
+
+### Fix
+| File | Change |
+|---|---|
+| `api/export/pdf-native.ts` | Saved `customBreakPositions` are now passed directly to the segment builder; the Vercel function no longer measures/snaps/repositions custom cuts. Font resources are no longer blocked during segment rendering, so text wrapping matches the approved layout more closely. |
+| `server/index.ts` | Local Express PDF export now follows the same exact-cut contract as production. |
+| `src/components/editor/export/PageBreakDialogPreview.tsx` | The page-cut setup preview now renders cropped page slices with the same segment builder and footer reservation used by export, instead of only drawing break lines over one continuous document. |
+| `src/components/editor/export/ExportPageBreakSetup.tsx` | Passes the active page format dimensions into the segmented preview. |
+| `src/lib/exportPagePlan.test.ts` | Added regressions proving saved custom cuts remain exact, including cuts inside entries and cuts at the Education boundary. |
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts` - passed, 42 tests.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed.
+
+### Deployment Notes
+- This changes frontend page-cut setup plus the Vercel `/api/export/pdf-native` serverless function. Push to `main` is required so Vercel rebuilds both.
+- No Appwrite hub/function redeploy is required for this fix.
+
+---
+
 ## Session Summary - 2026-05-21 (PDF Cuts Splitting Experience Entries)
 
 ### Overview

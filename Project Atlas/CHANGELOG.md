@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-05-21 - Custom PDF page cuts are exact
+
+### Summary
+Changed custom PDF page cuts so saved user-selected cuts are treated as exact export instructions.
+
+### What changed
+- Production and local PDF renderers now validate/sort saved custom cut coordinates but no longer move them through section-heading or keep-together snapping.
+- The page-cut setup preview now shows cropped page slices with footer space, matching the export segment model instead of only showing lines over a continuous document.
+- Segment rendering now waits for fonts/resources instead of substituting fonts during PDF output.
+- Added regression tests for exact cuts inside entries and at a section boundary.
+
+### Why
+The verified root cause was that the export server was still allowed to reinterpret saved cuts. A cut placed before Education could be snapped backward or otherwise rendered differently from the setup view.
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
 ## 2026-05-21 - PDF page cuts no longer split keep-together entries
 
 ### Summary

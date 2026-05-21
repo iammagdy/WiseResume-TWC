@@ -54,6 +54,31 @@ describe('exportPagePlan', () => {
     ).toEqual([900]);
   });
 
+  it('does not relocate a saved custom cut that intentionally lands inside an entry', () => {
+    const segments = buildExportPageSegments({
+      totalContentHeightPx: 1200,
+      pageHeightPx: 748,
+      customBreakPositions: [748],
+    });
+
+    expect(segments[0]).toMatchObject({ startPx: 0, heightPx: 748 });
+    expect(segments[1]).toMatchObject({ startPx: 748, heightPx: 452 });
+  });
+
+  it('keeps a saved section-boundary cut exactly at the requested coordinate', () => {
+    const educationTop = 900;
+    const segments = buildExportPageSegments({
+      totalContentHeightPx: 1400,
+      pageHeightPx: 748,
+      customBreakPositions: [educationTop],
+    });
+
+    expect(segments).toEqual([
+      { index: 0, startPx: 0, heightPx: educationTop, isLast: false },
+      { index: 1, startPx: educationTop, heightPx: 500, isLast: true },
+    ]);
+  });
+
   it('snaps custom breaks inside keep-together blocks to the block top', () => {
     const avoidBlocks = [
       { top: 700, bottom: 900, childTops: [700, 730, 770] },
