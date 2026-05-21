@@ -499,8 +499,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 5. Render each segment as a separate PDF page.
     const pdfBuffers: Buffer[] = [];
     for (const segment of segments) {
-      console.log('[pdf] step 5: rendering segment', segment.index + 1, 'of', segments.length,
-        '(start:', segment.startPx, 'h:', segment.heightPx, ')');
+      console.log('[pdf] rendering segment', segment.index + 1, '/',
+        segments.length, 'start:', segment.startPx, 'h:', segment.heightPx);
       const pageLabel = showPageNumbers
         ? `Page ${segment.index + 1} of ${segments.length}`
         : undefined;
@@ -520,16 +520,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         segment.heightPx + footerHeight,
       );
       pdfBuffers.push(buf);
-      console.log('[pdf] segment', segment.index + 1, 'done, buffer:', buf.length, 'bytes');
+      console.log('[pdf] segment', segment.index + 1, 'done:', buf.length, 'bytes');
     }
 
     // 6. onePage: keep only the first segment if requested.
     const buffersToMerge = onePage ? pdfBuffers.slice(0, 1) : pdfBuffers;
-    console.log('[pdf] step 6: merging', buffersToMerge.length, 'buffer(s)');
+    console.log('[pdf] merging', buffersToMerge.length, 'buffer(s)');
 
     // 7. Merge segment PDFs into the final file.
     const pdfBuffer = await mergePdfBuffers(buffersToMerge);
-    console.log('[pdf] done, final size:', pdfBuffer.length, 'bytes');
+    console.log('[pdf] done, total size:', pdfBuffer.length, 'bytes');
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
