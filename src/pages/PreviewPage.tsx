@@ -366,7 +366,14 @@ export default function PreviewPage() {
             onProgress('capturing', 20);
             const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: true });
             onProgress('capturing', 40);
-            const resumeBlob = await nativePdf(templateEl, { pageFormat, showPageNumbers: false, showBranding: true, onProgress });
+            const customBreakPositions = currentResume.customization?.customBreakPositions;
+            const resumeBlob = await nativePdf(templateEl, {
+              pageFormat,
+              showPageNumbers: false,
+              showBranding: true,
+              onProgress,
+              ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+            });
             onProgress('finalizing', 90);
             pdfBlob = await mergePDFBlobs(coverBlob, resumeBlob);
             fileName = `${baseName}_Application_Package.pdf`;
@@ -501,7 +508,13 @@ export default function PreviewPage() {
       const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
       if (!templateEl) { toast.error('Resume preview not visible'); return; }
       const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-      const pdfBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: true, showBranding: true });
+      const customBreakPositions = currentResume.customization?.customBreakPositions;
+      const pdfBlob = await generateNativePDF(templateEl, {
+        pageFormat,
+        showPageNumbers: true,
+        showBranding: true,
+        ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+      });
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
@@ -532,7 +545,13 @@ export default function PreviewPage() {
         const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
         if (!templateEl) { toast.error('Resume preview not visible'); return; }
         const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-        const pdfBlob = await generateNativePDF(templateEl, { pageFormat, showPageNumbers: true, showBranding: true });
+        const customBreakPositions = currentResume.customization?.customBreakPositions;
+        const pdfBlob = await generateNativePDF(templateEl, {
+          pageFormat,
+          showPageNumbers: true,
+          showBranding: true,
+          ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+        });
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({ title: 'My Resume', files: [file] });
       } catch {

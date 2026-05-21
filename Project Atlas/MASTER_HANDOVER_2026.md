@@ -2,6 +2,41 @@
 
 ---
 
+## Session Summary - 2026-05-21 (Custom PDF Page Cuts Actually Honored)
+
+### Overview
+Re-investigated the "Custom page cuts ignored in exported PDF" issue because user verification showed the prior fix was incomplete. Root cause was confirmed by code inspection and targeted regression tests before finalizing the fix.
+
+### Root cause
+There were two remaining defects:
+
+1. `PreviewScaledWrapper` applies `transform: scale(...)` directly on the `[data-resume-template]` element so the preview fits smaller screens. `generateNativePDF()` cloned that same element for export, and `cloneResumeTemplateElement()` preserved the inline transform. Page cuts are saved in unscaled PDF coordinates, but the HTML sent to Puppeteer could still be visually scaled down. The server then clipped pages at the saved Y values against scaled content, making the downloaded PDF appear to ignore the user's page-cut setup.
+
+2. `generateNativePDF()` still sent `totalContentHeightPx` from `getExportContentHeightPx()`, which intentionally trims trailing blank/min-height area. Custom cuts are saved against the live preview height. If a saved cut lived in the trimmed zone, the server-side `normalizeBreakPositions()` could reject it as outside the document and fall back to automatic pagination.
+
+Additional coverage gap: Preview Save/Share and application-package PDF paths did not consistently pass `customBreakPositions` through to `generateNativePDF()`.
+
+### Fix
+| File | Change |
+|---|---|
+| `src/lib/exportDomUtils.ts` | Export clones now force `transform: none` and `transformOrigin: top left` so screen-only preview scaling cannot affect Puppeteer output. |
+| `src/lib/nativePdfGenerator.ts` | When saved custom cuts exist, `totalContentHeightPx` now preserves the live preview height coordinate space instead of using only the trimmed export content height. This prevents valid saved cuts from being filtered out on the server. |
+| `src/pages/PreviewPage.tsx` | Preview combined PDF, Save to Files, and native share flows now pass saved custom cuts. |
+| `src/pages/EditorPage.tsx` | Combined application-package export now passes saved custom cuts to the resume PDF portion. |
+| `src/components/editor/ShareSheet.tsx` | Share-as-PDF now passes saved custom cuts. |
+| `src/lib/exportDomUtils.test.ts` | Added regression coverage for stripping preview transforms from export clones. |
+| `src/lib/nativePdfGenerator.test.ts` | Added regression coverage for preserving live-height coordinates when custom cuts exist. |
+
+### Verification
+- `npx vitest run src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/exportPagePlan.test.ts` - passed, 10 tests.
+- `npx tsc --noEmit` - passed.
+
+### Deployment Notes
+- Frontend plus Vercel PDF API behavior path; deploy through normal `main` push so the updated frontend export payload reaches production.
+- No Appwrite hub redeploy required.
+
+---
+
 ## Session Summary — 2026-05-21 (PDF Export 100% Failure Fix + LinkedIn + Page Cuts)
 
 ### Overview

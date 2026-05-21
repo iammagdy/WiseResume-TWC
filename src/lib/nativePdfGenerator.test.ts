@@ -40,7 +40,7 @@ describe('generateNativePDF', () => {
       showPageNumbers: true,
       showBranding: true,
       totalContentHeightPx: 1650,
-      customBreakPositions: [700, 1225],
+      customBreakPositions: [1225, 700],
     });
     expect(body.html).toContain('https://github.com/example');
     expect(body.html).toContain('WiseResume');
@@ -63,5 +63,33 @@ describe('generateNativePDF', () => {
     ));
 
     await expect(generateNativePDF(template)).rejects.toBeInstanceOf(PDFServerUnavailableError);
+  });
+
+  it('keeps custom page cuts in the live preview height coordinate space', async () => {
+    const template = document.createElement('div');
+    template.setAttribute('data-resume-template', 'true');
+    template.innerHTML = '<section data-section="summary">summary</section>';
+    Object.defineProperty(template, 'scrollHeight', { value: 1650, configurable: true });
+    Object.defineProperty(template, 'offsetHeight', { value: 1650, configurable: true });
+    const section = template.querySelector('[data-section]') as HTMLElement;
+    Object.defineProperty(section, 'offsetHeight', { value: 1192, configurable: true });
+    Object.defineProperty(section, 'offsetTop', { value: 0, configurable: true });
+
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response('%PDF-1.7', {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await generateNativePDF(template, {
+      pageFormat: 'letter',
+      customBreakPositions: [1225],
+    });
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.totalContentHeightPx).toBe(1650);
+    expect(body.customBreakPositions).toEqual([1225]);
   });
 });

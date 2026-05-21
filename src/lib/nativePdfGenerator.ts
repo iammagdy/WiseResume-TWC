@@ -38,6 +38,10 @@ export interface GenerateCoverLetterNativePDFOptions {
   onProgress?: OnProgressCallback;
 }
 
+function getLiveLayoutHeightPx(templateEl: HTMLElement): number {
+  return Math.max(templateEl.scrollHeight || 0, templateEl.offsetHeight || 0, 1);
+}
+
 async function collectDocumentStyles(): Promise<string> {
   const parts: string[] = [];
   const origin = window.location.origin;
@@ -244,7 +248,15 @@ export async function generateNativePDF(
 
   const templateHTML = cloneResumeTemplateElement(templateEl, pageWidthPx).outerHTML;
   const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { atsMode });
-  const totalContentHeightPx = getExportContentHeightPx(templateEl);
+  const exportContentHeightPx = getExportContentHeightPx(templateEl);
+  const liveLayoutHeightPx = getLiveLayoutHeightPx(templateEl);
+  const hasCustomBreaks = (customBreakPositions?.length ?? 0) > 0;
+  const lastCustomBreakPx = hasCustomBreaks
+    ? Math.max(...customBreakPositions!.filter(Number.isFinite), 0)
+    : 0;
+  const totalContentHeightPx = hasCustomBreaks
+    ? Math.max(exportContentHeightPx, liveLayoutHeightPx, lastCustomBreakPx + 40)
+    : exportContentHeightPx;
 
   onProgress?.('finalizing', 50);
 

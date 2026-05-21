@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-05-21 - Custom PDF page cuts honored in downloads
+
+### Summary
+Fixed the remaining PDF page-cut issue after user verification showed the previous page-cut entry was incomplete.
+
+### What changed
+- Export clones now remove screen-only preview scaling before sending HTML to Puppeteer.
+- Resume PDF export now keeps the live preview height coordinate space whenever saved custom cuts exist, preventing the server from filtering valid cuts as "outside" trimmed content.
+- Preview Save/Share, Share Sheet PDF, and combined application-package exports now pass saved custom cuts to the resume PDF generator.
+- Added regression tests for transform stripping and custom-cut height preservation.
+
+### Why
+The verified root cause was not the earlier client-side normalization alone. On the Preview page, the exported clone could keep `transform: scale(...)` from the responsive preview, while the saved page-cut Y positions were unscaled. Also, export height still used a trimmed content height even though saved cuts were based on the live preview height, so valid cuts could still be rejected by server normalization.
+
+### Verification
+- `npx vitest run src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/exportPagePlan.test.ts`
+- `npx tsc --noEmit`
+
+---
+
 ## 2026-05-20 - PDF renderer function startup fix
 
 ### Summary

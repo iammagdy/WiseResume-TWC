@@ -18,6 +18,8 @@ export function cloneResumeTemplateElement(
   clone.style.minWidth = `${width}px`;
   clone.style.background = '#fff';
   clone.style.boxSizing = 'border-box';
+  clone.style.transform = 'none';
+  clone.style.transformOrigin = 'top left';
 
   return clone;
 }

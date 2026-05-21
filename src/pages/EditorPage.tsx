@@ -362,7 +362,14 @@ export default function EditorPage() {
             onProgress('capturing', 20);
             const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: true });
             onProgress('capturing', 40);
-            const resumeBlob = await exportResumePdf({ pageFormat, showPageNumbers: false, showBranding: true, onProgress });
+            const customBreakPositions = currentResume.customization?.customBreakPositions;
+            const resumeBlob = await exportResumePdf({
+              pageFormat,
+              showPageNumbers: false,
+              showBranding: true,
+              onProgress,
+              ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+            });
             onProgress('finalizing', 90);
             pdfBlob = await mergePDFBlobs(coverBlob, resumeBlob);
             fileName = `${baseName}_Application_Package.pdf`;
