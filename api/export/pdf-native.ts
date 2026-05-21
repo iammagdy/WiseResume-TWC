@@ -469,24 +469,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // module startup. Cache modules after the first load to avoid repeated work.
     console.log('[pdf] loading modules');
     if (!_puppeteer) {
+      console.log('[pdf] step: import puppeteer-core');
       _puppeteer = (await import('puppeteer-core')).default;
+      console.log('[pdf] step: puppeteer-core ok');
     }
     if (!_chromium) {
+      console.log('[pdf] step: import @sparticuz/chromium');
       _chromium = (await importExternalModule<{ default: unknown }>('@sparticuz/chromium')).default;
+      console.log('[pdf] step: chromium module ok, type:', typeof _chromium);
     }
     const puppeteer = _puppeteer;
     const chromium = _chromium;
 
-    console.log('[pdf] launching browser, chromium args count:', chromium.args?.length);
+    console.log('[pdf] step: get chromium args, count:', chromium.args?.length);
+    console.log('[pdf] step: get executablePath');
     const execPath = await chromium.executablePath();
-    console.log('[pdf] executablePath:', execPath ? execPath.slice(-60) : 'undefined');
+    console.log('[pdf] step: executablePath ok:', execPath ? execPath.slice(-50) : 'undefined');
+    console.log('[pdf] step: launch browser');
     browser = await puppeteer.launch({
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
+      defaultViewport: null,
       executablePath: execPath,
       headless: true,
     });
-    console.log('[pdf] browser launched');
+    console.log('[pdf] step: browser launched');
 
     const isA4 = pageFormat === 'a4';
     const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
@@ -559,8 +565,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? (err.stack ?? '') : '';
-    console.error('[pdf] error:', message);
-    if (stack) console.error('[pdf] stack:', stack);
+    // Use a unique prefix so Vercel log queries can find this exact line
+    // without it being shadowed by the earlier "[pdf] loading modules" line.
+    console.error('[pdf-err]', message.slice(0, 300));
+    const firstStackLine = stack.split('\n').slice(1, 3).join(' | ');
+    if (firstStackLine) console.error('[pdf-trace]', firstStackLine);
     res.status(500).json({ error: 'pdf_failed', message });
   } finally {
     await browser?.close();
