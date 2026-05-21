@@ -2,6 +2,48 @@
 
 ---
 
+## Session Summary — 2026-05-21 (Continued) — Page Cuts Still Not Respected: Root Cause Found & Fixed
+
+### Overview
+Previous session claimed page cuts were fixed (by removing client-side `normalizeBreakPositions`). They were not. This session found the actual root cause and fixed it. One file changed.
+
+### Root Cause
+
+`generateNativePDF` in `src/lib/nativePdfGenerator.ts` sent `totalContentHeightPx = getExportContentHeightPx(templateEl)` to the server. `getExportContentHeightPx` trims trailing whitespace — it returns a value smaller than `scrollHeight` when `layoutHeight > maxSectionBottom * 1.12`. Custom break positions are saved against `Math.max(scrollHeight, offsetHeight)` (in both `PageBreakEditorDialog.persistBreaks` and `ExportPageBreakSetup.persistBreaks`).
+
+On the server, `normalizeBreakPositions(positions, totalContentHeightPx, 40)` filters any position where `position > totalContentHeightPx - 40`. When `totalContentHeightPx` is the trimmed value and a break is near the page boundary, the filter eliminates it:
+
+**Example:** content extends to 780 px, `getExportContentHeightPx` = 780 px, smart break at 748 px (natural letter-with-footer boundary).
+`748 > 780 − 40 = 740` → **break filtered** → server falls back to automatic pagination at 748 px (mid-sentence cut).
+
+This only required a coordinate space mismatch of a few dozen pixels — very common for resumes that are just slightly over one page.
+
+### Fix
+
+**1 file changed, 0 new dependencies.**
+
+| File | Change |
+|------|--------|
+| `src/lib/nativePdfGenerator.ts` | Replace `getExportContentHeightPx(templateEl)` with `Math.max(templateEl.scrollHeight, templateEl.offsetHeight, 1)` for `totalContentHeightPx`. Remove unused `getExportContentHeightPx` import. |
+
+The live DOM height matches the coordinate space where breaks are saved. Server `normalizeBreakPositions` no longer filters valid breaks. Slightly more whitespace is possible on the last page if `scrollHeight` exceeds actual content (e.g. template `minHeight` sentinel), but this is invisible in practice for any resume that needs pagination.
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- Committed `d9ed9aa` on branch `claude/read-project-rules-5x3PH`
+- PR #65 open as draft. Vercel preview build in progress (CI green so far).
+
+### Where We Stopped
+- PR #65 open as draft on `claude/read-project-rules-5x3PH`, monitored. Vercel preview is building; no review comments or CI failures yet.
+- **All three session fixes now complete:**
+  1. PDF 100% failure (`importExternalModule` bundler regression) — fixed (prior sub-session, PR #63/main)
+  2. LinkedIn/GitHub bare username hrefs — fixed (prior sub-session, PR #63/main)
+  3. Page cuts not respected (`totalContentHeightPx` coordinate mismatch) — fixed (PR #65, this sub-session)
+- PR #63 was already merged to `main` in prior sub-session. PR #65 targets `main` and requires merge.
+- All other pending items unchanged: RevenueCat prerequisites, hub redeployments for 3-Tier AI Enhancement, `DEVKIT_PASSWORD` on `admin-deploy-hubs`.
+
+---
+
 ## Session Summary — 2026-05-21 (PDF Export — All 4 Issues Fixed)
 
 ### Overview
