@@ -159,7 +159,11 @@ function snapBreakPositionsToAvoidBlocks(
     if (!hit) return Math.min(Math.max(y, minGapPx), maxY);
 
     const blockHeight = hit.bottom - hit.top;
-    if (blockHeight < pageHeight) {
+    if (hit.bottom - y <= minGapPx) {
+      y = hit.bottom;
+    } else if (y - hit.top <= minGapPx) {
+      y = hit.top;
+    } else if (blockHeight < pageHeight) {
       y = hit.top;
     } else if (hit.childTops.length > 0) {
       let best = y;

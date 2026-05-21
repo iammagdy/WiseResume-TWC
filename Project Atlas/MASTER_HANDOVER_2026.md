@@ -33,6 +33,34 @@ The local Express server still had a measurement path but only snapped near sect
 
 ---
 
+## Session Summary - 2026-05-21 (PDF Section Cut Overcorrection)
+
+### Overview
+Re-investigated the live-domain case where the user set a cut before Education / after Experience, but the exported PDF still started page 2 with the final Experience item followed by Education.
+
+### Root cause
+The previous keep-together fix was directionally correct but over-aggressive. `snapBreakPositionsToAvoidBlocks()` moved any cut inside a `data-break-avoid` entry to that entry's top. When browser layout differences placed a section-boundary cut a few pixels inside the bottom of the final experience entry, the snap logic pulled the cut backward to the start of that entry. That made page 2 start with `Senior Technical Support Specialist` instead of `EDUCATION`.
+
+### Fix
+`snapBreakPositionsToAvoidBlocks()` now treats near-boundary cuts differently:
+- near the top of a keep-together block: snap to the block top;
+- near the bottom of a keep-together block: snap forward to the block bottom;
+- true middle-of-entry cuts: preserve the keep-together behavior and move to a safe boundary.
+
+This preserves explicit "before Education" cuts instead of moving them backward into the previous Experience entry.
+
+### Verification
+- Added regression: a cut at `895` inside an entry ending at `900` now snaps to `900`, not back to `700`.
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts` - passed, 40 tests.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed.
+
+### Deployment Notes
+- This changes shared page planning plus the Vercel PDF function copy of that logic. Push to `main` is required so Vercel rebuilds `/api/export/pdf-native`.
+- No Appwrite hub redeploy required.
+
+---
+
 ## Session Summary - 2026-05-21 (Custom PDF Page Cuts Actually Honored)
 
 ### Overview

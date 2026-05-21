@@ -64,6 +64,16 @@ describe('exportPagePlan', () => {
     ).toEqual([700]);
   });
 
+  it('snaps a section-boundary cut forward to the end of the previous entry', () => {
+    const avoidBlocks = [
+      { top: 700, bottom: 900, childTops: [700, 730, 770] },
+    ];
+
+    expect(
+      snapBreakPositionsToAvoidBlocks([895], avoidBlocks, 748, 1200),
+    ).toEqual([900]);
+  });
+
   it('snaps inside oversized keep-together blocks to the nearest child boundary', () => {
     const avoidBlocks = [
       { top: 100, bottom: 1200, childTops: [100, 420, 760, 980] },

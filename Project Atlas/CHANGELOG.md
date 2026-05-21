@@ -32,6 +32,26 @@ The verified root cause was in the live PDF renderer. The templates already mark
 
 ---
 
+## 2026-05-21 - PDF section cuts no longer move backward into previous entry
+
+### Summary
+Fixed an overcorrection in the keep-together page-cut logic where a user cut before Education could be moved backward to the start of the final Experience entry.
+
+### What changed
+- `snapBreakPositionsToAvoidBlocks()` now snaps cuts near the bottom of a keep-together entry forward to the entry bottom instead of backward to the entry top.
+- The same rule was applied to the Vercel PDF function's inline page-planning copy.
+- Added regression coverage for a section-boundary cut that falls a few pixels inside the previous entry.
+
+### Why
+The verified root cause was that the keep-together fix treated every cut inside `data-break-avoid` the same. A cut intended for the Education boundary could land slightly inside the previous Experience entry after export measurement, so the renderer moved the break to the top of that Experience entry. The result was page 2 starting with the final job instead of Education.
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
 ## 2026-05-21 - Custom PDF page cuts honored in downloads
 
 ### Summary
