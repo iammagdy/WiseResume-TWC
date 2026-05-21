@@ -185,7 +185,7 @@ async function importExternalModule<T = unknown>(specifier: string): Promise<T> 
 
 async function loadPdfLib() {
   if (!_pdfLib) {
-    _pdfLib = await importExternalModule<typeof import('pdf-lib')>('pdf-lib');
+    _pdfLib = (await import('pdf-lib')) as typeof import('pdf-lib');
   }
   return _pdfLib;
 }
@@ -470,11 +470,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[pdf] loading modules');
     if (!_puppeteer) {
       console.log('[pdf] step: import puppeteer-core');
-      // puppeteer-core@25 is ESM-only ("type":"module"). Vercel's ncc bundler
-      // outputs CJS and cannot bundle ESM packages — same issue as
-      // @sparticuz/chromium. Use importExternalModule so ncc marks it external
-      // and Node.js loads it natively as ESM at runtime.
-      _puppeteer = (await importExternalModule<{ default: unknown }>('puppeteer-core')).default;
+      // puppeteer-core has dual CJS/ESM exports pointing to the same .js file,
+      // so ncc can bundle it inline. Use a regular dynamic import (not
+      // importExternalModule) so ncc includes it in the Lambda bundle.
+      _puppeteer = (await import('puppeteer-core') as { default: unknown }).default;
       console.log('[pdf] step: puppeteer-core ok');
     }
     if (!_chromium) {
