@@ -383,10 +383,32 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
+    // Block external font requests. The HTML payload embeds @font-face rules from
+    // Google Fonts; without interception Chromium downloads WOFF2 files from
+    // fonts.gstatic.com on every segment, adding 10-30 s each in Lambda
+    // environments where outbound connections are slow or restricted.
+    // System fonts (Liberation/Noto) serve as fallbacks — the PDF still renders
+    // correctly; only the custom typeface is replaced.
+    await page.setRequestInterception(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    page.on('request', (req: any) => {
+      const url: string = req.url() as string;
+      const type: string = req.resourceType() as string;
+      if (
+        type === 'font' ||
+        url.includes('fonts.gstatic.com') ||
+        url.includes('fonts.googleapis.com')
+      ) {
+        req.abort().catch(() => undefined);
+      } else {
+        req.continue().catch(() => undefined);
+      }
+    });
+
     await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 1 });
-    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
-    // Wait for fonts before printing so the PDF uses the correct typefaces.
-    try { await page.evaluateHandle(() => (document as Document & { fonts: { ready: Promise<unknown> } }).fonts.ready); } catch { /* ignore */ }
+    // domcontentloaded fires as soon as the DOM is parsed; no waiting for external
+    // resources (images, fonts). All CSS is already inlined in the payload.
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20_000 });
     const pdf = await page.pdf({
       width: `${widthPx}px`,
       height: `${heightPx}px`,
