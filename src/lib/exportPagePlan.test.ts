@@ -3,6 +3,7 @@ import {
   buildExportPageSegments,
   normalizeBreakPositions,
   scaleBreakPositionsToMeasuredHeight,
+  snapBreakPositionsToAvoidBlocks,
   snapBreakPositionsToSectionHeadings,
 } from './exportPagePlan';
 
@@ -51,6 +52,26 @@ describe('exportPagePlan', () => {
     expect(
       snapBreakPositionsToSectionHeadings([900], sections, 2100),
     ).toEqual([900]);
+  });
+
+  it('snaps custom breaks inside keep-together blocks to the block top', () => {
+    const avoidBlocks = [
+      { top: 700, bottom: 900, childTops: [700, 730, 770] },
+    ];
+
+    expect(
+      snapBreakPositionsToAvoidBlocks([748], avoidBlocks, 748, 1200),
+    ).toEqual([700]);
+  });
+
+  it('snaps inside oversized keep-together blocks to the nearest child boundary', () => {
+    const avoidBlocks = [
+      { top: 100, bottom: 1200, childTops: [100, 420, 760, 980] },
+    ];
+
+    expect(
+      snapBreakPositionsToAvoidBlocks([748], avoidBlocks, 748, 1400),
+    ).toEqual([760]);
   });
 
   it('creates standard suggested segments while still cropping the final page when no custom breaks exist', () => {

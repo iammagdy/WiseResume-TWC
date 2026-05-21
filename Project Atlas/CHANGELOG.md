@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-05-21 - PDF page cuts no longer split keep-together entries
+
+### Summary
+Fixed the remaining live PDF truncation case where a custom page cut could split an experience entry, placing the footer between the job title and its description.
+
+### What changed
+- Added shared export planning logic to snap cuts away from `data-break-avoid` blocks.
+- Updated the live Vercel PDF function to measure exported HTML when custom cuts exist, then snap those cuts away from section headings and keep-together resume entries before rendering page segments.
+- Updated the local Express PDF renderer to use the same keep-together snap behavior.
+- Added regression tests for cuts inside normal and oversized keep-together blocks.
+
+### Why
+The verified root cause was in the live PDF renderer. The templates already mark experience entries with `data-break-avoid`, but commit `3acc94b9` skipped the Vercel measurement/snap pass and rendered raw custom break positions. A raw cut inside an experience item therefore clipped the first page mid-entry and continued the text on the next page.
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
 ## 2026-05-21 - Custom PDF page cuts honored in downloads
 
 ### Summary

@@ -26,7 +26,9 @@ import {
   buildExportPageSegments,
   normalizeBreakPositions,
   scaleBreakPositionsToMeasuredHeight,
+  snapBreakPositionsToAvoidBlocks,
   snapBreakPositionsToSectionHeadings,
+  type ExportAvoidBounds,
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
 
@@ -180,6 +182,7 @@ ${head}
 interface ExportLayoutMetrics {
   measuredHeight: number;
   sections: ExportSectionBounds[];
+  avoidBlocks: ExportAvoidBounds[];
 }
 
 async function measureExportLayout(
@@ -225,6 +228,17 @@ async function measureExportLayout(
         };
       });
 
+      const avoidBlocks = Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
+        const el = node as HTMLElement;
+        return {
+          top: relTop(el),
+          bottom: relTop(el) + el.offsetHeight,
+          childTops: Array.from(el.querySelectorAll('[data-break-child]')).map((child) =>
+            relTop(child as HTMLElement),
+          ),
+        };
+      });
+
       let measuredHeight = layoutHeight;
       if (sections.length > 0) {
         const maxSectionBottom = Math.max(...sections.map((s) => s.bottom));
@@ -234,7 +248,7 @@ async function measureExportLayout(
         }
       }
 
-      return { measuredHeight, sections };
+      return { measuredHeight, sections, avoidBlocks };
     });
   } finally {
     await page.close();
@@ -352,7 +366,13 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
         layout.sections,
         measuredHeight,
       );
-      const normalizedBreaks = normalizeBreakPositions(snappedBreaks, measuredHeight);
+      const avoidSnappedBreaks = snapBreakPositionsToAvoidBlocks(
+        snappedBreaks,
+        layout.avoidBlocks,
+        printableHeight,
+        measuredHeight,
+      );
+      const normalizedBreaks = normalizeBreakPositions(avoidSnappedBreaks, measuredHeight);
       const segments = buildExportPageSegments({
         totalContentHeightPx: measuredHeight,
         pageHeightPx: printableHeight,

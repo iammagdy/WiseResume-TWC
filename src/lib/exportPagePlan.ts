@@ -19,6 +19,12 @@ export interface ExportSectionBounds {
   headingTop: number;
 }
 
+export interface ExportAvoidBounds {
+  top: number;
+  bottom: number;
+  childTops: number[];
+}
+
 const DEFAULT_MIN_GAP_PX = 40;
 const SECTION_HEADING_GUARD_PX = 80;
 const NEAR_SECTION_TOP_PX = 24;
@@ -98,6 +104,44 @@ export function snapBreakPositionsToSectionHeadings(
       }
     }
     return Math.min(y, maxY);
+  });
+}
+
+export function snapBreakPositionsToAvoidBlocks(
+  breaks: number[],
+  avoidBlocks: ExportAvoidBounds[],
+  pageHeightPx: number,
+  totalHeightPx: number,
+  minGapPx: number = DEFAULT_MIN_GAP_PX,
+): number[] {
+  if (!breaks.length || !avoidBlocks.length) return breaks;
+  const sorted = [...avoidBlocks].sort((a, b) => a.top - b.top);
+  const maxY = Math.max(minGapPx, totalHeightPx - minGapPx);
+  const pageHeight = Math.max(1, Math.round(pageHeightPx || totalHeightPx));
+  const maxShift = Math.min(pageHeight * 0.5, 350);
+
+  return breaks.map((breakY) => {
+    let y = breakY;
+    const hit = sorted.find((block) => y > block.top && y < block.bottom);
+    if (!hit) return Math.min(Math.max(y, minGapPx), maxY);
+
+    const blockHeight = hit.bottom - hit.top;
+    if (blockHeight < pageHeight) {
+      y = hit.top;
+    } else if (hit.childTops.length > 0) {
+      let best = y;
+      let bestDistance = Infinity;
+      for (const childTop of hit.childTops) {
+        const distance = Math.abs(childTop - y);
+        if (distance < bestDistance && distance <= maxShift) {
+          best = childTop;
+          bestDistance = distance;
+        }
+      }
+      y = best;
+    }
+
+    return Math.min(Math.max(y, minGapPx), maxY);
   });
 }
 

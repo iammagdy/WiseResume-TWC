@@ -2,6 +2,37 @@
 
 ---
 
+## Session Summary - 2026-05-21 (PDF Cuts Splitting Experience Entries)
+
+### Overview
+Re-investigated the live-domain screenshot where a PDF page footer appeared between an experience title and its description. The prior frontend-only fix was insufficient because the live Vercel PDF function still rendered custom cuts as raw crop coordinates.
+
+### Root cause
+Templates correctly mark each experience/education/project entry with `data-break-avoid`, and client preview utilities contain logic to move page cuts away from those keep-together blocks. However, the live `api/export/pdf-native.ts` path stopped running the layout measurement/snap pass in commit `3acc94b9` to reduce Lambda work. The function now used client height plus raw `customBreakPositions`, then called `buildExportPageSegments()` directly.
+
+Result: if a saved/custom cut landed inside a `data-break-avoid` experience item, the Vercel function clipped the page exactly there. That matches the screenshot: page 1 included the role header, the footer printed, and page 2 resumed with the role description.
+
+The local Express server still had a measurement path but only snapped near section headings, not `data-break-avoid` blocks, so local/prod behavior could still drift.
+
+### Fix
+| File | Change |
+|---|---|
+| `src/lib/exportPagePlan.ts` | Added `ExportAvoidBounds` and `snapBreakPositionsToAvoidBlocks()` to move cuts inside keep-together blocks to the block top, or to nearest child boundary for oversized blocks. |
+| `api/export/pdf-native.ts` | For custom cuts only, Vercel now measures exported HTML in Puppeteer, scales/snap-checks saved cuts, snaps away from section headings and `data-break-avoid` blocks, then renders segments. |
+| `server/index.ts` | Local Express PDF renderer now uses the same keep-together snap logic. |
+| `src/lib/exportPagePlan.test.ts` | Added regression tests for custom cuts inside normal and oversized keep-together blocks. |
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts` - passed, 39 tests.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed.
+
+### Deployment Notes
+- This changes the Vercel serverless PDF API function. Push to `main` is required so Vercel rebuilds `/api/export/pdf-native`.
+- No Appwrite hub redeploy required.
+
+---
+
 ## Session Summary - 2026-05-21 (Custom PDF Page Cuts Actually Honored)
 
 ### Overview

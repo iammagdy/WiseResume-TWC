@@ -61,6 +61,12 @@ interface ExportSectionBounds {
   headingTop: number;
 }
 
+interface ExportAvoidBounds {
+  top: number;
+  bottom: number;
+  childTops: number[];
+}
+
 function normalizeBreakPositions(
   positions: number[] | undefined,
   totalContentHeightPx: number,
@@ -131,6 +137,44 @@ function snapBreakPositionsToSectionHeadings(
       }
     }
     return Math.min(y, maxY);
+  });
+}
+
+function snapBreakPositionsToAvoidBlocks(
+  breaks: number[],
+  avoidBlocks: ExportAvoidBounds[],
+  pageHeightPx: number,
+  totalHeightPx: number,
+  minGapPx: number = DEFAULT_MIN_GAP_PX,
+): number[] {
+  if (!breaks.length || !avoidBlocks.length) return breaks;
+  const sorted = [...avoidBlocks].sort((a, b) => a.top - b.top);
+  const maxY = Math.max(minGapPx, totalHeightPx - minGapPx);
+  const pageHeight = Math.max(1, Math.round(pageHeightPx || totalHeightPx));
+  const maxShift = Math.min(pageHeight * 0.5, 350);
+
+  return breaks.map((breakY) => {
+    let y = breakY;
+    const hit = sorted.find((block) => y > block.top && y < block.bottom);
+    if (!hit) return Math.min(Math.max(y, minGapPx), maxY);
+
+    const blockHeight = hit.bottom - hit.top;
+    if (blockHeight < pageHeight) {
+      y = hit.top;
+    } else if (hit.childTops.length > 0) {
+      let best = y;
+      let bestDistance = Infinity;
+      for (const childTop of hit.childTops) {
+        const distance = Math.abs(childTop - y);
+        if (distance < bestDistance && distance <= maxShift) {
+          best = childTop;
+          bestDistance = distance;
+        }
+      }
+      y = best;
+    }
+
+    return Math.min(Math.max(y, minGapPx), maxY);
   });
 }
 
@@ -310,6 +354,7 @@ function buildFooterTemplate(args: {
 interface ExportLayoutMetrics {
   measuredHeight: number;
   sections: ExportSectionBounds[];
+  avoidBlocks: ExportAvoidBounds[];
 }
 
 async function measureExportLayout(
@@ -358,6 +403,18 @@ async function measureExportLayout(
         };
       });
 
+      const avoidBlocks = Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
+        const el = node as HTMLElement;
+        const top = relTop(el);
+        return {
+          top,
+          bottom: top + el.offsetHeight,
+          childTops: Array.from(el.querySelectorAll('[data-break-child]')).map((child) =>
+            relTop(child as HTMLElement),
+          ),
+        };
+      });
+
       let measuredHeight = layoutHeight;
       if (sections.length > 0) {
         const maxSectionBottom = Math.max(...sections.map((s) => s.bottom));
@@ -367,7 +424,7 @@ async function measureExportLayout(
         }
       }
 
-      return { measuredHeight, sections };
+      return { measuredHeight, sections, avoidBlocks };
     });
   } finally {
     await page.close();
@@ -507,18 +564,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // so server and client heights are the same. Skipping a server measurement
     // pass eliminates one full browser-page open/close cycle (which was the
     // source of extra load time that caused failures).
-    const contentHeight = (totalContentHeightPx && totalContentHeightPx > 0)
+    let contentHeight = (totalContentHeightPx && totalContentHeightPx > 0)
       ? totalContentHeightPx
       : dims.heightPx;
 
-    // normalizeBreakPositions already ran on the client; just round here.
-    const snappedBreaks = (customBreakPositions ?? [])
+    // Start from the client-saved cuts, then re-check them against the actual
+    // HTML Puppeteer will print. This prevents a user cut from bisecting a
+    // keep-together resume entry when live/export layout differs slightly.
+    let snappedBreaks = (customBreakPositions ?? [])
       .filter(Number.isFinite)
       .map(Math.round);
 
     // Divide content into page segments.
     const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
     const contentPageHeight = dims.heightPx - footerHeight;
+    if (snappedBreaks.length > 0) {
+      console.log('[pdf] step: measure custom break layout');
+      const layout = await measureExportLayout(browser, html, dims.widthPx);
+      const measuredHeight = Math.max(contentHeight, layout.measuredHeight);
+      contentHeight = measuredHeight;
+      const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
+        snappedBreaks,
+        contentHeight,
+        measuredHeight,
+      );
+      const sectionSnappedBreaks = snapBreakPositionsToSectionHeadings(
+        scaledBreaks,
+        layout.sections,
+        measuredHeight,
+      );
+      snappedBreaks = snapBreakPositionsToAvoidBlocks(
+        sectionSnappedBreaks,
+        layout.avoidBlocks,
+        contentPageHeight,
+        measuredHeight,
+      );
+      console.log('[pdf] custom breaks:', customBreakPositions, 'snapped:', snappedBreaks);
+    }
     const segments = buildExportPageSegments({
       totalContentHeightPx: contentHeight,
       pageHeightPx: contentPageHeight,
