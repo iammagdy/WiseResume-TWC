@@ -2,6 +2,50 @@
 
 ---
 
+## Session Summary — 2026-05-21 (PDF Export — All 4 Issues Fixed)
+
+### Overview
+Found and fixed four PDF export regressions introduced by prior Codex attempts. All root causes were verified by code inspection before any changes were made (no guessing).
+
+### Root Causes
+
+| Issue | Root cause |
+|-------|-----------|
+| Low quality / cheap look | `collectDocumentStyles()` emitted `@import url(...)` for all production stylesheets. Puppeteer on Vercel Lambda had to fetch those URLs at render time; any slow or failed fetch meant the template rendered as unstyled HTML — no fonts, no colors, no layout. |
+| Page cuts not respected | `customBreakPositions` was correctly received in the POST body but the main handler called `page.pdf({format:'Letter'})` directly, bypassing all helper functions (`buildExportPageSegments`, `buildSegmentHtml`, etc.) that were already coded in the file but never wired up. |
+| Footer link not clickable | `buildFooterTemplate()` used `<span>Made with WiseResume</span>` — plain text, no `<a>`. Even with an `<a>` tag, Puppeteer's `footerTemplate` context does not support interactive links in exported PDFs. |
+| Template not respected | Same root cause as "low quality" — CSS not loading reliably meant template-specific styles, fonts, and accent colors were absent. |
+
+### Fix
+
+**2 files changed, no new dependencies, no schema changes, no hub deployments required.**
+
+| File | Change |
+|------|--------|
+| `src/lib/nativePdfGenerator.ts` | `collectDocumentStyles()` made `async`. Now `fetch()`es each stylesheet and inlines the raw CSS text. HTML payload is fully self-contained — Puppeteer makes zero external network requests at render time. Falls back to `@import url()` only if fetch fails. |
+| `api/export/pdf-native.ts` | Replaced `page.pdf({format:'Letter'})` block with the full segment pipeline already present in the file: `measureExportLayout` → `scaleBreakPositionsToMeasuredHeight` → `snapBreakPositionsToSectionHeadings` → `buildExportPageSegments` → `buildSegmentHtml` per segment (which contains a real `<a href>` footer link) → `renderHtmlToPdfBuffer` per segment → `mergePdfBuffers`. Body parser limit comment updated. |
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- `npx vitest run src/lib/nativePdfGenerator.test.ts` — 2/2 pass
+- Vercel CI check on PR #63 — success
+
+### Deployment Notes
+- Changes are in `api/export/pdf-native.ts` (Vercel serverless function) and `src/lib/nativePdfGenerator.ts` (frontend).
+- Requires Vercel deploy to take effect. No Appwrite hub changes.
+- After deploy, verify:
+  1. `GET /api/export/pdf-native` returns JSON `405`
+  2. PDF export from editor matches live preview template colors/fonts
+  3. Custom page cuts from Page Cut Setup dialog are respected in the exported PDF
+  4. "WiseResume" in the PDF footer is a clickable link
+
+### Where We Stopped
+- PR #63 open as draft on branch `claude/read-project-rules-5x3PH`. Vercel preview build succeeded.
+- `admin-sentry` Appwrite bot comment on PR is a pre-existing external function failure, unrelated to this change (function not present in this repo's `appwrite-hubs/`).
+- All other pending items from prior sessions unchanged (RevenueCat prerequisites, hub redeployments for 3-Tier AI Enhancement, `DEVKIT_PASSWORD` on `admin-deploy-hubs`).
+
+---
+
 ## Session Summary - 2026-05-20 (PDF Renderer Function Startup Fix)
 
 ### Overview

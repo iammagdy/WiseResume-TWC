@@ -26,9 +26,9 @@ let _pdfLib: any;
 export const config = {
   api: {
     bodyParser: {
-      // Production payloads are now small (CSS loaded via @import by Puppeteer).
-      // 4mb covers the template HTML + any remaining inline styles safely.
-      sizeLimit: '4mb',
+      // CSS is now fully inlined by the client (no @import). Payload = template
+      // HTML (~80KB) + inlined stylesheet (~400KB). 8mb gives ample headroom.
+      sizeLimit: '8mb',
     },
   },
   // PDF rendering can take 20-45s for multi-page resumes; 60s gives plenty of headroom.
@@ -459,32 +459,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isA4 = pageFormat === 'a4';
     const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
 
-    const page = await browser.newPage();
-    let pdfBuffer: Uint8Array;
-    try {
-      await page.setViewport({ width: dims.widthPx, height: dims.heightPx, deviceScaleFactor: 2 });
-      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
-      const showFooter = showPageNumbers || showBranding;
-      const pdf = await page.pdf({
-        format: isA4 ? 'A4' : 'Letter',
-        printBackground: true,
-        margin: {
-          top: '0',
-          right: '0',
-          bottom: showFooter ? `${EXPORT_FOOTER_HEIGHT_PX}px` : '0',
-          left: '0',
-        },
-        displayHeaderFooter: showFooter,
-        headerTemplate: '<span></span>',
-        footerTemplate: showFooter
-          ? buildFooterTemplate({ showPageNumbers, showBranding })
-          : '<span></span>',
-        pageRanges: onePage ? '1' : undefined,
+    // 1. Measure actual layout height and section bounds via Puppeteer.
+    const { measuredHeight, sections } = await measureExportLayout(browser, html, dims.widthPx);
+
+    // 2. Scale client break positions to match server-rendered height.
+    const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
+      customBreakPositions,
+      totalContentHeightPx ?? measuredHeight,
+      measuredHeight,
+    );
+
+    // 3. Snap breaks to section headings to avoid orphaning titles.
+    const snappedBreaks = snapBreakPositionsToSectionHeadings(scaledBreaks, sections, measuredHeight);
+
+    // 4. Divide content into page segments.
+    const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
+    const contentPageHeight = dims.heightPx - footerHeight;
+    const segments = buildExportPageSegments({
+      totalContentHeightPx: measuredHeight,
+      pageHeightPx: contentPageHeight,
+      customBreakPositions: snappedBreaks,
+    });
+
+    // 5. Render each segment as a separate PDF page.
+    const pdfBuffers: Buffer[] = [];
+    for (const segment of segments) {
+      const pageLabel = showPageNumbers
+        ? `Page ${segment.index + 1} of ${segments.length}`
+        : undefined;
+      const segHtml = buildSegmentHtml({
+        sourceHtml: html,
+        pageWidthPx: dims.widthPx,
+        contentStartPx: segment.startPx,
+        contentHeightPx: segment.heightPx,
+        footerHeightPx: footerHeight,
+        pageNumber: pageLabel,
+        showBranding,
       });
-      pdfBuffer = new Uint8Array(pdf);
-    } finally {
-      await page.close();
+      const buf = await renderHtmlToPdfBuffer(
+        browser,
+        segHtml,
+        dims.widthPx,
+        segment.heightPx + footerHeight,
+      );
+      pdfBuffers.push(buf);
     }
+
+    // 6. onePage: keep only the first segment if requested.
+    const buffersToMerge = onePage ? pdfBuffers.slice(0, 1) : pdfBuffers;
+
+    // 7. Merge segment PDFs into the final file.
+    const pdfBuffer = await mergePdfBuffers(buffersToMerge);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
