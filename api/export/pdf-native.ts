@@ -468,32 +468,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const isA4 = pageFormat === 'a4';
     const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
-    console.log('[pdf] html size (bytes):', html.length, 'format:', pageFormat);
+    console.log('[pdf] html size (bytes):', html.length, 'format:', pageFormat,
+      'clientHeight:', totalContentHeightPx);
 
-    // 1. Measure actual layout height and section bounds via Puppeteer.
-    console.log('[pdf] step 1: measuring layout');
-    const { measuredHeight, sections } = await measureExportLayout(browser, html, dims.widthPx);
-    console.log('[pdf] measured height:', measuredHeight, 'px, sections:', sections.length);
+    // Use the client-reported content height directly.
+    // The client measures from the live React DOM; the inlined CSS is identical,
+    // so server and client heights are the same. Skipping a server measurement
+    // pass eliminates one full browser-page open/close cycle (which was the
+    // source of extra load time that caused failures).
+    const contentHeight = (totalContentHeightPx && totalContentHeightPx > 0)
+      ? totalContentHeightPx
+      : dims.heightPx;
 
-    // 2. Scale client break positions to match server-rendered height.
-    const scaledBreaks = scaleBreakPositionsToMeasuredHeight(
-      customBreakPositions,
-      totalContentHeightPx ?? measuredHeight,
-      measuredHeight,
-    );
+    // normalizeBreakPositions already ran on the client; just round here.
+    const snappedBreaks = (customBreakPositions ?? [])
+      .filter(Number.isFinite)
+      .map(Math.round);
 
-    // 3. Snap breaks to section headings to avoid orphaning titles.
-    const snappedBreaks = snapBreakPositionsToSectionHeadings(scaledBreaks, sections, measuredHeight);
-
-    // 4. Divide content into page segments.
+    // Divide content into page segments.
     const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
     const contentPageHeight = dims.heightPx - footerHeight;
     const segments = buildExportPageSegments({
-      totalContentHeightPx: measuredHeight,
+      totalContentHeightPx: contentHeight,
       pageHeightPx: contentPageHeight,
       customBreakPositions: snappedBreaks,
     });
-    console.log('[pdf] step 4:', segments.length, 'segments, footer:', footerHeight, 'px');
+    console.log('[pdf] segments:', segments.length, 'footer:', footerHeight, 'px',
+      'contentHeight:', contentHeight);
 
     // 5. Render each segment as a separate PDF page.
     const pdfBuffers: Buffer[] = [];
