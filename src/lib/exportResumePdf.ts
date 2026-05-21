@@ -98,7 +98,13 @@ export async function exportResumePdfFromData(
   try {
     await waitForRender(mount.template, options?.renderTimeoutMs ?? 4000);
     const { renderTimeoutMs: _renderTimeoutMs, ...nativeOpts } = options ?? {};
-    return await generateNativePDF(mount.template, { pageFormat, ...nativeOpts });
+    const customBreakPositions =
+      nativeOpts.customBreakPositions ?? resume.customization?.customBreakPositions;
+    return await generateNativePDF(mount.template, {
+      pageFormat,
+      ...nativeOpts,
+      ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+    });
   } finally {
     try { mount.root.unmount(); } catch { /* ignore */ }
     if (mount.container.parentNode) mount.container.parentNode.removeChild(mount.container);

@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-05-21 - Data-based PDF downloads keep saved page cuts
+
+### Summary
+Fixed a remaining download path that could still ignore saved custom page cuts.
+
+### What changed
+- `exportResumePdfFromData()` now passes saved `resume.customization.customBreakPositions` into PDF generation by default.
+- Added regression coverage for offscreen/data-based resume PDF downloads.
+
+### Why
+The verified root cause was that some dashboard/list downloads render the resume offscreen from saved data instead of using the live editor template. That helper omitted saved custom cuts, so the export used automatic pagination and could split an Experience entry.
+
+### Verification
+- `npx vitest run src/lib/exportResumePdf.test.ts src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
 ## 2026-05-21 - Custom PDF page cuts are exact
 
 ### Summary

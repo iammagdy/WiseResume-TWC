@@ -2,6 +2,33 @@
 
 ---
 
+## Session Summary - 2026-05-21 (Data-Based Downloads Bypassed Custom Cuts)
+
+### Overview
+Followed up after user verification still showed the page footer splitting the final Experience entry before its description.
+
+### Root cause
+The prior exact-cut fix covered the main editor/preview export path, but one dashboard/list-style download path still used `exportResumePdfFromData()` to render the resume offscreen from saved database data. That helper did not automatically pass `resume.customization.customBreakPositions` into `generateNativePDF()`.
+
+Result: downloads from that data-based path ignored saved page cuts and fell back to automatic printable-height pagination. The automatic break can land inside the final Experience entry, matching the new screenshot where page 1 ends after the job title and page 2 resumes with the job description.
+
+### Fix
+| File | Change |
+|---|---|
+| `src/lib/exportResumePdf.ts` | Data-based/offscreen PDF export now uses saved `resume.customization.customBreakPositions` by default unless explicit export options override them. |
+| `src/lib/exportResumePdf.test.ts` | Added regression coverage proving data-based downloads pass saved custom page cuts to the native PDF generator. |
+
+### Verification
+- `npx vitest run src/lib/exportResumePdf.test.ts src/lib/exportPagePlan.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts` - passed, 44 tests.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed.
+
+### Deployment Notes
+- This is a frontend/export-helper change. Push to `main` is required so the live frontend bundle includes it.
+- No Appwrite hub/function redeploy is required.
+
+---
+
 ## Session Summary - 2026-05-21 (Exact Custom PDF Page Cuts)
 
 ### Overview
