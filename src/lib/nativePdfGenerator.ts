@@ -1,7 +1,6 @@
 import type { ContactInfo } from '@/types/resume';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 import { PDFDocument } from 'pdf-lib';
-import { normalizeBreakPositions } from '@/lib/exportPagePlan';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
 import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 
@@ -246,7 +245,6 @@ export async function generateNativePDF(
   const templateHTML = cloneResumeTemplateElement(templateEl, pageWidthPx).outerHTML;
   const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { atsMode });
   const totalContentHeightPx = getExportContentHeightPx(templateEl);
-  const normalizedBreaks = normalizeBreakPositions(customBreakPositions, totalContentHeightPx);
 
   onProgress?.('finalizing', 50);
 
@@ -258,7 +256,12 @@ export async function generateNativePDF(
     showPageNumbers,
     showBranding,
     totalContentHeightPx,
-    customBreakPositions: normalizedBreaks,
+    // Send the raw saved positions — the server normalizes them against
+    // totalContentHeightPx, which is the same value we just measured.
+    // Skipping a second client-side normalization here prevents valid breaks
+    // near the content bottom from being incorrectly filtered out when
+    // getExportContentHeightPx trims trailing whitespace from the template.
+    customBreakPositions: customBreakPositions ?? [],
   }, onProgress);
 }
 
