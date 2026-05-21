@@ -23,7 +23,9 @@ import dns from 'dns';
 import puppeteer from 'puppeteer';
 import { PDFDocument } from 'pdf-lib';
 import {
+  buildAutomaticBreakPositions,
   buildExportPageSegments,
+  clampBreakPositions,
   type ExportAvoidBounds,
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
@@ -353,10 +355,30 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
       const exactCustomBreaks = (customBreakPositions ?? [])
         .filter(Number.isFinite)
         .map(Math.round);
+      let contentHeight = clientHeight;
+      let pageBreaks = clampBreakPositions(exactCustomBreaks, contentHeight);
+
+      if (exactCustomBreaks.length === 0) {
+        const layout = await measureExportLayout(browser, html, dims.widthPx);
+        contentHeight = Math.max(clientHeight, Math.round(layout.measuredHeight));
+        pageBreaks = buildAutomaticBreakPositions({
+          totalContentHeightPx: contentHeight,
+          pageHeightPx: printableHeight,
+          sections: layout.sections,
+          avoidBlocks: layout.avoidBlocks,
+        });
+      } else if (pageBreaks.length === 0 && contentHeight > printableHeight) {
+        res.status(400).json({
+          error: 'invalid_custom_breaks',
+          message: 'Saved page cuts are outside the exportable content range.',
+        });
+        return;
+      }
+
       const segments = buildExportPageSegments({
-        totalContentHeightPx: clientHeight,
+        totalContentHeightPx: contentHeight,
         pageHeightPx: printableHeight,
-        customBreakPositions: exactCustomBreaks,
+        customBreakPositions: pageBreaks,
       });
       const buffers: Buffer[] = [];
       for (const segment of segments) {

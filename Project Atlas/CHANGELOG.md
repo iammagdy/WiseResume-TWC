@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-05-21 - PDF automatic fallback avoids splitting experience entries
+
+### Summary
+Fixed the remaining PDF export path that could still place a page footer between an Experience title and its description.
+
+### What changed
+- Added content-aware automatic break generation for the server fallback path.
+- Kept saved custom cuts authoritative: they are clamped/validated, not snapped to section or entry boundaries.
+- Updated both Vercel and local Express PDF APIs to use the same fallback behavior.
+- Added regression tests for custom-cut clamping and automatic fallback avoiding Experience splits.
+
+### Why
+The live site is deployed by Vercel and had received the latest code. The remaining root cause was not deployment drift. It was that if the PDF API received no usable saved cut, automatic pagination still used raw fixed-height cuts and could split `data-break-avoid` Experience blocks.
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/exportResumePdf.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+
+### Deployment
+Deploy through Vercel by pushing `main`. No Appwrite function redeploy is required.
+
+---
+
 ## 2026-05-21 - Data-based PDF downloads keep saved page cuts
 
 ### Summary

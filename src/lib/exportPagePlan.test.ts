@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildAutomaticBreakPositions,
   buildExportPageSegments,
+  clampBreakPositions,
   normalizeBreakPositions,
   scaleBreakPositionsToMeasuredHeight,
   snapBreakPositionsToAvoidBlocks,
@@ -11,6 +13,10 @@ describe('exportPagePlan', () => {
   it('normalizes user break positions by sorting, removing invalid values, and enforcing minimum gaps', () => {
     expect(normalizeBreakPositions([740, 12, 500, 510, 1600, -5, Number.NaN], 1500, 40))
       .toEqual([500, 740]);
+  });
+
+  it('clamps saved custom breaks instead of dropping them into automatic fallback', () => {
+    expect(clampBreakPositions([12, 1185], 1200, 40)).toEqual([40, 1160]);
   });
 
   it('uses exact user break positions and crops the final page to the remaining content height', () => {
@@ -79,7 +85,7 @@ describe('exportPagePlan', () => {
     ]);
   });
 
-  it('snaps custom breaks inside keep-together blocks to the block top', () => {
+  it('snaps automatic breaks inside keep-together blocks to the block top', () => {
     const avoidBlocks = [
       { top: 700, bottom: 900, childTops: [700, 730, 770] },
     ];
@@ -120,6 +126,29 @@ describe('exportPagePlan', () => {
       { index: 0, startPx: 0, heightPx: 748, isLast: false },
       { index: 1, startPx: 748, heightPx: 748, isLast: false },
       { index: 2, startPx: 1496, heightPx: 204, isLast: true },
+    ]);
+  });
+
+  it('builds automatic breaks that avoid splitting an experience item', () => {
+    const avoidBlocks = [
+      { top: 700, bottom: 900, childTops: [700, 730, 770] },
+    ];
+
+    const automaticBreaks = buildAutomaticBreakPositions({
+      totalContentHeightPx: 1200,
+      pageHeightPx: 748,
+      avoidBlocks,
+    });
+    const segments = buildExportPageSegments({
+      totalContentHeightPx: 1200,
+      pageHeightPx: 748,
+      customBreakPositions: automaticBreaks,
+    });
+
+    expect(automaticBreaks).toEqual([700]);
+    expect(segments).toEqual([
+      { index: 0, startPx: 0, heightPx: 700, isLast: false },
+      { index: 1, startPx: 700, heightPx: 500, isLast: true },
     ]);
   });
 });

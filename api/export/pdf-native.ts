@@ -92,6 +92,26 @@ function normalizeBreakPositions(
   return normalized;
 }
 
+function clampBreakPositions(
+  positions: number[] | undefined,
+  totalContentHeightPx: number,
+  minGapPx: number = DEFAULT_MIN_GAP_PX,
+): number[] {
+  if (!positions?.length || !Number.isFinite(totalContentHeightPx) || totalContentHeightPx <= minGapPx * 2) {
+    return [];
+  }
+
+  const minY = minGapPx;
+  const maxY = totalContentHeightPx - minGapPx;
+  return normalizeBreakPositions(
+    positions
+      .filter((position) => Number.isFinite(position))
+      .map((position) => Math.min(maxY, Math.max(minY, Math.round(position)))),
+    totalContentHeightPx,
+    minGapPx,
+  );
+}
+
 function scaleBreakPositionsToMeasuredHeight(
   positions: number[] | undefined,
   clientHeightPx: number,
@@ -180,6 +200,36 @@ function snapBreakPositionsToAvoidBlocks(
 
     return Math.min(Math.max(y, minGapPx), maxY);
   });
+}
+
+function buildAutomaticBreakPositions(args: {
+  totalContentHeightPx: number;
+  pageHeightPx: number;
+  sections?: ExportSectionBounds[];
+  avoidBlocks?: ExportAvoidBounds[];
+  minGapPx?: number;
+}): number[] {
+  const {
+    totalContentHeightPx,
+    pageHeightPx,
+    sections = [],
+    avoidBlocks = [],
+    minGapPx = DEFAULT_MIN_GAP_PX,
+  } = args;
+  const total = Math.max(1, Math.round(totalContentHeightPx || 0));
+  const pageHeight = Math.max(1, Math.round(pageHeightPx || total));
+  const rawBreaks = Array.from(
+    { length: Math.max(0, Math.ceil(total / pageHeight) - 1) },
+    (_unused, index) => pageHeight * (index + 1),
+  ).filter((position) => position < total);
+
+  if (rawBreaks.length === 0) return [];
+
+  const sectionSnapped = snapBreakPositionsToSectionHeadings(rawBreaks, sections, total, minGapPx);
+  const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, pageHeight, total, minGapPx);
+  const normalized = normalizeBreakPositions(avoidSnapped, total, minGapPx);
+
+  return normalized.length > 0 ? normalized : normalizeBreakPositions(rawBreaks, total, minGapPx);
 }
 
 function buildExportPageSegments(args: {
@@ -583,10 +633,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (exactCustomBreaks.length > 0) {
       console.log('[pdf] exact custom breaks:', exactCustomBreaks);
     }
+    let pageBreaks = clampBreakPositions(exactCustomBreaks, contentHeight);
+    if (exactCustomBreaks.length === 0) {
+      const layout = await measureExportLayout(browser, html, dims.widthPx);
+      contentHeight = Math.max(Math.round(contentHeight), Math.round(layout.measuredHeight));
+      pageBreaks = buildAutomaticBreakPositions({
+        totalContentHeightPx: contentHeight,
+        pageHeightPx: contentPageHeight,
+        sections: layout.sections,
+        avoidBlocks: layout.avoidBlocks,
+      });
+      console.log('[pdf] automatic breaks:', pageBreaks,
+        'sections:', layout.sections.length, 'avoidBlocks:', layout.avoidBlocks.length);
+    } else if (pageBreaks.length === 0 && contentHeight > contentPageHeight) {
+      return res.status(400).json({
+        error: 'invalid_custom_breaks',
+        message: 'Saved page cuts are outside the exportable content range.',
+      });
+    }
     const segments = buildExportPageSegments({
       totalContentHeightPx: contentHeight,
       pageHeightPx: contentPageHeight,
-      customBreakPositions: exactCustomBreaks,
+      customBreakPositions: pageBreaks,
     });
     console.log('[pdf] segments:', segments.length, 'footer:', footerHeight, 'px',
       'contentHeight:', contentHeight);

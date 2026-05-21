@@ -2,6 +2,36 @@
 
 ---
 
+## Session Summary - 2026-05-21 (PDF Auto Fallback Split Experience)
+
+### Overview
+Re-investigated the repeated live-domain PDF page-cut failure after confirming production is deployed by Vercel, not GitHub Actions, and that the latest pushed code had reached Vercel.
+
+### Root cause
+The remaining screenshot showed the page footer inserted between an Experience item title and its description. That exact split is possible when `/api/export/pdf-native` receives no usable `customBreakPositions` and falls back to automatic pagination.
+
+After the exact custom-cut fix, saved cuts were no longer snapped, which is correct. But the no-custom fallback still used raw fixed printable-height cuts from `buildExportPageSegments()`. Raw cuts do not inspect `data-break-avoid`, so if a saved cut is missing, filtered, or not present on a particular export path, the server can still split a keep-together Experience entry.
+
+### Fix
+| File | Change |
+|---|---|
+| `src/lib/exportPagePlan.ts` | Added `buildAutomaticBreakPositions()` so automatic fallback cuts are generated from fixed page heights and then snapped around section headings and `data-break-avoid` blocks. Added `clampBreakPositions()` so saved cuts near the valid range are clamped instead of disappearing into automatic fallback. |
+| `api/export/pdf-native.ts` | Vercel PDF export now uses exact clamped saved cuts when present. Only when no saved cuts are provided does it measure layout and build content-aware automatic cuts. Invalid saved cuts now fail loudly instead of silently falling back to raw pagination. |
+| `server/index.ts` | Local Express PDF export now mirrors the Vercel behavior. |
+| `src/lib/exportPagePlan.test.ts` | Added regressions for clamping saved cuts and for automatic fallback avoiding an Experience split. |
+
+### Verification
+- `npx vitest run src/lib/exportPagePlan.test.ts src/lib/exportResumePdf.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportDomUtils.test.ts src/lib/__tests__/pdfUtils.test.ts` - passed, 46 tests.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed.
+
+### Deployment Notes
+- This changes frontend shared page-planning code plus the Vercel `/api/export/pdf-native` function.
+- Push to `main` is required so Vercel rebuilds the production frontend and serverless API.
+- No Appwrite function redeploy is required.
+
+---
+
 ## Session Summary - 2026-05-21 (Data-Based Downloads Bypassed Custom Cuts)
 
 ### Overview

@@ -25,6 +25,14 @@ export interface ExportAvoidBounds {
   childTops: number[];
 }
 
+export interface BuildAutomaticBreakPositionsOptions {
+  totalContentHeightPx: number;
+  pageHeightPx: number;
+  sections?: ExportSectionBounds[];
+  avoidBlocks?: ExportAvoidBounds[];
+  minGapPx?: number;
+}
+
 const DEFAULT_MIN_GAP_PX = 40;
 const SECTION_HEADING_GUARD_PX = 80;
 const NEAR_SECTION_TOP_PX = 24;
@@ -52,6 +60,26 @@ export function normalizeBreakPositions(
     }
   }
   return normalized;
+}
+
+export function clampBreakPositions(
+  positions: number[] | undefined,
+  totalContentHeightPx: number,
+  minGapPx: number = DEFAULT_MIN_GAP_PX,
+): number[] {
+  if (!positions?.length || !Number.isFinite(totalContentHeightPx) || totalContentHeightPx <= minGapPx * 2) {
+    return [];
+  }
+
+  const minY = minGapPx;
+  const maxY = totalContentHeightPx - minGapPx;
+  return normalizeBreakPositions(
+    positions
+      .filter((position) => Number.isFinite(position))
+      .map((position) => Math.min(maxY, Math.max(minY, Math.round(position)))),
+    totalContentHeightPx,
+    minGapPx,
+  );
 }
 
 /** Remap client-measured break Y values when Puppeteer layout height differs. */
@@ -147,6 +175,29 @@ export function snapBreakPositionsToAvoidBlocks(
 
     return Math.min(Math.max(y, minGapPx), maxY);
   });
+}
+
+export function buildAutomaticBreakPositions({
+  totalContentHeightPx,
+  pageHeightPx,
+  sections = [],
+  avoidBlocks = [],
+  minGapPx = DEFAULT_MIN_GAP_PX,
+}: BuildAutomaticBreakPositionsOptions): number[] {
+  const total = Math.max(1, Math.round(totalContentHeightPx || 0));
+  const pageHeight = Math.max(1, Math.round(pageHeightPx || total));
+  const rawBreaks = Array.from(
+    { length: Math.max(0, Math.ceil(total / pageHeight) - 1) },
+    (_unused, index) => pageHeight * (index + 1),
+  ).filter((position) => position < total);
+
+  if (rawBreaks.length === 0) return [];
+
+  const sectionSnapped = snapBreakPositionsToSectionHeadings(rawBreaks, sections, total, minGapPx);
+  const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, pageHeight, total, minGapPx);
+  const normalized = normalizeBreakPositions(avoidSnapped, total, minGapPx);
+
+  return normalized.length > 0 ? normalized : normalizeBreakPositions(rawBreaks, total, minGapPx);
 }
 
 export function buildExportPageSegments({
