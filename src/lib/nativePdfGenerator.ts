@@ -39,32 +39,22 @@ export interface GenerateCoverLetterNativePDFOptions {
   onProgress?: OnProgressCallback;
 }
 
-function collectDocumentStyles(): string {
+async function collectDocumentStyles(): Promise<string> {
   const parts: string[] = [];
   const origin = window.location.origin;
-  const isLocalDev =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.startsWith('192.168.') ||
-    window.location.hostname.startsWith('10.');
 
   for (const sheet of Array.from(document.styleSheets)) {
     const href = sheet.href;
-    const isCrossOrigin = href && !href.startsWith(origin);
-    if (isCrossOrigin) {
-      parts.push(`@import url('${href}');`);
-      continue;
-    }
 
+    // Try direct rule access — succeeds for same-origin sheets in dev environments.
+    let rulesAccessed = false;
     try {
       const rules = sheet.cssRules;
-      if (!rules) continue;
-
-      if (!isLocalDev && href) {
-        parts.push(`@import url('${href}');`);
-      } else {
+      if (rules) {
+        rulesAccessed = true;
         for (const rule of Array.from(rules)) {
           let text = rule.cssText;
+          // Resolve relative asset URLs to absolute so Puppeteer can locate them.
           text = text.replace(
             /url\((['"]?)(?!data:|https?:|ftp:|\/\/)(\/?[^'")]+)\1\)/g,
             (_match, quote, path) => {
@@ -79,8 +69,22 @@ function collectDocumentStyles(): string {
           parts.push(text);
         }
       }
-    } catch {
-      if (href) parts.push(`@import url('${href}');`);
+    } catch { /* cross-origin sheet — SecurityError accessing cssRules */ }
+
+    if (rulesAccessed) continue;
+
+    // Cross-origin or production same-origin: fetch and inline the raw CSS text
+    // so the HTML payload is self-contained and Puppeteer makes zero external
+    // network requests during rendering.
+    if (href) {
+      try {
+        const resp = await fetch(href, { mode: 'cors' });
+        if (resp.ok) {
+          parts.push(await resp.text());
+          continue;
+        }
+      } catch { /* network failure — fall through to @import fallback */ }
+      parts.push(`@import url('${href}');`);
     }
   }
 
@@ -234,7 +238,7 @@ export async function generateNativePDF(
 
   onProgress?.('preparing', 5);
 
-  const css = collectDocumentStyles();
+  const css = await collectDocumentStyles();
   const pageWidthPx = pageFormat === 'a4' ? 595 : 612;
 
   onProgress?.('capturing', 20);
