@@ -224,7 +224,7 @@ async function handleDiagnostics(log, error) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
 
-  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist'];
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'bug_reports', 'blocklist', 'moderation_queue'];
   try {
     const collPage = await listCollections([sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
@@ -738,7 +738,7 @@ async function handleListAuditLogs(body, log) {
 }
 
 async function handleDeployHubsStatus() {
-  const required = ['DEVKIT_PASSWORD', 'APPWRITE_API_KEY', 'APPWRITE_ENDPOINT', 'APPWRITE_PROJECT_ID', 'GITHUB_TOKEN', 'GITHUB_REPO'];
+  const required = ['GITHUB_TOKEN', 'GITHUB_REPO', 'APPWRITE_API_KEY', 'APPWRITE_ENDPOINT', 'APPWRITE_PROJECT_ID'];
   const response = await listFunctionVariables('admin-deploy-hubs');
   const variables = response.variables || [];
   const present = new Set(variables.map(v => v.key));

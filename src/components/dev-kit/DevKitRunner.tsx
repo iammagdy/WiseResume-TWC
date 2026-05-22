@@ -258,24 +258,6 @@ export function DevKitRunner() {
         return { status: 'warn' as const, summary: 'Skipped — function "ai-test" is not deployed in this environment', durationMs: 0 };
       },
     },
-    // === BYOK ===
-    {
-      id: 'byok-status', label: 'BYOK Status', description: 'Read byokEnabled / byokProvider from store and list configured keys from edge function', section: 'byok',
-      run: async (): Promise<TestResult> => {
-        // 'manage-api-keys' function is not deployed in this Appwrite project
-        const s = useSettingsStore.getState();
-        return { status: 'warn' as const, summary: `Skipped — function "manage-api-keys" not deployed. Store: byokEnabled=${s.byokEnabled}, provider=${s.byokProvider}`, durationMs: 0 };
-      },
-    },
-    ...(['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'cohere'] as const).map((provider) => ({
-      id: `byok-probe-${provider}`,
-      label: `BYOK Probe · ${provider.charAt(0).toUpperCase() + provider.slice(1)}`,
-      description: `Fetch manage-api-keys list and confirm ${provider} key presence`,
-      section: 'byok' as const,
-      run: async (): Promise<TestResult> => {
-        return { status: 'warn' as const, summary: 'Skipped — function "manage-api-keys" is not deployed in this environment', durationMs: 0 };
-      },
-    })),
     // === ROUTING ===
     {
       id: 'dashboard-route', label: 'Dashboard Route Check', description: 'List 1 resume from Appwrite (RLS check)', section: 'routing',

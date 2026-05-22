@@ -448,6 +448,31 @@ Integrated RevenueCat as the payment gateway for web and mobile. Web SDK (`@reve
 
 ---
 
+## 2026-05-19 — DevKit: Deploy Hubs fix, BYOK tests removed, moderation error improvements
+
+### Summary
+Three DevKit bugs fixed in a single commit (PR #58).
+
+### Root causes
+1. **Deploy Hubs permanently disabled**: `handleDeployHubsStatus` in `admin-devkit-data` required `DEVKIT_PASSWORD` in `admin-deploy-hubs` variables, but that function never reads it. The status check falsely reported it missing, blocking the deploy button regardless of real vars.
+2. **BYOK smoke tests**: BYOK was removed from the app but `DevKitRunner.tsx` still had 7 dead tests that always returned warn/skipped.
+3. **Moderation fallback error**: Three real error messages had no matching pattern in `errorTranslate.ts`, silently falling through to the generic "Something went wrong" fallback.
+
+### Changes
+- `appwrite-hubs/admin-devkit-data/src/main.js` — removed `DEVKIT_PASSWORD` from required list; added `bug_reports`, `blocklist`, `moderation_queue` to diagnostics
+- `src/lib/devkit/errorTranslate.ts` — added 3 new error patterns (runtime crashed, 403, un-indexed attribute)
+- `src/components/dev-kit/DevKitRunner.tsx` — removed dead BYOK test block
+- `src/components/dev-kit/config.ts` — removed `byok` section
+- `src/components/dev-kit/types.ts` — removed `'byok'` from `SectionId` union
+
+### Verification
+- `npm exec tsc -- --noEmit` — zero errors
+
+### Deployment note
+`admin-devkit-data` must be redeployed to Appwrite for the Deploy Hubs status fix to take effect.
+
+---
+
 ## 2026-05-19 — Page break control popup (Editor + Preview)
 
 ### Summary
