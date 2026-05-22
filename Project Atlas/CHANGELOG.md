@@ -34,6 +34,34 @@ Diagnosed why new users received signup confirmation and password-reset emails f
 
 ---
 
+## 2026-05-22 - AI tools audit and repair (5 confirmed bugs fixed)
+
+### Summary
+Full code audit of every AI tool in the app. Two rounds of inspection: backend handler existence, then frontend rendering pipeline. Found and fixed 5 confirmed root causes.
+
+### What changed
+
+| Tool | Root cause | Fix |
+|---|---|---|
+| Career Plan | `schemaPrompt('career-assessment')` injected `{summary, recommendedRoles, gaps, milestones}` — fields the frontend never reads. `CareerPathResult` reads `{currentLevel, nextRoles, skillGaps, industryAlternatives, actionPlan}`. Correct schema existed in `extracted_prompts.json` but was never wired in. | Fixed schema in `schemaPrompt()` to match `CareerPathResult` exactly. |
+| Company Briefing | Routed to `openrouter/llama-3.3-70b-instruct:free` — free tier with rate limits, causing intermittent failures especially on mobile. | Changed `FEATURE_ROUTES['company-briefing']` to `groq/llama-3.3-70b-versatile`. |
+| Smart Fit Wizard (AI rewrite) | `smart-fit-rewrite` was in `FEATURE_ROUTES` but had no handler in `buildMessages` or the response processor. Gateway sent `"hello"` to the LLM; orchestrator expected `{success:true, outcomes:[...]}` and threw `RewriteFailureError('unavailable')` every time. | Added sentence-rewrite prompt in `buildMessages` and a result processor returning `{success:true, outcomes:[...]}`. |
+| Portfolio Chat (visitor-facing) | (1) `ask-portfolio` had no handler — gateway sent `"hello"` instead of the visitor's question. (2) `ChatWidget.tsx` read `data?.answer` but gateway returned `data.content`. | Added portfolio-context-aware handler in `buildMessages` returning `{answer, isFallback, chatDisabled}`. Updated `ChatWidget.tsx` to send `profileContext` in request body. |
+| 7 wise-ai-chat tools | System prompt said "return JSON if asked" — no enforcement. LLM sometimes returned prose instead of JSON, causing `parseAIJson` to throw silently. | Tightened to "return ONLY valid JSON object, no markdown, no prose". |
+
+### Files changed
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `src/components/portfolio/public/ChatWidget.tsx`
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean
+- `npx tsc --noEmit` — zero errors
+
+### Deployment
+**`ai-gateway` Appwrite function must be redeployed** after merge. `ChatWidget.tsx` deploys via Vercel on merge to `main`. No schema changes.
+
+---
+
 ## 2026-05-21 - PDF page-cut boundary protection (snapping overcorrection fix)
 
 ### Summary
