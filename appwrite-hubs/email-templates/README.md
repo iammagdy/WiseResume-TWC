@@ -1,25 +1,50 @@
 # Appwrite Auth Email Templates
 
-These are the branded HTML templates for Appwrite's built-in authentication emails.
-They replace the default "Appwrite" branded emails that users receive after signup and on password reset.
+Branded HTML email templates for WiseResume. All templates share the same dark design system:
+`#09090b` background · crimson `#ef4444` / `#9E1B22` accents · Inter font · Outlook VML fallbacks.
 
-## How to apply
+## Templates
 
-1. Go to **Appwrite Console → Your Project → Auth → Email Templates**
-2. For each template below, paste the HTML and set the subject line
+| File | Purpose | Appwrite template slot | Subject line |
+|---|---|---|---|
+| `email-verification.html` | New user email verification | Email Verification | `Verify your WiseResume email` |
+| `password-recovery.html` | Password reset | Password Recovery | `Reset your WiseResume password` |
+| `magic-url.html` | Passwordless / magic link sign-in | Magic URL | `Your WiseResume sign-in link` |
+| `otp.html` | One-time password sign-in | OTP | `Your WiseResume sign-in code` |
+| `welcome.html` | Post-verification welcome | *(custom — send via Resend)* | `Welcome to WiseResume, {{name}}` |
 
-| File | Template in Console | Subject line |
-|---|---|---|
-| `email-verification.html` | Email Verification | `Confirm your WiseResume email address` |
-| `password-recovery.html` | Password Recovery | `Reset your WiseResume password` |
+## Appwrite variables
 
-## Appwrite variables used
+| Variable | Used in |
+|---|---|
+| `{{url}}` | email-verification, password-recovery, magic-url |
+| `{{otp}}` | otp |
+| `{{name}}` | welcome |
 
-Appwrite automatically replaces `{{url}}` with the real action link before sending.
-Do not change `{{url}}` — it is required for the button and fallback link to work.
+Do **not** change variable names — Appwrite replaces them before sending.
 
-## SMTP requirement
+## How to apply (Appwrite Console)
 
-These templates only look right if a custom SMTP provider is also configured, otherwise
-Appwrite still sends from its own domain. See MASTER_HANDOVER_2026.md for the SMTP setup steps
-(uses the existing Resend API key: host `smtp.resend.com`, port 465, user `resend`).
+1. **Console → Project → Auth → SMTP** — configure Resend SMTP first (see MASTER_HANDOVER_2026.md)
+2. **Console → Auth → Email Templates** — for each Appwrite slot:
+   - Select the template slot
+   - Paste the HTML
+   - Set the subject line from the table above
+
+## SMTP config (Resend)
+
+| Setting | Value |
+|---|---|
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Encryption | SSL |
+| Username | `resend` |
+| Password | Resend API key (from `admin-email` function env vars) |
+| Sender name | `WiseResume` |
+| Sender email | `noreply@thewise.cloud` |
+
+## Notes
+
+- `welcome.html` is not an Appwrite built-in slot — trigger it manually via the `admin-email` Appwrite function after email verification confirms.
+- All templates are fully inline-styled, table-based, and tested against Gmail, Apple Mail, and Outlook (VML button fallback included).
+- The `COPY` button in the alternative link section is a styled `<a href="{{url}}">` — clicking opens the link. JS clipboard APIs are not available in email clients.
