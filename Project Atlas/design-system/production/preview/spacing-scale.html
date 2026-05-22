@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Spacing Scale</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);}
+  body{padding:22px;}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9E1B22;margin:0 0 14px;}
+  .row{display:grid;grid-template-columns:60px 80px 1fr;align-items:center;gap:12px;font-size:12px;padding:3px 0;}
+  .name{font-family:var(--font-mono);color:#374151;font-weight:600;}
+  .val{font-family:var(--font-mono);color:#6b7280;}
+  .bar{height:14px;background:#9E1B22;border-radius:3px;}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Spacing · 4px grid (Tailwind aligned)</div>
+  <div class="row"><div class="name">space-1</div><div class="val">4px / 0.25rem</div><div><div class="bar" style="width:4px"></div></div></div>
+  <div class="row"><div class="name">space-2</div><div class="val">8px / 0.5rem</div><div><div class="bar" style="width:8px"></div></div></div>
+  <div class="row"><div class="name">space-3</div><div class="val">12px / 0.75rem</div><div><div class="bar" style="width:12px"></div></div></div>
+  <div class="row"><div class="name">space-4</div><div class="val">16px / 1rem</div><div><div class="bar" style="width:16px"></div></div></div>
+  <div class="row"><div class="name">space-6</div><div class="val">24px / 1.5rem</div><div><div class="bar" style="width:24px"></div></div></div>
+  <div class="row"><div class="name">space-8</div><div class="val">32px / 2rem</div><div><div class="bar" style="width:32px"></div></div></div>
+  <div class="row"><div class="name">space-12</div><div class="val">48px / 3rem</div><div><div class="bar" style="width:48px"></div></div></div>
+  <div class="row"><div class="name">space-16</div><div class="val">64px / 4rem</div><div><div class="bar" style="width:64px"></div></div></div>
+  <div class="row"><div class="name">tap-min</div><div class="val">44px</div><div><div class="bar" style="width:44px;background:#3B82F6"></div></div></div>
+</body>
+</html>

@@ -1,0 +1,249 @@
+{
+  "config": {
+    "configFile": "Y:\\WiseResume-TWC\\playwright.config.ts",
+    "rootDir": "Y:/WiseResume-TWC/tests/e2e/specs",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "Y:\\WiseResume-TWC\\tests\\e2e\\fixtures\\global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "Y:/WiseResume-TWC/tests/e2e/.artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "Y:/WiseResume-TWC/tests/e2e/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/e2e-results-2026-05-21T21-19-25-800Z.json"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/e2e-results.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "reports/e2e-html",
+          "open": "never"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run server:dev & npm run dev",
+      "url": "http://localhost:5000",
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "stdout": "ignore",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "01-auth-and-shell.spec.ts",
+      "file": "01-auth-and-shell.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Auth & app shell",
+          "file": "01-auth-and-shell.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Authenticated user lands on Dashboard with no console errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "observed",
+                      "description": "{\n  \"consoleErrors\": [\n    {\n      \"type\": \"error\",\n      \"text\": \"Failed to load resource: the server responded with a status of 401 ()\"\n    },\n    {\n      \"type\": \"error\",\n      \"text\": \"Failed to load resource: the server responded with a status of 400 ()\"\n    },\n    {\n      \"type\": \"error\",\n      \"text\": \"Failed to load resource: the server responded with a status of 401 ()\"\n    }\n  ],\n  \"pageErrors\": [],\n  \"networkErrors\": [],\n  \"edgeFnCalls\": []\n}"
+                    },
+                    {
+                      "type": "console-errors",
+                      "description": "[{\"type\":\"error\",\"text\":\"Failed to load resource: the server responded with a status of 401 ()\"},{\"type\":\"error\",\"text\":\"Failed to load resource: the server responded with a status of 400 ()\"},{\"type\":\"error\",\"text\":\"Failed to load resource: the server responded with a status of 401 ()\"}]"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4136,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-21T21:19:28.020Z",
+                      "annotations": [
+                        {
+                          "type": "observed",
+                          "description": "{\n  \"consoleErrors\": [\n    {\n      \"type\": \"error\",\n      \"text\": \"Failed to load resource: the server responded with a status of 401 ()\"\n    },\n    {\n      \"type\": \"error\",\n      \"text\": \"Failed to load resource: the server responded with a status of 400 ()\"\n    },\n    {\n      \"type\": \"error\",\n      \"text\": \"Failed to load resource: the server responded with a status of 401 ()\"\n    }\n  ],\n  \"pageErrors\": [],\n  \"networkErrors\": [],\n  \"edgeFnCalls\": []\n}"
+                        },
+                        {
+                          "type": "console-errors",
+                          "description": "[{\"type\":\"error\",\"text\":\"Failed to load resource: the server responded with a status of 401 ()\"},{\"type\":\"error\",\"text\":\"Failed to load resource: the server responded with a status of 400 ()\"},{\"type\":\"error\",\"text\":\"Failed to load resource: the server responded with a status of 401 ()\"}]"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4d399a811fc459a6810b-c7c5bbec831659170a91",
+              "file": "01-auth-and-shell.spec.ts",
+              "line": 5,
+              "column": 3
+            },
+            {
+              "title": "Top-level routes return 200",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "broken-routes",
+                      "description": "[\n  {\n    \"route\": \"/resume\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  },\n  {\n    \"route\": \"/activity\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  }\n]"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 28468,
+                      "error": {
+                        "message": "Error: Broken routes: [\n  {\n    \"route\": \"/resume\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  },\n  {\n    \"route\": \"/activity\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  }\n]\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoHaveLength\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected length: \u001b[32m0\u001b[39m\nReceived length: \u001b[31m2\u001b[39m\nReceived array:  \u001b[31m[{\"bodyText\": \"404·\u001b[39m\n\u001b[31mOops! This page doesn't exist·\u001b[39m\n\u001b[31mReturn to Home\u001b[39m\n\u001b[31mGo Back\", \"route\": \"/resume\", \"status\": 200}, {\"bodyText\": \"404·\u001b[39m\n\u001b[31mOops! This page doesn't exist·\u001b[39m\n\u001b[31mReturn to Home\u001b[39m\n\u001b[31mGo Back\", \"route\": \"/activity\", \"status\": 200}]\u001b[39m",
+                        "stack": "Error: Broken routes: [\n  {\n    \"route\": \"/resume\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  },\n  {\n    \"route\": \"/activity\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  }\n]\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoHaveLength\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected length: \u001b[32m0\u001b[39m\nReceived length: \u001b[31m2\u001b[39m\nReceived array:  \u001b[31m[{\"bodyText\": \"404·\u001b[39m\n\u001b[31mOops! This page doesn't exist·\u001b[39m\n\u001b[31mReturn to Home\u001b[39m\n\u001b[31mGo Back\", \"route\": \"/resume\", \"status\": 200}, {\"bodyText\": \"404·\u001b[39m\n\u001b[31mOops! This page doesn't exist·\u001b[39m\n\u001b[31mReturn to Home\u001b[39m\n\u001b[31mGo Back\", \"route\": \"/activity\", \"status\": 200}]\u001b[39m\n    at Y:\\WiseResume-TWC\\tests\\e2e\\specs\\01-auth-and-shell.spec.ts:38:73",
+                        "location": {
+                          "file": "Y:\\WiseResume-TWC\\tests\\e2e\\specs\\01-auth-and-shell.spec.ts",
+                          "column": 73,
+                          "line": 38
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 36 |\u001b[39m     }\n \u001b[90m 37 |\u001b[39m     test\u001b[33m.\u001b[39minfo()\u001b[33m.\u001b[39mannotations\u001b[33m.\u001b[39mpush({ type\u001b[33m:\u001b[39m \u001b[32m'broken-routes'\u001b[39m\u001b[33m,\u001b[39m description\u001b[33m:\u001b[39m \u001b[33mJSON\u001b[39m\u001b[33m.\u001b[39mstringify(broken\u001b[33m,\u001b[39m \u001b[36mnull\u001b[39m\u001b[33m,\u001b[39m \u001b[35m2\u001b[39m) })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 38 |\u001b[39m     expect(broken\u001b[33m,\u001b[39m \u001b[32m`Broken routes: ${JSON.stringify(broken, null, 2)}`\u001b[39m)\u001b[33m.\u001b[39mtoHaveLength(\u001b[35m0\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                                         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 39 |\u001b[39m   })\u001b[33m;\u001b[39m\n \u001b[90m 40 |\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m 41 |\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "Y:\\WiseResume-TWC\\tests\\e2e\\specs\\01-auth-and-shell.spec.ts",
+                            "column": 73,
+                            "line": 38
+                          },
+                          "message": "Error: Broken routes: [\n  {\n    \"route\": \"/resume\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  },\n  {\n    \"route\": \"/activity\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  }\n]\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoHaveLength\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected length: \u001b[32m0\u001b[39m\nReceived length: \u001b[31m2\u001b[39m\nReceived array:  \u001b[31m[{\"bodyText\": \"404·\u001b[39m\n\u001b[31mOops! This page doesn't exist·\u001b[39m\n\u001b[31mReturn to Home\u001b[39m\n\u001b[31mGo Back\", \"route\": \"/resume\", \"status\": 200}, {\"bodyText\": \"404·\u001b[39m\n\u001b[31mOops! This page doesn't exist·\u001b[39m\n\u001b[31mReturn to Home\u001b[39m\n\u001b[31mGo Back\", \"route\": \"/activity\", \"status\": 200}]\u001b[39m\n\n  36 |     }\n  37 |     test.info().annotations.push({ type: 'broken-routes', description: JSON.stringify(broken, null, 2) });\n> 38 |     expect(broken, `Broken routes: ${JSON.stringify(broken, null, 2)}`).toHaveLength(0);\n     |                                                                         ^\n  39 |   });\n  40 | });\n  41 |\n    at Y:\\WiseResume-TWC\\tests\\e2e\\specs\\01-auth-and-shell.spec.ts:38:73"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-21T21:19:32.468Z",
+                      "annotations": [
+                        {
+                          "type": "broken-routes",
+                          "description": "[\n  {\n    \"route\": \"/resume\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  },\n  {\n    \"route\": \"/activity\",\n    \"status\": 200,\n    \"bodyText\": \"404\\n\\nOops! This page doesn't exist\\n\\nReturn to Home\\nGo Back\"\n  }\n]"
+                        }
+                      ],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\01-auth-and-shell-Auth-app-shell-Top-level-routes-return-200-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\01-auth-and-shell-Auth-app-shell-Top-level-routes-return-200-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\01-auth-and-shell-Auth-app-shell-Top-level-routes-return-200-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\01-auth-and-shell-Auth-app-shell-Top-level-routes-return-200-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "Y:\\WiseResume-TWC\\tests\\e2e\\specs\\01-auth-and-shell.spec.ts",
+                        "column": 73,
+                        "line": 38
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "4d399a811fc459a6810b-c7a4dee47db9e1ef4169",
+              "file": "01-auth-and-shell.spec.ts",
+              "line": 16,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-21T21:19:25.815Z",
+    "duration": 36128.78999999999,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

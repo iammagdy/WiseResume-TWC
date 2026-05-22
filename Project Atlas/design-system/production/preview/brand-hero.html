@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Hero composition</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{margin:0;background:#0a0a0f;color:#f0f0f5;font-family:var(--font-sans);-webkit-font-smoothing:antialiased;overflow:hidden;}
+  body{padding:30px 24px 24px;position:relative;}
+  body::before{
+    content:"";position:absolute;inset:-50% 0 auto 0;height:80%;
+    background:radial-gradient(ellipse 80% 60% at 50% 30%, rgba(158,27,34,0.32) 0%, transparent 65%);
+    pointer-events:none;
+  }
+  .wrap{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:600;background:rgb(158 27 34 / 0.1);color:#E53E3E;border:1px solid rgb(158 27 34 / 0.28);box-shadow:0 0 18px 0 rgb(158 27 34 / 0.13);}
+  .pill [data-lucide]{width:11px;height:11px;}
+  .eyebrow{font-size:10.5px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#E53E3E;}
+  h1{margin:0;font-weight:800;font-size:46px;line-height:1.04;letter-spacing:-0.035em;}
+  .grad{
+    background:linear-gradient(135deg,#E53E3E 0%,#FF6B6B 25%,#C41E3A 50%,#FF8080 75%,#9E1B22 100%);
+    background-size:300% 300%;
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    animation:shimmer 4s ease infinite;padding-bottom:0.07em;
+  }
+  @keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  .cursor{display:inline-block;width:3px;height:0.85em;background:#E53E3E;margin-left:4px;vertical-align:middle;border-radius:1px;animation:blink 1s step-end infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  .sub{font-size:14.5px;color:rgb(240 240 245 / 0.55);margin:0;}
+  .cta{display:inline-flex;align-items:center;gap:7px;background:#9E1B22;color:#fff;height:42px;padding:0 22px;border-radius:12px;font-weight:600;font-size:14px;border:0;cursor:pointer;box-shadow:0 4px 14px -2px rgb(158 27 34 / 0.4);}
+  .cta [data-lucide]{width:15px;height:15px;}
+  .trust{display:flex;gap:18px;font-size:11px;color:rgb(240 240 245 / 0.7);margin-top:2px;}
+  .trust span{display:inline-flex;align-items:center;gap:4px;}
+  .trust [data-lucide]{width:13px;height:13px;color:rgb(158 27 34 / 0.85);}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="pill"><i data-lucide="sparkles"></i>AI-Powered Career Platform</div>
+    <h1>Stand out as a<br/><span class="grad">Designer</span><span class="cursor"></span></h1>
+    <p class="sub">AI that builds, tailors, and lands your next job.</p>
+    <button class="cta">Get Started Free <i data-lucide="arrow-right"></i></button>
+    <div class="trust">
+      <span><i data-lucide="check-circle-2"></i>Free to start</span>
+      <span><i data-lucide="check-circle-2"></i>No credit card</span>
+      <span><i data-lucide="check-circle-2"></i>AI-powered</span>
+    </div>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

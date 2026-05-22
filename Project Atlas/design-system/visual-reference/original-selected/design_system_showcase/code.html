@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WiseResume Design System Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#1d4ed8",
+                        "inverse-primary": "#ffb3ae",
+                        "wr-crimson": "#9E1B22",
+                        "surface-container-high": "#e1e8fd",
+                        "tertiary-fixed-dim": "#90cef2",
+                        "surface-container-highest": "#dce2f7",
+                        "on-tertiary-fixed-variant": "#004c68",
+                        "surface-container": "#e9edff",
+                        "on-tertiary-fixed": "#001e2c",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed": "#dce1ff",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#edf0ff",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed-variant": "#8f0e19",
+                        "surface": "#f9f9ff",
+                        "surface-dim": "#d3daef",
+                        "error": "#EF4444",
+                        "primary": "#7a0010",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "warning": "#F59E0B",
+                        "inverse-surface": "#293040",
+                        "on-background": "#141b2b",
+                        "tertiary-container": "#005776",
+                        "primary-container": "#9e1b22",
+                        "secondary-fixed-dim": "#b7c4ff",
+                        "on-primary-fixed": "#410005",
+                        "wh-royal": "#1D4ED8",
+                        "on-primary-container": "#ffafaa",
+                        "app-shell": "#F7F7F8",
+                        "surface-variant": "#dce2f7",
+                        "primary-fixed": "#ffdad7",
+                        "wh-bright": "#3B82F6",
+                        "surface-bright": "#f9f9ff",
+                        "on-secondary-container": "#fffbff",
+                        "wr-subtle": "#FFF5F5",
+                        "tertiary": "#003f56",
+                        "on-surface": "#141b2b",
+                        "on-tertiary-container": "#8dcbef",
+                        "primary-fixed-dim": "#ffb3ae",
+                        "success": "#22C55E",
+                        "secondary-container": "#4069f2",
+                        "on-error-container": "#93000a",
+                        "outline": "#8d706e",
+                        "card-bg": "#FFFFFF",
+                        "on-secondary-fixed": "#001551",
+                        "tertiary-fixed": "#c3e8ff",
+                        "outline-variant": "#e1bfbc",
+                        "background": "#f9f9ff",
+                        "surface-tint": "#b12a2e",
+                        "wh-subtle": "#EFF6FF",
+                        "border-muted": "#E5E7EB",
+                        "on-secondary-fixed-variant": "#0039b5",
+                        "surface-container-low": "#f1f3ff",
+                        "on-surface-variant": "#59413f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "1": "4px",
+                        "2": "8px",
+                        "3": "12px",
+                        "4": "16px",
+                        "5": "20px",
+                        "6": "24px",
+                        "8": "32px",
+                        "10": "40px",
+                        "12": "48px",
+                        "16": "64px",
+                        "gutter": "16px",
+                        "page-margin-mobile": "16px",
+                        "page-margin-desktop": "24px"
+                    },
+                    "fontFamily": {
+                        "body": ["Inter", "sans-serif"],
+                        "h1": ["Inter", "sans-serif"],
+                        "h3": ["Inter", "sans-serif"],
+                        "display-lg": ["Inter", "sans-serif"],
+                        "display-xl": ["Inter", "sans-serif"],
+                        "h1-mobile": ["Inter", "sans-serif"],
+                        "caption": ["Inter", "sans-serif"],
+                        "h2": ["Inter", "sans-serif"],
+                        "small": ["Inter", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "body-medium": ["Inter", "sans-serif"],
+                        "eyebrow": ["Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "body": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h1": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h3": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "display-lg": ["64px", { "lineHeight": "1.05", "letterSpacing": "-0.035em", "fontWeight": "800" }],
+                        "display-xl": ["88px", { "lineHeight": "1.0", "letterSpacing": "-0.035em", "fontWeight": "800" }],
+                        "h1-mobile": ["28px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "caption": ["12px", { "lineHeight": "1.35", "fontWeight": "500" }],
+                        "h2": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "small": ["14px", { "lineHeight": "1.45", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-medium": ["16px", { "lineHeight": "1.5", "fontWeight": "500" }],
+                        "eyebrow": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.12em", "fontWeight": "600" }]
+                    },
+                    "boxShadow": {
+                        "soft": "0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.04)",
+                        "soft-lg": "0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.04)",
+                        "glow-primary": "0 4px 14px 0 rgba(158, 27, 34, 0.25)"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .ai-shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-shimmer::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.3) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: rotate(30deg);
+            animation: shimmer 3s infinite linear;
+            pointer-events: none;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) rotate(30deg); }
+            100% { transform: translateX(100%) rotate(30deg); }
+        }
+    </style>
+</head>
+<body class="bg-app-shell text-on-surface font-body min-h-screen flex antialiased">
+<!-- Side Navigation Shell -->
+<nav class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface-container-low dark:bg-inverse-surface border-r border-border-muted p-4 z-40">
+<div class="mb-8 px-2">
+<h1 class="font-h3 text-h3 font-black text-wr-crimson">WiseResume</h1>
+<p class="font-caption text-caption text-on-surface-variant">Career Suite</p>
+</div>
+<div class="flex-1 space-y-1">
+<!-- Active State Navigation -->
+<a class="flex items-center space-x-3 px-3 py-2 bg-primary-container text-on-primary-container rounded-lg font-bold font-body-medium text-body-medium scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all font-body-medium text-body-medium scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Applications</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all font-body-medium text-body-medium scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span>Resume Builder</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all font-body-medium text-body-medium scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">search</span>
+<span>Job Search</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all font-body-medium text-body-medium scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined text-wr-crimson">psychology</span>
+<span>AI Insights</span>
+</a>
+</div>
+<div class="mt-auto space-y-4">
+<button class="w-full py-2 bg-wr-crimson text-on-primary rounded-lg font-body-medium text-body-medium shadow-glow-primary hover:bg-primary transition-colors">
+                Upgrade to Pro
+            </button>
+<div class="pt-4 border-t border-border-muted space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all font-body-medium text-body-medium" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Help Center</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all font-body-medium text-body-medium" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Sign Out</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-page-margin-mobile md:p-page-margin-desktop">
+<header class="mb-12">
+<h1 class="font-display-lg text-display-lg text-on-surface">Design System</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-2 max-w-2xl">WiseResume component preview and visual token documentation.</p>
+</header>
+<div class="space-y-16 max-w-5xl">
+<!-- Colors & Typography -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+<!-- Colors -->
+<div>
+<h2 class="font-h2 text-h2 mb-6 border-b border-border-muted pb-2">Brand Colors</h2>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+<div class="flex flex-col">
+<div class="h-16 rounded-t-lg bg-wr-crimson shadow-soft"></div>
+<div class="bg-card-bg p-3 rounded-b-lg border border-border-muted border-t-0">
+<p class="font-body-medium text-body-medium">Crimson</p>
+<p class="font-caption text-caption text-on-surface-variant">bg-wr-crimson</p>
+</div>
+</div>
+<div class="flex flex-col">
+<div class="h-16 rounded-t-lg bg-wr-subtle shadow-soft border border-border-muted border-b-0"></div>
+<div class="bg-card-bg p-3 rounded-b-lg border border-border-muted border-t-0">
+<p class="font-body-medium text-body-medium">Subtle</p>
+<p class="font-caption text-caption text-on-surface-variant">bg-wr-subtle</p>
+</div>
+</div>
+<div class="flex flex-col">
+<div class="h-16 rounded-t-lg bg-surface-container-highest shadow-soft"></div>
+<div class="bg-card-bg p-3 rounded-b-lg border border-border-muted border-t-0">
+<p class="font-body-medium text-body-medium">Surface</p>
+<p class="font-caption text-caption text-on-surface-variant">bg-surface-...</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Typography -->
+<div>
+<h2 class="font-h2 text-h2 mb-6 border-b border-border-muted pb-2">Typography Scale</h2>
+<div class="space-y-4 bg-card-bg p-6 rounded-xl shadow-soft border border-border-muted">
+<div>
+<span class="font-display-lg text-display-lg">Display Lg</span>
+</div>
+<div>
+<span class="font-h1 text-h1">Headline 1</span>
+</div>
+<div>
+<span class="font-h2 text-h2">Headline 2</span>
+</div>
+<div>
+<span class="font-body-lg text-body-lg">Body Large</span>
+</div>
+<div>
+<span class="font-body text-body">Body Regular</span>
+</div>
+<div>
+<span class="font-eyebrow text-eyebrow text-on-surface-variant uppercase tracking-widest">Eyebrow</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

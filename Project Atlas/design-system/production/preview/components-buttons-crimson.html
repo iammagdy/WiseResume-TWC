@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Buttons — WiseResume</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);-webkit-font-smoothing:antialiased;}
+  body{padding:22px 24px;}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9E1B22;margin:0 0 14px;}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .row:last-child{margin-bottom:0;}
+  .label{font-family:var(--font-mono);font-size:10.5px;color:#6b7280;width:88px;flex-shrink:0;}
+  button{font-family:inherit;cursor:pointer;border:0;display:inline-flex;align-items:center;gap:8px;font-weight:500;font-size:14px;border-radius:12px;transition:all 0.18s ease;}
+  button [data-lucide]{width:16px;height:16px;}
+  .primary{background:#9E1B22;color:#fff;height:44px;padding:0 18px;box-shadow:0 1px 3px 0 rgb(0 0 0 / 0.06);}
+  .primary:hover{background:rgba(158,27,34,0.92);}
+  .primary.lg{height:52px;padding:0 28px;font-size:15px;font-weight:600;border-radius:14px;}
+  .outline{background:#fff;color:#18181b;border:1px solid #e5e7eb;height:44px;padding:0 16px;}
+  .outline:hover{background:#f3f4f6;}
+  .secondary{background:#e2e8f0;color:#0f172a;height:44px;padding:0 16px;box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.04);}
+  .ghost{background:transparent;color:#374151;height:44px;padding:0 14px;}
+  .ghost:hover{background:#f3f4f6;}
+  .destructive{background:#ef4444;color:#fff;height:44px;padding:0 16px;}
+  .link{background:transparent;color:#9E1B22;height:36px;padding:0;text-decoration:underline;text-underline-offset:3px;}
+  .icon-btn{background:transparent;color:#374151;width:44px;height:44px;padding:0;justify-content:center;border:1px solid #e5e7eb;}
+  .small{height:34px;padding:0 11px;font-size:13px;border-radius:10px;}
+  .disabled{opacity:0.5;pointer-events:none;}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Buttons · WiseResume (Crimson)</div>
+  <div class="row"><div class="label">primary</div>
+    <button class="primary lg">Get Started Free <i data-lucide="arrow-right"></i></button>
+    <button class="primary">Build a Resume <i data-lucide="file-text"></i></button>
+    <button class="primary small">Tailor</button>
+  </div>
+  <div class="row"><div class="label">outline</div>
+    <button class="outline"><i data-lucide="file-text"></i>Build a Resume</button>
+    <button class="outline small">Cancel</button>
+    <button class="ghost"><i data-lucide="sparkles"></i>Continue editing</button>
+  </div>
+  <div class="row"><div class="label">other</div>
+    <button class="secondary"><i data-lucide="download"></i>Download PDF</button>
+    <button class="destructive"><i data-lucide="trash-2"></i>Delete</button>
+    <button class="icon-btn"><i data-lucide="search"></i></button>
+    <button class="link">View pricing</button>
+    <button class="primary disabled">Loading…</button>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

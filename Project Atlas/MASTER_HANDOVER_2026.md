@@ -2,6 +2,81 @@
 
 ---
 
+## Session Summary - 2026-05-22 (Local Export Recovery, PDF Blank Output Fix, Web Feedback Prompt)
+
+### Overview
+Reviewed the large local Antigravity-agent change set, restarted the local dev stack, and debugged the `/preview` export flow. User reported three export failures: export toast without file, `blob:http://localhost:5000/...` PDF preview instead of download, and downloaded PDF containing only `Page 1 of 1 - Made with WiseResume`.
+
+Also replaced an app-store rating prompt with a web feedback prompt.
+
+### Root Causes (Verified)
+
+| Issue | Root cause |
+|---|---|
+| Toast showed success while no download appeared | `src/lib/downloadUtils.ts` revoked the generated `blob:` URL immediately after clicking the hidden anchor. Embedded Chromium can begin consuming the blob after the click task, so immediate revocation can cancel the download while the caller still reports success. |
+| `blob:http://localhost:5000/...` PDF preview opened | A temporary local fallback navigated to the blob URL for PDFs. It made the PDF visible but was not the requested download behavior. Removed. |
+| Downloaded PDF contained only footer | `measureExportLayout()` in `server/index.ts` and `api/export/pdf-native.ts` used `page.evaluate(\`() => { ... }\`)`. Puppeteer treated the string as a function value rather than executing it, so `layout.measuredHeight` was `undefined`. `contentHeight` became `NaN`, `buildExportPageSegments()` collapsed to a 1px content segment, and the PDF rendered only the footer. Verified by extracting text from `C:/Users/magdy/Downloads/Magdy_Saber_Resume (15).pdf`: only `Page 1 of 1 - Made with WiseResume`. |
+| Potential invisible resume clone | Preview uses Framer Motion and inline transform/opacity styles. Export clone needed to strip screen-only visibility/transform state so Puppeteer always renders visible resume content. |
+| App Store rating toast | `useRateApp()` still opened Google Play and `PreviewPage` used app-store copy. This does not match the current web-app product state. |
+
+### Fixes Applied
+
+| File | Change |
+|---|---|
+| `src/lib/downloadUtils.ts` | Desktop download now delays `URL.revokeObjectURL()` for 5 minutes instead of revoking immediately. Removed temporary PDF blob-navigation fallback. |
+| `src/pages/PreviewPage.tsx` | Preview PDF export now passes `mimeType: 'application/pdf'`. Replaced app-store rating copy/action with web feedback copy/action. |
+| `src/hooks/useRateApp.ts` | Renamed prompt key to `wiseresume_feedback_prompted`. Replaced `openAppStore()` with `openFeedback()`, opening `mailto:contact@thewise.cloud?subject=WiseResume%20feedback`. |
+| `src/lib/exportDomUtils.ts` | Export clone now forces `opacity: 1`, `visibility: visible`, `transform: none`, and `display: block` on the root and inline-styled descendants. |
+| `src/lib/exportDomUtils.test.ts` | Added regression coverage for hidden/transformed root and descendant export clone styles. |
+| `server/index.ts` | Fixed Puppeteer layout measurement by executing `page.evaluate(\`(() => { ... })()\`)`. Added content-height fallback using `max(clientHeight, layoutContentHeightPx, measuredHeight, printableHeight)`. Added `httpServer.ref()` so the local API stays alive when launched with `node --import tsx server/index.ts`. |
+| `api/export/pdf-native.ts` | Mirrored the Puppeteer measurement execution fix and content-height fallback in the Vercel serverless PDF function. Removed temporary `[DEBUG-PDF]` logs. |
+
+### Verification
+- Confirmed attached broken file contained only footer text.
+- Reproduced footer-only bug with direct POST to `http://localhost:5001/api/export/pdf-native`.
+- After fix, the same direct POST returned a valid PDF containing resume body text (`Magdy Saber`, email, `Summary`, `Experience`, etc.).
+- User confirmed final `/preview` export works.
+- `npx tsc --noEmit` - passed.
+- `npx vitest run src/lib/exportDomUtils.test.ts src/lib/nativePdfGenerator.test.ts src/lib/exportPagePlan.test.ts` - passed, 25 tests.
+
+### Local Server State
+- Frontend dev server: `http://localhost:5000`.
+- Local PDF/API server: `http://localhost:5001`.
+- Backend was restarted after the PDF renderer fix.
+- Local API is running in non-watch mode. Restart it after future `server/index.ts` changes.
+
+### Other Local Changes Observed
+Existing local changes from before this session remain and were not reverted:
+- PDF page-cut boundary/snap work in `src/lib/exportPagePlan.ts`, `api/export/pdf-native.ts`, `server/index.ts`, and tests.
+- Smart Fit protected-token changes in `src/lib/smartFit/*`.
+- Auto-fit spacing token `7` support in `src/lib/templateCustomization.ts` and audit tests.
+- E2E export spec navigation change in `tests/e2e/specs/14-exports.spec.ts`.
+- New RevenueCat doc: `Project Atlas/01-Currently Implemented/payments-revenuecat.md`.
+- Large untracked design-system package under `Project Atlas/design-system/`.
+- New `appwrite-hubs/revenuecat-webhook/package-lock.json`.
+- Timestamped E2E result JSON files under `reports/`.
+
+### Known Hygiene / Follow-Up
+- `git status` remains dirty with this session's fixes plus pre-existing Antigravity-agent changes.
+- `Project Atlas/design-system/` is large and untracked; decide whether it belongs in this repo.
+- Timestamped E2E JSON outputs under `reports/` are untracked generated artifacts; decide whether to keep or ignore.
+- Some new docs still have encoding artifacts such as `â€”` and `â†’`.
+- Earlier E2E report showed `/resume` and `/activity` route tests rendering the 404 page with HTTP 200. Not addressed.
+- Do not use old `Magdy_Saber_Resume (15).pdf` for verification; it was generated before the PDF renderer fix.
+
+### Where We Stopped
+- Immediate user-facing `/preview` export bug is fixed and user confirmed it works.
+- Local app is usable at `http://localhost:5000/preview`.
+- Local API/PDF server is listening on `5001`.
+- No commit was made.
+- No files were staged.
+- Next agent should inspect `git status --short`, review this session's PDF/export changes together with pre-existing local changes, then decide commit scope. Recommended split:
+  1. PDF export/download/feedback prompt fixes.
+  2. Pre-existing Antigravity PDF page-cut/smart-fit/audit changes.
+  3. Docs/design-system/generated artifacts, if they should be kept.
+
+---
+
 ## Session Summary - 2026-05-21 (Custom Page Cut – Validation Height vs Crop Height Bug)
 
 ### Overview

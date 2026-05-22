@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Semantic Colors</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);}
+  body{padding:20px;}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9E1B22;margin:0 0 12px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .cell{border-radius:12px;border:1px solid #e5e7eb;padding:10px;display:flex;flex-direction:column;gap:6px;background:#fff;}
+  .head{display:flex;align-items:center;gap:8px;}
+  .dot{width:18px;height:18px;border-radius:6px;flex-shrink:0;}
+  .name{font-size:12px;font-weight:700;}
+  .hex{font-size:10.5px;color:#6b7280;font-family:var(--font-mono);}
+  .toast{display:flex;align-items:center;gap:7px;border-radius:10px;padding:6px 9px;font-size:11px;font-weight:500;}
+  .toast svg{width:14px;height:14px;flex-shrink:0;}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Semantic Colors · Standard Bands</div>
+  <div class="grid">
+    <div class="cell">
+      <div class="head"><div class="dot" style="background:#22c55e"></div><div><div class="name">Success</div><div class="hex">#22C55E · 142 71% 45%</div></div></div>
+      <div class="toast" style="background:rgba(34,197,94,0.1);color:#16a34a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>Saved · ATS score 87</div>
+    </div>
+    <div class="cell">
+      <div class="head"><div class="dot" style="background:#f59e0b"></div><div><div class="name">Warning</div><div class="hex">#F59E0B · 38 92% 50%</div></div></div>
+      <div class="toast" style="background:rgba(245,158,11,0.1);color:#b45309"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.3 3.86a2 2 0 0 1 3.4 0l8.4 14a2 2 0 0 1-1.7 3H3.6a2 2 0 0 1-1.7-3z"/><path d="M12 9v4"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>3 missing keywords</div>
+    </div>
+    <div class="cell">
+      <div class="head"><div class="dot" style="background:#ef4444"></div><div><div class="name">Error</div><div class="hex">#EF4444 · 0 72% 51%</div></div></div>
+      <div class="toast" style="background:rgba(239,68,68,0.1);color:#dc2626"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>Upload failed</div>
+    </div>
+    <div class="cell">
+      <div class="head"><div class="dot" style="background:#3b82f6"></div><div><div class="name">Info</div><div class="hex">#3B82F6 · 217 91% 60%</div></div></div>
+      <div class="toast" style="background:rgba(59,130,246,0.1);color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v0"/><path d="M12 12v4"/></svg>Tip: paste a job URL to tailor</div>
+    </div>
+  </div>
+</body>
+</html>

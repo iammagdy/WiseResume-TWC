@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Neutrals</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);}
+  body{padding:20px;}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9E1B22;margin:0 0 12px;}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .stack{display:flex;flex-direction:column;gap:6px;border-radius:14px;padding:14px 14px 12px;border:1px solid;}
+  .stack.lt{background:#ffffff;border-color:#e5e7eb;color:#18181b;}
+  .stack.dk{background:#0C0C0E;border-color:#2A2A30;color:#fafafa;}
+  .stack h4{margin:0 0 4px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;}
+  .stack.lt h4{color:#52525b;}
+  .stack.dk h4{color:rgb(255 255 255 / 0.6);}
+  .swatch{display:flex;align-items:center;gap:10px;font-size:11px;font-family:var(--font-mono);}
+  .chip{width:30px;height:18px;border-radius:5px;border:1px solid rgba(0 0 0 / 0.06);flex-shrink:0;}
+  .stack.dk .chip{border-color:rgba(255 255 255 / 0.08);}
+  .meta{opacity:0.65;margin-left:auto;font-size:10px;}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Surfaces — Light & Dark</div>
+  <div class="pair">
+    <div class="stack lt">
+      <h4>Light theme</h4>
+      <div class="swatch"><div class="chip" style="background:#ffffff"></div> bg <span class="meta">#FFFFFF · 0 0% 100%</span></div>
+      <div class="swatch"><div class="chip" style="background:#F7F7F8"></div> app-bg <span class="meta">#F7F7F8 · 240 4% 97%</span></div>
+      <div class="swatch"><div class="chip" style="background:#f3f4f6"></div> card <span class="meta">#F3F4F6 · 220 14% 96%</span></div>
+      <div class="swatch"><div class="chip" style="background:#e5e7eb"></div> border <span class="meta">#E5E7EB · 220 13% 91%</span></div>
+      <div class="swatch"><div class="chip" style="background:#6b7280"></div> muted-fg <span class="meta">#6B7280 · 220 9% 46%</span></div>
+      <div class="swatch"><div class="chip" style="background:#18181b"></div> fg <span class="meta">#18181B · 240 6% 10%</span></div>
+    </div>
+    <div class="stack dk">
+      <h4>Dark theme</h4>
+      <div class="swatch"><div class="chip" style="background:#111114"></div> bg <span class="meta">#111114</span></div>
+      <div class="swatch"><div class="chip" style="background:#0C0C0E"></div> app-bg <span class="meta">#0C0C0E</span></div>
+      <div class="swatch"><div class="chip" style="background:#161618"></div> card <span class="meta">#161618</span></div>
+      <div class="swatch"><div class="chip" style="background:#1F1F23"></div> elevated <span class="meta">#1F1F23</span></div>
+      <div class="swatch"><div class="chip" style="background:#2A2A30"></div> border <span class="meta">#2A2A30</span></div>
+      <div class="swatch"><div class="chip" style="background:#a1a1aa"></div> muted-fg <span class="meta">#A1A1AA</span></div>
+    </div>
+  </div>
+</body>
+</html>

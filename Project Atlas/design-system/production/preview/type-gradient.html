@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Type — Gradient Specimens</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html,body{margin:0;background:#0f0f14;color:#fafafa;font-family:var(--font-sans);}
+  body{padding:24px 26px;display:flex;flex-direction:column;gap:14px;}
+  .eyebrow{font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:0.14em;color:#E53E3E;}
+  .crimson{
+    font-weight:800;font-size:46px;line-height:1;letter-spacing:-0.035em;
+    background:linear-gradient(135deg,#E53E3E 0%,#FF6B6B 25%,#C41E3A 50%,#FF8080 75%,#9E1B22 100%);
+    background-size:300% 300%;
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    animation:shimmer 4s ease infinite;
+    padding-bottom:0.08em;
+  }
+  .blue{
+    font-weight:800;font-size:34px;line-height:1;letter-spacing:-0.03em;
+    background:linear-gradient(135deg,#60A5FA 0%,#3B82F6 30%,#1D4ED8 60%,#3B82F6 100%);
+    background-size:300% 300%;
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    animation:shimmer 4s ease infinite;
+  }
+  @keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  .meta{font-family:var(--font-mono);font-size:11px;color:rgb(255 255 255 / 0.5);}
+  .cursor{display:inline-block;width:3px;height:0.85em;background:#E53E3E;margin-left:3px;vertical-align:middle;border-radius:1px;animation:blink 1s step-end infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Gradient Text · Used on hero typewriter words</div>
+  <div class="crimson">Designer<span class="cursor"></span></div>
+  <div class="blue" style="color:#60A5FA">Hiring Manager<span class="cursor" style="background:#60A5FA"></span></div>
+  <div class="meta">.gradient-text-crimson · .gradient-text-blue · 300% bg-size · 4s shimmer · 3px caret blink</div>
+</body>
+</html>

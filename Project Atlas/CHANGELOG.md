@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-05-21 - PDF page-cut boundary protection (snapping overcorrection fix)
+
+### Summary
+Fixed the bug where custom section page cuts (specifically before the EDUCATION header) were ignored or incorrectly shifted forward, leaving the section heading on Page 1 while section content was pushed to Page 2.
+
+### What changed
+- Updated both the shared `src/lib/exportPagePlan.ts` page planner and Vercel's native PDF export copy (`api/export/pdf-native.ts`).
+- Modified `snapBreakPositionsToSectionHeadings` to snap page breaks to `Math.min(section.top, headTop)` instead of `section.top`, ensuring breaks always land before a section and its heading element (even if a heading has a negative margin or starts slightly above the container top).
+- Refined the heading-crossing guard in `snapBreakPositionsToAvoidBlocks` to strictly protect any break Y coordinate that was originally before or at a section boundary (`y <= headTop || y <= section.top`) from being shifted forward past that boundary by overlapping avoid blocks from the previous section.
+- Added comprehensive unit tests in `src/lib/exportPagePlan.test.ts` representing these exact layout boundary and negative-margin snapping conflict scenarios, verifying that manual section cuts are preserved perfectly.
+
+### Why
+The verified root cause was a snapping conflict. When browser layout differences placed a section-boundary cut at the section start (e.g. `800`), an avoid block from the previous section (e.g., the last Experience entry) extending slightly further down (e.g., to `810`) was matched. The avoid-snapping logic snapped the break forward to the bottom of the avoid block (`810`). Because the snapped break `800` was greater than a negative-margin heading top `790`, the guard `y <= headTop` evaluated to `false`, allowing the break to land at `810` (after the heading). This split the section header onto Page 1 while its content was on Page 2.
+
+### Verification
+- Added two regression tests to `src/lib/exportPagePlan.test.ts` (all 20 unit tests passed successfully).
+- `npx tsc --noEmit` passed.
+- `npm run build` verified.
+
+### Deployment
+Deploy through Vercel by pushing `main`. No Appwrite function redeploy is required.
+
+---
+
 ## 2026-05-21 - PDF automatic fallback avoids splitting experience entries
 
 ### Summary

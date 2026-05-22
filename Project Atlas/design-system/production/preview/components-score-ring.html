@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ATS Score Ring</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);-webkit-font-smoothing:antialiased;}
+  body{padding:24px 26px;}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9E1B22;margin:0 0 14px;}
+  .row{display:flex;align-items:center;gap:30px;justify-content:flex-start;}
+  .ring{width:96px;height:96px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .ring .center{position:absolute;text-align:center;}
+  .ring .num{font-size:24px;font-weight:800;letter-spacing:-0.03em;line-height:1;}
+  .ring .lab{font-size:9.5px;color:#6b7280;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;margin-top:3px;}
+  .info{display:flex;flex-direction:column;gap:5px;}
+  .info h4{font-size:13px;font-weight:700;margin:0;color:#18181b;}
+  .info p{font-size:12px;color:#6b7280;margin:0;}
+  .delta{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#16a34a;}
+  .delta [data-lucide]{width:12px;height:12px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+  .lbl{font-family:var(--font-mono);font-size:10px;color:#a1a1aa;}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Signature · ATS Score Ring</div>
+  <div class="grid">
+    <div class="row">
+      <div class="ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" stroke="#fef2f2" stroke-width="9" fill="none" />
+          <circle cx="50" cy="50" r="42" stroke="#9E1B22" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="34.3" />
+        </svg>
+        <div class="center"><div class="num" style="color:#9E1B22">87</div><div class="lab">ATS</div></div>
+      </div>
+      <div class="info">
+        <h4>Strong match</h4>
+        <p>Software Engineer · Stripe</p>
+        <span class="delta"><i data-lucide="trending-up"></i>+12 this week</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" stroke="#fffbeb" stroke-width="9" fill="none" />
+          <circle cx="50" cy="50" r="42" stroke="#f59e0b" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="121.4" />
+        </svg>
+        <div class="center"><div class="num" style="color:#b45309">54</div><div class="lab">ATS</div></div>
+      </div>
+      <div class="info">
+        <h4>Needs work</h4>
+        <p>Add 4 keywords to match</p>
+        <span class="delta" style="color:#b45309"><i data-lucide="alert-triangle"></i>3 gaps</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" stroke="#f0fdf4" stroke-width="9" fill="none" />
+          <circle cx="50" cy="50" r="42" stroke="#22c55e" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="13.2" />
+        </svg>
+        <div class="center"><div class="num" style="color:#16a34a">95</div><div class="lab">ATS</div></div>
+      </div>
+      <div class="info">
+        <h4>Recruiter-ready</h4>
+        <p>You're in the top 5%</p>
+        <span class="delta"><i data-lucide="check-circle-2"></i>All checks pass</span>
+      </div>
+    </div>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

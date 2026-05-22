@@ -283,6 +283,7 @@ const SPACING_REM: Record<string, number> = {
   '4': 1,
   '5': 1.25,
   '6': 1.5,
+  '7': 1.75,
   '8': 2,
   '10': 2.5,
 };

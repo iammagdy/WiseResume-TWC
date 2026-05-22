@@ -242,4 +242,40 @@ describe('exportPagePlan', () => {
     // A break within range is kept exactly
     expect(clampBreakPositions([960], 1035, 40)).toEqual([960]);
   });
+
+  it('prevents avoid-block snapping from shifting a cut forward past a section heading or section top', () => {
+    const sections = [{ top: 800, bottom: 1200, headingTop: 836 }];
+    const avoidBlocks = [{ top: 700, bottom: 810, childTops: [] }]; // previous block overlaps slightly
+
+    // Section snaps should snap Y=840 back to the section boundary (800)
+    const sectionSnapped = snapBreakPositionsToSectionHeadings([840], sections, 1500, 40);
+    expect(sectionSnapped).toEqual([800]);
+
+    // Avoid block snaps should keep it at 800 instead of snapping to bottom of avoid block (810)
+    const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, 748, 1500, 40, sections);
+    expect(avoidSnapped).toEqual([800]);
+  });
+
+  it('prevents avoid-block snapping from shifting a cut forward past a negative-margin heading top', () => {
+    const sections = [{ top: 800, bottom: 1200, headingTop: 790 }];
+    const avoidBlocks = [{ top: 700, bottom: 810, childTops: [] }]; // previous block overlaps slightly
+
+    // Section snaps should snap Y=800 to the minimum of section top and heading top (790)
+    const sectionSnapped = snapBreakPositionsToSectionHeadings([800], sections, 1500, 40);
+    expect(sectionSnapped).toEqual([790]);
+
+    // Avoid block snaps should keep it at 790 instead of snapping to bottom of avoid block (810)
+    const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, 748, 1500, 40, sections);
+    expect(avoidSnapped).toEqual([790]);
+  });
+
+  it('snaps custom breaks to section headings under non-linear shifts using client-intent alignment', () => {
+    // Client height = 1000, client break Y = 800, client section heading top = 805 (cut was before section heading).
+    // Server height = 920, server section heading top = 740.
+    // Proportional scale factor = 920 / 1000 = 0.92.
+    // Proportional scaled break Y = 800 * 0.92 = 736.
+    const sections = [{ top: 740, bottom: 900, headingTop: 740 }];
+    const snapped = snapBreakPositionsToSectionHeadings([736], sections, 920, 40, 1000);
+    expect(snapped).toEqual([740]);
+  });
 });

@@ -118,15 +118,37 @@ export function snapBreakPositionsToSectionHeadings(
   sections: ExportSectionBounds[],
   totalHeightPx: number,
   minGapPx: number = DEFAULT_MIN_GAP_PX,
+  layoutContentHeightPx?: number,
 ): number[] {
   if (!breaks.length || !sections.length) return breaks;
   const sorted = [...sections].sort((a, b) => a.top - b.top);
   const maxY = Math.max(minGapPx, totalHeightPx - minGapPx);
 
+  const scale = layoutContentHeightPx && layoutContentHeightPx > 0 ? totalHeightPx / layoutContentHeightPx : 1;
+
   return breaks.map((breakY) => {
     let y = breakY;
+
+    // Check if we can align user's client-side intent first
+    if (layoutContentHeightPx && layoutContentHeightPx > 0) {
+      const y_client = y / scale;
+      for (const section of sorted) {
+        const headTop = section.headingTop ?? section.top;
+        const targetBoundary = Math.max(minGapPx, Math.min(section.top, headTop));
+        const client_top = section.top / scale;
+        const client_head_top = headTop / scale;
+        const placedBeforeOnClient = y_client <= client_head_top + 6 || y_client <= client_top + 6;
+        const nearOrInSectionServer = y >= targetBoundary - 30 && y <= headTop + 120;
+
+        if (placedBeforeOnClient && nearOrInSectionServer) {
+          return Math.min(targetBoundary, maxY);
+        }
+      }
+    }
+
     for (const section of sorted) {
       const headTop = section.headingTop ?? section.top;
+      const targetBoundary = Math.max(minGapPx, Math.min(section.top, headTop));
       const inSection = y > section.top && y < section.bottom;
       const nearSectionTop =
         y >= section.top - NEAR_SECTION_TOP_PX && y <= headTop + SECTION_HEADING_GUARD_PX;
@@ -134,11 +156,11 @@ export function snapBreakPositionsToSectionHeadings(
       if (inSection) {
         const fromSectionStart = y - section.top;
         if (fromSectionStart <= SECTION_HEADING_GUARD_PX || y <= headTop + SECTION_HEADING_GUARD_PX) {
-          y = Math.max(minGapPx, headTop);
+          y = targetBoundary;
           break;
         }
       } else if (nearSectionTop) {
-        y = Math.max(minGapPx, headTop);
+        y = targetBoundary;
         break;
       }
     }
@@ -152,6 +174,7 @@ export function snapBreakPositionsToAvoidBlocks(
   pageHeightPx: number,
   totalHeightPx: number,
   minGapPx: number = DEFAULT_MIN_GAP_PX,
+  sections: ExportSectionBounds[] = [],
 ): number[] {
   if (!breaks.length || !avoidBlocks.length) return breaks;
   const sorted = [...avoidBlocks].sort((a, b) => a.top - b.top);
@@ -161,27 +184,96 @@ export function snapBreakPositionsToAvoidBlocks(
 
   return breaks.map((breakY) => {
     let y = breakY;
-    const hit = sorted.find((block) => y > block.top && y < block.bottom);
-    if (!hit) return Math.min(Math.max(y, minGapPx), maxY);
+    const visited = new Set<ExportAvoidBounds>();
+    let iterations = 0;
 
-    const blockHeight = hit.bottom - hit.top;
-    if (hit.bottom - y <= minGapPx) {
-      y = hit.bottom;
-    } else if (y - hit.top <= minGapPx) {
-      y = hit.top;
-    } else if (blockHeight < pageHeight) {
-      y = hit.top;
-    } else if (hit.childTops.length > 0) {
-      let best = y;
-      let bestDistance = Infinity;
-      for (const childTop of hit.childTops) {
-        const distance = Math.abs(childTop - y);
-        if (distance < bestDistance && distance <= maxShift) {
-          best = childTop;
-          bestDistance = distance;
+    while (iterations < 10) {
+      const hit = sorted.find((block) => y > block.top && y < block.bottom);
+      if (!hit) {
+        break;
+      }
+
+      if (visited.has(hit)) {
+        // Cycle detected! Snap backward to the minimum top of all visited blocks
+        let minTop = y;
+        for (const block of visited) {
+          if (block.top < minTop) {
+            minTop = block.top;
+          }
+        }
+        y = minTop;
+        break;
+      }
+
+      visited.add(hit);
+      iterations++;
+
+      const blockHeight = hit.bottom - hit.top;
+      let proposedY = y;
+      let isChildTopSnap = false;
+
+      if (hit.bottom - y <= minGapPx) {
+        // Snapping forward: check if it would cross a section boundary
+        const wouldCrossSection = sections.some((section) => {
+          const headTop = section.headingTop ?? section.top;
+          const wasBefore = y <= headTop || y <= section.top;
+          const proposedAfter = hit.bottom > headTop || hit.bottom > section.top;
+          return wasBefore && proposedAfter;
+        });
+
+        if (wouldCrossSection) {
+          // Snap backward instead of forward crossing the section heading/top
+          proposedY = hit.top;
+        } else {
+          proposedY = hit.bottom;
+        }
+      } else if (y - hit.top <= minGapPx) {
+        proposedY = hit.top;
+      } else if (blockHeight < pageHeight) {
+        proposedY = hit.top;
+      } else if (hit.childTops.length > 0) {
+        let best = y;
+        let bestDistance = Infinity;
+        for (const childTop of hit.childTops) {
+          const distance = Math.abs(childTop - y);
+          if (distance < bestDistance && distance <= maxShift) {
+            best = childTop;
+            bestDistance = distance;
+          }
+        }
+        proposedY = best;
+        isChildTopSnap = true;
+      }
+
+      // Ensure the snapped break does not cross any section heading or section top
+      for (const section of sections) {
+        const headTop = section.headingTop ?? section.top;
+        const targetBoundary = Math.max(minGapPx, Math.min(section.top, headTop));
+
+        const wasBeforeSection = y <= headTop || y <= section.top;
+        const proposedAfterSection = proposedY > headTop || proposedY > section.top;
+
+        if (wasBeforeSection && proposedAfterSection) {
+          proposedY = targetBoundary;
+        }
+
+        const wasAfterSection = y >= targetBoundary;
+        const proposedBeforeSection = proposedY < targetBoundary;
+
+        if (wasAfterSection && proposedBeforeSection) {
+          proposedY = targetBoundary;
         }
       }
-      y = best;
+
+      if (proposedY === y) {
+        break;
+      }
+
+      y = proposedY;
+
+      if (isChildTopSnap) {
+        break;
+      }
     }
 
     return Math.min(Math.max(y, minGapPx), maxY);
@@ -205,7 +297,7 @@ export function buildAutomaticBreakPositions({
   if (rawBreaks.length === 0) return [];
 
   const sectionSnapped = snapBreakPositionsToSectionHeadings(rawBreaks, sections, total, minGapPx);
-  const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, pageHeight, total, minGapPx);
+  const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, pageHeight, total, minGapPx, sections);
   const normalized = normalizeBreakPositions(avoidSnapped, total, minGapPx);
 
   return normalized.length > 0 ? normalized : normalizeBreakPositions(rawBreaks, total, minGapPx);

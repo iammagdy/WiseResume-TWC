@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Type — Body & UI</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);}
+  body{padding:22px 24px;}
+  .row{display:flex;align-items:baseline;gap:14px;padding:7px 0;border-bottom:1px solid #f1f1f4;}
+  .row:last-child{border-bottom:0;}
+  .label{font-family:var(--font-mono);font-size:10.5px;color:#6b7280;width:130px;flex-shrink:0;}
+  .sample{flex:1;}
+  .body-lg{font-weight:400;font-size:18px;line-height:1.6;}
+  .body{font-weight:400;font-size:16px;line-height:1.6;}
+  .body-sm{font-weight:400;font-size:14px;line-height:1.5;color:#6b7280;}
+  .caption{font-weight:500;font-size:12px;color:#6b7280;}
+  .eyebrow{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#9E1B22;}
+  .label-ui{font-weight:500;font-size:13px;}
+  kbd{font-family:var(--font-mono);font-size:11px;background:#f3f4f6;border:1px solid #e5e7eb;border-bottom-width:2px;padding:1.5px 5px;border-radius:5px;color:#374151;}
+</style>
+</head>
+<body>
+  <div class="row"><div class="label">eyebrow · 600/11</div><div class="sample eyebrow">AI-Powered Career Platform</div></div>
+  <div class="row"><div class="label">body-lg · 400/18</div><div class="sample body-lg">AI that builds, tailors, and lands your next job.</div></div>
+  <div class="row"><div class="label">body · 400/16</div><div class="sample body">Watch AI turn weak bullets into quantified achievements — with a live ATS score that updates as you write.</div></div>
+  <div class="row"><div class="label">body-sm · 400/14</div><div class="sample body-sm">Start in under 2 minutes — build from scratch or optimize for a specific job.</div></div>
+  <div class="row"><div class="label">caption · 500/12</div><div class="sample caption">Free to start · No credit card · AI-powered</div></div>
+  <div class="row"><div class="label">label · 500/13</div><div class="sample label-ui">Job title <span style="color:#9E1B22">*</span></div></div>
+  <div class="row"><div class="label">kbd · mono/11</div><div class="sample"><kbd>⌘</kbd> <kbd>K</kbd> &nbsp; Open command palette</div></div>
+</body>
+</html>

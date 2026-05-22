@@ -1,0 +1,233 @@
+/* ════════════════════════════════════════════════════════════════════════
+   WISERESUME / WISEHIRE — Design Tokens
+   ════════════════════════════════════════════════════════════════════════
+   Two product brands ship from the same app:
+     • WiseResume — job-seeker product. Primary: Crimson Red.
+     • WiseHire   — recruiter product.   Primary: Royal Blue.
+
+   Source of truth: WiseResume-TWC/src/index.css and tailwind.config.ts.
+   HSL strings are stored unwrapped so they can be slotted into
+   hsl(var(--token)) shadcn-style. Hex equivalents in comments. */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  /* ── Brand: WiseResume (crimson) — default ───────────────────────── */
+  --primary-h: 357 71% 36%;          /* #9E1B22 — Crimson Red */
+  --primary-hover-h: 357 71% 30%;
+  --primary-fg-h: 0 0% 100%;
+  --primary-glow-h: 357 71% 56%;     /* hero glow */
+
+  /* WiseHire override — apply via .brand-wisehire class */
+  --wh-primary-h: 224 76% 48%;       /* #1D4ED8 — Royal Blue */
+  --wh-primary-bright-h: 217 91% 60%;/* #3B82F6 — accent / icon blue */
+
+  /* ── Surfaces — light theme ──────────────────────────────────────── */
+  --bg-h:               0 0% 100%;     /* #ffffff page bg */
+  --fg-h:               240 6% 10%;    /* #18181b text */
+  --card-h:             220 14% 96%;   /* #f3f4f6 */
+  --muted-h:            220 14% 96%;
+  --muted-fg-h:         220 9% 46%;    /* #6b7280 */
+  --border-h:           220 13% 91%;   /* #e5e7eb */
+  --input-h:            220 13% 91%;
+  --popover-h:          0 0% 100%;
+  --ring-h:             357 71% 36%;
+
+  /* App-shell variants — slightly grayer than landing */
+  --app-bg-h:           240 4% 97%;    /* #F7F7F8 */
+  --app-surface-h:      0 0% 94%;      /* #EFEFEF */
+  --app-border-h:       220 13% 88%;
+
+  /* WiseHire app-shell tint (pale-blue page background) */
+  --wh-app-bg-h:        220 100% 97%;  /* #f0f5ff */
+
+  /* ── Accents & semantics ─────────────────────────────────────────── */
+  --accent-h:           38 92% 50%;    /* #f59e0b amber */
+  --success-h:          142 71% 45%;   /* #22c55e */
+  --warning-h:          38 92% 50%;
+  --error-h:            0 72% 51%;     /* #ef4444 */
+  --info-h:             210 80% 50%;
+  --secondary-h:        215 20% 65%;   /* slate */
+
+  /* ── Type ────────────────────────────────────────────────────────── */
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* Display scale — extrabold, tight tracking */
+  --display-1: 800 clamp(2.5rem, 9vw, 5.5rem) / 1.04 var(--font-display);
+  --display-2: 800 clamp(2rem, 6vw, 4rem) / 1.05 var(--font-display);
+  --h1:        700 clamp(1.75rem, 4vw, 2.25rem) / 1.2 var(--font-display);
+  --h2:        600 1.5rem / 1.3 var(--font-display);
+  --h3:        600 1.25rem / 1.35 var(--font-display);
+  --h4:        600 1.125rem / 1.4 var(--font-display);
+  --body-lg:   400 1.125rem / 1.6 var(--font-sans);
+  --body:      400 1rem / 1.6 var(--font-sans);
+  --body-sm:   400 0.875rem / 1.5 var(--font-sans);
+  --caption:   500 0.75rem / 1.4 var(--font-sans);
+  --eyebrow:   600 0.8rem / 1.4 var(--font-sans);  /* uppercase, tracking 0.12em */
+  --kbd:       500 0.6875rem / 1 var(--font-mono);
+
+  --letter-tight: -0.035em;   /* hero headlines */
+  --letter-snug:  -0.02em;
+  --letter-wide:   0.12em;    /* eyebrow */
+
+  /* ── Radii ───────────────────────────────────────────────────────── */
+  --radius: 0.75rem;          /* 12px — base */
+  --radius-sm: 0.5rem;        /* 8px  — kbd, small chips */
+  --radius-md: 0.625rem;      /* 10px */
+  --radius-lg: 0.75rem;       /* 12px — buttons */
+  --radius-xl: 1rem;          /* 16px — cards, sheets */
+  --radius-2xl: 1.25rem;      /* 20px — large cards */
+  --radius-3xl: 1.5rem;       /* 24px — hero panels */
+  --radius-pill: 9999px;
+
+  /* ── Spacing scale (Tailwind-aligned) ────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* Touch */
+  --tap-min: 44px;
+
+  /* ── Shadows — soft, low-spread ─────────────────────────────────── */
+  --shadow-soft-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-soft:    0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-soft-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-soft-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-soft-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+  --shadow-primary-glow: 0 4px 14px -2px hsl(var(--primary-h) / 0.25);
+  --shadow-focus-ring:  0 0 0 3px hsl(var(--primary-h) / 0.18);
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 350ms;
+}
+
+/* ── Dark theme ────────────────────────────────────────────────────── */
+.dark, [data-theme="dark"] {
+  --bg-h:        240 6% 7%;    /* #111114 */
+  --fg-h:        220 14% 96%;
+  --card-h:      240 5% 11%;
+  --popover-h:   240 5% 11%;
+  --muted-h:     240 4% 16%;
+  --muted-fg-h:  220 9% 60%;
+  --border-h:    240 4% 18%;
+  --input-h:     240 4% 16%;
+
+  /* App-shell dark — deeper near-black */
+  --app-bg-h:        240 6% 5%;     /* #0C0C0E */
+  --app-surface-h:   240 3% 9%;     /* #161618 */
+  --app-elevated-h:  240 5% 13%;    /* #1F1F23 */
+  --app-border-h:    240 7% 18%;
+
+  /* WiseHire app-shell dark page bg */
+  --wh-app-bg-h:     224 73% 6%;    /* #060912 */
+
+  --error-h:   0 84% 60%;
+  --info-h:    217 91% 60%;
+}
+
+/* ── Brand switch — WiseHire ───────────────────────────────────────── */
+.brand-wisehire {
+  --primary-h: var(--wh-primary-h);
+  --primary-glow-h: var(--wh-primary-bright-h);
+  --ring-h: var(--wh-primary-h);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SEMANTIC ALIASES — convenience vars + element styles
+   ════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg:          hsl(var(--bg-h));
+  --fg:          hsl(var(--fg-h));
+  --card:        hsl(var(--card-h));
+  --muted:       hsl(var(--muted-h));
+  --muted-fg:    hsl(var(--muted-fg-h));
+  --border:      hsl(var(--border-h));
+  --primary:     hsl(var(--primary-h));
+  --primary-fg:  hsl(var(--primary-fg-h));
+  --accent:      hsl(var(--accent-h));
+  --success:     hsl(var(--success-h));
+  --warning:     hsl(var(--warning-h));
+  --error:       hsl(var(--error-h));
+  --info:        hsl(var(--info-h));
+
+  /* WiseResume-specific named tints (lifted from landing CSS) */
+  --crimson-50:  #fff5f5;
+  --crimson-100: #ffe5e5;
+  --crimson-300: #f87878;
+  --crimson-500: #e53e3e;
+  --crimson-600: #c41e3a;
+  --crimson-700: #9E1B22;     /* brand */
+  --crimson-800: #7a1218;
+
+  --blue-50:  #f0f5ff;
+  --blue-100: #dbeafe;
+  --blue-400: #60a5fa;
+  --blue-500: #3B82F6;
+  --blue-600: #2563eb;
+  --blue-700: #1D4ED8;        /* WiseHire brand */
+  --blue-900: #1e3a8a;
+
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-700: #334155;
+  --slate-900: #0f172a;
+}
+
+/* ── Element defaults ──────────────────────────────────────────────── */
+html { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--fg); font: var(--body); }
+
+h1 { font: var(--h1); letter-spacing: var(--letter-snug); }
+h2 { font: var(--h2); letter-spacing: var(--letter-snug); }
+h3 { font: var(--h3); }
+h4 { font: var(--h4); }
+p  { font: var(--body); }
+small { font: var(--body-sm); color: var(--muted-fg); }
+code, kbd, pre { font-family: var(--font-mono); font-size: 0.85em; }
+
+.eyebrow {
+  font: var(--eyebrow);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-wide);
+  color: var(--primary);
+}
+
+.display-1 { font: var(--display-1); letter-spacing: var(--letter-tight); }
+.display-2 { font: var(--display-2); letter-spacing: var(--letter-tight); }
+
+/* WiseResume signature gradient text — used on landing headlines */
+.gradient-text-crimson {
+  background: linear-gradient(135deg, #E53E3E 0%, #FF6B6B 25%, #C41E3A 50%, #FF8080 75%, #9E1B22 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shimmer 4s ease infinite;
+}
+.gradient-text-blue {
+  background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 30%, #1D4ED8 60%, #3B82F6 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shimmer 4s ease infinite;
+}
+@keyframes gradient-shimmer {
+  0%,100% { background-position: 0% 50%; }
+  50%     { background-position: 100% 50%; }
+}

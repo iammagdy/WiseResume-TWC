@@ -26,6 +26,9 @@ import {
   buildAutomaticBreakPositions,
   buildExportPageSegments,
   clampBreakPositions,
+  scaleBreakPositionsToMeasuredHeight,
+  snapBreakPositionsToSectionHeadings,
+  snapBreakPositionsToAvoidBlocks,
   type ExportAvoidBounds,
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
@@ -192,32 +195,32 @@ async function measureExportLayout(
   try {
     await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
-    return await page.evaluate(() => {
-      const template = document.querySelector('[data-resume-template]') as HTMLElement | null;
+    return await page.evaluate(`(() => {
+      const template = document.querySelector('[data-resume-template]');
       const root = template ?? document.body;
 
-      function relTop(el: HTMLElement): number {
+      const relTop = (el) => {
         let top = 0;
-        let curr: HTMLElement | null = el;
+        let curr = el;
         while (curr && curr !== root && root.contains(curr)) {
           top += curr.offsetTop;
-          curr = curr.offsetParent as HTMLElement | null;
+          curr = curr.offsetParent;
         }
         return top;
-      }
+      };
 
       const layoutHeight = Math.max(
         root.scrollHeight,
         root.offsetHeight,
         document.body.scrollHeight,
-        1,
+        1
       );
 
       const sections = Array.from(root.querySelectorAll('[data-section]')).map((sec) => {
-        const sectionEl = sec as HTMLElement;
+        const sectionEl = sec;
         const top = relTop(sectionEl);
-        const directHeading = sectionEl.querySelector(':scope > h2, :scope > h3') as HTMLElement | null;
-        const heading = directHeading ?? (sectionEl.querySelector('h2, h3') as HTMLElement | null);
+        const directHeading = sectionEl.querySelector(':scope > h2, :scope > h3');
+        const heading = directHeading ?? sectionEl.querySelector('h2, h3');
         const headingTop = heading ? relTop(heading) : top;
         return {
           top,
@@ -227,12 +230,12 @@ async function measureExportLayout(
       });
 
       const avoidBlocks = Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
-        const el = node as HTMLElement;
+        const el = node;
         return {
           top: relTop(el),
           bottom: relTop(el) + el.offsetHeight,
           childTops: Array.from(el.querySelectorAll('[data-break-child]')).map((child) =>
-            relTop(child as HTMLElement),
+            relTop(child)
           ),
         };
       });
@@ -247,43 +250,12 @@ async function measureExportLayout(
       }
 
       return { measuredHeight, sections, avoidBlocks };
-    });
+    })()`) as Promise<ExportLayoutMetrics>;
   } finally {
     await page.close();
   }
 }
 
-async function renderHtmlToPdfBuffer(
-  browser: Awaited<ReturnType<typeof puppeteer.launch>>,
-  html: string,
-  widthPx: number,
-  heightPx: number,
-): Promise<Buffer> {
-  const page = await browser.newPage();
-  try {
-    await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 2 });
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
-    const pdf = await page.pdf({
-      width: `${widthPx}px`,
-      height: `${heightPx}px`,
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    });
-    return Buffer.from(pdf);
-  } finally {
-    await page.close();
-  }
-}
-
-async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
-  if (buffers.length === 1) return new Uint8Array(buffers[0]);
-  const merged = await PDFDocument.create();
-  for (const buffer of buffers) {
-    const doc = await PDFDocument.load(buffer);
-    const pages = await merged.copyPages(doc, doc.getPageIndices());
-    pages.forEach((page) => merged.addPage(page));
-  }
-}
 
 async function renderHtmlToPdfBuffer(
   browser: Awaited<ReturnType<typeof puppeteer.launch>>,
@@ -386,6 +358,10 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
         Number.isFinite(totalContentHeightPx) && (totalContentHeightPx as number) > 0
           ? Math.round(totalContentHeightPx as number)
           : dims.heightPx;
+      const requestedLayoutHeight =
+        Number.isFinite(layoutContentHeightPx) && (layoutContentHeightPx as number) > 0
+          ? Math.round(layoutContentHeightPx as number)
+          : 0;
       const exactCustomBreaks = (customBreakPositions ?? [])
         .filter(Number.isFinite)
         .map(Math.round);
@@ -394,7 +370,8 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
 
       // ALWAYS measure layout to fix Chromium-Linux vs Client-OS font drift.
       const layout = await measureExportLayout(browser, html, dims.widthPx);
-      contentHeight = Math.max(clientHeight, Math.round(layout.measuredHeight));
+      const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
+      contentHeight = Math.max(clientHeight, requestedLayoutHeight, measuredHeight, printableHeight);
 
       const lastCustomBreakPx = exactCustomBreaks.length ? Math.max(...exactCustomBreaks) : 0;
       const validationHeight = exactCustomBreaks.length
@@ -409,14 +386,13 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
 
       if (exactCustomBreaks.length > 0) {
         if (layoutContentHeightPx && layoutContentHeightPx > 0) {
-          const { scaleBreakPositionsToMeasuredHeight, snapBreakPositionsToSectionHeadings, snapBreakPositionsToAvoidBlocks } = await import('../src/lib/exportPagePlan');
           pageBreaks = scaleBreakPositionsToMeasuredHeight(
             pageBreaks,
             layoutContentHeightPx,
             layout.measuredHeight
           );
-          pageBreaks = snapBreakPositionsToSectionHeadings(pageBreaks, layout.sections, layout.measuredHeight, 40);
-          pageBreaks = snapBreakPositionsToAvoidBlocks(pageBreaks, layout.avoidBlocks, printableHeight, layout.measuredHeight, 40);
+          pageBreaks = snapBreakPositionsToSectionHeadings(pageBreaks, layout.sections, layout.measuredHeight, 40, layoutContentHeightPx);
+          pageBreaks = snapBreakPositionsToAvoidBlocks(pageBreaks, layout.avoidBlocks, printableHeight, layout.measuredHeight, 40, layout.sections);
         }
       } else {
         pageBreaks = buildAutomaticBreakPositions({
@@ -685,6 +661,8 @@ app.use('/api', (req: Request, res: Response) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const httpServer = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] WiseResume API (minimal) listening on :${PORT}`);
 });
+
+httpServer.ref();

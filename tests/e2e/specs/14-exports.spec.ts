@@ -62,7 +62,18 @@ test.describe('Exports — real download validation', () => {
   for (const ec of EXPORTS) {
     test(`Export ${ec.label.source}`, async ({ page }) => {
       const obs = attachObservers(page);
-      await page.goto('/editor');
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(3000);
+      const editBtn = page.getByRole('button', { name: /edit|open/i }).first();
+      const resumeTile = page.getByText(/replit test/i).first();
+      if (await resumeTile.count()) {
+        await resumeTile.click();
+      } else if (await editBtn.count()) {
+        await editBtn.click();
+      } else {
+        await page.goto('/editor');
+      }
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2500);
 

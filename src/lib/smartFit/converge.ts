@@ -251,7 +251,56 @@ export function verifyTokensPreserved(
   const tokens = extractProtectedTokens(before, jobDescription ?? '');
   const haystack = serializeResumeForCheck(after);
   const missing = findMissingTokens(haystack, tokens);
-  return missing.length === 0 ? { ok: true } : { ok: false, missing };
+  if (missing.length === 0) return { ok: true };
+
+  const deletedTexts = getDeletedTexts(before, after);
+  const trulyMissing = missing.filter(t => {
+    const inDeleted = deletedTexts.some(dt => dt.toLowerCase().includes(t.text.toLowerCase()));
+    return !inDeleted;
+  });
+
+  return trulyMissing.length === 0 ? { ok: true } : { ok: false, missing: trulyMissing };
+}
+
+function getDeletedTexts(before: ResumeData, after: ResumeData): string[] {
+  const deleted: string[] = [];
+  // Collect dropped experience achievements
+  const beforeAchievements = new Set<string>();
+  for (const exp of before.experience ?? []) {
+    for (const ach of exp.achievements ?? []) if (ach) beforeAchievements.add(ach);
+  }
+  const afterAchievements = new Set<string>();
+  for (const exp of after.experience ?? []) {
+    for (const ach of exp.achievements ?? []) if (ach) afterAchievements.add(ach);
+  }
+  for (const ach of beforeAchievements) {
+    if (!afterAchievements.has(ach)) deleted.push(ach);
+  }
+  // Collect dropped experience responsibilities
+  const beforeResponsibilities = new Set<string>();
+  for (const exp of before.experience ?? []) {
+    for (const resp of exp.responsibilities ?? []) if (resp) beforeResponsibilities.add(resp);
+  }
+  const afterResponsibilities = new Set<string>();
+  for (const exp of after.experience ?? []) {
+    for (const resp of exp.responsibilities ?? []) if (resp) afterResponsibilities.add(resp);
+  }
+  for (const resp of beforeResponsibilities) {
+    if (!afterResponsibilities.has(resp)) deleted.push(resp);
+  }
+  // Collect collapsed languages
+  const afterLangs = new Set((after.languages ?? []).map(l => l.id));
+  for (const l of before.languages ?? []) {
+    if (!afterLangs.has(l.id)) deleted.push(l.name);
+  }
+  // Collect collapsed hobbies
+  const afterHobbies = new Set((after.hobbies ?? []).filter(h => h.visible !== false).map(h => h.id));
+  for (const h of before.hobbies ?? []) {
+    if (!afterHobbies.has(h.id) || after.hobbies?.find(ah => ah.id === h.id)?.visible === false) {
+      deleted.push(h.name);
+    }
+  }
+  return deleted;
 }
 
 /** Serialize every text field that `extractProtectedTokens` reads from so
@@ -267,20 +316,23 @@ function serializeResumeForCheck(r: ResumeData): string {
   }
   if (r.summary) parts.push(r.summary);
   for (const e of r.experience ?? []) {
-    parts.push(e.position ?? '', e.company ?? '', e.account ?? '', e.description ?? '');
+    parts.push(e.position ?? '', e.company ?? '', e.account ?? '', e.description ?? '', e.startDate ?? '', e.endDate ?? '');
     for (const a of e.achievements ?? []) parts.push(a ?? '');
     for (const r2 of e.responsibilities ?? []) parts.push(r2 ?? '');
   }
   for (const ed of r.education ?? []) {
-    parts.push(ed.degree ?? '', ed.field ?? '', ed.institution ?? '', ed.description ?? '');
+    parts.push(ed.degree ?? '', ed.field ?? '', ed.institution ?? '', ed.description ?? '', ed.startDate ?? '', ed.endDate ?? '');
   }
   for (const p of r.projects ?? []) {
     parts.push(p.name ?? '', p.description ?? '');
     for (const t of p.technologies ?? []) parts.push(t ?? '');
   }
   for (const c of r.certifications ?? []) {
-    parts.push(c.name ?? '', c.issuer ?? '', c.credentialId ?? '');
+    parts.push(c.name ?? '', c.issuer ?? '', c.credentialId ?? '', c.date ?? '');
   }
-  for (const a of r.awards ?? []) parts.push(a.description ?? '');
+  for (const skill of r.skills ?? []) {
+    if (skill) parts.push(skill);
+  }
+  for (const a of r.awards ?? []) parts.push(a.title ?? '', a.description ?? '');
   return parts.join(' ');
 }

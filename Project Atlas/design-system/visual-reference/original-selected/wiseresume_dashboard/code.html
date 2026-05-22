@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WiseResume Candidate Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#1d4ed8",
+                        "inverse-primary": "#ffb3ae",
+                        "wr-crimson": "#9E1B22",
+                        "surface-container-high": "#e1e8fd",
+                        "tertiary-fixed-dim": "#90cef2",
+                        "surface-container-highest": "#dce2f7",
+                        "on-tertiary-fixed-variant": "#004c68",
+                        "surface-container": "#e9edff",
+                        "on-tertiary-fixed": "#001e2c",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed": "#dce1ff",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#edf0ff",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed-variant": "#8f0e19",
+                        "surface": "#f9f9ff",
+                        "surface-dim": "#d3daef",
+                        "error": "#EF4444",
+                        "primary": "#7a0010",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "warning": "#F59E0B",
+                        "inverse-surface": "#293040",
+                        "on-background": "#141b2b",
+                        "tertiary-container": "#005776",
+                        "primary-container": "#9e1b22",
+                        "secondary-fixed-dim": "#b7c4ff",
+                        "on-primary-fixed": "#410005",
+                        "wh-royal": "#1D4ED8",
+                        "on-primary-container": "#ffafaa",
+                        "app-shell": "#F7F7F8",
+                        "surface-variant": "#dce2f7",
+                        "primary-fixed": "#ffdad7",
+                        "wh-bright": "#3B82F6",
+                        "surface-bright": "#f9f9ff",
+                        "on-secondary-container": "#fffbff",
+                        "wr-subtle": "#FFF5F5",
+                        "tertiary": "#003f56",
+                        "on-surface": "#141b2b",
+                        "on-tertiary-container": "#8dcbef",
+                        "primary-fixed-dim": "#ffb3ae",
+                        "success": "#22C55E",
+                        "secondary-container": "#4069f2",
+                        "on-error-container": "#93000a",
+                        "outline": "#8d706e",
+                        "card-bg": "#FFFFFF",
+                        "on-secondary-fixed": "#001551",
+                        "tertiary-fixed": "#c3e8ff",
+                        "outline-variant": "#e1bfbc",
+                        "background": "#f9f9ff",
+                        "surface-tint": "#b12a2e",
+                        "wh-subtle": "#EFF6FF",
+                        "border-muted": "#E5E7EB",
+                        "on-secondary-fixed-variant": "#0039b5",
+                        "surface-container-low": "#f1f3ff",
+                        "on-surface-variant": "#59413f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "2": "8px",
+                        "10": "40px",
+                        "3": "12px",
+                        "5": "20px",
+                        "8": "32px",
+                        "6": "24px",
+                        "12": "48px",
+                        "4": "16px",
+                        "gutter": "16px",
+                        "page-margin-mobile": "16px",
+                        "page-margin-desktop": "24px",
+                        "16": "64px",
+                        "1": "4px"
+                    },
+                    "fontFamily": {
+                        "body": ["Inter"],
+                        "h1": ["Inter"],
+                        "h3": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "display-xl": ["Inter"],
+                        "h1-mobile": ["Inter"],
+                        "caption": ["Inter"],
+                        "h2": ["Inter"],
+                        "small": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-medium": ["Inter"],
+                        "eyebrow": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h1": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h3": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "display-lg": ["64px", { "lineHeight": "1.05", "letterSpacing": "-0.035em", "fontWeight": "800" }],
+                        "display-xl": ["88px", { "lineHeight": "1.0", "letterSpacing": "-0.035em", "fontWeight": "800" }],
+                        "h1-mobile": ["28px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "caption": ["12px", { "lineHeight": "1.35", "fontWeight": "500" }],
+                        "h2": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "small": ["14px", { "lineHeight": "1.45", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-medium": ["16px", { "lineHeight": "1.5", "fontWeight": "500" }],
+                        "eyebrow": ["12px", { "lineHeight": "1.2", "letterSpacing": "0.12em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .shadow-soft { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+        .shadow-soft-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03); }
+        .crimson-glow { box-shadow: 0 4px 14px 0 rgba(158, 27, 34, 0.25); }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .ai-border { border-left: 4px solid #9E1B22; }
+    </style>
+</head>
+<body class="bg-app-shell text-on-background font-body antialiased flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-full p-4 border-r border-border-muted bg-surface-container-low w-64 shrink-0">
+<div class="mb-8 pl-2">
+<h1 class="font-h3 text-h3 font-black text-wr-crimson">WiseResume</h1>
+<p class="font-small text-small text-on-surface-variant">Career Suite</p>
+</div>
+<div class="flex-1 space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 bg-primary-container text-on-primary-container rounded-lg font-bold transition-all scale-98" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-body-medium text-body-medium">Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all active:scale-95" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-body-medium text-body-medium">Applications</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all active:scale-95" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="font-body-medium text-body-medium">Resume Builder</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all active:scale-95" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="font-body-medium text-body-medium">Job Search</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all active:scale-95" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-body-medium text-body-medium">AI Insights</span>
+</a>
+</div>
+<div class="mt-auto space-y-4">
+<button class="w-full py-2 bg-wr-crimson text-on-primary font-body-medium text-body-medium rounded-lg crimson-glow hover:opacity-90 transition-opacity">
+                Upgrade to Pro
+            </button>
+<div class="border-t border-border-muted pt-4 space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-body-medium text-body-medium">Help Center</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-body-medium text-body-medium">Sign Out</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto w-full">
+<!-- Mobile TopAppBar (Visible only on mobile) -->
+<header class="md:hidden flex justify-between items-center px-page-margin-mobile w-full h-16 bg-surface-container-lowest shadow-sm sticky top-0 z-50">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary cursor-pointer active:opacity-80">menu</span>
+<h1 class="font-h2 text-h2 font-bold text-wr-crimson">WiseResume</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer active:opacity-80">notifications</span>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-border-muted" data-alt="A close-up corporate headshot of a smiling young professional male with neat hair and a light blue collared shirt. Soft, even lighting creates an approachable, professional SaaS platform look. The background is slightly blurred with light cool tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWAmKRXp8mkD0zktXNT3RHrva0MjahvIPDBpeIBbNX_4X4__Ib92H32thvyoQ7NWDk5pjv7WEpXGAcGOmSvCdT-5KydH9oPrP_UD3GWrRgOI63Xuhzx3OUG4xyBPFSuMBzzZqLlGW5TIusOGaG69al5myZhmwW2kPfkx52ciK4V24AijLIaR4KJd1w9BbYQw22di3Cys6f3n7a382QiU4N_1WqNmCEWKKs4vRi1yUmA2SKsEC_NBQzUzi-aA8OoRdLWJip69ce54g"/>
+</div>
+</header>
+<div class="p-page-margin-mobile md:p-page-margin-desktop max-w-[1440px] mx-auto space-y-8">
+<!-- Hero Section -->
+<section class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-card p-8 rounded-xl shadow-soft">
+<div class="max-w-2xl">
+<h2 class="font-display-lg text-h1-mobile md:text-h1 text-on-background mb-2">Optimize your resume. <br class="hidden md:block"/>Get more interviews.</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Your profile is looking strong. Tailor it for your next opportunity.</p>
+</div>
+<button class="bg-wr-crimson text-on-primary font-body-medium text-body-medium px-6 py-3 rounded-lg flex items-center gap-2 crimson-glow hover:opacity-90 transition-opacity whitespace-nowrap h-[44px]">
+<span class="material-symbols-outlined text-[20px]">edit_document</span>
+                    Tailor for a Job
+                </button>
+</section>
+<!-- Stats Row -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Stat Card 1 -->
+<div class="bg-card-bg p-6 rounded-xl shadow-soft flex items-center justify-between group hover:shadow-soft-lg transition-shadow border border-transparent hover:border-primary/10">
+<div>
+<p class="font-small text-small text-on-surface-variant mb-1">Resume Completion</p>
+<p class="font-h2 text-h2 text-on-background">92%</p>
+</div>
+<div class="relative w-12 h-12 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-success" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="92, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<span class="material-symbols-outlined absolute text-success text-[16px]">check_circle</span>
+</div>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-card-bg p-6 rounded-xl shadow-soft flex items-center justify-between group hover:shadow-soft-lg transition-shadow border border-transparent hover:border-primary/10">
+<div>
+<p class="font-small text-small text-on-surface-variant mb-1">Avg. ATS Score</p>
+<p class="font-h2 text-h2 text-on-background">85/100</p>
+</div>
+<div class="relative w-12 h-12 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-success" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="85, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<span class="material-symbols-outlined absolute text-success text-[16px]">trending_up</span>
+</div>
+</div>
+<!-- Stat Card 3 -->
+<div class="bg-card-bg p-6 rounded-xl shadow-soft flex items-center justify-between group hover:shadow-soft-lg transition-shadow border border-transparent hover:border-primary/10">
+<div>
+<p class="font-small text-small text-on-surface-variant mb-1">Active Applications</p>
+<p class="font-h2 text-h2 text-on-background">4</p>
+</div>
+<div class="w-12 h-12 bg-wr-subtle rounded-full flex items-center justify-center text-wr-crimson">
+<span class="material-symbols-outlined">work</span>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Main Content Column -->
+<div class="lg:col-span-2 space-y-8">
+<!-- My Resumes -->
+<section>
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-h3 text-h3 text-on-background">My Resumes</h3>
+<button class="text-wr-crimson font-body-medium text-body-medium hover:underline flex items-center gap-1">
+                                View all <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<div class="space-y-4">
+<!-- Resume Card 1 -->
+<div class="bg-card-bg p-5 rounded-xl shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border-muted hover:border-wr-crimson/30 transition-colors cursor-pointer">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 bg-surface-container rounded-lg flex items-center justify-center text-tertiary-container shrink-0">
+<span class="material-symbols-outlined">description</span>
+</div>
+<div>
+<h4 class="font-body-medium text-body-medium text-on-background">Senior Product Manager - Tech</h4>
+<p class="font-small text-small text-on-surface-variant mt-1">Updated 2 days ago • Tailored for Google</p>
+</div>
+</div>
+<div class="flex items-center gap-3 self-end sm:self-auto">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                                        ATS: 94
+                                    </span>
+<button class="p-2 text-on-surface-variant hover:text-wr-crimson transition-colors rounded-full hover:bg-wr-subtle">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Resume Card 2 -->
+<div class="bg-card-bg p-5 rounded-xl shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border-muted hover:border-wr-crimson/30 transition-colors cursor-pointer">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 bg-surface-container rounded-lg flex items-center justify-center text-tertiary-container shrink-0">
+<span class="material-symbols-outlined">description</span>
+</div>
+<div>
+<h4 class="font-body-medium text-body-medium text-on-background">UX Designer - Agency</h4>
+<p class="font-small text-small text-on-surface-variant mt-1">Updated 1 week ago • General purpose</p>
+</div>
+</div>
+<div class="flex items-center gap-3 self-end sm:self-auto">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                                        ATS: 72
+                                    </span>
+<button class="p-2 text-on-surface-variant hover:text-wr-crimson transition-colors rounded-full hover:bg-wr-subtle">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Sidebar Column -->
+<div class="space-y-6">
+<!-- AI Suggestion Panel -->
+<section class="bg-card-bg rounded-xl shadow-soft ai-border overflow-hidden">
+<div class="p-5 border-b border-border-muted bg-wr-subtle flex items-center gap-2">
+<span class="material-symbols-outlined text-wr-crimson">psychology</span>
+<h3 class="font-body-medium text-body-medium text-wr-crimson font-semibold">Next Best Action</h3>
+</div>
+<div class="p-5">
+<p class="font-body text-body text-on-background mb-4">Your "UX Designer" resume has an ATS score of 72. Adding more specific metrics to your recent role could improve this.</p>
+<div class="bg-surface rounded p-3 mb-4 text-small font-small">
+<p class="text-on-surface-variant line-through mb-2">Designed user interfaces for client projects.</p>
+<p class="text-success font-medium">Designed user interfaces for 12+ client projects, increasing average user retention by 24%.</p>
+</div>
+<div class="flex justify-end gap-2">
+<button class="px-4 py-2 text-on-surface-variant font-body-medium text-small hover:bg-surface-container rounded transition-colors h-[40px]">Dismiss</button>
+<button class="px-4 py-2 bg-wr-crimson text-on-primary font-body-medium text-small rounded crimson-glow hover:opacity-90 transition-opacity h-[40px]">Apply Fix</button>
+</div>
+</div>
+</section>
+<!-- Upcoming Activity -->
+<section class="bg-card-bg rounded-xl shadow-soft p-5 border border-border-muted">
+<h3 class="font-body-medium text-body-medium text-on-background font-semibold mb-4">Recent Activity</h3>
+<div class="relative border-l border-border-muted ml-3 space-y-6 pb-2">
+<div class="relative pl-6">
+<span class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-wr-crimson ring-4 ring-card-bg"></span>
+<p class="font-small text-small text-on-background font-medium">Applied to Stripe</p>
+<p class="font-caption text-caption text-on-surface-variant">Product Manager • Yesterday</p>
+</div>
+<div class="relative pl-6">
+<span class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-border-muted ring-4 ring-card-bg"></span>
+<p class="font-small text-small text-on-background font-medium">Resume Downloaded</p>
+<p class="font-caption text-caption text-on-surface-variant">PDF Export • 3 days ago</p>
+</div>
+<div class="relative pl-6">
+<span class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-border-muted ring-4 ring-card-bg"></span>
+<p class="font-small text-small text-on-background font-medium">ATS Scan Completed</p>
+<p class="font-caption text-caption text-on-surface-variant">Score: 94 • 1 week ago</p>
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+</main>
+</body></html>

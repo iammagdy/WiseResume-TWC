@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Buttons — WiseHire</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);-webkit-font-smoothing:antialiased;}
+  body{padding:22px 24px;}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#1D4ED8;margin:0 0 14px;}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .row:last-child{margin-bottom:0;}
+  .label{font-family:var(--font-mono);font-size:10.5px;color:#6b7280;width:88px;flex-shrink:0;}
+  button{font-family:inherit;cursor:pointer;border:0;display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;border-radius:12px;transition:all 0.18s ease;}
+  button [data-lucide]{width:16px;height:16px;}
+  .primary{background:#1D4ED8;color:#fff;height:48px;padding:0 22px;box-shadow:0 4px 14px -2px rgb(29 78 216 / 0.35);}
+  .primary:hover{filter:brightness(1.08);transform:translateY(-1px);}
+  .secondary-wh{background:#fff;color:#1D4ED8;border:1.5px solid rgba(29,78,216,0.3);height:48px;padding:0 22px;}
+  .secondary-wh:hover{background:#f0f5ff;border-color:#1D4ED8;}
+  .pill{height:34px;padding:0 14px;border-radius:999px;background:#f0f5ff;color:#1D4ED8;border:1px solid rgba(29,78,216,0.22);font-size:13px;font-weight:600;}
+  .sidebar-active{background:#dbeafe;color:#1D4ED8;height:38px;padding:0 12px;border-radius:12px;font-weight:500;font-size:13.5px;}
+  .pulse{position:relative;background:#1D4ED8;color:#fff;height:48px;padding:0 22px;animation:wh-pulse 2.8s ease-in-out infinite;}
+  @keyframes wh-pulse{0%,100%{box-shadow:0 0 0 0 rgba(29,78,216,0)}50%{box-shadow:0 0 0 8px rgba(29,78,216,0.18)}}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Buttons · WiseHire (Royal Blue)</div>
+  <div class="row"><div class="label">primary</div>
+    <button class="primary">Join the Waitlist <i data-lucide="arrow-right"></i></button>
+    <button class="secondary-wh">See it in action <i data-lucide="chevron-down"></i></button>
+    <button class="pulse">Start free trial <i data-lucide="zap"></i></button>
+  </div>
+  <div class="row"><div class="label">misc</div>
+    <button class="pill"><i data-lucide="users"></i>500+ on waitlist</button>
+    <button class="pill" style="background:rgba(34,197,94,0.1);color:#16a34a;border-color:rgba(34,197,94,0.25)"><i data-lucide="check-circle-2"></i>Invite-only</button>
+    <button class="sidebar-active"><i data-lucide="file-text"></i>JD Writer</button>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

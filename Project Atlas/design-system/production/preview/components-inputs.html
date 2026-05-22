@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Inputs</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{margin:0;background:#fff;color:#18181b;font-family:var(--font-sans);-webkit-font-smoothing:antialiased;}
+  body{padding:20px 22px;}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9E1B22;margin:0 0 12px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  label.fld{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:500;color:#374151;}
+  label.fld input,label.fld textarea,label.fld select{font-family:inherit;font-size:14px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:11px 13px;color:#18181b;outline:none;transition:all .18s ease;}
+  label.fld input:focus,label.fld textarea:focus{border-color:#9E1B22;box-shadow:0 0 0 3px rgb(158 27 34 / 0.1);}
+  .has-icon{position:relative;}
+  .has-icon input{padding-left:38px;width:100%;box-sizing:border-box;}
+  .has-icon [data-lucide]{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#6b7280;width:16px;height:16px;}
+  .pwd .err{font-size:11px;color:#dc2626;display:flex;align-items:center;gap:5px;}
+  .pwd .err [data-lucide]{width:13px;height:13px;}
+  .help{font-size:11px;color:#6b7280;}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;}
+  .check .box{width:18px;height:18px;border-radius:5px;background:#9E1B22;color:#fff;display:flex;align-items:center;justify-content:center;}
+  .check .box [data-lucide]{width:11px;height:11px;}
+  .switch{position:relative;width:36px;height:20px;background:#9E1B22;border-radius:999px;display:inline-block;}
+  .switch::after{content:"";position:absolute;right:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;}
+</style>
+</head>
+<body>
+  <div class="eyebrow">Form Controls</div>
+  <div class="grid">
+    <label class="fld">Email
+      <div class="has-icon"><i data-lucide="mail"></i><input value="alex@studio.io" /></div>
+    </label>
+    <label class="fld">Target role <span style="color:#9E1B22">*</span>
+      <input value="Senior Product Designer" style="border-color:#9E1B22;box-shadow:0 0 0 3px rgb(158 27 34 / 0.1)" />
+    </label>
+    <label class="fld">Paste job description
+      <textarea rows="2" placeholder="Paste the JD here and AI will tailor your resume in 30s…" style="resize:none"></textarea>
+    </label>
+    <div class="pwd" style="display:flex;flex-direction:column;gap:5px;">
+      <label class="fld" style="gap:5px">Password
+        <div class="has-icon"><i data-lucide="lock"></i><input type="password" value="•••••••" style="border-color:#ef4444;box-shadow:0 0 0 3px rgb(239 68 68 / 0.1)" /></div>
+      </label>
+      <div class="err"><i data-lucide="alert-circle"></i>At least 8 characters with a number</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label class="check"><span class="box"><i data-lucide="check"></i></span>Open to remote roles</label>
+      <label class="check" style="color:#9ca3af"><span class="box" style="background:#fff;border:1.5px solid #d1d5db"></span>Currently employed</label>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#374151"><span class="switch"></span>AI suggestions while typing</div>
+    </div>
+    <label class="fld">Experience level
+      <select><option>Senior · 5–8 years</option></select>
+    </label>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

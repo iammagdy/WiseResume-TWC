@@ -20,6 +20,12 @@ Static analysis of every resume template against the set of utility classes scal
 
 ### `src/components/templates/BankingTemplate.tsx` — ✅ all vertical utilities covered
 
+### `src/components/templates/BentoTemplate.tsx` — ✅ all vertical utilities covered
+
+### `src/components/templates/BoldTypeTemplate.tsx` — ✅ all vertical utilities covered
+
+### `src/components/templates/BrutalistTemplate.tsx` — ✅ all vertical utilities covered
+
 ### `src/components/templates/ClassicTemplate.tsx` — ✅ all vertical utilities covered
 
 ### `src/components/templates/CleanTemplate.tsx` — ✅ all vertical utilities covered
@@ -37,8 +43,6 @@ Static analysis of every resume template against the set of utility classes scal
 **Fixed heights** (do not shrink):
 - `h-1` — fixed/relative height "h-1" — does not respond to --compact-scale
 
-### `src/components/templates/CorporateTemplate.tsx` — ✅ all vertical utilities covered
-
 ### `src/components/templates/CreativeTemplate.tsx`
 
 **Fixed heights** (do not shrink):
@@ -46,8 +50,6 @@ Static analysis of every resume template against the set of utility classes scal
 - `h-16` — fixed/relative height "h-16" — does not respond to --compact-scale
 - `h-0.5` — fixed/relative height "h-0.5" — does not respond to --compact-scale
 - `h-2` — fixed/relative height "h-2" — does not respond to --compact-scale
-
-### `src/components/templates/CyberTemplate.tsx` — ✅ all vertical utilities covered
 
 ### `src/components/templates/DataScienceTemplate.tsx` — ✅ all vertical utilities covered
 
@@ -77,12 +79,6 @@ Static analysis of every resume template against the set of utility classes scal
 - `min-h-[792px]` — fixed/relative height "min-h-[792px]" — does not respond to --compact-scale
 - `h-4` — fixed/relative height "h-4" — does not respond to --compact-scale
 
-### `src/components/templates/InfographicTemplate.tsx`
-
-**Fixed heights** (do not shrink):
-- `h-16` — fixed/relative height "h-16" — does not respond to --compact-scale
-- `h-4` — fixed/relative height "h-4" — does not respond to --compact-scale
-
 ### `src/components/templates/LegalTemplate.tsx` — ✅ all vertical utilities covered
 
 ### `src/components/templates/MarketingTemplate.tsx`
@@ -93,8 +89,6 @@ Static analysis of every resume template against the set of utility classes scal
 ### `src/components/templates/MinimalTemplate.tsx` — ✅ all vertical utilities covered
 
 ### `src/components/templates/ModernTemplate.tsx` — ✅ all vertical utilities covered
-
-### `src/components/templates/MonoTemplate.tsx` — ✅ all vertical utilities covered
 
 ### `src/components/templates/PortfolioTemplate.tsx`
 
@@ -113,16 +107,12 @@ Static analysis of every resume template against the set of utility classes scal
 **Fixed heights** (do not shrink):
 - `min-h-[792px]` — fixed/relative height "min-h-[792px]" — does not respond to --compact-scale
 
-### `src/components/templates/StartupTemplate.tsx` — ✅ all vertical utilities covered
-
 ### `src/components/templates/SwissTemplate.tsx` — ✅ all vertical utilities covered
-
-### `src/components/templates/ZenTemplate.tsx` — ✅ all vertical utilities covered
 
 ## Summary
 
-- Templates audited: **30**
+- Templates audited: **27**
 - Unscaled vertical utility occurrences: **0**
 - Arbitrary font sizes: **1**
 - Arbitrary spacing: **0**
-- Fixed-height utilities: **19**
+- Fixed-height utilities: **17**

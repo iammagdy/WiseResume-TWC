@@ -127,7 +127,7 @@ export default function PreviewPage() {
   }, [currentResume, previewDims, customBreakPositions, selectedTemplate]);
 
   // Rate app hook
-  const { incrementPositiveActions, shouldPromptForRating, openAppStore, dismissRating } = useRateApp();
+  const { incrementPositiveActions, shouldPromptForRating, openFeedback, dismissRating } = useRateApp();
 
   // Check if we should show photo prompt when switching to a photo-supporting template
   useEffect(() => {
@@ -408,7 +408,7 @@ export default function PreviewPage() {
         }
 
         onProgress('downloading', 95);
-        const result = await downloadFile({ blob: pdfBlob, fileName });
+        const result = await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
 
         if (result.cancelled) {
           toast.info('Download cancelled. Tap download again to save your PDF.');
@@ -442,9 +442,9 @@ export default function PreviewPage() {
         setTimeout(() => {
           if (shouldPromptForRating()) {
             toast('Enjoying WiseResume?', {
-              description: 'Rate us on the app store to help others find us!',
+              description: 'Send quick feedback to help us improve.',
               duration: 8000,
-              action: { label: 'Rate Now', onClick: openAppStore },
+              action: { label: 'Feedback', onClick: openFeedback },
               cancel: { label: 'Later', onClick: dismissRating }
             });
           }

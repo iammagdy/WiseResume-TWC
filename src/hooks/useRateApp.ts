@@ -1,12 +1,12 @@
  import { useCallback, useEffect } from 'react';
  import { openExternal } from '@/lib/openExternal';
  
- const RATE_APP_KEY = 'wiseresume_rate_app_prompted';
+ const RATE_APP_KEY = 'wiseresume_feedback_prompted';
  const POSITIVE_ACTIONS_KEY = 'wiseresume_positive_actions';
  const ACTIONS_THRESHOLD = 5;
  
  /**
-  * Hook to prompt users to rate the app after positive interactions
+  * Hook to prompt users for feedback after positive interactions
   * Only prompts once and tracks positive actions (resume saves, exports, tailor completions)
   */
  export function useRateApp() {
@@ -38,9 +38,9 @@
      localStorage.setItem(RATE_APP_KEY, 'true');
    }, []);
  
-   const openAppStore = useCallback(() => {
+   const openFeedback = useCallback(() => {
      markAsPrompted();
-     openExternal('https://play.google.com/store/apps/details?id=cloud.thewise.resume');
+     openExternal('mailto:contact@thewise.cloud?subject=WiseResume%20feedback');
    }, [markAsPrompted]);
  
    const dismissRating = useCallback(() => {
@@ -50,7 +50,7 @@
    return {
      incrementPositiveActions,
      shouldPromptForRating,
-     openAppStore,
+     openFeedback,
      dismissRating,
      markAsPrompted,
    };

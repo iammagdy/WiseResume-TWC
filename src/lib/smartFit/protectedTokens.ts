@@ -37,7 +37,7 @@ const FILLER_WORDS = new Set([
 
 export const FILLER_WORD_SET: ReadonlySet<string> = FILLER_WORDS;
 
-const NUMBER_RE = /(?<![\w])\d+(?:[.,]\d+)?(?![\w%$])/g;
+const NUMBER_RE = /(?<![\w])\d+(?:[.,]\d+)?(?![\d%$])/g;
 const PERCENT_RE = /\d+(?:\.\d+)?%/g;
 const CURRENCY_RE = /(?:\$|€|£|¥)\s*\d+(?:[.,]\d+)?[kKmMbB]?/g;
 const YEAR_RE = /\b(19|20)\d{2}\b/g;
@@ -143,19 +143,37 @@ function collectAllFreeText(resume: ResumeData): string {
   const parts: string[] = [];
   if (resume.summary) parts.push(resume.summary);
   for (const exp of safeArray(resume.experience)) {
+    if (exp.company) parts.push(exp.company);
     if (exp.position) parts.push(exp.position);
     if (exp.description) parts.push(exp.description);
+    if (exp.startDate) parts.push(exp.startDate);
+    if (exp.endDate) parts.push(exp.endDate);
     for (const a of safeArray(exp.achievements)) parts.push(a);
     for (const r of safeArray(exp.responsibilities)) parts.push(r);
   }
   for (const edu of safeArray(resume.education)) {
-    if (edu.description) parts.push(edu.description);
+    if (edu.institution) parts.push(edu.institution);
+    if (edu.degree) parts.push(edu.degree);
     if (edu.field) parts.push(edu.field);
+    if (edu.description) parts.push(edu.description);
+    if (edu.startDate) parts.push(edu.startDate);
+    if (edu.endDate) parts.push(edu.endDate);
   }
   for (const proj of safeArray(resume.projects)) {
+    if (proj.name) parts.push(proj.name);
     if (proj.description) parts.push(proj.description);
+    for (const t of safeArray(proj.technologies)) parts.push(t);
+  }
+  for (const cert of safeArray(resume.certifications)) {
+    if (cert.name) parts.push(cert.name);
+    if (cert.issuer) parts.push(cert.issuer);
+    if (cert.date) parts.push(cert.date);
+  }
+  for (const skill of safeArray(resume.skills)) {
+    if (skill) parts.push(skill);
   }
   for (const award of safeArray(resume.awards)) {
+    if (award.title) parts.push(award.title);
     if (award.description) parts.push(award.description);
   }
   return parts.join('\n');

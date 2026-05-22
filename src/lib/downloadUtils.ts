@@ -125,7 +125,10 @@ function downloadDesktop(blob: Blob, fileName: string): DownloadResult {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // Some embedded Chromium shells do not begin consuming the blob until after
+  // the click task has completed. Revoking immediately can cancel the download
+  // while still letting the caller show a success toast.
+  setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
   return { success: true, method: 'anchor' };
 }
 

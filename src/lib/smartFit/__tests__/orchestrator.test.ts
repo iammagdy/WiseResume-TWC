@@ -88,7 +88,7 @@ describe('runSmartFit', () => {
           .filter(p => !cut.toLowerCase().includes(p.text.toLowerCase()))
           .map(p => p.text)
           .join(' ');
-        return { id: c.id, text: extras ? `${cut} ${extras}` : cut };
+        return { id: c.id, text: extras ? `${cut} ${extras}` : cut, valid: true };
       }),
     });
     expect(plan.stagesRun).toContain('rewrite');
@@ -110,6 +110,7 @@ describe('runSmartFit', () => {
       rewriteFn: async (cands) => cands.map(c => ({
         id: c.id,
         text: c.text.replace(/\d+%?|\$[\d.]+[KkMmBb]?/g, '').slice(0, 80),
+        valid: true,
       })),
     });
     // Some rewrites may still validate (sentences with no protected tokens).

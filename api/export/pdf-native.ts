@@ -132,15 +132,37 @@ function snapBreakPositionsToSectionHeadings(
   sections: ExportSectionBounds[],
   totalHeightPx: number,
   minGapPx: number = DEFAULT_MIN_GAP_PX,
+  layoutContentHeightPx?: number,
 ): number[] {
   if (!breaks.length || !sections.length) return breaks;
   const sorted = [...sections].sort((a, b) => a.top - b.top);
   const maxY = Math.max(minGapPx, totalHeightPx - minGapPx);
 
+  const scale = layoutContentHeightPx && layoutContentHeightPx > 0 ? totalHeightPx / layoutContentHeightPx : 1;
+
   return breaks.map((breakY) => {
     let y = breakY;
+
+    // Check if we can align user's client-side intent first
+    if (layoutContentHeightPx && layoutContentHeightPx > 0) {
+      const y_client = y / scale;
+      for (const section of sorted) {
+        const headTop = section.headingTop ?? section.top;
+        const targetBoundary = Math.max(minGapPx, Math.min(section.top, headTop));
+        const client_top = section.top / scale;
+        const client_head_top = headTop / scale;
+        const placedBeforeOnClient = y_client <= client_head_top + 6 || y_client <= client_top + 6;
+        const nearOrInSectionServer = y >= targetBoundary - 30 && y <= headTop + 120;
+
+        if (placedBeforeOnClient && nearOrInSectionServer) {
+          return Math.min(targetBoundary, maxY);
+        }
+      }
+    }
+
     for (const section of sorted) {
       const headTop = section.headingTop ?? section.top;
+      const targetBoundary = Math.max(minGapPx, Math.min(section.top, headTop));
       const inSection = y > section.top && y < section.bottom;
       const nearSectionTop =
         y >= section.top - NEAR_SECTION_TOP_PX && y <= headTop + SECTION_HEADING_GUARD_PX;
@@ -148,11 +170,11 @@ function snapBreakPositionsToSectionHeadings(
       if (inSection) {
         const fromSectionStart = y - section.top;
         if (fromSectionStart <= SECTION_HEADING_GUARD_PX || y <= headTop + SECTION_HEADING_GUARD_PX) {
-          y = Math.max(minGapPx, headTop);
+          y = targetBoundary;
           break;
         }
       } else if (nearSectionTop) {
-        y = Math.max(minGapPx, headTop);
+        y = targetBoundary;
         break;
       }
     }
@@ -166,6 +188,7 @@ function snapBreakPositionsToAvoidBlocks(
   pageHeightPx: number,
   totalHeightPx: number,
   minGapPx: number = DEFAULT_MIN_GAP_PX,
+  sections: ExportSectionBounds[] = [],
 ): number[] {
   if (!breaks.length || !avoidBlocks.length) return breaks;
   const sorted = [...avoidBlocks].sort((a, b) => a.top - b.top);
@@ -175,27 +198,96 @@ function snapBreakPositionsToAvoidBlocks(
 
   return breaks.map((breakY) => {
     let y = breakY;
-    const hit = sorted.find((block) => y > block.top && y < block.bottom);
-    if (!hit) return Math.min(Math.max(y, minGapPx), maxY);
+    const visited = new Set<ExportAvoidBounds>();
+    let iterations = 0;
 
-    const blockHeight = hit.bottom - hit.top;
-    if (hit.bottom - y <= minGapPx) {
-      y = hit.bottom;
-    } else if (y - hit.top <= minGapPx) {
-      y = hit.top;
-    } else if (blockHeight < pageHeight) {
-      y = hit.top;
-    } else if (hit.childTops.length > 0) {
-      let best = y;
-      let bestDistance = Infinity;
-      for (const childTop of hit.childTops) {
-        const distance = Math.abs(childTop - y);
-        if (distance < bestDistance && distance <= maxShift) {
-          best = childTop;
-          bestDistance = distance;
+    while (iterations < 10) {
+      const hit = sorted.find((block) => y > block.top && y < block.bottom);
+      if (!hit) {
+        break;
+      }
+
+      if (visited.has(hit)) {
+        // Cycle detected! Snap backward to the minimum top of all visited blocks
+        let minTop = y;
+        for (const block of visited) {
+          if (block.top < minTop) {
+            minTop = block.top;
+          }
+        }
+        y = minTop;
+        break;
+      }
+
+      visited.add(hit);
+      iterations++;
+
+      const blockHeight = hit.bottom - hit.top;
+      let proposedY = y;
+      let isChildTopSnap = false;
+
+      if (hit.bottom - y <= minGapPx) {
+        // Snapping forward: check if it would cross a section boundary
+        const wouldCrossSection = sections.some((section) => {
+          const headTop = section.headingTop ?? section.top;
+          const wasBefore = y <= headTop || y <= section.top;
+          const proposedAfter = hit.bottom > headTop || hit.bottom > section.top;
+          return wasBefore && proposedAfter;
+        });
+
+        if (wouldCrossSection) {
+          // Snap backward instead of forward crossing the section heading/top
+          proposedY = hit.top;
+        } else {
+          proposedY = hit.bottom;
+        }
+      } else if (y - hit.top <= minGapPx) {
+        proposedY = hit.top;
+      } else if (blockHeight < pageHeight) {
+        proposedY = hit.top;
+      } else if (hit.childTops.length > 0) {
+        let best = y;
+        let bestDistance = Infinity;
+        for (const childTop of hit.childTops) {
+          const distance = Math.abs(childTop - y);
+          if (distance < bestDistance && distance <= maxShift) {
+            best = childTop;
+            bestDistance = distance;
+          }
+        }
+        proposedY = best;
+        isChildTopSnap = true;
+      }
+
+      // Ensure the snapped break does not cross any section heading or section top
+      for (const section of sections) {
+        const headTop = section.headingTop ?? section.top;
+        const targetBoundary = Math.max(minGapPx, Math.min(section.top, headTop));
+
+        const wasBeforeSection = y <= headTop || y <= section.top;
+        const proposedAfterSection = proposedY > headTop || proposedY > section.top;
+
+        if (wasBeforeSection && proposedAfterSection) {
+          proposedY = targetBoundary;
+        }
+
+        const wasAfterSection = y >= targetBoundary;
+        const proposedBeforeSection = proposedY < targetBoundary;
+
+        if (wasAfterSection && proposedBeforeSection) {
+          proposedY = targetBoundary;
         }
       }
-      y = best;
+
+      if (proposedY === y) {
+        break;
+      }
+
+      y = proposedY;
+
+      if (isChildTopSnap) {
+        break;
+      }
     }
 
     return Math.min(Math.max(y, minGapPx), maxY);
@@ -226,7 +318,7 @@ function buildAutomaticBreakPositions(args: {
   if (rawBreaks.length === 0) return [];
 
   const sectionSnapped = snapBreakPositionsToSectionHeadings(rawBreaks, sections, total, minGapPx);
-  const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, pageHeight, total, minGapPx);
+  const avoidSnapped = snapBreakPositionsToAvoidBlocks(sectionSnapped, avoidBlocks, pageHeight, total, minGapPx, sections);
   const normalized = normalizeBreakPositions(avoidSnapped, total, minGapPx);
 
   return normalized.length > 0 ? normalized : normalizeBreakPositions(rawBreaks, total, minGapPx);
@@ -435,20 +527,20 @@ async function measureExportLayout(
     await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
     // Wait for fonts so layout heights are accurate (avoids system-font fallback metrics).
-    try { await page.evaluateHandle(() => (document as Document & { fonts: { ready: Promise<unknown> } }).fonts.ready); } catch { /* ignore */ }
-    return await page.evaluate(() => {
-      const template = document.querySelector('[data-resume-template]') as HTMLElement | null;
+    try { await page.evaluateHandle('document.fonts.ready'); } catch { /* ignore */ }
+    return await page.evaluate(`(() => {
+      const template = document.querySelector('[data-resume-template]');
       const root = template ?? document.body;
 
-      function relTop(el: HTMLElement): number {
+      const relTop = (el) => {
         let top = 0;
-        let curr: HTMLElement | null = el;
+        let curr = el;
         while (curr && curr !== root && root.contains(curr)) {
           top += curr.offsetTop;
-          curr = curr.offsetParent as HTMLElement | null;
+          curr = curr.offsetParent;
         }
         return top;
-      }
+      };
 
       const layoutHeight = Math.max(
         root.scrollHeight,
@@ -458,10 +550,10 @@ async function measureExportLayout(
       );
 
       const sections = Array.from(root.querySelectorAll('[data-section]')).map((sec) => {
-        const sectionEl = sec as HTMLElement;
+        const sectionEl = sec;
         const top = relTop(sectionEl);
-        const directHeading = sectionEl.querySelector(':scope > h2, :scope > h3') as HTMLElement | null;
-        const heading = directHeading ?? (sectionEl.querySelector('h2, h3') as HTMLElement | null);
+        const directHeading = sectionEl.querySelector(':scope > h2, :scope > h3');
+        const heading = directHeading ?? sectionEl.querySelector('h2, h3');
         const headingTop = heading ? relTop(heading) : top;
         return {
           top,
@@ -471,13 +563,13 @@ async function measureExportLayout(
       });
 
       const avoidBlocks = Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
-        const el = node as HTMLElement;
+        const el = node;
         const top = relTop(el);
         return {
           top,
           bottom: top + el.offsetHeight,
           childTops: Array.from(el.querySelectorAll('[data-break-child]')).map((child) =>
-            relTop(child as HTMLElement),
+            relTop(child),
           ),
         };
       });
@@ -492,7 +584,7 @@ async function measureExportLayout(
       }
 
       return { measuredHeight, sections, avoidBlocks };
-    });
+    })()`) as Promise<ExportLayoutMetrics>;
   } finally {
     await page.close();
   }
@@ -530,7 +622,7 @@ async function renderHtmlToPdfBuffer(
     // domcontentloaded fires as soon as the DOM is parsed; no waiting for external
     // resources (images, fonts). All CSS is already inlined in the payload.
     await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
-    try { await page.evaluateHandle(() => (document as Document & { fonts: { ready: Promise<unknown> } }).fonts.ready); } catch { /* ignore */ }
+    try { await page.evaluateHandle('document.fonts.ready'); } catch { /* ignore */ }
     const pdf = await page.pdf({
       width: `${widthPx}px`,
       height: `${heightPx}px`,
@@ -653,7 +745,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // use client Y-coordinates, a cut meant to be exactly before "Education"
     // might accidentally slice through it or leave it stranded on the first page.
     const layout = await measureExportLayout(browser, html, dims.widthPx);
-    contentHeight = Math.max(Math.round(contentHeight), Math.round(layout.measuredHeight));
+    const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
+    const requestedLayoutHeight =
+      Number.isFinite(layoutContentHeightPx) && layoutContentHeightPx > 0
+        ? Math.round(layoutContentHeightPx)
+        : 0;
+    contentHeight = Math.max(Math.round(contentHeight), requestedLayoutHeight, measuredHeight, contentPageHeight);
 
     // ── Custom-break validation height ─────────────────────────────────
     // clampBreakPositions/normalizeBreakPositions filter positions where:
@@ -679,7 +776,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Clamp custom breaks against the safe validation height.
     let pageBreaks = clampBreakPositions(exactCustomBreaks, validationHeight);
-
     if (exactCustomBreaks.length > 0) {
       // 1. Scale coordinates proportionally if there is a massive difference
       //    between the client's live DOM height and the server's layout height.
@@ -697,14 +793,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         pageBreaks,
         layout.sections,
         layout.measuredHeight,
-        DEFAULT_MIN_GAP_PX
+        DEFAULT_MIN_GAP_PX,
+        layoutContentHeightPx
       );
       pageBreaks = snapBreakPositionsToAvoidBlocks(
         pageBreaks,
         layout.avoidBlocks,
         contentPageHeight,
         layout.measuredHeight,
-        DEFAULT_MIN_GAP_PX
+        DEFAULT_MIN_GAP_PX,
+        layout.sections
       );
       console.log('[pdf] snapped custom breaks:', pageBreaks);
     }

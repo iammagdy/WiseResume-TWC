@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tailor for Job - WiseResume</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "outline-variant": "#e1bfbc",
+                      "wr-subtle": "#FFF5F5",
+                      "card-bg": "#FFFFFF",
+                      "warning": "#F59E0B",
+                      "on-tertiary-fixed": "#001e2c",
+                      "error": "#EF4444",
+                      "app-shell": "#F7F7F8",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container": "#e9edff",
+                      "secondary-container": "#4069f2",
+                      "surface-container-highest": "#dce2f7",
+                      "inverse-surface": "#293040",
+                      "error-container": "#ffdad6",
+                      "on-surface": "#141b2b",
+                      "primary-fixed": "#ffdad7",
+                      "on-secondary-fixed": "#001551",
+                      "wr-crimson": "#9E1B22",
+                      "on-tertiary-fixed-variant": "#004c68",
+                      "success": "#22C55E",
+                      "on-secondary-container": "#fffbff",
+                      "secondary": "#1d4ed8",
+                      "secondary-fixed": "#dce1ff",
+                      "on-background": "#141b2b",
+                      "inverse-primary": "#ffb3ae",
+                      "outline": "#8d706e",
+                      "on-primary-fixed": "#410005",
+                      "secondary-fixed-dim": "#b7c4ff",
+                      "wh-subtle": "#EFF6FF",
+                      "tertiary-fixed-dim": "#90cef2",
+                      "on-tertiary": "#ffffff",
+                      "primary": "#7a0010",
+                      "on-secondary-fixed-variant": "#0039b5",
+                      "surface-tint": "#b12a2e",
+                      "surface-container-high": "#e1e8fd",
+                      "on-primary": "#ffffff",
+                      "surface": "#f9f9ff",
+                      "inverse-on-surface": "#edf0ff",
+                      "on-error-container": "#93000a",
+                      "tertiary-fixed": "#c3e8ff",
+                      "surface-variant": "#dce2f7",
+                      "on-secondary": "#ffffff",
+                      "on-primary-fixed-variant": "#8f0e19",
+                      "on-error": "#ffffff",
+                      "tertiary": "#003f56",
+                      "border-muted": "#E5E7EB",
+                      "wh-bright": "#3B82F6",
+                      "surface-bright": "#f9f9ff",
+                      "on-surface-variant": "#59413f",
+                      "background": "#f9f9ff",
+                      "primary-container": "#9e1b22",
+                      "surface-dim": "#d3daef",
+                      "primary-fixed-dim": "#ffb3ae",
+                      "wh-royal": "#1D4ED8",
+                      "on-tertiary-container": "#8dcbef",
+                      "surface-container-low": "#f1f3ff",
+                      "tertiary-container": "#005776",
+                      "on-primary-container": "#ffafaa"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "10": "40px",
+                      "12": "48px",
+                      "8": "32px",
+                      "gutter": "16px",
+                      "6": "24px",
+                      "3": "12px",
+                      "4": "16px",
+                      "page-margin-mobile": "16px",
+                      "5": "20px",
+                      "1": "4px",
+                      "16": "64px",
+                      "page-margin-desktop": "24px",
+                      "2": "8px"
+              },
+              "fontFamily": {
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "h2": [
+                              "Inter"
+                      ],
+                      "h1-mobile": [
+                              "Inter"
+                      ],
+                      "eyebrow": [
+                              "Inter"
+                      ],
+                      "caption": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "h1": [
+                              "Inter"
+                      ],
+                      "small": [
+                              "Inter"
+                      ],
+                      "h3": [
+                              "Inter"
+                      ],
+                      "body-medium": [
+                              "Inter"
+                      ],
+                      "display-xl": [
+                              "Inter"
+                      ],
+                      "body": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "h2": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "h1-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "eyebrow": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.12em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "caption": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.35",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "64px",
+                              {
+                                      "lineHeight": "1.05",
+                                      "letterSpacing": "-0.035em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "h1": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "small": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.45",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "h3": [
+                              "20px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-medium": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-xl": [
+                              "88px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "letterSpacing": "-0.035em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .shadow-soft { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); }
+        .shadow-soft-lg { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08); }
+        .glow-crimson { box-shadow: 0 4px 14px rgba(158, 27, 34, 0.25); }
+    </style>
+</head>
+<body class="bg-app-shell text-on-surface font-body font-body antialiased min-h-screen flex flex-col md:flex-row">
+<!-- SideNavBar (Desktop) -->
+<nav class="hidden md:flex flex-col fixed left-0 top-0 h-full w-[260px] p-4 gap-2 bg-app-shell dark:bg-inverse-surface border-r border-border-muted dark:border-outline z-40">
+<div class="mb-8 px-4 flex flex-col gap-1">
+<span class="font-h3 text-h3 font-black text-wr-crimson dark:text-primary-fixed">WiseResume</span>
+<span class="font-caption text-caption text-on-surface-variant">AI Career Platform</span>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-medium text-body-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-body-medium text-body-medium">Resume Editor</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-wr-subtle dark:bg-primary-container text-wr-crimson dark:text-on-primary-container rounded-xl font-bold transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">auto_fix_high</span>
+<span class="font-body-medium text-body-medium">Job Tailoring</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-medium text-body-medium">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-medium text-body-medium">Settings</span>
+</a>
+</div>
+<div class="mt-auto flex flex-col gap-4">
+<button class="w-full bg-wr-crimson text-on-primary rounded-xl py-3 font-body-medium text-body-medium glow-crimson transition hover:opacity-90">
+                Upgrade to Pro
+            </button>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-body-medium text-body-medium">Help Center</span>
+</a>
+</div>
+</nav>
+<!-- TopAppBar (Mobile) -->
+<header class="md:hidden sticky top-0 z-50 flex justify-between items-center px-page-margin-desktop h-16 w-full bg-surface dark:bg-on-surface shadow-sm">
+<span class="font-h2 text-h2 font-bold text-wr-crimson dark:text-primary-fixed">WiseResume</span>
+<div class="flex items-center gap-4 text-wr-crimson dark:text-primary-fixed">
+<button class="hover:bg-wr-subtle dark:hover:bg-surface-variant transition-colors rounded-full p-2 active:scale-95 duration-150"><span class="material-symbols-outlined">notifications</span></button>
+<button class="hover:bg-wr-subtle dark:hover:bg-surface-variant transition-colors rounded-full p-2 active:scale-95 duration-150"><span class="material-symbols-outlined">auto_awesome</span></button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-[260px] pb-24 md:pb-8 p-page-margin-mobile md:p-page-margin-desktop max-w-[1440px] mx-auto w-full">
+<!-- Header -->
+<div class="mb-8">
+<h1 class="font-h1-mobile md:font-h1 text-h1-mobile md:text-h1 text-on-surface mb-2">Tailor your resume</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Match your resume to a specific job description to increase your interview chances.</p>
+</div>
+<!-- Top Section: Job Input -->
+<section class="bg-card-bg rounded-2xl p-6 md:p-8 shadow-soft mb-8 border border-border-muted/50 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-[120px]">work</span>
+</div>
+<div class="max-w-3xl mx-auto relative z-10">
+<div class="flex justify-between items-center mb-4">
+<label class="font-h3 text-h3 text-on-surface">Job Description</label>
+<button class="flex items-center gap-2 text-wr-crimson font-body-medium text-body-medium hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-small">link</span>
+                        Link from URL
+                    </button>
+</div>
+<textarea class="w-full min-h-[200px] p-4 rounded-xl border border-border-muted bg-surface focus:border-wr-crimson focus:ring-4 focus:ring-wr-crimson/10 transition-all font-body text-body text-on-surface resize-y mb-6" placeholder="Paste the job description here..."></textarea>
+<div class="flex justify-center">
+<button class="bg-wr-crimson text-on-primary px-8 py-4 rounded-xl font-body-medium text-body-medium flex items-center gap-3 glow-crimson hover:opacity-90 transition-all active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">auto_fix_high</span>
+                        Start Tailoring
+                    </button>
+</div>
+</div>
+</section>
+<!-- Middle Section: Strategic Match -->
+<section class="mb-8">
+<h2 class="font-h3 text-h3 text-on-surface mb-4">Strategic Match</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- ATS Score -->
+<div class="bg-card-bg rounded-2xl p-6 shadow-soft border border-border-muted/50 flex flex-col items-center justify-center">
+<h3 class="font-body-medium text-body-medium text-on-surface-variant mb-4 text-center">Estimated ATS Score</h3>
+<div class="relative w-32 h-32 flex items-center justify-center mb-2">
+<!-- SVG Ring -->
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" r="45" stroke="#E5E7EB" stroke-width="10"></circle>
+<circle class="transition-all duration-1000 ease-out" cx="50" cy="50" fill="none" r="45" stroke="#F59E0B" stroke-dasharray="282.7" stroke-dashoffset="79.156" stroke-width="10"></circle> <!-- 72% of 282.7 -->
+</svg>
+<div class="absolute flex flex-col items-center justify-center">
+<span class="font-h2 text-h2 text-on-surface">72</span>
+<span class="font-caption text-caption text-on-surface-variant">/ 100</span>
+</div>
+</div>
+<span class="font-caption text-caption text-warning bg-warning/10 px-3 py-1 rounded-full">Fair Match</span>
+</div>
+<!-- Strengths -->
+<div class="bg-card-bg rounded-2xl p-6 shadow-soft border border-border-muted/50 md:col-span-1">
+<div class="flex items-center gap-2 mb-4 text-success">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<h3 class="font-body-medium text-body-medium text-on-surface">Strengths</h3>
+</div>
+<ul class="flex flex-wrap gap-2">
+<li class="bg-success/10 text-success font-small text-small px-3 py-1.5 rounded-lg border border-success/20">Product Management</li>
+<li class="bg-success/10 text-success font-small text-small px-3 py-1.5 rounded-lg border border-success/20">Agile Methodologies</li>
+<li class="bg-success/10 text-success font-small text-small px-3 py-1.5 rounded-lg border border-success/20">Team Leadership</li>
+<li class="bg-success/10 text-success font-small text-small px-3 py-1.5 rounded-lg border border-success/20">Data Analysis</li>
+</ul>
+</div>
+<!-- Missing Keywords -->
+<div class="bg-card-bg rounded-2xl p-6 shadow-soft border border-border-muted/50 md:col-span-1">
+<div class="flex items-center gap-2 mb-4 text-warning">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">error</span>
+<h3 class="font-body-medium text-body-medium text-on-surface">Missing Keywords</h3>
+</div>
+<ul class="flex flex-wrap gap-2">
+<li class="bg-warning/10 text-warning font-small text-small px-3 py-1.5 rounded-lg border border-warning/20">Go-to-Market Strategy</li>
+<li class="bg-warning/10 text-warning font-small text-small px-3 py-1.5 rounded-lg border border-warning/20">B2B SaaS</li>
+<li class="bg-warning/10 text-warning font-small text-small px-3 py-1.5 rounded-lg border border-warning/20">OKR Tracking</li>
+</ul>
+</div>
+</div>
+</section>
+<!-- Bottom Section: Comparison -->
+<section>
+<div class="flex justify-between items-center mb-4">
+<h2 class="font-h3 text-h3 text-on-surface">AI Suggested Edits</h2>
+<div class="flex gap-2">
+<button class="px-4 py-2 text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high rounded-lg transition-colors">Reject All</button>
+<button class="px-4 py-2 bg-wr-crimson text-on-primary font-body-medium text-body-medium rounded-lg hover:opacity-90 transition-opacity">Apply All</button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Current Resume -->
+<div class="flex flex-col gap-4">
+<div class="font-eyebrow text-eyebrow text-on-surface-variant uppercase tracking-wider pl-2">Current Resume</div>
+<div class="bg-surface rounded-2xl p-6 border border-border-muted/50 h-full">
+<div class="mb-6">
+<h4 class="font-body-medium text-body-medium text-on-surface mb-2">Professional Summary</h4>
+<p class="font-body text-body text-on-surface-variant">Experienced Product Manager with a track record of leading cross-functional teams to deliver software solutions. Skilled in agile and data analysis.</p>
+</div>
+<div>
+<h4 class="font-body-medium text-body-medium text-on-surface mb-2">Experience</h4>
+<p class="font-small text-small text-on-surface font-semibold">Senior Product Manager - TechCorp</p>
+<ul class="list-disc pl-5 mt-2 space-y-2 font-body text-body text-on-surface-variant">
+<li>Led product development lifecycle from ideation to launch.</li>
+<li>Managed team of 5 developers and 2 designers.</li>
+<li>Increased user engagement by 15%.</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- AI Suggestions -->
+<div class="flex flex-col gap-4 relative">
+<div class="font-eyebrow text-eyebrow text-wr-crimson uppercase tracking-wider pl-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-small" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+                        Suggested Version
+                    </div>
+<div class="bg-card-bg rounded-2xl p-6 shadow-soft border-l-4 border-l-wr-crimson border-y border-r border-border-muted/50 h-full relative">
+<div class="mb-6 relative group">
+<div class="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-card-bg p-1 rounded-md shadow-sm border border-border-muted">
+<button class="p-1 text-success hover:bg-success/10 rounded"><span class="material-symbols-outlined text-small">check</span></button>
+<button class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded"><span class="material-symbols-outlined text-small">close</span></button>
+</div>
+<h4 class="font-body-medium text-body-medium text-on-surface mb-2">Professional Summary</h4>
+<p class="font-body text-body text-on-surface-variant">
+                                Experienced Product Manager with a track record of leading cross-functional teams to deliver <span class="text-wr-crimson font-medium bg-wr-subtle px-1 rounded">B2B SaaS</span> solutions. Skilled in agile methodologies, data analysis, and <span class="text-wr-crimson font-medium bg-wr-subtle px-1 rounded">driving Go-to-Market Strategy</span>.
+                            </p>
+</div>
+<div class="relative group">
+<div class="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-card-bg p-1 rounded-md shadow-sm border border-border-muted">
+<button class="p-1 text-success hover:bg-success/10 rounded"><span class="material-symbols-outlined text-small">check</span></button>
+<button class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded"><span class="material-symbols-outlined text-small">close</span></button>
+</div>
+<h4 class="font-body-medium text-body-medium text-on-surface mb-2">Experience</h4>
+<p class="font-small text-small text-on-surface font-semibold">Senior Product Manager - TechCorp</p>
+<ul class="list-disc pl-5 mt-2 space-y-2 font-body text-body text-on-surface-variant">
+<li>Led product development lifecycle from ideation to launch, <span class="text-wr-crimson font-medium bg-wr-subtle px-1 rounded">overseeing OKR tracking for the division</span>.</li>
+<li>Managed team of 5 developers and 2 designers <span class="text-wr-crimson font-medium bg-wr-subtle px-1 rounded">using Agile Methodologies</span>.</li>
+<li>Increased user engagement by 15% <span class="text-wr-crimson font-medium bg-wr-subtle px-1 rounded">through targeted B2B initiatives</span>.</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-surface dark:bg-on-surface shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-5 py-1 active:bg-surface-container-highest dark:active:bg-inverse-surface active:scale-90 duration-150 rounded-xl" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-caption text-caption">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-5 py-1 active:bg-surface-container-highest dark:active:bg-inverse-surface active:scale-90 duration-150 rounded-xl" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="font-caption text-caption">Editor</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary text-on-primary-container dark:text-on-primary rounded-full px-5 py-1 active:bg-surface-container-highest dark:active:bg-inverse-surface active:scale-90 duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<span class="font-caption text-caption">Tailor</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-5 py-1 active:bg-surface-container-highest dark:active:bg-inverse-surface active:scale-90 duration-150 rounded-xl" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-caption text-caption">Stats</span>
+</a>
+</nav>
+</body></html>

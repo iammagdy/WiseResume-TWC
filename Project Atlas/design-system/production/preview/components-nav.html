@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Nav & tabs</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{margin:0;background:#F7F7F8;color:#18181b;font-family:var(--font-sans);-webkit-font-smoothing:antialiased;}
+  body{padding:20px 22px;display:flex;flex-direction:column;gap:18px;}
+
+  .topnav{
+    height:50px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;
+    display:flex;align-items:center;gap:4px;padding:0 12px;
+    box-shadow:0 1px 3px 0 rgb(0 0 0 / 0.04);
+  }
+  .brand{font-size:14.5px;font-weight:700;color:#9E1B22;letter-spacing:-0.02em;margin-right:8px;}
+  .nav-item{
+    display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:10px;
+    font-size:12.5px;font-weight:500;color:#52525b;cursor:pointer;border:0;background:transparent;font-family:inherit;position:relative;
+  }
+  .nav-item:hover{background:#f3f4f6;color:#18181b;}
+  .nav-item.active{background:rgb(158 27 34 / 0.1);color:#9E1B22;}
+  .nav-item [data-lucide]{width:14px;height:14px;}
+  .lock-pip{
+    position:absolute;top:1px;right:1px;width:10px;height:10px;border-radius:50%;
+    background:#f59e0b;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;
+  }
+  .lock-pip [data-lucide]{width:5px;height:5px;color:#fff;stroke-width:3;}
+  .right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+  .search{
+    display:inline-flex;align-items:center;gap:6px;padding:6px 10px;
+    border:1px solid #e5e7eb;border-radius:9px;color:#6b7280;font-size:12px;cursor:pointer;background:#fafafa;
+  }
+  .search [data-lucide]{width:13px;height:13px;}
+  kbd{font-family:var(--font-mono);font-size:9.5px;padding:1px 4.5px;background:#f3f4f6;border:1px solid #e5e7eb;border-bottom-width:2px;border-radius:4px;color:#374151;}
+  .credits{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgb(158 27 34 / 0.08);color:#9E1B22;border:1px solid rgb(158 27 34 / 0.22);font-size:10.5px;font-weight:700;white-space:nowrap;}
+  .credits [data-lucide]{width:10px;height:10px;}
+  .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#9E1B22,#c41e3a);color:#fff;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+
+  .row{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+  .crumb{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#6b7280;}
+  .crumb [data-lucide]{width:11px;height:11px;color:#cbd5e1;}
+  .crumb a{color:#6b7280;text-decoration:none;cursor:pointer;}
+  .crumb a:hover{color:#9E1B22;}
+  .crumb b{color:#18181b;font-weight:700;}
+
+  .tabs{display:flex;gap:0;border-bottom:1px solid #e5e7eb;}
+  .tab{padding:8px 14px;font-size:12.5px;font-weight:600;color:#6b7280;cursor:pointer;position:relative;background:transparent;border:0;font-family:inherit;}
+  .tab.active{color:#9E1B22;}
+  .tab.active::after{content:"";position:absolute;bottom:-1px;left:8px;right:8px;height:2px;background:#9E1B22;border-radius:2px 2px 0 0;}
+  .tab .num{margin-left:5px;font-weight:500;color:#9ca3af;font-size:11px;}
+
+  .pillset{display:inline-flex;align-items:center;gap:0;background:#f1f5f9;padding:3px;border-radius:999px;border:1px solid #e2e8f0;}
+  .pillset .seg{padding:5px 13px;border-radius:999px;font-size:12px;font-weight:600;color:#64748b;cursor:pointer;background:transparent;border:0;font-family:inherit;display:inline-flex;align-items:center;gap:5px;}
+  .pillset .seg [data-lucide]{width:13px;height:13px;}
+  .pillset .seg.active{background:#fff;color:#9E1B22;box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.08);}
+
+  .label{font-family:var(--font-mono);font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;width:108px;flex-shrink:0;}
+</style>
+</head>
+<body>
+  <div class="row" style="gap:14px;">
+    <div class="label">Top nav</div>
+    <div class="topnav" style="flex:1;">
+      <div class="brand">WiseResume</div>
+      <button class="nav-item active"><i data-lucide="home"></i>Home</button>
+      <button class="nav-item"><i data-lucide="file-text"></i>Editor</button>
+      <button class="nav-item">
+        <i data-lucide="sparkles"></i>AI Tools
+        <span class="lock-pip"><i data-lucide="lock"></i></span>
+      </button>
+      <button class="nav-item"><i data-lucide="bar-chart-3"></i>Activity</button>
+      <button class="nav-item"><i data-lucide="globe"></i>Portfolio</button>
+      <div class="right">
+        <span class="credits"><i data-lucide="zap"></i>4 / 50</span>
+        <div class="search"><i data-lucide="search"></i>Search… <kbd>⌘K</kbd></div>
+        <div class="avatar">AK</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">Breadcrumb</div>
+    <div class="crumb">
+      <a>Resumes</a><i data-lucide="chevron-right"></i>
+      <a>Senior Frontend Engineer · Stripe</a><i data-lucide="chevron-right"></i>
+      <b>Experience</b>
+    </div>
+  </div>
+
+  <div class="row" style="align-items:flex-end;">
+    <div class="label">Tabs</div>
+    <div class="tabs" style="flex:1;">
+      <button class="tab active">All resumes <span class="num">3</span></button>
+      <button class="tab">Drafts <span class="num">2</span></button>
+      <button class="tab">Shared</button>
+      <button class="tab">Archived</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">Segmented</div>
+    <div class="pillset">
+      <button class="seg active"><i data-lucide="sun"></i>Light</button>
+      <button class="seg"><i data-lucide="moon"></i>Dark</button>
+      <button class="seg">System</button>
+    </div>
+  </div>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>
