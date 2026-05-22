@@ -205,6 +205,7 @@ export default function OnboardingPage() {
       const result = await saveOnboardingProfile({
         selectedProfile: filtered,
         fallbackUserId: user?.id ?? null,
+        fallbackUserEmail: user?.email ?? null,
         resumeTitle: filtered.fullName ? `${filtered.fullName} – Resume` : 'My Resume',
       });
       // Only mark complete and advance after a confirmed save.

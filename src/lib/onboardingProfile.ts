@@ -286,6 +286,8 @@ export interface SaveProfileArgs {
   selectedProfile: ExtractedProfile;
   /** Fallback userId used when account.get() is not yet hydrated. */
   fallbackUserId?: string | null;
+  /** Fallback account email used when account.get() is not yet hydrated. */
+  fallbackUserEmail?: string | null;
   /** Title for the resume row when one is created. */
   resumeTitle?: string;
   /** Template id for the resume row when one is created. */
@@ -295,6 +297,15 @@ export interface SaveProfileArgs {
 export interface SaveProfileResult {
   resumeId: string | null;
   hasResume: boolean;
+}
+
+function normalizeEmail(value?: string | null): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function fallbackProfileEmail(userId: string): string {
+  const safeUserId = userId.replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 80) || 'unknown-user';
+  return `missing-email+${safeUserId}@wiseresume.local`;
 }
 
 /**
@@ -308,13 +319,16 @@ export interface SaveProfileResult {
 export async function saveOnboardingProfile({
   selectedProfile,
   fallbackUserId,
+  fallbackUserEmail,
   resumeTitle = 'My Resume',
   templateId = 'modern',
 }: SaveProfileArgs): Promise<SaveProfileResult> {
   let userId: string | null = null;
+  let accountEmail = normalizeEmail(fallbackUserEmail);
   try {
     const user = await account.get();
     userId = user.$id;
+    accountEmail = normalizeEmail(user.email) || accountEmail;
   } catch {
     userId = fallbackUserId ?? null;
   }
@@ -322,6 +336,9 @@ export async function saveOnboardingProfile({
   if (!userId) {
     throw new Error('You must be signed in to save your profile.');
   }
+
+  const parsedEmail = normalizeEmail(selectedProfile.email);
+  const profileEmail = accountEmail || parsedEmail || fallbackProfileEmail(userId);
 
   const hasResumeContent =
     !!selectedProfile.summary ||
@@ -334,12 +351,16 @@ export async function saveOnboardingProfile({
     selectedProfile.volunteering.length > 0;
 
   // 1) Upsert profile row.
-  const profilePayload: Record<string, unknown> = { user_id: userId };
+  const profilePayload: Record<string, unknown> = {
+    user_id: userId,
+    email: profileEmail,
+  };
   if (!hasResumeContent) profilePayload.onboarding_completed = true;
   if (selectedProfile.fullName) profilePayload.full_name = selectedProfile.fullName;
   if (selectedProfile.jobTitle) profilePayload.job_title = selectedProfile.jobTitle;
   if (selectedProfile.location) profilePayload.location = selectedProfile.location;
   if (selectedProfile.linkedinUrl) profilePayload.linkedin_url = selectedProfile.linkedinUrl;
+  if (parsedEmail) profilePayload.contact_email = parsedEmail;
 
   // Appwrite upsert: check if profile already exists, update or create
   let profileDocId: string | null = null;
