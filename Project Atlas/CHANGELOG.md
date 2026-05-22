@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-05-22 - Branded auth email templates (Appwrite Console configuration)
+
+### Summary
+Diagnosed why new users received signup confirmation and password-reset emails from "Appwrite" instead of "WiseResume". Root cause: Appwrite's built-in auth email system was being used with no custom SMTP provider and no custom templates configured in the Appwrite Console.
+
+### What changed
+- Created `appwrite-hubs/email-templates/email-verification.html` — branded HTML for the Appwrite Email Verification template (sent on signup via `account.createVerification()`).
+- Created `appwrite-hubs/email-templates/password-recovery.html` — branded HTML for the Appwrite Password Recovery template (sent on forgot-password via `account.createRecovery()`).
+- Created `appwrite-hubs/email-templates/README.md` — paste instructions, subject lines, Appwrite variable notes.
+
+### What still needs to be done in the Appwrite Console (no code changes — console only)
+1. **Settings → SMTP**: configure Resend SMTP (`smtp.resend.com`, port 465, user `resend`, password = existing Resend API key, sender `WiseResume <noreply@thewise.cloud>`).
+2. **Auth → Email Templates → Email Verification**: set subject to `Confirm your WiseResume email address`, paste `email-verification.html` body.
+3. **Auth → Email Templates → Password Recovery**: set subject to `Reset your WiseResume password`, paste `password-recovery.html` body.
+
+### Why
+`account.createVerification()` and `account.createRecovery()` are Appwrite built-in calls (`AuthPage.tsx:100`, `AuthPage.tsx:67`). Without SMTP + template customisation in the Console, Appwrite sends from its own infrastructure with its own branding.
+
+### Verification
+- Pending: user to apply Console config and test a fresh signup + forgot-password flow.
+
+---
+
 ## 2026-05-21 - PDF page-cut boundary protection (snapping overcorrection fix)
 
 ### Summary

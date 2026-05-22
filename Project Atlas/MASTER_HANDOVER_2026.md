@@ -2,6 +2,56 @@
 
 ---
 
+## Session Summary - 2026-05-22 (Branded Auth Emails — Diagnosis + Templates)
+
+### Overview
+User reported that new signup confirmation emails and forgot-password emails arrived branded as "Appwrite" instead of "WiseResume". Root cause diagnosed and templates written. No code changes to the running app — fix requires Appwrite Console configuration only.
+
+### Root Cause (Verified)
+`AuthPage.tsx:100` calls `appwriteAccount.createVerification()` on signup; `AuthPage.tsx:67` calls `appwriteAccount.createRecovery()` on forgot-password. Both use Appwrite's built-in email delivery. Because no custom SMTP provider and no custom email templates have been configured in the Appwrite Console for this project, Appwrite sends from its own servers with its own "Appwrite" branding.
+
+### Files Added
+| File | Purpose |
+|---|---|
+| `appwrite-hubs/email-templates/email-verification.html` | Branded template for Appwrite Email Verification (signup confirm) |
+| `appwrite-hubs/email-templates/password-recovery.html` | Branded template for Appwrite Password Recovery (forgot password) |
+| `appwrite-hubs/email-templates/README.md` | Console paste instructions and subject lines |
+
+### Appwrite Console Actions Required (NOT YET DONE — awaiting user on PC)
+
+**Step 1 — Settings → SMTP**
+| Field | Value |
+|---|---|
+| SMTP Host | `smtp.resend.com` |
+| SMTP Port | `465` |
+| Sender Name | `WiseResume` |
+| Sender Email | `noreply@thewise.cloud` |
+| Username | `resend` |
+| Password | Existing Resend API key (`re_…`) from `admin-email` Function variables |
+| Secure | SSL |
+
+**Step 2 — Auth → Email Templates → Email Verification**
+- Subject: `Confirm your WiseResume email address`
+- Body: paste full content of `appwrite-hubs/email-templates/email-verification.html`
+
+**Step 3 — Auth → Email Templates → Password Recovery**
+- Subject: `Reset your WiseResume password`
+- Body: paste full content of `appwrite-hubs/email-templates/password-recovery.html`
+
+### Verification Pending
+After console config is applied: create a test account → confirm the email arrives from `noreply@thewise.cloud` with WiseResume branding. Trigger forgot-password → confirm recovery email is also branded.
+
+### Emails NOT Affected (already branded, no change needed)
+- Admin manual emails (DevKit `admin-email` hub) — already sent via Resend ✅
+- Plan upgrade emails (`coupons` hub) — already sent via Resend ✅
+
+### Where We Stopped
+- Templates committed to `claude/atlas-onboarding-mnWBQ`.
+- Console config pending (user will apply when on PC and share browser control).
+- Next agent: after console config is done, update this entry with verification result.
+
+---
+
 ## Session Summary - 2026-05-22 (Atlas Dashboard + App Shell Visual Pass)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/26-Session-Log-2026-05-22-Atlas-Dashboard-App-Shell.md`
