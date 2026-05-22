@@ -120,7 +120,7 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
   return (
     <div
       className={cn(
-        'p-5 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 transition-all duration-500',
+        'p-5 rounded-2xl bg-card border border-primary/25 shadow-soft transition-all duration-500',
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
       )}
     >
@@ -162,8 +162,8 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
           )}
         </div>
 
-        <h4 className="font-semibold text-sm mt-3 text-foreground">
-          {isComplete ? '🎉 Tailoring Complete!' : '✨ Supercharging Your Resume'}
+        <h4 className="text-section-header mt-3 text-foreground">
+          {isComplete ? 'Tailoring complete' : 'Optimizing your resume'}
         </h4>
         <p className="text-xs text-foreground/70">{progress.message}</p>
 
@@ -180,15 +180,12 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
       <div className="mb-5">
         <div className="relative h-3.5 w-full overflow-hidden rounded-full bg-secondary/30 backdrop-blur-sm">
           <motion.div
-            className="h-full rounded-full gradient-primary relative overflow-hidden"
+            className="h-full rounded-full bg-primary relative overflow-hidden"
             style={{
               width: `${displayNum}%`,
-              boxShadow: '0 0 12px -2px hsl(var(--primary) / 0.5)',
             }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
-          </motion.div>
+          />
         </div>
       </div>
 

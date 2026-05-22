@@ -101,7 +101,7 @@ export function KeywordMatchList({
   ];
 
   return (
-    <div className={cn('p-4 rounded-xl bg-card border border-border space-y-3', className)}>
+    <div className={cn('p-4 rounded-2xl bg-card border border-border shadow-soft-sm space-y-3', className)}>
       <div className="flex items-center justify-between gap-2">
         <h4 className="font-semibold text-sm">ATS Keywords</h4>
         <span
@@ -110,7 +110,7 @@ export function KeywordMatchList({
             matchPct >= 70
               ? 'text-success'
               : matchPct >= 40
-                ? 'text-amber-500'
+                ? 'text-warning'
                 : 'text-destructive',
           )}
         >
@@ -118,16 +118,18 @@ export function KeywordMatchList({
         </span>
       </div>
 
-      <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 flex-wrap">
+      <div className="flex items-center gap-1 bg-muted/60 rounded-xl p-1 flex-wrap" role="tablist" aria-label="Keyword filters">
         {tabs.map(([id, label]) => (
           <button
             key={id}
+            role="tab"
+            aria-selected={tab === id}
             onClick={() => setTab(id)}
             className={cn(
-              'flex-1 text-[11px] py-1 px-2 rounded-md transition-all min-w-fit',
+              'flex-1 text-[11px] py-1.5 px-2 rounded-lg transition-all min-w-fit min-h-[36px]',
               tab === id
-                ? 'bg-background shadow-sm text-foreground font-medium'
-                : 'text-muted-foreground',
+                ? 'bg-primary text-primary-foreground font-semibold shadow-soft-sm'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {label}
@@ -145,7 +147,7 @@ export function KeywordMatchList({
               isMatched
                 ? 'bg-success/10 text-success border-success/30'
                 : type === 'soft'
-                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                  ? 'bg-warning/10 text-warning border-warning/30'
                   : 'bg-destructive/10 text-destructive border-destructive/30',
             )}
           >

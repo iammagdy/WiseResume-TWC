@@ -107,9 +107,9 @@ function ProgressChip({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[44px]"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-border bg-card shadow-soft-sm hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[44px]"
           aria-label="Resume completion progress"
-          style={{ borderColor: color + '55' }}
+          style={{ borderColor: color + '44' }}
         >
           <ScoreMiniRing score={overallScore} color={color} size={18} />
           <span
@@ -135,7 +135,7 @@ function ProgressChip({
           <ChevronDown className={cn('w-3 h-3 text-muted-foreground transition-transform duration-200 shrink-0', open && 'rotate-180')} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={6} className="w-80 p-0 overflow-hidden">
+      <PopoverContent align="start" sideOffset={6} className="w-80 p-0 overflow-hidden bg-popover border-border shadow-soft-md">
         <div className="px-4 pt-3 pb-2 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -427,12 +427,12 @@ export function EditorHeader({
           <button
             onClick={() => { onDownload(); haptics.light(); }}
             disabled={isQuickDownloading}
-            className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+            className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/8 hover:bg-primary/15 text-primary disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             aria-label="Export resume"
             data-track="editor-export"
           >
             {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-            <span className="text-[9px] font-medium leading-none">Export</span>
+            <span className="text-[9px] font-semibold leading-none">Export</span>
           </button>
           <button
             onClick={onOpenChat}

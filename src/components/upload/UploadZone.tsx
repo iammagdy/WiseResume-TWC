@@ -37,13 +37,14 @@ export function UploadZone({
       tabIndex={isProcessing ? -1 : 0}
       aria-disabled={isProcessing}
       aria-label="Upload resume file"
+      aria-busy={isProcessing}
       onKeyDown={handleKeyDown}
       onClick={handleClick}
       className={cn(
-        "flex-1 min-h-[280px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        "flex-1 min-h-[240px] sm:min-h-[280px] rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center p-6 sm:p-8 cursor-pointer outline-none bg-card shadow-soft focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         isDragging
-          ? 'border-primary bg-primary/10'
-          : 'border-border hover:border-primary/50',
+          ? 'border-primary bg-primary/10 shadow-soft-md ring-2 ring-primary/25 scale-[1.01]'
+          : 'border-border hover:border-primary/40 hover:shadow-soft-md',
         isProcessing ? 'pointer-events-none opacity-80' : '',
         className
       )}

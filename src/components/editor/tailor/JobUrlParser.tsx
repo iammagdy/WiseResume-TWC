@@ -85,9 +85,9 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
     <div className="space-y-4">
       {/* URL Input */}
       <div className="space-y-2">
-        <label className="text-sm font-medium flex items-center gap-2">
-          <Link2 className="w-4 h-4 text-primary" />
-          Paste a job description to match your resume in seconds
+        <label className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Link2 className="w-4 h-4 text-primary shrink-0" aria-hidden />
+          Paste a job description to match your resume
         </label>
 
         {/* URL Mode */}
@@ -114,7 +114,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
               <Button
                 onClick={handleParseUrl}
                 disabled={isParsing || !urlInput.trim()}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto min-h-[44px] shrink-0"
               >
                 {isParsing ? (
                   <MiniSpinner size={16} />
@@ -162,7 +162,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="p-3 rounded-lg bg-success/10 border border-success/30 flex items-center gap-3"
+              className="p-3 rounded-xl bg-success/10 border border-success/30 shadow-soft-sm flex items-center gap-3"
             >
               <Check className="w-5 h-5 text-success shrink-0" />
               <div className="min-w-0">

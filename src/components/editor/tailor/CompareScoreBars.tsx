@@ -62,8 +62,8 @@
              <div className="flex items-center justify-between mb-2">
                <div className="flex items-center gap-2">
                  {isTop && (
-                   <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
-                     <Trophy className="w-3 h-3 text-amber-500" />
+                   <div className="w-5 h-5 rounded-full bg-warning/15 flex items-center justify-center">
+                     <Trophy className="w-3 h-3 text-warning" />
                    </div>
                  )}
                  <span className="font-medium text-sm truncate max-w-[140px]">

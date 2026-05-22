@@ -17,8 +17,11 @@ import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/Res
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
-// DailyTipCard removed - tip merged into DashboardStats
+import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
+import { DashboardSpotlightHero } from '@/components/dashboard/DashboardSpotlightHero';
+import { DashboardNextActionCard } from '@/components/dashboard/DashboardNextActionCard';
 import { DashboardHero } from '@/components/dashboard/DashboardHero';
+import { useSettingsStore } from '@/store/settingsStore';
 import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
 import { trackSession } from '@/lib/discoveryManager';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -29,7 +32,7 @@ import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { useTheme } from '@/hooks/use-theme';
 import { DashboardStatusPopover } from '@/components/dashboard/DashboardStatusPopover';
-import { PlanChip } from '@/components/ui/PlanChip';
+import { DashboardPlanBadge } from '@/components/dashboard/DashboardPlanBadge';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { OnboardingChecklist, ChecklistStep } from '@/components/dashboard/OnboardingChecklist';
@@ -199,6 +202,68 @@ function DashboardPageContent() {
     setCurrentResume(dbToResumeData(latest));
     navigate('/editor');
   }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
+
+  const defaultResumeId = useSettingsStore((s) => s.defaultResumeId);
+
+  const featuredResume = useMemo(() => {
+    if (!resumes?.length) return null;
+    if (defaultResumeId) {
+      const d = resumes.find((r) => r.$id === defaultResumeId);
+      if (d) return d;
+    }
+    return resumes.find((r) => r.is_primary) ?? resumes[0];
+  }, [resumes, defaultResumeId]);
+
+  const featuredHealthScore = featuredResume ? healthScores[featuredResume.$id] : undefined;
+
+  const tailoredCount = useMemo(
+    () => resumes?.filter((r) => r.parent_resume_id).length ?? 0,
+    [resumes],
+  );
+
+  const missingKeywordsCount = useMemo(() => {
+    if (featuredHealthScore?.keywordGaps?.length) {
+      return featuredHealthScore.keywordGaps.length;
+    }
+    const gaps = Object.values(healthScores).flatMap((s) => s.keywordGaps ?? []);
+    return gaps.length > 0 ? Math.max(...Object.values(healthScores).map((s) => s.keywordGaps?.length ?? 0)) : 0;
+  }, [featuredHealthScore, healthScores]);
+
+  const handleTailorResume = useCallback(
+    (resumeId: string) => {
+      const target = resumes?.find((r) => r.$id === resumeId);
+      if (!target) return;
+      setCurrentResumeId(target.$id);
+      setCurrentResume(dbToResumeData(target));
+      navigate('/tailor');
+    },
+    [resumes, setCurrentResumeId, setCurrentResume, navigate],
+  );
+
+  const handleFeaturedTailor = useCallback(() => {
+    if (featuredResume) {
+      handleTailorResume(featuredResume.$id);
+      return;
+    }
+    handleHeroTailor();
+  }, [featuredResume, handleTailorResume, handleHeroTailor]);
+
+  const handleFeaturedEdit = useCallback(() => {
+    if (!featuredResume) {
+      handleContinueEditing();
+      return;
+    }
+    setCurrentResumeId(featuredResume.$id);
+    setCurrentResume(dbToResumeData(featuredResume));
+    navigate('/editor');
+  }, [featuredResume, setCurrentResumeId, setCurrentResume, navigate, handleContinueEditing]);
+
+  const handleImportCv = useCallback(() => {
+    setShowDiscovery(true);
+    requestAnimationFrame(() => {
+      document.querySelector('[data-section="dashboard-upload"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
 
   // Check onboarding status for authenticated users.
   // If the flag is false but the user actually has a resume, that's a
@@ -613,49 +678,39 @@ function DashboardPageContent() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="lg:hidden sticky top-0 z-20 pt-3 pb-2 px-4 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border">
-        <button onClick={() => { window.scrollTo(0, 0); navigate('/'); }} aria-label="WiseResume — go to landing page" className="touch-manipulation">
+      <header className="lg:hidden sticky top-0 z-20 pt-3 pb-2.5 px-4 flex items-center gap-3 bg-card/88 backdrop-blur-md border-b border-border/80 shadow-soft-sm">
+        <button onClick={() => { window.scrollTo(0, 0); navigate('/'); }} aria-label="WiseResume — go to landing page" className="touch-manipulation shrink-0">
           <AppLogo size="sm" showTagline={false} hideText />
         </button>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 min-w-0 flex-1 justify-end">
+          <DashboardStatusPopover />
+          <div className="hidden md:flex items-center gap-1">
+            <AICreditsIndicator />
+            <AIHealthBadge />
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            className="min-w-[44px] min-h-[44px] rounded-xl touch-manipulation active:scale-95"
+            className="min-w-[44px] min-h-[44px] rounded-xl touch-manipulation active:scale-95 shrink-0"
             onClick={() => { haptics.light(); setShowFeatureMap(true); }}
             aria-label="What can I do?"
           >
-            <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
+            <HelpCircle className="w-4 h-4 text-muted-foreground" />
           </Button>
-          {/* Small screens: compact status popover */}
-          <DashboardStatusPopover />
-          {/* sm+: full AI status indicators */}
-          <div className="hidden sm:flex">
-            <AICreditsIndicator />
-          </div>
-          <div className="hidden sm:flex">
-            <AIHealthBadge />
-          </div>
+          <DashboardPlanBadge
+            plan={plan}
+            trialPlan={trialPlan}
+            trialExpiresAt={trialExpiresAt}
+            className="hidden sm:inline-flex shrink-0"
+          />
           <button
+            type="button"
             onClick={() => { haptics.selection(); toggleTheme(); }}
-            className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
+            className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation shrink-0"
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-11 h-11 rounded-xl touch-manipulation active:scale-95 relative"
-            onClick={() => { haptics.light(); navigate('/settings'); }}
-            aria-label="Settings"
-          >
-            <Settings className="w-5 h-5 text-muted-foreground" />
-            {hasNewChangelog && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse" aria-label="New updates available" />
-            )}
-          </Button>
-          <PlanChip plan={plan} trialPlan={trialPlan} trialExpiresAt={trialExpiresAt} />
           <Popover onOpenChange={(open) => {
             if (open && !profilePulseSeen) {
               setProfilePulseSeen(true);
@@ -746,182 +801,59 @@ function DashboardPageContent() {
       </header>
 
       {/* All scrollable content inside PullToRefresh */}
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="pb-safe lg:max-w-none mx-auto w-full">
-          {/* Dashboard Hero — primary entry point, first visible element */}
-          <DashboardHero
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 dashboard-atlas-bg">
+        <div className="pb-safe lg:max-w-none mx-auto w-full max-w-6xl lg:mx-auto">
+          <DashboardTopBar
             hasResumes={resumes.length > 0}
+            compact={resumes.length > 0}
+            onOptimize={handleFeaturedTailor}
+            onImport={handleImportCv}
             onBuild={handleCreateNew}
-            onTailor={handleHeroTailor}
-            onContinueEditing={resumes.length > 0 ? handleContinueEditing : undefined}
           />
 
-          {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
-          {showTrustBanner && (
-            <div className="px-4 pt-3">
-              <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
-                <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-foreground">Your career data is encrypted, private, and never shared.</p>
-                </div>
-                <button
-                  onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
-                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 transition-colors"
-                  aria-label="Dismiss"
-                >
-                  <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Missing Profile Data Banner */}
-          {showProfileBanner && (
-            <div className="px-4 pt-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
-                <User className="w-5 h-5 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">Complete your profile to get the most out of WiseResume.</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => navigate('/onboarding')} className="shrink-0 h-8">
-                  Complete
-                </Button>
-                <button
-                  onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
-                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 transition-colors"
-                  aria-label="Dismiss"
-                >
-                  <X className="w-5 h-5 text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Personalized Stats Header */}
-          <div data-section="dashboard-hero">
-          <DashboardStats
-            totalResumes={resumes?.length || 0}
-            healthScores={healthScores}
-            userName={profile?.fullName}
-            isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
-            resumes={resumes ?? undefined}
-            userId={user?.id}
-          />
-          </div>
-
-          {/* Onboarding Checklist — shown after onboarding is complete until dismissed */}
-          {showChecklist && (
-            <div className="px-4 pt-3">
-              <OnboardingChecklist steps={checklistSteps} onDismiss={handleDismissChecklist} />
-            </div>
-          )}
-
-          {/* Upload + Explore — collapsed for returning users to keep resume list above fold */}
-          <Collapsible open={resumes.length === 0 || showDiscovery} onOpenChange={setShowDiscovery}>
-            {resumes.length > 0 && (
-              <CollapsibleTrigger asChild>
-                <button className="w-full flex items-center justify-between px-5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <span>Discover more</span>
-                  <span className="text-muted-foreground">{showDiscovery ? '▲' : '▼'}</span>
-                </button>
-              </CollapsibleTrigger>
-            )}
-            <CollapsibleContent>
-          {/* Upload Resume widget — inline parsing, no navigation */}
-          <div className="px-4 pt-3 pb-1" data-section="dashboard-upload">
-            <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Import Resume</p>
-            <Suspense fallback={null}>
-              <DashboardUploadWidget />
-            </Suspense>
-          </div>
-
-          {/* Explore — secondary discovery links only */}
-          <div className="px-4 pt-3 pb-1" data-section="dashboard-explore">
-            <p className="text-xs font-medium text-muted-foreground mb-2.5 px-1">Explore</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                {
-                  icon: LayoutTemplate,
-                  iconBg: 'bg-primary/10',
-                  iconColor: 'text-primary',
-                  label: 'Templates',
-                  action: () => navigate('/templates'),
-                },
-                {
-                  icon: BookOpen,
-                  iconBg: 'bg-amber-500/10',
-                  iconColor: 'text-amber-500 dark:text-amber-400',
-                  label: 'Examples',
-                  action: () => navigate('/examples'),
-                },
-                {
-                  icon: Map,
-                  iconBg: 'bg-violet-500/10',
-                  iconColor: 'text-violet-500 dark:text-violet-400',
-                  label: 'Guides',
-                  action: () => navigate('/guides'),
-                },
-                {
-                  icon: Users,
-                  iconBg: 'bg-emerald-500/10',
-                  iconColor: 'text-emerald-500 dark:text-emerald-400',
-                  label: 'Referral',
-                  action: () => navigate('/referral'),
-                },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => { haptics.light(); item.action(); }}
-                  className="flex flex-col items-center gap-2 py-2 px-2 rounded-2xl bg-muted/40 border border-border/50 hover:border-primary/20 active:scale-[0.97] transition-all touch-manipulation"
-                  data-track={`dashboard-explore-${item.label.toLowerCase()}`}
-                >
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
-                    <item.icon className={`w-4 h-4 ${item.iconColor}`} />
-                  </div>
-                  <span className="text-[11px] font-medium text-foreground text-center leading-tight">{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          </CollapsibleContent>
-          </Collapsible>
-
-          {/* Search pill — moved below tabs area conceptually, but above filter bar */}
-          {resumes && resumes.length > 0 && (
-            <div className="px-4 pb-2 flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search all resumes..."
-                    value={searchQuery}
-                    onChange={(e) => handleSetSearchQuery(e.target.value)}
-                    className="pl-10 rounded-full h-10 sm:h-11 text-base bg-input border border-border"
-                  />
-                </div>
-                {!selectionMode && (
-                  <Button
-                    variant="outline"
-                    className="min-h-[44px] flex-shrink-0 gap-2 rounded-full px-3"
-                    onClick={() => { haptics.light(); setSelectionMode(true); }}
-                    aria-label="Select resumes"
-                  >
-                    <CheckSquare className="w-5 h-5" />
-                    <span className="text-sm font-medium">Select</span>
-                  </Button>
-                )}
-              </div>
-              {searchQuery && (
-                <p className="text-[11px] text-muted-foreground px-1">
-                  Searching in <span className="font-medium text-foreground">{activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}</span>
-                </p>
+          {resumes.length === 0 ? (
+            <DashboardStats
+              totalResumes={0}
+              healthScores={healthScores}
+              userName={profile?.fullName}
+              userId={user?.id}
+            />
+          ) : (
+            <div className="dashboard-workspace-head space-y-0">
+              {featuredResume && (
+                <DashboardSpotlightHero
+                  resume={featuredResume}
+                  healthScore={featuredHealthScore}
+                  isScoring={scoringId === featuredResume.$id || (featuredHealthScore == null && scoringId !== null)}
+                  onTailor={handleFeaturedTailor}
+                  onOpenEditor={handleFeaturedEdit}
+                />
               )}
+              <div data-section="dashboard-metrics">
+                <DashboardStats
+                  totalResumes={resumes.length}
+                  healthScores={healthScores}
+                  isScoring={scoringId !== null || Object.keys(healthScores).length < resumes.length}
+                  userId={user?.id}
+                  tailoredCount={tailoredCount}
+                  missingKeywordsCount={missingKeywordsCount}
+                  metricsOnly
+                />
+              </div>
             </div>
+          )}
+
+          {resumes.length === 0 && (
+            <DashboardHero
+              hasResumes={false}
+              onBuild={handleCreateNew}
+              onTailor={handleHeroTailor}
+            />
           )}
 
           {/* Selection toolbar */}
           {selectionMode && resumes && resumes.length > 0 && (
-            <div className="px-4 pb-3">
+            <div className="px-4 pb-2">
               <div className="flex items-center gap-2 rounded-xl bg-card border border-border shadow-soft px-3 py-2">
                 <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]" aria-label="Exit selection mode">
                   <X className="w-4 h-4" />
@@ -1009,10 +941,47 @@ function DashboardPageContent() {
               </motion.div>
             </div>
           ) : (
-            <div className="px-4 pb-4">
-              <Tabs value={activeTab} onValueChange={handleSetActiveTab} className="w-full">
-                <div className="overflow-x-auto scrollbar-none mb-4">
-                  <TabsList className="w-full min-w-max">
+            <div className="px-4 pb-3 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-4 lg:items-start">
+              <Tabs value={activeTab} onValueChange={handleSetActiveTab} className="w-full min-w-0">
+                <div className="rounded-xl border border-border bg-card/90 shadow-soft-sm p-3 sm:p-3.5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
+                  <div className="flex items-center justify-between gap-2 min-w-0 sm:flex-col sm:items-start sm:gap-0.5">
+                    <h3 className="text-base font-semibold text-foreground">Recent resumes</h3>
+                    <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                      {filteredResumes?.length ?? resumes.length} total
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:max-w-xs sm:ml-auto">
+                    <div className="relative flex-1 min-w-0">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search resumes..."
+                        value={searchQuery}
+                        onChange={(e) => handleSetSearchQuery(e.target.value)}
+                        className="pl-9 rounded-full h-10 text-sm bg-background border-border shadow-none"
+                        aria-label="Search resumes"
+                      />
+                    </div>
+                    {!selectionMode && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="min-h-[44px] min-w-[44px] h-10 w-10 shrink-0 rounded-full"
+                        onClick={() => { haptics.light(); setSelectionMode(true); }}
+                        aria-label="Select resumes"
+                      >
+                        <CheckSquare className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {searchQuery && (
+                  <p className="text-[10px] text-muted-foreground mb-2 -mt-0.5">
+                    Searching in <span className="font-medium text-foreground">{activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}</span>
+                  </p>
+                )}
+                <div className="overflow-x-auto scrollbar-none mb-3 rounded-xl bg-muted/40 p-0.5 border border-border/60">
+                  <TabsList className="w-full min-w-max bg-transparent h-9 p-0 gap-0.5">
                     <TabsTrigger value="my-cvs" className="flex-shrink-0 flex-1 gap-1.5">
                       My CVs
                       {resumeHierarchy && (
@@ -1034,10 +1003,10 @@ function DashboardPageContent() {
 
                 <TabsContent value="my-cvs" className="mt-0">
                   <motion.div
-                    className="space-y-3 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-4 md:space-y-0"
+                    className="space-y-2"
                     initial="hidden"
                     animate="visible"
-                    variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+                    variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
                   >
                     {resumeHierarchy && (() => {
                       const myCVsAll = [
@@ -1066,6 +1035,8 @@ function DashboardPageContent() {
                                   selectionMode={selectionMode}
                                   selected={selectedIds.has(resume.$id)}
                                   onToggleSelect={toggleSelection}
+                                  presentation="atlas-row"
+                                  onTailor={handleTailorResume}
                                   isProcessing={
                                     (deleteResume.isPending && deleteResume.variables === resume.$id) ||
                                     (duplicateResume.isPending && duplicateResume.variables === resume.$id)
@@ -1117,14 +1088,14 @@ function DashboardPageContent() {
                     const tailoredRemaining = allTailored.length - tailoredSlice.length;
                     return (
                       <motion.div
-                        className="space-y-3 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-4 md:space-y-0"
+                        className="space-y-3"
                         initial="hidden"
                         animate="visible"
                         variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                       >
                         {tailoredSlice.map((resume) => (
                           <motion.div key={resume.$id} variants={itemVariants}>
-                            <div className="rounded-xl bg-card border border-border shadow-soft p-3 space-y-2">
+                            <div className="space-y-2">
                               {(resume.target_job_title || resume.target_company) && (
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
@@ -1157,6 +1128,8 @@ function DashboardPageContent() {
                                 selectionMode={selectionMode}
                                 selected={selectedIds.has(resume.$id)}
                                 onToggleSelect={toggleSelection}
+                                presentation="atlas-row"
+                                onTailor={handleTailorResume}
                                 isProcessing={
                                   (deleteResume.isPending && deleteResume.variables === resume.$id) ||
                                   (duplicateResume.isPending && duplicateResume.variables === resume.$id)
@@ -1181,8 +1154,136 @@ function DashboardPageContent() {
                     );
                   })()}
                 </TabsContent>
+                </div>
               </Tabs>
+
+              <DashboardNextActionCard
+                healthScore={featuredHealthScore}
+                onReview={handleFeaturedEdit}
+                onTailor={handleFeaturedTailor}
+                className="mt-3 lg:mt-0 lg:sticky lg:top-3 lg:self-start"
+              />
             </div>
+          )}
+
+          {/* Secondary sections — below resume workspace to reduce scroll-to-list */}
+          {resumes && resumes.length > 0 && (
+            <div className="px-4 pt-2 pb-3 space-y-2 border-t border-border/40 mt-1">
+              {showTrustBanner && (
+                <div className="flex items-start gap-2 p-2.5 rounded-xl border border-primary/15 bg-primary/5 shadow-soft-sm">
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs font-medium text-foreground flex-1">Your career data is encrypted, private, and never shared.</p>
+                  <button
+                    onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
+                    className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-muted/50"
+                    aria-label="Dismiss"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+              )}
+
+              {showProfileBanner && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl border border-primary/20 bg-primary/5 shadow-soft-sm">
+                  <User className="w-4 h-4 text-primary shrink-0" />
+                  <p className="text-xs font-medium text-foreground flex-1">Complete your profile for the best experience.</p>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/onboarding')} className="shrink-0 h-8 text-xs">
+                    Complete
+                  </Button>
+                  <button
+                    onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
+                    className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg"
+                    aria-label="Dismiss"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+              )}
+
+              {showChecklist && (
+                <OnboardingChecklist
+                  steps={checklistSteps}
+                  onDismiss={handleDismissChecklist}
+                  defaultCollapsed
+                />
+              )}
+
+              <Collapsible open={showDiscovery} onOpenChange={setShowDiscovery}>
+                <CollapsibleTrigger asChild>
+                  <button className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/40 transition-colors min-h-[44px]">
+                    <span>Import & explore</span>
+                    <span className="text-muted-foreground">{showDiscovery ? '▲' : '▼'}</span>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-1 space-y-2">
+                  <div data-section="dashboard-upload" className="rounded-xl border border-border/60 bg-card/50 p-3">
+                    <p className="text-label mb-2 px-0.5">Import Resume</p>
+                    <Suspense fallback={null}>
+                      <DashboardUploadWidget />
+                    </Suspense>
+                  </div>
+                  <div data-section="dashboard-explore" className="rounded-xl border border-border/60 bg-card/50 p-3">
+                    <p className="text-label mb-2 px-0.5">Explore</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { icon: LayoutTemplate, iconBg: 'bg-primary/10', iconColor: 'text-primary', label: 'Templates', action: () => navigate('/templates') },
+                        { icon: BookOpen, iconBg: 'bg-warning/10', iconColor: 'text-warning', label: 'Examples', action: () => navigate('/examples') },
+                        { icon: Map, iconBg: 'bg-secondary/10', iconColor: 'text-secondary', label: 'Guides', action: () => navigate('/guides') },
+                        { icon: Users, iconBg: 'bg-success/10', iconColor: 'text-success', label: 'Referral', action: () => navigate('/referral') },
+                      ].map((item) => (
+                        <button
+                          key={item.label}
+                          onClick={() => { haptics.light(); item.action(); }}
+                          className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl bg-card border border-border/80 hover:border-primary/25 active:scale-[0.97] touch-manipulation min-h-[44px]"
+                          data-track={`dashboard-explore-${item.label.toLowerCase()}`}
+                        >
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${item.iconBg}`}>
+                            <item.icon className={`w-3.5 h-3.5 ${item.iconColor}`} />
+                          </div>
+                          <span className="text-[9px] font-medium text-foreground leading-tight">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
+
+          {/* Empty-state discovery stays expanded */}
+          {(!resumes || resumes.length === 0) && (
+            <Collapsible open={resumes.length === 0 || showDiscovery} onOpenChange={setShowDiscovery}>
+              <CollapsibleContent>
+                <div className="px-4 pt-2 pb-1" data-section="dashboard-upload">
+                  <p className="text-label mb-2 px-1">Import Resume</p>
+                  <Suspense fallback={null}>
+                    <DashboardUploadWidget />
+                  </Suspense>
+                </div>
+                <div className="px-4 pt-2 pb-1" data-section="dashboard-explore">
+                  <p className="text-label mb-2 px-1">Explore</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { icon: LayoutTemplate, iconBg: 'bg-primary/10', iconColor: 'text-primary', label: 'Templates', action: () => navigate('/templates') },
+                      { icon: BookOpen, iconBg: 'bg-warning/10', iconColor: 'text-warning', label: 'Examples', action: () => navigate('/examples') },
+                      { icon: Map, iconBg: 'bg-secondary/10', iconColor: 'text-secondary', label: 'Guides', action: () => navigate('/guides') },
+                      { icon: Users, iconBg: 'bg-success/10', iconColor: 'text-success', label: 'Referral', action: () => navigate('/referral') },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => { haptics.light(); item.action(); }}
+                        className="flex flex-col items-center gap-2 py-3 px-2 rounded-2xl bg-card border border-border shadow-soft-sm hover:border-primary/30 active:scale-[0.97] touch-manipulation"
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
+                          <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+                        </div>
+                        <span className="text-[11px] font-medium text-foreground text-center leading-tight">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </div>
       </PullToRefresh>

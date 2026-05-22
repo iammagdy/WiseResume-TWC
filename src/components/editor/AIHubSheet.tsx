@@ -111,8 +111,8 @@ export function AIHubSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-auto max-h-[85vh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
+          <SheetTitle className="text-h3 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary shrink-0" aria-hidden />
             AI Studio
           </SheetTitle>
         </SheetHeader>

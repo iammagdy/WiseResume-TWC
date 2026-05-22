@@ -30,7 +30,7 @@ const PAGE_TITLES: [string, string][] = [
   ['/subscription', 'Subscription'],
   ['/referral', 'Invite Friends'],
   ['/achievements', 'Achievements'],
-  ['/dashboard', 'Home'],
+  ['/dashboard', 'Dashboard'],
 ];
 
 /**

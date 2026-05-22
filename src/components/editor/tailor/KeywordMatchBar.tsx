@@ -66,20 +66,20 @@ export function KeywordMatchBar({ jobDescription, resumeText, className }: Keywo
   if (!debouncedJob.trim()) return null;
 
   const color =
-    matchPercent >= 70 ? 'text-green-600 dark:text-green-400' :
-    matchPercent >= 40 ? 'text-amber-600 dark:text-amber-400' :
-    'text-red-500 dark:text-red-400';
+    matchPercent >= 70 ? 'text-success' :
+    matchPercent >= 40 ? 'text-warning' :
+    'text-destructive';
 
   const ringColor =
-    matchPercent >= 70 ? 'stroke-green-500' :
-    matchPercent >= 40 ? 'stroke-amber-500' :
-    'stroke-red-500';
+    matchPercent >= 70 ? 'stroke-success' :
+    matchPercent >= 40 ? 'stroke-warning' :
+    'stroke-destructive';
 
   const circumference = 2 * Math.PI * 9;
   const dash = (matchPercent / 100) * circumference;
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn('flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border', className)} role="status" aria-live="polite">
       <svg width="28" height="28" viewBox="0 0 24 24" className="shrink-0 -rotate-90">
         <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted/30" />
         <circle

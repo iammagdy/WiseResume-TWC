@@ -157,8 +157,8 @@ export function ExportOptionsSheet({
         <SheetHeader className="pb-3 shrink-0 border-b border-border">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <SheetTitle className="flex items-center gap-2 text-base">
-                <Download className="w-4 h-4 text-primary shrink-0" />
+              <SheetTitle className="text-h3 flex items-center gap-2">
+                <Download className="w-4 h-4 text-primary shrink-0" aria-hidden />
                 Export Resume
               </SheetTitle>
               {(resumeName || templateName) && (

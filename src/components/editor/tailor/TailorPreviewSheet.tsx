@@ -196,7 +196,7 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
             </Button>
             {onApply && (
               <Button
-                className="flex-1 gradient-primary min-h-[44px] active:scale-95 transition-transform"
+                className="flex-1 min-h-[48px] font-semibold shadow-soft-sm active:scale-95 transition-transform"
                 onClick={() => { haptics.success(); onApply(); }}
                 disabled={isApplying}
               >

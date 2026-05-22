@@ -120,7 +120,7 @@ export function SectionChangeCard({
   }, [onRegenerate, sectionId, isRegenerating, regenInstruction]);
 
   const accentColor = enabled
-    ? impactScore > 10 ? 'border-l-success' : impactScore > 5 ? 'border-l-amber-500' : 'border-l-primary'
+    ? impactScore > 10 ? 'border-l-success' : impactScore > 5 ? 'border-l-warning' : 'border-l-primary'
     : 'border-l-muted-foreground/30';
 
   const hasDiff = (originalText !== undefined && tailoredText !== undefined) ||
@@ -230,9 +230,9 @@ export function SectionChangeCard({
                             {bt.enhancedBullet}
                           </p>
                           {bt.improvement && (
-                            <div className="flex items-start gap-1.5 mt-1 px-2 py-1.5 rounded-md bg-amber-50 border border-amber-200/50 dark:bg-amber-900/20 dark:border-amber-700/30">
-                              <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
-                              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">{bt.improvement}</p>
+                            <div className="flex items-start gap-1.5 mt-1 px-2 py-1.5 rounded-md bg-warning/10 border border-warning/25">
+                              <Lightbulb className="w-3 h-3 text-warning shrink-0 mt-0.5" />
+                              <p className="text-[11px] text-foreground/80 leading-snug">{bt.improvement}</p>
                             </div>
                           )}
                         </>
@@ -314,11 +314,11 @@ export function SectionChangeCard({
   return (
     <div
       className={cn(
-        'rounded-xl border-2 border-l-4 transition-all duration-300 overflow-hidden animate-fade-in',
+        'rounded-2xl border-2 border-l-4 transition-all duration-300 overflow-hidden animate-fade-in shadow-soft-sm',
         accentColor,
         enabled
-          ? 'border-primary bg-primary/5'
-          : 'border-border bg-card hover:border-muted-foreground/30'
+          ? 'border-primary/40 bg-primary/5'
+          : 'border-border bg-card hover:border-primary/20'
       )}
     >
       <div className="p-4">
@@ -391,7 +391,7 @@ export function SectionChangeCard({
                     impactScore > 10
                       ? 'bg-success/10 text-success border-success/30'
                       : impactScore > 5
-                      ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                      ? 'bg-warning/10 text-warning border-warning/30'
                       : 'bg-muted text-muted-foreground'
                   )}
                 >

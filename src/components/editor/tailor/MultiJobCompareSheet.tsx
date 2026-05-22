@@ -289,12 +289,12 @@
  
                {/* Best Match Recommendation */}
                <motion.div
-                 className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30"
+                 className="p-4 rounded-xl bg-warning/10 border border-warning/30 shadow-soft-sm"
                  initial={{ opacity: 0, y: 10 }}
                  animate={{ opacity: 1, y: 0 }}
                >
                  <div className="flex items-center gap-2 mb-2">
-                   <Sparkles className="w-4 h-4 text-amber-500" />
+                   <Sparkles className="w-4 h-4 text-primary" />
                    <span className="font-semibold text-sm">Best Match</span>
                  </div>
                  <p className="text-sm text-muted-foreground">
@@ -330,7 +330,7 @@
            </div>
            
            <Button
-             className="w-full h-12 gradient-primary font-semibold"
+             className="w-full h-12 min-h-[48px] font-semibold shadow-soft-sm"
              disabled={!selectedJobId}
              onClick={handleApply}
            >

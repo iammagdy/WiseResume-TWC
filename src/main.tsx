@@ -1,9 +1,10 @@
 // Self-hosted Inter font (replaces blocking Google Fonts request).
-// Loading 4 weights covers 300/400/500/600/700 used across the app.
+// Weights 400–800 per Project Atlas FONT_SYSTEM.md (800 = display/hero only).
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
+import "@fontsource/inter/800.css";
 // Display fonts used by portfolio templates and a few editor surfaces.
 // These were previously delivered by the broad Google Fonts request that
 // was removed from index.html — keep them self-hosted so portfolio

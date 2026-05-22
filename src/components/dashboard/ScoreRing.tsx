@@ -6,6 +6,8 @@ interface ScoreRingProps {
   size?: number;
   strokeWidth?: number;
   isLoading?: boolean;
+  /** Accessible label prefix, e.g. "ATS match" */
+  label?: string;
 }
 
 export const ScoreRing = memo(function ScoreRing({
@@ -13,6 +15,7 @@ export const ScoreRing = memo(function ScoreRing({
   size = 48,
   strokeWidth = 3.5,
   isLoading = false,
+  label = 'ATS match',
 }: ScoreRingProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -25,9 +28,19 @@ export const ScoreRing = memo(function ScoreRing({
       ? 'hsl(var(--warning))'
       : 'hsl(var(--destructive))';
 
+  const ariaLabel = isLoading
+    ? `${label}: calculating`
+    : `${label}: ${score} out of 100`;
+
   if (isLoading) {
     return (
-      <div className="relative" style={{ width: size, height: size }}>
+      <div
+        className="relative"
+        style={{ width: size, height: size }}
+        role="status"
+        aria-live="polite"
+        aria-label={ariaLabel}
+      >
         <svg className="w-full h-full -rotate-90" viewBox={`0 0 ${size} ${size}`}>
           <circle
             cx={center}
@@ -47,7 +60,12 @@ export const ScoreRing = memo(function ScoreRing({
   }
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div
+      className="relative"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={ariaLabel}
+    >
       <svg className="w-full h-full -rotate-90" viewBox={`0 0 ${size} ${size}`}>
         <circle
           cx={center}

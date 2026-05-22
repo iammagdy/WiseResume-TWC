@@ -28,20 +28,20 @@ export function UploadProgressSteps({ currentStep, fileName }: UploadProgressSte
 
   return (
     <motion.div
-      className="flex flex-col items-center w-full max-w-[280px] bg-background rounded-2xl px-6 py-6"
+      className="flex flex-col items-center w-full max-w-[300px] rounded-2xl border border-border bg-card shadow-soft px-6 py-6"
+      role="status"
+      aria-live="polite"
+      aria-busy={currentStep !== 'complete'}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       {/* Animated Icon */}
       <motion.div
-        className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mb-5"
-        animate={{ 
-          scale: currentStep === 'complete' ? [1, 1.1, 1] : 1,
+        className="w-16 h-16 rounded-full bg-primary shadow-soft-md flex items-center justify-center mb-5"
+        animate={{
+          scale: currentStep === 'complete' ? [1, 1.08, 1] : 1,
         }}
         transition={{ duration: 0.3 }}
-        style={{
-          boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.4)',
-        }}
       >
         {currentStep === 'complete' ? (
           <motion.div
@@ -57,13 +57,14 @@ export function UploadProgressSteps({ currentStep, fileName }: UploadProgressSte
       </motion.div>
 
       {/* Current Step Label */}
+      <p className="text-section-header text-foreground mb-1">Importing your resume</p>
       <motion.p
-        className="text-lg font-semibold mb-2"
+        className="text-sm font-medium text-muted-foreground mb-2"
         key={currentStep}
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {STEPS.find(s => s.id === currentStep)?.label}...
+        {STEPS.find(s => s.id === currentStep)?.label}…
       </motion.p>
 
       {/* File Name */}
@@ -74,7 +75,7 @@ export function UploadProgressSteps({ currentStep, fileName }: UploadProgressSte
       )}
 
       {/* Step Indicators */}
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2 mt-2" aria-hidden="true">
         {STEPS.filter(s => s.id !== 'complete').map((step, index) => {
           const isComplete = index < currentIndex;
           const isCurrent = step.id === currentStep;

@@ -16,11 +16,13 @@ export interface ChecklistStep {
 interface OnboardingChecklistProps {
   steps: ChecklistStep[];
   onDismiss: () => void;
+  /** Start collapsed to keep resume list higher on screen. */
+  defaultCollapsed?: boolean;
 }
 
-export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistProps) {
+export function OnboardingChecklist({ steps, onDismiss, defaultCollapsed = false }: OnboardingChecklistProps) {
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const headingRef = useRef<HTMLElement | null>(null);
 
   const handleDismiss = () => {
@@ -41,11 +43,10 @@ export function OnboardingChecklist({ steps, onDismiss }: OnboardingChecklistPro
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden mb-4"
+      className="rounded-xl border border-border/80 bg-card/80 shadow-soft-sm overflow-hidden"
       aria-label="Getting started checklist"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50">
         <button
           onClick={() => setCollapsed(v => !v)}
           className="flex items-center gap-3 flex-1 min-w-0 text-left"

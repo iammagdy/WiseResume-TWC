@@ -9,7 +9,7 @@ interface FeatureMapSheetProps {
 const sections = [
   {
     icon: Home,
-    tab: 'Home',
+    tab: 'Dashboard',
     features: [
       'Create, manage & score your resumes',
       'Smart next-step suggestions',

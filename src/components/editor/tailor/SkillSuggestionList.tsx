@@ -28,10 +28,10 @@ export function SkillSuggestionList({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20"
+      className="p-4 rounded-2xl bg-card border border-border shadow-soft-sm"
     >
       <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="w-5 h-5 text-amber-500" />
+        <Sparkles className="w-5 h-5 text-primary" />
         <h4 className="font-semibold text-sm">Skills Gap Analysis</h4>
       </div>
 

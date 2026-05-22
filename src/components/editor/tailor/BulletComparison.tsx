@@ -39,16 +39,16 @@
      <motion.div
        initial={{ opacity: 0, y: 10 }}
        animate={{ opacity: 1, y: 0 }}
-       className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 via-background to-orange-500/5 border border-amber-500/20"
+       className="p-4 rounded-2xl bg-card border border-border shadow-soft-sm"
      >
        <div className="flex items-center justify-between mb-4">
          <h4 className="font-semibold flex items-center gap-2">
-           <TrendingUp className="w-4 h-4 text-amber-500" />
+           <TrendingUp className="w-4 h-4 text-primary" />
            Bullet Transformations
          </h4>
          <div className="flex items-center gap-2">
            {metricsAddedCount > 0 && (
-             <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-400">
+             <Badge variant="secondary" className="text-xs bg-warning/15 text-warning border-warning/25">
                {metricsAddedCount} metrics added
              </Badge>
            )}
@@ -72,7 +72,7 @@
              className={cn(
                'p-3 rounded-lg bg-card border border-border transition-all',
                !enabledTransformations.has(index) && 'opacity-50',
-               expandedIndex === index && 'ring-1 ring-amber-500/50'
+               expandedIndex === index && 'ring-1 ring-primary/40'
              )}
            >
              <div className="flex items-center justify-between mb-2">
@@ -80,7 +80,7 @@
                  onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
                  className="flex items-center gap-2 text-left flex-1"
                >
-                 <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center text-xs font-medium shrink-0">
+                 <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-medium shrink-0">
                    {index + 1}
                  </span>
                  <span className="text-xs text-muted-foreground line-clamp-1 flex-1">

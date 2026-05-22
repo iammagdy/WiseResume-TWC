@@ -260,7 +260,7 @@ export function SectionNavButtons({
       <Button
         variant="outline"
         size="sm"
-        className="flex-1 min-w-0 h-8 text-xs px-2.5"
+        className="flex-1 min-w-0 min-h-[44px] text-xs px-2.5"
         onClick={() => {
           haptics.light();
           const currentIndex = steps.findIndex(s => s.id === activeTab);
@@ -274,7 +274,7 @@ export function SectionNavButtons({
       {activeTab === steps[steps.length - 1].id ? (
         <Button
           size="sm"
-          className="flex-1 min-w-0 h-8 text-xs px-2.5 gradient-primary shadow-[0_4px_12px_-4px_hsl(var(--primary)/0.5)]"
+          className="flex-1 min-w-0 min-h-[44px] text-xs px-2.5 font-semibold shadow-soft-sm"
           disabled={isNavigating}
           onClick={() => {
             if (isNavigating) return;
@@ -293,7 +293,7 @@ export function SectionNavButtons({
       ) : (
         <Button
           size="sm"
-          className="flex-1 min-w-0 h-8 text-xs px-2.5"
+          className="flex-1 min-w-0 min-h-[44px] text-xs px-2.5"
           onClick={() => {
             haptics.medium();
             const currentIndex = steps.findIndex(s => s.id === activeTab);

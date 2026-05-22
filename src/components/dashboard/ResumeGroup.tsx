@@ -46,7 +46,7 @@ export function ResumeGroup({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {/* Master Resume Card */}
       <div>
         <ResumeListCard
@@ -111,7 +111,7 @@ export function ResumeGroup({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="pl-6 border-l-2 border-primary/20 ml-4 space-y-2"
+            className="pl-5 border-l-[3px] border-primary/35 ml-3 space-y-3"
           >
             {tailoredVersions.map((resume, index) => (
               <motion.div

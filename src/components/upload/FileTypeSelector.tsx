@@ -47,7 +47,7 @@ export const FileTypeSelector = forwardRef<HTMLDivElement, FileTypeSelectorProps
       <Sheet open={open} onOpenChange={(open) => !open && onClose()}>
         <SheetContent side="bottom" className="rounded-t-3xl px-4 pb-safe">
           <SheetHeader className="pb-4">
-            <SheetTitle className="text-left text-lg font-display">
+            <SheetTitle className="text-left text-h3">
               What type of file?
             </SheetTitle>
             <p className="text-sm text-muted-foreground text-left">
@@ -60,9 +60,9 @@ export const FileTypeSelector = forwardRef<HTMLDivElement, FileTypeSelectorProps
               <button
                 key={type}
                 onClick={() => handleSelect(type)}
-                className="flex items-center gap-4 p-4 min-h-[72px] rounded-2xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-all touch-manipulation text-left"
+                className="flex items-center gap-4 p-4 min-h-[72px] rounded-2xl border border-border bg-card shadow-soft hover:bg-muted hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation text-left"
               >
-                <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shrink-0">
                   <Icon className="w-6 h-6 text-primary-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">

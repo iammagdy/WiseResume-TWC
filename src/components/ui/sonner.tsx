@@ -24,10 +24,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
         duration={3000}
         gap={10}
         icons={{
-          success: <CheckCircle2 size={17} style={{ color: "#22c55e" }} />,
-          error: <XCircle size={17} style={{ color: "#ef4444" }} />,
-          warning: <AlertTriangle size={17} style={{ color: "#f59e0b" }} />,
-          info: <Info size={17} style={{ color: "#8b1a2f" }} />,
+          success: <CheckCircle2 size={17} className="text-success" />,
+          error: <XCircle size={17} className="text-destructive" />,
+          warning: <AlertTriangle size={17} className="text-warning" />,
+          info: <Info size={17} className="text-info" />,
         }}
         toastOptions={{
           classNames: {
@@ -47,42 +47,36 @@ type ToastOptions = Parameters<typeof sonnerToast>[1];
 
 const DURATION = 3500;
 
+const toastShadow =
+  "0 1px 3px 0 rgb(0 0 0 / 0.08), 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04)";
+
 const baseStyle: React.CSSProperties = {
   borderRadius: "16px",
   padding: "14px 18px 14px 22px",
   fontFamily: "inherit",
   fontSize: "0.875rem",
-  color: "#e8e8ec",
+  color: "hsl(var(--popover-foreground))",
+  background: "hsl(var(--popover))",
+  border: "1px solid hsl(var(--border))",
+  boxShadow: toastShadow,
   position: "relative",
   overflow: "hidden",
 };
 
 const typeStyle: Record<string, React.CSSProperties> = {
   success: {
-    background: "#161e18",
-    border: "1px solid rgba(34,197,94,0.25)",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
+    border: "1px solid hsl(var(--success) / 0.3)",
   },
   error: {
-    background: "#1e1616",
-    border: "1px solid rgba(239,68,68,0.25)",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
+    border: "1px solid hsl(var(--destructive) / 0.3)",
   },
   warning: {
-    background: "#1e1b14",
-    border: "1px solid rgba(245,158,11,0.25)",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
+    border: "1px solid hsl(var(--warning) / 0.3)",
   },
   info: {
-    background: "#16181e",
-    border: "1px solid rgba(139,26,47,0.25)",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
+    border: "1px solid hsl(var(--info) / 0.3)",
   },
-  default: {
-    background: "#161618",
-    border: "1px solid rgba(255,255,255,0.1)",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)",
-  },
+  default: {},
 };
 
 const toast = Object.assign(

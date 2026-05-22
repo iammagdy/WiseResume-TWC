@@ -391,14 +391,14 @@ export function CoverLetterGenerator({
                           <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setShowMissingFieldsWarning(false)}>
                             Cancel
                           </Button>
-                          <Button size="sm" className="flex-1 text-xs gradient-primary" onClick={() => handleGenerate(true)}>
+                          <Button size="sm" className="flex-1 text-xs" onClick={() => handleGenerate(true)}>
                             Generate Anyway
                           </Button>
                         </div>
                       </div>
                     )}
                     <Button
-                      className="w-full h-12 gradient-primary font-semibold"
+                      className="w-full h-12 min-h-[48px] font-semibold shadow-soft-sm"
                       onClick={() => handleGenerate()}
                       disabled={!resume || !jobDescription}
                     >
@@ -491,7 +491,7 @@ export function CoverLetterGenerator({
             <div className="shrink-0 border-t border-border px-4 py-3 space-y-2 bg-background">
               <div className="flex gap-2">
                 <Button
-                  className="flex-1 gradient-primary"
+                  className="flex-1 min-h-[48px] font-semibold shadow-soft-sm"
                   onClick={handleCopy}
                 >
                   {copied ? (

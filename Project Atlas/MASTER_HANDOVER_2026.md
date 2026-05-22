@@ -2,6 +2,48 @@
 
 ---
 
+## Session Summary - 2026-05-22 (Atlas Dashboard + App Shell Visual Pass)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/26-Session-Log-2026-05-22-Atlas-Dashboard-App-Shell.md`
+
+### Overview
+Visual-only multi-pass: Atlas-aligned `/dashboard`, scroll compression, glass app shell nav, theme logos, contextual AI next-action card, nav membership badge. No API/routing/state/auth/backend/AI changes.
+
+### Root Causes Addressed
+
+| Area | Root cause | Fix |
+|------|------------|-----|
+| Dashboard | Legacy layout did not match Atlas `dashboard.html` reference | New dashboard components + `.dashboard-atlas-*` CSS; reordered `DashboardPage.tsx` |
+| Dashboard scroll | Hero/metrics/secondary blocks pushed resume list below fold | Compact top bar/hero/metrics; search in list header; checklist collapsed by default |
+| App shell | Nav lacked Atlas glass nav, command search, mobile shell | `.app-shell-*` CSS; `ShellBrand`, `ShellCommandSearch`, `MobileTopBar`; rewired `DesktopNav` / `BottomTabBar` / `AppShell` |
+| Nav logo | Placeholder “W” + tagline | `ShellBrand` + `useThemeLogo()` → `wiseresume-logo-*.webp` |
+| Dashboard AI card | Static/generic copy | `DashboardNextActionCard` uses `ResumeHealthScore` insights; existing review/tailor handlers |
+| Nav premium badge (v1) | Generic plan pill | `NavMembershipBadge` in utility group |
+| Nav premium badge (v2) | Crimson `--primary` blur/pulse clashed with avatar `ring-amber-400` | Removed `__glow` + custom crimson keyframes; reuse `.plan-glow-premium` + amber border/text |
+
+### Key Files
+
+| Area | Paths |
+|------|-------|
+| Dashboard | `src/pages/DashboardPage.tsx`, `src/components/dashboard/DashboardTopBar.tsx`, `DashboardSpotlightHero.tsx`, `HeroAtsScoreRing.tsx`, `DashboardNextActionCard.tsx`, `DashboardPlanBadge.tsx`, `DashboardStats.tsx`, `ResumeListCard.tsx` |
+| Shell | `src/components/layout/AppShell.tsx`, `DesktopNav.tsx`, `BottomTabBar.tsx`, `MobileTopBar.tsx`, `ShellBrand.tsx`, `ShellCommandSearch.tsx`, `NavMembershipBadge.tsx` |
+| Styles | `src/index.css` (`.dashboard-atlas-*`, `.app-shell-*`, `.nav-membership-badge*`) |
+| Reference | `PlanAvatar.tsx` — `ring-amber-400` + `plan-glow-premium` |
+
+### Verification
+- `npm run build` — passed (after premium glow fix)
+- `DashboardHero.test.tsx` — passed (spotlight hero)
+
+### Where We Stopped (authoritative — UI pass)
+- Atlas dashboard + app shell visual work **complete in source**; premium nav badge uses same amber glow as profile avatar.
+- **Not done:** `DashboardPlanBadge` glow parity with nav; global `DesktopNav` CTA hierarchy audit; no user sign-off on light/dark mobile QA.
+- **No commit** this pass.
+- **Same day, separate session:** PDF export blank-output fix (below). Treat as independent commit scope.
+
+**Next agent (UI):** Visual QA at `http://localhost:5000/dashboard` + nav premium trial/active states; then commit UI pass separately from PDF/export changes.
+
+---
+
 ## Session Summary - 2026-05-22 (Local Export Recovery, PDF Blank Output Fix, Web Feedback Prompt)
 
 ### Overview

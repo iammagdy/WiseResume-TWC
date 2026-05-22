@@ -131,7 +131,7 @@ export function ImportUploadSheet({
 
         {/* Title */}
         <div className="pb-5">
-          <h2 className="text-xl font-display font-semibold flex items-center gap-2">
+          <h2 className="text-h3 flex items-center gap-2">
             <Upload className="w-5 h-5 text-primary" />
             Import Resume
           </h2>
@@ -145,7 +145,7 @@ export function ImportUploadSheet({
         <div
           className={cn(
             'rounded-2xl border bg-card p-4 mb-4 transition-colors',
-            isDragging ? 'border-primary bg-primary/5' : 'border-border'
+            isDragging ? 'border-primary bg-primary/5 shadow-soft-md ring-1 ring-primary/20' : 'border-border shadow-soft'
           )}
         >
           <p className="text-xs font-medium text-muted-foreground mb-1">

@@ -18,7 +18,7 @@ interface TailorHistorySheetProps {
 
 function verifiedScoreClass(score: number) {
   if (score >= 75) return 'bg-success/10 text-success border-success/30';
-  if (score >= 50) return 'bg-amber-500/10 text-amber-600 border-amber-500/30';
+  if (score >= 50) return 'bg-warning/10 text-warning border-warning/30';
   return 'bg-red-500/10 text-red-600 border-red-500/30';
 }
 

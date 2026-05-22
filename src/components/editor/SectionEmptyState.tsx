@@ -47,20 +47,22 @@ export const SectionEmptyState = memo(function SectionEmptyState({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-      className="p-6 rounded-xl border border-dashed border-border text-center"
+      className="p-6 rounded-2xl border border-dashed border-border bg-card/50 text-center"
     >
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3, type: 'spring', stiffness: 200 }}
       >
-        <Icon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+          <Icon className="w-6 h-6 text-primary" aria-hidden />
+        </div>
       </motion.div>
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.15, duration: 0.3 }}
-        className="text-sm font-medium mb-1"
+        className="text-sm font-semibold text-foreground mb-1"
       >
         {title}
       </motion.p>

@@ -155,7 +155,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
           className="w-full flex items-center justify-between p-4 touch-manipulation"
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary shadow-soft-sm flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
             <span className="hidden xs:block font-medium text-sm">AI Studio</span>

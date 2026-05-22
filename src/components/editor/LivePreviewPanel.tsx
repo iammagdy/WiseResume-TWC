@@ -205,7 +205,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-muted', className)}>
       {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-background backdrop-blur-sm pt-[env(safe-area-inset-top)]">
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card/95 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-1">
           {/* Zoom controls */}
           {ZOOM_LEVELS.map(level => (
@@ -288,7 +288,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
 
       {/* Section visibility toggles */}
       {showSectionToggles && activeSections.length > 0 && (
-        <div className="shrink-0 flex flex-wrap gap-1.5 px-3 py-2 border-b border-border bg-background/60">
+        <div className="shrink-0 flex flex-wrap gap-1.5 px-3 py-2 border-b border-border bg-card/80">
           {activeSections.map(section => {
             const isHidden = hiddenSections.has(section);
             return (
@@ -320,7 +320,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           <div
             ref={resumeRef}
             data-resume-template
-            className="bg-white text-black mx-auto shadow-2xl relative"
+            className="bg-white text-black mx-auto shadow-soft-xl ring-1 ring-border/40 relative"
             style={{
               // Pin the template's CSS layout width to the PDF design width
               // for the user's chosen page format (612 px Letter / 595 px
@@ -364,7 +364,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             <ErrorBoundary
               fallback={
                 <div className="flex flex-col items-center justify-center gap-3 p-8 text-center h-full min-h-[200px]">
-                  <AlertTriangle className="w-8 h-8 text-amber-500" />
+                  <AlertTriangle className="w-8 h-8 text-warning" />
                   <p className="text-sm font-medium text-foreground">Preview failed to render</p>
                   <p className="text-xs text-muted-foreground max-w-xs">
                     There was an error displaying this template. Try switching templates or refreshing.

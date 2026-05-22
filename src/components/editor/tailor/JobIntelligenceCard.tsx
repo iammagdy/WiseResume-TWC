@@ -17,12 +17,12 @@
    company?: string;
  }
  
- const experienceLevelLabels = {
-   entry: { label: 'Entry Level', color: 'bg-green-500/20 text-green-700 dark:text-green-400' },
-   mid: { label: 'Mid Level', color: 'bg-blue-500/20 text-blue-700 dark:text-blue-400' },
-   senior: { label: 'Senior Level', color: 'bg-purple-500/20 text-purple-700 dark:text-purple-400' },
-   executive: { label: 'Executive', color: 'bg-amber-500/20 text-amber-700 dark:text-amber-400' },
- };
+const experienceLevelLabels = {
+  entry: { label: 'Entry Level', color: 'bg-success/15 text-success border-success/25' },
+  mid: { label: 'Mid Level', color: 'bg-primary/10 text-primary border-primary/25' },
+  senior: { label: 'Senior Level', color: 'bg-secondary/15 text-secondary border-secondary/25' },
+  executive: { label: 'Executive', color: 'bg-warning/15 text-warning border-warning/25' },
+};
  
  const workModeLabels = {
    remote: { label: 'Remote', icon: '🏠' },
@@ -45,7 +45,7 @@
      <motion.div
        initial={{ opacity: 0, y: 10 }}
        animate={{ opacity: 1, y: 0 }}
-       className="p-4 rounded-xl bg-gradient-to-br from-primary/5 via-background to-accent/5 border border-border"
+       className="p-4 rounded-2xl bg-card border border-border shadow-soft-sm"
      >
        {/* Header */}
        <div className="flex items-start justify-between mb-4">
@@ -103,7 +103,7 @@
          <div className="mb-4 p-3 rounded-lg bg-card border border-border">
            <div className="flex items-center justify-between mb-2">
              <div className="flex items-center gap-2">
-               <Zap className="w-4 h-4 text-amber-500" />
+               <Zap className="w-4 h-4 text-warning" />
                <span className="text-sm font-medium">ATS Keyword Match</span>
              </div>
              <div className="text-right">
@@ -156,7 +156,7 @@
          
          <div>
            <h5 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-             <Sparkles className="w-3 h-3 text-amber-500" />
+             <Sparkles className="w-3 h-3 text-primary" />
              NICE-TO-HAVE ({jobIntelligence.niceToHaveSkills.length})
            </h5>
            <div className="flex flex-wrap gap-1">

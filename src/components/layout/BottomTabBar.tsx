@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X, Zap, Tag, Keyboard } from 'lucide-react';
+import { FileText, Globe, LayoutDashboard, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X, Zap, Tag, Keyboard } from 'lucide-react';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { motion, useReducedMotion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -40,8 +41,8 @@ interface TabItem {
 const tabs: TabItem[] = [
 {
   path: '/dashboard',
-  icon: Home,
-  label: 'Home',
+  icon: LayoutDashboard,
+  label: 'Dashboard',
   matchPaths: [
     '/dashboard',
     '/notifications',
@@ -192,21 +193,21 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar pb-safe rounded-t-2xl",
-        "bg-background shadow-[0_-1px_0_0_hsl(var(--border)/0.6)]",
-        className
+        'fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar app-shell-bottom-nav pb-safe',
+        className,
       )}
       aria-label="Main navigation"
     >
-      <div>
+      <GlassSurface className="absolute inset-0 app-shell-nav-glass rounded-none" blur={14} saturate={140} />
+      <div className="relative z-[1]">
       <LayoutGroup>
         <div
-          className="flex items-center justify-around h-16 relative max-w-3xl mx-auto w-full"
+          className="flex items-stretch justify-around min-h-[4.25rem] h-[4.25rem] relative max-w-lg mx-auto w-full px-1"
           role="tablist"
         >
           {tabs.slice(0, 4).map((tab) => {
             const active = isActive(tab);
-            const Icon = (tab.icon || Home) as React.ElementType;
+            const Icon = (tab.icon || LayoutDashboard) as React.ElementType;
             return (
               <button
                 key={tab.path}
@@ -216,16 +217,22 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 tabIndex={0}
                 onClick={() => { setShowMore(false); handleTabPress(tab); }}
                 className={cn(
-                  'flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px]',
-                  'touch-manipulation active:scale-95 transition-colors duration-200 touch-ripple',
-                  'min-w-[44px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
+                  'flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[48px] py-1.5',
+                  'touch-manipulation active:scale-95 transition-colors duration-200',
+                  'min-w-[44px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset rounded-xl',
                 )}
               >
                 {active && (
                   <motion.div
                     layoutId="active-tab-pill"
-                    className="absolute inset-x-3 top-1.5 bottom-1.5 rounded-xl bg-primary/8"
+                    className="absolute inset-x-2 top-1 bottom-1 rounded-xl bg-primary/10 border border-primary/15"
                     transition={springTransition}
+                  />
+                )}
+                {active && (
+                  <span
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary"
+                    aria-hidden
                   />
                 )}
 
@@ -259,8 +266,8 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       <div className="relative">
                         <Icon
                           className={cn(
-                            'w-[22px] h-[22px] sm:w-5 sm:h-5 transition-colors duration-200',
-                            active ? 'text-primary' : 'text-muted-foreground'
+                            'w-5 h-5 transition-colors duration-200',
+                            active ? 'text-primary' : 'text-muted-foreground',
                           )}
                           aria-hidden="true"
                         />
@@ -318,8 +325,8 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 {!tab.customIcon && (
                   <span
                     className={cn(
-                      'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
-                      active ? 'text-primary font-semibold' : 'text-muted-foreground font-medium'
+                      'text-[10px] whitespace-nowrap relative z-10 transition-colors duration-200 leading-none',
+                      active ? 'text-primary font-bold' : 'text-muted-foreground font-medium',
                     )}
                   >
                     {tab.label}
@@ -337,15 +344,15 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
             tabIndex={0}
             onClick={() => { haptics.selection(); setShowMore(v => !v); }}
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px]',
+              'flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[48px] py-1.5',
               'touch-manipulation active:scale-95 transition-colors duration-200',
-              'min-w-[44px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
+              'min-w-[44px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset rounded-xl',
             )}
           >
             {showMore && (
               <motion.div
                 layoutId="active-tab-pill"
-                className="absolute inset-x-3 top-1.5 bottom-1.5 rounded-xl bg-primary/8"
+                className="absolute inset-x-2 top-1 bottom-1 rounded-xl bg-primary/10 border border-primary/15"
                 transition={springTransition}
               />
             )}
@@ -410,7 +417,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-1 pb-1">{label}</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-1">
                       {items.map((item) => {
-                        const Icon = (item.icon || Home) as React.ElementType;
+                        const Icon = (item.icon || LayoutDashboard) as React.ElementType;
                         const isNotifications = item.path === '/notifications';
                         const isWhatsNew = item.path === '/whats-new';
                         const badge = isNotifications && unreadNotifCount > 0 ? unreadNotifCount : 0;

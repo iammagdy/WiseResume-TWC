@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -62,6 +62,12 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
   const { user, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  /* Portaled Radix UI (dialog/sheet) renders on <body>; scope tokens on <html>. */
+  useEffect(() => {
+    document.documentElement.setAttribute('data-product', 'wisehire');
+    return () => document.documentElement.removeAttribute('data-product');
+  }, []);
 
   const isActive = (item: NavItem) => {
     const paths = item.matchPaths ?? [item.path];
@@ -179,7 +185,10 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
   );
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-[#f0f5ff] dark:bg-[#00061a]">
+    <div
+      data-product="wisehire"
+      className="app-theme flex h-[100dvh] overflow-hidden bg-background"
+    >
       {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-col">
         {Sidebar}

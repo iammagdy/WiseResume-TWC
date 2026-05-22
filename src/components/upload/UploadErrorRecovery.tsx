@@ -151,8 +151,8 @@ export function UploadErrorRecovery({
 
   return (
     <motion.div
-      className="flex flex-col items-center text-center p-6 bg-background rounded-2xl border border-border"
-      initial={{ opacity: 0, y: 20 }}
+      className="flex flex-col items-center text-center p-6 bg-card rounded-2xl border border-border shadow-soft w-full max-w-md mx-auto"
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
     >
       <motion.div
@@ -164,7 +164,7 @@ export function UploadErrorRecovery({
         {icon}
       </motion.div>
 
-      <h2 className="text-xl font-display font-semibold mb-2">{title}</h2>
+      <h2 className="text-h3 text-foreground mb-2">{title}</h2>
       <p className="text-muted-foreground text-sm mb-6 max-w-[280px]">
         {description}
       </p>
@@ -202,11 +202,9 @@ export function UploadErrorRecovery({
       <div className="w-full space-y-3">
         {hasOCROption && onTryOCR && errorType === 'NO_TEXT' && (
           <Button
-            variant="default"
             size="lg"
-            className="w-full h-14 gap-3 gradient-primary"
+            className="w-full min-h-[48px] gap-3 font-semibold"
             onClick={() => handleAction(onTryOCR)}
-            style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
           >
             <ScanText className="w-5 h-5" />
             Try OCR Scanning
@@ -217,7 +215,7 @@ export function UploadErrorRecovery({
           <Button
             variant="outline"
             size="lg"
-            className="w-full h-14 gap-3"
+            className="w-full min-h-[48px] gap-3"
             onClick={() => handleAction(onContinuePartial)}
           >
             <RefreshCw className="w-5 h-5" />
@@ -227,11 +225,9 @@ export function UploadErrorRecovery({
 
         {errorType === 'PARTIAL_EXTRACTION' && onAIFillGaps && (
           <Button
-            variant="default"
             size="lg"
-            className="w-full h-14 gap-3 gradient-primary"
+            className="w-full min-h-[48px] gap-3 font-semibold"
             onClick={() => handleAction(onAIFillGaps)}
-            style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
           >
             <ScanText className="w-5 h-5" />
             Let AI Help Fill Gaps
@@ -243,7 +239,7 @@ export function UploadErrorRecovery({
           <Button
             variant="outline"
             size="lg"
-            className="w-full h-14 gap-3"
+            className="w-full min-h-[48px] gap-3"
             onClick={() => handleAction(onStartBlankResume)}
           >
             <PenLine className="w-5 h-5" />
@@ -255,7 +251,7 @@ export function UploadErrorRecovery({
           <Button
             variant={errorType === 'PARTIAL_EXTRACTION' ? 'ghost' : 'outline'}
             size="lg"
-            className="w-full h-14 gap-3"
+            className="w-full min-h-[48px] gap-3"
             onClick={() => handleAction(onStartFresh)}
           >
             <PenLine className="w-5 h-5" />
@@ -266,7 +262,7 @@ export function UploadErrorRecovery({
         <Button
           variant="ghost"
           size="lg"
-          className="w-full h-14 gap-3 text-muted-foreground"
+          className="w-full min-h-[48px] gap-3 text-muted-foreground"
           onClick={() => handleAction(onTryDifferentFile)}
         >
           <Upload className="w-5 h-5" />

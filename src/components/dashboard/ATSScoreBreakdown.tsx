@@ -17,14 +17,14 @@ export function getScoreLabel(score: number): string {
 export function getScoreColorClass(score: number): string {
   if (score >= 90) return 'text-success';
   if (score >= 70) return 'text-warning';
-  if (score >= 50) return 'text-orange-500';
+  if (score >= 50) return 'text-warning';
   return 'text-destructive';
 }
 
 function getScoreBarBg(score: number): string {
   if (score >= 90) return 'bg-success';
   if (score >= 70) return 'bg-warning';
-  if (score >= 50) return 'bg-orange-500';
+  if (score >= 50) return 'bg-warning';
   return 'bg-destructive';
 }
 
@@ -132,7 +132,7 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
             <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full',
               overall >= 90 ? 'bg-success/10 text-success' :
               overall >= 70 ? 'bg-warning/10 text-warning' :
-              overall >= 50 ? 'bg-orange-500/10 text-orange-500' :
+              overall >= 50 ? 'bg-warning/10 text-warning' :
               'bg-destructive/10 text-destructive'
             )}>
               {label}

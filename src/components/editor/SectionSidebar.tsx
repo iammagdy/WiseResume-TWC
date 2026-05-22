@@ -99,7 +99,7 @@ export const SectionSidebar = memo(function SectionSidebar({
 
   return (
     <nav
-      className="shrink-0 flex flex-col gap-0.5 py-2 px-1 border-r border-border bg-card/60 overflow-y-auto"
+      className="shrink-0 flex flex-col gap-0.5 py-2 px-1 border-r border-border bg-card shadow-soft-sm overflow-y-auto"
       aria-label="Resume sections"
       style={{ width: 80 }}
       data-section="editor-form"
@@ -119,10 +119,10 @@ export const SectionSidebar = memo(function SectionSidebar({
               onClick={() => onSectionClick(step.id)}
               data-track={`editor-section-${step.id}`}
               className={cn(
-                'relative flex flex-col items-center gap-1 px-1 py-2 rounded-xl transition-all touch-manipulation active:scale-95 min-h-[64px] w-full',
+                'relative flex flex-col items-center gap-1 px-1 py-2 rounded-xl transition-all touch-manipulation active:scale-95 min-h-[64px] w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background',
                 isActive
-                  ? 'bg-gradient-to-r from-primary/15 to-transparent text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
               )}
               aria-current={isActive ? 'step' : undefined}
               title={step.label}

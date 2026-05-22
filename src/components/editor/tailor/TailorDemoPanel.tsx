@@ -73,7 +73,7 @@ export function TailorDemoPanel() {
   const example = DEMO_EXAMPLES[exampleIdx];
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
       {/* Header strip */}
       <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
         <div>
@@ -162,7 +162,7 @@ export function TailorDemoPanel() {
                 <motion.div
                   animate={{ rotate: [0, 12, -8, 0], scale: [1, 1.15, 1.08, 1] }}
                   transition={{ duration: 0.65, ease: 'easeInOut' }}
-                  className="w-11 h-11 rounded-full gradient-primary flex items-center justify-center shadow-lg"
+                  className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shadow-soft-md"
                   style={{ boxShadow: '0 0 24px -4px hsl(var(--primary) / 0.45)' }}
                 >
                   <Sparkles className="w-5 h-5 text-primary-foreground" />

@@ -214,8 +214,10 @@ export function EditorScrollForm({
   return (
     <div className="space-y-4 pb-8">
       {showOnboardingBanner && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-sm text-foreground/80">
-          <span className="text-base leading-none mt-0.5">👋</span>
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/25 shadow-soft-sm text-sm text-foreground/80">
+          <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0" aria-hidden>
+            <User className="w-4 h-4 text-primary" />
+          </div>
           <p className="flex-1 leading-snug">
             <span className="font-medium text-foreground">Welcome!</span> Fill in each section — changes save automatically.
           </p>

@@ -92,10 +92,9 @@ export function ExportProgressBar({
 
       <Button
         size="lg"
-        className="w-full h-14 text-base font-semibold gradient-primary btn-shimmer"
+        className="w-full h-14 min-h-[56px] text-base font-semibold shadow-soft-md"
         onClick={onExport}
         disabled={isButtonDisabled}
-        style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.45)' }}
       >
         {isExporting ? (
           <>

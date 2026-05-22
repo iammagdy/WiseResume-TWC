@@ -42,7 +42,7 @@ function AnimatedNumber({ value }: { value: number }) {
 function ScoreCircle({ score, label, size = 'lg' }: { score: number; label: string; size?: 'lg' | 'sm' }) {
   const getScoreColor = (s: number) => {
     if (s >= 85) return 'text-success';
-    if (s >= 70) return 'text-amber-500';
+    if (s >= 70) return 'text-warning';
     return 'text-destructive';
   };
 
@@ -61,7 +61,7 @@ function ScoreCircle({ score, label, size = 'lg' }: { score: number; label: stri
 
   const strokeColor =
     score >= 85 ? 'hsl(var(--success))' :
-    score >= 70 ? 'hsl(38, 92%, 50%)' :
+    score >= 70 ? 'hsl(var(--warning))' :
     'hsl(var(--destructive))';
 
   return (
@@ -138,7 +138,7 @@ export function ScoreComparison({
   return (
     <div
       className={cn(
-        'p-5 rounded-2xl bg-gradient-to-br from-card via-card to-muted/30 border border-border transition-all duration-500',
+        'p-5 rounded-2xl bg-card border border-border shadow-soft transition-all duration-500',
         mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
       )}
     >

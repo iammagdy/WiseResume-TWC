@@ -66,20 +66,22 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
       variants={shouldReduceMotion ? undefined : containerVariants}
       className="relative flex-1 flex flex-col items-center justify-center px-6 py-8 text-center"
     >
-      {/* Ambient glow */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
         <div
-          className="w-72 h-72 rounded-full"
-          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 70%)' }}
+          className="w-80 h-80 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle, hsl(var(--primary) / 0.14) 0%, transparent 68%)',
+          }}
         />
       </div>
 
-      {/* Title block — glass container */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="bg-card border border-primary/20 shadow-soft rounded-2xl px-6 py-6 w-full max-w-xs mb-5 relative"
-        style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.15), inset 0 1px 0 hsl(var(--foreground) / 0.05)' }}
+        className="bg-card border border-primary/30 shadow-soft-lg rounded-2xl px-6 py-8 w-full max-w-md mb-6 relative overflow-hidden"
       >
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-[hsl(340,68%,52%)] to-primary/70" aria-hidden />
+        <span className="dashboard-atlas-eyebrow mb-4">Start here</span>
         <motion.div
           initial={shouldReduceMotion ? undefined : { scale: 0.8, y: 8 }}
           animate={shouldReduceMotion ? undefined : { scale: 1, y: 0 }}
@@ -87,13 +89,12 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
             scale: { delay: 0.1, type: 'spring', stiffness: 200 },
             y: { duration: 0.6, ease: 'easeOut' },
           }}
-          className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4 relative"
-          style={{ boxShadow: '0 20px 40px -10px hsl(var(--primary) / 0.4)' }}
+          className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-5 relative shadow-soft-lg mt-2"
         >
-          <FileText className="w-8 h-8 text-primary-foreground" />
+          <FileText className="w-9 h-9 text-primary-foreground" />
         </motion.div>
 
-        <h2 className="text-2xl font-semibold mb-1">No Resumes Yet</h2>
+        <h2 className="text-h1 text-foreground mb-2">No resumes yet</h2>
 
         {onStartOnboarding ? (
           <button
@@ -113,7 +114,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
       {/* How it works steps — glass card */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="bg-card backdrop-blur-sm border border-border rounded-2xl px-5 py-4 w-full max-w-xs mb-5"
+        className="bg-card border border-border shadow-soft rounded-2xl px-5 py-4 w-full max-w-xs mb-5"
       >
         {steps.map((step, i) => (
           <div key={step.label}>
@@ -169,15 +170,11 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
         variants={shouldReduceMotion ? undefined : itemVariants}
         className="flex flex-col gap-3 w-full max-w-xs"
       >
-        <motion.div
-          animate={shouldReduceMotion ? undefined : { scale: [1, 1.03, 1] }}
-          transition={{ times: [0, 0.5, 1], duration: 0.6, repeat: 2 }}
-        >
+        <motion.div animate={shouldReduceMotion ? undefined : { scale: [1, 1.02, 1] }} transition={{ times: [0, 0.5, 1], duration: 0.6, repeat: shouldReduceMotion ? 0 : 1 }}>
           <Button
             size="lg"
             onClick={onCreateNew}
-            className="gradient-primary h-12 px-6 text-base font-semibold w-full"
-            style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
+            className="h-12 px-6 text-base font-semibold w-full shadow-soft-md"
             aria-label="Create your first resume"
           >
             <Plus className="w-5 h-5 mr-2" />

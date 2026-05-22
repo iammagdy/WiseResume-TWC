@@ -77,12 +77,12 @@
      <motion.div
        initial={{ opacity: 0, y: 10 }}
        animate={{ opacity: 1, y: 0 }}
-       className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 via-background to-cyan-500/5 border border-blue-500/20"
+       className="p-4 rounded-2xl bg-card border border-border shadow-soft-sm"
      >
        {/* Header */}
        <div className="flex items-center justify-between mb-4">
          <h4 className="font-semibold flex items-center gap-2">
-           <Target className="w-4 h-4 text-blue-500" />
+           <Target className="w-4 h-4 text-primary" />
            Skills Gap Analysis
          </h4>
          {addedSkills.size > 0 && (
@@ -142,7 +142,7 @@
        {recommendedSkills.length > 0 && (
          <div className="mb-4">
            <h5 className="text-sm font-semibold flex items-center gap-2 mb-3">
-             <Sparkles className="w-4 h-4 text-amber-500" />
+             <Sparkles className="w-4 h-4 text-primary" />
              RECOMMENDED
            </h5>
            <div className="space-y-2">
@@ -168,7 +168,7 @@
        {boostableSkills.length > 0 && (
          <div>
            <h5 className="text-sm font-semibold flex items-center gap-2 mb-3">
-             <ArrowUp className="w-4 h-4 text-green-500" />
+             <ArrowUp className="w-4 h-4 text-success" />
              BOOST THESE (already on your resume)
            </h5>
            <div className="space-y-2">
@@ -198,21 +198,21 @@
  function SkillRow({ skill, category, isAdded, onAdd }: SkillRowProps) {
    const categoryStyles = {
      critical: {
-       bg: 'bg-red-500/10',
-       border: 'border-red-500/20',
-       badge: 'bg-red-500/20 text-red-700 dark:text-red-400',
+       bg: 'bg-destructive/10',
+       border: 'border-destructive/25',
+       badge: 'bg-destructive/15 text-destructive border-destructive/30',
        icon: AlertCircle,
      },
      recommended: {
-       bg: 'bg-amber-500/10',
-       border: 'border-amber-500/20',
-       badge: 'bg-amber-500/20 text-amber-700 dark:text-amber-400',
+       bg: 'bg-warning/10',
+       border: 'border-warning/25',
+       badge: 'bg-warning/15 text-warning border-warning/30',
        icon: Star,
      },
      boost: {
-       bg: 'bg-green-500/10',
-       border: 'border-green-500/20',
-       badge: 'bg-green-500/20 text-green-700 dark:text-green-400',
+       bg: 'bg-success/10',
+       border: 'border-success/25',
+       badge: 'bg-success/15 text-success border-success/30',
        icon: ArrowUp,
      },
    };

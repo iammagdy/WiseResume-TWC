@@ -791,15 +791,15 @@ export default function TailorPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 h-full">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 pt-3 pb-2">
+      <header className="shrink-0 sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border px-4 pt-3 pb-2">
         <Breadcrumb items={['Home', 'AI Resume Tailor']} links={['/dashboard']} className="mb-2" />
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate(getBackRoute('/tailor'))} className="shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate(getBackRoute('/tailor'))} className="shrink-0 min-h-[44px] min-w-[44px]" aria-label="Go back">
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <Wand2 className="w-5 h-5 text-primary" />
-            <h1 className="font-semibold text-sm">AI Resume Tailor</h1>
+            <Wand2 className="w-5 h-5 text-primary shrink-0" aria-hidden />
+            <h1 className="text-page-title truncate">AI Resume Tailor</h1>
             <AICostBadge operation="tailor" />
           </div>
           <div className="flex items-center gap-2">
@@ -810,7 +810,7 @@ export default function TailorPage() {
                 onClick={handleCopyPlainText}
                 className="text-xs gap-1.5"
               >
-                {copiedText ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedText ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                 {copiedText ? 'Copied!' : 'Copy text'}
               </Button>
             )}
@@ -821,11 +821,11 @@ export default function TailorPage() {
       {/* Two-panel layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel: Job input */}
-        <div className="w-full lg:w-[420px] lg:border-r border-border overflow-y-auto lg:flex-shrink-0 p-4 space-y-4">
+        <div className="w-full lg:w-[420px] lg:border-r border-border overflow-y-auto lg:flex-shrink-0 p-4 space-y-4 bg-background">
           {/* Resume Selector */}
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 1</p>
+              <p className="text-label">Step 1</p>
               <p className="text-sm font-medium text-foreground">Choose the resume you want to tailor</p>
             </div>
             {allResumes === undefined ? (
@@ -866,9 +866,9 @@ export default function TailorPage() {
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 2</p>
+              <p className="text-label">Step 2</p>
               <p className="text-sm font-medium text-foreground">Add the job description or job link</p>
             </div>
             <JobUrlParser
@@ -887,9 +887,9 @@ export default function TailorPage() {
           )}
 
           {/* Custom Instructions */}
-          <div className="space-y-2 rounded-2xl border border-border/60 bg-card/50 p-3">
+          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 3</p>
+              <p className="text-label">Step 3</p>
               <p className="text-sm font-medium text-foreground">Adjust optional settings</p>
             </div>
             <button
@@ -915,25 +915,25 @@ export default function TailorPage() {
           </div>
 
           {/* Intensity */}
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Step 4</p>
+              <p className="text-label">Step 4</p>
               <p className="text-sm font-medium text-foreground">Run the optimizer</p>
             </div>
-            <h4 className="font-semibold text-sm">Tailoring Intensity</h4>
+            <h4 className="text-label text-foreground normal-case tracking-normal">Tailoring intensity</h4>
             <ToggleGroup
               type="single"
               value={intensity}
               onValueChange={(val) => val && setIntensity(val as TailorIntensity)}
-              className="w-full grid grid-cols-3"
+              className="w-full grid grid-cols-3 gap-1"
             >
-              <ToggleGroupItem value="light" className="text-xs gap-1">
+              <ToggleGroupItem value="light" className="text-xs gap-1 min-h-[44px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                 <Zap className="w-3.5 h-3.5" /> Light
               </ToggleGroupItem>
-              <ToggleGroupItem value="moderate" className="text-xs gap-1">
+              <ToggleGroupItem value="moderate" className="text-xs gap-1 min-h-[44px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                 <Gauge className="w-3.5 h-3.5" /> Moderate
               </ToggleGroupItem>
-              <ToggleGroupItem value="aggressive" className="text-xs gap-1">
+              <ToggleGroupItem value="aggressive" className="text-xs gap-1 min-h-[44px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                 <Flame className="w-3.5 h-3.5" /> Aggressive
               </ToggleGroupItem>
             </ToggleGroup>
@@ -945,7 +945,7 @@ export default function TailorPage() {
           </div>
 
           <Button
-            className="w-full h-12 gradient-primary font-semibold"
+            className="w-full h-12 min-h-[48px] font-semibold shadow-soft-md"
             onClick={handleTailor}
             disabled={isTailoring || !jobDescription.trim() || !currentResume}
           >
@@ -1157,7 +1157,7 @@ interface ResultsPanelProps {
 }
 
 function ScoreLabel({ score }: { score: number }) {
-  const color = score >= 85 ? 'text-success' : score >= 70 ? 'text-amber-500' : 'text-destructive';
+  const color = score >= 85 ? 'text-success' : score >= 70 ? 'text-warning' : 'text-destructive';
   return <span className={cn('text-2xl font-bold tabular-nums', color)}>{score}%</span>;
 }
 
@@ -1240,8 +1240,8 @@ function SectionIssueCallouts({ sectionId: _sectionId, issueIndices, issues, dis
   return (
     <div className="space-y-1.5 -mt-1">
       {visible.map(i => (
-        <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+        <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/25">
+          <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
           <p className="text-xs text-foreground flex-1 leading-snug">{issues[i]}</p>
           <button
             onClick={() => onDismissIssue(i)}
@@ -1357,7 +1357,7 @@ function ResultsPanel({
         </div>
 
         {appliedScore && (
-          <div className="w-full max-w-xs rounded-2xl bg-card border border-border px-5 py-4">
+          <div className="w-full max-w-xs rounded-2xl bg-card border border-border shadow-soft px-5 py-4">
             <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center justify-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5" />
               Match Score
@@ -1397,7 +1397,7 @@ function ResultsPanel({
                   appliedValidatorResult.verdict === 'strong'
                     ? 'bg-success/10 text-success'
                     : appliedValidatorResult.verdict === 'average'
-                      ? 'bg-amber-500/10 text-amber-600'
+                      ? 'bg-warning/10 text-warning'
                       : 'bg-destructive/10 text-destructive'
                 )}>
                   {appliedValidatorResult.verdict === 'strong'
@@ -1443,7 +1443,7 @@ function ResultsPanel({
 
         <div className="flex flex-col gap-3 w-full max-w-xs">
           {appliedResumeId && (
-            <Button className="gradient-primary min-h-[44px]" onClick={onViewResume}>
+            <Button className="min-h-[48px] font-semibold shadow-soft-sm" onClick={onViewResume}>
               <ExternalLink className="w-4 h-4 mr-2" />
               View Resume
             </Button>
@@ -1517,9 +1517,9 @@ function ResultsPanel({
       })()}
 
       {tailorError && !isTailoring && (
-        <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-4">
+        <div className="p-5 rounded-2xl bg-warning/10 border border-warning/30 shadow-soft-sm space-y-4">
           <div className="flex items-start gap-3">
-            <HeartHandshake className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <HeartHandshake className="w-5 h-5 text-warning shrink-0 mt-0.5" />
             <div>
               <h4 className="font-semibold text-sm">Something went wrong</h4>
               <p className="text-sm text-muted-foreground mt-1">{tailorError.message}</p>
@@ -1542,7 +1542,7 @@ function ResultsPanel({
       {tailorResult && !isTailoring && (
         <div className="space-y-4">
           {/* Success banner */}
-          <div className="p-4 rounded-xl bg-success/10 border border-success/30">
+          <div className="p-4 rounded-xl bg-success/10 border border-success/30 shadow-soft-sm">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-success" />
@@ -1550,7 +1550,7 @@ function ResultsPanel({
               </div>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="ghost" onClick={onCopyText} className="text-xs gap-1.5">
-                  {copiedText ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedText ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                   {copiedText ? 'Copied!' : 'Copy text'}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={onReTailor} className="text-xs gap-1.5">
@@ -1578,7 +1578,7 @@ function ResultsPanel({
             {[
               { icon: <Check className="w-3.5 h-3.5 text-success shrink-0" />, label: 'Keywords matched from job description' },
               { icon: <Shield className="w-3.5 h-3.5 text-primary shrink-0" />, label: 'ATS-friendly improvements applied' },
-              { icon: <TrendingUp className="w-3.5 h-3.5 text-amber-500 shrink-0" />, label: 'Bullet points optimized for impact' },
+              { icon: <TrendingUp className="w-3.5 h-3.5 text-warning shrink-0" />, label: 'Bullet points optimized for impact' },
             ].map(({ icon, label }) => (
               <div key={label} className="flex items-center gap-2 text-xs text-muted-foreground">
                 {icon}
@@ -1799,7 +1799,7 @@ function ResultsPanel({
                       preValidatorResult.verdict === 'strong'
                         ? 'bg-success/10 text-success'
                         : preValidatorResult.verdict === 'average'
-                          ? 'bg-amber-500/10 text-amber-600'
+                          ? 'bg-warning/10 text-warning'
                           : 'bg-destructive/10 text-destructive'
                     )}>
                       {preValidatorResult.verdict === 'strong'
@@ -1888,10 +1888,10 @@ function ResultsPanel({
                 {tailorResult.overallScore.after}%
               </p>
             )}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
               <Button
                 variant={discardConfirm ? 'destructive' : 'outline'}
-                className="flex-1 min-w-[110px]"
+                className="flex-1 min-w-0 min-h-[48px]"
                 onClick={handleDiscardClick}
               >
                 <X className="w-4 h-4 mr-2" />
@@ -1899,14 +1899,14 @@ function ResultsPanel({
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 min-w-[110px]"
+                className="flex-1 min-w-0 min-h-[48px]"
                 onClick={onPreview}
                 disabled={enabledSections.length === 0}
               >
                 <Eye className="w-4 h-4 mr-2" /> Preview
               </Button>
               <Button
-                className="flex-1 min-w-[140px] gradient-primary"
+                className="flex-1 min-w-0 min-h-[48px] font-semibold shadow-soft-sm"
                 onClick={onApplyChanges}
                 disabled={enabledSections.length === 0 || isApplying}
               >

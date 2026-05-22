@@ -44,7 +44,7 @@ export const SectionCard = memo(function SectionCard({
       <div
         className={cn(
           'animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
-          'bg-card border border-border shadow-soft-sm rounded-2xl overflow-hidden relative flex flex-col',
+          'bg-card border border-border shadow-soft rounded-2xl overflow-hidden relative flex flex-col',
           'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1.5 before:rounded-l-2xl',
           status === 'complete' && 'before:bg-success',
           status === 'partial' && 'before:bg-warning',
@@ -101,8 +101,8 @@ export const SectionCard = memo(function SectionCard({
         {/* Tip pill — always visible so users understand the section purpose while collapsed */}
         {tip && status !== 'complete' && (
           <div className="px-4 pb-2">
-            <span className="inline-block text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-              💡 {tip}
+            <span className="inline-block text-xs text-muted-foreground bg-muted/60 border border-border/60 px-2.5 py-1 rounded-full">
+              {tip}
             </span>
           </div>
         )}

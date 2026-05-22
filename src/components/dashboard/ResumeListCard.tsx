@@ -9,6 +9,7 @@ import {
   Trash2,
   Star,
   Target,
+  Wand2,
   Clock,
   GitBranch,
   Crown,
@@ -68,6 +69,9 @@ interface ResumeListCardProps {
   onToggleSelect?: (id: string) => void;
   /** Externally driven processing state (e.g. when parent's async mutation is in-flight for this card) */
   isProcessing?: boolean;
+  /** Atlas dashboard row layout (visual reference) */
+  presentation?: 'default' | 'atlas-row';
+  onTailor?: (id: string) => void;
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -88,7 +92,10 @@ export const ResumeListCard = memo(function ResumeListCard({
   selected = false,
   onToggleSelect,
   isProcessing = false,
+  presentation = 'default',
+  onTailor,
 }: ResumeListCardProps) {
+  const isAtlasRow = presentation === 'atlas-row';
 
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -226,16 +233,18 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   const handleCardClick = useDoubleTap(handleSingleTap, handleDoubleTapAction);
 
+  const scoreAccent = (() => {
+    const score = healthScore?.overallScore;
+    if (score == null || score === 0) return 'border-l-border';
+    if (score >= 80) return 'border-l-success';
+    if (score >= 50) return 'border-l-warning';
+    return 'border-l-destructive';
+  })();
+
   return (
     <div className={cn(
-      "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
-      (() => {
-        const score = healthScore?.overallScore;
-        if (score == null || score === 0) return 'border-l-border';
-        if (score >= 80) return 'border-l-success';
-        if (score >= 50) return 'border-l-warning';
-        return 'border-l-destructive';
-      })(),
+      'relative overflow-hidden rounded-2xl transition-colors duration-500',
+      isAtlasRow ? 'border-l-0' : cn('border-l-4', scoreAccent),
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
@@ -273,8 +282,15 @@ export const ResumeListCard = memo(function ResumeListCard({
           }
         }}
         className={cn(
-          'relative bg-card border border-border shadow-soft p-3 sm:p-4 touch-manipulation cursor-pointer',
-          'active:bg-muted transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
+          'relative rounded-2xl border touch-manipulation cursor-pointer transition-all duration-200',
+          'active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          isAtlasRow
+            ? 'dashboard-atlas-row border-border/80 shadow-soft-sm p-3 sm:p-3.5 hover:border-primary/30 hover:shadow-soft-md'
+            : cn(
+              'bg-card border-border/80 shadow-soft p-4 sm:p-5',
+              'hover:border-primary/25 hover:shadow-soft-md hover:bg-card',
+              healthScore && healthScore.overallScore >= 80 && 'ring-1 ring-success/20',
+            ),
         )}
         style={{ x, touchAction: 'pan-y' }}
         drag="x"
@@ -335,6 +351,94 @@ export const ResumeListCard = memo(function ResumeListCard({
           )}
         </AnimatePresence>
 
+        {isAtlasRow ? (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              {selectionMode && (
+                <div className="flex items-center justify-center pt-1" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selected}
+                    onCheckedChange={() => onToggleSelect?.(resume.$id)}
+                    className="w-5 h-5"
+                  />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  {resume.is_primary && (
+                    <Star className="w-4 h-4 text-warning fill-warning shrink-0" />
+                  )}
+                  <h3 className="font-bold text-base truncate flex-1 min-w-0" title={resume.title}>
+                    {resume.title}
+                  </h3>
+                  {showMasterBadge && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary shrink-0">
+                      <Crown className="w-3 h-3" />
+                      Master
+                    </Badge>
+                  )}
+                  {showTailoredBadge && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0">
+                      <GitBranch className="w-3 h-3" />
+                      Tailored
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Edited {safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), { addSuffix: true })}
+                  {resume.template ? ` · ${resume.template.charAt(0).toUpperCase()}${resume.template.slice(1)} template` : ''}
+                </p>
+                {healthScore && (
+                  <p className="text-xs text-muted-foreground mt-1 tabular-nums">
+                    ATS {healthScore.overallScore}%
+                    {healthScore.keywordGaps && healthScore.keywordGaps.length > 0
+                      ? ` · ${healthScore.keywordGaps.length} keyword gap${healthScore.keywordGaps.length === 1 ? '' : 's'}`
+                      : ''}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 rounded-xl min-w-[5.5rem] font-semibold"
+                onClick={() => {
+                  haptics.light();
+                  onEdit(resume.$id);
+                }}
+              >
+                <Edit2 className="w-4 h-4 mr-1.5" />
+                Edit
+              </Button>
+              {onTailor && (
+                <Button
+                  size="sm"
+                  className="h-10 rounded-xl min-w-[5.5rem] font-semibold shadow-soft-sm"
+                  onClick={() => {
+                    haptics.light();
+                    onTailor(resume.$id);
+                  }}
+                >
+                  <Wand2 className="w-4 h-4 mr-1.5" />
+                  Tailor
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="min-w-[44px] min-h-[44px] h-10 w-10"
+                onClick={() => {
+                  haptics.light();
+                  setShowActionsSheet(true);
+                }}
+                aria-label="More options"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        ) : (
         <div className="flex items-center justify-between gap-3">
           {/* Left: Icon and Content */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -350,7 +454,7 @@ export const ResumeListCard = memo(function ResumeListCard({
             )}
             {/* Template thumbnail */}
             {!selectionMode && (
-              <div className="shrink-0 w-10 h-[56px] rounded-lg overflow-hidden border border-border/50 shadow-sm">
+              <div className="shrink-0 w-11 h-[62px] rounded-xl overflow-hidden border border-border shadow-soft-sm ring-1 ring-black/5 dark:ring-white/5">
                 <ErrorBoundary fallback={<div className="w-10 h-[56px] rounded-lg bg-muted" />}>
                   <Suspense fallback={<div className="w-10 h-[56px] rounded-lg bg-muted animate-pulse" />}>
                     <MiniTemplateThumbnail templateId={resume.template || 'modern'} />
@@ -358,13 +462,14 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </ErrorBoundary>
               </div>
             )}
-            {/* Resume Health Score Ring */}
-            <div className="shrink-0">
+            {/* Resume health / ATS score ring */}
+            <div className="shrink-0 flex flex-col items-center gap-1">
               {healthScore ? (
-                <ScoreRing score={healthScore.overallScore} size={44} isLoading={isScoring} />
+                <ScoreRing score={healthScore.overallScore} size={48} isLoading={isScoring} />
               ) : (
-                <ScoreRing score={0} size={44} isLoading />
+                <ScoreRing score={0} size={48} isLoading />
               )}
+              <span className="text-[10px] font-medium text-muted-foreground leading-none">ATS</span>
             </div>
 
             {/* Content */}
@@ -406,7 +511,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     {isSavingRename && <MiniSpinner size={14} className="shrink-0 text-muted-foreground" />}
                   </div>
                 ) : (
-                  <h3 className="font-semibold text-foreground truncate text-base flex-1 min-w-0" title={resume.title}>
+                  <h3 className="text-h3 !text-base truncate flex-1 min-w-0" title={resume.title}>
                     {resume.title}
                   </h3>
                 )}
@@ -526,6 +631,7 @@ export const ResumeListCard = memo(function ResumeListCard({
             <MoreVertical className="h-5 w-5" />
           </Button>
         </div>
+        )}
       </motion.div>
 
       <SetTargetJobSheet

@@ -1,0 +1,76 @@
+import { memo } from 'react';
+import { cn } from '@/lib/utils';
+import type { PlanName } from '@/hooks/usePlan';
+
+interface DashboardPlanBadgeProps {
+  plan: PlanName;
+  trialPlan?: string | null;
+  trialExpiresAt?: string | null;
+  className?: string;
+}
+
+/** Softer plan indicator for dashboard chrome — calmer than global PlanChip. */
+export const DashboardPlanBadge = memo(function DashboardPlanBadge({
+  plan,
+  trialPlan = null,
+  trialExpiresAt = null,
+  className,
+}: DashboardPlanBadgeProps) {
+  if (plan === 'free') return null;
+
+  const isActiveTrial =
+    !!trialPlan &&
+    !!trialExpiresAt &&
+    new Date(trialExpiresAt) > new Date();
+
+  if (isActiveTrial && trialPlan) {
+    const daysLeft = Math.max(
+      0,
+      Math.ceil((new Date(trialExpiresAt!).getTime() - Date.now()) / 86_400_000),
+    );
+    const label = trialPlan === 'premium' ? 'Premium trial' : 'Pro trial';
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium',
+          'border border-amber-200/50 bg-amber-50/80 text-amber-800/90',
+          'dark:border-amber-500/20 dark:bg-amber-950/30 dark:text-amber-200/90',
+          className,
+        )}
+        aria-label={`${label}, ${daysLeft} days left`}
+      >
+        {label}
+      </span>
+    );
+  }
+
+  if (plan === 'premium') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium',
+          'border border-amber-200/40 bg-amber-50/60 text-amber-900/75',
+          'dark:border-amber-500/15 dark:bg-amber-950/25 dark:text-amber-100/80',
+          'shadow-[0_0_12px_-4px_hsl(43_96%_56%/0.35)]',
+          className,
+        )}
+        aria-label="Premium active"
+      >
+        Premium Active
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium',
+        'border border-border/70 bg-muted/30 text-muted-foreground',
+        className,
+      )}
+      aria-label="Pro plan active"
+    >
+      Pro
+    </span>
+  );
+});

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileText, AlertTriangle, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations } from '@/hooks/useResumes';
@@ -342,8 +344,8 @@ export default function UploadPage() {
       </header>
 
       {lowConfidenceFields.length > 0 && !isProcessing && !showImportReview && (
-        <div className="mx-4 mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        <div className="mx-4 mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm text-foreground">
               <span className="font-medium">Please double-check these fields:</span>{' '}
@@ -354,24 +356,27 @@ export default function UploadPage() {
       )}
 
       {showParseRecoveryBanner && (
-        <div className="mx-4 mt-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+        <div className="mx-4 mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/25 flex items-start gap-3 shadow-soft-sm">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold text-sm text-foreground mb-1">We had trouble reading your document</h4>
             <p className="text-sm text-muted-foreground mb-3">{parseRecoveryWarnings.join(' ')}</p>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted transition-colors"
+            <div className="flex flex-col xs:flex-row gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-[44px] flex-1 sm:flex-none"
                 onClick={() => { setShowParseRecoveryBanner(false); navigate('/upload'); }}
               >
                 Try a different file
-              </button>
-              <button
-                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              </Button>
+              <Button
+                size="sm"
+                className="min-h-[44px] flex-1 sm:flex-none"
                 onClick={() => setShowParseRecoveryBanner(false)}
               >
                 Fill in manually
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -417,28 +422,33 @@ export default function UploadPage() {
                 {isProcessing ? (
                   <UploadProgressSteps currentStep={parseStep} fileName={fileName ?? undefined} />
                 ) : (
-                  <div className="flex flex-col items-center bg-background rounded-2xl px-6 py-7 w-full max-w-xs">
+                  <div className="flex flex-col items-center w-full max-w-sm px-2 sm:px-4 py-2">
                     <motion.div
-                      className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mb-5"
-                      animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
-                      style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.4)' }}
+                      className="w-20 h-20 rounded-full bg-primary shadow-soft-md flex items-center justify-center mb-5"
+                      animate={isDragging ? { scale: 1.06 } : { scale: 1 }}
+                      transition={{ duration: 0.2 }}
                     >
                       {isDragging ? (
-                        <FileText className="w-10 h-10 text-primary-foreground" />
+                        <FileText className="w-10 h-10 text-primary-foreground" aria-hidden />
                       ) : (
-                        <Upload className="w-10 h-10 text-primary-foreground" />
+                        <Upload className="w-10 h-10 text-primary-foreground" aria-hidden />
                       )}
                     </motion.div>
-                    <h2 className="text-xl font-display font-semibold mb-2 text-center">
-                      {isDragging ? 'Drop to Upload' : 'Upload Your Resume'}
+                    <h2 className="text-h2 text-foreground mb-2 text-center">
+                      {isDragging ? 'Drop to upload' : 'Upload your resume'}
                     </h2>
-                    <p className="text-muted-foreground text-center text-sm mb-4 max-w-[260px]">
-                      Tap to pick your CV — we'll detect the format
+                    <p className="text-muted-foreground text-center text-sm mb-4 max-w-[280px] leading-relaxed">
+                      {isDragging
+                        ? 'Release to start importing'
+                        : 'Tap to browse or drag a file here — we detect the format automatically'}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <FileText className="w-4 h-4" />
-                      <span>PDF, Word, Image, JSON, HTML • max 10MB</span>
-                    </div>
+                    <span className="inline-flex items-center justify-center mb-4 w-full sm:w-auto min-w-[200px] min-h-[44px] rounded-md bg-primary text-primary-foreground text-sm font-semibold px-4 shadow-soft-sm pointer-events-none">
+                      Browse files
+                    </span>
+                    <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground text-center">
+                      <FileText className="w-4 h-4 shrink-0" aria-hidden />
+                      <span>PDF, Word, image, JSON, HTML · max 10MB</span>
+                    </p>
                   </div>
                 )}
               </UploadZone>
@@ -446,7 +456,7 @@ export default function UploadPage() {
               {/* URL import */}
               {!isProcessing && (
                 <motion.form
-                  className="mt-5 p-4 rounded-xl bg-muted/30 border border-border"
+                  className="mt-5 p-4 rounded-xl bg-card border border-border shadow-soft-sm"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
@@ -455,28 +465,29 @@ export default function UploadPage() {
                     handleUrlImport(urlInput);
                   }}
                 >
-                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                    <LinkIcon className="w-4 h-4 text-primary" />
+                  <label htmlFor="resume-url-input" className="flex items-center gap-2 text-label text-foreground mb-2">
+                    <LinkIcon className="w-4 h-4 text-primary shrink-0" aria-hidden />
                     Or paste a resume URL
                   </label>
-                  <div className="flex gap-2">
-                    <input
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="resume-url-input"
                       type="url"
                       inputMode="url"
                       value={urlInput}
                       onChange={(e) => { setUrlInput(e.target.value); if (urlError) setUrlError(null); }}
                       placeholder="https://example.com/my-resume"
-                      className="flex-1 min-w-0 px-3 py-2 text-sm rounded-md bg-background border border-border outline-none focus:ring-2 focus:ring-primary"
+                      className="flex-1 min-w-0"
                       aria-label="Resume URL"
                       disabled={isProcessing}
                     />
-                    <button
+                    <Button
                       type="submit"
-                      className="px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                      className="min-h-[44px] sm:min-w-[120px] shrink-0"
                       disabled={isProcessing || !urlInput.trim()}
                     >
-                      {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Import'}
-                    </button>
+                      {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : 'Import'}
+                    </Button>
                   </div>
                   {urlError && (
                     <p className="mt-2 text-xs text-destructive">{urlError}</p>
@@ -489,19 +500,31 @@ export default function UploadPage() {
 
               {/* Tips */}
               {!isProcessing && (
-                <motion.div
-                  className="mt-5 p-4 rounded-xl bg-muted/50 border border-border"
+                <motion.section
+                  className="mt-5 p-4 rounded-xl bg-card border border-border shadow-soft-sm"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
+                  aria-labelledby="upload-tips-heading"
                 >
-                  <h3 className="font-medium text-sm mb-2">💡 For best results</h3>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>✓ Text-based PDFs & Word docs work best</li>
-                    <li>✓ Keep formatting simple</li>
-                    <li>✓ Photos & scans? We'll use OCR</li>
+                  <h3 id="upload-tips-heading" className="text-label text-foreground mb-3">
+                    Tips for best results
+                  </h3>
+                  <ul className="text-sm text-muted-foreground space-y-3">
+                    <li className="flex items-start gap-3">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                      Text-based PDFs and Word docs parse fastest
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                      Simple formatting improves field detection
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                      Photos and scans are supported via OCR
+                    </li>
                   </ul>
-                </motion.div>
+                </motion.section>
               )}
             </motion.div>
           )}

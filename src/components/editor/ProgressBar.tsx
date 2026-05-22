@@ -11,7 +11,7 @@ function getProgressColor(progress: number): string {
   return 'hsl(0, 80%, 55%)';
 }
 
-const CONFETTI_COLORS = ['bg-success', 'bg-primary', 'bg-warning', 'bg-amber-400', 'bg-success', 'bg-primary', 'bg-warning', 'bg-amber-400'];
+const CONFETTI_COLORS = ['bg-success', 'bg-primary', 'bg-warning', 'bg-secondary', 'bg-success', 'bg-primary', 'bg-warning', 'bg-secondary'];
 const CONFETTI_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
 interface ProgressBarProps {

@@ -1220,12 +1220,18 @@ export default function EditorPage() {
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
           {/* Combined single-row nav: view mode toggle + section pills */}
-          <div className="shrink-0 flex items-center border-b border-border bg-background">
+          <div className="shrink-0 flex items-center border-b border-border bg-card/95 backdrop-blur-sm">
             {/* Compact Edit / Preview / ATS pills */}
-            <div className="flex shrink-0 gap-0.5 px-2 py-1.5">
+            <div
+              className="flex shrink-0 gap-1 px-2 py-1.5"
+              role="tablist"
+              aria-label="Editor view"
+            >
               {(['editor', 'preview', 'ats'] as const).map((tab) => (
                 <button
                   key={tab}
+                  role="tab"
+                  aria-selected={mobileEditorTab === tab}
                   disabled={aiEnhancingCount > 0 && tab !== 'editor'}
                   onClick={() => {
                     if (aiEnhancingCount > 0 && tab !== 'editor') {
@@ -1236,10 +1242,10 @@ export default function EditorPage() {
                     haptics.light();
                   }}
                   className={cn(
-                    'px-2.5 min-h-[44px] rounded-full text-xs font-medium border transition-colors whitespace-nowrap touch-manipulation active:scale-95',
+                    'px-3 min-h-[44px] rounded-full text-xs font-semibold border transition-colors whitespace-nowrap touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
                     mobileEditorTab === tab
-                      ? 'bg-primary/15 border-primary/40 text-primary'
-                      : 'border-border text-muted-foreground hover:bg-muted',
+                      ? 'bg-primary border-primary text-primary-foreground shadow-soft-sm'
+                      : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
                     aiEnhancingCount > 0 && tab !== 'editor' && 'opacity-40 cursor-not-allowed'
                   )}
                 >
@@ -1307,7 +1313,7 @@ export default function EditorPage() {
               <EditorSectionContent {...editorSectionProps} />
             </div>
             {/* Pinned nav — undo/redo + prev/next in a single row */}
-            <div className="shrink-0 border-t border-border bg-background">
+            <div className="shrink-0 border-t border-border bg-card/95 backdrop-blur-sm">
               <div className="flex items-center gap-1.5 px-3 pt-2 pb-[calc(5rem+env(safe-area-inset-bottom))]">
                 <button
                   onClick={() => { haptics.light(); handleUndo(); }}
@@ -1340,7 +1346,12 @@ export default function EditorPage() {
             {mobileEditorTab === 'preview' && (
               <>
                 <div className="flex-1 min-h-0 overflow-hidden">
-                  <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+                  <Suspense fallback={
+                    <div className="flex-1 flex flex-col items-center justify-center gap-2 h-full bg-muted/30">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden />
+                      <p className="text-sm text-muted-foreground">Loading preview…</p>
+                    </div>
+                  }>
                     <LivePreviewPanel highlightSection={activeTab} />
                   </Suspense>
                 </div>
@@ -1353,7 +1364,7 @@ export default function EditorPage() {
                 <div className="shrink-0 px-4 pt-3 pb-2">
                   <button
                     onClick={() => { haptics.light(); setToolsSubView('list'); setShowToolsSheet(true); }}
-                    className="flex items-center gap-2.5 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[48px] px-4"
+                    className="flex items-center gap-2.5 w-full rounded-xl border border-border bg-card shadow-soft-sm hover:bg-muted hover:border-primary/25 active:scale-[0.98] transition-all touch-manipulation min-h-[48px] px-4"
                   >
                     <Sparkles className="w-4 h-4 text-primary shrink-0" />
                     <span className="text-sm font-medium flex-1 text-left">AI Tools</span>
@@ -1361,7 +1372,12 @@ export default function EditorPage() {
                   </button>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
-                  <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+                  <Suspense fallback={
+                    <div className="flex-1 flex flex-col items-center justify-center gap-2 h-full bg-muted/30">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden />
+                      <p className="text-sm text-muted-foreground">Loading ATS view…</p>
+                    </div>
+                  }>
                     <ATSParserPreview />
                   </Suspense>
                 </div>
@@ -1403,28 +1419,47 @@ export default function EditorPage() {
           <ResizablePanel id="editor-preview" order={2} defaultSize={45} minSize={25}>
             <div className="flex flex-col h-full min-h-0">
               {/* Visual / ATS toggle */}
-              <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-background/80 backdrop-blur-sm">
+              <div
+                className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-card/95 backdrop-blur-sm"
+                role="tablist"
+                aria-label="Preview mode"
+              >
                 <button
+                  type="button"
+                  role="tab"
+                  aria-selected={desktopPreviewMode === 'visual'}
                   onClick={() => setDesktopPreviewMode('visual')}
                   className={cn(
-                    'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                    desktopPreviewMode === 'visual' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    'px-3 py-1.5 min-h-[36px] rounded-full text-xs font-semibold transition-colors touch-manipulation',
+                    desktopPreviewMode === 'visual'
+                      ? 'bg-primary text-primary-foreground shadow-soft-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   )}
                 >
                   Visual
                 </button>
                 <button
+                  type="button"
+                  role="tab"
+                  aria-selected={desktopPreviewMode === 'ats'}
                   onClick={() => setDesktopPreviewMode('ats')}
                   className={cn(
-                    'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                    desktopPreviewMode === 'ats' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    'px-3 py-1.5 min-h-[36px] rounded-full text-xs font-semibold transition-colors touch-manipulation',
+                    desktopPreviewMode === 'ats'
+                      ? 'bg-primary text-primary-foreground shadow-soft-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   )}
                 >
                   ATS View
                 </button>
               </div>
               <div className="flex-1 min-h-0">
-                <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+                <Suspense fallback={
+                  <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/30">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden />
+                    <p className="text-sm text-muted-foreground">Loading preview…</p>
+                  </div>
+                }>
                   {desktopPreviewMode === 'visual' ? (
                     <LivePreviewPanel
                       onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}

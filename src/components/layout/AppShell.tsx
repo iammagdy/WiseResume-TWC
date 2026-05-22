@@ -1,15 +1,13 @@
 import { useLocation, useOutlet } from 'react-router-dom';
-import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { preloadLazy } from '@/lib/preloadLazy';
-import { MessageCircle, X, Sun, Moon } from 'lucide-react';
-import { useTheme } from '@/hooks/use-theme';
-import { useAuth } from '@/hooks/useAuth';
+import { MessageCircle, X } from 'lucide-react';
 import { useBottomSheetOpen } from '@/context/BottomSheetContext';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
+import { MobileTopBar } from './MobileTopBar';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { KeyboardProvider } from '@/context/KeyboardContext';
 import { ShortcutHelpSheet } from './ShortcutHelpSheet';
@@ -22,7 +20,6 @@ const SlowConnectionBanner = lazy(() => import('./SlowConnectionBanner').then((m
 import { SwipeBackWrapper } from './SwipeBackWrapper';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
-import { getPageTitle } from '@/lib/pageTitles';
 import { shouldExitOnBack } from '@/lib/navigation';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { getMobileShellLayout } from './appShellLayout';
@@ -47,8 +44,6 @@ export function AppShell() {
 function AppShellInner() {
   const location = useLocation();
   const currentOutlet = useOutlet();
-  const { isDark, toggleTheme } = useTheme();
-  const { isAuthenticated, signOut } = useAuth();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
   const isRootRoute = shouldExitOnBack(location.pathname);
@@ -84,7 +79,10 @@ function AppShellInner() {
   }, []);
 
   return (
-    <div className="app-theme h-[100dvh] overflow-hidden flex flex-col bg-background relative">
+    <div
+      data-product="wiseresume"
+      className="app-theme h-[100dvh] overflow-hidden flex flex-col bg-background relative"
+    >
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:m-2"
@@ -95,34 +93,7 @@ function AppShellInner() {
       <Suspense fallback={null}><SlowConnectionBanner /></Suspense>
       {!isEditorRoute && <Suspense fallback={null}><GuestSaveBanner /></Suspense>}
       {showBottomNav && !isEditorRoute && !location.pathname.startsWith('/dashboard') && (
-        <header className="lg:hidden relative h-12 border-b border-border shrink-0">
-          <GlassSurface className="absolute inset-0" />
-          <div className="relative z-[1] flex items-center px-edge pt-safe h-full">
-            <span className="text-sm font-bold text-primary tracking-tight">WiseResume</span>
-            {(() => {
-              const pageTitle = getPageTitle(location.pathname);
-              return pageTitle && pageTitle !== 'Home' ? (
-                <span className="ml-2 min-w-0 truncate text-xs text-muted-foreground font-medium">
-                  / {pageTitle}
-                </span>
-              ) : null;
-            })()}
-            <div className="ml-auto">
-              <button
-                onClick={toggleTheme}
-                className="relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
-                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                <Sun
-                  className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`}
-                />
-                <Moon
-                  className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-0 -rotate-90' : 'opacity-100 rotate-0'}`}
-                />
-              </button>
-            </div>
-          </div>
-        </header>
+        <MobileTopBar />
       )}
       {showBottomNav && <DesktopNav />}
       <main
@@ -131,8 +102,8 @@ function AppShellInner() {
           "flex-1 flex flex-col min-h-0 overflow-hidden",
           showBottomNav && !isEditorRoute && (
             mobileShellLayout.showAskFab
-              ? "pb-[8.5rem] lg:pb-0"
-              : "pb-[4.5rem] lg:pb-0"
+              ? "pb-[8.75rem] lg:pb-0"
+              : "pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0"
           )
         )}
       >
