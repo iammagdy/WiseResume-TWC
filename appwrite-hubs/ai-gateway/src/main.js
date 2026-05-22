@@ -495,7 +495,7 @@ function schemaPrompt(featureName, opts) {
     'validate-tailor': '{"score":0,"matched_keywords":[],"missing_keywords":[],"issues":[],"strengths":[],"verdict":"average"}',
     'generate-fix-suggestions': '{"suggestions":[{"type":"add_skill","section":"skills","after":"","reason":""}]}',
     'generate-portfolio-bio': '{"bio":"","metaTitle":"","metaDescription":"","translations":{}}',
-    'career-assessment': '{"summary":"","recommendedRoles":[],"strengths":[],"gaps":[],"milestones":[]}',
+    'career-assessment': '{"currentLevel":"","yearsExperience":0,"primaryField":"","nextRoles":[{"title":"","matchScore":0,"requiredSkills":[],"existingSkills":[],"timeToReady":"","description":""}],"skillGaps":[{"skill":"","priority":"critical","forRoles":[],"suggestion":"","youtubeQuery":""}],"industryAlternatives":[{"industry":"","role":"","transferableSkills":[],"newSkillsNeeded":[],"salaryComparison":"similar"}],"actionPlan":[{"step":1,"action":"","timeframe":"","impact":"high"}],"strengthSummary":"","riskFactors":[]}',
     'company-briefing': '{"briefing":{"overview":"","talkingPoints":[],"risks":[],"questions":[]}}',
     'suggest-template': '{"templateId":"modern","reason":""}',
     'generate-question-bank': '{"categories":[]}',
@@ -633,12 +633,73 @@ function buildMessages(featureName, opts) {
     return [
       {
         role: 'system',
-        content: 'You are WiseResume AI Studio. Answer the requested tool task directly. If the user payload asks for JSON, return only JSON; otherwise return concise useful content.',
+        content: 'You are WiseResume AI Studio. Complete the task described in the user payload. Return ONLY a valid JSON object — no markdown fences, no prose, no explanation outside the JSON. Output strictly the JSON object with the exact fields the task requires.',
       },
       {
         role: 'user',
         content: JSON.stringify(opts).slice(0, 60000),
       },
+    ];
+  }
+
+  if (featureName === 'smart-fit-rewrite') {
+    const candidates = Array.isArray(opts.candidates) ? opts.candidates : [];
+    const jdSnippet = opts.jobDescription
+      ? `\n\nJob description context (preserve relevant keywords): ${String(opts.jobDescription).slice(0, 500)}`
+      : '';
+    return [
+      {
+        role: 'system',
+        content:
+          `You are a professional resume editor. Rewrite each sentence to be shorter and more impactful while preserving all protected terms.${jdSnippet}\n\n` +
+          'Return ONLY a JSON array — no markdown, no prose — with one object per input candidate:\n' +
+          '[{"id":"<id>","text":"<rewritten>","valid":true,"reason":"","missingTokens":[]}]\n\n' +
+          'Rules:\n' +
+          '- "valid": true if you successfully shortened it; false if unable to meaningfully shorten\n' +
+          '- Preserve every word listed in the "preserve" array exactly as written\n' +
+          '- Target length is in "targetLength" (characters) — aim to be at or below this\n' +
+          '- If already concise, set valid:false with reason "already concise"',
+      },
+      {
+        role: 'user',
+        content: JSON.stringify(
+          candidates.map(c => ({
+            id: c.id,
+            text: c.text,
+            preserve: Array.isArray(c.preserve)
+              ? c.preserve.map(p => (typeof p === 'string' ? p : (p && p.text) || '')).filter(Boolean)
+              : [],
+            targetLength: c.targetLength,
+          }))
+        ).slice(0, 8000),
+      },
+    ];
+  }
+
+  if (featureName === 'ask-portfolio') {
+    const question = asString(opts.question) || 'Hello';
+    const history = Array.isArray(opts.conversationHistory) ? opts.conversationHistory.slice(-6) : [];
+    const ctx = (opts.profileContext && typeof opts.profileContext === 'object') ? opts.profileContext : {};
+    const ownerName = asString(ctx.fullName || ctx.name) || 'this professional';
+    const profileLines = [
+      ctx.fullName    && `Name: ${ctx.fullName}`,
+      ctx.title       && `Title / headline: ${ctx.title}`,
+      ctx.location    && `Location: ${ctx.location}`,
+      ctx.recentRole  && `Most recent role: ${ctx.recentRole}`,
+      Array.isArray(ctx.skills) && ctx.skills.length > 0 && `Skills: ${ctx.skills.slice(0, 20).join(', ')}`,
+      ctx.bio         && `Bio: ${String(ctx.bio).slice(0, 300)}`,
+    ].filter(Boolean).join('\n');
+    return [
+      {
+        role: 'system',
+        content:
+          `You are a friendly AI assistant representing ${ownerName}'s professional portfolio. ` +
+          'Answer visitor questions concisely and helpfully based only on the profile information below. ' +
+          'Do not make up details not present in the profile.\n\n' +
+          `=== PROFILE ===\n${profileLines || 'No profile information provided.'}\n=== END ===`,
+      },
+      ...history,
+      { role: 'user', content: question },
     ];
   }
 
@@ -786,7 +847,8 @@ let FEATURE_ROUTES = {
   'parse-job':                  { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'optimize-for-linkedin':      { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'generate-question-bank':     { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-  'company-briefing':           { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+  'company-briefing':           { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  'ask-portfolio':              { provider: 'groq', model: 'llama-3.3-70b-versatile' },
 };
 
 // ─── Route config cache (warm-instance TTL avoids per-request DB fetch) ──────
@@ -1156,6 +1218,29 @@ module.exports = async ({ req, res, log, error }) => {
           const structuredResponse = parseAgenticChatResponse(result.content);
           await flushDD();
           return res.json({ status: 'success', data: structuredResponse });
+        }
+
+        if (featureName === 'smart-fit-rewrite') {
+          try {
+            const parsed = parseJsonObject(result.content);
+            const outcomes = Array.isArray(parsed)
+              ? parsed
+              : (Array.isArray(parsed.outcomes) ? parsed.outcomes : []);
+            await flushDD();
+            return res.json({ status: 'success', data: { success: true, outcomes } });
+          } catch (parseErr) {
+            error(`smart-fit-rewrite: malformed JSON from ${candidate.provider}: ${parseErr.message}`);
+            if (i === candidates.length - 1) {
+              await flushDD();
+              return res.json({ status: 'error', message: 'AI rewrite returned malformed data.' }, 500);
+            }
+            continue;
+          }
+        }
+
+        if (featureName === 'ask-portfolio') {
+          await flushDD();
+          return res.json({ status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false } });
         }
 
         break;

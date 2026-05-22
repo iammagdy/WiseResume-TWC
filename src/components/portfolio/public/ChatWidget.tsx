@@ -124,6 +124,9 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     setLoading(true);
 
     try {
+      const recentRole = Array.isArray(resume.experience) && resume.experience.length > 0
+        ? `${(resume.experience[0] as Record<string, string>).position || ''} at ${(resume.experience[0] as Record<string, string>).company || ''}`.trim()
+        : undefined;
       const { data, error } = await appwriteFunctions.invoke<{
         answer?: string;
         isFallback?: boolean;
@@ -135,6 +138,16 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
           question: q,
           conversationHistory: messages.slice(-6),
           sessionToken,
+          profileContext: {
+            fullName: profile.fullName,
+            title: (profile as Record<string, unknown>).title as string | undefined,
+            location: (profile as Record<string, unknown>).location as string | undefined,
+            bio: typeof (profile as Record<string, unknown>).bio === 'string'
+              ? ((profile as Record<string, unknown>).bio as string).slice(0, 300)
+              : undefined,
+            skills: Array.isArray(resume.skills) ? (resume.skills as string[]).slice(0, 20) : [],
+            recentRole: recentRole || undefined,
+          },
         },
       });
 
