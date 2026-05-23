@@ -2,6 +2,100 @@
 
 ---
 
+## Session Log - 2026-05-23 (Navigation Audit + Mobile Sidebar Fix)
+
+### Overview
+Full audit of all routes, navigation links, and page-opening flows. Found 2 bugs and fixed both. All routes verified healthy, no broken links.
+
+---
+
+### Fix 1 — FeatureGate missing toast import (ReferenceError crash)
+
+**Root cause:** `FeatureGate` in `AppInterior.tsx` (line 179) calls `toast.info("This feature isn't available right now.")` but `toast` was never imported in that file. Result: `ReferenceError: toast is not defined` when an admin disables any feature flag (interview, applications, portfolio, cover-letters, career, ai-studio) and a user navigates to that route.
+
+**Affected routes when feature disabled:** `/interview`, `/applications`, `/application/:id`, `/portfolio`, `/cover-letters`, `/cover-letter/new`, `/cover-letter/edit/:id`, `/career`, `/ai-studio`, `/ai-studio/:tool`
+
+**Note:** All features default to `true` in `useAppSettings`, so this only fires in admin-disabled scenarios — not a constant crash but a guaranteed one when ops disables a feature.
+
+**Fix:** Added `import { toast } from 'sonner'` to `AppInterior.tsx`.
+
+**Files changed:** `src/AppInterior.tsx`
+
+---
+
+### Fix 2 — Mobile sidebar opens in icon-only (collapsed) mode
+
+**Root cause:** `AppWorkspaceSidebar` reads `collapsed` from `appSidebarStore` (persisted in localStorage). When `forceVisible=true` (mobile Sheet via `AppMobileSidebarSheet`), the component still applied `app-workspace-sidebar--collapsed` CSS class and all icon-only layout — leaving the mobile sidebar in icon-only mode (4.25rem wide) if the user had previously collapsed the desktop sidebar. Navigation labels were hidden and Portfolio was not visually discoverable.
+
+**Fix:** Added `const effectiveCollapsed = forceVisible ? false : collapsed` immediately after the store read. Replaced all 18 render-side uses of `collapsed` with `effectiveCollapsed`. The stored desktop preference is unchanged — re-opening on desktop still respects the user's collapse state.
+
+**Files changed:** `src/components/layout/AppWorkspaceSidebar.tsx`
+
+---
+
+### Audit findings (no action needed)
+
+- All 50+ routes in `AppInterior.tsx` map to existing page files ✓
+- All sidebar links (`/dashboard`, `/editor`, `/ai-studio`, `/applications`, `/portfolio`, `/settings`) resolve correctly ✓
+- All More-panel links in `BottomTabBar` point to valid routes ✓ (component is unused/dead code — navigation is sidebar-only)
+- `AIStudioPage` `openToolById` dispatch covers all 20+ tools with correct handlers ✓
+- Feature flags all default to `true` — FeatureGate only fires on admin-disabled routes
+
+### Where We Stopped
+- Both fixes committed and pushed to `main` (commit `804a3350`)
+- `npx tsc --noEmit` — zero errors
+- Mobile sidebar verified in browser: opens expanded with all 6 nav items + labels visible
+
+---
+
+## Session Log - 2026-05-23 (AI Tools Delivery Audit + 3 Fixes)
+
+### Overview
+Full audit of all AI tools for broken endpoints and incorrect output delivery. Found 3 real bugs (2 delivery issues + 1 UX race condition). All fixed and pushed.
+
+---
+
+### Fix 1 — ChatWidget: blank assistant message on app-level error
+
+**Root cause:** `ChatWidget.tsx` (`ask-portfolio` Appwrite function call) only checked the network-level `error` object, not `data?.error` (app-level body error). If the function returned `{ error: "some message" }` without an HTTP-level error, `data?.answer` was undefined and the component added `{ role: 'assistant', content: '' }` — a blank bubble.
+
+**Fix:** Added `if (data?.error) throw new Error(data.error)` and `if (!data?.answer) throw new Error('Empty response')` before setting the assistant message.
+
+**Files changed:** `src/components/portfolio/public/ChatWidget.tsx`
+
+---
+
+### Fix 2 — BoostAllExperienceSheet: false "Could not analyze" error panel on privacy dismissal
+
+**Root cause:** `BoostAllExperienceSheet.tsx` called `enhance('ats_improve', ...)` which returns `null` when the user dismisses the AI Privacy Disclosure. The component treated `null` as a failure and called `setError(true)`, showing "Could not analyze your experience. Please try again." — a false error.
+
+**Fix:** Changed the `!result` branch to return silently (`return;`) instead of `setError(true)`. Privacy dismissal now resets state cleanly with no error panel shown.
+
+**Files changed:** `src/components/editor/BoostAllExperienceSheet.tsx`
+
+---
+
+### Fix 3 — CoverLetterNewPage: no loading state on PDF download button
+
+**Root cause:** `handleDownloadPDF` had no guard against double-clicks. During an async PDF generation (`downloadCoverLetterPDF` can take 2–5 seconds), rapid clicks could spawn multiple simultaneous PDF renders.
+
+**Fix:** Added `const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)`. `handleDownloadPDF` early-returns if already downloading, sets the flag before try, clears in finally. Download button shows `<MiniSpinner>` and is `disabled` while downloading.
+
+**Files changed:** `src/pages/CoverLetterNewPage.tsx`
+
+---
+
+### Audit findings (no action needed)
+
+- `useAIEnhance` shape validation (`shape.reason` → `AIError`) correctly surfaces as "Failed to enhance content — please try again." via `aiErrorToastMessage` — intentional, no fix needed
+- `enhance()` returning `null` in `AIEnhanceSheet` batch and `useAIEnhance` are both intentional privacy-dismissal behaviors communicated by the disclosure UI
+
+### Where We Stopped
+- All 3 fixes committed and pushed to `main` (commit `65118aee`)
+- No Appwrite function redeployments required — all fixes are frontend-only
+
+---
+
 ## Session Log - 2026-05-23 (Export Dialog Polish + Editor Section Card Redesign)
 
 ### Overview
