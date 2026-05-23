@@ -5,6 +5,7 @@ import {
   PORTFOLIO_DRAFT_EXTRAS_KEY,
   PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY,
   mergeDraftIntoPortfolioExtras,
+  readLocalPortfolioDraft,
   readPortfolioDraftFromProfileDoc,
 } from '@/lib/portfolioDraftStorage';
 import { useAuth } from './useAuth';
@@ -137,6 +138,34 @@ function stringifyJsonField(value: Record<string, unknown> | null): string | nul
   return JSON.stringify(value);
 }
 
+const LIVE_PROFILE_ATTRIBUTES = new Set([
+  'user_id',
+  'email',
+  'full_name',
+  'username',
+  'avatar_url',
+  'onboarding_completed',
+  'job_title',
+  'industry',
+  'career_level',
+  'location',
+  'linkedin_url',
+  'portfolio_bio',
+  'portfolio_enabled',
+  'profile_completed',
+  'display_name',
+  'plan',
+  'country',
+  'is_suspended',
+  'suspension_reason',
+]);
+
+function filterProfilePayload(data: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([key]) => LIVE_PROFILE_ATTRIBUTES.has(key)),
+  );
+}
+
 export function useProfile(userId: string | undefined) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -155,6 +184,7 @@ export function useProfile(userId: string | undefined) {
       if (!doc) return null;
 
       const draftFields = readPortfolioDraftFromProfileDoc(doc as Record<string, unknown>);
+      const localDraftFields = readLocalPortfolioDraft(userId);
 
       return {
         id: doc.$id as string,
@@ -191,8 +221,8 @@ export function useProfile(userId: string | undefined) {
         portfolioExtras: parseJsonField(doc.portfolio_extras),
         availabilityHeadline: (doc.availability_headline as string | null) ?? null,
         portfolioSyncMode: (doc.portfolio_sync_mode as string | null) ?? null,
-        portfolioDraft: draftFields.portfolioDraft,
-        portfolioDraftSavedAt: draftFields.portfolioDraftSavedAt,
+        portfolioDraft: localDraftFields.portfolioDraft ?? draftFields.portfolioDraft,
+        portfolioDraftSavedAt: localDraftFields.portfolioDraftSavedAt ?? draftFields.portfolioDraftSavedAt,
         portfolioResumeId: (doc.portfolio_resume_id as string | null) ?? null,
         phoneNumber: (doc.phone_number as string | null) ?? null,
         views: (doc.views as number) ?? 0,
@@ -275,11 +305,15 @@ export function useProfile(userId: string | undefined) {
     if (updates.digestEnabled !== undefined) data.digest_enabled = updates.digestEnabled;
     if (updates.hiredAt !== undefined) data.hired_at = updates.hiredAt;
 
+    const safeData = filterProfilePayload(data);
+
     if (existing.total > 0) {
-      await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, existing.documents[0].$id, data);
+      if (Object.keys(safeData).length > 0) {
+        await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, existing.documents[0].$id, safeData);
+      }
     } else {
       await databases.createDocument(DATABASE_ID, COLLECTIONS.profiles, ID.unique(), {
-        ...data,
+        ...safeData,
         user_id: userId,
         email: user?.email ?? null,
       });

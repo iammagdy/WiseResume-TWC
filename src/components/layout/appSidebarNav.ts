@@ -2,7 +2,7 @@ import {
   LayoutDashboard,
   FileText,
   Wand2,
-  Sparkles,
+  Globe,
   BarChart3,
   Settings,
   type LucideIcon,
@@ -51,7 +51,7 @@ export const APP_SIDEBAR_LINKS: AppSidebarNavItem[] = [
   {
     path: '/portfolio',
     label: 'Portfolio',
-    icon: Sparkles,
+    icon: Globe,
     match: ['/portfolio'],
   },
   {

@@ -208,11 +208,14 @@ export function SetupTab(props: SetupTabProps) {
           <Select value={selectedResumeId} onValueChange={onSelectedResumeIdChange}>
             <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
             <SelectContent>
-              {resumes.map(r => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.title}{r.is_primary ? ' ★' : ''}
-                </SelectItem>
-              ))}
+              {resumes.map((r, index) => {
+                const label = `${r.title}${r.is_primary ? ' primary' : ''}`;
+                return (
+                  <SelectItem key={`${r.id}-${index}`} value={r.id}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>

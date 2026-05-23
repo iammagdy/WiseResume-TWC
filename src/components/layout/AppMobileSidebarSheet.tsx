@@ -49,13 +49,14 @@ export function AppMobileSidebarSheet(props: AppMobileSidebarSheetProps) {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
-          className="p-0 w-[min(17rem,88vw)] border-r border-border/50 [&>button]:hidden"
+          hideCloseButton
+          className="overflow-hidden !w-[min(var(--app-sidebar-width),86vw)] !max-w-[min(var(--app-sidebar-width),86vw)] !rounded-r-none border-r border-border/50 bg-background p-0 [&>div:first-child]:h-full [&>div:first-child]:min-h-0"
         >
           <div className="h-full flex flex-col min-h-0">
             <AppWorkspaceSidebar
               {...props}
               forceVisible
-              className="w-full max-w-none h-full"
+              className="h-full w-full !max-w-none"
             />
           </div>
         </SheetContent>

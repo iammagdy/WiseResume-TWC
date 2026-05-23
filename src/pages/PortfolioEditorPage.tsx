@@ -38,6 +38,8 @@ import { PortfolioHistorySheet } from '@/components/portfolio/PortfolioHistorySh
 import { usePortfolioHistory } from '@/hooks/usePortfolioHistory';
 import { validateCustomDomain } from '@/hooks/usePublicPortfolio';
 import {
+  clearLocalPortfolioDraft,
+  getMergedPortfolioDraftBytes,
   parsePortfolioExtrasField,
   persistPortfolioDraftToProfile,
 } from '@/lib/portfolioDraftStorage';
@@ -417,12 +419,18 @@ export default function PortfolioEditorPage() {
         if (profileDocs.total > 0) {
           const profileDoc = profileDocs.documents[0] as Record<string, unknown>;
           const existingExtras = parsePortfolioExtrasField(profileDoc.portfolio_extras);
-          await persistPortfolioDraftToProfile(
-            profileDoc.$id as string,
-            existingExtras,
-            parsed,
-            now,
-          );
+          const mergedDraftBytes = getMergedPortfolioDraftBytes(existingExtras, parsed, now);
+          if (mergedDraftBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
+            if (!draftOverflowToastedRef.current) {
+              draftOverflowToastedRef.current = true;
+              toast.warning(
+                `Draft is too large to autosave (${Math.round(mergedDraftBytes / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Your edits are still here, but they won't be restored after a refresh until you trim some services, case studies, testimonials, or translations.`,
+                { duration: 8000 }
+              );
+            }
+            return;
+          }
+          await persistPortfolioDraftToProfile(profileDoc.$id as string, user.id, existingExtras, parsed, now);
           lastDraftPersistedSnapshotRef.current = currentSnapshot;
           queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
             old ? { ...old, portfolioDraft: parsed, portfolioDraftSavedAt: now } : old
@@ -778,8 +786,16 @@ export default function PortfolioEditorPage() {
       if (profileDocs.total === 0) throw new Error('Profile not found');
       const profileDoc = profileDocs.documents[0] as Record<string, unknown>;
       const existingExtras = parsePortfolioExtrasField(profileDoc.portfolio_extras);
+      const mergedDraftBytes = getMergedPortfolioDraftBytes(existingExtras, snapshot, now);
+      if (mergedDraftBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
+        toast.error(
+          `Draft is too large to save (${Math.round(mergedDraftBytes / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Trim some services, case studies, testimonials, or translations.`
+        );
+        return;
+      }
       await persistPortfolioDraftToProfile(
         profileDoc.$id as string,
+        user.id,
         existingExtras,
         snapshot,
         now,
@@ -986,6 +1002,7 @@ export default function PortfolioEditorPage() {
       (updates as Record<string, unknown>).portfolioDraftSavedAt = null;
 
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
+      clearLocalPortfolioDraft(user?.id);
 
       // ── Apply password changes via Appwrite portfolio_settings upsert ──
       // The raw password is hashed client-side with SHA-256 before being

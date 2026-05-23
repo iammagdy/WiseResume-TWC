@@ -9,9 +9,17 @@
 }
 
 .portfolio-editor-workspace__scroll {
-  max-width: 56rem;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (min-width: 1024px) {
+  .portfolio-editor-workspace__scroll {
+    padding-left: clamp(1.5rem, 3vw, 3rem);
+    padding-right: clamp(1.5rem, 3vw, 3rem);
+  }
 }
 
 .portfolio-editor-hero {

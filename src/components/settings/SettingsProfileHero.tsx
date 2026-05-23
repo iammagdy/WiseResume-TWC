@@ -30,24 +30,28 @@ export function SettingsProfileHero({
   return (
     <div className={cn('settings-profile-hero', className)}>
       <div className="settings-profile-hero__glow" aria-hidden />
-      <button
-        type="button"
-        onClick={onOpenProfile}
-        className="relative w-full flex items-center gap-4 p-4 sm:p-5 text-left touch-manipulation transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-[inherit]"
-      >
-        <PlanAvatar
-          plan={plan}
-          avatarUrl={avatarUrl}
-          initials={initials}
-          size="h-14 w-14 sm:h-16 sm:w-16"
-          showLabel
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">Your account</p>
-          <p className="text-lg font-semibold text-foreground truncate leading-tight mt-0.5">{displayName}</p>
-          {email && (
-            <p className="text-sm text-muted-foreground truncate mt-0.5">{email}</p>
-          )}
+      <div className="relative w-full flex items-center gap-4 p-4 sm:p-5 text-left">
+        <button
+          type="button"
+          onClick={onOpenProfile}
+          className="flex min-w-0 flex-1 items-center gap-4 rounded-xl text-left touch-manipulation transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <PlanAvatar
+            plan={plan}
+            avatarUrl={avatarUrl}
+            initials={initials}
+            size="h-14 w-14 sm:h-16 sm:w-16"
+            showLabel
+          />
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">Your account</p>
+            <p className="text-lg font-semibold text-foreground truncate leading-tight mt-0.5">{displayName}</p>
+            {email && (
+              <p className="text-sm text-muted-foreground truncate mt-0.5">{email}</p>
+            )}
+          </div>
+        </button>
+        <div className="flex shrink-0 items-center gap-3">
           <button
             type="button"
             onClick={onManagePlan}
@@ -55,9 +59,9 @@ export function SettingsProfileHero({
           >
             {planCta}
           </button>
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />
         </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden />
-      </button>
+      </div>
       {onEditSettings && (
         <div className="relative border-t border-border/50 px-4 py-2.5 bg-muted/20">
           <button

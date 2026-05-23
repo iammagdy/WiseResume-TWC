@@ -1,5 +1,7 @@
 # Session Log — 2026-05-23 — Portfolio draft (Appwrite), editor workspace, tailor wizard, Wise AI toggle
 
+> **Correction added 2026-05-23:** Later live API verification showed `profiles` does not currently include `portfolio_extras`, `portfolio_draft`, or `portfolio_draft_saved_at`. The original storage note below is stale for the current live schema. Save Draft was updated to persist locally first and avoid surfacing missing-attribute Appwrite errors until a proper portfolio settings/draft schema migration is applied.
+
 ## Summary
 
 Frontend-only session: fixed portfolio **Save Draft** against live Appwrite schema; rebuilt `/editor` section navigation and ATS suggestions UX; fixed `/editor` dynamic-import crash; added `/tailor` setup **step wizard**; made global **Wise AI** top-bar control a chat **toggle**. No Appwrite Console schema changes, no new collections, no backend/hub deploys.

@@ -432,19 +432,48 @@ body.wr-security-curtain [data-biometric-lock] {
     overscroll-behavior: none;
   }
 
-  /* Theme toggle transition — only fires when .theme-transitioning is applied */
-  .theme-transitioning,
-  .theme-transitioning * {
-    transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease !important;
+  .light {
+    color-scheme: light;
   }
 
-  /* Smooth theme transitions for key surfaces */
-  .dark, .light {
-    & [class*="bg-card"],
-    & [class*="bg-background"],
-    & [class*="bg-muted"],
-    & [class*="bg-popover"] {
-      transition: background-color 0.3s ease, color 0.2s ease, border-color 0.2s ease;
+  .dark {
+    color-scheme: dark;
+  }
+
+  /* Theme toggle transition - keep it scoped to paint-critical shells only. */
+  .theme-transitioning .app-theme,
+  .theme-transitioning .app-shell-nav,
+  .theme-transitioning .dashboard-workspace-sidebar,
+  .theme-transitioning .app-workspace-main,
+  .theme-transitioning [data-theme-surface],
+  .theme-transitioning button,
+  .theme-transitioning input,
+  .theme-transitioning textarea {
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease !important;
+  }
+
+  @supports (view-transition-name: root) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation-duration: 180ms;
+      animation-timing-function: ease-out;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .theme-transitioning .app-theme,
+    .theme-transitioning .app-shell-nav,
+    .theme-transitioning .dashboard-workspace-sidebar,
+    .theme-transitioning .app-workspace-main,
+    .theme-transitioning [data-theme-surface],
+    .theme-transitioning button,
+    .theme-transitioning input,
+    .theme-transitioning textarea {
+      transition: none !important;
     }
   }
 
@@ -876,8 +905,8 @@ button,
   }
 
   .wise-workspace-drawer--chat-mobile {
-    width: 92vw;
-    max-width: 92vw;
+    width: min(var(--app-sidebar-width, 17rem), 86vw);
+    max-width: min(var(--app-sidebar-width, 17rem), 86vw);
   }
 
   @media (min-width: 1024px) {

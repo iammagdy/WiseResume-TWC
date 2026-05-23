@@ -9,9 +9,17 @@
 }
 
 .settings-workspace__scroll {
-  max-width: 42rem;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (min-width: 1024px) {
+  .settings-workspace__scroll {
+    padding-left: clamp(1.5rem, 3vw, 3rem);
+    padding-right: clamp(1.5rem, 3vw, 3rem);
+  }
 }
 
 .settings-profile-hero {

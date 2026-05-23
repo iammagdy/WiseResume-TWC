@@ -1,6 +1,6 @@
 # 06 - Database Schema Map (Finalized)
 
-**Last verified against live API:** 2026-05-08
+**Last verified against live API:** 2026-05-23
 
 **Architecture:** SQL (Supabase) has been fully ported to Documents (Appwrite).
 
@@ -25,6 +25,8 @@ These must be created in Appwrite Console before any code targeting them is writ
    - `onboarding_completed`: Boolean
    - `avatar_url`: String (500 chars)
    - `portfolio_extras`: String (stringified JSON) — includes nested **`portfolioDraft`** + **`portfolioDraftSavedAt`** for portfolio editor working copy (2026-05-23; live Appwrite has **no** `portfolio_draft` / `portfolio_draft_saved_at` attributes — see session log `27-Session-Log-2026-05-23-Portfolio-Editor-Tailor-Workspace.md`)
+
+   - **Correction (2026-05-23):** Live API verification showed `portfolio_extras`, `portfolio_draft`, and `portfolio_draft_saved_at` are not present in the current Appwrite `profiles` collection. Treat the previous line as stale until a schema migration is applied.
 
 2. **resumes**
    - `user_id`: String

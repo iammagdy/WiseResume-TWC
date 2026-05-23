@@ -463,6 +463,27 @@ export default function AIStudioPage() {
         )}
       </div>
 
+      {/* Onboarding Tour - inline callout */}
+      {isFirstVisit && (
+        <div className="px-4 pb-3">
+          <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-soft">
+            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <p className="min-w-0 flex-1 text-sm leading-5 text-foreground">
+              Welcome to <span className="font-semibold">AI Studio</span>. Pick a tool to improve, tailor, or prepare your resume.
+            </p>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 shrink-0"
+              aria-label="Dismiss AI Studio welcome"
+              onClick={() => setHasSeenAIStudioTour(true)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Wise AI Chat Section */}
       <div className="px-4 pb-2">
         <div
@@ -745,16 +766,6 @@ export default function AIStudioPage() {
       {showSkillsGap && <SkillsGapSheet open={showSkillsGap} onOpenChange={setShowSkillsGap} />}
       {showPortfolioBio && <PortfolioBioSheet open={showPortfolioBio} onOpenChange={setShowPortfolioBio} />}
 
-      {/* Onboarding Tour — auto-dismiss inline banner */}
-      {isFirstVisit && (
-        <div className="fixed bottom-24 sm:bottom-20 left-4 right-4 z-40 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-primary/20 shadow-lg">
-            <Sparkles className="w-5 h-5 text-primary shrink-0" />
-            <p className="text-sm text-foreground flex-1">Welcome to <span className="font-semibold">AI Studio</span> — tap any tool to supercharge your resume.</p>
-            <Button size="sm" variant="ghost" className="shrink-0 min-h-[44px] text-xs" onClick={() => setHasSeenAIStudioTour(true)}>Got it</Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

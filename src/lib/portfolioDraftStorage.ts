@@ -1,7 +1,7 @@
 /**
- * Portfolio working-copy draft is stored inside `portfolio_extras` because the
- * live Appwrite `profiles` collection does not define `portfolio_draft` /
- * `portfolio_draft_saved_at` attributes (Supabase-only columns in the old schema).
+ * Portfolio working-copy draft is stored locally first because the live
+ * Appwrite `profiles` collection currently does not define `portfolio_extras`,
+ * `portfolio_draft`, or `portfolio_draft_saved_at` attributes.
  */
 
 import { databases, DATABASE_ID } from '@/lib/appwrite';
@@ -9,6 +9,7 @@ import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 export const PORTFOLIO_DRAFT_EXTRAS_KEY = 'portfolioDraft';
 export const PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY = 'portfolioDraftSavedAt';
+const LOCAL_DRAFT_KEY_PREFIX = 'wiseresume:portfolio-draft:';
 
 export function parsePortfolioExtrasField(raw: unknown): Record<string, unknown> | null {
   return parseJsonField(raw);
@@ -53,6 +54,53 @@ export function readPortfolioDraftFromProfileDoc(doc: Record<string, unknown>): 
   };
 }
 
+function localDraftKey(userId: string): string {
+  return `${LOCAL_DRAFT_KEY_PREFIX}${userId}`;
+}
+
+export function readLocalPortfolioDraft(userId: string | undefined): {
+  portfolioDraft: Record<string, unknown> | null;
+  portfolioDraftSavedAt: string | null;
+} {
+  if (!userId || typeof window === 'undefined') {
+    return { portfolioDraft: null, portfolioDraftSavedAt: null };
+  }
+  try {
+    const raw = window.localStorage.getItem(localDraftKey(userId));
+    if (!raw) return { portfolioDraft: null, portfolioDraftSavedAt: null };
+    const parsed = JSON.parse(raw) as {
+      draft?: unknown;
+      savedAt?: unknown;
+    };
+    return {
+      portfolioDraft:
+        parsed.draft && typeof parsed.draft === 'object'
+          ? (parsed.draft as Record<string, unknown>)
+          : null,
+      portfolioDraftSavedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null,
+    };
+  } catch {
+    return { portfolioDraft: null, portfolioDraftSavedAt: null };
+  }
+}
+
+export function writeLocalPortfolioDraft(
+  userId: string,
+  snapshot: Record<string, unknown>,
+  savedAt: string,
+): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(
+    localDraftKey(userId),
+    JSON.stringify({ draft: snapshot, savedAt }),
+  );
+}
+
+export function clearLocalPortfolioDraft(userId: string | undefined): void {
+  if (!userId || typeof window === 'undefined') return;
+  window.localStorage.removeItem(localDraftKey(userId));
+}
+
 export function mergeDraftIntoPortfolioExtras(
   extras: Record<string, unknown> | null,
   draft: Record<string, unknown> | null,
@@ -69,16 +117,33 @@ export function mergeDraftIntoPortfolioExtras(
   return next;
 }
 
-/** Persist draft snapshot by updating only `portfolio_extras` (Appwrite-safe). */
+export function getMergedPortfolioDraftBytes(
+  extras: Record<string, unknown> | null,
+  draft: Record<string, unknown>,
+  savedAt: string,
+): number {
+  return JSON.stringify(mergeDraftIntoPortfolioExtras(extras, draft, savedAt)).length;
+}
+
+/** Persist draft snapshot locally; mirror to `portfolio_extras` only when that schema exists. */
 export async function persistPortfolioDraftToProfile(
   profileDocumentId: string,
+  userId: string,
   existingExtras: Record<string, unknown> | null,
   snapshot: Record<string, unknown>,
   savedAt: string,
 ): Promise<Record<string, unknown>> {
   const mergedExtras = mergeDraftIntoPortfolioExtras(existingExtras, snapshot, savedAt);
-  await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocumentId, {
-    portfolio_extras: stringifyJsonField(mergedExtras),
-  });
+  writeLocalPortfolioDraft(userId, snapshot, savedAt);
+  try {
+    await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocumentId, {
+      portfolio_extras: stringifyJsonField(mergedExtras),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes('portfolio_extras') && !message.includes('Unknown attribute')) {
+      throw error;
+    }
+  }
   return mergedExtras;
 }

@@ -3,8 +3,8 @@ import type { WiseWorkspaceMode } from '@/store/wiseWorkspaceStore';
 
 /** Mobile nav column (icons + short labels) */
 export const WISE_DRAWER_NAV_MOBILE = '5rem';
-/** Mobile chat expanded */
-export const WISE_DRAWER_CHAT_MOBILE = '92vw';
+/** Mobile chat expanded - match app sidebar sheet width */
+export const WISE_DRAWER_CHAT_MOBILE = 'min(var(--app-sidebar-width, 17rem), 86vw)';
 /** Desktop nav pane */
 export const WISE_DRAWER_NAV_DESKTOP = '15rem';
 /** Desktop chat pane */

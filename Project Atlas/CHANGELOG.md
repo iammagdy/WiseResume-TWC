@@ -11,6 +11,131 @@
 
 ---
 
+## 2026-05-23 - Portfolio sidebar icon alignment
+
+### Summary
+- **Workspace sidebar:** Changed the Portfolio nav icon from `Sparkles` to `Globe` so it better matches the public portfolio/profile concept and aligns with other nav surfaces.
+
+### Verification
+- `npx tsc --noEmit`
+
+---
+
+## 2026-05-23 - Wise Workspace mobile drawer sidebar-width match
+
+### Summary
+- **Wise Workspace:** Changed the mobile chat drawer from viewport-based width to the same sidebar-width rule used by the mobile app sidebar.
+- Mobile drawer now uses `min(var(--app-sidebar-width, 17rem), 86vw)`; desktop drawer sizing remains unchanged.
+
+### Verification
+- `npx tsc --noEmit`
+- Browser check on mobile `/dashboard`: Wise Workspace drawer measured `272px` wide on a `430px` viewport.
+
+---
+
+## 2026-05-23 - Theme toggle performance smoothing
+
+### Summary
+- **Theme toggle:** Removed the expensive universal `theme-transitioning *` color transition that animated every element during light/dark switches.
+- Theme changes now apply the root class immediately, use the browser View Transitions API when available, and fall back to a short transition on major shell surfaces and controls only.
+- Added `color-scheme` for light/dark roots so browser-native controls match without extra repaints.
+
+### Verification
+- `npx tsc --noEmit`
+- Browser check on mobile `/dashboard`: theme toggled successfully and `theme-transitioning` cleared after the fallback transition.
+
+---
+
+## 2026-05-23 - Mobile sidebar footer placement
+
+### Summary
+- **Mobile workspace nav:** Fixed the sidebar sheet wrapper height so the membership/profile footer can use the full drawer height.
+- The premium/profile block now sits at the bottom of the mobile drawer instead of floating in the middle; desktop sidebar layout is unchanged.
+
+### Verification
+- `npx tsc --noEmit`
+- Browser check on mobile `/dashboard`: visible drawer footer bottom aligned with the viewport bottom.
+
+---
+
+## 2026-05-23 - Wise Workspace mobile chat width
+
+### Summary
+- **Wise Workspace:** Reduced the mobile chat drawer width from `92vw` to `86vw`.
+- Desktop drawer sizing remains unchanged at `min(26rem, 32vw)`.
+- Updated the shared layout width constant so the app stage shrink stays aligned with the drawer.
+
+### Verification
+- `npx tsc --noEmit`
+
+---
+
+## 2026-05-23 - Mobile sidebar drawer fit
+
+### Summary
+- **Mobile workspace nav:** Tightened the left navigation sheet width to match the actual sidebar width on phones instead of leaving an empty panel strip.
+- Removed the oversized rounded right edge and used the sheet's built-in close handling so the mobile drawer reads as a proper app menu.
+
+### Verification
+- `npx tsc --noEmit`
+
+---
+
+## 2026-05-23 - AI Studio welcome banner placement
+
+### Summary
+- **AI Studio:** Replaced the fixed bottom onboarding banner with an inline welcome callout inside the AI Studio content flow.
+- The welcome callout now dismisses with an icon button and no longer overlays the sidebar account/billing area or bottom workspace controls.
+
+### Verification
+- `npx tsc --noEmit`
+- Browser layout check on `http://localhost:5000/ai-studio`: welcome message rendered inline and fixed welcome banner count was `0`.
+
+---
+
+## 2026-05-23 - Portfolio editor desktop width correction
+
+### Summary
+- **Portfolio editor:** Removed the hard `56rem` max-width from the portfolio editor scroll container so desktop content fills the available app workspace instead of appearing as a narrow centered column.
+- Kept responsive desktop side padding and mobile full-width behavior.
+
+### Verification
+- `npx tsc --noEmit`
+- Browser layout check on `http://localhost:5000/portfolio`: portfolio editor workspace width matched the available app content area.
+
+---
+
+## 2026-05-23 - Settings desktop width correction
+
+### Summary
+- **Settings:** Removed the hard `42rem` max-width from the settings workspace scroll container so desktop settings content fills the available app workspace instead of appearing as a narrow centered column.
+- Kept responsive padding with desktop `clamp()` spacing and mobile full-width behavior.
+
+### Verification
+- `npx tsc --noEmit`
+- Browser layout check on `http://localhost:5000/settings`: settings workspace width matched the available app content area.
+
+---
+
+## 2026-05-23 - Portfolio Save Draft live-schema correction + UI review fixes
+
+### Summary
+- **Portfolio:** Verified live Appwrite `profiles` attributes via API. The collection does **not** include `portfolio_extras`, `portfolio_draft`, or `portfolio_draft_saved_at`; Save Draft now stores the working copy locally first and suppresses the missing-attribute write path instead of showing `Unknown attribute: "portfolio_extras"`.
+- **Profile writes:** `useProfile.updateProfile()` now filters update payloads to the live `profiles` attributes to avoid client writes failing on stale Supabase-era portfolio fields.
+- **Portfolio size guard:** Draft save/autosave now checks the merged draft payload size, not only the raw draft snapshot.
+- **Settings:** Fixed invalid nested button markup in `SettingsProfileHero`.
+- **Portfolio setup:** Hardened resume select item keys against duplicate resume IDs.
+
+### Root cause
+The previous Atlas note assumed `portfolio_extras` existed in Appwrite. Live API verification on 2026-05-23 showed `profiles` currently has only: `user_id`, `email`, `full_name`, `username`, `avatar_url`, `onboarding_completed`, `job_title`, `industry`, `career_level`, `location`, `linkedin_url`, `portfolio_bio`, `portfolio_enabled`, `profile_completed`, `display_name`, `plan`, `country`, `is_suspended`, `suspension_reason`.
+
+### Verification
+- `npx tsc --noEmit`
+- `npx vitest run src/components/dashboard/__tests__/DashboardHero.test.tsx src/pages/__tests__/PortfolioEditorPage-D8.test.tsx src/pages/__tests__/PortfolioUsernameConflict-D8.test.tsx`
+- `npm run build`
+
+---
+
 ## 2026-05-23 - Portfolio draft (Appwrite), editor workspace, tailor wizard, Wise AI toggle
 
 ### Summary

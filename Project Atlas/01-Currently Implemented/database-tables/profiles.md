@@ -1,6 +1,8 @@
 # profiles
 
-**Last verified:** 2026-04-17
+> **2026-05-23 Appwrite live-schema note:** This card still contains Supabase-era profile fields. Live Appwrite `profiles` currently does not include `portfolio_extras`, `portfolio_draft`, or `portfolio_draft_saved_at`; client writes must be filtered to live attributes until the portfolio schema is intentionally migrated.
+
+**Last verified:** 2026-05-23
 **Type:** reference card
 **Sources:**
 - `src/integrations/supabase/types.ts` — `Tables.profiles.Row` (44 columns)
