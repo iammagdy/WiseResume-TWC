@@ -63,7 +63,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
 
     const result = await enhance('ats_improve', filledEntries, currentResume);
     if (!result) {
-      setError(true);
+      // null = privacy disclosure dismissed — reset silently, no error panel
       return;
     }
 

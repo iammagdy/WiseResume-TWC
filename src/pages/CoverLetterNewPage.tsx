@@ -42,6 +42,7 @@ export default function CoverLetterNewPage() {
   const [result, setResult] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [showMissingWarning, setShowMissingWarning] = useState(false);
 
@@ -140,7 +141,8 @@ export default function CoverLetterNewPage() {
   };
 
   const handleDownloadPDF = async () => {
-    if (!result) return;
+    if (!result || isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
     try {
       const { downloadCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
       await downloadCoverLetterPDF({
@@ -154,6 +156,8 @@ export default function CoverLetterNewPage() {
       toast.success('PDF downloaded!');
     } catch {
       toast.error('Failed to generate PDF');
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -345,8 +349,8 @@ export default function CoverLetterNewPage() {
             <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={handleCopy}>
               <Copy className="w-4 h-4" /> Copy
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={handleDownloadPDF}>
-              <Download className="w-4 h-4" /> PDF
+            <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={handleDownloadPDF} disabled={isDownloadingPdf}>
+              {isDownloadingPdf ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />} PDF
             </Button>
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleGenerate()} disabled={generating}>
               {generating ? <MiniSpinner size={16} /> : <RotateCcw className="w-4 h-4" />}

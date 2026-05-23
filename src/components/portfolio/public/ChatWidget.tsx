@@ -164,7 +164,9 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
         return;
       }
       if (error) throw new Error(error.message || 'Request failed');
-      setMessages(prev => [...prev, { role: 'assistant', content: data?.answer ?? '' }]);
+      if (data?.error) throw new Error(data.error);
+      if (!data?.answer) throw new Error('Empty response');
+      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
     } catch {
       toast.error('Could not get a response. Please try again.');
       setMessages(prev => prev.slice(0, -1));
