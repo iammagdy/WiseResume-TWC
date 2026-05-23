@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect, Fragment, type React
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Wand2, Loader2, CheckCircle, ArrowLeft, Sparkles, Zap, Gauge, Flame,
+  Wand2, Loader2, CheckCircle, Sparkles, Zap, Gauge, Flame,
   Settings, RefreshCw, Copy, Check, ExternalLink, ChevronDown, ChevronUp,
   Key, HeartHandshake, Bug, X, Briefcase, Eye, Globe, TrendingUp,
   Shield, AlertTriangle,
@@ -25,12 +25,10 @@ import { TailorDemoPanel } from '@/components/editor/tailor/TailorDemoPanel';
 import { TailorPreviewSheet } from '@/components/editor/tailor/TailorPreviewSheet';
 import { buildMergedResume, applyFixesOnTop } from '@/lib/tailorMerge';
 import { compareSkills, diffText } from '@/lib/diffUtils';
-import { AICostBadge } from '@/components/ai/AICostBadge';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
-import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { getBackRoute } from '@/lib/navigation';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
@@ -48,6 +46,18 @@ import {
 import { cn } from '@/lib/utils';
 import { useShallow } from 'zustand/react/shallow';
 import { activityTracker } from '@/lib/activityTracker';
+import { TailorPageHeader } from '@/components/tailor/page/TailorPageHeader';
+import { TailorStepCard } from '@/components/tailor/page/TailorStepCard';
+import { TailorStepRail, type TailorFlowStep } from '@/components/tailor/page/TailorStepRail';
+import { TailorSetupWizardFooter } from '@/components/tailor/page/TailorSetupWizardFooter';
+import {
+  TAILOR_FLOW_STEPS,
+  canAccessTailorStep,
+  canContinueTailorStep,
+  tailorStepIndex,
+} from '@/components/tailor/page/tailor-flow';
+import { TailorResultsStage } from '@/components/tailor/page/TailorResultsStage';
+import '@/components/tailor/page/tailor-workspace.css';
 
 function logTailorEvent(event: string, detail?: Record<string, unknown>) {
   console.log(`[TailorPage] ${event}`, detail ?? '');
@@ -198,6 +208,7 @@ export default function TailorPage() {
   const [progress, setProgress] = useState<TailorProgress | EnhancedTailorProgress | null>(null);
   const [parsedJobInfo, setParsedJobInfo] = useState<{ title: string; company: string } | null>(null);
   const [intensity, setIntensity] = useState<TailorIntensity>('moderate');
+  const [wizardStep, setWizardStep] = useState<TailorFlowStep>('resume');
   const [isApplying, setIsApplying] = useState(false);
   const [jobUrl, setJobUrl] = useState<string | undefined>(undefined);
   const [tailorError, setTailorError] = useState<{ message: string; code?: string } | null>(null);
@@ -366,6 +377,36 @@ export default function TailorPage() {
       ...currentResume.skills,
     ].join(' ');
   }, [currentResume]);
+
+  const hasResumeForFlow = !!currentResume;
+  const hasJobForFlow = !!jobDescription.trim();
+
+  useEffect(() => {
+    if (isTailoring || tailorResult || showAppliedCTA) {
+      setWizardStep('run');
+    }
+  }, [isTailoring, tailorResult, showAppliedCTA]);
+
+  const handleWizardStepClick = useCallback(
+    (step: TailorFlowStep) => {
+      if (canAccessTailorStep(step, hasResumeForFlow, hasJobForFlow)) {
+        setWizardStep(step);
+      }
+    },
+    [hasResumeForFlow, hasJobForFlow],
+  );
+
+  const goWizardBack = useCallback(() => {
+    const idx = tailorStepIndex(wizardStep);
+    if (idx > 0) setWizardStep(TAILOR_FLOW_STEPS[idx - 1]);
+  }, [wizardStep]);
+
+  const goWizardContinue = useCallback(() => {
+    const idx = tailorStepIndex(wizardStep);
+    if (idx < TAILOR_FLOW_STEPS.length - 1) {
+      setWizardStep(TAILOR_FLOW_STEPS[idx + 1]);
+    }
+  }, [wizardStep]);
 
   const handleTailor = useCallback(async () => {
     if (!jobDescription.trim()) { toast.error('Please paste a job description first'); return; }
@@ -788,282 +829,284 @@ export default function TailorPage() {
     navigate('/portfolio');
   }, [navigate, appliedResumeId]);
 
+  const showResultsPanel = isTailoring || !!tailorResult || !!tailorError || showAppliedCTA;
+
+  const resultsPanelProps = {
+    isTailoring,
+    progress,
+    tailorResult,
+    tailorError,
+    originalResume,
+    enabledSections,
+    toggleSection,
+    onApplyChanges: handleApplyChanges,
+    onPreview: () => setShowTailorPreview(true),
+    isApplying,
+    onRetry: () => { setTailorError(null); handleTailor(); },
+    onSettings: () => {},
+    onRevert: () => { setTailorResult(null); setAppliedFixes([]); },
+    abortRef,
+    setIsTailoring,
+    setProgress,
+    showAppliedCTA,
+    appliedResumeId,
+    appliedResumeTitle,
+    appliedJobInfo,
+    onViewResume: handleViewResume,
+    onTrackApplication: handleTrackApplication,
+    onCloseSuccess: handleCloseSuccess,
+    onGoToPortfolio: handleGoToPortfolio,
+    appliedScore,
+    appliedKeywordCount,
+    appliedValidatorResult,
+    copiedText,
+    onCopyText: handleCopyPlainText,
+    onReTailor: handleTailor,
+    rejectedBullets,
+    onBulletReject: setRejectedBullets,
+    onRegenerate: handleRegenerateSection,
+    revealedSections,
+    preValidatorResult,
+    isPreValidating,
+    dismissedIssueIndices,
+    onDismissIssue: handleDismissIssue,
+    fixSuggestions,
+    isGeneratingFixes,
+    appliedFixes,
+    onApplyFix: handleApplyFix,
+  };
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 h-full">
-      {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border px-4 pt-3 pb-2">
-        <Breadcrumb items={['Home', 'AI Resume Tailor']} links={['/dashboard']} className="mb-2" />
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => navigate(getBackRoute('/tailor'))} className="shrink-0 min-h-[44px] min-w-[44px]" aria-label="Go back">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <Wand2 className="w-5 h-5 text-primary shrink-0" aria-hidden />
-            <h1 className="text-page-title truncate">AI Resume Tailor</h1>
-            <AICostBadge operation="tailor" />
-          </div>
-          <div className="flex items-center gap-2">
-            {tailorResult && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleCopyPlainText}
-                className="text-xs gap-1.5"
-              >
-                {copiedText ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedText ? 'Copied!' : 'Copy text'}
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="tailor-workspace flex-1 flex flex-col min-h-0 h-full overflow-hidden">
+      <TailorPageHeader
+        onBack={() => navigate(getBackRoute('/tailor'))}
+        copyAction={
+          tailorResult
+            ? { copied: copiedText, onCopy: handleCopyPlainText }
+            : undefined
+        }
+      />
 
-      {/* Two-panel layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left panel: Job input */}
-        <div className="w-full lg:w-[420px] lg:border-r border-border overflow-y-auto lg:flex-shrink-0 p-4 space-y-4 bg-background">
-          {/* Resume Selector */}
-          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
-            <div className="space-y-1">
-              <p className="text-label">Step 1</p>
-              <p className="text-sm font-medium text-foreground">Choose the resume you want to tailor</p>
-            </div>
-            {allResumes === undefined ? (
-              <div className="animate-pulse h-9 rounded-lg bg-muted w-full" />
-            ) : allResumes.length === 0 ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  You don't have a resume yet. Upload your existing CV (PDF or DOCX) and
-                  we'll tailor it for this job in seconds.
-                </p>
-                <Button
-                  className="w-full"
-                  onClick={() => navigate('/upload?next=/tailor')}
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  Upload your resume
-                </Button>
-              </div>
-            ) : (
-              <Select
-                value={allResumes.some(r => r.id === currentResumeId) ? (currentResumeId ?? undefined) : undefined}
-                onValueChange={handleResumeSwitch}
-                disabled={isTailoring || isApplying}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a resume">
-                    {selectedResumeTitle || undefined}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {allResumes.map((r: DatabaseResume, index: number) => (
-                    <SelectItem key={`${r.id}-${index}`} value={r.id}>
-                      {r.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
-            <div className="space-y-1">
-              <p className="text-label">Step 2</p>
-              <p className="text-sm font-medium text-foreground">Add the job description or job link</p>
-            </div>
-            <JobUrlParser
-              value={jobDescription}
-              onChange={setJobDescription}
-              onParsed={(info) => {
-                setParsedJobInfo(info);
-                if (info?.url) setJobUrl(info.url);
-              }}
+      <div className="tailor-workspace-body">
+        <div className="tailor-setup-panel">
+          <div className="tailor-setup-panel__rail">
+            <TailorStepRail
+              variant="vertical"
+              activeStep={wizardStep}
+              hasResume={hasResumeForFlow}
+              hasJob={hasJobForFlow}
+              onStepClick={handleWizardStepClick}
             />
           </div>
+          <div className="tailor-setup-panel__scroll tailor-setup-wizard">
+            <div className="tailor-wizard-stage">
+              {wizardStep === 'resume' && (
+                <TailorStepCard
+                  step={1}
+                  title="Choose your resume"
+                  subtitle="We'll optimize this version for the role you're targeting."
+                  active
+                >
+                  {allResumes === undefined ? (
+                    <div className="animate-pulse h-9 rounded-lg bg-muted w-full" />
+                  ) : allResumes.length === 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        You don't have a resume yet. Upload your existing CV (PDF or DOCX) and
+                        we'll tailor it for this job in seconds.
+                      </p>
+                      <Button
+                        className="w-full"
+                        onClick={() => navigate('/upload?next=/tailor')}
+                      >
+                        <Wand2 className="w-4 h-4 mr-2" />
+                        Upload your resume
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={allResumes.some(r => r.id === currentResumeId) ? (currentResumeId ?? undefined) : undefined}
+                      onValueChange={handleResumeSwitch}
+                      disabled={isTailoring || isApplying}
+                    >
+                      <SelectTrigger className="tailor-resume-select w-full">
+                        <SelectValue placeholder="Select a resume">
+                          {selectedResumeTitle || undefined}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allResumes.map((r: DatabaseResume, index: number) => (
+                          <SelectItem key={`${r.id}-${index}`} value={r.id}>
+                            {r.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </TailorStepCard>
+              )}
 
-          {/* Keyword Match Bar */}
-          {jobDescription.trim() && currentResume && (
-            <KeywordMatchBar jobDescription={jobDescription} resumeText={resumeText} />
-          )}
+              {wizardStep === 'job' && (
+                <TailorStepCard
+                  step={2}
+                  title="Target job"
+                  subtitle="Paste the posting or import from a job URL — we'll extract the essentials."
+                  active
+                >
+                  <div className="tailor-job-shell">
+                    <JobUrlParser
+                      value={jobDescription}
+                      onChange={setJobDescription}
+                      onParsed={(info) => {
+                        setParsedJobInfo(info);
+                        if (info?.url) setJobUrl(info.url);
+                      }}
+                    />
+                  </div>
+                  {hasJobForFlow && hasResumeForFlow && (
+                    <div className="tailor-keyword-panel mt-3">
+                      <KeywordMatchBar jobDescription={jobDescription} resumeText={resumeText} />
+                    </div>
+                  )}
+                </TailorStepCard>
+              )}
 
-          {/* Custom Instructions */}
-          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
-            <div className="space-y-1">
-              <p className="text-label">Step 3</p>
-              <p className="text-sm font-medium text-foreground">Adjust optional settings</p>
+              {wizardStep === 'options' && (
+                <TailorStepCard
+                  step={3}
+                  title="Fine-tune (optional)"
+                  subtitle="Add context for seniority, tone, or emphasis before running the optimizer."
+                  active
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomInstructions(v => !v)}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full rounded-xl border border-border/60 px-3 py-2.5 bg-muted/20"
+                  >
+                    {showCustomInstructions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    Custom instructions
+                    {customInstructions && <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto">saved</Badge>}
+                  </button>
+                  {showCustomInstructions && (
+                    <div className="space-y-2 pt-1">
+                      <Textarea
+                        value={customInstructions}
+                        onChange={e => setCustomInstructions(e.target.value)}
+                        placeholder="e.g. I'm applying as a senior candidate, emphasize leadership..."
+                        className="min-h-[88px] resize-none text-sm rounded-xl border-border/80"
+                        maxLength={2000}
+                      />
+                      <p className="text-xs text-muted-foreground text-right">{customInstructions.length}/2000</p>
+                    </div>
+                  )}
+                </TailorStepCard>
+              )}
+
+              {wizardStep === 'run' && (
+                <TailorStepCard
+                  step={4}
+                  title="Tailoring intensity"
+                  subtitle="Control how aggressively we rewrite content to match the role."
+                  active
+                >
+                  <ToggleGroup
+                    type="single"
+                    value={intensity}
+                    onValueChange={(val) => val && setIntensity(val as TailorIntensity)}
+                    className="tailor-intensity-grid w-full grid grid-cols-3 gap-2"
+                  >
+                    <ToggleGroupItem
+                      value="light"
+                      className="tailor-intensity-option text-xs gap-1 min-h-[48px] rounded-xl border border-border/80 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <Zap className="w-3.5 h-3.5" /> Light
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="moderate"
+                      className="tailor-intensity-option text-xs gap-1 min-h-[48px] rounded-xl border border-border/80 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <Gauge className="w-3.5 h-3.5" /> Moderate
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="aggressive"
+                      className="tailor-intensity-option text-xs gap-1 min-h-[48px] rounded-xl border border-border/80 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <Flame className="w-3.5 h-3.5" /> Aggressive
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <p className="text-xs text-muted-foreground leading-relaxed px-0.5">
+                    {intensity === 'light' && 'Light touch — keyword alignment with minimal rewrites.'}
+                    {intensity === 'moderate' && 'Balanced — stronger phrasing and ATS keyword coverage.'}
+                    {intensity === 'aggressive' && 'Maximum match — bold rewrites for competitive roles.'}
+                  </p>
+                  <div className="space-y-2 pt-2">
+                    <Button
+                      className="tailor-cta-primary w-full h-12 min-h-[48px] font-semibold text-primary-foreground rounded-xl"
+                      onClick={handleTailor}
+                      disabled={isTailoring || !hasJobForFlow || !hasResumeForFlow}
+                    >
+                      {isTailoring ? (
+                        <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Optimizing…</>
+                      ) : (
+                        <><Wand2 className="w-5 h-5 mr-2" />Run optimizer</>
+                      )}
+                    </Button>
+                    {!isTailoring && (
+                      <p className="tailor-cta-hint">
+                        Typical run time 10–20 seconds · Results appear in the studio panel →
+                      </p>
+                    )}
+                  </div>
+                </TailorStepCard>
+              )}
             </div>
-            <button
-              onClick={() => setShowCustomInstructions(v => !v)}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
-            >
-              {showCustomInstructions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              Custom instructions
-              {customInstructions && <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto">saved</Badge>}
-            </button>
-            {showCustomInstructions && (
-              <>
-                <Textarea
-                  value={customInstructions}
-                  onChange={e => setCustomInstructions(e.target.value)}
-                  placeholder="e.g. I'm applying as a senior candidate, emphasize leadership..."
-                  className="min-h-[80px] resize-none text-sm"
-                  maxLength={2000}
-                />
-                <p className="text-xs text-muted-foreground text-right">{customInstructions.length}/2000</p>
-              </>
-            )}
-          </div>
 
-          {/* Intensity */}
-          <div className="space-y-2 rounded-2xl border border-border bg-card shadow-soft-sm p-4">
-            <div className="space-y-1">
-              <p className="text-label">Step 4</p>
-              <p className="text-sm font-medium text-foreground">Run the optimizer</p>
-            </div>
-            <h4 className="text-label text-foreground normal-case tracking-normal">Tailoring intensity</h4>
-            <ToggleGroup
-              type="single"
-              value={intensity}
-              onValueChange={(val) => val && setIntensity(val as TailorIntensity)}
-              className="w-full grid grid-cols-3 gap-1"
-            >
-              <ToggleGroupItem value="light" className="text-xs gap-1 min-h-[44px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                <Zap className="w-3.5 h-3.5" /> Light
-              </ToggleGroupItem>
-              <ToggleGroupItem value="moderate" className="text-xs gap-1 min-h-[44px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                <Gauge className="w-3.5 h-3.5" /> Moderate
-              </ToggleGroupItem>
-              <ToggleGroupItem value="aggressive" className="text-xs gap-1 min-h-[44px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                <Flame className="w-3.5 h-3.5" /> Aggressive
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <p className="text-[11px] text-muted-foreground">
-              {intensity === 'light' && 'Minor keyword improvements'}
-              {intensity === 'moderate' && 'Balanced rewrite with keyword optimization'}
-              {intensity === 'aggressive' && 'Strong rewrite for maximum job match'}
-            </p>
-          </div>
-
-          <Button
-            className="w-full h-12 min-h-[48px] font-semibold shadow-soft-md"
-            onClick={handleTailor}
-            disabled={isTailoring || !jobDescription.trim() || !currentResume}
-          >
-            {isTailoring ? (
-              <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Optimizing...</>
-            ) : (
-              <><Wand2 className="w-5 h-5 mr-2" />Optimize Resume</>
-            )}
-          </Button>
-
-          {!isTailoring && (
-            <p className="text-xs text-center text-muted-foreground">
-              AI will rewrite your resume to better match this job • Takes ~10–20 seconds
-            </p>
-          )}
-
-          {/* On mobile, show results inline below the input */}
-          <div className="lg:hidden">
-            {(isTailoring || tailorResult || tailorError || showAppliedCTA) && (
-              <ResultsPanel
-                isTailoring={isTailoring}
-                progress={progress}
-                tailorResult={tailorResult}
-                tailorError={tailorError}
-                originalResume={originalResume}
-                enabledSections={enabledSections}
-                toggleSection={toggleSection}
-                onApplyChanges={handleApplyChanges}
-                onPreview={() => setShowTailorPreview(true)}
-                isApplying={isApplying}
-                onRetry={() => { setTailorError(null); handleTailor(); }}
-                onSettings={() => {}}
-                onRevert={() => { setTailorResult(null); setAppliedFixes([]); }}
-                abortRef={abortRef}
-                setIsTailoring={setIsTailoring}
-                setProgress={setProgress}
-                showAppliedCTA={showAppliedCTA}
-                appliedResumeId={appliedResumeId}
-                appliedResumeTitle={appliedResumeTitle}
-                appliedJobInfo={appliedJobInfo}
-                onViewResume={handleViewResume}
-                onTrackApplication={handleTrackApplication}
-                onCloseSuccess={handleCloseSuccess}
-                onGoToPortfolio={handleGoToPortfolio}
-                appliedScore={appliedScore}
-                appliedKeywordCount={appliedKeywordCount}
-                appliedValidatorResult={appliedValidatorResult}
-                copiedText={copiedText}
-                onCopyText={handleCopyPlainText}
-                onReTailor={handleTailor}
-                rejectedBullets={rejectedBullets}
-                onBulletReject={setRejectedBullets}
-                onRegenerate={handleRegenerateSection}
-                revealedSections={revealedSections}
-                preValidatorResult={preValidatorResult}
-                isPreValidating={isPreValidating}
-                dismissedIssueIndices={dismissedIssueIndices}
-                onDismissIssue={handleDismissIssue}
-                fixSuggestions={fixSuggestions}
-                isGeneratingFixes={isGeneratingFixes}
-                appliedFixes={appliedFixes}
-                onApplyFix={handleApplyFix}
+            {wizardStep !== 'run' && (
+              <TailorSetupWizardFooter
+                step={wizardStep}
+                canContinue={canContinueTailorStep(wizardStep, hasResumeForFlow, hasJobForFlow)}
+                onBack={goWizardBack}
+                onContinue={goWizardContinue}
               />
             )}
+
+            {wizardStep === 'run' && (
+              <div className="tailor-wizard-footer tailor-wizard-footer--run-only">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full min-h-[44px] rounded-xl"
+                  onClick={goWizardBack}
+                  disabled={isTailoring}
+                >
+                  Back
+                </Button>
+              </div>
+            )}
+
+          {wizardStep === 'run' && (
+          <div className="lg:hidden space-y-4 pt-2">
+            {showResultsPanel ? (
+              <div className="tailor-results-panel">
+                <ResultsPanel {...resultsPanelProps} />
+              </div>
+            ) : (
+              <TailorDemoPanel />
+            )}
+          </div>
+          )}
           </div>
         </div>
 
-        {/* Right panel: Results (desktop only) */}
-        <div className="hidden lg:flex flex-1 flex-col min-w-0 overflow-y-auto p-4 space-y-4">
-          {(isTailoring || tailorResult || tailorError || showAppliedCTA) ? (
-            <ResultsPanel
-              isTailoring={isTailoring}
-              progress={progress}
-              tailorResult={tailorResult}
-              tailorError={tailorError}
-              originalResume={originalResume}
-              enabledSections={enabledSections}
-              toggleSection={toggleSection}
-              onApplyChanges={handleApplyChanges}
-              onPreview={() => setShowTailorPreview(true)}
-              isApplying={isApplying}
-              onRetry={() => { setTailorError(null); handleTailor(); }}
-              onSettings={() => {}}
-              onRevert={() => { setTailorResult(null); setAppliedFixes([]); }}
-              abortRef={abortRef}
-              setIsTailoring={setIsTailoring}
-              setProgress={setProgress}
-              showAppliedCTA={showAppliedCTA}
-              appliedResumeId={appliedResumeId}
-              appliedResumeTitle={appliedResumeTitle}
-              appliedJobInfo={appliedJobInfo}
-              onViewResume={handleViewResume}
-              onTrackApplication={handleTrackApplication}
-              onCloseSuccess={handleCloseSuccess}
-              onGoToPortfolio={handleGoToPortfolio}
-              appliedScore={appliedScore}
-              appliedKeywordCount={appliedKeywordCount}
-              appliedValidatorResult={appliedValidatorResult}
-              copiedText={copiedText}
-              onCopyText={handleCopyPlainText}
-              onReTailor={handleTailor}
-              rejectedBullets={rejectedBullets}
-              onBulletReject={setRejectedBullets}
-              onRegenerate={handleRegenerateSection}
-              revealedSections={revealedSections}
-              preValidatorResult={preValidatorResult}
-              isPreValidating={isPreValidating}
-              dismissedIssueIndices={dismissedIssueIndices}
-              onDismissIssue={handleDismissIssue}
-              fixSuggestions={fixSuggestions}
-              isGeneratingFixes={isGeneratingFixes}
-              appliedFixes={appliedFixes}
-              onApplyFix={handleApplyFix}
-            />
+        <TailorResultsStage hasContent={showResultsPanel} className="hidden lg:flex">
+          {showResultsPanel ? (
+            <div className="tailor-results-panel">
+              <ResultsPanel {...resultsPanelProps} />
+            </div>
           ) : (
             <TailorDemoPanel />
           )}
-        </div>
+        </TailorResultsStage>
       </div>
 
 
@@ -1338,7 +1381,7 @@ function ResultsPanel({
     const improvement = appliedScore ? validatedAfterScore - appliedScore.before : 0;
     const isVerified = appliedValidatorResult !== null;
     return (
-      <div className="flex flex-col items-center justify-center gap-6 py-12 px-6 text-center animate-fade-in">
+      <div className="tailor-results-panel flex flex-col items-center justify-center gap-6 py-12 px-6 text-center animate-fade-in">
         <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
           <CheckCircle className="w-8 h-8 text-success" />
         </div>
@@ -1464,7 +1507,7 @@ function ResultsPanel({
     );
   }
   return (
-    <div className="space-y-4">
+    <div className="tailor-results-panel space-y-4">
       {isTailoring && progress && (
         <TailorProgressComponent
           progress={progress}
@@ -1541,8 +1584,7 @@ function ResultsPanel({
 
       {tailorResult && !isTailoring && (
         <div className="space-y-4">
-          {/* Success banner */}
-          <div className="p-4 rounded-xl bg-success/10 border border-success/30 shadow-soft-sm">
+          <div className="p-4 sm:p-5 rounded-2xl bg-success/10 border border-success/30 shadow-soft overflow-hidden">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-success" />

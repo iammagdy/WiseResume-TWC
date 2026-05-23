@@ -35,8 +35,12 @@ import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import type { ResumeData } from '@/types/resume';
 
+type DashboardUploadVariant = 'default' | 'compact' | 'workspace' | 'toolbar';
+
 interface DashboardUploadWidgetProps {
+  /** @deprecated Prefer `variant="compact"` */
   compact?: boolean;
+  variant?: DashboardUploadVariant;
 }
 
 function isTouchDevice() {
@@ -44,7 +48,11 @@ function isTouchDevice() {
   return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
-export function DashboardUploadWidget({ compact = false }: DashboardUploadWidgetProps) {
+export function DashboardUploadWidget({
+  compact = false,
+  variant: variantProp,
+}: DashboardUploadWidgetProps) {
+  const variant: DashboardUploadVariant = variantProp ?? (compact ? 'compact' : 'default');
   const navigate = useNavigate();
   const { user } = useAuth();
   const { createResume } = useResumeMutations();
@@ -189,7 +197,8 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
 
   const compactErrorCopy = error ? getUploadErrorCopy(error.type) : null;
 
-  if (compact) {
+  if (variant === 'toolbar' || variant === 'compact') {
+    const isToolbar = variant === 'toolbar';
     return (
       <>
         <input
@@ -210,13 +219,18 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
           disabled={isProcessing}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             variant="outline"
             size="sm"
             onClick={() => { haptics.light(); fileInputRef.current?.click(); }}
             disabled={isProcessing}
-            className="gap-2 h-10 touch-manipulation active:scale-95"
+            className={cn(
+              'gap-1.5 touch-manipulation active:scale-95 shadow-none',
+              isToolbar
+                ? 'h-9 px-3.5 rounded-xl text-sm font-medium border-border/50 bg-card/40'
+                : 'h-10',
+            )}
             aria-label="Upload existing resume"
           >
             {isProcessing ? (
@@ -224,7 +238,7 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
             ) : (
               <Upload className="w-4 h-4" />
             )}
-            Upload Resume
+            {isToolbar ? 'Upload' : 'Upload Resume'}
           </Button>
           {isTouch && (
             <Button
@@ -232,7 +246,10 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
               size="icon"
               onClick={() => { haptics.light(); cameraInputRef.current?.click(); }}
               disabled={isProcessing}
-              className="h-10 w-10 touch-manipulation active:scale-95"
+              className={cn(
+                'touch-manipulation active:scale-95',
+                isToolbar ? 'h-9 w-9 rounded-xl' : 'h-10 w-10',
+              )}
               aria-label="Scan resume with camera"
               title="Scan with camera"
             >
@@ -263,7 +280,7 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
     );
   }
 
-  return (
+  const fileInputs = (
     <>
       <input
         ref={fileInputRef}
@@ -282,6 +299,187 @@ export function DashboardUploadWidget({ compact = false }: DashboardUploadWidget
         className="hidden"
         disabled={isProcessing}
       />
+    </>
+  );
+
+  if (variant === 'workspace') {
+    return (
+      <>
+        {fileInputs}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          className={cn(
+            'dashboard-upload-workspace relative rounded-xl border transition-all duration-200',
+            isDragging
+              ? 'border-primary/50 bg-primary/8'
+              : 'border-border/45 bg-muted/15 hover:border-primary/30 hover:bg-muted/25',
+            isProcessing ? 'pointer-events-none' : 'cursor-pointer',
+          )}
+          role="button"
+          tabIndex={isProcessing ? -1 : 0}
+          aria-label="Upload resume — drag and drop or click to browse"
+          onClick={() => !isProcessing && fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (!isProcessing && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+        >
+          <AnimatePresence mode="wait">
+            {isProcessing ? (
+              <motion.div
+                key="processing"
+                className="flex items-center gap-3 p-3 min-h-[52px]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <UploadProgressSteps currentStep={parseStep} fileName={fileName ?? undefined} />
+                </div>
+              </motion.div>
+            ) : error ? (
+              <motion.div
+                key="error"
+                className="flex items-start gap-2.5 p-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Couldn&apos;t read this file</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                    {compactErrorCopy?.compactDescription}
+                  </p>
+                  <div className="flex flex-wrap gap-x-2 gap-y-1 mt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                      className="text-[11px] text-primary hover:underline touch-manipulation"
+                    >
+                      Try again
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/upload');
+                      }}
+                      className="text-[11px] text-muted-foreground hover:text-foreground touch-manipulation"
+                    >
+                      Full upload page
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDismissError();
+                  }}
+                  className="shrink-0 p-1 rounded-md hover:bg-muted/50 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                  aria-label="Dismiss error"
+                >
+                  <X className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="idle"
+                className="flex items-center gap-3 p-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div
+                  className={cn(
+                    'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+                    isDragging ? 'bg-primary/25' : 'bg-primary/12',
+                  )}
+                >
+                  {isDragging ? (
+                    <Check className="w-4 h-4 text-primary" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground leading-tight">
+                    {isDragging ? 'Drop to import' : 'Upload existing resume'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                    {isTouch
+                      ? 'Tap to pick · PDF, Word, or image'
+                      : 'Drag & drop or click · max 10MB'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {isTouch && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-lg"
+                      onClick={() => {
+                        haptics.light();
+                        cameraInputRef.current?.click();
+                      }}
+                      aria-label="Scan with camera"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    className="h-8 px-3 rounded-lg text-xs font-medium shadow-none shrink-0"
+                    onClick={() => {
+                      haptics.light();
+                      fileInputRef.current?.click();
+                    }}
+                    aria-label="Upload resume"
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1" />
+                    Upload
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        <SharedDialogs
+          isProcessing={isProcessing}
+          parseStep={parseStep}
+          fileName={fileName}
+          ocrState={ocrState}
+          confirmOCR={confirmOCR}
+          cancelOCR={cancelOCR}
+          error={error}
+          onDismissError={handleDismissError}
+          showReview={showReview}
+          parsedData={parsedData}
+          lowConfidenceFields={lowConfidenceFields}
+          atsScore={atsScore}
+          isScoring={isScoring}
+          onReviewClose={handleReviewClose}
+          onImportConfirm={handleImportConfirm}
+          onNavigateUpload={() => navigate('/upload')}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {fileInputs}
 
       <div
         onDrop={handleDrop}

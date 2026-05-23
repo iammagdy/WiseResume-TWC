@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Sparkles, Target, TrendingUp } from 'lucide-react';
+import { ArrowRight, Brain, Target, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,8 @@ interface InsightContent {
   title: string;
   why: string;
   impactLabel: string | null;
+  weakestLabel: string | null;
+  weakestScore: number | null;
   cta: string;
   action: InsightAction;
 }
@@ -31,9 +33,11 @@ function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
   if (!healthScore) {
     return {
       eyebrow: 'AI workspace',
-      title: 'Unlock personalized guidance',
-      why: 'ATS scoring on your featured resume surfaces the highest-impact fixes — keywords, structure, and bullet quality.',
+      title: 'Personalized guidance unlocks after scoring',
+      why: 'Open your active resume in the editor. ATS scoring surfaces keyword gaps, weak sections, and the next step to improve match rate.',
       impactLabel: null,
+      weakestLabel: null,
+      weakestScore: null,
       cta: 'Open Editor',
       action: 'editor',
     };
@@ -53,10 +57,12 @@ function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
 
   if (gapCount >= 2) {
     return {
-      eyebrow: 'Biggest ATS opportunity',
+      eyebrow: 'Biggest opportunity',
       title: `Close ${gapCount} keyword gap${gapCount === 1 ? '' : 's'}`,
-      why: `Role-specific terms drive shortlist rates. Your resume is missing ${gapCount} target keywords — tailoring to a job posting closes these fastest.`,
+      why: `Role-specific terms drive shortlist rates. Tailoring to a job posting closes these gaps faster than manual edits alone.`,
       impactLabel: headroom > 0 ? `Up to +${Math.min(15, gapCount * 3)} pts match` : null,
+      weakestLabel,
+      weakestScore,
       cta: 'Tailor to Job',
       action: 'tailor',
     };
@@ -64,10 +70,12 @@ function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
 
   if (weakestScore < 65) {
     return {
-      eyebrow: 'Highest impact improvement',
+      eyebrow: 'Highest impact',
       title: topImprovement,
-      why: `${weakestLabel} scores ${weakestScore}% — your lowest ATS signal. Improving this area typically lifts overall match more than polishing strong sections.`,
+      why: `${weakestLabel} scores ${weakestScore}% — your lowest ATS signal. Improving this area lifts overall match more than polishing strong sections.`,
       impactLabel: headroom > 0 ? `~${headroom} pts headroom` : null,
+      weakestLabel,
+      weakestScore,
       cta: 'Apply in Editor',
       action: 'editor',
     };
@@ -81,22 +89,26 @@ function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
           ? 'measurable results'
           : 'strong action verbs';
     return {
-      eyebrow: 'Your weakest bullets',
+      eyebrow: 'Weakest bullets',
       title: 'Add outcome-driven phrasing',
-      why: `AI flagged bullets missing ${reason}. Recruiters scan for impact in under 10 seconds — quantified wins outperform duty lists.`,
+      why: `AI flagged bullets missing ${reason}. Quantified wins outperform duty lists in recruiter scans.`,
       impactLabel: overallScore < 80 ? 'Content quality boost' : null,
+      weakestLabel,
+      weakestScore,
       cta: 'Apply in Editor',
       action: 'editor',
     };
   }
 
   return {
-    eyebrow: 'Next recommended step',
+    eyebrow: 'Next step',
     title: topImprovement,
     why: topStrength
-      ? `Strongest signal: ${topStrength}. Address the improvement below before your next application to stay competitive in ATS filters.`
+      ? `Strongest signal: ${topStrength}. Address the improvement below before your next application.`
       : 'Focus on the top improvement below to strengthen your next application.',
     impactLabel: overallScore >= 80 ? 'Strong ATS base' : `ATS ${overallScore}%`,
+    weakestLabel,
+    weakestScore,
     cta: gapCount > 0 ? 'Tailor to Job' : 'Apply in Editor',
     action: gapCount > 0 ? 'tailor' : 'editor',
   };
@@ -128,35 +140,49 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
   };
 
   return (
-    <motion.aside
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+    <motion.section
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.05 }}
+      transition={{ duration: 0.28 }}
       aria-label="AI workspace insight"
       className={cn(
-        'rounded-xl p-3.5 dashboard-ai-insight-panel shadow-soft-sm lg:max-w-[300px]',
+        'rounded-2xl p-3.5 dashboard-ai-insight-panel shadow-soft-sm',
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-primary/90">
-          <Sparkles className="w-3 h-3" aria-hidden />
-          {insight.eyebrow}
+      <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-border/60">
+        <span className="dashboard-ai-insight-panel__brand flex items-center justify-center w-7 h-7 rounded-lg bg-primary/8 border border-primary/12">
+          <Brain className="w-3.5 h-3.5 text-primary" aria-hidden />
         </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            AI workspace
+          </p>
+          <p className="text-xs font-medium text-foreground truncate">{insight.eyebrow}</p>
+        </div>
         {healthScore && (
-          <span className="tabular-nums text-[10px] font-medium text-muted-foreground">
+          <span className="tabular-nums text-[10px] font-medium text-muted-foreground shrink-0">
             ATS {healthScore.overallScore}%
           </span>
         )}
       </div>
 
-      <h3 className="text-sm font-bold text-foreground leading-snug line-clamp-2 mb-1.5">
+      <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2 mb-1.5">
         {insight.title}
       </h3>
 
       <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-4">
         {insight.why}
       </p>
+
+      {insight.weakestLabel != null && insight.weakestScore != null && insight.weakestScore < 80 && (
+        <div className="flex items-center justify-between gap-2 mb-3 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/50 text-[11px]">
+          <span className="text-muted-foreground">Weakest section</span>
+          <span className="font-medium text-foreground tabular-nums">
+            {insight.weakestLabel} · {insight.weakestScore}%
+          </span>
+        </div>
+      )}
 
       {insight.impactLabel && (
         <div className="flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
@@ -166,7 +192,7 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
       )}
 
       {!healthScore && (
-        <div className="flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-lg bg-muted/50 border border-border/60">
+        <div className="flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/50">
           <Target className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden />
           <span className="text-[11px] text-muted-foreground">Scores update as you edit</span>
         </div>
@@ -174,12 +200,12 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
 
       <Button
         size="sm"
-        className="w-full h-10 min-h-[44px] rounded-xl font-semibold shadow-soft-sm gap-1.5 text-sm"
+        className="w-full h-10 min-h-[44px] rounded-xl font-semibold gap-1.5 text-sm shadow-none"
         onClick={handleCta}
       >
         {insight.cta}
         <ArrowRight className="w-4 h-4 opacity-80" />
       </Button>
-    </motion.aside>
+    </motion.section>
   );
 });

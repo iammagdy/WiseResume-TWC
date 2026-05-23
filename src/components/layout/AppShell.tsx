@@ -1,18 +1,18 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { preloadLazy } from '@/lib/preloadLazy';
-import { MessageCircle, X } from 'lucide-react';
 import { useBottomSheetOpen } from '@/context/BottomSheetContext';
 
-import { BottomTabBar } from './BottomTabBar';
-import { DesktopNav } from './DesktopNav';
-import { MobileTopBar } from './MobileTopBar';
+import { AppWorkspaceLayout } from './AppWorkspaceLayout';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { KeyboardProvider } from '@/context/KeyboardContext';
 import { ShortcutHelpSheet } from './ShortcutHelpSheet';
 import { ImportJobFAB } from '@/components/jobs/ImportJobFAB';
 import { ImportJobSheet } from '@/components/jobs/ImportJobSheet';
+import {
+  WiseWorkspaceShell,
+  useWiseWorkspaceGlobalEvents,
+} from '@/components/wise-workspace/WiseWorkspaceShell';
 
 const GuestSaveBanner = lazy(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
 const OfflineBanner = lazy(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
@@ -21,13 +21,42 @@ import { SwipeBackWrapper } from './SwipeBackWrapper';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
 import { shouldExitOnBack } from '@/lib/navigation';
-import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { getMobileShellLayout } from './appShellLayout';
 
-const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
-
-
-const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letters', '/cover-letter', '/examples', '/career', '/resignation-letter', '/guides', '/ai-studio', '/portfolio', '/qr-code', '/qr-batch', '/qr-scan'];
+const TAB_ROUTES = [
+  '/dashboard',
+  '/upload',
+  '/settings',
+  '/interview',
+  '/editor',
+  '/preview',
+  '/applications',
+  '/onboarding',
+  '/profile',
+  '/templates',
+  '/resume',
+  '/job',
+  '/application',
+  '/notifications',
+  '/cover-letters',
+  '/cover-letter',
+  '/examples',
+  '/career',
+  '/resignation-letter',
+  '/guides',
+  '/ai-studio',
+  '/portfolio',
+  '/qr-code',
+  '/qr-batch',
+  '/qr-scan',
+  '/tailor',
+  '/subscription',
+  '/analytics',
+  '/referral',
+  '/achievements',
+  '/help',
+  '/search',
+];
 
 /**
  * AppShell — thin provider wrapper so that AppShellInner and all its hooks
@@ -45,22 +74,33 @@ function AppShellInner() {
   const location = useLocation();
   const currentOutlet = useOutlet();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
+  const isDashboardWorkspace = location.pathname === '/dashboard';
+  const useGlobalSidebar = showBottomNav;
+  const outletWrapperClassName = 'flex-1 flex flex-col min-h-0';
   const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
+  const isTailorRoute = location.pathname.startsWith('/tailor');
+  const workspaceImmersive = isEditorRoute || isDashboardWorkspace || isTailorRoute;
   const isRootRoute = shouldExitOnBack(location.pathname);
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [importJobMobileOpen, setImportJobMobileOpen] = useState(false);
   const { isAnySheetOpen } = useBottomSheetOpen();
   const mobileShellLayout = getMobileShellLayout(location.pathname, isAnySheetOpen);
 
-  // Now inside KeyboardProvider — dispatch reaches context correctly
+  useWiseWorkspaceGlobalEvents();
+
   useKeyboardAwareScroll();
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const onImportJob = () => setImportJobMobileOpen(true);
+    window.addEventListener('open-import-job', onImportJob);
+    return () => window.removeEventListener('open-import-job', onImportJob);
+  }, []);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -91,90 +131,94 @@ function AppShellInner() {
       </a>
       <Suspense fallback={null}><OfflineBanner /></Suspense>
       <Suspense fallback={null}><SlowConnectionBanner /></Suspense>
-      {!isEditorRoute && <Suspense fallback={null}><GuestSaveBanner /></Suspense>}
-      {showBottomNav && !isEditorRoute && !location.pathname.startsWith('/dashboard') && (
-        <MobileTopBar />
-      )}
-      {showBottomNav && <DesktopNav />}
-      <main
-        id="main-content"
-        className={cn(
-          "flex-1 flex flex-col min-h-0 overflow-hidden",
-          showBottomNav && !isEditorRoute && (
-            mobileShellLayout.showAskFab
-              ? "pb-[8.75rem] lg:pb-0"
-              : "pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0"
-          )
-        )}
-      >
-        <div
-          ref={scrollRef}
+
+      <WiseWorkspaceShell>
+        {!isEditorRoute && <Suspense fallback={null}><GuestSaveBanner /></Suspense>}
+        <main
+          id="main-content"
           className={cn(
-            "flex-1 flex flex-col min-h-0 w-full main-scroll-container",
-            isEditorRoute ? "overflow-hidden" : "overflow-y-auto"
+            'flex-1 flex flex-col min-h-0 overflow-hidden',
+            useGlobalSidebar && 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0',
           )}
         >
-          <ScrollProgressBar containerRef={scrollRef} />
-          <AnimatePresence mode="wait" initial={false}>
-            {enableSwipeBack ? (
-              <SwipeBackWrapper key={location.pathname} className="flex-1 flex flex-col min-h-0">
-                <motion.div
-                  className="flex-1 flex flex-col min-h-0"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15, ease: 'easeInOut' }}
-                >
-                  {currentOutlet}
-                </motion.div>
-              </SwipeBackWrapper>
-            ) : (
-              <motion.div
-                key={location.pathname}
-                className="flex-1 flex flex-col min-h-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
+          {useGlobalSidebar ? (
+            <AppWorkspaceLayout onImportJob={() => setImportJobMobileOpen(true)}>
+              <div
+                ref={scrollRef}
+                className={cn(
+                  'flex-1 flex flex-col min-h-0 w-full main-scroll-container',
+                  workspaceImmersive ? 'overflow-hidden' : 'overflow-y-auto',
+                )}
               >
-                {currentOutlet}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </main>
-      {showBottomNav && <BottomTabBar className="lg:hidden" />}
-
-      {showBottomNav && !isEditorRoute && mobileShellLayout.showAskFab && mobileShellLayout.askFabOffsetClass && (
-        <button
-          onPointerEnter={!wiseAIOpen ? preloadLazy(() => import('@/components/editor/AgenticChatSheet')) : undefined}
-          onClick={() => setWiseAIOpen(v => !v)}
-          className={cn(
-            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full shadow-soft-lg active:scale-95 transition-all touch-manipulation',
-            wiseAIOpen
-              ? 'bg-muted text-foreground border border-border'
-              : 'bg-primary text-primary-foreground',
-            mobileShellLayout.askFabOffsetClass
-          )}
-          aria-label={wiseAIOpen ? 'Close Wise AI' : 'Ask Wise AI'}
-          aria-expanded={wiseAIOpen}
-        >
-          {wiseAIOpen ? (
-            <X className="w-4 h-4" />
+                <ScrollProgressBar containerRef={scrollRef} />
+                <AnimatePresence mode="wait" initial={false}>
+                  {enableSwipeBack ? (
+                    <SwipeBackWrapper key={location.pathname} className={outletWrapperClassName}>
+                      <motion.div
+                        className={outletWrapperClassName}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15, ease: 'easeInOut' }}
+                      >
+                        {currentOutlet}
+                      </motion.div>
+                    </SwipeBackWrapper>
+                  ) : (
+                    <motion.div
+                      key={location.pathname}
+                      className={outletWrapperClassName}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15, ease: 'easeInOut' }}
+                    >
+                      {currentOutlet}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </AppWorkspaceLayout>
           ) : (
-            <MessageCircle className="w-4 h-4" />
+            <div
+              ref={scrollRef}
+              className={cn(
+                'flex-1 flex flex-col min-h-0 w-full main-scroll-container overflow-y-auto',
+              )}
+            >
+              <ScrollProgressBar containerRef={scrollRef} />
+              <AnimatePresence mode="wait" initial={false}>
+                {enableSwipeBack ? (
+                  <SwipeBackWrapper key={location.pathname} className={outletWrapperClassName}>
+                    <motion.div
+                      className={outletWrapperClassName}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15, ease: 'easeInOut' }}
+                    >
+                      {currentOutlet}
+                    </motion.div>
+                  </SwipeBackWrapper>
+                ) : (
+                  <motion.div
+                    key={location.pathname}
+                    className={outletWrapperClassName}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15, ease: 'easeInOut' }}
+                  >
+                    {currentOutlet}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
-          <span className="text-sm font-medium">{wiseAIOpen ? 'Close' : 'Wise AI'}</span>
-        </button>
-      )}
+        </main>
+      </WiseWorkspaceShell>
 
-      {wiseAIOpen && (
-        <Suspense fallback={null}>
-          <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
-        </Suspense>
-      )}
-
-      {showBottomNav && !isEditorRoute && mobileShellLayout.showAskFab && mobileShellLayout.askFabOffsetClass && (
+      {!useGlobalSidebar && mobileShellLayout.showAskFab && mobileShellLayout.askFabOffsetClass && (
         <ImportJobFAB offsetClass={mobileShellLayout.askFabOffsetClass} onOpen={() => setImportJobMobileOpen(true)} />
       )}
 

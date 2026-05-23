@@ -7,6 +7,7 @@ const PAGE_TITLES: [string, string][] = [
   ['/preview', 'Preview'],
   ['/upload', 'Import Resume'],
   ['/ai-studio', 'AI Tools'],
+  ['/tailor', 'Resume Tailor'],
   ['/interview', 'Interview Prep'],
   ['/career', 'Career Path'],
   ['/cover-letter', 'Cover Letter'],

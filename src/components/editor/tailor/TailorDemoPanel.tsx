@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight, Briefcase, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -52,7 +52,6 @@ export function TailorDemoPanel() {
   const [exampleIdx, setExampleIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>(prefersReducedMotion ? 'after' : 'before');
 
-  // If reduced-motion preference is toggled while the panel is mounted, snap to static "after" frame
   useEffect(() => {
     if (prefersReducedMotion) setPhase('after');
   }, [prefersReducedMotion]);
@@ -73,33 +72,44 @@ export function TailorDemoPanel() {
   const example = DEMO_EXAMPLES[exampleIdx];
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-soft overflow-hidden">
-      {/* Header strip */}
-      <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">See it in action</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Paste a job description on the left to tailor your real resume
-          </p>
+    <div className="tailor-results-empty tailor-results-panel">
+      <div className="tailor-results-empty__hero">
+        <div className="tailor-results-empty__hero-glow" aria-hidden />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/90">
+              Example transformation
+            </p>
+            <p className="text-lg font-semibold text-foreground mt-1 leading-tight">
+              See what tailoring unlocks
+            </p>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-md">
+              Complete the steps on the left — match scores, keyword gaps, section-by-section diffs,
+              and one-click apply will render in this studio panel.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Badge variant="secondary" className="text-[10px] border border-primary/15 bg-primary/5 text-primary">
+              Live demo
+            </Badge>
+            <Badge variant="outline" className="text-[10px] gap-1">
+              <TrendingUp className="w-3 h-3" aria-hidden />
+              ATS-focused
+            </Badge>
+          </div>
         </div>
-        <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">
-          Live demo
-        </Badge>
       </div>
 
-      {/* Job context label */}
       <div className="px-5 pb-2 flex items-center gap-2">
-        <div className="h-2 w-2 rounded-full bg-primary/60" />
-        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-          {example.jobContext}
+        <Briefcase className="w-3.5 h-3.5 text-primary/70 shrink-0" aria-hidden />
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          Target role: {example.jobContext}
         </span>
       </div>
 
-      {/* Animation stage — fixed height prevents layout jumps */}
-      <div className="px-5 pb-5">
-        <div className="relative h-[148px]">
+      <div className="tailor-results-empty__stage">
+        <div className="relative min-h-[200px] sm:min-h-[220px] overflow-hidden">
           <AnimatePresence mode="wait">
-            {/* BEFORE state */}
             {(phase === 'before' || phase === 'transforming') && (
               <motion.div
                 key={`before-${exampleIdx}`}
@@ -111,7 +121,7 @@ export function TailorDemoPanel() {
                 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.3 }}
-                className="absolute inset-0 flex flex-col gap-2"
+                className="absolute inset-0 flex flex-col gap-2 p-4 sm:p-5"
               >
                 <Badge
                   variant="outline"
@@ -119,13 +129,10 @@ export function TailorDemoPanel() {
                 >
                   Before
                 </Badge>
-                <div className="p-3 rounded-lg border border-border bg-muted/30 flex-1 flex items-start">
-                  <p className="text-sm text-muted-foreground leading-relaxed">{example.before}</p>
-                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{example.before}</p>
               </motion.div>
             )}
 
-            {/* AFTER state */}
             {(phase === 'after' || phase === 'resetting') && (
               <motion.div
                 key={`after-${exampleIdx}`}
@@ -133,22 +140,19 @@ export function TailorDemoPanel() {
                 animate={{ opacity: phase === 'resetting' ? 0 : 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.35 }}
-                className="absolute inset-0 flex flex-col gap-2"
+                className="absolute inset-0 flex flex-col gap-2 p-4 sm:p-5"
               >
                 <Badge
                   variant="outline"
                   className="self-start text-[10px] h-5 px-2 border-primary/50 text-primary bg-primary/5"
                 >
-                  After
+                  After tailoring
                 </Badge>
-                <div className="p-3 rounded-lg border border-primary/25 bg-primary/5 flex-1 flex items-start">
-                  <p className="text-sm text-foreground leading-relaxed">{example.after}</p>
-                </div>
+                <p className="text-sm text-foreground leading-relaxed font-medium">{example.after}</p>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Sparkle overlay during transform */}
           <AnimatePresence>
             {phase === 'transforming' && (
               <motion.div
@@ -160,10 +164,10 @@ export function TailorDemoPanel() {
                 className="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
                 <motion.div
-                  animate={{ rotate: [0, 12, -8, 0], scale: [1, 1.15, 1.08, 1] }}
+                  animate={{ rotate: [0, 12, -8, 0], scale: [1, 1.12, 1.06, 1] }}
                   transition={{ duration: 0.65, ease: 'easeInOut' }}
-                  className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shadow-soft-md"
-                  style={{ boxShadow: '0 0 24px -4px hsl(var(--primary) / 0.45)' }}
+                  className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center"
+                  style={{ boxShadow: '0 0 28px -4px hsl(var(--primary) / 0.5)' }}
                 >
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </motion.div>
@@ -172,15 +176,14 @@ export function TailorDemoPanel() {
           </AnimatePresence>
         </div>
 
-        {/* Progress dots */}
         {!prefersReducedMotion && (
-          <div className="flex items-center justify-center gap-1.5 mt-3">
+          <div className="flex items-center justify-center gap-1.5 py-3 border-t border-border/40">
             {DEMO_EXAMPLES.map((_, i) => (
               <div
                 key={i}
                 className={cn(
                   'h-1.5 rounded-full transition-all duration-300',
-                  i === exampleIdx ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'
+                  i === exampleIdx ? 'w-5 bg-primary' : 'w-1.5 bg-muted-foreground/25',
                 )}
               />
             ))}
@@ -188,11 +191,10 @@ export function TailorDemoPanel() {
         )}
       </div>
 
-      {/* Bottom hint */}
-      <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center gap-2">
-        <ArrowRight className="w-3.5 h-3.5 text-primary shrink-0" />
-        <p className="text-xs text-muted-foreground">
-          AI tailors every bullet, skill, and summary to match the job
+      <div className="tailor-results-empty__footer flex items-center gap-2">
+        <ArrowRight className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Bullets, skills, and summary are rewritten to mirror the job posting — your original resume stays safe until you apply.
         </p>
       </div>
     </div>

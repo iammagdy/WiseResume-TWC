@@ -141,7 +141,10 @@ export function PullToRefresh({
   }, [isRefreshing, onRefresh, threshold, y]);
 
   return (
-    <div className={cn('relative', className)} style={{ overscrollBehaviorY: 'none' }}>
+    <div
+      className={cn('relative flex min-h-0 flex-col', className)}
+      style={{ overscrollBehaviorY: 'none' }}
+    >
       {/* Pull indicator */}
       <motion.div
         className="absolute left-0 right-0 flex items-center justify-center z-50 pointer-events-none"
@@ -159,8 +162,8 @@ export function PullToRefresh({
       </motion.div>
 
       {/* Content wrapper — no internal scroll, content flows into parent scroll */}
-      <motion.div style={{ y }}>
-        <div ref={wrapperRef}>
+      <motion.div style={{ y }} className="flex min-h-0 flex-1 flex-col">
+        <div ref={wrapperRef} className="flex min-h-0 flex-1 flex-col">
           {children}
         </div>
       </motion.div>

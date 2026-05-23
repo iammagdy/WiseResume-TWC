@@ -32,9 +32,13 @@ export function SaveBar({
     ? 'Save & Publish'
     : 'Save Draft';
 
+  const saveDraftMode = !portfolioEnabled && !!onSaveDraft;
+  const primaryAction = saveDraftMode ? onSaveDraft! : onSave;
+  const primaryBusy = saveDraftMode ? savingDraft : saving;
+
   return (
-    <div className="shrink-0 px-4 py-3 pb-safe border-t border-border bg-background">
-      <div className="flex items-center gap-3">
+    <div className="shrink-0 px-4 sm:px-6 py-3 pb-safe border-t border-border/70 bg-card/95 backdrop-blur-md">
+      <div className="flex items-center gap-3 max-w-6xl mx-auto w-full">
         {/* Publish toggle */}
         <div className="flex items-center gap-2 shrink-0">
           <Switch
@@ -92,12 +96,12 @@ export function SaveBar({
           </TooltipProvider> :
 
         <Button
-          onClick={onSave}
-          disabled={saving || savingDraft}
+          onClick={primaryAction}
+          disabled={primaryBusy || (saveDraftMode ? saving : savingDraft)}
           className="flex-1 h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation">
           
-            {saving
-              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Publishing…</>
+            {primaryBusy
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{saveDraftMode ? 'Saving draft…' : 'Publishing…'}</>
               : publishLabel
             }
           </Button>

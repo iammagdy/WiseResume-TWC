@@ -353,113 +353,70 @@ export const DashboardStats = memo(function DashboardStats({
   if (totalResumes > 0) {
 
     const metrics = [
-
       {
-
-        Icon: Target,
-
-        value: tailoredCount,
-
-        label: 'Tailored CVs',
-
-        accent: 'text-primary',
-
-        iconBg: 'bg-primary/10',
-
-      },
-
-      {
-
         Icon: Star,
-
         value: avgScore > 0 ? `${avgScore}%` : isScoring ? '…' : '—',
-
-        label: 'Avg. match',
-
+        label: 'ATS average',
         accent: avgScore >= 80 ? 'text-success' : avgScore >= 50 ? 'text-warning' : 'text-muted-foreground',
-
-        iconBg: avgScore >= 80 ? 'bg-success/10' : avgScore >= 50 ? 'bg-warning/10' : 'bg-muted',
-
+        iconBg: avgScore >= 80 ? 'bg-success/10' : avgScore >= 50 ? 'bg-warning/10' : 'bg-muted/60',
+        show: true,
       },
-
       {
-
+        Icon: Target,
+        value: tailoredCount,
+        label: 'Tailored resumes',
+        accent: 'text-foreground',
+        iconBg: 'bg-primary/8',
+        show: tailoredCount > 0,
+      },
+      {
         Icon: Hash,
-
-        value: missingKeywordsCount > 0 ? missingKeywordsCount : '—',
-
+        value: missingKeywordsCount,
         label: 'Missing keywords',
-
-        accent: missingKeywordsCount > 0 ? 'text-warning' : 'text-muted-foreground',
-
+        accent: 'text-warning',
         iconBg: 'bg-warning/10',
-
+        show: missingKeywordsCount > 0,
       },
-
       {
-
         Icon: FileText,
-
         value: totalResumes,
-
         label: 'Saved resumes',
-
-        accent: 'text-primary',
-
-        iconBg: 'bg-primary/10',
-
+        accent: 'text-foreground',
+        iconBg: 'bg-muted/50',
+        show: true,
       },
+    ].filter((m) => m.show);
 
-    ];
-
-
+    const gridClass =
+      metrics.length >= 4
+        ? 'grid-cols-2 lg:grid-cols-4'
+        : metrics.length === 3
+          ? 'grid-cols-2 lg:grid-cols-3'
+          : 'grid-cols-2';
 
     return (
-
       <div className={cn('px-4', metricsOnly ? 'pb-2 pt-0' : 'pb-4')}>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-
+        <div className={cn('grid gap-2', gridClass)}>
           {metrics.map(({ Icon, value, label, accent, iconBg }) => (
-
-            <div key={label} className="dashboard-atlas-metric p-2.5 sm:p-3 flex justify-between gap-2 items-center">
-
+            <div key={label} className="dashboard-atlas-metric p-2.5 sm:p-3 flex justify-between gap-2 items-center min-w-0">
               <div className="min-w-0">
-
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none">
-
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-none">
                   {label}
-
                 </p>
-
-                <p className={cn('text-xl sm:text-2xl font-bold leading-none tabular-nums mt-1 tracking-tight', accent)}>
-
+                <p className={cn('text-lg sm:text-xl font-semibold leading-none tabular-nums mt-1 tracking-tight', accent)}>
                   {value}
-
                 </p>
-
               </div>
-
               <div
-
                 className={cn(
-
-                  'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-primary/15',
-
+                  'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-border/60',
                   iconBg,
-
                 )}
-
               >
-
-                <Icon className={cn('w-4 h-4', accent)} aria-hidden />
-
+                <Icon className={cn('w-3.5 h-3.5', accent)} aria-hidden />
               </div>
-
             </div>
-
           ))}
-
         </div>
 
 

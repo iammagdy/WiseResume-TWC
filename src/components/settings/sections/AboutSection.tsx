@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { RotateCcw, Sparkles, Star, Share2, BookOpen, Bug, Activity, ScrollText, Info } from 'lucide-react';
+import { RotateCcw, Star, Share2, BookOpen, Bug, Activity, ScrollText, Info } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -10,7 +10,6 @@ interface AboutSectionProps {
     isSignedIn: boolean;
     appVersion: string;
     onTakeTour: () => void;
-    onReplaySplash: () => void;
     onRateApp: () => void;
     onShareApp: () => void;
     onOpenHelp: () => void;
@@ -22,7 +21,6 @@ export const AboutSection = memo(function AboutSection({
     isSignedIn,
     appVersion,
     onTakeTour,
-    onReplaySplash,
     onRateApp,
     onShareApp,
     onOpenHelp,
@@ -40,14 +38,6 @@ export const AboutSection = memo(function AboutSection({
                     description="Replay the quick product tour to learn the main features"
                     icon={<RotateCcw className="w-4 h-4" />}
                     onClick={onTakeTour}
-                />
-                <Separator className="ml-[52px] bg-border/30" />
-                <SettingsRow
-                    type="button"
-                    label="Replay Splash Screen"
-                    description="Re-watch the animated intro"
-                    icon={<Sparkles className="w-4 h-4" />}
-                    onClick={onReplaySplash}
                 />
                 <Separator className="ml-[52px] bg-border/30" />
                 <SettingsRow

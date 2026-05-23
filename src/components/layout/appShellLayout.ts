@@ -38,7 +38,7 @@ export function getMobileShellLayout(
     reserveBottomSpace,
     showAskFab: true,
     askFabOffsetClass: pathname === "/portfolio"
-      ? "bottom-[calc(9rem+env(safe-area-inset-bottom))]"
-      : "bottom-[calc(5.5rem+env(safe-area-inset-bottom))]",
+      ? "bottom-[calc(8rem+env(safe-area-inset-bottom))]"
+      : "bottom-[calc(4.5rem+env(safe-area-inset-bottom))]",
   };
 }

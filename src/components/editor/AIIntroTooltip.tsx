@@ -1,50 +1,77 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
+import '@/components/editor/ai-intro-coachmark.css';
 
 interface AIIntroTooltipProps {
   show: boolean;
   onDismiss: () => void;
 }
 
+/**
+ * One-time inline hint below the editor header (not a fixed overlay).
+ */
 export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
-  const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!show) return;
-    const showTimer = setTimeout(() => setVisible(true), 500);
-    return () => clearTimeout(showTimer);
+    if (!show) {
+      setMounted(false);
+      return;
+    }
+    const t = window.setTimeout(() => setMounted(true), 400);
+    return () => window.clearTimeout(t);
   }, [show]);
+
+  const dismiss = useCallback(() => {
+    haptics.light();
+    onDismiss();
+  }, [onDismiss]);
 
   if (!show) return null;
 
   return (
     <AnimatePresence>
-      {visible && (
+      {mounted && (
         <motion.div
-          initial={{ y: 80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 80, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          className="fixed bottom-24 left-4 right-4 z-ai-dialog md:right-auto md:max-w-sm"
+          key="ai-intro-banner"
+          role="status"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="editor-ai-intro-banner shrink-0 overflow-hidden"
         >
-          <div className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border shadow-lg backdrop-blur-sm">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4.5 h-4.5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">Look for ✨ AI buttons in each section</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Tap to tailor, score & improve your resume</p>
-            </div>
-            <button
-              onClick={() => { haptics.light(); onDismiss(); }}
-              className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition-all touch-manipulation"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
+          <div className="editor-ai-intro-banner__icon" aria-hidden>
+            <Sparkles className="w-4 h-4" />
           </div>
+
+          <div className="editor-ai-intro-banner__text">
+            <p className="editor-ai-intro-banner__title">
+              Section AI — tap the sparkle on any block
+            </p>
+            <p className="editor-ai-intro-banner__desc">
+              Tailor, score, and improve without leaving the editor
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={dismiss}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10 active:scale-95 transition-all touch-manipulation min-h-[36px]"
+          >
+            Got it
+          </button>
+
+          <button
+            type="button"
+            onClick={dismiss}
+            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors touch-manipulation"
+            aria-label="Dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </motion.div>
       )}
     </AnimatePresence>

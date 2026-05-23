@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, Briefcase, Settings, Trash2, CheckCheck } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDistanceToNow, isToday, isYesterday, isThisWeek, format } from 'date-fns';
+import { isToday, isYesterday, isThisWeek, format } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { useNotifications, useNotificationMutations, Notification } from '@/hooks/useNotifications';
 import { toast } from '@/components/ui/sonner';
@@ -65,7 +66,7 @@ export default function NotificationsPage() {
   return (
     <div className="flex-1 min-h-0 h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+      <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <BackButton />
           <Bell className="w-5 h-5 text-primary" />
@@ -147,7 +148,7 @@ export default function NotificationsPage() {
                           <p className="text-sm font-semibold">{n.title}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatDistanceToNow(new Date(n.$createdAt), { addSuffix: true })}
+                            {safeFormatDistanceToNow(n.$createdAt, { addSuffix: true }, 'Recently')}
                           </p>
                         </div>
                         {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}

@@ -2,7 +2,8 @@ import { memo, useState } from 'react';
 import { Briefcase, MoreVertical, ExternalLink, Clock, Bell, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { JobApplication, ApplicationStatus } from '@/hooks/useJobApplications';
-import { formatDistanceToNow, differenceInDays, differenceInHours } from 'date-fns';
+import { differenceInDays, differenceInHours } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { openExternal } from '@/lib/openExternal';
 import {
   DropdownMenu,
@@ -61,7 +62,7 @@ export const ApplicationCard = memo(function ApplicationCard({
   resumeName,
 }: ApplicationCardProps) {
   const config = STATUS_CONFIG[application.status as ApplicationStatus] || STATUS_CONFIG.applied;
-  const timeAgo = formatDistanceToNow(new Date(application.applied_at), { addSuffix: true });
+  const timeAgo = safeFormatDistanceToNow(application.applied_at, { addSuffix: true }, 'Recently');
   const deadlineInfo = getDeadlineInfo(application.deadline);
   const hasReminder = !!application.remind_at;
   const isMobile = useIsMobile();

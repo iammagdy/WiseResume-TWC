@@ -33,8 +33,8 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { ResumePickerSheet } from '@/components/shared/ResumePickerSheet';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResume, useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { calcOverallScore } from '@/lib/resumeCompletionRules';
@@ -278,9 +278,32 @@ export default function AIStudioPage() {
       'cold-email': () => setShowColdEmail(true),
       'skills-gap': () => setShowSkillsGap(true),
       'portfolio-bio': () => setShowPortfolioBio(true),
+      'customize': () => {
+        if (!currentResumeId) {
+          toast.info('Select a resume first to customize design', {
+            action: { label: 'Dashboard', onClick: () => navigate('/dashboard') },
+          });
+          return;
+        }
+        navigate(`/editor?id=${currentResumeId}&panel=customize`);
+      },
+      'ideas': () => {
+        if (!currentResumeId) {
+          toast.info('Select a resume first for content ideas', {
+            action: { label: 'Dashboard', onClick: () => navigate('/dashboard') },
+          });
+          return;
+        }
+        navigate(`/editor?id=${currentResumeId}&panel=content-library`);
+      },
     };
-    toolMap[tool]?.();
-  }, [navigate]);
+    const handler = toolMap[tool];
+    if (handler) {
+      handler();
+    } else {
+      toast.info('This tool is not available right now.');
+    }
+  }, [navigate, currentResumeId]);
 
   // Open tool from path param (/ai-studio/:tool), or redirect legacy ?tool= query param
   useEffect(() => {
@@ -379,7 +402,7 @@ export default function AIStudioPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 sm:pb-20 lg:pb-6">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+      <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -662,43 +685,39 @@ export default function AIStudioPage() {
         </div>
       )}
 
-      {/* Resume Picker Sheet */}
-      {showResumePicker && (
-        <Sheet open={showResumePicker} onOpenChange={(open) => { if (!open) { setShowResumePicker(false); pendingActionRef.current = null; } }}>
-          <SheetContent side="bottom" className="max-h-[60dvh] rounded-t-2xl">
-            <SheetHeader>
-              <SheetTitle>Which resume do you want to use?</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-2 py-3">
-              {allResumes?.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => {
-                    const setId = useResumeStore.getState().setCurrentResumeId;
-                    const setResume = useResumeStore.getState().setCurrentResume;
-                    setId(r.id);
-                    setResume(dbToResumeData(r));
-                    setShowResumePicker(false);
-                    haptics.medium();
-                    const action = pendingActionRef.current;
-                    pendingActionRef.current = null;
-                    if (action) setTimeout(action, 100);
-                  }}
-                  className="w-full text-left px-4 py-3 rounded-xl border border-border hover:bg-muted/60 transition-colors"
-                >
-                  <p className="font-medium text-sm truncate">{r.title}</p>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {r.target_job_title || 'No target role'}
-                  </p>
-                </button>
-              ))}
-            </div>
-            <Button variant="outline" className="w-full" onClick={() => { setShowResumePicker(false); navigate('/dashboard'); }}>
-              View All Resumes
-            </Button>
-          </SheetContent>
-        </Sheet>
-      )}
+      <ResumePickerSheet
+        open={showResumePicker}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowResumePicker(false);
+            pendingActionRef.current = null;
+          }
+        }}
+        resumes={allResumes ?? []}
+        currentResumeId={currentResumeId}
+        title="Which resume should power this tool?"
+        description="Wise AI will read and update the resume you pick. Choose the version that fits this job or task."
+        onSelect={(r) => {
+          const setId = useResumeStore.getState().setCurrentResumeId;
+          const setResume = useResumeStore.getState().setCurrentResume;
+          setId(r.$id);
+          setResume(dbToResumeData(r));
+          setShowResumePicker(false);
+          const action = pendingActionRef.current;
+          pendingActionRef.current = null;
+          if (action) setTimeout(action, 100);
+        }}
+        onViewAll={() => {
+          setShowResumePicker(false);
+          pendingActionRef.current = null;
+          navigate('/dashboard');
+        }}
+        onCreateNew={() => {
+          setShowResumePicker(false);
+          pendingActionRef.current = null;
+          navigate('/dashboard?action=create');
+        }}
+      />
 
       {/* Sheets */}
       <ErrorBoundary>

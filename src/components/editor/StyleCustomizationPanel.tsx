@@ -28,6 +28,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import {
   FONT_OPTIONS,
   PRESET_PALETTES,
+  getDefaultCustomization,
 } from '@/lib/templateCustomization';
 import type { TemplateCustomization } from '@/types/resume';
 

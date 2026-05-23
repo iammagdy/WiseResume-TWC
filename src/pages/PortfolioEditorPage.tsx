@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
-import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
@@ -15,7 +14,7 @@ import { haptics } from '@/lib/haptics';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { useNavigate } from 'react-router-dom';
-import { QrCode, ExternalLink, Wand2 } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
@@ -38,11 +37,19 @@ import { SaveBar } from '@/components/portfolio/editor/SaveBar';
 import { PortfolioHistorySheet } from '@/components/portfolio/PortfolioHistorySheet';
 import { usePortfolioHistory } from '@/hooks/usePortfolioHistory';
 import { validateCustomDomain } from '@/hooks/usePublicPortfolio';
+import {
+  parsePortfolioExtrasField,
+  persistPortfolioDraftToProfile,
+} from '@/lib/portfolioDraftStorage';
 import { VisitorsTab } from '@/components/portfolio/editor/VisitorsTab';
 import type { ScrollEffect } from '@/components/portfolio/editor/ScrollEffectPicker';
 import { AICritiqueSheet, type CritiqueItem } from '@/components/portfolio/editor/AICritiqueSheet';
 import { CompletionScoreBar, buildCompletionItems } from '@/components/portfolio/editor/CompletionScoreBar';
-import { Monitor, Smartphone } from 'lucide-react';
+import { PortfolioEditorHeader } from '@/components/portfolio/editor/PortfolioEditorHeader';
+import { PortfolioTabStrip, type PortfolioEditorTab } from '@/components/portfolio/editor/PortfolioTabStrip';
+import { PortfolioQuickActions } from '@/components/portfolio/editor/PortfolioQuickActions';
+import { PortfolioPreviewPanel } from '@/components/portfolio/editor/PortfolioPreviewPanel';
+import '@/components/portfolio/editor/portfolio-editor-workspace.css';
 
 
 // Minimum portfolio-password length enforced both client- and server-side.
@@ -144,7 +151,7 @@ export default function PortfolioEditorPage() {
     portfolioCertifications?: Array<{ id: string; name: string; issuer: string }>;
   }>>({});
   const [translating, setTranslating] = useState(false);
-  const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more' | 'visitors'>('setup');
+  const [activeTab, setActiveTab] = useState<PortfolioEditorTab>('setup');
   const [showCritique, setShowCritique] = useState(false);
   const [generatingCritique, setGeneratingCritique] = useState(false);
   const [critiqueItems, setCritiqueItems] = useState<CritiqueItem[]>([]);
@@ -196,7 +203,7 @@ export default function PortfolioEditorPage() {
   const prevTabRef = useRef(activeTab);
   const reducedMotion = useMemo(() => getSafeMatchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
-  const handleTabChange = useCallback((tab: 'setup' | 'content' | 'design' | 'more' | 'visitors') => {
+  const handleTabChange = useCallback((tab: PortfolioEditorTab) => {
     directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
     prevTabRef.current = tab;
     haptics.light();
@@ -408,12 +415,15 @@ export default function PortfolioEditorPage() {
           Query.limit(1),
         ]);
         if (profileDocs.total > 0) {
-          await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocs.documents[0].$id, {
-            portfolioDraft: parsed,
-            portfolioDraftSavedAt: now,
-          });
+          const profileDoc = profileDocs.documents[0] as Record<string, unknown>;
+          const existingExtras = parsePortfolioExtrasField(profileDoc.portfolio_extras);
+          await persistPortfolioDraftToProfile(
+            profileDoc.$id as string,
+            existingExtras,
+            parsed,
+            now,
+          );
           lastDraftPersistedSnapshotRef.current = currentSnapshot;
-          // Update cache in place — no invalidation, no refetch, no state clobber
           queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
             old ? { ...old, portfolioDraft: parsed, portfolioDraftSavedAt: now } : old
           );
@@ -751,7 +761,14 @@ export default function PortfolioEditorPage() {
     setSavingDraft(true);
     try {
       if (!user?.id) throw new Error('Not authenticated');
-      const snapshot = JSON.parse(getCurrentSnapshot()) as Record<string, unknown>;
+      const currentSnapshot = getCurrentSnapshot();
+      if (currentSnapshot.length > PORTFOLIO_EXTRAS_MAX_BYTES) {
+        toast.error(
+          `Draft is too large to save (${Math.round(currentSnapshot.length / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Trim some services, case studies, testimonials, or translations.`
+        );
+        return;
+      }
+      const snapshot = JSON.parse(currentSnapshot) as Record<string, unknown>;
       const now = new Date().toISOString();
       // Direct write — bypass mutation invalidation to avoid clobbering active edits
       const profileDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
@@ -759,17 +776,24 @@ export default function PortfolioEditorPage() {
         Query.limit(1),
       ]);
       if (profileDocs.total === 0) throw new Error('Profile not found');
-      await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocs.documents[0].$id, {
-        portfolioDraft: snapshot,
-        portfolioDraftSavedAt: now,
-      });
+      const profileDoc = profileDocs.documents[0] as Record<string, unknown>;
+      const existingExtras = parsePortfolioExtrasField(profileDoc.portfolio_extras);
+      await persistPortfolioDraftToProfile(
+        profileDoc.$id as string,
+        existingExtras,
+        snapshot,
+        now,
+      );
+      lastDraftPersistedSnapshotRef.current = currentSnapshot;
       queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
         old ? { ...old, portfolioDraft: snapshot, portfolioDraftSavedAt: now } : old
       );
-      setLastSavedSnapshot(getCurrentSnapshot());
-      toast.success('Draft saved. Click "Publish" when you\'re ready to go live.');
-    } catch {
-      toast.error('Failed to save draft. Please try again.');
+      setLastSavedSnapshot(currentSnapshot);
+      toast.success('Draft saved. Turn on Live or use Save & Publish when you\'re ready to go public.');
+    } catch (err) {
+      console.error('portfolio draft save failed', err);
+      const msg = err instanceof Error ? err.message : 'Failed to save draft. Please try again.';
+      toast.error(msg.length > 120 ? 'Failed to save draft. Please try again.' : msg);
     } finally {
       setSavingDraft(false);
     }
@@ -1075,12 +1099,22 @@ export default function PortfolioEditorPage() {
         }).catch(() => {});
       }
     } catch (err: unknown) {
+      console.error('portfolio save failed', err);
       const pgError = err as { code?: string; message?: string };
       if (pgError?.code === '23505') {
         setUsernameAvailable(false);
         toast.error('This username was just taken. Please choose another.');
       } else {
-        toast.error('Failed to save portfolio. Your changes might not be published.');
+        const detail = pgError?.message ?? (err instanceof Error ? err.message : '');
+        const friendly =
+          detail.includes('portfolio_theme') || detail.includes('Unknown attribute')
+            ? 'Could not save — a portfolio field is misconfigured. Please refresh and try again.'
+            : detail.includes('portfolio_extras') || detail.includes('too large')
+              ? `Portfolio content is too large. Trim some sections and try again.`
+              : detail.length > 0 && detail.length <= 160
+                ? detail
+                : 'Failed to save portfolio. Your changes might not be published.';
+        toast.error(friendly);
       }
       // Revert local state toggles if it failed to save the override
       if (overrides?.portfolioEnabled !== undefined && profile) {
@@ -1246,33 +1280,20 @@ export default function PortfolioEditorPage() {
 
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
-      {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-12 border-b border-border bg-background/95 backdrop-blur-sm">
-        <BackButton onBeforeBack={() => {
+    <div className="portfolio-editor-workspace flex-1 flex flex-col min-h-0 overflow-hidden">
+      <PortfolioEditorHeader
+        onBeforeBack={() => {
           if (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot) {
             handleNavigateAway('/dashboard');
             return true;
           }
           return false;
-        }} />
-        <h1 className="text-page-title leading-tight flex-1">Portfolio</h1>
-        {portfolioEnabled && portfolioCanonicalUrl && (
-          <a
-            href={portfolioCanonicalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted transition-colors shrink-0"
-            title="View public portfolio"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">View live</span>
-          </a>
-        )}
-      </div>
+        }}
+        portfolioEnabled={portfolioEnabled}
+        portfolioCanonicalUrl={portfolioCanonicalUrl}
+      />
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6 bg-[#fbf9f9]/15">
-        {/* Status Bar */}
+      <div className="portfolio-editor-workspace__scroll flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-4 pb-8">
         <StatusBar
           portfolioEnabled={portfolioEnabled}
           portfolioDisplayUrl={portfolioDisplayUrl}
@@ -1283,39 +1304,19 @@ export default function PortfolioEditorPage() {
           strengthScore={strengthScore}
           strengthLabel={strengthLabel}
           strengthMissing={strengthMissing}
-          hasUnpublishedChanges={!!(profile?.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))} />
-        
+          hasUnpublishedChanges={!!(profile?.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))}
+        />
 
-        {/* Live Preview Card + mobile toggle */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground flex-1">Preview</span>
-            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted border border-border">
-              <button
-                onClick={() => setPreviewMode('desktop')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${previewMode === 'desktop' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                aria-label="Desktop preview"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                Desktop
-              </button>
-              <button
-                onClick={() => setPreviewMode('mobile')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${previewMode === 'mobile' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                aria-label="Mobile preview"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                Mobile
-              </button>
-            </div>
-          </div>
-
+        <PortfolioPreviewPanel
+          previewMode={previewMode}
+          onPreviewModeChange={setPreviewMode}
+        >
           {previewMode === 'mobile' ? (
-            <div className="flex justify-center">
-              {/* Phone shell: 220px wide, clips the 390→220 scaled iframe */}
-              <div className="relative rounded-[2.5rem] border-[8px] border-foreground/20 overflow-hidden bg-background shadow-xl"
-                style={{ width: 220, height: 396 }}>
-                {/* Notch */}
+            <div className="flex justify-center py-2">
+              <div
+                className="relative rounded-[2.5rem] border-[8px] border-foreground/15 overflow-hidden bg-background shadow-xl"
+                style={{ width: 220, height: 396 }}
+              >
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-foreground/20 z-20 pointer-events-none" />
                 {portfolioEnabled && portfolioCanonicalUrl ? (
                   <iframe
@@ -1333,8 +1334,8 @@ export default function PortfolioEditorPage() {
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
-                    <Smartphone className="w-8 h-8 text-muted-foreground/50" />
-                    <p className="text-xs text-muted-foreground">
+                    <Smartphone className="w-8 h-8 text-muted-foreground/50" aria-hidden />
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       {!username
                         ? 'Set a username to see a mobile preview'
                         : 'Publish your portfolio to preview on mobile'}
@@ -1358,75 +1359,20 @@ export default function PortfolioEditorPage() {
               scrollEffect={scrollEffect}
             />
           )}
-        </div>
-        
+        </PortfolioPreviewPanel>
 
-        {/* Share your profile — QR code entry point */}
-        <button
-          onClick={() => { haptics.light(); handleNavigateAway('/qr-code'); }}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-[0.98] transition-all touch-manipulation text-left"
-        >
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <QrCode className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold leading-tight">Get your QR code</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Share your portfolio anywhere, instantly</p>
-          </div>
-          <span className="text-xs text-muted-foreground shrink-0">→</span>
-        </button>
+        <PortfolioQuickActions
+          onQrCode={() => {
+            haptics.light();
+            handleNavigateAway('/qr-code');
+          }}
+          onGenerateAll={handleGenerateAll}
+          generatingAll={generatingAll}
+          generatingBio={generatingBio}
+          generatingSEO={generatingSEO}
+        />
 
-        {/* Generate Full Portfolio — one-click AI fill */}
-        <button
-          onClick={handleGenerateAll}
-          disabled={generatingAll || generatingBio || generatingSEO}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation text-left disabled:opacity-60"
-        >
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            {generatingAll ? (
-              <Monitor className="w-5 h-5 text-primary animate-pulse" />
-            ) : (
-              <Wand2 className="w-5 h-5 text-primary" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold leading-tight text-primary">
-              {generatingAll ? 'Generating…' : 'Generate Full Portfolio'}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              AI writes your bio, SEO meta & availability headline
-            </p>
-          </div>
-          <span className="text-xs text-primary/60 shrink-0">✦</span>
-        </button>
-
-        {/* Tab Row */}
-        <div
-          id="portfolio-tab-strip"
-          className="flex gap-1 p-1 rounded-xl bg-card border border-border overflow-x-auto scrollbar-none scroll-smooth"
-          style={{ scrollSnapType: 'x mandatory' }}
-        >
-          {([
-          { id: 'setup', label: 'Setup' },
-          { id: 'content', label: 'Content' },
-          { id: 'design', label: 'Design' },
-          { id: 'visitors', label: 'Visitors' },
-          { id: 'more', label: 'More' }] as
-          const).map((tab) =>
-          <button
-            key={tab.id}
-            id={`portfolio-tab-${tab.id}`}
-            onClick={() => handleTabChange(tab.id)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation active:scale-[0.97] whitespace-nowrap px-2 snap-start shrink-0 ${
-            activeTab === tab.id ?
-            'bg-card border border-border shadow-soft text-foreground shadow-[0_0_16px_-4px_hsl(var(--primary)/0.2)]' :
-            'text-muted-foreground hover:bg-muted/50'}`
-            }>
-            
-              {tab.label}
-            </button>
-          )}
-        </div>
+        <PortfolioTabStrip activeTab={activeTab} onTabChange={handleTabChange} />
 
         {/* Completion Score Bar */}
         <CompletionScoreBar score={weightedScore} items={completionItems} />

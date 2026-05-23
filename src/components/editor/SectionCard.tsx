@@ -43,16 +43,13 @@ export const SectionCard = memo(function SectionCard({
     >
       <div
         className={cn(
-          'animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
-          'bg-card border border-border shadow-soft rounded-2xl overflow-hidden relative flex flex-col',
-          'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1.5 before:rounded-l-2xl',
-          status === 'complete' && 'before:bg-success',
-          status === 'partial' && 'before:bg-warning',
-          status === 'empty' && 'before:bg-muted-foreground/20',
+          'editor-section-card animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
+          'overflow-hidden relative flex flex-col',
         )}
       >
         {/* Header — full row is the toggle target when collapsible (no nested buttons) */}
         <div
+          data-section-header
           className={cn(
             'flex items-center min-h-[52px]',
             collapsible && 'cursor-pointer select-none active:opacity-80 touch-manipulation',

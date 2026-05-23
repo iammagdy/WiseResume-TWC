@@ -179,8 +179,11 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
     return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
   };
 
+  const isFinePointer = (event: PointerEvent) => event.pointerType === 'mouse';
+
   const handlePointerMove = useCallback(
     (event: PointerEvent) => {
+      if (!isFinePointer(event)) return;
       const shell = shellRef.current;
       if (!shell || !tiltEngine) return;
       const { x, y } = getOffsets(event, shell);
@@ -191,6 +194,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
 
   const handlePointerEnter = useCallback(
     (event: PointerEvent) => {
+      if (!isFinePointer(event)) return;
       const shell = shellRef.current;
       if (!shell || !tiltEngine) return;
 
@@ -207,7 +211,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
     [tiltEngine]
   );
 
-  const handlePointerLeave = useCallback(() => {
+  const handlePointerLeave = useCallback((event: PointerEvent) => {
+    if (!isFinePointer(event)) return;
     const shell = shellRef.current;
     if (!shell || !tiltEngine) return;
 
@@ -254,6 +259,12 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
 
     const shell = shellRef.current;
     if (!shell) return;
+
+    const prefersFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (!prefersFinePointer) {
+      tiltEngine.cancel();
+      return;
+    }
 
     const pointerMoveHandler = handlePointerMove as EventListener;
     const pointerEnterHandler = handlePointerEnter as EventListener;

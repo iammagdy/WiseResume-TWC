@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Crown, FileText, Scissors, Calendar, MoreVertical, Eye, Edit2, Download, Copy } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import {
   Sheet,
   SheetContent,
@@ -17,7 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useResumes, useSetMasterCV, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
+import {
+  useResumes,
+  useSetMasterCV,
+  useResumeMutations,
+  dbToResumeData,
+  getResumeDocumentId,
+} from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
@@ -111,23 +117,27 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
               </p>
             </div>
           ) : (
-            filtered.map((resume) => (
+            filtered.map((resume) => {
+              const resumeId = getResumeDocumentId(resume) ?? '';
+              const createdAt = resume.$createdAt ?? resume.created_at ?? resume.createdAt;
+              const isMaster = resume.is_master ?? resume.is_primary;
+              return (
               <div
-                key={resume.id}
-                onClick={() => handleTap(resume.id)}
+                key={resumeId}
+                onClick={() => resumeId && handleTap(resumeId)}
                 className="w-full bg-card border border-border rounded-2xl p-4 text-left transition-all active:scale-[0.98] hover:border-border flex items-start gap-3 cursor-pointer"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm truncate">{resume.title}</p>
-                    {resume.is_primary && (
+                    {isMaster && (
                       <Crown className="w-4 h-4 text-warning shrink-0" />
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <Calendar className="w-3 h-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(resume.created_at), { addSuffix: true })}
+                      {safeFormatDistanceToNow(createdAt, { addSuffix: true })}
                     </span>
                   </div>
                   {resume.target_job_title && (
@@ -138,9 +148,9 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {filter === 'originals' && !resume.is_primary && (
+                  {filter === 'originals' && !isMaster && resumeId && (
                     <button
-                      onClick={(e) => handleSetMaster(resume.id, e)}
+                      onClick={(e) => handleSetMaster(resumeId, e)}
                       className="shrink-0 text-[10px] text-muted-foreground hover:text-primary border border-border rounded-lg px-2 py-1 transition-colors"
                     >
                       Set as Master
@@ -159,7 +169,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleTap(resume.id); }}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); resumeId && handleTap(resumeId); }}>
                         <Eye className="w-4 h-4 mr-2" />Preview
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => {
@@ -173,14 +183,15 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
                       <DropdownMenuItem onClick={(e) => handleDownload(resume, e)}>
                         <Download className="w-4 h-4 mr-2" />Download PDF
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleDuplicate(resume.id, e)}>
+                      <DropdownMenuItem onClick={(e) => resumeId && handleDuplicate(resumeId, e)}>
                         <Copy className="w-4 h-4 mr-2" />Duplicate
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
-            ))
+            );
+            })
           )}
         </div>
       </SheetContent>

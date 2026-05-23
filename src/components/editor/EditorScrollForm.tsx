@@ -212,7 +212,7 @@ export function EditorScrollForm({
   const hasMoreStep = steps.some(s => s.id === 'more');
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="editor-section-stack">
       {showOnboardingBanner && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-primary/10 border border-primary/25 shadow-soft-sm text-sm text-foreground/80">
           <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0" aria-hidden>

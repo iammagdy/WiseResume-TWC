@@ -3,7 +3,7 @@ import { useAuth } from './useAuth';
 import { useJobMutations } from './useJobs';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 
-interface ParsedJob {
+export interface ParsedJobImport {
   title: string;
   company: string;
   location: string;
@@ -14,6 +14,11 @@ interface ParsedJob {
   skills: string[];
 }
 
+export interface ImportJobResult {
+  id: string;
+  job: ParsedJobImport;
+}
+
 export function useImportJob() {
   const { user } = useAuth();
   const { createJob } = useJobMutations();
@@ -21,8 +26,17 @@ export function useImportJob() {
 
   return useMutation({
     mutationFn: async (url: string) => {
-      const result = await appwriteFunctions.invoke<{ ok: boolean; jobId: string | null; job: ParsedJob; error?: string }>('job-import', {
-        body: { url, userId: user?.$id },
+      if (!user?.$id) {
+        throw new Error('Sign in to import job postings.');
+      }
+
+      const result = await appwriteFunctions.invoke<{
+        ok: boolean;
+        jobId: string | null;
+        job: ParsedJobImport;
+        error?: string;
+      }>('job-import', {
+        body: { url, userId: user.$id },
       });
 
       if (result.error || !result.data?.ok) {
@@ -31,14 +45,12 @@ export function useImportJob() {
 
       const { job, jobId } = result.data;
 
-      // Function saved the document server-side — just refresh the list
       if (jobId) {
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        return { id: jobId };
+        return { id: jobId, job };
       }
 
-      // Fallback: save client-side (requires collection permission)
-      return createJob.mutateAsync({
+      const saved = await createJob.mutateAsync({
         title: job.title,
         company: job.company,
         description: job.description,
@@ -49,6 +61,7 @@ export function useImportJob() {
         source_url: url,
         is_saved: true,
       });
+      return { id: saved.id, job };
     },
   });
 }

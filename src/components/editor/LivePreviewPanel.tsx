@@ -203,9 +203,12 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       });
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-muted', className)}>
+    <div className={cn('editor-preview-canvas flex flex-col h-full min-h-0 overflow-hidden', className)}>
       {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card/95 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
+      <div className="editor-preview-toolbar shrink-0 flex items-center justify-between gap-2 px-3 py-2 pt-[env(safe-area-inset-top)]">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden sm:inline">
+          Live canvas
+        </span>
         <div className="flex items-center gap-1">
           {/* Zoom controls */}
           {ZOOM_LEVELS.map(level => (
@@ -310,7 +313,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       )}
 
       {/* Resume preview */}
-      <div className="flex-1 overflow-auto p-3 flex justify-center">
+      <div className="editor-preview-stage flex-1 overflow-auto p-4 sm:p-6 flex justify-center items-start">
         <div
           style={{
             transformOrigin: 'top center',
@@ -320,7 +323,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           <div
             ref={resumeRef}
             data-resume-template
-            className="bg-white text-black mx-auto shadow-soft-xl ring-1 ring-border/40 relative"
+            className="editor-preview-paper bg-white text-black mx-auto relative"
             style={{
               // Pin the template's CSS layout width to the PDF design width
               // for the user's chosen page format (612 px Letter / 595 px

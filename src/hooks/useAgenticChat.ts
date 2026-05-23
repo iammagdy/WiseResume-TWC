@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { resolvePageContext } from '@/lib/wiseWorkspace/pageContext';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult, ChatError, ChatErrorInfo } from '@/lib/agenticChat';
@@ -118,6 +119,7 @@ export function useAgenticChat(contextFilter?: string) {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Session persistence refs — use refs to avoid stale closures in fire-and-forget writes
   const sessionIdRef = useRef<string | null>(null);
@@ -667,7 +669,17 @@ export function useAgenticChat(contextFilter?: string) {
         // Guest users (unauthenticated) keep pre-existing 10-message history limit
         const baseHistory = historyOverride ?? messages;
         const historyToSend = user ? baseHistory : baseHistory.slice(-10);
-        const response = await sendChatMessage(text.trim(), historyToSend, currentResume, { resumeList, contextFilter });
+        const page = resolvePageContext(location.pathname);
+        const response = await sendChatMessage(text.trim(), historyToSend, currentResume, {
+          resumeList,
+          contextFilter,
+          pageContext: {
+            route: location.pathname,
+            pageId: page.pageId,
+            pageTitle: page.pageTitle,
+            pageSummary: page.pageSummary,
+          },
+        });
 
         useAIHealthStore.getState().recordSuccess(Date.now() - reqStartedAt);
         incrementUsage.mutate();

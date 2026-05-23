@@ -2,6 +2,50 @@
 
 ---
 
+## Session Summary - 2026-05-23 (Portfolio Draft Appwrite, Editor Workspace, Tailor Wizard, Wise AI Toggle)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/27-Session-Log-2026-05-23-Portfolio-Editor-Tailor-Workspace.md`
+
+### Overview
+Frontend fixes and UX passes: portfolio **Save Draft** Appwrite attribute error; `/editor` workspace (icon section rail, ATS sheet, strength above preview, import crash); `/tailor` setup **step wizard**; global **Wise AI** chat toggle. No Appwrite schema deploy.
+
+### Root Causes Addressed
+
+| Area | Root cause | Fix |
+|------|------------|-----|
+| Portfolio Save Draft | Live `profiles` has no `portfolio_draft` / `portfolio_draft_saved_at`; client wrote those keys | Draft in `portfolio_extras.portfolioDraft` + `portfolioDraftSavedAt` via `portfolioDraftStorage.ts`; `useProfile` / `PortfolioEditorPage` / `SaveBar` updated |
+| Portfolio Save Draft (UX) | Primary CTA called publish when portfolio not live | `SaveBar`: `!portfolioEnabled` → primary `onSaveDraft` |
+| Editor crash | Invalid JSX ternary in `EditorPage.tsx` ~1548 | `renderEditorFormWorkspace()` call in ternary branch |
+| Editor nav rail | Wide labeled list default; duplicated shell concerns | `EditorNavRail`: icon-only default (`3rem`), active icon highlight, expand for labels; auto-collapse on section change |
+| Editor ATS panel | Fixed column blocked form | `EditorSuggestionsPanel`: FAB + right `Sheet` |
+| Editor strength | Progress in rail | `EditorResumeStrengthBar` above preview in `EditorPage` |
+| Editor duplicate search | Editor header command affordance vs global bar | Removed from editor workspace header; `AppWorkspaceLayout` hides top bar on `/editor`, `/preview` |
+| Tailor setup scroll | All steps in one column + duplicate step rail | `wizardStep` + `tailor-flow.ts` + single visible `TailorStepCard`; one vertical `TailorStepRail` |
+| Wise AI button | `openChat` always opened | `toggleChat` in `wiseWorkspaceStore`; `AppWorkspaceTopBar` + `DesktopNav` |
+
+### Key Files
+
+| Area | Paths |
+|------|-------|
+| Portfolio draft | `src/lib/portfolioDraftStorage.ts`, `src/hooks/useProfile.ts`, `src/pages/PortfolioEditorPage.tsx`, `src/components/portfolio/editor/SaveBar.tsx` |
+| Editor | `src/pages/EditorPage.tsx`, `src/components/editor/EditorNavRail.tsx`, `EditorSuggestionsPanel.tsx`, `EditorResumeStrengthBar.tsx`, `EditorHeader.tsx`, `editor-workspace.css` |
+| Tailor | `src/pages/TailorPage.tsx`, `src/components/tailor/page/tailor-flow.ts`, `TailorSetupWizardFooter.tsx`, `TailorStepRail.tsx`, `tailor-workspace.css` |
+| Wise AI | `src/store/wiseWorkspaceStore.ts`, `AppWorkspaceTopBar.tsx`, `DesktopNav.tsx` |
+| Shell | `AppWorkspaceLayout.tsx` (hide workspace top bar on editor/preview) |
+
+### Verification
+- `npx tsc --noEmit` — passed
+- User QA pending: portfolio Save Draft, `/editor` rail/sheet, `/tailor` wizard, Wise AI toggle
+- `npm run build` — not re-run at handover write
+
+### Where We Stopped (authoritative)
+- **Done in source:** Appwrite-safe portfolio draft persistence; editor workspace nav/suggestions/strength; tailor wizard; Wise AI toggle.
+- **Not done:** merged `portfolio_extras` total size guard; optional Console `portfolio_draft` columns; `profiles.md` Atlas update; user sign-off QA; `npm run build`.
+- **No commit** this session. Dirty tree includes **dashboard/workspace** files from separate 2026-05-23 Atlas passes — split commits (see session log §5).
+- **Next agent:** Confirm Save Draft writes only `portfolio_extras`; hard-refresh `/editor` and `/tailor`; run `npm run build`; commit in scopes listed in session log.
+
+---
+
 ## Session Summary - 2026-05-22 (Atlas Dashboard + App Shell Visual Pass)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/26-Session-Log-2026-05-22-Atlas-Dashboard-App-Shell.md`
