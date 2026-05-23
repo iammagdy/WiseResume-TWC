@@ -2,47 +2,60 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Search, User, Settings, LogOut, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
+import { Search, User, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, AlertCircle, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
-import { AppLogo } from '@/components/brand/AppLogo';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
-import { DashboardSpotlightHero } from '@/components/dashboard/DashboardSpotlightHero';
-import { DashboardNextActionCard } from '@/components/dashboard/DashboardNextActionCard';
+import { DashboardWorkspaceLayout } from '@/components/dashboard/DashboardWorkspaceLayout';
+import { DashboardWorkspaceToolbar } from '@/components/dashboard/DashboardWorkspaceToolbar';
+import { DashboardTopCommandBar } from '@/components/dashboard/DashboardTopCommandBar';
+import { DashboardIntelligencePanel } from '@/components/dashboard/DashboardIntelligencePanel';
+import { DashboardMetricsStrip } from '@/components/dashboard/DashboardMetricsStrip';
+import { DashboardDiscoverySection } from '@/components/dashboard/DashboardDiscoverySection';
+import { ImportJobSheet } from '@/components/jobs/ImportJobSheet';
+import { logWorkspaceActivity, useWorkspaceActivityStore } from '@/store/workspaceActivityStore';
+import {
+  buildPortfolioAtsChartSeries,
+  computeApplicationStrongMatches,
+  computeCurrentAtsAverage,
+  computePortfolioAtsDelta,
+  computeTotalMissingKeywords,
+  countResumesWithJobMatchScore,
+  countTailoredResumesThisWeek,
+} from '@/components/dashboard/dashboardMetricsUtils';
 import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { useSettingsStore } from '@/store/settingsStore';
 import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
 import { trackSession } from '@/lib/discoveryManager';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlanAvatar } from '@/components/ui/PlanAvatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { usePlan } from '@/hooks/usePlan';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
-import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
-import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
-import { useTheme } from '@/hooks/use-theme';
-import { DashboardStatusPopover } from '@/components/dashboard/DashboardStatusPopover';
-import { DashboardPlanBadge } from '@/components/dashboard/DashboardPlanBadge';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { OnboardingChecklist, ChecklistStep } from '@/components/dashboard/OnboardingChecklist';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
 const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImportSheet').then(m => ({ default: m.LinkedInImportSheet })));
 const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
-const DashboardUploadWidget = lazy(() => import('@/components/dashboard/DashboardUploadWidget').then(m => ({ default: m.DashboardUploadWidget })));
 
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
@@ -54,6 +67,7 @@ import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
 import {
   AlertDialog,
@@ -84,8 +98,7 @@ function DashboardPageContent() {
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id);
-  const { plan, trialPlan, trialExpiresAt } = usePlan();
-  const { isDark, toggleTheme } = useTheme();
+  const { plan } = usePlan();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
   usePlanUpgradeCelebration();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
@@ -109,28 +122,21 @@ function DashboardPageContent() {
   const [searchQuery, setSearchQuery] = useState(
     () => sessionStorage.getItem('wr-dash-search') || ''
   );
-  const [activeTab, setActiveTab] = useState(
-    () => sessionStorage.getItem('wr-dash-tab') || 'my-cvs'
-  );
   const [showTrustBanner, setShowTrustBanner] = useState(() => {
     const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
     if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
     try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch { /* localStorage full or disabled */ }
     return true;
   });
-  const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
-  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [importJobOpen, setImportJobOpen] = useState(false);
   const [checklistDismissed, setChecklistDismissed] = useState(false);
   const [exportedChecked, setExportedChecked] = useState(false);
   const { isOnline } = useNetworkStatus();
   const isOffline = !isOnline;
 
 
-  // Pagination: render at most PAGE_SIZE items initially, reveal more on demand
-  const PAGE_SIZE = 10;
-  const [visibleMyCVs, setVisibleMyCVs] = useState(PAGE_SIZE);
-  const [visibleTailored, setVisibleTailored] = useState(PAGE_SIZE);
+  const [resumeListTab, setResumeListTab] = useState<'all' | 'tailored'>('all');
 
   // Track session count for progressive disclosure
   useEffect(() => { trackSession(); }, []);
@@ -155,11 +161,6 @@ function DashboardPageContent() {
 
 
   // Persist helpers for sessionStorage sync (D-3)
-  const handleSetActiveTab = useCallback((tab: string) => {
-    sessionStorage.setItem('wr-dash-tab', tab);
-    setActiveTab(tab);
-  }, []);
-
   const handleSetSearchQuery = useCallback((q: string) => {
     sessionStorage.setItem('wr-dash-search', q);
     setSearchQuery(q);
@@ -216,18 +217,44 @@ function DashboardPageContent() {
 
   const featuredHealthScore = featuredResume ? healthScores[featuredResume.$id] : undefined;
 
-  const tailoredCount = useMemo(
-    () => resumes?.filter((r) => r.parent_resume_id).length ?? 0,
+  const atsHistory = useATSScoreHistoryStore((s) => s.history);
+  const activeResumeIds = useMemo(() => resumes?.map((r) => r.$id) ?? [], [resumes]);
+
+  const missingKeywordsCount = useMemo(
+    () => computeTotalMissingKeywords(healthScores, activeResumeIds),
+    [healthScores, activeResumeIds],
+  );
+
+  const applicationMatches = useMemo(
+    () => (resumes ? computeApplicationStrongMatches(resumes) : 0),
     [resumes],
   );
 
-  const missingKeywordsCount = useMemo(() => {
-    if (featuredHealthScore?.keywordGaps?.length) {
-      return featuredHealthScore.keywordGaps.length;
-    }
-    const gaps = Object.values(healthScores).flatMap((s) => s.keywordGaps ?? []);
-    return gaps.length > 0 ? Math.max(...Object.values(healthScores).map((s) => s.keywordGaps?.length ?? 0)) : 0;
-  }, [featuredHealthScore, healthScores]);
+  const hasJobMatchScores = useMemo(
+    () => (resumes ? countResumesWithJobMatchScore(resumes) > 0 : false),
+    [resumes],
+  );
+  const atsAverage = useMemo(
+    () => computeCurrentAtsAverage(healthScores, activeResumeIds),
+    [healthScores, activeResumeIds],
+  );
+  const scoredResumeCount = useMemo(
+    () =>
+      activeResumeIds.filter((id) => (healthScores[id]?.overallScore ?? 0) > 0).length,
+    [activeResumeIds, healthScores],
+  );
+  const atsTrendDelta = useMemo(
+    () => computePortfolioAtsDelta(atsHistory, activeResumeIds, atsAverage),
+    [atsHistory, activeResumeIds, atsAverage],
+  );
+  const atsChartSeries = useMemo(
+    () => buildPortfolioAtsChartSeries(atsHistory, activeResumeIds, atsAverage),
+    [atsHistory, activeResumeIds, atsAverage],
+  );
+  const tailoredThisWeek = useMemo(
+    () => (resumes ? countTailoredResumesThisWeek(resumes) : 0),
+    [resumes],
+  );
 
   const handleTailorResume = useCallback(
     (resumeId: string) => {
@@ -258,11 +285,14 @@ function DashboardPageContent() {
     navigate('/editor');
   }, [featuredResume, setCurrentResumeId, setCurrentResume, navigate, handleContinueEditing]);
 
-  const handleImportCv = useCallback(() => {
-    setShowDiscovery(true);
-    requestAnimationFrame(() => {
-      document.querySelector('[data-section="dashboard-upload"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  const handleImportJob = useCallback(() => {
+    haptics.light();
+    setImportJobOpen(true);
+  }, []);
+
+  const handleOpenWiseAI = useCallback(() => {
+    haptics.light();
+    window.dispatchEvent(new Event('open-wise-ai'));
   }, []);
 
   // Check onboarding status for authenticated users.
@@ -468,14 +498,21 @@ function DashboardPageContent() {
     if (!duplicateResumeId) return;
     haptics.success();
     try {
-      await duplicateResume.mutateAsync(duplicateResumeId);
+      const source = resumes?.find((r) => r.$id === duplicateResumeId);
+      const dupDoc = await duplicateResume.mutateAsync(duplicateResumeId);
+      logWorkspaceActivity({
+        type: 'resume_duplicated',
+        resumeId: dupDoc.$id,
+        resumeTitle: (dupDoc as { title?: string }).title ?? source?.title,
+        parentResumeTitle: source?.title,
+      });
       toast.success('Resume duplicated successfully');
     } catch {
       // error handled by mutation
     } finally {
       setDuplicateResumeId(null);
     }
-  }, [duplicateResumeId, duplicateResume]);
+  }, [duplicateResumeId, duplicateResume, resumes]);
 
   const handleInterview = useCallback((resumeId: string) => {
     const resume = resumes?.find(r => r.$id === resumeId);
@@ -489,12 +526,19 @@ function DashboardPageContent() {
 
   const handleRename = useCallback(async (resumeId: string, newTitle: string) => {
     try {
+      const prev = resumes?.find((r) => r.$id === resumeId);
       await updateResume.mutateAsync({ resumeId, updates: {}, title: newTitle });
+      logWorkspaceActivity({
+        type: 'resume_renamed',
+        resumeId,
+        resumeTitle: prev?.title,
+        newTitle,
+      });
       toast.success('Resume renamed');
     } catch {
       toast.error('Failed to rename resume');
     }
-  }, [updateResume]);
+  }, [updateResume, resumes]);
 
   const handleDelete = useCallback((resumeId: string) => {
     setDeleteResumeId(resumeId);
@@ -509,7 +553,13 @@ function DashboardPageContent() {
     haptics.warning();
     try {
       await deleteResume.mutateAsync(deleteResumeId);
+      logWorkspaceActivity({
+        type: 'resume_deleted',
+        resumeId: deleteResumeId,
+        resumeTitle: resumeToDelete?.title,
+      });
       useATSScoreHistoryStore.getState().clearHistory(deleteResumeId!);
+      useWorkspaceActivityStore.getState().pruneResume(deleteResumeId);
       toast.success(`"${resumeToDelete?.title}" deleted`, { duration: 3000 });
     } catch {
       // error handled by mutation
@@ -539,17 +589,25 @@ function DashboardPageContent() {
     return result;
   }, [resumes, deferredSearch]);
 
+  const tailoredResumes = useMemo(
+    () => filteredResumes?.filter((r) => r.parent_resume_id) ?? [],
+    [filteredResumes],
+  );
+
+  const displayedResumes = useMemo(() => {
+    const pool = resumeListTab === 'tailored' ? tailoredResumes : filteredResumes ?? [];
+    return [...pool].sort(
+      (a, b) =>
+        new Date(b.$updatedAt || b.$createdAt || 0).getTime() -
+        new Date(a.$updatedAt || a.$createdAt || 0).getTime(),
+    );
+  }, [resumeListTab, tailoredResumes, filteredResumes]);
+
   // Organize resumes into hierarchy
   const resumeHierarchy = useMemo(() => {
     if (!filteredResumes) return null;
     return organizeResumeHierarchy(filteredResumes);
   }, [filteredResumes]);
-
-  // Reset visible counts whenever search or active tab changes
-  useEffect(() => {
-    setVisibleMyCVs(PAGE_SIZE);
-    setVisibleTailored(PAGE_SIZE);
-  }, [deferredSearch, activeTab]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -598,7 +656,14 @@ function DashboardPageContent() {
     pendingDeleteRef.current = setTimeout(() => {
       deleteMultipleResumes.mutate(idsToDelete, {
         onSuccess: () => {
-          idsToDelete.forEach(id => useATSScoreHistoryStore.getState().clearHistory(id));
+          logWorkspaceActivity({
+            type: 'resumes_bulk_deleted',
+            count: idsToDelete.length,
+          });
+          idsToDelete.forEach((id) => {
+            useATSScoreHistoryStore.getState().clearHistory(id);
+            useWorkspaceActivityStore.getState().pruneResume(id);
+          });
           exitSelectionMode();
         },
       });
@@ -675,172 +740,34 @@ function DashboardPageContent() {
     );
   }
 
+  const hasWorkspace = resumes.length > 0;
+
   return (
-    <div className="flex flex-col">
-      {/* Header */}
-      <header className="lg:hidden sticky top-0 z-20 pt-3 pb-2.5 px-4 flex items-center gap-3 bg-card/88 backdrop-blur-md border-b border-border/80 shadow-soft-sm">
-        <button onClick={() => { window.scrollTo(0, 0); navigate('/'); }} aria-label="WiseResume — go to landing page" className="touch-manipulation shrink-0">
-          <AppLogo size="sm" showTagline={false} hideText />
-        </button>
-        <div className="flex items-center gap-1 min-w-0 flex-1 justify-end">
-          <DashboardStatusPopover />
-          <div className="hidden md:flex items-center gap-1">
-            <AICreditsIndicator />
-            <AIHealthBadge />
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="min-w-[44px] min-h-[44px] rounded-xl touch-manipulation active:scale-95 shrink-0"
-            onClick={() => { haptics.light(); setShowFeatureMap(true); }}
-            aria-label="What can I do?"
-          >
-            <HelpCircle className="w-4 h-4 text-muted-foreground" />
-          </Button>
-          <DashboardPlanBadge
-            plan={plan}
-            trialPlan={trialPlan}
-            trialExpiresAt={trialExpiresAt}
-            className="hidden sm:inline-flex shrink-0"
-          />
-          <button
-            type="button"
-            onClick={() => { haptics.selection(); toggleTheme(); }}
-            className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation shrink-0"
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-          <Popover onOpenChange={(open) => {
-            if (open && !profilePulseSeen) {
-              setProfilePulseSeen(true);
-              localStorage.setItem('wr-profile-pulse-seen', 'true');
-            }
-          }}>
-            <PopoverTrigger asChild>
-              <motion.button
-                className="touch-manipulation relative touch-ripple min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full"
-                whileTap={{ scale: 0.9 }}
-                aria-label="Profile menu"
-              >
-                {/* First-visit pulse ring */}
-                {!profilePulseSeen && (
-                  <span className="absolute inset-0 rounded-full border-2 border-primary/40 animate-[ping_1.5s_ease-out_4]" />
-                )}
-                <PlanAvatar
-                  plan={plan}
-                  size="w-9 h-9"
-                  avatarUrl={profile?.avatarUrl}
-                  imageAlt={profile?.fullName || 'Profile'}
-                  initials={profile?.fullName
-                    ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                    : <User className="w-4 h-4" />}
-                />
-                {/* Incomplete profile badge */}
-                {user && profile && calculateProfileCompletion(profile) < 50 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border border-background" />
-                )}
-              </motion.button>
-            </PopoverTrigger>
-            <PopoverContent align="end" side="bottom" className="w-80 p-0">
-              <div className="flex flex-col gap-3 p-3">
-                <div className="flex flex-row items-center gap-3">
-                  <PlanAvatar
-                    plan={plan}
-                    size="w-10 h-10"
-                    avatarUrl={profile?.avatarUrl}
-                    imageAlt={profile?.fullName || 'Profile'}
-                    initials={profile?.fullName
-                      ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                      : <User className="w-5 h-5" />}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium leading-5 block truncate">{profile?.fullName || 'User'}</span>
-                    {user?.email && (
-                      <span className="text-muted-foreground text-sm font-normal leading-4 block truncate">{user.email}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-row flex-wrap gap-2 py-0.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="active:scale-95 touch-manipulation"
-                    onClick={() => { haptics.light(); navigate('/profile'); }}
-                  >
-                    <User className="w-4 h-4" />
-                    <span>Manage Account</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="active:scale-95 touch-manipulation"
-                    onClick={() => { haptics.light(); navigate('/settings'); }}
-                  >
-                    <Settings className="w-4 h-4" />
-                    <span>Settings</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 active:scale-95 touch-manipulation"
-                    onClick={async () => {
-                      haptics.warning();
-                      await signOut();
-                      navigate('/');
-                    }}
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </header>
-
+    <div className={cn('flex flex-col', hasWorkspace && 'min-h-0 flex-1')}>
       {/* All scrollable content inside PullToRefresh */}
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 dashboard-atlas-bg">
-        <div className="pb-safe lg:max-w-none mx-auto w-full max-w-6xl lg:mx-auto">
-          <DashboardTopBar
-            hasResumes={resumes.length > 0}
-            compact={resumes.length > 0}
-            onOptimize={handleFeaturedTailor}
-            onImport={handleImportCv}
-            onBuild={handleCreateNew}
-          />
-
-          {resumes.length === 0 ? (
-            <DashboardStats
-              totalResumes={0}
-              healthScores={healthScores}
-              userName={profile?.fullName}
-              userId={user?.id}
-            />
-          ) : (
-            <div className="dashboard-workspace-head space-y-0">
-              {featuredResume && (
-                <DashboardSpotlightHero
-                  resume={featuredResume}
-                  healthScore={featuredHealthScore}
-                  isScoring={scoringId === featuredResume.$id || (featuredHealthScore == null && scoringId !== null)}
-                  onTailor={handleFeaturedTailor}
-                  onOpenEditor={handleFeaturedEdit}
-                />
-              )}
-              <div data-section="dashboard-metrics">
-                <DashboardStats
-                  totalResumes={resumes.length}
-                  healthScores={healthScores}
-                  isScoring={scoringId !== null || Object.keys(healthScores).length < resumes.length}
-                  userId={user?.id}
-                  tailoredCount={tailoredCount}
-                  missingKeywordsCount={missingKeywordsCount}
-                  metricsOnly
-                />
-              </div>
-            </div>
+      <PullToRefresh
+        onRefresh={handleRefresh}
+        className={cn(
+          hasWorkspace && 'flex min-h-0 flex-1 flex-col',
+          hasWorkspace ? 'dashboard-workspace-os-bg' : 'dashboard-atlas-bg',
+        )}
+      >
+        <div className={cn('pb-safe w-full mx-auto', hasWorkspace && 'flex min-h-0 flex-1 flex-col')}>
+          {resumes.length === 0 && (
+            <>
+              <DashboardTopBar
+                hasResumes={false}
+                compact={false}
+                onOptimize={handleFeaturedTailor}
+                onBuild={handleCreateNew}
+              />
+              <DashboardStats
+                totalResumes={0}
+                healthScores={healthScores}
+                userName={profile?.fullName}
+                userId={user?.id}
+              />
+            </>
           )}
 
           {resumes.length === 0 && (
@@ -849,34 +776,6 @@ function DashboardPageContent() {
               onBuild={handleCreateNew}
               onTailor={handleHeroTailor}
             />
-          )}
-
-          {/* Selection toolbar */}
-          {selectionMode && resumes && resumes.length > 0 && (
-            <div className="px-4 pb-2">
-              <div className="flex items-center gap-2 rounded-xl bg-card border border-border shadow-soft px-3 py-2">
-                <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]" aria-label="Exit selection mode">
-                  <X className="w-4 h-4" />
-                </Button>
-                <span className="text-sm font-medium flex-1">
-                  {selectedIds.size} selected
-                </span>
-                <Button variant="ghost" size="sm" onClick={handleSelectAll} className="text-xs" aria-label="Select all resumes">
-                  Select All
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={selectedIds.size === 0}
-                  onClick={() => setShowBulkDeleteConfirm(true)}
-                  className="min-h-[44px] active:scale-95"
-                  aria-label="Delete selected resumes"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </div>
           )}
 
           {/* Filter/Sort bar removed — simplified UI */}
@@ -941,180 +840,204 @@ function DashboardPageContent() {
               </motion.div>
             </div>
           ) : (
-            <div className="px-4 pb-3 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-4 lg:items-start">
-              <Tabs value={activeTab} onValueChange={handleSetActiveTab} className="w-full min-w-0">
-                <div className="rounded-xl border border-border bg-card/90 shadow-soft-sm p-3 sm:p-3.5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
-                  <div className="flex items-center justify-between gap-2 min-w-0 sm:flex-col sm:items-start sm:gap-0.5">
-                    <h3 className="text-base font-semibold text-foreground">Recent resumes</h3>
-                    <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-                      {filteredResumes?.length ?? resumes.length} total
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 w-full sm:max-w-xs sm:ml-auto">
-                    <div className="relative flex-1 min-w-0">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <DashboardWorkspaceLayout
+              topBar={
+                <DashboardTopCommandBar
+                  searchQuery={searchQuery}
+                  onSearchChange={handleSetSearchQuery}
+                  onImportJob={handleImportJob}
+                  onOpenWiseAI={handleOpenWiseAI}
+                />
+              }
+              intelligence={
+                <DashboardIntelligencePanel
+                  healthScore={featuredHealthScore}
+                  featuredResume={featuredResume}
+                  resumes={resumes}
+                  healthScores={healthScores}
+                  atsAverage={atsAverage}
+                  scoringId={scoringId}
+                  onOpenImportJob={handleImportJob}
+                  onEditResume={handleEdit}
+                  onTailorResume={handleTailorResume}
+                />
+              }
+            >
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <DashboardWorkspaceToolbar userName={profile?.fullName} />
+
+              <DashboardMetricsStrip
+                resumes={resumes}
+                healthScores={healthScores}
+                atsAverage={atsAverage}
+                scoredResumeCount={scoredResumeCount}
+                tailoredThisWeek={tailoredThisWeek}
+                applicationMatches={applicationMatches}
+                hasJobMatchScores={hasJobMatchScores}
+                missingKeywordsCount={missingKeywordsCount}
+                atsTrendDelta={atsTrendDelta}
+                atsChartSeries={atsChartSeries}
+                isScoring={scoringId !== null || scoredResumeCount < resumes.length}
+                scoringId={scoringId}
+                onEditResume={handleEdit}
+                onTailorResume={handleTailorResume}
+              />
+
+              <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="dashboard-recent-resumes-head flex w-full min-w-0 flex-col gap-2.5 mb-2.5 shrink-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+                    <Tabs
+                      value={resumeListTab}
+                      onValueChange={(v) => {
+                        haptics.selection();
+                        setResumeListTab(v as 'all' | 'tailored');
+                      }}
+                    >
+                      <TabsList className="h-9 p-0.5 rounded-xl bg-muted/40 border border-border/40">
+                        <TabsTrigger
+                          value="all"
+                          className="h-8 px-3 text-xs rounded-lg data-[state=active]:shadow-none data-[state=active]:bg-card data-[state=active]:border data-[state=active]:border-border/50"
+                        >
+                          All
+                          <Badge
+                            variant="secondary"
+                            className="ml-1.5 text-[10px] h-4 px-1 min-w-[1.25rem] justify-center tabular-nums"
+                          >
+                            {filteredResumes?.length ?? 0}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="tailored"
+                          className="h-8 px-3 text-xs rounded-lg data-[state=active]:shadow-none data-[state=active]:bg-card data-[state=active]:border data-[state=active]:border-border/50"
+                        >
+                          Tailored
+                          <Badge
+                            variant="secondary"
+                            className="ml-1.5 text-[10px] h-4 px-1 min-w-[1.25rem] justify-center tabular-nums"
+                          >
+                            {tailoredResumes.length}
+                          </Badge>
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  <div className="flex items-center gap-1.5 sm:ml-auto">
+                    <div className="relative min-w-0 sm:w-52">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                       <Input
                         placeholder="Search resumes..."
                         value={searchQuery}
                         onChange={(e) => handleSetSearchQuery(e.target.value)}
-                        className="pl-9 rounded-full h-10 text-sm bg-background border-border shadow-none"
-                        aria-label="Search resumes"
+                        className="h-8 pl-7 text-xs rounded-lg border-border/50 bg-card/50"
+                        aria-label="Search recent resumes"
                       />
                     </div>
-                    {!selectionMode && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="min-h-[44px] min-w-[44px] h-10 w-10 shrink-0 rounded-full"
-                        onClick={() => { haptics.light(); setSelectionMode(true); }}
-                        aria-label="Select resumes"
-                      >
-                        <CheckSquare className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            'h-8 w-8 rounded-lg',
+                            selectionMode ? 'text-primary bg-primary/10' : 'text-muted-foreground',
+                          )}
+                          onClick={() => haptics.light()}
+                          aria-label="Resume list actions"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        {!selectionMode ? (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              haptics.selection();
+                              setSelectionMode(true);
+                            }}
+                          >
+                            <CheckSquare className="w-4 h-4 mr-2" />
+                            Select resumes
+                          </DropdownMenuItem>
+                        ) : (
+                          <>
+                            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                              {selectedIds.size} selected
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                haptics.light();
+                                handleSelectAll();
+                              }}
+                            >
+                              Select all
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={selectedIds.size === 0}
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                haptics.warning();
+                                setShowBulkDeleteConfirm(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete selected
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                haptics.light();
+                                exitSelectionMode();
+                              }}
+                            >
+                              Cancel selection
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   </div>
                 </div>
-                {searchQuery && (
-                  <p className="text-[10px] text-muted-foreground mb-2 -mt-0.5">
-                    Searching in <span className="font-medium text-foreground">{activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}</span>
-                  </p>
-                )}
-                <div className="overflow-x-auto scrollbar-none mb-3 rounded-xl bg-muted/40 p-0.5 border border-border/60">
-                  <TabsList className="w-full min-w-max bg-transparent h-9 p-0 gap-0.5">
-                    <TabsTrigger value="my-cvs" className="flex-shrink-0 flex-1 gap-1.5">
-                      My CVs
-                      {resumeHierarchy && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
-                          {resumeHierarchy.masterResumes.length + resumeHierarchy.orphanTailored.length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="tailored" className="flex-shrink-0 flex-1 gap-1.5">
-                      Tailored
-                      {filteredResumes && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
-                          {filteredResumes.filter(r => r.parent_resume_id).length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
 
-                <TabsContent value="my-cvs" className="mt-0">
-                  <motion.div
-                    className="space-y-2"
-                    initial="hidden"
-                    animate="visible"
-                    variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
-                  >
-                    {resumeHierarchy && (() => {
-                      const myCVsAll = [
-                        ...resumeHierarchy.masterResumes,
-                        ...resumeHierarchy.orphanTailored,
-                      ];
-                      const myCVsSlice = myCVsAll.slice(0, visibleMyCVs);
-                      const myCVsRemaining = myCVsAll.length - myCVsSlice.length;
-                      return (
-                        <>
-                          {myCVsSlice.map((resume) => {
-                            const isMaster = !resume.parent_resume_id;
-                            return (
-                              <motion.div key={resume.$id} variants={itemVariants}>
-                                <ResumeListCard
-                                  resume={resume}
-                                  onEdit={handleEdit}
-                                  onDuplicate={handleDuplicate}
-                                  onDelete={handleDelete}
-                                  onRename={handleRename}
-                                  onInterview={handleInterview}
-                                  showMasterBadge={isMaster && !!resumeHierarchy.tailoredByParent[resume.$id]?.length}
-                                  showTailoredBadge={!isMaster}
-                                  healthScore={healthScores[resume.$id]}
-                                  isScoring={scoringId === resume.$id}
-                                  selectionMode={selectionMode}
-                                  selected={selectedIds.has(resume.$id)}
-                                  onToggleSelect={toggleSelection}
-                                  presentation="atlas-row"
-                                  onTailor={handleTailorResume}
-                                  isProcessing={
-                                    (deleteResume.isPending && deleteResume.variables === resume.$id) ||
-                                    (duplicateResume.isPending && duplicateResume.variables === resume.$id)
-                                  }
-                                />
-                              </motion.div>
-                            );
-                          })}
-                          {myCVsRemaining > 0 && (
-                            <div className="flex justify-center pt-2 pb-1 lg:col-span-full">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
-                                onClick={() => { haptics.light(); setVisibleMyCVs(v => v + PAGE_SIZE); }}
-                              >
-                                Load more ({myCVsRemaining})
-                              </Button>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </motion.div>
-                </TabsContent>
-
-                <TabsContent value="tailored" className="mt-0">
+                <div className="dashboard-resume-list-scroll w-full min-w-0 flex-1 min-h-0">
+                <motion.div
+                  className="space-y-2 pb-1"
+                  initial="hidden"
+                  animate="visible"
+                  variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
+                >
                   {(() => {
-                    const allTailored = filteredResumes?.filter(r => r.parent_resume_id) || [];
-                    if (allTailored.length === 0) {
-                      return (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                          <Sparkles className="w-10 h-10 text-muted-foreground/40 mb-3" />
-                          <p className="text-sm text-muted-foreground">No tailored CVs yet</p>
-                          <p className="text-xs text-muted-foreground/70 mt-1 mb-3">Open any CV and use "Tailor for Job" to create one</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1.5 active:scale-95 touch-manipulation"
-                            onClick={() => { haptics.light(); navigate('/ai-studio/tailor'); }}
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            Tailor a Resume
-                          </Button>
-                        </div>
-                      );
-                    }
-                    const tailoredSlice = allTailored.slice(0, visibleTailored);
-                    const tailoredRemaining = allTailored.length - tailoredSlice.length;
                     return (
-                      <motion.div
-                        className="space-y-3"
-                        initial="hidden"
-                        animate="visible"
-                        variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-                      >
-                        {tailoredSlice.map((resume) => (
-                          <motion.div key={resume.$id} variants={itemVariants}>
-                            <div className="space-y-2">
-                              {(resume.target_job_title || resume.target_company) && (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                    {[resume.target_job_title, resume.target_company].filter(Boolean).join(' @ ')}
-                                  </span>
-                                  {resume.job_url && (
-                                    <a
-                                      href={resume.job_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary transition-colors"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <ExternalLink className="w-3 h-3" />
-                                      View Job
-                                    </a>
-                                  )}
-                                </div>
-                              )}
+                      <>
+                        {displayedResumes.length === 0 && (
+                          <div className="rounded-2xl border border-dashed border-border/50 bg-card/40 px-4 py-10 text-center">
+                            <p className="text-sm font-medium text-foreground">
+                              {resumeListTab === 'tailored'
+                                ? 'No tailored resumes yet'
+                                : 'No resumes match your search'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1.5 max-w-sm mx-auto leading-relaxed">
+                              {resumeListTab === 'tailored'
+                                ? 'Create a tailored copy from any master resume using Tailor to Job.'
+                                : 'Try clearing your search or create a new resume.'}
+                            </p>
+                            {resumeListTab === 'tailored' && filteredResumes?.some((r) => !r.parent_resume_id) && (
+                              <Button
+                                size="sm"
+                                className="mt-4 h-9 rounded-xl text-xs"
+                                onClick={() => {
+                                  const master = filteredResumes.find((r) => !r.parent_resume_id);
+                                  if (master) handleTailorResume(master.$id);
+                                }}
+                              >
+                                Tailor a resume
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {displayedResumes.map((resume) => {
+                          const isMaster = !resume.parent_resume_id;
+                          return (
+                            <motion.div key={resume.$id} variants={itemVariants}>
                               <ResumeListCard
                                 resume={resume}
                                 onEdit={handleEdit}
@@ -1122,168 +1045,86 @@ function DashboardPageContent() {
                                 onDelete={handleDelete}
                                 onRename={handleRename}
                                 onInterview={handleInterview}
-                                showTailoredBadge
+                                showMasterBadge={
+                                  isMaster && !!resumeHierarchy?.tailoredByParent[resume.$id]?.length
+                                }
+                                showTailoredBadge={!isMaster}
                                 healthScore={healthScores[resume.$id]}
                                 isScoring={scoringId === resume.$id}
                                 selectionMode={selectionMode}
                                 selected={selectedIds.has(resume.$id)}
                                 onToggleSelect={toggleSelection}
-                                presentation="atlas-row"
+                                presentation="workspace"
                                 onTailor={handleTailorResume}
                                 isProcessing={
                                   (deleteResume.isPending && deleteResume.variables === resume.$id) ||
                                   (duplicateResume.isPending && duplicateResume.variables === resume.$id)
                                 }
                               />
-                            </div>
-                          </motion.div>
-                        ))}
-                        {tailoredRemaining > 0 && (
-                          <div className="flex justify-center pt-2 pb-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
-                              onClick={() => { haptics.light(); setVisibleTailored(v => v + PAGE_SIZE); }}
-                            >
-                              Load more ({tailoredRemaining})
-                            </Button>
-                          </div>
-                        )}
-                      </motion.div>
+                            </motion.div>
+                          );
+                        })}
+                      </>
                     );
                   })()}
-                </TabsContent>
+                </motion.div>
                 </div>
-              </Tabs>
 
-              <DashboardNextActionCard
-                healthScore={featuredHealthScore}
-                onReview={handleFeaturedEdit}
-                onTailor={handleFeaturedTailor}
-                className="mt-3 lg:mt-0 lg:sticky lg:top-3 lg:self-start"
-              />
-            </div>
-          )}
+              <div className="dashboard-workspace-bottom shrink-0">
+              {!isLoading && <DashboardDiscoverySection compact className="shrink-0" />}
 
-          {/* Secondary sections — below resume workspace to reduce scroll-to-list */}
-          {resumes && resumes.length > 0 && (
-            <div className="px-4 pt-2 pb-3 space-y-2 border-t border-border/40 mt-1">
-              {showTrustBanner && (
-                <div className="flex items-start gap-2 p-2.5 rounded-xl border border-primary/15 bg-primary/5 shadow-soft-sm">
-                  <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <p className="text-xs font-medium text-foreground flex-1">Your career data is encrypted, private, and never shared.</p>
-                  <button
-                    onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
-                    className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-muted/50"
-                    aria-label="Dismiss"
-                  >
-                    <X className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </div>
-              )}
-
-              {showProfileBanner && (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl border border-primary/20 bg-primary/5 shadow-soft-sm">
-                  <User className="w-4 h-4 text-primary shrink-0" />
-                  <p className="text-xs font-medium text-foreground flex-1">Complete your profile for the best experience.</p>
-                  <Button variant="outline" size="sm" onClick={() => navigate('/onboarding')} className="shrink-0 h-8 text-xs">
-                    Complete
-                  </Button>
-                  <button
-                    onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
-                    className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg"
-                    aria-label="Dismiss"
-                  >
-                    <X className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </div>
-              )}
-
-              {showChecklist && (
-                <OnboardingChecklist
-                  steps={checklistSteps}
-                  onDismiss={handleDismissChecklist}
-                  defaultCollapsed
-                />
-              )}
-
-              <Collapsible open={showDiscovery} onOpenChange={setShowDiscovery}>
-                <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/40 transition-colors min-h-[44px]">
-                    <span>Import & explore</span>
-                    <span className="text-muted-foreground">{showDiscovery ? '▲' : '▼'}</span>
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-1 space-y-2">
-                  <div data-section="dashboard-upload" className="rounded-xl border border-border/60 bg-card/50 p-3">
-                    <p className="text-label mb-2 px-0.5">Import Resume</p>
-                    <Suspense fallback={null}>
-                      <DashboardUploadWidget />
-                    </Suspense>
-                  </div>
-                  <div data-section="dashboard-explore" className="rounded-xl border border-border/60 bg-card/50 p-3">
-                    <p className="text-label mb-2 px-0.5">Explore</p>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {[
-                        { icon: LayoutTemplate, iconBg: 'bg-primary/10', iconColor: 'text-primary', label: 'Templates', action: () => navigate('/templates') },
-                        { icon: BookOpen, iconBg: 'bg-warning/10', iconColor: 'text-warning', label: 'Examples', action: () => navigate('/examples') },
-                        { icon: Map, iconBg: 'bg-secondary/10', iconColor: 'text-secondary', label: 'Guides', action: () => navigate('/guides') },
-                        { icon: Users, iconBg: 'bg-success/10', iconColor: 'text-success', label: 'Referral', action: () => navigate('/referral') },
-                      ].map((item) => (
-                        <button
-                          key={item.label}
-                          onClick={() => { haptics.light(); item.action(); }}
-                          className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl bg-card border border-border/80 hover:border-primary/25 active:scale-[0.97] touch-manipulation min-h-[44px]"
-                          data-track={`dashboard-explore-${item.label.toLowerCase()}`}
-                        >
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${item.iconBg}`}>
-                            <item.icon className={`w-3.5 h-3.5 ${item.iconColor}`} />
-                          </div>
-                          <span className="text-[9px] font-medium text-foreground leading-tight">{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          )}
-
-          {/* Empty-state discovery stays expanded */}
-          {(!resumes || resumes.length === 0) && (
-            <Collapsible open={resumes.length === 0 || showDiscovery} onOpenChange={setShowDiscovery}>
-              <CollapsibleContent>
-                <div className="px-4 pt-2 pb-1" data-section="dashboard-upload">
-                  <p className="text-label mb-2 px-1">Import Resume</p>
-                  <Suspense fallback={null}>
-                    <DashboardUploadWidget />
-                  </Suspense>
-                </div>
-                <div className="px-4 pt-2 pb-1" data-section="dashboard-explore">
-                  <p className="text-label mb-2 px-1">Explore</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      { icon: LayoutTemplate, iconBg: 'bg-primary/10', iconColor: 'text-primary', label: 'Templates', action: () => navigate('/templates') },
-                      { icon: BookOpen, iconBg: 'bg-warning/10', iconColor: 'text-warning', label: 'Examples', action: () => navigate('/examples') },
-                      { icon: Map, iconBg: 'bg-secondary/10', iconColor: 'text-secondary', label: 'Guides', action: () => navigate('/guides') },
-                      { icon: Users, iconBg: 'bg-success/10', iconColor: 'text-success', label: 'Referral', action: () => navigate('/referral') },
-                    ].map((item) => (
+              {(showTrustBanner || showProfileBanner || showChecklist) && (
+                <div className="dashboard-workspace-footer mt-2 space-y-1.5 pb-1">
+                  {showTrustBanner && (
+                    <div className="flex items-center gap-2 py-1.5 text-muted-foreground">
+                      <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="text-xs font-medium text-foreground flex-1">Your career data is encrypted, private, and never shared.</p>
                       <button
-                        key={item.label}
-                        onClick={() => { haptics.light(); item.action(); }}
-                        className="flex flex-col items-center gap-2 py-3 px-2 rounded-2xl bg-card border border-border shadow-soft-sm hover:border-primary/30 active:scale-[0.97] touch-manipulation"
+                        onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
+                        className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-muted/50"
+                        aria-label="Dismiss"
                       >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
-                          <item.icon className={`w-4 h-4 ${item.iconColor}`} />
-                        </div>
-                        <span className="text-[11px] font-medium text-foreground text-center leading-tight">{item.label}</span>
+                        <X className="w-4 h-4 text-muted-foreground" />
                       </button>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {showProfileBanner && (
+                    <div className="flex items-center gap-2 py-1.5">
+                      <User className="w-4 h-4 text-primary shrink-0" />
+                      <p className="text-xs font-medium text-foreground flex-1">Complete your profile for the best experience.</p>
+                      <Button variant="outline" size="sm" onClick={() => navigate('/onboarding')} className="shrink-0 h-8 text-xs">
+                        Complete
+                      </Button>
+                      <button
+                        onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
+                        className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg"
+                        aria-label="Dismiss"
+                      >
+                        <X className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </div>
+                  )}
+
+                  {showChecklist && (
+                    <OnboardingChecklist
+                      steps={checklistSteps}
+                      onDismiss={handleDismissChecklist}
+                      defaultCollapsed
+                    />
+                  )}
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
+              )}
+              </div>
+              </div>
+              </div>
+            </DashboardWorkspaceLayout>
+          )}
+
+          {!isLoading && resumes.length === 0 && (
+            <div className="px-3 sm:px-4 lg:px-6 max-w-3xl mx-auto w-full">
+              <DashboardDiscoverySection />
+            </div>
           )}
         </div>
       </PullToRefresh>
@@ -1309,6 +1150,8 @@ function DashboardPageContent() {
       </Suspense>
 
 
+
+      <ImportJobSheet open={importJobOpen} onOpenChange={setImportJobOpen} />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteResumeId} onOpenChange={(open) => { if (!open && !deleteResume.isPending) setDeleteResumeId(null); }}>

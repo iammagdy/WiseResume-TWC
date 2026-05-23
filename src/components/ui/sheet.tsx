@@ -6,15 +6,21 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useBottomSheetRegistration } from "@/context/BottomSheetContext";
 
-function Sheet({ open, onOpenChange, ...props }: React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root>) {
+function Sheet({
+  open,
+  onOpenChange,
+  modal = true,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root>) {
   const [internalOpen, setInternalOpen] = React.useState(open ?? false);
   const isControlled = open !== undefined;
   const resolvedOpen = isControlled ? open : internalOpen;
 
-  useBottomSheetRegistration(!!resolvedOpen);
+  useBottomSheetRegistration(!!resolvedOpen && modal);
 
   return (
     <SheetPrimitive.Root
+      modal={modal}
       open={open}
       onOpenChange={(o) => {
         if (!isControlled) setInternalOpen(o);
@@ -69,20 +75,48 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {
   hideCloseButton?: boolean;
+  /** No dimmed overlay; pointer events reach the app behind (use with Sheet modal={false}). */
+  nonBlocking?: boolean;
 }
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  function SheetContentInner({ side = "right", className, children, hideCloseButton = false, ...props }, ref) {
+  function SheetContentInner(
+    {
+      side = "right",
+      className,
+      children,
+      hideCloseButton = false,
+      nonBlocking = false,
+      onInteractOutside,
+      onPointerDownOutside,
+      onFocusOutside,
+      ...props
+    },
+    ref,
+  ) {
     return (
       <SheetPortal>
-        <SheetOverlay />
+        {!nonBlocking && <SheetOverlay />}
         <SheetPrimitive.Content
           ref={ref}
           className={cn(
             sheetVariants({ side }),
             side === "bottom" && "flex flex-col overflow-hidden",
+            nonBlocking && "pointer-events-auto",
             className
           )}
+          onInteractOutside={(e) => {
+            if (nonBlocking) e.preventDefault();
+            else onInteractOutside?.(e);
+          }}
+          onPointerDownOutside={(e) => {
+            if (nonBlocking) e.preventDefault();
+            else onPointerDownOutside?.(e);
+          }}
+          onFocusOutside={(e) => {
+            if (nonBlocking) e.preventDefault();
+            else onFocusOutside?.(e);
+          }}
           {...props}
         >
           {side === "bottom" && (

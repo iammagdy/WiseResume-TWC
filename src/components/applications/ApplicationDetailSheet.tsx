@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { JobApplication, ApplicationStatus, useJobApplicationMutations } from '@/hooks/useJobApplications';
 import { Briefcase, ExternalLink, Calendar, FileText, Clock, Bell } from 'lucide-react';
 import { openExternal } from '@/lib/openExternal';
-import { formatDistanceToNow, differenceInDays, differenceInHours, format } from 'date-fns';
+import { differenceInDays, differenceInHours, format } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
@@ -58,7 +59,7 @@ export function ApplicationDetailSheet({ application, open, onOpenChange }: Appl
   if (!application) return null;
 
   const config = STATUS_CONFIG[application.status as ApplicationStatus] || STATUS_CONFIG.applied;
-  const timeAgo = formatDistanceToNow(new Date(application.applied_at), { addSuffix: true });
+  const timeAgo = safeFormatDistanceToNow(application.applied_at, { addSuffix: true }, 'Recently');
 
   const deadlineInfo = application.deadline ? (() => {
     const d = new Date(application.deadline);

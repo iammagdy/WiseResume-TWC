@@ -37,7 +37,7 @@ export function ShellCommandSearch({ className, compact = false }: ShellCommandS
       type="button"
       onClick={openPalette}
       className={cn(
-        'app-shell-command-search group flex items-center gap-3 w-full min-h-[44px] text-left',
+        'app-shell-command-search group flex items-center gap-3 w-full h-10 lg:h-11 text-left',
         'touch-manipulation active:scale-[0.99] transition-all',
         className,
       )}

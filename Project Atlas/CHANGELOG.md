@@ -11,6 +11,188 @@
 
 ---
 
+## 2026-05-23 - Portfolio draft (Appwrite), editor workspace, tailor wizard, Wise AI toggle
+
+### Summary
+- **Portfolio:** Save Draft / autosave persist working copy in `portfolio_extras` (`portfolioDraft`, `portfolioDraftSavedAt`) — fixes `Unknown attribute: portfolio_draft` on live Appwrite `profiles`.
+- **Editor:** Icon-first section rail with active highlight; ATS suggestions FAB + sheet; resume strength above preview; `EditorPage` dynamic-import syntax fix; workspace top bar hidden on `/editor` and `/preview`.
+- **Tailor:** Four-step setup wizard (`resume` → `job` → `options` → `run`), single visible step card.
+- **Shell:** `toggleChat()` on Wise AI (top bar + desktop nav).
+
+### Files (primary)
+`src/lib/portfolioDraftStorage.ts`, `src/hooks/useProfile.ts`, `src/pages/PortfolioEditorPage.tsx`, `src/components/portfolio/editor/SaveBar.tsx`, `src/pages/EditorPage.tsx`, `src/components/editor/EditorNavRail.tsx`, `EditorSuggestionsPanel.tsx`, `EditorResumeStrengthBar.tsx`, `editor-workspace.css`, `src/pages/TailorPage.tsx`, `src/components/tailor/page/*`, `src/store/wiseWorkspaceStore.ts`, `AppWorkspaceTopBar.tsx`, `DesktopNav.tsx`, `AppWorkspaceLayout.tsx`
+
+### Log
+`Project Atlas/05-Migration to Appwrite/27-Session-Log-2026-05-23-Portfolio-Editor-Tailor-Workspace.md`
+
+### Verification
+- `npx tsc --noEmit`
+
+---
+
+## 2026-05-23 - Dashboard reference alignment correction (design-system-v1, pass 8)
+
+### Summary
+UI-only correction pass to match the approved reference composition more closely: wider premium sidebar + supportive AI rail proportions, restored rich workspace controls/metrics, improved recent resumes section tooling, and richer row/rail/sidebar atmospheric polish while preserving all existing behaviors and real data wiring.
+
+### What was matched
+- **App shell proportions**: desktop grid shifted toward reference balance (~256px sidebar / dominant main / ~320px rail)
+- **Sidebar**: dark crimson wash, premium nav active state, compact premium/credits/profile panels
+- **Top workspace bar**: command search + `Import Job`, `Wise AI`, theme/settings, avatar circle
+- **Header tone**: confident greeting + supporting sentence with compact spacing
+- **Metrics**: compact premium cards with real-data-only visibility (`ATS average`, `Tailored`, `Application matches`, `Missing keywords`)
+- **Recent resumes**: section title + count, internal search, filter/view controls, richer row presentation
+- **Resume rows**: document icon tile, stronger metadata hierarchy, ATS ring prominence, top suggestion styling, refined action buttons
+- **AI rail**: richer `AI Workspace` card (opportunity/weakest/next step + CTA + high-impact) plus quick actions and recent activity cards
+- **Visual language**: restrained crimson atmosphere, layered dark surfaces, premium shadows, subtle micro-interactions
+
+### Verification
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
+## 2026-05-23 - Dashboard final premium polish (design-system-v1, pass 7)
+
+### Summary
+Final UI-only polish pass on approved dashboard structure: elevated depth/atmosphere, refined row craftsmanship, richer command-center top bar, calmer premium sidebar, and a more sophisticated AI rail while preserving all actions, hooks, and data flow.
+
+### Refined areas
+- `DashboardWorkspaceToolbar` — improved greeting hierarchy, command-surface quality, direct action composition (`Import job`, `Wise AI`, `Tailor`)
+- `DashboardWorkspaceSidebar` — premium dark/crimson atmosphere, compact branded header, polished nav and subtle status footer
+- `DashboardMetricsStrip` — compact premium metric cards with restrained icon accents and improved typography rhythm
+- `ResumeListCard` (`workspace`) — stronger row hierarchy, richer layered surfaces, refined action buttons, premium AI suggestion styling
+- `DashboardIntelligencePanel` — polished AI intelligence cards, stronger grouping depth, improved CTA and quick-action readability
+- `DashboardWorkspaceLayout` / `DashboardPage` — maintained approved composition while restoring ATS context wiring to sidebar and AI rail
+- `index.css` — final atmospheric gradient/shadow/highlight tokens and restrained micro-interactions for dashboard surfaces
+
+### Verification
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
+## 2026-05-23 - Dashboard approved direction implementation (design-system-v1, pass 6)
+
+### Summary
+UI-only controlled implementation aligned to approved premium AI-native workspace direction: restored balanced three-column composition with dark/crimson restraint, compact metric cards, intelligent resume rows, and a useful right AI rail (opportunity, weakest section, next step, quick actions, recent activity) while preserving all existing dashboard behavior.
+
+### What changed
+- `DashboardWorkspaceLayout` — reintroduced sidebar/rail balance and passed existing ATS context to sidebar
+- `DashboardWorkspaceSidebar` — premium narrow dark nav with reduced noise and compact status footer
+- `DashboardWorkspaceToolbar` — greeting + supporting copy, command/search bar, direct productivity actions
+- `DashboardMetricsStrip` — compact horizontal metric cards (real data only, hidden when unavailable)
+- `DashboardIntelligencePanel` — contextual AI rail cards (workspace insight, quick actions, recent activity)
+- `ResumeListCard` (`workspace`) — compact rich rows with subtle surfaces, ATS ring, metadata, AI suggestion line, aligned actions
+- `DashboardPage` — restored metrics section and tab counts, retained main-list focus and existing data/actions
+- `index.css` — premium dark workspace layering, restrained crimson accents, soft depth tokens
+
+### Verification
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
+## 2026-05-23 - Dashboard minimal workspace reset (design-system-v1, pass 5)
+
+### Summary
+Hard visual simplification toward Linear/Notion-style workspace: removed metric pills, boxed surfaces, AI module sections, sidebar ATS/groups, and card-stack resume UI. One focal resume list, minimal AI rail (insight + action + context), flat nav, toolbar with overflow for secondary actions.
+
+### Removed / simplified
+- `DashboardMetricsStrip` usage on dashboard page
+- Resume list surface container and tab count badges
+- AI rail: signal map, insight blocks, headers, import/new links, decorative cards
+- Sidebar: nav groups, ATS card, logo box
+- Resume rows: per-row cards → divider list with hover wash
+- CSS: command bar, AI module, metric pill, gradient chrome
+
+### Verification
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
+## 2026-05-23 - Dashboard premium refinement (design-system-v1, pass 4)
+
+### Summary
+Final UI-only polish on the existing workspace: premium AI rail module (layered insight blocks, signal map from real scores), refined command toolbar, tighter grouped sidebar, metric pills, anchored resume surface, calmer depth/hover — without layout redesign or added scroll.
+
+### What changed
+- `DashboardIntelligencePanel` — embedded AI module with primary focus, insight blocks, category signal map
+- `DashboardWorkspaceToolbar` — command bar composition
+- `DashboardWorkspaceSidebar` — nav groups, sticky self-start, integrated ATS footer
+- `DashboardWorkspaceLayout` — 10.5rem / 16rem columns, items-start, sticky rail
+- `DashboardMetricsStrip` — pill metrics
+- `DashboardPage` — workspace surface wrapper, compact footer banners
+- `index.css` — refinement tokens (AI module, command bar, surfaces)
+
+### Verification
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
+## 2026-05-23 - Dashboard composition correction (design-system-v1, pass 3)
+
+### Summary
+UI-only density and balance pass on the existing three-zone workspace: compress vertical rhythm, integrate a restrained sidebar (no full crimson wall), compact premium resume rows, denser intelligence rail, calmer surfaces. No backend, routing, auth, hooks, or data changes.
+
+### What changed
+- `DashboardWorkspaceLayout` — narrower columns, lg intelligence below main, reduced padding
+- `DashboardWorkspaceSidebar` — card-surface nav, smaller type, compact ATS chip
+- `DashboardWorkspaceToolbar` — inline greeting + count, h-9 controls
+- `DashboardMetricsStrip` — inline strip with subtle divider
+- `DashboardIntelligencePanel` — grid signal rows, sticky on xl, no motion bloat
+- `ResumeListCard` (`workspace`) — single-row compact layout, smaller ring, restrained insight
+- `DashboardPage` — tighter tabs/list/footer spacing
+- `index.css` — restrained workspace tokens (sidebar, cards, rail)
+
+### Verification
+- `npx tsc --noEmit`
+- `npm run build`
+
+---
+
+## 2026-05-23 - Dashboard workspace OS composition (design-system-v1, pass 2)
+
+### Summary
+Second UI-only pass: three-zone workspace layout (sidebar nav → resume surface → intelligence rail), borderless resume stack, premium workspace cards with ATS + AI insight preview, embedded intelligence panel. Desktop top nav hidden on `/dashboard` in favor of workspace sidebar (xl+).
+
+### What changed
+- `DashboardWorkspaceLayout`, `DashboardWorkspaceSidebar`, `DashboardWorkspaceToolbar`, `DashboardMetricsStrip`, `DashboardIntelligencePanel`
+- `ResumeListCard` `presentation="workspace"` — primary product cards
+- `AppShell` — hide `DesktopNav` on `/dashboard`
+- `DashboardPage` — full composition restructure
+- `index.css` — workspace OS tokens
+
+### Verification
+- `npx tsc --noEmit` — passed
+- `npm run build` — passed
+- `vitest` `DashboardHero.test.tsx` — passed
+
+---
+
+## 2026-05-23 - Dashboard AI workspace visual refactor (design-system-v1)
+
+### Summary
+UI-only pass on `/dashboard`: calmer workspace layout, compact header (replaces gradient spotlight hero), embedded AI Workspace insight rail, refined metrics and resume rows. No backend, API, auth, routing, state, or AI logic changes.
+
+### What changed
+- `DashboardWorkspaceHeader` — greeting + active resume strip with ATS ring (existing profile/resume/score data only).
+- `DashboardUtilityRail` + `DashboardRecentActivity` — right rail: AI insight, quick actions, recent resume activity from existing `resumes` list.
+- `DashboardNextActionCard` — AI workspace framing, weakest-section signal when score data exists.
+- `DashboardStats` — compact metrics; hide tailored/keyword metrics when zero.
+- `ResumeListCard` (`atlas-row`) — scannable rows with score ring, metadata, Edit/Tailor/More unchanged behavior.
+- `index.css` — softer dashboard surfaces, calmer metrics/insight panels, quieter premium nav badge.
+- `DashboardPage` — layout wiring only (removed `DashboardSpotlightHero` from page).
+
+### Verification
+- `npx tsc --noEmit` — passed
+- `npm run build` — passed
+- `vitest` `DashboardHero.test.tsx` — passed
+
+---
+
 ## 2026-05-22 - Branded auth email templates (Appwrite Console configuration)
 
 ### Summary

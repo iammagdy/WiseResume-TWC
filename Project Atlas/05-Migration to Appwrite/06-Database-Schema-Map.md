@@ -24,6 +24,7 @@ These must be created in Appwrite Console before any code targeting them is writ
    - `username`: String
    - `onboarding_completed`: Boolean
    - `avatar_url`: String (500 chars)
+   - `portfolio_extras`: String (stringified JSON) — includes nested **`portfolioDraft`** + **`portfolioDraftSavedAt`** for portfolio editor working copy (2026-05-23; live Appwrite has **no** `portfolio_draft` / `portfolio_draft_saved_at` attributes — see session log `27-Session-Log-2026-05-23-Portfolio-Editor-Tailor-Workspace.md`)
 
 2. **resumes**
    - `user_id`: String

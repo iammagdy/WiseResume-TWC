@@ -15,6 +15,7 @@ import {
   Crown,
   Mic,
   Sparkles,
+  FileText,
   Pencil,
   Plus,
   Eye,
@@ -69,8 +70,8 @@ interface ResumeListCardProps {
   onToggleSelect?: (id: string) => void;
   /** Externally driven processing state (e.g. when parent's async mutation is in-flight for this card) */
   isProcessing?: boolean;
-  /** Atlas dashboard row layout (visual reference) */
-  presentation?: 'default' | 'atlas-row';
+  /** Dashboard row density: workspace = primary surface cards */
+  presentation?: 'default' | 'atlas-row' | 'workspace';
   onTailor?: (id: string) => void;
 }
 
@@ -96,6 +97,18 @@ export const ResumeListCard = memo(function ResumeListCard({
   onTailor,
 }: ResumeListCardProps) {
   const isAtlasRow = presentation === 'atlas-row';
+  const isWorkspace = presentation === 'workspace';
+  const isCompactRow = isAtlasRow || isWorkspace;
+
+  const aiInsightPreview = useMemo(() => {
+    if (!healthScore) return null;
+    const gaps = healthScore.keywordGaps?.length ?? 0;
+    if (gaps > 0) {
+      return `${gaps} keyword gap${gaps === 1 ? '' : 's'} — tailor to align with your target role.`;
+    }
+    if (healthScore.topImprovement) return healthScore.topImprovement;
+    return null;
+  }, [healthScore]);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -244,7 +257,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   return (
     <div className={cn(
       'relative overflow-hidden rounded-2xl transition-colors duration-500',
-      isAtlasRow ? 'border-l-0' : cn('border-l-4', scoreAccent),
+      isCompactRow ? 'border-l-0' : cn('border-l-4', scoreAccent),
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
@@ -282,18 +295,20 @@ export const ResumeListCard = memo(function ResumeListCard({
           }
         }}
         className={cn(
-          'relative rounded-2xl border touch-manipulation cursor-pointer transition-all duration-200',
+          'relative rounded-2xl touch-manipulation cursor-pointer transition-all duration-200',
           'active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-          isAtlasRow
-            ? 'dashboard-atlas-row border-border/80 shadow-soft-sm p-3 sm:p-3.5 hover:border-primary/30 hover:shadow-soft-md'
-            : cn(
-              'bg-card border-border/80 shadow-soft p-4 sm:p-5',
-              'hover:border-primary/25 hover:shadow-soft-md hover:bg-card',
-              healthScore && healthScore.overallScore >= 80 && 'ring-1 ring-success/20',
-            ),
+          isWorkspace
+            ? 'resume-workspace-row resume-workspace-card rounded-2xl border border-border/40 px-3 py-2.5 shadow-none hover:border-primary/20'
+            : isAtlasRow
+              ? 'dashboard-atlas-row border-border/70 shadow-none p-3 sm:p-3.5 hover:border-primary/20 hover:bg-card border'
+              : cn(
+                'bg-card border border-border/80 shadow-soft p-4 sm:p-5',
+                'hover:border-primary/25 hover:shadow-soft-md hover:bg-card',
+                healthScore && healthScore.overallScore >= 80 && 'ring-1 ring-success/20',
+              ),
         )}
-        style={{ x, touchAction: 'pan-y' }}
-        drag="x"
+        style={isWorkspace ? undefined : { x, touchAction: 'pan-y' }}
+        drag={isWorkspace ? false : 'x'}
         dragConstraints={{ left: -150, right: 150 }}
         dragElastic={0.5}
         onDragStart={handleDragStart}
@@ -351,8 +366,122 @@ export const ResumeListCard = memo(function ResumeListCard({
           )}
         </AnimatePresence>
 
-        {isAtlasRow ? (
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {isWorkspace ? (
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 w-full">
+            {selectionMode && (
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={selected}
+                  onCheckedChange={() => onToggleSelect?.(resume.$id)}
+                  className="w-4 h-4"
+                />
+              </div>
+            )}
+            <div
+              className={cn(
+                'resume-workspace-doc-tile flex items-center justify-center shrink-0 w-9 h-9 rounded-xl',
+                showTailoredBadge && 'resume-workspace-doc-tile--tailored',
+              )}
+            >
+              <FileText
+                className={cn('w-4 h-4', showTailoredBadge ? 'text-primary' : 'text-muted-foreground/90')}
+              />
+            </div>
+            <div className="shrink-0">
+              <ScoreRing score={healthScore?.overallScore ?? 0} size={40} isLoading={isScoring} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {resume.is_primary && (
+                  <Star className="w-3 h-3 text-amber-500/90 fill-amber-400/80 shrink-0" />
+                )}
+                <h3
+                  className="text-[15px] font-semibold text-foreground leading-tight flex-1 min-w-0 truncate"
+                  title={resume.title}
+                >
+                  {resume.title}
+                </h3>
+                {showMasterBadge && (
+                  <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0 border-border/60 text-muted-foreground">
+                    Master
+                  </Badge>
+                )}
+                {showTailoredBadge && (
+                  <Badge variant="secondary" className="text-[9px] h-4 px-1 shrink-0">
+                    Tailored
+                  </Badge>
+                )}
+              </div>
+              {resume.target_job_title && (
+                <p className="text-xs text-foreground/85 truncate mt-0.5">{resume.target_job_title}</p>
+              )}
+              <p className="text-[11px] text-muted-foreground/90 truncate mt-0.5">
+                {resume.template && (
+                  <span>
+                    {resume.template.charAt(0).toUpperCase()}
+                    {resume.template.slice(1)} template
+                  </span>
+                )}
+                <span>
+                  {resume.template ? ' · ' : ''}
+                  Edited{' '}
+                  {safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), {
+                    addSuffix: true,
+                  })}
+                </span>
+              </p>
+              {aiInsightPreview && (
+                <p className="resume-workspace-card__insight mt-1 line-clamp-1">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mr-1">Top suggestion:</span>
+                  {aiInsightPreview}
+                </p>
+              )}
+            </div>
+            <div
+              className="flex items-center gap-1 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                className="resume-workspace-action h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+                onClick={() => {
+                  haptics.light();
+                  onEdit(resume.$id);
+                }}
+              >
+                <Pencil className="w-3.5 h-3.5 mr-1" />
+                Edit
+              </Button>
+              {onTailor && (
+                <Button
+                  size="sm"
+                  className="resume-workspace-action resume-workspace-action--primary h-8 px-2.5 rounded-lg text-xs font-medium shadow-none"
+                  onClick={() => {
+                    haptics.light();
+                    onTailor(resume.$id);
+                  }}
+                >
+                  <Wand2 className="w-3.5 h-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Tailor</span>
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 min-h-[44px] min-w-[44px] shrink-0 rounded-lg"
+                onClick={() => {
+                  haptics.light();
+                  setShowActionsSheet(true);
+                }}
+                aria-label="More options"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : isAtlasRow ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               {selectionMode && (
                 <div className="flex items-center justify-center pt-1" onClick={(e) => e.stopPropagation()}>
@@ -363,58 +492,77 @@ export const ResumeListCard = memo(function ResumeListCard({
                   />
                 </div>
               )}
+              {!selectionMode && (
+                <div className="shrink-0 pt-0.5 hidden sm:flex">
+                  <ScoreRing score={healthScore?.overallScore ?? 0} size={44} isLoading={isScoring} />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
+                <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                   {resume.is_primary && (
-                    <Star className="w-4 h-4 text-warning fill-warning shrink-0" />
+                    <Star className="w-3.5 h-3.5 text-amber-500/90 fill-amber-400/80 shrink-0" />
                   )}
-                  <h3 className="font-bold text-base truncate flex-1 min-w-0" title={resume.title}>
+                  <h3 className="font-semibold text-[15px] truncate flex-1 min-w-0 text-foreground" title={resume.title}>
                     {resume.title}
                   </h3>
                   {showMasterBadge && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary shrink-0">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-0.5 border-border text-muted-foreground shrink-0">
                       <Crown className="w-3 h-3" />
                       Master
                     </Badge>
                   )}
                   {showTailoredBadge && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-0.5 shrink-0 font-medium">
                       <GitBranch className="w-3 h-3" />
                       Tailored
                     </Badge>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Edited {safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), { addSuffix: true })}
-                  {resume.template ? ` · ${resume.template.charAt(0).toUpperCase()}${resume.template.slice(1)} template` : ''}
+                <p className="text-xs text-muted-foreground leading-snug">
+                  <span>
+                    {safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), { addSuffix: true })}
+                  </span>
+                  {resume.template && (
+                    <span>
+                      {' '}
+                      · {resume.template.charAt(0).toUpperCase()}
+                      {resume.template.slice(1)}
+                    </span>
+                  )}
                 </p>
+                {hasTargetJob && (
+                  <p className="text-xs text-foreground/75 mt-0.5 truncate flex items-center gap-1">
+                    <Target className="w-3 h-3 text-primary/70 shrink-0" />
+                    {[resume.target_job_title, resume.target_company].filter(Boolean).join(' @ ')}
+                  </p>
+                )}
                 {healthScore && (
-                  <p className="text-xs text-muted-foreground mt-1 tabular-nums">
+                  <p className="text-[11px] text-muted-foreground mt-1 tabular-nums sm:hidden">
                     ATS {healthScore.overallScore}%
                     {healthScore.keywordGaps && healthScore.keywordGaps.length > 0
-                      ? ` · ${healthScore.keywordGaps.length} keyword gap${healthScore.keywordGaps.length === 1 ? '' : 's'}`
+                      ? ` · ${healthScore.keywordGaps.length} gap${healthScore.keywordGaps.length === 1 ? '' : 's'}`
                       : ''}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 rounded-xl min-w-[5.5rem] font-semibold"
+                className="h-10 rounded-xl min-w-[5.25rem] flex-1 sm:flex-none font-medium border-border/80"
                 onClick={() => {
                   haptics.light();
                   onEdit(resume.$id);
                 }}
               >
-                <Edit2 className="w-4 h-4 mr-1.5" />
+                <Pencil className="w-4 h-4 mr-1.5" />
                 Edit
               </Button>
               {onTailor && (
                 <Button
                   size="sm"
-                  className="h-10 rounded-xl min-w-[5.5rem] font-semibold shadow-soft-sm"
+                  className="h-10 rounded-xl min-w-[5.25rem] flex-1 sm:flex-none font-medium shadow-none"
                   onClick={() => {
                     haptics.light();
                     onTailor(resume.$id);
@@ -427,7 +575,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="min-w-[44px] min-h-[44px] h-10 w-10"
+                className="min-w-[44px] min-h-[44px] h-10 w-10 shrink-0"
                 onClick={() => {
                   haptics.light();
                   setShowActionsSheet(true);

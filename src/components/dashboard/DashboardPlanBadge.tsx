@@ -49,9 +49,8 @@ export const DashboardPlanBadge = memo(function DashboardPlanBadge({
       <span
         className={cn(
           'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium',
-          'border border-amber-200/40 bg-amber-50/60 text-amber-900/75',
-          'dark:border-amber-500/15 dark:bg-amber-950/25 dark:text-amber-100/80',
-          'shadow-[0_0_12px_-4px_hsl(43_96%_56%/0.35)]',
+          'border border-amber-200/35 bg-amber-50/50 text-amber-900/70',
+          'dark:border-amber-500/12 dark:bg-amber-950/20 dark:text-amber-100/75',
           className,
         )}
         aria-label="Premium active"

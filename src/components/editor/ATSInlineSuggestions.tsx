@@ -84,7 +84,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="mt-3 rounded-xl border border-border bg-card backdrop-blur-sm overflow-hidden">
+      <div data-ats-suggestions-inline className="mt-3 rounded-xl border border-border bg-card backdrop-blur-sm overflow-hidden">
         <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] active:scale-[0.98] touch-manipulation">
           <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
           <span className="text-xs font-medium text-foreground flex-1 text-left">

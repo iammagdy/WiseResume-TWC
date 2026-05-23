@@ -2,7 +2,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 
-declare const __APP_VERSION__: string;
+import { getBuildVersionLabel } from '@/lib/appVersion';
 
 interface FooterProps {
   lpMode?: boolean;
@@ -92,7 +92,7 @@ export function Footer({ lpMode, product }: FooterProps) {
             style={{ color: 'var(--lp-text-muted)' }}
             aria-label="App version"
           >
-            v{__APP_VERSION__}
+            {getBuildVersionLabel()}
           </p>
         )}
       </div>

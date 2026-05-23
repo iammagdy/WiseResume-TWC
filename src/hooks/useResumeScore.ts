@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
+import { logWorkspaceActivity } from '@/store/workspaceActivityStore';
 import {
   calcContactScore,
   calcSummaryScore,
@@ -385,7 +386,13 @@ export function useResumeScore() {
     return latest;
   }, []);
 
-  const scoreResume = useCallback(async (resumeId: string, resume: ResumeData, updatedAt: string, force?: boolean): Promise<ResumeHealthScore | null> => {
+  const scoreResume = useCallback(async (
+    resumeId: string,
+    resume: ResumeData,
+    updatedAt: string,
+    force?: boolean,
+    activityMeta?: { resumeTitle?: string },
+  ): Promise<ResumeHealthScore | null> => {
     if (!force) {
       const cached = scoreCache.get(cacheKey(resumeId, updatedAt));
       if (cached) return cached;
@@ -417,6 +424,14 @@ export function useResumeScore() {
       scoreCache.set(key, score);
       rememberScoreCacheWrite(key);
       useATSScoreHistoryStore.getState().addScore(resumeId, score);
+      if (activityMeta?.resumeTitle) {
+        logWorkspaceActivity({
+          type: 'ats_scored',
+          resumeId,
+          resumeTitle: activityMeta.resumeTitle,
+          score: score.overallScore,
+        });
+      }
       return score;
     } catch (err: any) {
       if (err.isSkip) {

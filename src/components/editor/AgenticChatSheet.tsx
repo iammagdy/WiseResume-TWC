@@ -30,12 +30,6 @@ import {
   Settings as SettingsIcon,
   AlertCircle,
 } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -57,6 +51,14 @@ import { useToolCache } from '@/hooks/useToolCache';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
 import type { ChatErrorInfo } from '@/lib/agenticChat';
 import type { CompanyBriefing } from '@/types/companyBriefing';
+import { resolvePageContext, matchLocalGuidance } from '@/lib/wiseWorkspace/pageContext';
+import { useWiseWorkspaceStore } from '@/store/wiseWorkspaceStore';
+import {
+  WiseStepList,
+  WiseActionChips,
+  WiseLinkCard,
+  parseWiseActionsBlock,
+} from '@/components/wise-workspace/WiseAssistantActions';
 
 function relativeDate(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -82,6 +84,14 @@ function parseExperienceOriginal(original: string): { position?: string; company
   return { raw: original };
 }
 
+interface WiseWorkspaceChatProps {
+  embedded?: boolean;
+  initialMessage?: string;
+  onClose?: () => void;
+  onBackToNav?: () => void;
+}
+
+/** @deprecated Use Wise Workspace store; opens global drawer */
 interface AgenticChatSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -89,11 +99,11 @@ interface AgenticChatSheetProps {
 }
 
 const CONTEXT_FILTERS = [
-  { id: 'resumes', label: 'Resumes', icon: FileText, routes: ['/editor', '/preview', '/dashboard', '/resume', '/templates'] },
-  { id: 'cover-letters', label: 'Cover Letters', icon: Mail, routes: ['/cover-letter', '/cover-letters'] },
-  { id: 'applications', label: 'Applications', icon: Briefcase, routes: ['/applications', '/application', '/job'] },
-  { id: 'portfolio', label: 'Portfolio', icon: Globe, routes: ['/portfolio'] },
-  { id: 'activity', label: 'Activity', icon: BarChart3, routes: ['/interview', '/career', '/ai-studio'] },
+  { id: 'resumes', label: 'Resumes', icon: FileText, routes: ['/editor', '/preview', '/dashboard', '/resume', '/templates'], home: '/dashboard' },
+  { id: 'cover-letters', label: 'Cover Letters', icon: Mail, routes: ['/cover-letter', '/cover-letters'], home: '/cover-letters' },
+  { id: 'applications', label: 'Applications', icon: Briefcase, routes: ['/applications', '/application', '/job'], home: '/applications' },
+  { id: 'portfolio', label: 'Portfolio', icon: Globe, routes: ['/portfolio'], home: '/portfolio' },
+  { id: 'activity', label: 'Activity', icon: BarChart3, routes: ['/interview', '/career', '/ai-studio'], home: '/ai-studio' },
 ] as const;
 
 function detectContextFromRoute(pathname: string): string {
@@ -734,7 +744,12 @@ function ChatErrorCard({
   );
 }
 
-export function AgenticChatSheet({ open, onOpenChange, initialMessage }: AgenticChatSheetProps) {
+export function WiseWorkspaceChat({
+  embedded = false,
+  initialMessage,
+  onClose,
+  onBackToNav,
+}: WiseWorkspaceChatProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -760,6 +775,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
   const [chatPanel, setChatPanel] = useState<'chat' | 'history'>('chat');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [localGuidance, setLocalGuidance] = useState<ReturnType<typeof matchLocalGuidance>>(null);
 
   // Company briefing (Phase 2 + 3)
   const [briefingOpen, setBriefingOpen] = useState(false);
@@ -776,10 +792,10 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   const deleteMutation = useDeleteChatSession();
 
   useEffect(() => {
-    if (initialMessage && open) {
+    if (initialMessage) {
       setInput(initialMessage);
     }
-  }, [initialMessage, open]);
+  }, [initialMessage]);
 
   useEffect(() => {
     setActiveContext(detectContextFromRoute(location.pathname));
@@ -792,10 +808,21 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   }, [messages, isThinking]);
 
   useEffect(() => {
-    if (open && messages.length === 0 && isAuthenticated) {
+    if (messages.length === 0 && isAuthenticated) {
       setTimeout(() => inputRef.current?.focus(), 300);
     }
-  }, [open, messages.length, isAuthenticated]);
+  }, [messages.length, isAuthenticated]);
+
+  const pageContext = resolvePageContext(location.pathname);
+
+  const handleContextFilter = (filter: (typeof CONTEXT_FILTERS)[number]) => {
+    setActiveContext(filter.id);
+    haptics.selection();
+    const onRoute = filter.routes.some((r) => location.pathname.startsWith(r));
+    if (!onRoute) {
+      navigate(filter.home);
+    }
+  };
 
   // Phase 2+3: Handle pending action from useAgenticChat (e.g. get_company_briefing)
   useEffect(() => {
@@ -824,7 +851,9 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   const handleSend = () => {
     if (!input.trim()) return;
     haptics.light();
-    sendMessage(input);
+    const text = input.trim();
+    setLocalGuidance(matchLocalGuidance(text, pageContext));
+    sendMessage(text);
     setInput('');
   };
 
@@ -840,8 +869,12 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
     }
   };
 
+  const handleClose = () => {
+    onClose?.();
+  };
+
   const handleSignIn = () => {
-    onOpenChange(false);
+    handleClose();
     navigate('/auth?mode=login');
   };
 
@@ -850,85 +883,92 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
     setCurrentResumeId(resume.id);
     setResumePickerOpen(false);
     haptics.light();
+    if (!location.pathname.startsWith('/editor')) {
+      navigate('/editor');
+    }
   };
 
-  return (
+  const chatToolbar = isAuthenticated && (
+    <div className="flex items-center justify-end gap-1 shrink-0 px-3 py-2 border-b border-border/30">
+      {chatPanel === 'history' ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setChatPanel('chat')}
+          className="text-muted-foreground h-8"
+          aria-label="Back to chat"
+        >
+          <ChevronLeft className="w-4 h-4 mr-1" />
+          Chat
+        </Button>
+      ) : (
+        <>
+          {embedded && onBackToNav && (
+            <Button variant="ghost" size="sm" className="h-8 mr-auto" onClick={onBackToNav}>
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Nav
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => { setChatPanel('history'); setDeleteConfirmId(null); }}
+            className="text-muted-foreground"
+            aria-label="Chat history"
+          >
+            <Clock className="w-4 h-4" />
+          </Button>
+          {messages.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={startNewSession}
+              className="text-muted-foreground"
+              aria-label="New Chat"
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+            </Button>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const chatPanelBody = (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
-        <AISheetErrorBoundary key={String(open)} onClose={() => onOpenChange(false)}>
-        <SheetHeader className="px-4 pt-4 pb-3 shrink-0 border-b border-border">
-          <div className="flex items-center justify-between gap-2">
-            <SheetTitle className="flex items-center gap-2">
-              <AppIcon size={32} showSparkle className="shrink-0" />
-              <span className="font-semibold">Wise AI</span>
-              {isAuthenticated && (
-                <AIProviderBadge size="xs" showSettingsLink />
-              )}
-            </SheetTitle>
-            
-            {isAuthenticated && (
-              <div className="flex items-center gap-1">
-                {chatPanel === 'history' ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setChatPanel('chat')}
-                    className="text-muted-foreground"
-                    aria-label="Back to chat"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { setChatPanel('history'); setDeleteConfirmId(null); }}
-                      className="text-muted-foreground"
-                      aria-label="Chat history"
-                    >
-                      <Clock className="w-4 h-4" />
-                    </Button>
-                    {messages.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={startNewSession}
-                        className="text-muted-foreground"
-                        aria-label="New Chat"
-                      >
-                        <MessageSquarePlus className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </SheetHeader>
+        {chatToolbar}
 
         {isAuthenticated && (
-          <div className="px-4 pt-1 space-y-2">
-            <AITrustBadge />
-            {/* Context filter chips */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="px-4 py-2.5 space-y-2 border-b border-border/30 bg-muted/15 shrink-0">
+            {!embedded && <AITrustBadge />}
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Workspace context
+            </p>
+            <div className="flex flex-wrap gap-1.5">
               {CONTEXT_FILTERS.map((filter) => {
                 const Icon = filter.icon;
                 const isActive = activeContext === filter.id;
+                const onRoute = filter.routes.some((r) => location.pathname.startsWith(r));
                 return (
                   <button
                     key={filter.id}
-                    onClick={() => { setActiveContext(filter.id); haptics.selection(); }}
+                    type="button"
+                    onClick={() => handleContextFilter(filter)}
                     className={cn(
-                      'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 touch-manipulation',
+                      'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors shrink-0 touch-manipulation border',
                       isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:bg-muted'
+                        ? 'bg-primary text-primary-foreground border-primary/40 shadow-sm'
+                        : 'bg-card/60 text-muted-foreground border-border/50 hover:text-foreground hover:border-primary/25',
                     )}
+                    title={onRoute ? filter.label : `Open ${filter.label}`}
                   >
-                    <Icon className="w-3 h-3" />
+                    <Icon className="w-3 h-3 shrink-0" />
                     {filter.label}
+                    {!onRoute && (
+                      <span className="text-[9px] opacity-70" aria-hidden>
+                        ↗
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -937,7 +977,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
         )}
 
         {!isAuthenticated ? (
-          <GuestShowcase onClose={() => onOpenChange(false)} onSignIn={handleSignIn} />
+          <GuestShowcase onClose={handleClose} onSignIn={handleSignIn} />
         ) : chatPanel === 'history' ? (
           <div className="flex-1 h-0 overflow-y-auto px-4 py-4">
             <p className="text-xs text-muted-foreground font-medium mb-3">Recent conversations</p>
@@ -1018,9 +1058,9 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
           <>
             <div ref={scrollRef} className="flex-1 h-0 overflow-y-auto px-4 py-4">
               {messages.length === 0 ? (
-              <div className="flex flex-col items-center h-full text-center pt-6">
-                  <p className="text-sm text-muted-foreground max-w-[260px] mb-8">
-                    I can edit your resume directly. Just tell me what to change.
+              <div className="flex flex-col items-stretch h-full text-left pt-4">
+                  <p className="text-sm text-foreground/90 leading-relaxed mb-4">
+                    I can edit your resume, open pages in WiseResume, and apply changes while you work.
                   </p>
 
                   <div className="w-full space-y-2">
@@ -1077,9 +1117,35 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                               <FunctionCallBadge name={msg.functionCall.name} />
                             </div>
                           )}
-                          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
-                          </div>
+                          {msg.role === 'assistant' ? (() => {
+                            const parsed = parseWiseActionsBlock(msg.content);
+                            return (
+                              <>
+                                <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
+                                  <ReactMarkdown>{parsed.text}</ReactMarkdown>
+                                </div>
+                                {parsed.steps && <WiseStepList steps={parsed.steps} />}
+                                {parsed.linkCard && (
+                                  <WiseLinkCard
+                                    title={parsed.linkCard.title}
+                                    description={parsed.linkCard.description}
+                                    href={parsed.linkCard.href}
+                                    cta={parsed.linkCard.cta}
+                                  />
+                                )}
+                                {parsed.actions && (
+                                  <WiseActionChips
+                                    actions={parsed.actions}
+                                    onSendPrompt={(p) => sendMessage(p)}
+                                  />
+                                )}
+                              </>
+                            );
+                          })() : (
+                            <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
+                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            </div>
+                          )}
                           {/* Clickable resume cards when AI mentions resume titles */}
                           {msg.role === 'assistant' && allResumes.length > 0 && (() => {
                             const mentioned = allResumes.filter(r => msg.content.includes(r.title));
@@ -1127,6 +1193,30 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                       </motion.div>
                     ))}
                   </AnimatePresence>
+
+                  {localGuidance && (
+                    <div className="flex gap-2 justify-start">
+                      <AppIcon size={28} showSparkle={false} className="shrink-0 mt-0.5" />
+                      <div className="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm bg-card border border-border rounded-bl-md">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Suggested for this page</p>
+                        {localGuidance.linkCard && (
+                          <WiseLinkCard
+                            title={localGuidance.linkCard.title}
+                            description={localGuidance.linkCard.description}
+                            href={localGuidance.linkCard.href}
+                            cta={localGuidance.linkCard.cta}
+                          />
+                        )}
+                        {localGuidance.steps && <WiseStepList steps={localGuidance.steps} />}
+                        {localGuidance.actions && (
+                          <WiseActionChips
+                            actions={localGuidance.actions}
+                            onSendPrompt={(p) => sendMessage(p)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Confirmation card for overwrite-risk AI functions */}
                   {pendingConfirmation && !isThinking && (
@@ -1256,7 +1346,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask Wise AI to edit your resume..."
+                  placeholder={embedded ? `Ask about ${pageContext.pageTitle}…` : 'Ask Wise AI to edit your resume...'}
                   className="flex-1 h-11 px-4 rounded-full bg-input border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none"
                   disabled={isThinking}
                 />
@@ -1273,9 +1363,16 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
             </div>
           </>
         )}
+    </>
+  );
+
+  return (
+    <>
+        <AISheetErrorBoundary onClose={handleClose}>
+        <div className="flex flex-col flex-1 min-h-0 h-full wise-workspace-chat">
+        {chatPanelBody}
+        </div>
         </AISheetErrorBoundary>
-      </SheetContent>
-    </Sheet>
 
     {/* Phase 2+3: Company Briefing Sheet — opened by get_company_briefing tool */}
     <CompanyBriefingSheet
@@ -1298,4 +1395,16 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
 
   </>
   );
+}
+
+/** Legacy sheet API — opens global Wise Workspace drawer */
+export function AgenticChatSheet({ open, onOpenChange, initialMessage }: AgenticChatSheetProps) {
+  const openChat = useWiseWorkspaceStore((s) => s.openChat);
+  useEffect(() => {
+    if (open) {
+      openChat(initialMessage);
+      onOpenChange(false);
+    }
+  }, [open, initialMessage, onOpenChange, openChat]);
+  return null;
 }

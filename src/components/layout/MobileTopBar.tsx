@@ -7,7 +7,7 @@ import { ShellBrand } from './ShellBrand';
 import { ShellCommandSearch } from './ShellCommandSearch';
 
 /**
- * Premium compact top bar for mobile workspace routes (dashboard uses its own header).
+ * Compact top bar for mobile workspace routes; desktop uses DesktopNav in AppShell.
  */
 export function MobileTopBar() {
   const location = useLocation();

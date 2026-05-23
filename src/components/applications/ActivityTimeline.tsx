@@ -3,7 +3,8 @@ import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { formatDistanceToNow, isToday, isYesterday, isThisWeek } from 'date-fns';
+import { isToday, isYesterday, isThisWeek } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { Scissors, Mail, CheckCircle2, ExternalLink, FileText, FilePlus2, Send, Search } from 'lucide-react';
 import { openExternal } from '@/lib/openExternal';
 import { Badge } from '@/components/ui/badge';
@@ -348,7 +349,7 @@ export function ActivityTimeline() {
                         <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
                           <span>{config.label}</span>
                           <span>·</span>
-                          <span>{safeDate(entry.date) ? formatDistanceToNow(safeDate(entry.date)!, { addSuffix: true }) : 'some time ago'}</span>
+                          <span>{safeFormatDistanceToNow(entry.date, { addSuffix: true }, 'some time ago')}</span>
                           {entry.resumeName && !isResume && (
                             <>
                               <span>·</span>

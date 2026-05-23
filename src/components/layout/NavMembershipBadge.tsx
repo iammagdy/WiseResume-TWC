@@ -37,7 +37,7 @@ export const NavMembershipBadge = memo(function NavMembershipBadge({
       <span
         className={cn(
           'nav-membership-badge nav-membership-badge--trial',
-          isPremiumTrial && 'nav-membership-badge--premium plan-glow-premium',
+          isPremiumTrial && 'nav-membership-badge--premium',
           className,
         )}
         aria-label={`${tier} trial, ${daysLeft} days remaining`}
@@ -57,7 +57,7 @@ export const NavMembershipBadge = memo(function NavMembershipBadge({
   if (plan === 'premium') {
     return (
       <span
-        className={cn('nav-membership-badge nav-membership-badge--premium plan-glow-premium', className)}
+        className={cn('nav-membership-badge nav-membership-badge--premium', className)}
         aria-label="Premium membership active"
         title="Premium Active"
       >

@@ -27,6 +27,7 @@ import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
+import { logWorkspaceActivity } from '@/store/workspaceActivityStore';
 import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
@@ -204,6 +205,12 @@ export function CreateResumeDialog({
         });
       }
 
+      logWorkspaceActivity({
+        type: 'resume_created',
+        resumeId: newResume.$id,
+        resumeTitle: title.trim(),
+      });
+
       const startBlankData = dbToResumeData(newResume);
       setCurrentResumeId(startBlankData.id);
       setCurrentResume(startBlankData);
@@ -232,6 +239,14 @@ export function CreateResumeDialog({
     setIsCreating(true);
     try {
       const dupDoc = await duplicateResume.mutateAsync(selectedResumeId);
+      const source = existingResumes.find((r) => r.$id === selectedResumeId);
+      logWorkspaceActivity({
+        type: 'resume_duplicated',
+        resumeId: dupDoc.$id,
+        resumeTitle: (dupDoc as { title?: string }).title,
+        parentResumeTitle: source?.title,
+      });
+
       const dupData = dbToResumeData(dupDoc);
       setCurrentResumeId(dupData.id);
       setCurrentResume(dupData);
@@ -280,6 +295,13 @@ export function CreateResumeDialog({
       if (tailoredJobDescription.trim()) {
         useResumeStore.getState().setJobDescription(tailoredJobDescription.trim());
       }
+
+      logWorkspaceActivity({
+        type: 'resume_tailored',
+        resumeId: newDoc.$id,
+        resumeTitle: title.trim(),
+        parentResumeTitle: parentResume.title,
+      });
 
       const parentData = dbToResumeData(parentResume);
       setCurrentResumeId(newDoc.$id);
@@ -363,6 +385,12 @@ export function CreateResumeDialog({
           templateId: defaultTemplateId || 'modern',
         },
         title: pasteTitle.trim() || 'My Resume',
+      });
+
+      logWorkspaceActivity({
+        type: 'resume_created',
+        resumeId: newResume.$id,
+        resumeTitle: pasteTitle.trim() || 'My Resume',
       });
 
       const pasteData = dbToResumeData(newResume);

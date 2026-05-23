@@ -15,8 +15,11 @@ import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { SectionSidebar } from '@/components/editor/SectionSidebar';
+import { EditorNavRail } from '@/components/editor/EditorNavRail';
+import { EditorSuggestionsPanel } from '@/components/editor/EditorSuggestionsPanel';
+import '@/components/editor/editor-workspace.css';
 import { LivePreviewPanel } from '@/components/editor/LivePreviewPanel';
+import { EditorResumeStrengthBar } from '@/components/editor/EditorResumeStrengthBar';
 import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -200,6 +203,7 @@ export default function EditorPage() {
   const [showToolsSheet, setShowToolsSheet] = useState(false);
   const [toolsSubView, setToolsSubView] = useState<'list' | 'ats-scan'>('list');
   const [isQuickDownloading, setIsQuickDownloading] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   // Chat trigger store — ExperienceSection (and other deep components) write here to open chat
   const { pendingPrompt, clearPendingPrompt } = useChatTriggerStore();
@@ -428,6 +432,16 @@ export default function EditorPage() {
   // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true.
   // Track intent with a ref so the plan gate can be applied once planLoading settles.
   const autoOpenTailorRef = useRef(false);
+  const pendingPanelRef = useRef<string | null>(null);
+  useEffect(() => {
+    const panel = searchParams.get('panel');
+    if (panel) {
+      pendingPanelRef.current = panel;
+      const next = new URLSearchParams(searchParams);
+      next.delete('panel');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   useEffect(() => {
     if (searchParams.get('openTailor') === '1' || searchParams.get('tailor') === 'true') {
       autoOpenTailorRef.current = true;
@@ -748,6 +762,16 @@ export default function EditorPage() {
   // Keyboard shortcuts
   const [showExport, setShowExport] = useState(false);
   const [showStylePanel, setShowStylePanel] = useState(false);
+  useEffect(() => {
+    const panel = pendingPanelRef.current;
+    if (!panel || !currentResume) return;
+    pendingPanelRef.current = null;
+    if (panel === 'customize') {
+      setShowStylePanel(true);
+    } else if (panel === 'content-library') {
+      sheets.open('contentLibrary');
+    }
+  }, [currentResume, sheets]);
   useEditorShortcuts({
     onSave: saveToCloud,
     onExport: () => setShowExport(true),
@@ -1030,7 +1054,59 @@ export default function EditorPage() {
     expandSectionRef,
   } as const;
 
+  const activeSectionSuggestions = getATSSuggestions(activeSection);
+  const showSuggestionsPanel =
+    !isMobile &&
+    activeSection !== 'contact' &&
+    activeSection !== 'more' &&
+    (activeSectionSuggestions.length > 0 ||
+      isAnalyzingSection(activeSection) ||
+      !!deepResults[activeSection as SectionId]);
 
+  useEffect(() => {
+    setSuggestionsOpen(false);
+  }, [activeSection]);
+
+  const renderEditorFormWorkspace = () => (
+    <div className="flex h-full min-h-0 overflow-hidden">
+      {!isMobile && (
+        <EditorNavRail
+          steps={steps}
+          activeSection={activeSection}
+          sectionScores={sectionScores}
+          completedSteps={sectionStatus}
+          onSectionClick={(id) => {
+            handleDesktopSectionChange(id);
+            scrollToSection(id);
+          }}
+        />
+      )}
+      <div className="editor-workspace-center flex-1 min-w-0">
+        <div className="editor-workspace-center__grid flex-1 min-h-0">
+          <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+            <div className="editor-scroll-container flex-1" ref={scrollContainerRef}>
+              <EditorScrollForm key={currentResumeId ?? 'no-resume'} {...editorScrollFormProps} />
+            </div>
+          </div>
+        </div>
+        {showSuggestionsPanel && (
+          <EditorSuggestionsPanel
+            sectionId={activeSection}
+            open={suggestionsOpen}
+            onOpenChange={setSuggestionsOpen}
+            getATSSuggestions={getATSSuggestions}
+            isAnalyzingSection={isAnalyzingSection}
+            fetchDeepSuggestions={fetchDeepSuggestions}
+            deepResult={deepResults[activeSection as SectionId]}
+            onApplyDeep={(improved) => handleApplyDeep(activeSection as SectionId, improved)}
+            onDiscardDeep={() => clearDeepResult(activeSection as SectionId)}
+            hasJobDescription={!!jobDescription?.trim()}
+            onRequestJobDescription={handleTailor}
+          />
+        )}
+      </div>
+    </div>
+  );
 
   const handleProfileImport = useCallback((data: Partial<ProfileData>) => {
     if (!currentResume) return;
@@ -1103,7 +1179,7 @@ export default function EditorPage() {
 
   return (
     <TooltipProvider delayDuration={300} disableHoverableContent>
-    <main className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-background">
+    <main className="editor-workspace-root flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden bg-background">
       {/* Header */}
       <EditorHeader
         resumeTitle={resumeFromDb?.title || currentResume?.contactInfo?.fullName}
@@ -1140,6 +1216,11 @@ export default function EditorPage() {
         onDownload={() => setShowExport(true)}
         isQuickDownloading={isQuickDownloading}
         onImportProfile={() => sheets.open('profileImport')}
+        embeddedInWorkspace
+        onOpenTips={() => {
+          setToolsSubView('list');
+          setShowToolsSheet(true);
+        }}
       />
 
       {/* Tailored Resume Indicator Banner */}
@@ -1182,7 +1263,7 @@ export default function EditorPage() {
             Trial resume — expires in {Math.max(1, Math.ceil((new Date(resumeFromDb.trial_expires_at).getTime() - Date.now()) / (1000 * 60 * 60)))}h. Saving your first edit will end the trial period.
           </span>
           <button
-            onClick={() => navigate('/settings/plan')}
+            onClick={() => navigate('/subscription')}
             aria-label="Upgrade your plan to keep this resume forever"
             className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
@@ -1199,7 +1280,7 @@ export default function EditorPage() {
             Your free trial has ended. This resume is <strong>read-only</strong> — upgrade to Pro to keep making changes.
           </span>
           <button
-            onClick={() => navigate('/settings/plan')}
+            onClick={() => navigate('/subscription')}
             aria-label="Upgrade to Pro to continue editing"
             className="text-[11px] font-semibold text-destructive hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
@@ -1207,6 +1288,8 @@ export default function EditorPage() {
           </button>
         </div>
       )}
+
+      <AIIntroTooltip show={showAIIntro} onDismiss={handleDismissAIIntro} />
 
       {/* Editor + Preview layout */}
       {isMobile ? (
@@ -1345,6 +1428,9 @@ export default function EditorPage() {
           <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             {mobileEditorTab === 'preview' && (
               <>
+                <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5">
+                  <EditorResumeStrengthBar overallScore={overallScore} />
+                </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <Suspense fallback={
                     <div className="flex-1 flex flex-col items-center justify-center gap-2 h-full bg-muted/30">
@@ -1392,31 +1478,11 @@ export default function EditorPage() {
           className="flex-1 min-h-0"
           autoSaveId="wr-editor-split-v1"
         >
-          <ResizablePanel id="editor-form" order={1} defaultSize={55} minSize={35}>
-            <div className="flex h-full min-h-0 overflow-hidden">
-              {/* Section sidebar — desktop only inside split panel */}
-              <SectionSidebar
-                steps={steps}
-                activeSection={activeSection}
-                sectionScores={sectionScores}
-                completedSteps={sectionStatus}
-                onSectionClick={(id) => {
-                  handleDesktopSectionChange(id);
-                  scrollToSection(id);
-                }}
-              />
-              <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-                <div
-                  className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
-                  ref={scrollContainerRef}
-                >
-                  <EditorScrollForm key={currentResumeId ?? 'no-resume'} {...editorScrollFormProps} />
-                </div>
-              </div>
-            </div>
+          <ResizablePanel id="editor-form" order={1} defaultSize={52} minSize={32}>
+            {renderEditorFormWorkspace()}
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel id="editor-preview" order={2} defaultSize={45} minSize={25}>
+          <ResizablePanel id="editor-preview" order={2} defaultSize={48} minSize={28}>
             <div className="flex flex-col h-full min-h-0">
               {/* Visual / ATS toggle */}
               <div
@@ -1453,6 +1519,9 @@ export default function EditorPage() {
                   ATS View
                 </button>
               </div>
+              <div className="shrink-0 border-b border-border bg-card/95 backdrop-blur-sm px-3 py-2.5">
+                <EditorResumeStrengthBar overallScore={overallScore} />
+              </div>
               <div className="flex-1 min-h-0">
                 <Suspense fallback={
                   <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/30">
@@ -1476,29 +1545,7 @@ export default function EditorPage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (
-        <div className="flex-1 flex min-h-0 overflow-hidden">
-          {/* Section sidebar — visible on desktop (≥1024px) when preview is hidden */}
-          {!isMobile && (
-            <SectionSidebar
-              steps={steps}
-              activeSection={activeSection}
-              sectionScores={sectionScores}
-              completedSteps={sectionStatus}
-              onSectionClick={(id) => {
-                handleDesktopSectionChange(id);
-                scrollToSection(id);
-              }}
-            />
-          )}
-          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-            <div
-              className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
-              ref={scrollContainerRef}
-            >
-              <EditorScrollForm key={currentResumeId ?? 'no-resume'} {...editorScrollFormProps} />
-            </div>
-          </div>
-        </div>
+        renderEditorFormWorkspace()
       )}
 
       {/* Keyboard Toolbar - floats above keyboard */}
@@ -1509,12 +1556,6 @@ export default function EditorPage() {
         redoDescription={redoDescription}
         onUndo={handleUndo}
         onRedo={handleRedo}
-      />
-
-      {/* AI Intro Tooltip for First-Time Users */}
-      <AIIntroTooltip
-        show={showAIIntro}
-        onDismiss={handleDismissAIIntro}
       />
 
       {/* Sheets - lazy loaded, wrapped in ErrorBoundary */}

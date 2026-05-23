@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { GlassSurface } from '@/components/ui/GlassSurface';
-import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown } from 'lucide-react';
+import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown, Sparkles, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -44,6 +44,10 @@ export interface EditorHeaderProps {
   onTemplateBtnSeen: () => void;
   onDownload: () => void;
   onImportProfile?: () => void;
+  /** Inside AppWorkspaceLayout: hide back + duplicate Wise AI (global top bar). */
+  embeddedInWorkspace?: boolean;
+  /** Opens tools / tips sheet (editor workspace). */
+  onOpenTips?: () => void;
 }
 
 function getProgressColor(progress: number): string {
@@ -258,28 +262,45 @@ export function EditorHeader({
   onTemplateBtnSeen,
   onDownload,
   onImportProfile,
+  embeddedInWorkspace = false,
+  onOpenTips,
 }: EditorHeaderProps) {
   const progressColor = getProgressColor(overallScore);
 
   return (
-    <header className="editor-header shrink-0 sticky top-0 z-editor-header relative border-b border-border px-4 pt-safe transition-all duration-200">
-      <GlassSurface className="absolute inset-0" />
-      <div className="relative z-[1] flex items-center justify-between py-2.5">
-        <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+    <header
+      className={cn(
+        'editor-header shrink-0 relative border-b transition-all duration-200',
+        embeddedInWorkspace
+          ? 'editor-header--workspace px-4 lg:px-5'
+          : 'sticky top-0 z-editor-header border-border pt-safe px-4',
+      )}
+    >
+      {!embeddedInWorkspace && <GlassSurface className="absolute inset-0" />}
+      <div className="relative z-[1] flex items-center justify-between gap-3 py-2.5 min-h-[52px]">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {!embeddedInWorkspace && (
+            <button
+              onClick={onBack}
+              className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
           <button
-            onClick={onBack}
-            className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button
+            type="button"
             className="flex items-center gap-1 min-w-0 max-w-[40vw] sm:max-w-[50vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
             title={resumeTitle || 'Edit Resume'}
             onClick={onTitleClick}
             aria-label="Switch resume"
           >
-            <span className="text-h3 truncate">
+            <span
+              className={cn(
+                'truncate font-semibold',
+                embeddedInWorkspace ? 'text-sm sm:text-base' : 'text-h3',
+              )}
+            >
               {resumeTitle || 'Edit Resume'}
             </span>
           </button>
@@ -378,42 +399,79 @@ export function EditorHeader({
             </span>
           )}
         </div>
-        {/* Desktop buttons - hidden on mobile */}
-        <div className="hidden md:flex items-center gap-1.5">
-          {/* Template gallery shortcut */}
-          <button
-            onClick={() => { onChangeTemplate(); haptics.light(); }}
-            className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
-            aria-label="Open template gallery"
-            data-track="editor-change-template"
-          >
-            <LayoutGrid className="w-5 h-5" />
-            <span className="text-[9px] font-medium leading-none">Template</span>
-          </button>
-          {/* Design shortcut */}
-          <button
-            onClick={() => { onCustomize(); haptics.light(); }}
-            className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
-            aria-label="Open design customization"
-            data-track="editor-customize-design"
-          >
-            <Palette className="w-5 h-5" />
-            <span className="text-[9px] font-medium leading-none">Design</span>
-          </button>
-          {/* Live Preview Toggle */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {embeddedInWorkspace && (
+            <>
+              <button
+                type="button"
+                onClick={() => { haptics.light(); onImproveSection(); }}
+                className="editor-topbar-cta touch-manipulation active:scale-[0.98] hidden sm:inline-flex"
+                aria-label="Improve with AI"
+              >
+                <Sparkles className="w-3.5 h-3.5" aria-hidden />
+                <span className="hidden lg:inline">Improve with AI</span>
+                <span className="lg:hidden">Improve</span>
+              </button>
+              {onOpenTips && (
+                <button
+                  type="button"
+                  onClick={() => { haptics.light(); onOpenTips(); }}
+                  className="editor-topbar-icon-btn touch-manipulation hidden md:inline-flex"
+                  aria-label="Editor tips and tools"
+                >
+                  <Lightbulb className="w-4 h-4" aria-hidden />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => { haptics.light(); onOpenChat(); }}
+                className="editor-topbar-icon-btn touch-manipulation md:hidden"
+                aria-label="Open Wise AI"
+              >
+                <MessageSquare className="w-4 h-4 text-primary" aria-hidden />
+              </button>
+            </>
+          )}
+        <div className={cn('hidden md:flex items-center', embeddedInWorkspace ? 'gap-1' : 'gap-1.5')}>
+          {!embeddedInWorkspace && (
+            <>
+              <button
+                onClick={() => { onChangeTemplate(); haptics.light(); }}
+                className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
+                aria-label="Open template gallery"
+                data-track="editor-change-template"
+              >
+                <LayoutGrid className="w-5 h-5" />
+                <span className="text-[9px] font-medium leading-none">Template</span>
+              </button>
+              <button
+                onClick={() => { onCustomize(); haptics.light(); }}
+                className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
+                aria-label="Open design customization"
+                data-track="editor-customize-design"
+              >
+                <Palette className="w-5 h-5" />
+                <span className="text-[9px] font-medium leading-none">Design</span>
+              </button>
+            </>
+          )}
           <button
             onClick={() => { onTogglePreview(); haptics.light(); }}
             className={cn(
-              'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
-              showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
+              embeddedInWorkspace
+                ? 'editor-topbar-icon-btn'
+                : 'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
+              !embeddedInWorkspace && (showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'),
+              embeddedInWorkspace && showPreview && 'border-primary/30 bg-primary/10 text-primary',
             )}
             aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
           >
-            {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
-            <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Show'}</span>
+            {showPreview ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+            {!embeddedInWorkspace && (
+              <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Show'}</span>
+            )}
           </button>
-          {/* Import Profile shortcut */}
-          {onImportProfile && (
+          {onImportProfile && !embeddedInWorkspace && (
             <button
               onClick={() => { onImportProfile(); haptics.light(); }}
               className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
@@ -423,45 +481,62 @@ export function EditorHeader({
               <span className="text-[9px] font-medium leading-none">Import</span>
             </button>
           )}
-          {/* Export shortcut */}
+          {isAuthenticated && currentResumeId && embeddedInWorkspace && (
+            <button
+              type="button"
+              onClick={() => { haptics.light(); onVersionHistory(); }}
+              className="editor-topbar-icon-btn touch-manipulation"
+              aria-label="Version history"
+            >
+              <Clock className="w-4 h-4" aria-hidden />
+            </button>
+          )}
           <button
             onClick={() => { onDownload(); haptics.light(); }}
             disabled={isQuickDownloading}
-            className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/8 hover:bg-primary/15 text-primary disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className={cn(
+              embeddedInWorkspace
+                ? 'editor-topbar-chip text-primary border-primary/25 hover:bg-primary/10'
+                : 'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/8 hover:bg-primary/15 text-primary disabled:opacity-50',
+            )}
             aria-label="Export resume"
             data-track="editor-export"
           >
-            {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-            <span className="text-[9px] font-semibold leading-none">Export</span>
+            {isQuickDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {embeddedInWorkspace ? <span>Export</span> : <span className="text-[9px] font-semibold leading-none">Export</span>}
           </button>
-          <button
-            onClick={onOpenChat}
-            className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)] hover:bg-primary/15 active:scale-95"
-            aria-label="Open Wise AI Chat"
-            data-track="editor-open-ai-chat"
-          >
-            <span className="relative">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
-            </span>
-            <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
-          </button>
+          {!embeddedInWorkspace && (
+            <button
+              onClick={onOpenChat}
+              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)] hover:bg-primary/15 active:scale-95"
+              aria-label="Open Wise AI Chat"
+              data-track="editor-open-ai-chat"
+            >
+              <span className="relative">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
+              </span>
+              <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
+            </button>
+          )}
         </div>
-        {/* Mobile-only: Wise AI only — Template + Export live in the AI Tools sheet */}
-        <div className="flex items-center md:hidden">
-          <button
-            onClick={() => { haptics.light(); onOpenChat(); }}
-            className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 px-1 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
-            aria-label="Open Wise AI Chat"
-            data-track="editor-open-ai-chat"
-          >
-            <span className="relative">
-              <MessageSquare className="w-4 h-4 text-primary" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
-            </span>
-            <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
-          </button>
         </div>
+        {!embeddedInWorkspace && (
+          <div className="flex items-center md:hidden shrink-0">
+            <button
+              onClick={() => { haptics.light(); onOpenChat(); }}
+              className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 px-1 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
+              aria-label="Open Wise AI Chat"
+              data-track="editor-open-ai-chat"
+            >
+              <span className="relative">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
+              </span>
+              <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
+            </button>
+          </div>
+        )}
       </div>
       {/* Thin score progress bar — spans full width below the button row */}
       <div className="relative z-[1] h-0.5 -mx-4 bg-muted overflow-hidden">

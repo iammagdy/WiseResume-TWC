@@ -1,6 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
+import {
+  PORTFOLIO_DRAFT_EXTRAS_KEY,
+  PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY,
+  mergeDraftIntoPortfolioExtras,
+  readPortfolioDraftFromProfileDoc,
+} from '@/lib/portfolioDraftStorage';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -125,6 +131,12 @@ function parseJsonField(raw: unknown): Record<string, unknown> | null {
   return null;
 }
 
+/** Appwrite stores former Supabase JSONB columns as stringified JSON attributes. */
+function stringifyJsonField(value: Record<string, unknown> | null): string | null {
+  if (value === null) return null;
+  return JSON.stringify(value);
+}
+
 export function useProfile(userId: string | undefined) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -141,6 +153,8 @@ export function useProfile(userId: string | undefined) {
       ]);
       const doc = response.documents[0];
       if (!doc) return null;
+
+      const draftFields = readPortfolioDraftFromProfileDoc(doc as Record<string, unknown>);
 
       return {
         id: doc.$id as string,
@@ -165,7 +179,7 @@ export function useProfile(userId: string | undefined) {
         websiteUrl: (doc.website_url as string | null) ?? null,
         twitterUrl: (doc.twitter_url as string | null) ?? null,
         contactEmail: (doc.contact_email as string | null) ?? null,
-        theme: (doc.theme as string | null) ?? null,
+        theme: ((doc.portfolio_theme ?? doc.theme) as string | null) ?? null,
         portfolioSections: parseJsonField(doc.portfolio_sections),
         portfolioMetaTitle: (doc.portfolio_meta_title as string | null) ?? null,
         portfolioMetaDescription: (doc.portfolio_meta_description as string | null) ?? null,
@@ -177,8 +191,8 @@ export function useProfile(userId: string | undefined) {
         portfolioExtras: parseJsonField(doc.portfolio_extras),
         availabilityHeadline: (doc.availability_headline as string | null) ?? null,
         portfolioSyncMode: (doc.portfolio_sync_mode as string | null) ?? null,
-        portfolioDraft: parseJsonField(doc.portfolio_draft),
-        portfolioDraftSavedAt: (doc.portfolio_draft_saved_at as string | null) ?? null,
+        portfolioDraft: draftFields.portfolioDraft,
+        portfolioDraftSavedAt: draftFields.portfolioDraftSavedAt,
         portfolioResumeId: (doc.portfolio_resume_id as string | null) ?? null,
         phoneNumber: (doc.phone_number as string | null) ?? null,
         views: (doc.views as number) ?? 0,
@@ -215,8 +229,10 @@ export function useProfile(userId: string | undefined) {
     if (updates.websiteUrl !== undefined) data.website_url = updates.websiteUrl;
     if (updates.twitterUrl !== undefined) data.twitter_url = updates.twitterUrl;
     if (updates.contactEmail !== undefined) data.contact_email = updates.contactEmail;
-    if (updates.theme !== undefined) data.theme = updates.theme;
-    if (updates.portfolioSections !== undefined) data.portfolio_sections = updates.portfolioSections;
+    if (updates.theme !== undefined) data.portfolio_theme = updates.theme;
+    if (updates.portfolioSections !== undefined) {
+      data.portfolio_sections = stringifyJsonField(updates.portfolioSections);
+    }
     if (updates.portfolioMetaTitle !== undefined) data.portfolio_meta_title = updates.portfolioMetaTitle;
     if (updates.portfolioMetaDescription !== undefined) data.portfolio_meta_description = updates.portfolioMetaDescription;
     if (updates.portfolioStyle !== undefined) data.portfolio_style = updates.portfolioStyle;
@@ -226,9 +242,35 @@ export function useProfile(userId: string | undefined) {
     if (updates.openToWork !== undefined) data.open_to_work = updates.openToWork;
     if (updates.availabilityHeadline !== undefined) data.availability_headline = updates.availabilityHeadline;
     if (updates.portfolioSyncMode !== undefined) data.portfolio_sync_mode = updates.portfolioSyncMode;
-    if (updates.portfolioExtras !== undefined) data.portfolio_extras = updates.portfolioExtras;
-    if (updates.portfolioDraft !== undefined) data.portfolio_draft = updates.portfolioDraft;
-    if (updates.portfolioDraftSavedAt !== undefined) data.portfolio_draft_saved_at = updates.portfolioDraftSavedAt;
+    const doc = existing.documents[0] as Record<string, unknown> | undefined;
+    let extrasForWrite: Record<string, unknown> | null | undefined = updates.portfolioExtras;
+
+    if (
+      (updates.portfolioDraft !== undefined || updates.portfolioDraftSavedAt !== undefined) &&
+      extrasForWrite === undefined &&
+      doc
+    ) {
+      extrasForWrite = parseJsonField(doc.portfolio_extras);
+    }
+
+    if (updates.portfolioDraft !== undefined || updates.portfolioDraftSavedAt !== undefined) {
+      const base = (extrasForWrite ?? parseJsonField(doc?.portfolio_extras) ?? {}) as Record<string, unknown>;
+      const draft =
+        updates.portfolioDraft !== undefined
+          ? updates.portfolioDraft
+          : (base[PORTFOLIO_DRAFT_EXTRAS_KEY] as Record<string, unknown> | undefined) ?? null;
+      const savedAt =
+        updates.portfolioDraftSavedAt !== undefined
+          ? updates.portfolioDraftSavedAt
+          : (typeof base[PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY] === 'string'
+              ? base[PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY]
+              : null);
+      extrasForWrite = mergeDraftIntoPortfolioExtras(base, draft, savedAt);
+    }
+
+    if (extrasForWrite !== undefined) {
+      data.portfolio_extras = stringifyJsonField(extrasForWrite);
+    }
     if (updates.phoneNumber !== undefined) data.phone_number = updates.phoneNumber;
     if (updates.digestEnabled !== undefined) data.digest_enabled = updates.digestEnabled;
     if (updates.hiredAt !== undefined) data.hired_at = updates.hiredAt;

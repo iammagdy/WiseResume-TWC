@@ -1,0 +1,96 @@
+/* Portfolio editor — studio workspace */
+.portfolio-editor-workspace {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--muted) / 0.28) 40%,
+    hsl(var(--background)) 100%
+  );
+}
+
+.portfolio-editor-workspace__scroll {
+  max-width: 56rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.portfolio-editor-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid hsl(var(--border) / 0.75);
+  background: hsl(var(--card));
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04), 0 12px 32px -16px hsl(var(--primary) / 0.18);
+}
+
+.portfolio-editor-hero__glow {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.12) 0%,
+    transparent 50%,
+    hsl(340 68% 52% / 0.06) 100%
+  );
+}
+
+.portfolio-editor-preview-panel {
+  border-radius: 1.25rem;
+  border: 1px solid hsl(var(--border) / 0.75);
+  background: hsl(var(--card) / 0.9);
+  box-shadow: 0 8px 28px -14px hsl(var(--foreground) / 0.12);
+  overflow: hidden;
+}
+
+.portfolio-editor-preview-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--muted) / 0.25);
+}
+
+.portfolio-editor-tab {
+  flex: 1;
+  min-width: 4.5rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  color: hsl(var(--muted-foreground));
+}
+
+.portfolio-editor-tab[data-active='true'] {
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.06), 0 0 0 1px hsl(var(--border) / 0.6);
+}
+
+.portfolio-editor-quick-action {
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border) / 0.75);
+  background: hsl(var(--card));
+  transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.portfolio-editor-quick-action:hover {
+  border-color: hsl(var(--primary) / 0.25);
+  box-shadow: 0 6px 20px -10px hsl(var(--primary) / 0.2);
+}
+
+.portfolio-editor-quick-action:active {
+  transform: scale(0.99);
+}
+
+.portfolio-editor-quick-action--primary {
+  border-color: hsl(var(--primary) / 0.3);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.08) 0%,
+    hsl(var(--card)) 55%
+  );
+}

@@ -489,7 +489,7 @@ function InterviewPageContent() {
   if (phase === 'summary') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+        <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
             <BackButton onBeforeBack={() => { handleReset(); return true; }} />
             <Sparkles className="w-5 h-5 text-primary" />
@@ -520,7 +520,7 @@ function InterviewPageContent() {
   if (phase === 'preview') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+        <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
             <BackButton
               onBeforeBack={() => {
@@ -561,7 +561,7 @@ function InterviewPageContent() {
   if (phase === 'setup') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden h-full">
-        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+        <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
             <BackButton />
             <Sparkles className="w-5 h-5 text-primary" />
@@ -643,7 +643,7 @@ function InterviewPageContent() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ height: '100dvh', maxHeight: '100dvh' }}>
       {/* Active interview header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+      <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <BackButton onBeforeBack={() => { backTriggeredRef.current = true; setShowEndConfirm(true); return true; }} />
           <Sparkles className="w-5 h-5 text-primary" />

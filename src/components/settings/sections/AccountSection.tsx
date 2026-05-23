@@ -1,17 +1,26 @@
-import { memo, Suspense, lazy } from 'react';
+import { memo, Suspense, lazy, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Crown, Gift, KeyRound } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useResumes } from '@/hooks/useResumes';
 import { useCoverLetters } from '@/hooks/useCoverLetters';
 import { useJobApplications } from '@/hooks/useJobApplications';
+import { useAuth } from '@/hooks/useAuth';
 import { haptics } from '@/lib/haptics';
 import { useMe } from '@/hooks/useMe';
 import { cn } from '@/lib/utils';
 import { openExternal } from '@/lib/openExternal';
+import { account } from '@/lib/appwrite';
 
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
+
+const OAUTH_SECURITY_URLS: Record<string, string> = {
+    google: 'https://myaccount.google.com/security',
+    github: 'https://github.com/settings/security',
+    apple: 'https://appleid.apple.com/account/manage',
+};
 
 interface AccountSectionProps {
     /**
@@ -51,6 +60,7 @@ export const AccountSection = memo(function AccountSection({
         ? `Update your password through your ${knownProviderLabel} account`
         : 'Update your password through your account portal';
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
     const { data: applications = [] } = useJobApplications();
@@ -63,6 +73,45 @@ export const AccountSection = memo(function AccountSection({
     const renewalDateStr = isActiveTrial && trialExpiresAt
         ? new Date(trialExpiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
         : null;
+
+    const handleManageSignInPassword = useCallback(async () => {
+        haptics.light();
+        try {
+            const { identities } = await account.listIdentities();
+            const oauthIdentity = identities?.find(
+                (identity) =>
+                    identity.provider &&
+                    !['email', 'password'].includes(identity.provider.toLowerCase()),
+            );
+            if (oauthIdentity?.provider) {
+                const provider = oauthIdentity.provider.toLowerCase();
+                const url = OAUTH_SECURITY_URLS[provider];
+                if (url) {
+                    openExternal(url);
+                    return;
+                }
+                const label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                toast.info(`Update your password in your ${label} account settings.`);
+                return;
+            }
+        } catch {
+            // Fall through to email recovery for password-based accounts.
+        }
+
+        const email = user?.email?.trim();
+        if (!email) {
+            toast.error('We could not find your account email. Use Forgot Password on the login screen.');
+            return;
+        }
+
+        try {
+            const resetUrl = `${window.location.origin}/auth/reset-password`;
+            await account.createRecovery(email, resetUrl);
+            toast.success('Password reset link sent! Check your inbox.');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to send reset email');
+        }
+    }, [user?.email]);
 
     return (
         <div>
@@ -124,10 +173,7 @@ export const AccountSection = memo(function AccountSection({
                     label="Manage Sign-in & Password"
                     description={passwordRowDescription}
                     icon={<KeyRound className="w-4 h-4" />}
-                    onClick={async () => {
-                        haptics.light();
-                        toast.info("Password management is now handled through our new engine.");
-                    }}
+                    onClick={handleManageSignInPassword}
                 />
             </div>
         </div>

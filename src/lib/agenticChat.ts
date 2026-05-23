@@ -209,6 +209,12 @@ export async function sendChatMessage(
     functionResponse?: FunctionResult;
     resumeList?: Array<{ id: string; title: string }>;
     contextFilter?: string;
+    pageContext?: {
+      route: string;
+      pageId: string;
+      pageTitle: string;
+      pageSummary: string;
+    };
   }
 ): Promise<ChatResponse> {
   const rateCheck = checkAIRateLimit('chat');
@@ -233,6 +239,7 @@ export async function sendChatMessage(
       functionResponse: options?.functionResponse,
       resumeList: options?.resumeList,
       contextFilter: options?.contextFilter,
+      pageContext: options?.pageContext,
     },
   });
 

@@ -29,8 +29,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
-import { lazy, Suspense, useState } from 'react';
-import { preloadLazy } from '@/lib/preloadLazy';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
@@ -39,10 +38,7 @@ import { ShellBrand } from './ShellBrand';
 import { ShellCommandSearch } from './ShellCommandSearch';
 import { NavMembershipBadge } from './NavMembershipBadge';
 import { ImportJobSheet } from '@/components/jobs/ImportJobSheet';
-
-const AgenticChatSheet = lazy(() =>
-  import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })),
-);
+import { useWiseWorkspaceStore } from '@/store/wiseWorkspaceStore';
 
 interface TabItem {
   path: string;
@@ -98,7 +94,8 @@ export function DesktopNav() {
   const { user, signOut } = useAuth();
   const { profile } = useProfile(user?.id);
   const { plan, isPro, trialPlan, trialExpiresAt, refetch: refetchPlan } = usePlan();
-  const [wiseAIOpen, setWiseAIOpen] = useState(false);
+  const toggleWiseChat = useWiseWorkspaceStore((s) => s.toggleChat);
+  const wiseChatOpen = useWiseWorkspaceStore((s) => s.open && s.mode === 'chat');
   const [profileOpen, setProfileOpen] = useState(false);
   const [importJobOpen, setImportJobOpen] = useState(false);
   usePlanUpgradeCelebration();
@@ -229,13 +226,16 @@ export function DesktopNav() {
 
             <button
               type="button"
-              onPointerEnter={preloadLazy(() => import('@/components/editor/AgenticChatSheet'))}
               onClick={() => {
                 haptics.selection();
-                setWiseAIOpen(true);
+                toggleWiseChat();
               }}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl min-h-[44px] text-sm font-medium border border-border/80 bg-card/60 text-foreground hover:border-primary/25 hover:bg-primary/5 transition-colors active:scale-[0.98]"
-              aria-label="Ask Wise AI"
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2.5 rounded-xl min-h-[44px] text-sm font-medium border border-border/80 bg-card/60 text-foreground hover:border-primary/25 hover:bg-primary/5 transition-colors active:scale-[0.98]',
+                wiseChatOpen && 'border-primary/40 bg-primary/10',
+              )}
+              aria-label={wiseChatOpen ? 'Close Wise AI' : 'Ask Wise AI'}
+              aria-pressed={wiseChatOpen}
             >
               <MessageCircle className="w-4 h-4 text-primary shrink-0" />
               <span className="hidden xl:inline">Wise AI</span>
@@ -378,11 +378,6 @@ export function DesktopNav() {
         </div>
       </div>
 
-      {wiseAIOpen && (
-        <Suspense fallback={null}>
-          <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
-        </Suspense>
-      )}
       <ImportJobSheet open={importJobOpen} onOpenChange={setImportJobOpen} />
     </nav>
   );

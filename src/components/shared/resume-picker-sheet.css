@@ -1,0 +1,54 @@
+.resume-picker-sheet__hero-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 0.14) 0%,
+    transparent 45%,
+    hsl(340 68% 52% / 0.08) 100%
+  );
+}
+
+.resume-picker-card {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border) / 0.75);
+  background: hsl(var(--card) / 0.85);
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.resume-picker-card:hover {
+  border-color: hsl(var(--primary) / 0.28);
+  background: hsl(var(--primary) / 0.04);
+}
+
+.resume-picker-card:active {
+  transform: scale(0.99);
+}
+
+.resume-picker-card.is-selected {
+  border-color: hsl(var(--primary) / 0.45);
+  background: hsl(var(--primary) / 0.08);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.12);
+}
+
+.resume-picker-card__thumb {
+  width: 3.25rem;
+  height: 4.25rem;
+  flex-shrink: 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.6);
+  background: hsl(var(--muted) / 0.4);
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.06);
+}

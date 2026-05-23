@@ -32,7 +32,7 @@ export function CompletionScoreBar({ score, items }: CompletionScoreBarProps) {
       : 'Needs attention';
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="rounded-2xl border border-border/75 bg-card shadow-soft-sm overflow-hidden">
       <button
         className="w-full px-3 py-2.5 flex items-center gap-3 touch-manipulation active:bg-muted/30 transition-colors"
         onClick={() => setOpen((p) => !p)}
