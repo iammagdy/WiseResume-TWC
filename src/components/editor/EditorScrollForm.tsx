@@ -337,7 +337,6 @@ export function EditorScrollForm({
             <SectionCard
               icon={Plus}
               title="More Sections"
-              tip="Add optional sections to stand out"
               isCollapsible={false}
             >
               <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />

@@ -1822,6 +1822,8 @@ export default function EditorPage() {
               onOpenChange={setShowExport}
               hasCoverLetter={!!useResumeStore.getState().generatedCoverLetter}
               onExport={handleExport}
+              onCreateCoverLetter={() => { setShowExport(false); gate('pro', () => sheets.open('tailor'), { featureName: 'Cover Letter Generator' })(); }}
+              onCreateGeneralCoverLetter={() => { setShowExport(false); navigate('/cover-letter/new'); }}
               isExporting={isExporting}
               exportProgress={exportProgress}
               resumeName={currentResume.contactInfo?.fullName || ''}

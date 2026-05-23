@@ -30,8 +30,7 @@ export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }
   };
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Add optional sections to enhance your resume</p>
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         {OPTIONAL_SECTIONS.map((section, index) => {
           const Icon = section.icon;

@@ -32,13 +32,17 @@ export function ExportOptionCard({ option, isSelected, isHighlighted, onePageSca
       onClick={() => { if (option.available) { haptics.light(); onSelect(option.id); } }}
       disabled={!option.available}
       className={cn(
-        'w-full text-left transition-all rounded-xl border-2',
-        compact ? 'p-3' : 'p-4',
+        'w-full text-left transition-all',
+        compact
+          ? 'rounded-xl border-2 p-3'
+          : 'rounded-xl border px-3 py-2.5',
         isSelected && option.available
-          ? 'border-primary bg-primary/8 shadow-md shadow-primary/15'
+          ? compact
+            ? 'border-primary bg-primary/8 shadow-md shadow-primary/15'
+            : 'border-primary/60 bg-primary/5'
           : option.available
-            ? 'border-border hover:border-primary/40 hover:bg-muted/30'
-            : 'border-border opacity-50 cursor-not-allowed',
+            ? 'border-border hover:border-primary/30 hover:bg-muted/30'
+            : 'border-border/40 opacity-40 cursor-not-allowed',
         isHighlighted && 'ring-2 ring-primary/60 shadow-lg shadow-primary/20 transition-shadow duration-300'
       )}
       whileTap={option.available ? { scale: 0.98 } : {}}
@@ -80,27 +84,26 @@ export function ExportOptionCard({ option, isSelected, isHighlighted, onePageSca
           )}
         </div>
       ) : (
-        /* Full layout — horizontal */
-        <div className="flex items-start gap-3">
+        /* Full layout — horizontal (secondary options) */
+        <div className="flex items-center gap-3">
           <div className={cn(
-            'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
+            'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
             isSelected && option.available
-              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
-              : 'bg-muted text-muted-foreground'
+              ? 'bg-primary/10 text-primary'
+              : 'bg-muted/60 text-muted-foreground'
           )}>
-            <option.icon className="w-5 h-5" />
+            <option.icon className="w-4.5 h-4.5" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold">{option.label}</span>
-              {isSelected && option.available && <Check className="w-4 h-4 text-primary" />}
+              <span className={cn('font-medium text-sm', !option.available && 'text-muted-foreground')}>{option.label}</span>
               {option.badge && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/50 text-green-600 dark:text-green-400">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
                   {option.badge}
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">{option.description}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{option.description}</p>
             {option.id === 'one-page' && onePageScale !== null && (
               <Badge
                 variant="outline"
@@ -125,6 +128,9 @@ export function ExportOptionCard({ option, isSelected, isHighlighted, onePageSca
               </Alert>
             )}
           </div>
+          {isSelected && option.available && (
+            <Check className="w-4 h-4 text-primary shrink-0 ml-auto" />
+          )}
         </div>
       )}
     </motion.button>

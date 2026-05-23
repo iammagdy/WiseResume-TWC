@@ -60,23 +60,23 @@ export const SectionCard = memo(function SectionCard({
           aria-expanded={collapsible ? isOpen : undefined}
           onKeyDown={collapsible ? handleHeaderKeyDown : undefined}
         >
-          <div className="flex flex-1 items-center gap-2.5 pl-4 pr-2 py-3 min-w-0">
+          <div className="flex flex-1 items-center gap-3 pl-4 pr-2 py-3 min-w-0">
             <div className={cn(
-              'w-6 h-6 rounded-md flex items-center justify-center shrink-0',
+              'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
               status === 'complete' ? 'bg-success/15' : 'bg-primary/10',
             )}>
               <Icon className={cn(
-                'w-3.5 h-3.5',
+                'w-4 h-4',
                 status === 'complete' ? 'text-success' : 'text-primary',
               )} />
             </div>
 
-            <h2 className="text-h3 !text-sm flex-1 min-w-0 truncate">{title}</h2>
+            <h2 className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">{title}</h2>
 
             {collapsible && (
               <ChevronRight
                 className={cn(
-                  'w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200',
+                  'w-4 h-4 text-muted-foreground/60 shrink-0 transition-transform duration-200',
                   isOpen && 'rotate-90',
                 )}
               />
@@ -95,18 +95,12 @@ export const SectionCard = memo(function SectionCard({
           )}
         </div>
 
-        {/* Tip pill — always visible so users understand the section purpose while collapsed */}
-        {tip && status !== 'complete' && (
-          <div className="px-4 pb-2">
-            <span className="inline-block text-xs text-muted-foreground bg-muted/60 border border-border/60 px-2.5 py-1 rounded-full">
-              {tip}
-            </span>
-          </div>
-        )}
-
         {/* Section content — hidden when collapsed */}
         <CollapsibleContent>
           <div className="px-4 pb-4 flex-1">
+            {tip && status !== 'complete' && (
+              <p className="text-xs text-muted-foreground mb-3">{tip}</p>
+            )}
             {children}
           </div>
         </CollapsibleContent>

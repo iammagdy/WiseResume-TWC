@@ -208,7 +208,7 @@ export function EditorSectionContent({
       {activeTab === 'more' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           {!moreSubSection ? (
-            <SectionCard icon={Plus} title="More Sections" tip="Add optional sections to stand out">
+            <SectionCard icon={Plus} title="More Sections">
               <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
             </SectionCard>
           ) : (

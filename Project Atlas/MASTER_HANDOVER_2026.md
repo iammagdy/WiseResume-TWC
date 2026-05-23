@@ -2,6 +2,438 @@
 
 ---
 
+## Session Log - 2026-05-23 (Export Dialog Polish + Editor Section Card Redesign)
+
+### Overview
+Full session covering five distinct fixes across the export dialog and editor section list. All TypeScript clean, all verified in browser.
+
+---
+
+### Fix 1 — Cover Letter CTA: two-path flow
+
+**Root cause:** "Generate →" in the export dialog's disabled-pill banner called `gate('pro', () => sheets.open('tailor'), opts)` but forgot to invoke the returned function (`gate` is a factory, returns `() => void`). Result: click did nothing.
+
+**Secondary UX issue:** Even after the fix, clicking "Generate" opened the AI Resume Tailor — confusing for users who want a plain cover letter without a job description.
+
+**Fix:**
+- Added `()` to invoke the `gate(...)` return value in `EditorPage.tsx`
+- Replaced the single "Generate →" button with two distinct CTAs:
+  - **General letter** → `navigate('/cover-letter/new')` (standalone, no JD required)
+  - **Tailored to job ✦** → `gate('pro', () => sheets.open('tailor'), ...)()` (requires job description in AI Tailor first)
+- Updated banner copy from vague "Generate →" to honest two-option layout with a header "No cover letter yet — create one first:"
+
+**Files changed:**
+| File | Change |
+|------|--------|
+| `ExportTypeList.tsx` | Added `onCreateGeneralCoverLetter?: () => void` prop; banner replaced with two-button row |
+| `ExportOptionsSheet.tsx` | Threaded `onCreateGeneralCoverLetter` prop through |
+| `EditorPage.tsx` | Fixed `gate(...)()` invocation; added `onCreateGeneralCoverLetter` → `navigate('/cover-letter/new')` |
+
+---
+
+### Fix 2 — Editor Section Card redesign
+
+**Root cause / issues found:**
+1. **UX logic error:** `tip` text (e.g. "Write 2–4 sentences...") rendered in the collapsed card header — always visible even when the section was closed, cluttering the list.
+2. **Font hack:** Section titles used `text-h3 !text-sm` — a semantic heading class force-overridden with `!important` font-size, producing inconsistent rendering.
+3. **Icon too small:** 24×24px icon box (`w-6 h-6 rounded-md`) looked generic and lightweight.
+4. **Redundant text:** "More Sections" card had `tip="Add optional sections to stand out"` AND `AddSectionSheet` rendered "Add optional sections to enhance your resume" — two nearly identical lines back-to-back.
+
+**Fix:**
+- Moved `tip` inside `<CollapsibleContent>` — now only shows when the section is expanded, as a plain `<p>` (no pill styling)
+- Changed title to `text-sm font-semibold text-foreground` — no `!important` override
+- Icon box increased to `w-8 h-8 rounded-lg`, icon inside to `w-4 h-4`
+- Chevron color softened to `text-muted-foreground/60`
+- Removed `tip` prop from both "More Sections" `SectionCard` usages (`EditorScrollForm.tsx`, `EditorSectionContent.tsx`)
+- Removed the `<p>` "Add optional sections to enhance your resume" from `AddSectionSheet.tsx`
+
+**Files changed:**
+| File | Change |
+|------|--------|
+| `SectionCard.tsx` | Tip moved inside CollapsibleContent; title font fixed; icon box 24→32px |
+| `AddSectionSheet.tsx` | Removed redundant description paragraph; `space-y-4` → `space-y-3` |
+| `EditorScrollForm.tsx` | Removed `tip` prop from "More Sections" SectionCard |
+| `EditorSectionContent.tsx` | Removed `tip` prop from "More Sections" SectionCard |
+
+---
+
+### Where We Stopped
+
+- All five fixes verified in browser (screenshots confirm)
+- `npx tsc --noEmit` — zero errors after every change
+- No uncommitted changes; session ends with a clean push to `main`
+- **Next agent:** No outstanding UI debt from this session. Export dialog and editor section list are stable. Potential next area: the `CoverLetterNewPage` flow itself (route `/cover-letter/new`) has not been redesigned and may need polish to match the app's design system.
+
+---
+
+## Session Fix - 2026-05-23 (Export Dialog — Premium 2×2 Card Grid Redesign)
+
+### Overview
+Fourth iteration of the Export dialog redesign. User said the previous flat-pill layout "still looks too generic." Replaced the single pill row with a **2×2 card grid** for the four primary formats and a **horizontal scroll pill row** for the seven secondary formats below a "MORE FORMATS" label. Selected secondary format shows an animated detail card.
+
+### Changes Applied
+
+| File | Change |
+|------|--------|
+| `ExportTypeList.tsx` | Full rewrite. Primary formats: `grid grid-cols-2 gap-2.5` with large cards — 44px icon box, animated check in top-right corner on selection, description + badge. Secondary formats: `overflow-x-auto` scrollable pill row with icon + short label. `AnimatePresence` detail card appears only when a secondary format is selected. |
+
+### Architecture
+- `primaryOptions` (4): resume, ats-pdf, docx, image — rendered as 2×2 cards
+- `secondaryOptions` (7): linkedin, plain-text, share-link, cover-letter, combined, json, latex — rendered as scroll pills
+- Selected card state: `border-primary bg-primary/5 shadow-lg shadow-primary/10` with `motion.span` check animation
+- `SHORT_LABELS` map provides compact pill labels (e.g., "Plain Text" not "Plain Text (.txt)")
+
+### Verification
+- Browser screenshot confirmed: 2×2 grid renders, selected card has prominent highlight + animated check
+- Secondary pill row scrolls horizontally, "MORE FORMATS" label shown
+- `PdfOptionsFooter` still visible for PDF-type selections
+
+---
+
+## Session Fix - 2026-05-23 (Export Dialog — Wider + Branding Lock)
+
+### Overview
+Two follow-up changes: widened the dialog from `sm:max-w-md` → `sm:max-w-xl` for better app presence; locked the WiseResume Badge toggle to premium-only (free/pro users see it forced ON for copyright).
+
+### Changes Applied
+
+| File | Change |
+|------|--------|
+| `ExportOptionsSheet.tsx` | Import `usePlan`, call `const { isPremium } = usePlan()`, pass `isPremium` to `PdfOptionsFooter`, widen dialog to `sm:max-w-xl`. |
+| `PdfOptionsFooter.tsx` | Added `isPremium: boolean` prop. Badge row: if `!isPremium` → switch is `disabled`, checked forced to `true`, label shows amber "🔒 Premium" chip, description reads "Required on free & pro exports". Premium users see normal toggle. |
+
+### Business Rule
+- **Premium users** — can toggle branding on/off freely.
+- **Free / Pro users** — branding is always ON (switch rendered disabled). This protects the copyright watermark on all exports from non-paying users.
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- Dev user (premium) → badge row unlocked, toggle controllable, no lock chip
+- Logic verified: `isPremium=false` path renders `disabled` switch, amber lock chip, "Required on free & pro exports" text
+
+---
+
+## Session Fix - 2026-05-23 (Export Dialog — Popup + Flat Format Row)
+
+### Overview
+User follow-up on export redesign: remove `1-Page` option (page cuts handled in editor preview panel), flatten all secondary formats into the main pill row (no collapsible), and convert bottom sheet → centered popup.
+
+### Changes Applied
+
+| File | Change |
+|------|--------|
+| `ExportOptionsSheet.tsx` | Replaced `Sheet`/`SheetContent` with `Dialog`/`DialogContent` (`sm:max-w-md`, `rounded-2xl`). Removed `one-page` from `primaryOptions` entirely. |
+| `ExportTypeList.tsx` | Removed `Collapsible` / "More formats" section. Merged all options into a single flat `allOptions` array rendered as one scrollable pill row. Removed `SHORT_LABELS` entry for `one-page`. |
+| `PdfOptionsFooter.tsx` | Reduced padding (`py-3`, `bg-muted/50 border border-border/50`) to feel less heavy inside the popup. |
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- All 11 format pills present in DOM (`[data-export-id]` query confirms: resume, ats-pdf, docx, image, linkedin, plain-text, share-link, cover-letter, combined, json, latex)
+- Dialog renders centered over editor, dismisses on backdrop click / ✕ button
+- Spotlight card and button label update correctly per selection
+
+---
+
+## Session Fix - 2026-05-23 (Export Dialog Redesign — Professional UI)
+
+### Overview
+User reported the Export Resume sheet looked unprofessional. Redesigned all export dialog components for a cleaner, premium feel.
+
+### Root Cause
+The previous design used a 2-column compact card grid for primary format options — cards were too small, icons too tiny, and the layout felt like a basic utility dialog rather than a polished product feature.
+
+### Fix Applied
+Full visual redesign of 4 components. No logic/behavior changes.
+
+| Component | Change |
+|-----------|--------|
+| `ExportTypeList.tsx` | Replaced 2-col grid with **horizontal pill selector** (scrollable) + **animated spotlight card** for the selected format. Uses `AnimatePresence` for smooth format switching. Short labels (`Design PDF`, `ATS PDF`, `Word`, `1-Page`, `4K Image`). |
+| `ExportOptionCard.tsx` | Secondary (full) layout now uses compact `py-2.5` rows with smaller icon, truncated description, right-aligned check. Primary (compact) layout unchanged — replaced by pill selector. |
+| `ExportProgressBar.tsx` | File name row is now an inline pill with `FileEdit` icon. Progress bar is thinner (`h-1.5`). Download button tightened to `h-13`. |
+| `ExportOptionsSheet.tsx` | Header icon now in a small `bg-primary/10` rounded badge. ATS score badge uses `emerald`/`amber`/`destructive` tokens. |
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- Browser: pill switching works, spotlight card animates between formats, badges (ATS-Safe, ATS-Friendly) display correctly, file suffix updates per format, button label updates per format
+
+---
+
+## Session Fix - 2026-05-23 (PDF Export Missing VITE_API_URL — CRITICAL)
+
+### Overview
+User reported repeated PDF export failures: **"PDF export is not available right now. Please try again later or use DOCX export."** This was happening even though the PDF export endpoint was working.
+
+### Root Cause (VERIFIED)
+The frontend couldn't reach the PDF export API because `VITE_API_URL` environment variable was not set.
+
+**What happened:**
+1. Frontend code (`src/lib/nativePdfGenerator.ts:169`) reads: `VITE_API_URL ?? ''`
+2. When unset, it defaults to empty string
+3. Frontend calls `/api/export/pdf-native` on localhost:5000 (same origin)
+4. But the API server runs on localhost:5001 (different port)
+5. Request fails → user sees "PDF export unavailable" error
+
+### Fix Applied
+
+**1. Created `.env.local` for dev:**
+```env
+VITE_API_URL=http://localhost:5001
+```
+This file is automatically loaded by Vite and takes precedence over `.env.example`.
+
+**2. Verified production setup:**
+GitHub Actions workflow (`.github/workflows/deploy-frontend.yml` line 39) already uses:
+```yaml
+VITE_API_URL: ${{ secrets.VITE_API_URL }}
+```
+Secret is set to `https://resume.thewise.cloud` — correct for production.
+
+**3. Created comprehensive documentation:**
+`API_CONFIGURATION.md` — explains setup for dev/prod, troubleshooting, file locations.
+
+**4. Updated launch config:**
+`.claude/launch.json` — no manual env override needed; Vite reads `.env.local` automatically.
+
+### Verification
+- ✅ Local: PDF export now works at `http://localhost:5000` → calls API on `:5001`
+- ✅ Production: Uses GitHub Secret (already configured)
+- ✅ cURL test: `POST /api/export/pdf-native` returns valid PDF
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `.env.local` | Created with `VITE_API_URL=http://localhost:5001` |
+| `API_CONFIGURATION.md` | Created comprehensive dev/prod setup guide |
+| `.claude/launch.json` | Updated; removed manual env var (Vite reads .env.local) |
+
+### Key Takeaway
+**From now on:** Any new dev environment automatically gets the correct API URL via `.env.local`. No special setup needed. If API port changes, update `.env.local` only.
+
+### Where We Stopped
+- PDF export working locally and verified ✅
+- `.env.local` created and documented ✅
+- Production GitHub Secret verified ✅
+- All docs updated ✅
+- No code changes required (infrastructure-only fix)
+
+---
+
+## Session Summary - 2026-05-23 (UI Review, Portfolio Draft, Mobile Polish)
+
+**Detailed log:** `Project Atlas/05-Migration to Appwrite/29-Session-Log-2026-05-23-UI-Portfolio-Mobile-Polish.md`
+
+### Overview
+Reviewed Cursor's recent UI work, fixed confirmed findings, corrected Portfolio Save Draft against the live Appwrite schema, and completed several desktop/mobile workspace polish fixes. No commit, staging, deployment, or schema migration was performed.
+
+### Fixed
+- **Portfolio Save Draft:** Removed dependency on missing Appwrite `profiles.portfolio_extras`; drafts now persist locally first and missing-attribute mirror writes are suppressed.
+- **Profile writes:** `useProfile.updateProfile()` now filters outgoing payloads to verified live `profiles` attributes.
+- **Portfolio draft guard:** Save/autosave now checks merged draft payload size.
+- **Settings hero:** Removed invalid nested button structure.
+- **Portfolio setup:** Hardened resume select item keys.
+- **Settings/Portfolio desktop width:** Removed hard centered max-widths so both workspaces fill desktop content area.
+- **AI Studio welcome:** Replaced fixed overlay banner with inline callout.
+- **Mobile sidebar:** Matched drawer width to sidebar, removed oversized right rounding, fixed full-height wrapper, and bottom-aligned membership/profile footer.
+- **Wise Workspace mobile drawer:** Matched mobile chat drawer width to mobile sidebar width.
+- **Theme toggle:** Removed universal descendant color transition and added scoped transition/View Transition fallback.
+- **Portfolio nav icon:** Replaced `Sparkles` with `Globe`.
+- **Atlas schema docs:** Corrected stale `portfolio_extras` Appwrite assumption.
+
+### Current State
+- `npx tsc --noEmit` passes.
+- `npm run build` passed earlier in this session after the portfolio/schema fixes.
+- Focused dashboard/portfolio vitest set passed earlier in this session.
+- Browser checks passed for `/portfolio`, `/settings`, `/ai-studio`, and mobile `/dashboard` drawer/theme behavior.
+- Live Appwrite `profiles` still does **not** include `portfolio_extras`, `portfolio_draft`, or `portfolio_draft_saved_at`.
+- Portfolio drafts are currently device-local until schema is intentionally extended.
+
+### Where We Stopped
+- Local browser is on `http://localhost:5000/dashboard`.
+- Working tree is dirty with this session's source/doc changes.
+- Pre-existing unrelated dirty files remain in `appwrite-hubs/*/package-lock.json`; do not revert them unless explicitly instructed.
+- No files were staged or committed.
+- No Appwrite schema changes were deployed.
+- Next agent should run `git status --short`, review the detailed log, run final validation, then commit/deploy only after user approval.
+
+---
+
+## Session Update - 2026-05-23 (Portfolio Sidebar Icon Alignment)
+
+### Overview
+User reported the Portfolio icon in the workspace sidebar did not feel related to portfolio.
+
+### Root Cause
+`src/components/layout/appSidebarNav.ts` used the `Sparkles` icon for the Portfolio route, which reads as AI/generation instead of public profile or portfolio.
+
+### Fix Applied
+Changed the Portfolio workspace sidebar icon to `Globe`, matching the public portfolio concept and the icon already used by other nav surfaces.
+
+### Verification
+- `npx tsc --noEmit` passed
+
+---
+
+## Session Update - 2026-05-23 (Wise Workspace Mobile Drawer Sidebar-Width Match)
+
+### Overview
+User reported the Wise Workspace chat drawer still felt too large on mobile and should match the mobile sidebar width.
+
+### Root Cause
+The previous correction reduced the mobile chat drawer from `92vw` to `86vw`, but it was still viewport-based and therefore much wider than the app sidebar drawer on a 430px mobile viewport.
+
+### Fix Applied
+Changed the mobile Wise Workspace chat drawer to `min(var(--app-sidebar-width, 17rem), 86vw)` in both `src/index.css` and `src/lib/wiseWorkspace/drawerLayout.ts`. Desktop sizing remains unchanged.
+
+### Verification
+- `npx tsc --noEmit` passed
+- Browser check on mobile `/dashboard` measured the Wise Workspace drawer at `272px` on a `430px` viewport.
+
+---
+
+## Session Update - 2026-05-23 (Theme Toggle Performance Smoothing)
+
+### Overview
+User reported visible frame loss when switching between light and dark mode on desktop and mobile.
+
+### Root Cause
+The old theme transition applied `transition` to `.theme-transitioning *`, forcing every element in the app to animate color-related paint during the theme class flip. On dense workspace screens this can trigger a large repaint and visible lag.
+
+### Fix Applied
+- `useTheme.toggleTheme()` now applies the resolved root theme class immediately and uses the browser View Transitions API when available.
+- The CSS fallback now animates only major shell surfaces and controls for a short duration instead of every descendant node.
+- Added root `color-scheme` for light/dark mode.
+
+### Verification
+- `npx tsc --noEmit` passed
+- Browser check on mobile `/dashboard` toggled dark/light successfully and cleared `theme-transitioning` after the fallback transition.
+
+---
+
+## Session Update - 2026-05-23 (Mobile Sidebar Footer Placement)
+
+### Overview
+User reported the premium/profile area in the mobile workspace navigation felt unprofessional because it sat too high in the drawer.
+
+### Root Cause
+`SheetContent` wraps side-sheet children in an extra inner div. For the mobile sidebar sheet, that wrapper did not have full height, so the sidebar's flex spacer could not push the membership/profile footer to the bottom.
+
+### Fix Applied
+Scoped the mobile sidebar sheet wrapper to full height/min-height and kept the change inside `AppMobileSidebarSheet`. Desktop sidebar layout is unchanged.
+
+### Verification
+- `npx tsc --noEmit` passed
+- Browser check on mobile `/dashboard` showed the visible footer block bottom-aligned with the drawer.
+
+---
+
+## Session Update - 2026-05-23 (Wise Workspace Mobile Chat Width)
+
+### Overview
+User reported the Wise Workspace chat drawer on mobile was slightly too large. Desktop should remain unchanged.
+
+### Root Cause
+The mobile chat drawer width was set to `92vw` in both `src/index.css` and the shared layout constant in `src/lib/wiseWorkspace/drawerLayout.ts`.
+
+### Fix Applied
+Reduced the mobile chat drawer width to `86vw` in both the rendered drawer CSS and the layout constant used to shrink the app stage. Desktop sizing remains `min(26rem, 32vw)`.
+
+### Verification
+- `npx tsc --noEmit` passed
+
+---
+
+## Session Update - 2026-05-23 (Mobile Sidebar Drawer Fit)
+
+### Overview
+User reported the mobile workspace navigation drawer looked bad on `/ai-studio`, showing a large awkward panel with empty space.
+
+### Root Cause
+`AppMobileSidebarSheet` inherited the generic left sheet width/rounding while rendering the narrower workspace sidebar inside it. On mobile this left a visible unused strip and an oversized rounded right edge.
+
+### Fix Applied
+The mobile navigation sheet now uses the same width as `--app-sidebar-width`, capped to `86vw` for small phones, removes the rounded right edge, hides the generic sheet close button through the component API, and forces the sidebar to fill the sheet width.
+
+### Verification
+- `npx tsc --noEmit` passed
+
+---
+
+## Session Update - 2026-05-23 (AI Studio Welcome Banner Placement)
+
+### Overview
+User reported the AI Studio welcome prompt looked bad because it appeared as a detached overlay on the UI.
+
+### Root Cause
+`src/pages/AIStudioPage.tsx` rendered the first-visit message as a fixed bottom banner (`bottom-24`) outside the page content flow, which could overlap the sidebar account/billing area and bottom workspace controls.
+
+### Fix Applied
+Moved the first-visit message into an inline callout directly beneath the resume selector. The callout uses the existing AI Studio visual language, keeps the page responsive, and dismisses through an icon-only control.
+
+### Verification
+- `npx tsc --noEmit` passed
+- Browser layout check on `/ai-studio` showed the welcome callout in normal page flow and `0` fixed welcome banners.
+
+---
+
+## Session Update - 2026-05-23 (Portfolio Editor Desktop Width Correction)
+
+### Overview
+User reported `/portfolio` appeared as a narrow centered column on desktop with large empty left/right space.
+
+### Root Cause
+`src/components/portfolio/editor/portfolio-editor-workspace.css` capped `.portfolio-editor-workspace__scroll` at `max-width: 56rem` and centered it with auto margins.
+
+### Fix Applied
+Removed the hard max width and let the portfolio editor scroll container fill the available app workspace. Desktop now uses responsive `clamp()` side padding; mobile remains full-width and responsive.
+
+### Verification
+- `npx tsc --noEmit` passed
+- Browser layout check on `/portfolio` showed the portfolio editor workspace matching the available app content width.
+
+---
+
+## Session Update - 2026-05-23 (Settings Desktop Width Correction)
+
+### Overview
+User reported `/settings` appeared as a narrow centered column on desktop with large empty left/right space.
+
+### Root Cause
+`src/components/settings/settings-workspace.css` capped `.settings-workspace__scroll` at `max-width: 42rem` and centered it with auto margins.
+
+### Fix Applied
+Removed the hard max width and let the settings scroll container fill the available app workspace. Desktop now uses responsive `clamp()` side padding; mobile remains full-width and responsive.
+
+### Verification
+- `npx tsc --noEmit` passed
+- Browser layout check on `/settings` showed the settings workspace matching the available app content width.
+
+---
+
+## Session Update - 2026-05-23 (Portfolio Save Draft Live-Schema Correction)
+
+### Overview
+Follow-up review found the prior portfolio draft storage assumption was wrong for the live Appwrite schema. The browser error on **Save Draft** was `Invalid document structure: Unknown attribute: "portfolio_extras"`.
+
+### Verified Root Cause
+Live Appwrite API verification showed `profiles` currently has only these attributes: `user_id`, `email`, `full_name`, `username`, `avatar_url`, `onboarding_completed`, `job_title`, `industry`, `career_level`, `location`, `linkedin_url`, `portfolio_bio`, `portfolio_enabled`, `profile_completed`, `display_name`, `plan`, `country`, `is_suspended`, `suspension_reason`. It has no `portfolio_extras`, `portfolio_draft`, or `portfolio_draft_saved_at`.
+
+### Fix Applied
+- Save Draft stores the portfolio working copy in browser local storage first and catches the missing `portfolio_extras` Appwrite write path so the schema error is not shown.
+- `useProfile.updateProfile()` filters outgoing profile payloads to live `profiles` attributes so stale portfolio fields do not break profile writes.
+- Draft size guard now checks merged draft payload size.
+- Settings profile hero no longer nests a button inside another button.
+- Portfolio resume select keys were hardened against duplicate resume IDs.
+
+### Verification
+- `npx tsc --noEmit` passed
+- Focused dashboard/portfolio vitest set passed
+- `npm run build` passed
+
+### Follow-up
+If cross-device portfolio drafts and full portfolio settings persistence are required, add the missing Appwrite schema intentionally (`portfolio_settings` extended attributes or a dedicated portfolio draft/settings collection) and then move draft persistence back server-side.
+
+---
+
 ## Session Summary - 2026-05-23 (Portfolio Draft Appwrite, Editor Workspace, Tailor Wizard, Wise AI Toggle)
 
 **Detailed log:** `Project Atlas/05-Migration to Appwrite/27-Session-Log-2026-05-23-Portfolio-Editor-Tailor-Workspace.md`
