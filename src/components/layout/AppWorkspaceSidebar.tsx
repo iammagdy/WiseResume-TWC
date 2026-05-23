@@ -52,6 +52,9 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const collapsed = useAppSidebarStore((s) => s.collapsed);
+  // Mobile sheet (forceVisible) always renders expanded regardless of the
+  // stored collapsed preference — collapsing is a desktop-only affordance.
+  const effectiveCollapsed = forceVisible ? false : collapsed;
   const toggleCollapsed = useAppSidebarStore((s) => s.toggleCollapsed);
   const setMobileOpen = useAppSidebarStore((s) => s.setMobileOpen);
   const { data: credits, isLoading: creditsLoading, isActiveTrial, trialPlan } = useAICredits();
@@ -111,7 +114,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
         'app-workspace-sidebar dashboard-workspace-sidebar flex-col shrink-0',
         forceVisible ? 'flex h-full' : 'hidden lg:flex',
         'lg:sticky lg:top-0 lg:h-full lg:max-h-[100dvh] lg:overflow-hidden lg:self-stretch',
-        collapsed && 'app-workspace-sidebar--collapsed',
+        effectiveCollapsed && 'app-workspace-sidebar--collapsed',
         className,
       )}
       aria-label="Main navigation"
@@ -120,13 +123,13 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
         <div
           className={cn(
             'app-workspace-sidebar__head shrink-0 pt-4 pb-2',
-            collapsed ? 'px-2 flex flex-col items-center gap-2' : 'px-3',
+            effectiveCollapsed ? 'px-2 flex flex-col items-center gap-2' : 'px-3',
           )}
         >
           <div
             className={cn(
               'flex w-full min-w-0',
-              collapsed ? 'flex-col items-center gap-2' : 'items-center gap-2',
+              effectiveCollapsed ? 'flex-col items-center gap-2' : 'items-center gap-2',
             )}
           >
             {!forceVisible && (
@@ -140,11 +143,11 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                 'app-workspace-sidebar__collapse hidden lg:flex shrink-0 items-center justify-center rounded-xl',
                 'text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors',
                 'min-h-[36px] min-w-[36px] touch-manipulation active:scale-95',
-                collapsed && 'w-9 h-9',
+                effectiveCollapsed && 'w-9 h-9',
               )}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              {collapsed ? (
+              {effectiveCollapsed ? (
                 <PanelLeft className="w-[18px] h-[18px]" aria-hidden />
               ) : (
                 <PanelLeftClose className="w-[18px] h-[18px]" aria-hidden />
@@ -159,12 +162,12 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
               }}
               className={cn(
                 'dashboard-workspace-sidebar__brand flex items-center rounded-xl transition-colors hover:bg-muted/30 min-w-0',
-                collapsed ? 'justify-center p-1.5' : 'flex-1 gap-2.5 px-1 py-1.5',
+                effectiveCollapsed ? 'justify-center p-1.5' : 'flex-1 gap-2.5 px-1 py-1.5',
               )}
               aria-label="WiseResume — go to landing page"
             >
-              <AppIcon size={collapsed ? 28 : 32} className="shrink-0 rounded-lg" />
-              {!collapsed && (
+              <AppIcon size={effectiveCollapsed ? 28 : 32} className="shrink-0 rounded-lg" />
+              {!effectiveCollapsed && (
                 <span className="text-[15px] font-semibold tracking-tight text-foreground truncate">
                   WiseResume
                 </span>
@@ -173,8 +176,8 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
           </div>
         </div>
 
-        <div className={cn('shrink-0 px-2 pb-2', collapsed && 'px-1.5')}>
-          {!collapsed && (
+        <div className={cn('shrink-0 px-2 pb-2', effectiveCollapsed && 'px-1.5')}>
+          {!effectiveCollapsed && (
             <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">
               Workspace
             </p>
@@ -186,19 +189,19 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                 <button
                   key={path}
                   type="button"
-                  title={collapsed ? label : undefined}
+                  title={effectiveCollapsed ? label : undefined}
                   onClick={() => navTo(path)}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
                     'dashboard-workspace-nav-item relative flex items-center rounded-xl text-[13px] text-left transition-colors min-h-[44px] w-full',
-                    collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 pl-3 pr-3 py-2.5',
+                    effectiveCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 pl-3 pr-3 py-2.5',
                     active
                       ? 'dashboard-workspace-nav-item--active text-foreground font-medium'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/35',
                   )}
                 >
                   <Icon className="w-[18px] h-[18px] shrink-0 opacity-90" aria-hidden />
-                  {!collapsed && label}
+                  {!effectiveCollapsed && label}
                 </button>
               );
             })}
@@ -210,10 +213,10 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
         <div
           className={cn(
             'dashboard-workspace-sidebar__meta shrink-0 border-t border-border/30 px-3 pt-2.5 pb-0 space-y-2.5',
-            collapsed && 'px-2',
+            effectiveCollapsed && 'px-2',
           )}
         >
-          {!collapsed && (showUpgradeCta || isPaid || creditDisplay) && (
+          {!effectiveCollapsed && (showUpgradeCta || isPaid || creditDisplay) && (
             <div
               className={cn(
                 'dashboard-workspace-sidebar__membership rounded-xl p-3.5',
@@ -312,7 +315,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
             </div>
           )}
 
-          {collapsed && isPaid && (
+          {effectiveCollapsed && isPaid && (
             <button
               type="button"
               title="Membership"
@@ -328,10 +331,10 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
 
           <button
             type="button"
-            title={collapsed ? userName || 'Profile' : undefined}
+            title={effectiveCollapsed ? userName || 'Profile' : undefined}
             className={cn(
               'dashboard-workspace-sidebar__panel dashboard-workspace-sidebar__profile w-full rounded-xl text-left flex items-center hover:border-primary/30 transition-colors',
-              collapsed ? 'justify-center p-2 min-h-[48px]' : 'p-3 gap-3 min-h-[56px]',
+              effectiveCollapsed ? 'justify-center p-2 min-h-[48px]' : 'p-3 gap-3 min-h-[56px]',
             )}
             aria-expanded={profileMenuOpen}
             aria-haspopup="dialog"
@@ -343,7 +346,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
             <span className="dashboard-workspace-sidebar__avatar flex items-center justify-center w-10 h-10 rounded-full text-xs font-semibold shrink-0">
               {initials}
             </span>
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate leading-tight">

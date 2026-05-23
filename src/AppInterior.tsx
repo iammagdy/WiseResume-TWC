@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { toast } from 'sonner';
 import { MotionConfig, useReducedMotion } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
