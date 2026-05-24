@@ -282,10 +282,14 @@ async function run() {
         await ensureVariable('email-service', key, value);
     }
 
-    console.log('\nEnsuring admin-deploy-hubs GitHub credentials...');
+    console.log('\nEnsuring admin-deploy-hubs GitHub credentials and email propagation vars...');
     for (const [key, value] of [
-        ['GITHUB_TOKEN', process.env.GITHUB_TOKEN],
-        ['GITHUB_REPO', process.env.GITHUB_REPO || 'iammagdy/WiseResume-TWC'],
+        ['GITHUB_TOKEN',    process.env.GITHUB_TOKEN],
+        ['GITHUB_REPO',     process.env.GITHUB_REPO || 'iammagdy/WiseResume-TWC'],
+        // Resend vars — admin-deploy-hubs uses these to auto-set them on email-service after deploy
+        ['RESEND_API_KEY',   process.env.RESEND_API_KEY],
+        ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud'],
+        ['RESEND_FROM_NAME',  process.env.RESEND_FROM_NAME  || 'WiseResume'],
     ]) {
         await ensureVariable('admin-deploy-hubs', key, value);
     }
