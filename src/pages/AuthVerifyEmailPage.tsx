@@ -103,9 +103,8 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      // Send branded verification email via our own Resend-powered function.
-      // This bypasses Appwrite's template system (which had a {{url}} substitution bug).
-      const { error: fnError } = await appwriteFunctions.invoke('send-verification-email');
+      // Send branded verification email via email-service function (bypasses Appwrite template).
+      const { error: fnError } = await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification' } });
       if (fnError) throw new Error(fnError.message);
       toast.success('Verification email sent — check your inbox.');
       startCooldown(60);

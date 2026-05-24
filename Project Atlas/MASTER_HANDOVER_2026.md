@@ -2,7 +2,54 @@
 
 ---
 
-## Session Log - 2026-05-24 (CRITICAL: Email Verification Link Broken)
+## Session Log - 2026-05-24 (CRITICAL: Email Verification + Password Reset — email-service hub)
+
+### Overview
+Replaced the broken email verification flow with a single consolidated `email-service` Appwrite Function that handles ALL transactional emails (verification + password reset) via Resend, completely bypassing Appwrite's template system.
+
+### Bug Found During Review
+The first iteration (`send-verification-email` hub) called `users.createVerification(userId, url)` which **does not exist** in node-appwrite v17. The admin `Users` class only has `updateEmailVerification(userId, bool)`. The function would have crashed at runtime.
+
+### Root Cause of the Original Email Bug (Verified)
+`{{url}}` in the Appwrite Console email template was not substituted because the Console's editor encoded the curly braces before saving. Our custom branded template was sent but with `{{url}}` as literal text — email clients rendered it as `render://init-bundle/%7B%7Burl%7D%7D` (unclickable).
+
+### Correct Architecture
+- `account.createVerification(url)` (Account SDK) — exists, returns `Token` with `.secret`, requires user JWT ✅
+- `account.createRecovery(email, url)` (Account SDK) — exists, returns `Token` with `.userId` + `.secret`, public (no session) ✅
+- `users.createVerification()` (Users Admin SDK) — does NOT exist in v17 ❌
+
+The `email-service` function creates a user-context or public Account client, calls the appropriate method to get the token secret, then sends the branded email via Resend. Appwrite's own email pipeline also fires on these calls (side effect) — suppressed by setting the Console templates to a single space.
+
+### Final Fix — email-service hub
+One Appwrite Function handles all transactional emails:
+
+| Action | Auth required | How it works |
+|--------|--------------|--------------|
+| `send-verification` | User JWT (active session) | Calls `account.createVerification()` via user-context client → gets `secret` → sends branded email via Resend |
+| `send-password-reset` | None (email in body) | Calls `account.createRecovery(email, url)` via public client → gets `userId + secret` → sends branded email via Resend. Always returns success (no email enumeration) |
+
+### Files Changed (final)
+| File | Change |
+|------|--------|
+| `appwrite-hubs/email-service/src/main.js` | New consolidated email hub |
+| `appwrite-hubs/email-service/package.json` | Package manifest |
+| `appwrite-hubs/send-verification-email/` | **Deleted** (replaced by email-service) |
+| `src/pages/AuthPage.tsx` | Verification + password reset via `email-service` |
+| `src/pages/AuthVerifyEmailPage.tsx` | Resend verification via `email-service` |
+| `src/components/settings/sections/AccountSection.tsx` | Password reset via `email-service` |
+
+### Deployment Required
+1. Deploy `email-service` hub to Appwrite
+2. In Appwrite Console → Functions → `email-service` → Settings: **Execute access: Users**
+3. Variables: `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (noreply@thewise.cloud), `RESEND_FROM_NAME` (WiseResume), `FRONTEND_URL` (https://resume.thewise.cloud)
+4. **In Appwrite Console → Auth → Email Templates:** Set BOTH Email Verification AND Password Recovery template bodies to a single space `" "` — this suppresses Appwrite's side-effect email while our Resend email delivers correctly
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+
+---
+
+## Session Log - 2026-05-24 (CRITICAL: Email Verification Link Broken — SUPERSEDED)
 
 ### Root Cause (Verified — No Guessing)
 New users received the branded WiseResume verification email but the button was unclickable. Clicking it produced `render://init-bundle/%7B%7Burl%7D%7D` (the email client's internal scheme prepended to the literal string `{{url}}`). The alternative plain-text link section appeared blank.
