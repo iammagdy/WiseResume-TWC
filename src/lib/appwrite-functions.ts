@@ -120,8 +120,12 @@ function classifyHttpError(fnName: string, statusCode: number, parsed: unknown):
       ? 'DevKit session unauthorized or expired - re-enter the DevKit password.'
       : 'Appwrite session expired - please sign in again.';
   }
-  if (statusCode === 404) return `Appwrite Function not found or not deployed: ${fnName}`;
-  if (statusCode >= 500) return `Appwrite Function runtime failed for ${fnName}.`;
+  if (statusCode === 404) return isAdminFunction(fnName)
+    ? `Appwrite Function not found or not deployed: ${fnName}`
+    : 'Service temporarily unavailable. Please try again in a few minutes.';
+  if (statusCode >= 500) return isAdminFunction(fnName)
+    ? `Appwrite Function runtime failed for ${fnName}.`
+    : 'Something went wrong on our end. Please try again.';
   return 'An error occurred. Please try again.';
 }
 
@@ -141,7 +145,9 @@ function classifyAppwriteException(fnName: string, err: AppwriteException): stri
       : 'Appwrite session expired - please sign in again.';
   }
   if (err.code === 404 || /function.*could not be found|requested id could not be found/i.test(raw)) {
-    return `Appwrite Function not found or not deployed: ${fnName}`;
+    return isAdminFunction(fnName)
+      ? `Appwrite Function not found or not deployed: ${fnName}`
+      : 'Service temporarily unavailable. Please try again in a few minutes.';
   }
   return raw || `Appwrite Function request failed for ${fnName}.`;
 }

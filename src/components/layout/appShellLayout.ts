@@ -1,4 +1,10 @@
 const FIXED_FOOTER_ROUTE_PREFIXES = [
+  // Auth & public routes — no FAB needed (user is not logged in yet)
+  "/auth",
+  "/sign-in",
+  "/privacy-policy",
+  "/terms-of-service",
+  // App routes with their own fixed footers
   "/cover-letter/new",
   "/cover-letter/edit",
   "/resignation-letter/new",
