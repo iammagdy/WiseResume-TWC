@@ -57,6 +57,8 @@ jobs:
           build_hub admin-impersonate admin-impersonate.tar.gz
           build_hub inspect-ai-keys inspect-ai-keys.tar.gz
           build_hub admin-deploy-hubs admin-deploy-hubs.tar.gz
+          build_hub revenuecat-webhook revenuecat-webhook.tar.gz
+          build_hub email-service email-service.tar.gz
 
       - name: Setup Appwrite schema
         env:

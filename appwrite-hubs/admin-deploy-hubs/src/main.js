@@ -27,6 +27,8 @@ const HUBS = [
   'admin-impersonate',
   'inspect-ai-keys',
   'admin-deploy-hubs',
+  'revenuecat-webhook',
+  'email-service',
 ];
 
 function verifySignedToken(token) {
@@ -153,6 +155,77 @@ module.exports = async ({ req, res, log, error }) => {
   const deployed = results.filter(r => r.status === 'deployed').length;
   const failed = results.filter(r => r.status === 'failed').length;
   log(`Done: ${deployed} deployed, ${failed} failed, ${results.filter(r => r.status === 'skipped').length} skipped`);
+
+  // ── Set email-service function variables ─────────────────────────────────
+  // After deploying email-service, ensure its core variables are set.
+  // RESEND_API_KEY, RESEND_FROM_EMAIL, RESEND_FROM_NAME must be added manually
+  // in Appwrite Console → Functions → email-service → Variables (once only).
+  const emailServiceDeployed = results.some(r => r.hub === 'email-service' && r.status === 'deployed');
+  if (emailServiceDeployed) {
+    const emailServiceVars = [
+      ['APPWRITE_API_KEY',    apiKey],
+      ['APPWRITE_ENDPOINT',   endpoint],
+      ['APPWRITE_PROJECT_ID', projectId],
+      ['DEVKIT_PASSWORD',     process.env.DEVKIT_PASSWORD],
+      ['FRONTEND_URL',        'https://resume.thewise.cloud'],
+      ['RESEND_API_KEY',      process.env.RESEND_API_KEY],
+      ['RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud'],
+      ['RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME  || 'WiseResume'],
+    ].filter(([, v]) => !!v);
+
+    try {
+      const existingVarsRes = await axios.get(`${endpoint}/functions/email-service/variables`, {
+        headers: { 'X-Appwrite-Key': apiKey, 'X-Appwrite-Project': projectId },
+        timeout: 10000,
+      });
+      const existingVars = existingVarsRes.data?.variables ?? [];
+
+      for (const [key, value] of emailServiceVars) {
+        const existing = existingVars.find(v => v.key === key);
+        try {
+          if (existing) {
+            if (existing.value !== value) {
+              await axios.put(`${endpoint}/functions/email-service/variables/${existing.$id}`,
+                { key, value },
+                { headers: { 'X-Appwrite-Key': apiKey, 'X-Appwrite-Project': projectId, 'Content-Type': 'application/json' }, timeout: 10000 },
+              );
+              log(`Updated email-service variable: ${key}`);
+            }
+          } else {
+            await axios.post(`${endpoint}/functions/email-service/variables`,
+              { key, value },
+              { headers: { 'X-Appwrite-Key': apiKey, 'X-Appwrite-Project': projectId, 'Content-Type': 'application/json' }, timeout: 10000 },
+            );
+            log(`Created email-service variable: ${key}`);
+          }
+        } catch (e) {
+          error(`Could not set email-service variable ${key}: ${e.response?.data?.message || e.message}`);
+        }
+      }
+    } catch (e) {
+      error(`Could not list email-service variables: ${e.response?.data?.message || e.message}`);
+    }
+  }
+
+  // ── Blank Appwrite's built-in auth email templates ────────────────────────
+  // email-service sends all transactional emails via Resend. Appwrite's own
+  // template system fires on createVerification() / createRecovery() calls and
+  // would send a broken duplicate. Set both templates to a single space so
+  // Appwrite delivers an invisible no-op that users never see.
+  if (deployed > 0) {
+    for (const type of ['verification', 'recovery']) {
+      const url = `${endpoint}/projects/${projectId}/templates/email/${type}/en`;
+      try {
+        const res2 = await axios.patch(url,
+          { subject: 'WiseResume', message: ' ' },
+          { headers: { 'X-Appwrite-Key': apiKey, 'X-Appwrite-Project': projectId, 'Content-Type': 'application/json' }, timeout: 10000 },
+        );
+        log(`Blanked Appwrite ${type} email template (status ${res2.status})`);
+      } catch (e) {
+        error(`Could not blank ${type} template: ${e.response?.data?.message || e.message}`);
+      }
+    }
+  }
 
   return res.json({
     ok: failed === 0,

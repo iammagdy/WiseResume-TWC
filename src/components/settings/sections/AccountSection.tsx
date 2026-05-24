@@ -13,6 +13,7 @@ import { useMe } from '@/hooks/useMe';
 import { cn } from '@/lib/utils';
 import { openExternal } from '@/lib/openExternal';
 import { account } from '@/lib/appwrite';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
@@ -105,8 +106,11 @@ export const AccountSection = memo(function AccountSection({
         }
 
         try {
-            const resetUrl = `${window.location.origin}/auth/reset-password`;
-            await account.createRecovery(email, resetUrl);
+            // Send branded password-reset email via email-service function (bypasses Appwrite template).
+            const { error: fnError } = await appwriteFunctions.invoke('email-service', {
+                body: { action: 'send-password-reset', email },
+            });
+            if (fnError) throw new Error(fnError.message);
             toast.success('Password reset link sent! Check your inbox.');
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to send reset email');

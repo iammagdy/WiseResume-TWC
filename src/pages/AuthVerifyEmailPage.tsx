@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { account } from '@/lib/appwrite';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0d0d1e 100%)';
 
@@ -64,6 +65,10 @@ export default function AuthVerifyEmailPage() {
         await queryClient.invalidateQueries({ queryKey: ['me'] });
         await refetchMe();
         setMode('confirmed');
+        // Fire welcome email (non-fatal — don't block the confirmation flow).
+        void appwriteFunctions.invoke('email-service', { body: { action: 'send-welcome' } }).catch(() => {
+          // Non-fatal: welcome email failure must not surface to the user.
+        });
         // Hard reload after the "confirmed" flash so AuthContext re-fetches
         // account.get() with the fresh emailVerification: true state.
         setTimeout(() => {
@@ -102,8 +107,9 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      const redirectUrl = `${window.location.origin}/auth/verify-email`;
-      await account.createVerification(redirectUrl);
+      // Send branded verification email via email-service function (bypasses Appwrite template).
+      const { error: fnError } = await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification' } });
+      if (fnError) throw new Error(fnError.message);
       toast.success('Verification email sent — check your inbox.');
       startCooldown(60);
     } catch (err) {

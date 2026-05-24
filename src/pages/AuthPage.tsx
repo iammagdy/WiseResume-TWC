@@ -10,6 +10,7 @@ import { AppIcon } from '@/components/brand/AppIcon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { account as appwriteAccount, ID, databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
 
@@ -63,8 +64,8 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const resetUrl = `${window.location.origin}/auth/reset-password`;
-      await appwriteAccount.createRecovery(email, resetUrl);
+      // Send branded password-reset email via email-service function (bypasses Appwrite template).
+      await appwriteFunctions.invoke('email-service', { body: { action: 'send-password-reset', email } });
       toast.success('Reset link sent! Check your inbox.');
       setView('login');
     } catch (err: unknown) {
@@ -78,8 +79,8 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const resetUrl = `${window.location.origin}/auth/reset-password`;
-      await appwriteAccount.createRecovery(email, resetUrl);
+      // Send branded password-reset email via email-service function (bypasses Appwrite template).
+      await appwriteFunctions.invoke('email-service', { body: { action: 'send-password-reset', email } });
       toast.success('Reset link sent! Check your email to set your new password.');
       setView('login');
     } catch (err: unknown) {
@@ -96,8 +97,8 @@ export default function AuthPage() {
       await appwriteAccount.create(ID.unique(), email, password, name);
       await appwriteAccount.createEmailPasswordSession(email, password);
       try {
-        const verifyUrl = `${window.location.origin}/auth/verify-email`;
-        await appwriteAccount.createVerification(verifyUrl);
+        // Send branded verification email via email-service function (bypasses Appwrite template).
+        await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification' } });
       } catch {
         // Non-fatal — user can resend from the verify-email page
       }
