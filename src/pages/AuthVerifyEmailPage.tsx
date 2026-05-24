@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { account } from '@/lib/appwrite';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0d0d1e 100%)';
 
@@ -102,8 +103,10 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      const redirectUrl = `${window.location.origin}/auth/verify-email`;
-      await account.createVerification(redirectUrl);
+      // Send branded verification email via our own Resend-powered function.
+      // This bypasses Appwrite's template system (which had a {{url}} substitution bug).
+      const { error: fnError } = await appwriteFunctions.invoke('send-verification-email');
+      if (fnError) throw new Error(fnError.message);
       toast.success('Verification email sent — check your inbox.');
       startCooldown(60);
     } catch (err) {

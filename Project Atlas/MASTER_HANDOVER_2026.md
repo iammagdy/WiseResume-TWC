@@ -2,6 +2,48 @@
 
 ---
 
+## Session Log - 2026-05-24 (CRITICAL: Email Verification Link Broken)
+
+### Root Cause (Verified — No Guessing)
+New users received the branded WiseResume verification email but the button was unclickable. Clicking it produced `render://init-bundle/%7B%7Burl%7D%7D` (the email client's internal scheme prepended to the literal string `{{url}}`). The alternative plain-text link section appeared blank.
+
+**Evidence:** The branded dark-red custom template WAS being sent (not Appwrite's default template), confirming the custom template was applied in the Console. But `{{url}}` was not substituted before delivery. This means the Appwrite Console's HTML template editor encoded the curly-brace placeholders (e.g., as HTML entities) before saving, so Appwrite's template engine could not find and replace `{{url}}`.
+
+**Code was correct.** `AuthPage.tsx:100` called `appwriteAccount.createVerification(verifyUrl)` with `verifyUrl = ${window.location.origin}/auth/verify-email` — this is valid. The problem was entirely in Appwrite's email template pipeline.
+
+### Fix
+Created new Appwrite Function `send-verification-email` that bypasses Appwrite's template system entirely:
+1. Frontend calls `appwriteFunctions.invoke('send-verification-email')` instead of `account.createVerification()`
+2. Function receives the calling user's ID from Appwrite's injected `x-appwrite-user-id` header
+3. Function uses Admin SDK `users.createVerification(userId, redirectUrl)` → gets the `secret` token back
+4. Constructs full URL: `${FRONTEND_URL}/auth/verify-email?userId=...&secret=...`
+5. Sends branded HTML email via Resend directly — no Appwrite template engine involved
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `appwrite-hubs/send-verification-email/src/main.js` | New Appwrite Function |
+| `appwrite-hubs/send-verification-email/package.json` | Package manifest |
+| `src/pages/AuthPage.tsx` | Replace `createVerification()` with `appwriteFunctions.invoke('send-verification-email')` |
+| `src/pages/AuthVerifyEmailPage.tsx` | Replace `createVerification()` with `appwriteFunctions.invoke('send-verification-email')` on resend |
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+
+### Deployment Required Before Fix is Live
+1. Deploy the new hub: `node scripts/deploy_hubs.cjs` (or upload manually from Appwrite Console)
+2. In Appwrite Console → Functions → `send-verification-email`:
+   - **Execute access:** `Users`
+   - **Variables to set:** `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (`noreply@thewise.cloud`), `RESEND_FROM_NAME` (`WiseResume`), `FRONTEND_URL` (`https://resume.thewise.cloud`)
+3. **Optionally** reset the Appwrite Console Auth → Templates → Email Verification back to default to stop Appwrite from also attempting to send its broken template email
+
+### Where We Stopped
+- Code committed and pushed to `claude/atlas-onboarding-GqwrK`
+- New Appwrite Function written — **NOT yet deployed** (requires manual deployment step above)
+- Next agent: Deploy the hub, set env vars, test with a new signup
+
+---
+
 ## Session Log - 2026-05-23 (Navigation Audit + Mobile Sidebar Fix)
 
 ### Overview

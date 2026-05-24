@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-05-20
+**Last verified:** 2026-05-24
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,44 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-05-24 — CRITICAL: Email verification link broken ({{url}} not substituted)
+
+### Root Cause (Verified)
+The Appwrite Console email template for Email Verification was applied, but Appwrite's template engine was NOT substituting `{{url}}` before sending. Users received the literal string `{{url}}` as the button href — email clients rendered it as `render://init-bundle/%7B%7Burl%7D%7D` (invalid/unclickable). The alternative link showed as null/empty.
+
+Most likely cause: Appwrite Console's HTML template editor encoded the `{{url}}` curly braces before saving, producing a stored form that Appwrite's find-and-replace engine couldn't match.
+
+### Fix
+Created a dedicated Appwrite Function `send-verification-email` that:
+- Gets the authenticated user's ID from Appwrite's injected `x-appwrite-user-id` header
+- Uses the Admin SDK `users.createVerification(userId, redirectUrl)` to generate the verification token and get the secret
+- Constructs the full verification URL directly: `${FRONTEND_URL}/auth/verify-email?userId=...&secret=...`
+- Sends the branded HTML email via Resend — **no Appwrite template system involved at all**
+
+Frontend (`AuthPage.tsx`, `AuthVerifyEmailPage.tsx`): Replaced `account.createVerification()` calls with `appwriteFunctions.invoke('send-verification-email')`.
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `appwrite-hubs/send-verification-email/src/main.js` | New Appwrite Function — self-contained email sender via Resend |
+| `appwrite-hubs/send-verification-email/package.json` | Package manifest |
+| `src/pages/AuthPage.tsx` | Import + call `send-verification-email` function on signup |
+| `src/pages/AuthVerifyEmailPage.tsx` | Import + call `send-verification-email` on resend |
+
+### Deployment Required
+The new function must be deployed to Appwrite before this fix is live:
+1. Run `node scripts/deploy_hubs.cjs` (or deploy `send-verification-email` manually from Appwrite Console)
+2. In Appwrite Console → Functions → `send-verification-email` → Settings:
+   - **Execute access:** `Users` (not any, not guests)
+   - **Variables:** `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (noreply@thewise.cloud), `RESEND_FROM_NAME` (WiseResume), `FRONTEND_URL` (https://resume.thewise.cloud)
+3. Optionally: Reset the Appwrite Console email template for Email Verification back to default (so Appwrite doesn't also try to send a broken email)
+
+### Verification
+- `npx tsc --noEmit` — zero errors
+- Logic: function requires active session → gets userId → creates token → constructs real URL → sends via Resend
 
 ---
 

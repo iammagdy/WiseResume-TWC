@@ -1,0 +1,323 @@
+'use strict';
+
+/**
+ * send-verification-email — Appwrite Function
+ *
+ * Sends a branded WiseResume email verification link via Resend, completely
+ * bypassing Appwrite's built-in email template system (which had a known issue
+ * where {{url}} was not substituted before delivery).
+ *
+ * Flow:
+ *   1. Called from the frontend immediately after account creation / resend request.
+ *   2. Reads the authenticated user ID from the Appwrite-injected header.
+ *   3. Uses the Admin SDK to call users.createVerification() → gets the secret token.
+ *   4. Constructs the full verification URL (same format Appwrite would use).
+ *   5. Sends the branded HTML email via Resend.
+ *
+ * Required Function Variables (set in Appwrite Console → Function → Variables):
+ *   APPWRITE_API_KEY        — Admin API key with users.write scope
+ *   APPWRITE_ENDPOINT       — e.g. https://fra.cloud.appwrite.io/v1
+ *   APPWRITE_PROJECT_ID     — e.g. 69fd362b001eb325a192
+ *   RESEND_API_KEY          — Resend API key (re_xxx)
+ *   RESEND_FROM_EMAIL       — e.g. noreply@thewise.cloud
+ *   RESEND_FROM_NAME        — e.g. WiseResume
+ *   FRONTEND_URL            — e.g. https://resume.thewise.cloud
+ *
+ * Appwrite Console → Function → Settings:
+ *   Execute access: Users  (any logged-in user can call it for their own account)
+ */
+
+const sdk = require('node-appwrite');
+
+const ENDPOINT   = process.env.APPWRITE_ENDPOINT   || process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_FUNCTION_PROJECT_ID  || '69fd362b001eb325a192';
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://resume.thewise.cloud').replace(/\/$/, '');
+const RESEND_BASE  = 'https://api.resend.com';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function json(res, payload, status = 200) {
+  return res.json(payload, status);
+}
+
+async function resendSend({ to, subject, html }) {
+  const apiKey    = process.env.RESEND_API_KEY    || '';
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud';
+  const fromName  = process.env.RESEND_FROM_NAME  || 'WiseResume';
+
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured.');
+
+  const res = await fetch(`${RESEND_BASE}/emails`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from:    `${fromName} <${fromEmail}>`,
+      to:      [to],
+      subject,
+      html,
+    }),
+  });
+
+  const text = await res.text();
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
+
+  if (!res.ok) {
+    const msg = parsed?.message || parsed?.error || `Resend error ${res.status}`;
+    throw new Error(msg);
+  }
+  return parsed;
+}
+
+// ─── Branded email HTML ──────────────────────────────────────────────────────
+
+function buildVerificationEmailHtml(verifyUrl) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Verify Your Email - WiseResume</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body style="margin:0;padding:0;background:#09090b;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#ffffff;">
+
+  <!-- Preheader -->
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#09090b;">
+    Confirm your email to activate your WiseResume workspace.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+  </div>
+
+  <!-- Page wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#09090b">
+    <tr>
+      <td align="center" style="padding:48px 16px;">
+
+        <!-- Card: 620px max -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#141416"
+               style="max-width:620px;width:100%;background:linear-gradient(180deg,#141416 0%,#0d0d10 100%);border:1px solid rgba(158,27,34,0.35);border-radius:28px;">
+          <tr>
+            <td style="padding:34px 34px 42px;">
+
+              <!-- META ROW -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
+                <tr>
+                  <td style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#a1a1aa;vertical-align:middle;">
+                    Email Verification
+                  </td>
+                  <td align="right" style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;vertical-align:middle;">
+                    <span style="display:inline-block;width:7px;height:7px;background-color:#ef4444;border-radius:999px;vertical-align:middle;margin-right:8px;"></span>Secure
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:42px;">
+                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
+              </table>
+
+              <!-- LOGO -->
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 18px auto;">
+                <tr>
+                  <td align="center" width="72" style="width:72px;background-color:#121216;border:1px solid rgba(239,68,68,0.45);border-radius:18px;padding:17px;">
+                    <img src="https://resume.thewise.cloud/email-logo.png"
+                         width="38" height="38" alt="WiseResume"
+                         style="display:block;border:0;width:38px;height:38px;">
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Brand name -->
+              <p style="margin:0 0 30px;text-align:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:25px;letter-spacing:-0.03em;color:#ffffff;">
+                Wise<span style="color:#ef4444;">Resume</span>
+              </p>
+
+              <!-- H1 -->
+              <h1 style="margin:0 0 18px;text-align:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:42px;line-height:1.08;font-weight:800;letter-spacing:-0.045em;color:#ffffff;">
+                Verify your email
+              </h1>
+
+              <!-- Body copy -->
+              <p style="margin:0 auto 38px;max-width:470px;text-align:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:17px;line-height:1.65;color:#d4d4d8;">
+                Confirm your email to activate your WiseResume workspace and start building resumes tailored for modern hiring.
+              </p>
+
+              <!-- CTA BUTTON -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
+                <tr>
+                  <td align="center">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                      href="${verifyUrl}" style="height:58px;v-text-anchor:middle;width:390px;" arcsize="6%" stroke="f" fillcolor="#9E1B22">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:'Inter',sans-serif;font-size:18px;font-weight:700;">Verify email address &#8594;</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <a href="${verifyUrl}" target="_blank"
+                       style="display:inline-block;width:390px;max-width:100%;padding:18px 28px;background:linear-gradient(180deg,#dc2626 0%,#9E1B22 100%);border:1px solid rgba(255,255,255,0.16);border-radius:14px;color:#ffffff;text-decoration:none;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:700;line-height:1.4;text-align:center;box-sizing:border-box;">
+                      Verify email address &nbsp;&#8594;
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- OR DIVIDER -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);vertical-align:middle;"></td>
+                  <td align="center" width="62" style="vertical-align:middle;padding:0 6px;">
+                    <span style="display:inline-block;padding:8px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;font-family:'Inter',-apple-system,sans-serif;color:#a1a1aa;font-size:12px;background-color:#111113;white-space:nowrap;">OR</span>
+                  </td>
+                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);vertical-align:middle;"></td>
+                </tr>
+              </table>
+
+              <!-- ALTERNATIVE LINK -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0d0d10"
+                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.09);border-radius:18px;margin-bottom:18px;">
+                <tr>
+                  <td style="padding:24px;">
+                    <p style="margin:0 0 12px;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">
+                      Alternative Link
+                    </p>
+                    <p style="margin:0 0 18px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;line-height:1.6;color:#c4c4cc;">
+                      If the button above doesn't work, copy and paste this link into your browser.
+                    </p>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background-color:#0b0b0d;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;">
+                          <a href="${verifyUrl}" target="_blank"
+                             style="font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1.6;color:#ef4444;text-decoration:underline;word-break:break-all;">${verifyUrl}</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- SECURITY NOTICE -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0d0d10"
+                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:18px;margin-bottom:34px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <p style="margin:0 0 6px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;line-height:1.6;color:#d4d4d8;">
+                      This link will expire in <strong style="color:#ffffff;">24 hours</strong> for your security.
+                    </p>
+                    <p style="margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:1.6;color:#8b8b94;">
+                      If you didn't create a WiseResume account, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
+              </table>
+
+              <!-- FOOTER -->
+              <p style="margin:0 0 20px;text-align:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;color:#a1a1aa;">
+                Build <span style="color:#ef4444;">smarter</span>. Get hired <span style="color:#ef4444;">faster</span>.
+              </p>
+              <p style="margin:0 0 18px;text-align:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#71717a;">
+                &copy; 2026 WiseResume. All rights reserved.
+              </p>
+              <p style="margin:0;text-align:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;">
+                <a href="mailto:contact@thewise.cloud" style="color:#8b8b94;text-decoration:none;">Support</a>
+                <span style="color:#3f3f46;margin:0 14px;">|</span>
+                <a href="https://resume.thewise.cloud/privacy-policy" style="color:#8b8b94;text-decoration:none;">Privacy</a>
+                <span style="color:#3f3f46;margin:0 14px;">|</span>
+                <a href="https://resume.thewise.cloud/terms-of-service" style="color:#8b8b94;text-decoration:none;">Terms</a>
+              </p>
+
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
+}
+
+// ─── Main handler ────────────────────────────────────────────────────────────
+
+module.exports = async ({ req, res, log, error }) => {
+  // Only POST
+  if (req.method !== 'POST') {
+    return json(res, { error: 'Method not allowed' }, 405);
+  }
+
+  // ── Get authenticated user ID from Appwrite's injected header ─────────────
+  // Appwrite automatically sets this when the function is called via the SDK
+  // with an active user session. It cannot be spoofed by the client.
+  const userId = req.headers['x-appwrite-user-id'];
+  if (!userId) {
+    error('Called without authenticated user session');
+    return json(res, { error: 'Authentication required' }, 401);
+  }
+
+  // ── Admin SDK setup ────────────────────────────────────────────────────────
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+  if (!apiKey) {
+    error('APPWRITE_API_KEY not configured');
+    return json(res, { error: 'Function misconfigured' }, 500);
+  }
+
+  const adminClient = new sdk.Client()
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT_ID)
+    .setKey(apiKey);
+
+  const users = new sdk.Users(adminClient);
+
+  try {
+    // ── Get user's email ────────────────────────────────────────────────────
+    const user = await users.get(userId);
+    const email = user.email;
+
+    if (!email) {
+      return json(res, { error: 'User account has no email address' }, 400);
+    }
+
+    if (user.emailVerification) {
+      // Already verified — no need to send again
+      log(`User ${userId} is already verified, skipping email`);
+      return json(res, { success: true, alreadyVerified: true });
+    }
+
+    // ── Create verification token via Admin SDK ─────────────────────────────
+    // This generates a unique secret token and returns it so WE can construct
+    // the URL ourselves — no Appwrite template system involved.
+    const redirectUrl = `${FRONTEND_URL}/auth/verify-email`;
+    const token = await users.createVerification(userId, redirectUrl);
+
+    // Construct the full verification URL exactly as Appwrite would
+    const verifyUrl = `${redirectUrl}?userId=${encodeURIComponent(userId)}&secret=${encodeURIComponent(token.secret)}`;
+
+    log(`Sending verification email to ${email} for user ${userId}`);
+
+    // ── Send via Resend ─────────────────────────────────────────────────────
+    await resendSend({
+      to:      email,
+      subject: 'Verify your WiseResume email address',
+      html:    buildVerificationEmailHtml(verifyUrl),
+    });
+
+    log(`Verification email delivered to ${email}`);
+    return json(res, { success: true });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`send-verification-email failed for user ${userId}: ${msg}`);
+    return json(res, { error: msg }, 500);
+  }
+};
