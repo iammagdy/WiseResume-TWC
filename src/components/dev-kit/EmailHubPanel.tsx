@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import type { ElementType } from 'react';
-import { Inbox, Mail, Workflow } from 'lucide-react';
+import { FlaskConical, Inbox, Mail, Workflow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EmailAutomationsPanel } from './EmailAutomationsPanel';
 import { EmailManagementPanel } from './EmailManagementPanel';
+import { EmailTransactionalStudioPanel } from './EmailTransactionalStudioPanel';
 import { TestmailInboxPanel } from './TestmailInboxPanel';
 
-type EmailSubTab = 'send' | 'automations' | 'inbox';
+type EmailSubTab = 'send' | 'automations' | 'inbox' | 'studio';
 
 const TABS: { id: EmailSubTab; label: string; Icon: ElementType }[] = [
-  { id: 'send', label: 'Send', Icon: Mail },
+  { id: 'send',       label: 'Send',       Icon: Mail },
   { id: 'automations', label: 'Automations', Icon: Workflow },
-  { id: 'inbox', label: 'Inbox', Icon: Inbox },
+  { id: 'inbox',      label: 'Inbox',      Icon: Inbox },
+  { id: 'studio',     label: 'Studio',     Icon: FlaskConical },
 ];
 
 export function EmailHubPanel() {
@@ -39,9 +41,10 @@ export function EmailHubPanel() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'send' && <EmailManagementPanel />}
+      {activeTab === 'send'        && <EmailManagementPanel />}
       {activeTab === 'automations' && <EmailAutomationsPanel />}
-      {activeTab === 'inbox' && <TestmailInboxPanel />}
+      {activeTab === 'inbox'       && <TestmailInboxPanel />}
+      {activeTab === 'studio'      && <EmailTransactionalStudioPanel />}
     </div>
   );
 }

@@ -146,6 +146,7 @@ async function run() {
         { id: 'inspect-ai-keys',           name: 'Inspect AI Keys Hub',           file: 'inspect-ai-keys.tar.gz' },
         { id: 'admin-deploy-hubs',         name: 'Admin Deploy Hubs',             file: 'admin-deploy-hubs.tar.gz' },
         { id: 'revenuecat-webhook',        name: 'RevenueCat Webhook Hub',        file: 'revenuecat-webhook.tar.gz' },
+        { id: 'email-service',             name: 'Email Service Hub',             file: 'email-service.tar.gz' },
     ];
 
     for (const hub of hubs) {
@@ -265,6 +266,20 @@ async function run() {
         ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
     ]) {
         await ensureVariable('revenuecat-webhook', key, value);
+    }
+
+    console.log('\nEnsuring email-service variables...');
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY',    process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT',   process.env.APPWRITE_ENDPOINT],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+        ['DEVKIT_PASSWORD',     process.env.DEVKIT_PASSWORD],
+        ['RESEND_API_KEY',      process.env.RESEND_API_KEY],
+        ['RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL],
+        ['RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME],
+        ['FRONTEND_URL',        process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
+    ]) {
+        await ensureVariable('email-service', key, value);
     }
 
     console.log('\nEnsuring admin-deploy-hubs GitHub credentials...');

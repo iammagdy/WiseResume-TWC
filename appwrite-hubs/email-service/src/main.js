@@ -31,19 +31,30 @@
  *     Sends:    branded password-recovery email
  *     Note:     always returns success to avoid email enumeration attacks
  *
+ *   send-welcome
+ *     Requires: active user session (Appwrite injects x-appwrite-user-jwt)
+ *     Body:     { action: 'send-welcome' }
+ *     Sends:    branded welcome email (triggered after email verification)
+ *
+ *   send-test   (DevKit admin only — requires DEVKIT_PASSWORD in Authorization header)
+ *     Body:     { action: 'send-test', to: 'email', template: 'welcome|verification|password-reset',
+ *                 name: 'Name', from_email: 'noreply@thewise.cloud', from_name: 'WiseResume' }
+ *     Sends:    a test render of any template to any address
+ *
  * ─── Required Function Variables (Appwrite Console → Function → Variables) ──
  *
  *   APPWRITE_API_KEY      Admin API key (users.read scope minimum)
  *   APPWRITE_ENDPOINT     e.g. https://fra.cloud.appwrite.io/v1
  *   APPWRITE_PROJECT_ID   e.g. 69fd362b001eb325a192
+ *   DEVKIT_PASSWORD       Admin DevKit password (guards send-test)
  *   RESEND_API_KEY        Resend API key (re_xxx)
- *   RESEND_FROM_EMAIL     e.g. noreply@thewise.cloud
- *   RESEND_FROM_NAME      e.g. WiseResume
+ *   RESEND_FROM_EMAIL     Default sender e.g. noreply@thewise.cloud
+ *   RESEND_FROM_NAME      Default sender name e.g. WiseResume
  *   FRONTEND_URL          e.g. https://resume.thewise.cloud
  *
  * ─── Appwrite Console → Function → Settings ──────────────────────────────────
- *   Execute access: Users  (logged-in users trigger send-verification;
- *                            send-password-reset is public but validated)
+ *   Execute access: Users  (logged-in users trigger send-verification / send-welcome;
+ *                            send-password-reset and send-test are public/devkit-guarded)
  */
 
 const sdk = require('node-appwrite');
@@ -59,10 +70,20 @@ function json(res, payload, status = 200) {
   return res.json(payload, status);
 }
 
-async function resendSend({ to, subject, html }) {
-  const apiKey    = process.env.RESEND_API_KEY    || '';
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud';
-  const fromName  = process.env.RESEND_FROM_NAME  || 'WiseResume';
+/**
+ * Send an email via Resend.
+ *
+ * @param {object} opts
+ * @param {string}  opts.to        Recipient email
+ * @param {string}  opts.subject   Subject line
+ * @param {string}  opts.html      Full HTML body
+ * @param {string=} opts.fromEmail Override sender email (default: RESEND_FROM_EMAIL env)
+ * @param {string=} opts.fromName  Override sender name (default: RESEND_FROM_NAME env)
+ */
+async function resendSend({ to, subject, html, fromEmail, fromName }) {
+  const apiKey         = process.env.RESEND_API_KEY    || '';
+  const resolvedEmail  = fromEmail || process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud';
+  const resolvedName   = fromName  || process.env.RESEND_FROM_NAME  || 'WiseResume';
 
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
 
@@ -73,7 +94,7 @@ async function resendSend({ to, subject, html }) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: `${fromName} <${fromEmail}>`,
+      from: `${resolvedName} <${resolvedEmail}>`,
       to:   [to],
       subject,
       html,
@@ -92,7 +113,55 @@ async function resendSend({ to, subject, html }) {
 
 // ─── Email HTML builders ─────────────────────────────────────────────────────
 
-function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, securityNote }) {
+function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, securityNote, showCta = true }) {
+  const ctaSection = showCta ? `
+              <!-- CTA Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
+                <tr>
+                  <td align="center">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                      href="${ctaUrl}" style="height:58px;v-text-anchor:middle;width:390px;" arcsize="6%" stroke="f" fillcolor="#9E1B22">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:'Inter',sans-serif;font-size:18px;font-weight:700;">${ctaLabel} &#8594;</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <a href="${ctaUrl}" target="_blank"
+                       style="display:inline-block;width:390px;max-width:100%;padding:18px 28px;background:linear-gradient(180deg,#dc2626 0%,#9E1B22 100%);border:1px solid rgba(255,255,255,0.16);border-radius:14px;color:#ffffff;text-decoration:none;font-size:18px;font-weight:700;line-height:1.4;text-align:center;box-sizing:border-box;">
+                      ${ctaLabel} &nbsp;&#8594;
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- OR divider -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);"></td>
+                  <td align="center" width="62" style="padding:0 6px;">
+                    <span style="display:inline-block;padding:8px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;color:#a1a1aa;font-size:12px;background-color:#111113;white-space:nowrap;">OR</span>
+                  </td>
+                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);"></td>
+                </tr>
+              </table>
+
+              <!-- Alternative link -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.09);border-radius:18px;margin-bottom:18px;">
+                <tr>
+                  <td style="padding:24px;">
+                    <p style="margin:0 0 12px;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">Alternative Link</p>
+                    <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#c4c4cc;">If the button above doesn't work, copy and paste this link into your browser.</p>
+                    <div style="background-color:#0b0b0d;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;">
+                      <a href="${ctaUrl}" target="_blank"
+                         style="font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1.6;color:#ef4444;text-decoration:underline;word-break:break-all;">${ctaUrl}</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -149,52 +218,7 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
               <!-- Body copy -->
               <p style="margin:0 auto 38px;max-width:470px;text-align:center;font-size:17px;line-height:1.65;color:#d4d4d8;">${bodyCopy}</p>
 
-              <!-- CTA Button -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
-                <tr>
-                  <td align="center">
-                    <!--[if mso]>
-                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
-                      href="${ctaUrl}" style="height:58px;v-text-anchor:middle;width:390px;" arcsize="6%" stroke="f" fillcolor="#9E1B22">
-                      <w:anchorlock/>
-                      <center style="color:#ffffff;font-family:'Inter',sans-serif;font-size:18px;font-weight:700;">${ctaLabel} &#8594;</center>
-                    </v:roundrect>
-                    <![endif]-->
-                    <!--[if !mso]><!-->
-                    <a href="${ctaUrl}" target="_blank"
-                       style="display:inline-block;width:390px;max-width:100%;padding:18px 28px;background:linear-gradient(180deg,#dc2626 0%,#9E1B22 100%);border:1px solid rgba(255,255,255,0.16);border-radius:14px;color:#ffffff;text-decoration:none;font-size:18px;font-weight:700;line-height:1.4;text-align:center;box-sizing:border-box;">
-                      ${ctaLabel} &nbsp;&#8594;
-                    </a>
-                    <!--<![endif]-->
-                  </td>
-                </tr>
-              </table>
-
-              <!-- OR divider -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
-                <tr>
-                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);"></td>
-                  <td align="center" width="62" style="padding:0 6px;">
-                    <span style="display:inline-block;padding:8px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;color:#a1a1aa;font-size:12px;background-color:#111113;white-space:nowrap;">OR</span>
-                  </td>
-                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);"></td>
-                </tr>
-              </table>
-
-              <!-- Alternative link -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.09);border-radius:18px;margin-bottom:18px;">
-                <tr>
-                  <td style="padding:24px;">
-                    <p style="margin:0 0 12px;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">Alternative Link</p>
-                    <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#c4c4cc;">If the button above doesn't work, copy and paste this link into your browser.</p>
-                    <div style="background-color:#0b0b0d;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;">
-                      <a href="${ctaUrl}" target="_blank"
-                         style="font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1.6;color:#ef4444;text-decoration:underline;word-break:break-all;">${ctaUrl}</a>
-                    </div>
-                  </td>
-                </tr>
-              </table>
+              ${ctaSection}
 
               <!-- Security notice -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -246,6 +270,7 @@ function verificationEmail(verifyUrl) {
     ctaLabel:    'Verify email address',
     ctaUrl:      verifyUrl,
     securityNote: 'This link will expire in <strong style="color:#ffffff;">24 hours</strong> for your security.',
+    showCta:     true,
   });
 }
 
@@ -258,6 +283,22 @@ function passwordResetEmail(resetUrl) {
     ctaLabel:    'Reset password',
     ctaUrl:      resetUrl,
     securityNote: 'This link will expire in <strong style="color:#ffffff;">24 hours</strong> and can only be used once.',
+    showCta:     true,
+  });
+}
+
+function welcomeEmail(name, dashboardUrl) {
+  const safeUrl = dashboardUrl || `${FRONTEND_URL}/dashboard`;
+  const safeName = name || 'there';
+  return emailShell({
+    metaLabel:    'Welcome',
+    preheader:    `Welcome to WiseResume, ${safeName}! Your AI-powered resume builder is ready.`,
+    h1:           `Welcome, ${safeName}!`,
+    bodyCopy:     `Your WiseResume account is active and ready to go. Build AI-powered resumes tailored for modern hiring — <strong style="color:#ffffff;">smarter, faster, and built to impress</strong>.`,
+    ctaLabel:     'Go to my dashboard',
+    ctaUrl:       safeUrl,
+    securityNote: 'You received this because you just verified your WiseResume account.',
+    showCta:      true,
   });
 }
 
@@ -384,6 +425,106 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
   return json(res, { success: true });
 }
 
+async function handleSendWelcome({ req, res, log, error }) {
+  // ── Get user JWT ────────────────────────────────────────────────────────────
+  const userJwt = req.headers['x-appwrite-user-jwt'];
+  const userId  = req.headers['x-appwrite-user-id'];
+
+  if (!userJwt || !userId) {
+    error('send-welcome called without active user session');
+    return json(res, { error: 'Authentication required' }, 401);
+  }
+
+  try {
+    // Get user name and email via admin SDK
+    const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+    const user = await new sdk.Users(adminClient).get(userId);
+
+    if (!user.email) {
+      error(`User ${userId} has no email address for welcome email`);
+      return json(res, { error: 'User has no email address' }, 400);
+    }
+
+    // Derive a friendly first name: use the Appwrite display name if set,
+    // otherwise fall back to the part before @ in their email.
+    const displayName = (user.name || '').trim();
+    const firstName   = displayName
+      ? displayName.split(' ')[0]
+      : user.email.split('@')[0];
+
+    log(`Sending welcome email to ${user.email} (name: ${firstName})`);
+    await resendSend({
+      to:      user.email,
+      subject: 'Welcome to WiseResume — Your AI Resume Builder',
+      html:    welcomeEmail(firstName),
+    });
+
+    log(`Welcome email sent to ${user.email}`);
+    return json(res, { success: true });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Non-fatal for the user (they're already verified), but log the failure.
+    error(`send-welcome failed for user ${userId}: ${msg}`);
+    return json(res, { error: msg }, 500);
+  }
+}
+
+/**
+ * DevKit admin-only: send a test render of any template to any address.
+ * Guarded by DEVKIT_PASSWORD via Authorization: Bearer header.
+ */
+async function handleSendTest({ req, res, log, error, body }) {
+  const devkitPassword = process.env.DEVKIT_PASSWORD || '';
+  const authHeader     = (req.headers['authorization'] || req.headers['Authorization'] || '').trim();
+
+  if (!devkitPassword || authHeader !== `Bearer ${devkitPassword}`) {
+    error('send-test: unauthorized attempt');
+    return json(res, { error: 'Unauthorized' }, 401);
+  }
+
+  const to         = (body?.to         || '').trim().toLowerCase();
+  const template   = (body?.template   || 'welcome').trim();
+  const name       = (body?.name       || 'Tester').trim();
+  const fromEmail  = (body?.from_email || '').trim() || null;
+  const fromName   = (body?.from_name  || '').trim() || null;
+
+  if (!to || !to.includes('@')) {
+    return json(res, { error: 'Valid recipient email (to) is required' }, 400);
+  }
+
+  const testVerifyUrl = `${FRONTEND_URL}/auth/verify-email?userId=test&secret=TEST_TOKEN_PREVIEW`;
+  const testResetUrl  = `${FRONTEND_URL}/auth/reset-password?userId=test&secret=TEST_TOKEN_PREVIEW`;
+
+  let html, subject;
+  switch (template) {
+    case 'verification':
+      html    = verificationEmail(testVerifyUrl);
+      subject = '[TEST] Verify your WiseResume email address';
+      break;
+    case 'password-reset':
+      html    = passwordResetEmail(testResetUrl);
+      subject = '[TEST] Reset your WiseResume password';
+      break;
+    case 'welcome':
+    default:
+      html    = welcomeEmail(name);
+      subject = '[TEST] Welcome to WiseResume';
+      break;
+  }
+
+  try {
+    const result = await resendSend({ to, subject, html, fromEmail, fromName });
+    log(`Test email (${template}) sent to ${to} from ${fromEmail || 'default'}`);
+    return json(res, { success: true, message_id: result?.id });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`send-test (${template}) failed for ${to}: ${msg}`);
+    return json(res, { error: msg }, 500);
+  }
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 module.exports = async ({ req, res, log, error }) => {
@@ -404,6 +545,12 @@ module.exports = async ({ req, res, log, error }) => {
 
     case 'send-password-reset':
       return handleSendPasswordReset({ req, res, log, error, body });
+
+    case 'send-welcome':
+      return handleSendWelcome({ req, res, log, error });
+
+    case 'send-test':
+      return handleSendTest({ req, res, log, error, body });
 
     default:
       error(`Unknown action: ${action}`);

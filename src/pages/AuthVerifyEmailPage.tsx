@@ -65,6 +65,10 @@ export default function AuthVerifyEmailPage() {
         await queryClient.invalidateQueries({ queryKey: ['me'] });
         await refetchMe();
         setMode('confirmed');
+        // Fire welcome email (non-fatal — don't block the confirmation flow).
+        void appwriteFunctions.invoke('email-service', { body: { action: 'send-welcome' } }).catch(() => {
+          // Non-fatal: welcome email failure must not surface to the user.
+        });
         // Hard reload after the "confirmed" flash so AuthContext re-fetches
         // account.get() with the fresh emailVerification: true state.
         setTimeout(() => {
