@@ -2,6 +2,35 @@
 
 ---
 
+## Session Log - 2026-05-24 — Part 2 (Welcome Email, DevKit Studio, Multi-Sender, Deploy Pipeline)
+
+### Overview
+Second session on same day. Completed all remaining email system work. PR #70 merged to main.
+
+### What was built
+
+| Feature | Details |
+|---------|---------|
+| Welcome Email | Fires automatically after `account.updateVerification()` succeeds in `AuthVerifyEmailPage.tsx`. Non-fatal. Uses user's first name via admin SDK lookup. |
+| `send-welcome` action | Added to `email-service`. Uses user JWT + admin SDK to get name/email → branded welcome email via Resend. |
+| `send-test` action | DevKit-only. Guarded by `DEVKIT_PASSWORD` Bearer. Sends test render of any template (welcome/verification/password-reset) to any address with sender override. |
+| Multiple sender support | `resendSend()` accepts optional `fromEmail`/`fromName` — supports noreply@, hello@, contact@thewise.cloud |
+| DevKit Email Studio | `EmailTransactionalStudioPanel.tsx` — Studio tab in DevKit → Email hub. Template + sender selector. |
+| Deploy pipeline | `admin-deploy-hubs`: added `email-service` + `revenuecat-webhook` to HUBS. After deploying `email-service`, auto-sets all variables. After any successful deploy, blanks Appwrite auth templates. `deploy_hubs.cjs`: `email-service` entry with all vars. |
+
+### Deployment Status (as of merge)
+Code is on main. `email-service` NOT YET deployed to Appwrite — pending user action.
+
+### How to Deploy (DevKit path)
+1. DevKit → Deploy Hubs → **Deploy All Hubs** (first run ~5 min) — deploys updated `admin-deploy-hubs`
+2. **Deploy All Hubs again** (second run ~5 min) — new `admin-deploy-hubs` deploys `email-service` + auto-sets variables
+3. Appwrite Console → Functions → email-service → Variables — add `RESEND_API_KEY` if not auto-set
+
+### Post-Deployment Test
+DevKit → Email → Studio tab → send test welcome email → confirm delivery.
+
+---
+
 ## Session Log - 2026-05-24 (CRITICAL: Email Verification + Password Reset — email-service hub)
 
 ### Overview
