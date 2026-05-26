@@ -75,7 +75,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   // Notify parent when a fresh briefing is generated (for cache write)
   useEffect(() => {
     if (generatedBriefing && onBriefingGenerated) {
-      const name = companyName.trim() || generatedBriefing.companySnapshot.name;
+      const name = companyName.trim() || generatedBriefing.companySnapshot?.name || '';
       onBriefingGenerated(generatedBriefing, name);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,7 +87,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   };
 
   const handleSave = () => {
-    if (!briefing) return;
+    if (!briefing || !briefing.companySnapshot) return;
     haptics.light();
     saveCompanyBriefing.mutate({
       company_name: briefing.companySnapshot.name,
@@ -116,7 +116,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   };
 
   const handleDownloadPDF = async () => {
-    if (!briefing) return;
+    if (!briefing || !briefing.companySnapshot) return;
     haptics.light();
     toast.info('Generating PDF…');
     try {
@@ -125,7 +125,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${briefing.companySnapshot.name.replace(/\s+/g, '_')}_Briefing.pdf`;
+      a.download = `${(briefing.companySnapshot.name ?? 'Company').replace(/\s+/g, '_')}_Briefing.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -435,6 +435,14 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
   const navigate = useNavigate();
   const snap = briefing.companySnapshot;
 
+  if (!snap) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p className="text-sm">The briefing data is incomplete. Please try generating again.</p>
+      </div>
+    );
+  }
+
   const sections: Array<{
     icon: typeof Building2;
     title: string;
@@ -738,14 +746,15 @@ function InfoPair({ label, value, span }: { label: string; value: string; span?:
 }
 
 function formatBriefingAsText(b: CompanyBriefing): string {
+  const snap = b.companySnapshot;
   const lines: string[] = [
-    `📋 COMPANY BRIEFING: ${b.companySnapshot.name}`,
+    `📋 COMPANY BRIEFING: ${snap?.name ?? 'Unknown Company'}`,
     '',
-    `Industry: ${b.companySnapshot.industry} | Size: ${b.companySnapshot.size} | HQ: ${b.companySnapshot.hq}`,
-    `Mission: ${b.companySnapshot.mission}`,
+    `Industry: ${snap?.industry ?? ''} | Size: ${snap?.size ?? ''} | HQ: ${snap?.hq ?? ''}`,
+    `Mission: ${snap?.mission ?? ''}`,
   ];
-  if (b.companySnapshot.website) lines.push(`Website: ${b.companySnapshot.website}`);
-  if (b.companySnapshot.revenue) lines.push(`Revenue: ${b.companySnapshot.revenue}`);
+  if (snap?.website) lines.push(`Website: ${snap.website}`);
+  if (snap?.revenue) lines.push(`Revenue: ${snap.revenue}`);
 
   lines.push('', '📰 RECENT HIGHLIGHTS');
   lines.push(...b.recentHighlights.map(h => `• ${h.title}: ${h.summary}`));
