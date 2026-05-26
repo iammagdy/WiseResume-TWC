@@ -19,7 +19,7 @@ type View = 'login' | 'register' | 'claim-account' | 'forgot-password';
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, refreshSession } = useAuth();
 
   const [view, setView] = useState<View>('login');
   const [email, setEmail] = useState('');
@@ -38,8 +38,9 @@ export default function AuthPage() {
     setLoading(true);
     try {
       await appwriteAccount.createEmailPasswordSession(email, password);
+      await refreshSession();
       toast.success('Logged in successfully!');
-      window.location.reload();
+      navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
       try {
@@ -102,6 +103,7 @@ export default function AuthPage() {
     try {
       await appwriteAccount.create(ID.unique(), email, password, name);
       await appwriteAccount.createEmailPasswordSession(email, password);
+      await refreshSession();
       try {
         // Send branded verification email via email-service function (bypasses Appwrite template).
         await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification' } });

@@ -6,10 +6,21 @@ import { AlertTriangle } from 'lucide-react';
 const FALLBACK_TIMEOUT_MS = 8_000;
 
 export function ProtectedRoute() {
-  const { isAuthenticated, isImpersonating, loading, authSettled, authReady, signOut, user } = useAuth();
+  const {
+    isAuthenticated,
+    isImpersonating,
+    loading,
+    sessionValidated,
+    authSettled,
+    authReady,
+    signOut,
+    refreshSession,
+    user,
+  } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticatedRef = useRef(isAuthenticated);
+  const emailRecheckDone = useRef(false);
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -38,7 +49,15 @@ export function ProtectedRoute() {
     return () => window.removeEventListener('app:session-expired', handleSessionExpired);
   }, [navigate]);
 
-  if (loading && !timedOut) return (
+  // Re-sync verification status once (e.g. admin verified in Console, stale tab).
+  useEffect(() => {
+    if (!sessionValidated || !isAuthenticated || isImpersonating || user?.emailVerification) return;
+    if (emailRecheckDone.current) return;
+    emailRecheckDone.current = true;
+    void refreshSession();
+  }, [sessionValidated, isAuthenticated, isImpersonating, user?.emailVerification, refreshSession]);
+
+  if ((!sessionValidated || loading) && !timedOut) return (
     <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
       <div className="h-10 w-32 rounded-lg bg-muted" />
       <div className="h-6 w-48 rounded bg-muted" />
@@ -57,7 +76,8 @@ export function ProtectedRoute() {
     return <Navigate to={`/auth?mode=login${redirectParam}`} replace />;
   }
 
-  if (!isImpersonating && user?.emailVerification === false && location.pathname !== '/auth/verify-email') {
+  const needsEmailVerification = user?.emailVerification !== true;
+  if (!isImpersonating && needsEmailVerification && !location.pathname.startsWith('/auth/verify-email')) {
     return <Navigate to="/auth/verify-email" replace />;
   }
 

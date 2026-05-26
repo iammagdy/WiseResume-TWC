@@ -8,15 +8,11 @@
  *
  * ─── How it works ────────────────────────────────────────────────────────────
  *
- * This function calls Appwrite's own token-creation endpoints (createVerification /
- * createRecovery) to generate the secret — which gives us the real URL to embed
- * in the email.  We then send our branded email via Resend.
+ * Verification and password-reset: create Appwrite tokens, then send branded
+ * HTML via Resend (reliable delivery). Appwrite Messaging templates are also
+ * synced (`syncAuthEmailTemplates`) as a fallback if SMTP is enabled.
  *
- * Side-effect: Appwrite's built-in email pipeline also fires on those calls.
- * To suppress the duplicate (Appwrite's broken template), set both the Email
- * Verification and Password Recovery templates in Appwrite Console → Auth →
- * Templates to a single space character " ".  Appwrite will "send" an empty
- * email that users will never notice.
+ * Welcome email and DevKit `send-test` go through Resend directly.
  *
  * ─── Actions ─────────────────────────────────────────────────────────────────
  *
@@ -144,6 +140,122 @@ async function hasDevKitAuth(req, body) {
   if (!token) return false;
   if (devkitPassword && (token === devkitPassword || verifySignedDevKitToken(token))) return true;
   return verifyDevKitViaAdminHub(token);
+}
+
+function appwriteApiKey() {
+  return process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+}
+
+/** Create an email-verification token; Appwrite sends the synced auth template. */
+async function createEmailVerificationToken(userId, redirectUrl) {
+  const apiKey = appwriteApiKey();
+  if (!apiKey) {
+    throw new Error('APPWRITE_API_KEY is not configured');
+  }
+
+  const tokenRes = await fetch(`${ENDPOINT}/users/${encodeURIComponent(userId)}/verification`, {
+    method: 'POST',
+    headers: {
+      'X-Appwrite-Project': PROJECT_ID,
+      'X-Appwrite-Key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url: redirectUrl }),
+  });
+
+  const tokenText = await tokenRes.text();
+  let token;
+  try { token = JSON.parse(tokenText); } catch { token = { raw: tokenText }; }
+
+  if (!tokenRes.ok || !token?.secret) {
+    const msg = token?.message || token?.error || `Appwrite token creation failed (${tokenRes.status})`;
+    throw new Error(msg);
+  }
+
+  return token;
+}
+
+function buildVerificationUrl(redirectUrl, userId, secret) {
+  return `${redirectUrl}?userId=${encodeURIComponent(userId)}&secret=${encodeURIComponent(secret)}`;
+}
+
+/**
+ * Create exactly ONE Appwrite verification token.
+ * Each POST /account/verifications/email triggers an Appwrite email — never call more than once.
+ */
+async function createUserVerificationTokenOnce({ userJwt, userId, redirectUrl, log }) {
+  let jwt = userJwt;
+
+  if (!jwt && userId && appwriteApiKey()) {
+    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(appwriteApiKey());
+    const jwtDoc = await new sdk.Users(adminClient).createJWT(userId);
+    jwt = jwtDoc?.jwt || jwtDoc;
+  }
+
+  if (!jwt) {
+    throw new Error('No user JWT available to create verification token');
+  }
+
+  const res = await fetch(`${ENDPOINT}/account/verifications/email`, {
+    method: 'POST',
+    headers: {
+      'X-Appwrite-Project': PROJECT_ID,
+      'X-Appwrite-JWT': jwt,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url: redirectUrl }),
+  });
+
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { raw: text.slice(0, 200) }; }
+
+  if (!res.ok) {
+    const msg = data?.message || text.slice(0, 200) || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  const secret = data?.secret || '';
+  const tokenUserId = data?.userId || userId;
+  if (!secret) {
+    log(`verification token created for ${tokenUserId} but secret not returned to function runtime`);
+  }
+
+  return { userId: tokenUserId, secret: secret || null };
+}
+
+/** Complete email verification (no session required). */
+async function confirmEmailVerification(userId, secret) {
+  const verifyRes = await fetch(`${ENDPOINT}/account/verifications/email`, {
+    method: 'PUT',
+    headers: {
+      'X-Appwrite-Project': PROJECT_ID,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId, secret }),
+  });
+
+  if (verifyRes.ok) {
+    return { success: true, alreadyVerified: false };
+  }
+
+  const verifyBody = await verifyRes.text();
+  let verifyJson;
+  try { verifyJson = JSON.parse(verifyBody); } catch { verifyJson = { message: verifyBody }; }
+  const verifyMsg = verifyJson?.message || verifyBody || `Verification failed (${verifyRes.status})`;
+
+  const apiKey = appwriteApiKey();
+  if (!apiKey) {
+    throw new Error(verifyMsg);
+  }
+
+  const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+  const user = await new sdk.Users(adminClient).get(userId);
+  if (user.emailVerification === true) {
+    return { success: true, alreadyVerified: true };
+  }
+
+  throw new Error(verifyMsg);
 }
 
 /**
@@ -407,41 +519,52 @@ async function handleSendVerification({ req, res, log, error, body }) {
     const sessionUser = await acct.get();
     userId = userId || sessionUser.$id;
 
-    // createVerification() returns a Token with .secret.
-    // It also triggers Appwrite's built-in email pipeline — set the Console
-    // Email Verification template to a single space to suppress that send.
-    const token = await acct.createVerification(redirectUrl);
-
-    const verifyUrl = `${redirectUrl}?userId=${encodeURIComponent(userId)}&secret=${encodeURIComponent(token.secret)}`;
-
     if (!sessionUser.email) {
       error(`User ${userId} has no email address`);
       return json(res, { error: 'User has no email address' }, 400);
     }
 
-    log(`Sending verification email to ${sessionUser.email}`);
-    await resendSend({
-      to:      sessionUser.email,
-      subject: 'Verify your WiseResume email address',
-      html:    verificationEmail(verifyUrl),
-    });
+    if (sessionUser.emailVerification === true) {
+      log(`User ${userId} is already verified — no email sent`);
+      return json(res, {
+        success: true,
+        alreadyVerified: true,
+        message: 'Your email is already verified. Sign out and sign in again, or go to the dashboard.',
+      });
+    }
 
-    log(`Verification email sent to ${sessionUser.email}`);
-    return json(res, { success: true });
+    const token = await createUserVerificationTokenOnce({ userJwt, userId, redirectUrl, log });
+
+    if (token.secret) {
+      const verifyUrl = buildVerificationUrl(redirectUrl, token.userId, token.secret);
+      await resendSend({
+        to:      sessionUser.email,
+        subject: 'Verify your WiseResume email address',
+        html:    verificationEmail(verifyUrl),
+      });
+      log(`Verification email sent via Resend (single token) to ${sessionUser.email}`);
+      return json(res, { success: true, delivery: 'resend' });
+    }
+
+    // Token was created once; Appwrite may have sent its template email already.
+    log(`Verification token created for ${sessionUser.email}; Appwrite mailer only (no Resend secret)`);
+    return json(res, {
+      success: true,
+      delivery: 'appwrite',
+      message: 'Verification email sent — check your inbox.',
+    });
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
 
-    // Appwrite throws "Invalid credentials" if the JWT is expired or invalid.
-    if (/credentials|unauthorized|invalid/i.test(msg)) {
+    if (/credentials|unauthorized|invalid jwt/i.test(msg)) {
       return json(res, { error: 'Session expired — please sign in again' }, 401);
     }
 
-    // If the user is already verified, Appwrite returns an error.
-    // Treat this as success (email was already confirmed, nothing to do).
-    if (/already verified|verification.*exist/i.test(msg)) {
-      log(`User ${userId} is already verified`);
-      return json(res, { success: true, alreadyVerified: true });
+    if (/rate limit/i.test(msg)) {
+      return json(res, {
+        error: 'Too many verification emails requested. Please wait about an hour before requesting another.',
+      }, 429);
     }
 
     error(`send-verification failed for user ${userId}: ${msg}`);
@@ -472,15 +595,13 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
     const token = await acct.createRecovery(email, redirectUrl);
 
     const resetUrl = `${redirectUrl}?userId=${encodeURIComponent(token.userId)}&secret=${encodeURIComponent(token.secret)}`;
-
-    log(`Sending password reset email to ${email}`);
     await resendSend({
       to:      email,
       subject: 'Reset your WiseResume password',
       html:    passwordResetEmail(resetUrl),
     });
 
-    log(`Password reset email sent to ${email}`);
+    log(`Password reset email sent via Resend to ${email}`);
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -544,6 +665,51 @@ async function handleSendWelcome({ req, res, log, error, body }) {
   }
 }
 
+async function handleGetVerificationStatus({ res, log, error, body }) {
+  const userId = (body?.userId || body?.user_id || '').trim();
+  if (!userId) {
+    return json(res, { error: 'userId is required' }, 400);
+  }
+
+  const apiKey = appwriteApiKey();
+  if (!apiKey) {
+    return json(res, { error: 'APPWRITE_API_KEY is not configured' }, 500);
+  }
+
+  try {
+    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+    const user = await new sdk.Users(adminClient).get(userId);
+    return json(res, {
+      success: true,
+      emailVerification: user.emailVerification === true,
+      email: user.email || null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`get-verification-status failed for ${userId}: ${msg}`);
+    return json(res, { error: msg }, 404);
+  }
+}
+
+async function handleCompleteEmailVerification({ res, log, error, body }) {
+  const userId = (body?.userId || body?.user_id || '').trim();
+  const secret = (body?.secret || '').trim();
+
+  if (!userId || !secret) {
+    return json(res, { error: 'userId and secret are required' }, 400);
+  }
+
+  try {
+    const result = await confirmEmailVerification(userId, secret);
+    log(`complete-email-verification: success for ${userId} (alreadyVerified=${result.alreadyVerified})`);
+    return json(res, { success: true, alreadyVerified: result.alreadyVerified });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`complete-email-verification failed for ${userId}: ${msg}`);
+    return json(res, { error: msg }, 400);
+  }
+}
+
 async function handleSendAdminVerification({ req, res, log, error, body }) {
   if (!(await hasDevKitAuth(req, body))) {
     error('send-admin-verification: unauthorized attempt');
@@ -555,13 +721,12 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
     return json(res, { error: 'target_user_id is required' }, 400);
   }
 
-  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
-  if (!apiKey) {
+  if (!appwriteApiKey()) {
     return json(res, { error: 'APPWRITE_API_KEY is not configured' }, 500);
   }
 
   try {
-    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(appwriteApiKey());
     const user = await new sdk.Users(adminClient).get(targetUserId);
 
     if (user.emailVerification) {
@@ -574,34 +739,29 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
     }
 
     const redirectUrl = `${FRONTEND_URL}/auth/verify-email`;
-    const tokenRes = await fetch(`${ENDPOINT}/users/${encodeURIComponent(targetUserId)}/verification`, {
-      method: 'POST',
-      headers: {
-        'X-Appwrite-Project': PROJECT_ID,
-        'X-Appwrite-Key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url: redirectUrl }),
+    const jwtDoc = await new sdk.Users(adminClient).createJWT(targetUserId);
+    const adminUserJwt = jwtDoc?.jwt || jwtDoc;
+
+    const token = await createUserVerificationTokenOnce({
+      userJwt: adminUserJwt,
+      userId: targetUserId,
+      redirectUrl,
+      log,
     });
 
-    const tokenText = await tokenRes.text();
-    let token;
-    try { token = JSON.parse(tokenText); } catch { token = { raw: tokenText }; }
-
-    if (!tokenRes.ok || !token?.secret) {
-      const msg = token?.message || token?.error || `Appwrite token creation failed (${tokenRes.status})`;
-      throw new Error(msg);
+    if (token.secret) {
+      const verifyUrl = buildVerificationUrl(redirectUrl, token.userId, token.secret);
+      await resendSend({
+        to: user.email,
+        subject: 'Verify your WiseResume email address',
+        html: verificationEmail(verifyUrl),
+      });
+      log(`send-admin-verification: Resend email sent to ${user.email}`);
+      return json(res, { success: true, email: user.email, delivery: 'resend' });
     }
 
-    const verifyUrl = `${redirectUrl}?userId=${encodeURIComponent(targetUserId)}&secret=${encodeURIComponent(token.secret)}`;
-    await resendSend({
-      to: user.email,
-      subject: 'Verify your WiseResume email address',
-      html: verificationEmail(verifyUrl),
-    });
-
-    log(`send-admin-verification: email sent to ${user.email}`);
-    return json(res, { success: true, email: user.email, expires_at: token.expire });
+    log(`send-admin-verification: Appwrite mailer only for ${user.email}`);
+    return json(res, { success: true, email: user.email, delivery: 'appwrite' });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error(`send-admin-verification failed for ${targetUserId}: ${msg}`);
@@ -689,6 +849,12 @@ module.exports = async ({ req, res, log, error }) => {
 
     case 'send-test':
       return handleSendTest({ req, res, log, error, body });
+
+    case 'complete-email-verification':
+      return handleCompleteEmailVerification({ res, log, error, body });
+
+    case 'get-verification-status':
+      return handleGetVerificationStatus({ res, log, error, body });
 
     default:
       error(`Unknown action: ${action}`);

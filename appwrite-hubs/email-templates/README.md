@@ -17,11 +17,11 @@ Branded HTML email templates for WiseResume. All templates share the same dark d
 
 | Variable | Used in |
 |---|---|
-| `{{url}}` | email-verification, password-recovery, magic-url |
+| `{{redirect}}` | email-verification, password-recovery, magic-url (full URL with `userId` + `secret`) |
 | `{{otp}}` | otp |
 | `{{name}}` | welcome |
 
-Do **not** change variable names — Appwrite replaces them before sending.
+Use **`{{redirect}}`** only (not `{{url}}`) — Appwrite replaces `{{redirect}}` with the callback URL including `userId` and `secret` query params.
 
 ## How to apply (Appwrite Console)
 

@@ -166,31 +166,49 @@ async function smokeFunction(id, body) {
     }
 }
 
-async function blankAuthEmailTemplates() {
+async function patchAuthEmailTemplate(type, subject, message) {
     const endpoint = (process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
     const projectId = process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
     const apiKey = process.env.APPWRITE_API_KEY;
     if (!apiKey) {
-        console.warn('  Could not blank auth templates: APPWRITE_API_KEY not configured');
+        console.warn('  Could not patch auth templates: APPWRITE_API_KEY not configured');
         return;
     }
 
-    console.log('\nBlanking Appwrite auth email templates...');
-    for (const type of ['verification', 'recovery']) {
+    const response = await fetch(`${endpoint}/projects/${projectId}/templates/email/${type}/en`, {
+        method: 'PATCH',
+        headers: {
+            'X-Appwrite-Key': apiKey,
+            'X-Appwrite-Project': projectId,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ subject, message }),
+    });
+    if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+}
+
+async function syncAuthEmailTemplates() {
+    const templatesDir = path.join(process.cwd(), 'appwrite-hubs', 'email-templates');
+
+    console.log('\nConfiguring Appwrite auth email templates...');
+
+    // Blank Appwrite verification template — Resend sends the only user-visible email.
+    // (Each createVerification still fires Appwrite SMTP; blank body avoids duplicate links.)
+    try {
+        await patchAuthEmailTemplate('verification', ' ', ' ');
+        console.log('  Blanked verification template (Resend is the branded verification email)');
+    } catch (e) {
+        console.warn(`  Could not blank verification template: ${e.message}`);
+    }
+
+    const recoveryPath = path.join(templatesDir, 'password-recovery.html');
+    if (fs.existsSync(recoveryPath)) {
         try {
-            const response = await fetch(`${endpoint}/projects/${projectId}/templates/email/${type}/en`, {
-                method: 'PATCH',
-                headers: {
-                    'X-Appwrite-Key': apiKey,
-                    'X-Appwrite-Project': projectId,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ subject: 'WiseResume', message: ' ' }),
-            });
-            if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
-            console.log(`  Blanked ${type} template`);
+            const message = fs.readFileSync(recoveryPath, 'utf8');
+            await patchAuthEmailTemplate('recovery', 'Reset your WiseResume password', message);
+            console.log('  Synced recovery template (password-recovery.html)');
         } catch (e) {
-            console.warn(`  Could not blank ${type} template: ${e.message}`);
+            console.warn(`  Could not sync recovery template: ${e.message}`);
         }
     }
 }
@@ -248,7 +266,7 @@ async function run() {
             for (const [key, value] of emailServiceVars) {
                 await ensureVariable('email-service', key, value);
             }
-            await blankAuthEmailTemplates();
+            await syncAuthEmailTemplates();
         }
 
         if (requestedHubs.has('admin-deploy-hubs')) {
@@ -399,7 +417,7 @@ async function run() {
         await ensureVariable('email-service', key, value);
     }
 
-    await blankAuthEmailTemplates();
+    await syncAuthEmailTemplates();
 
     console.log('\nEnsuring admin-deploy-hubs GitHub credentials and email propagation vars...');
     for (const [key, value] of [

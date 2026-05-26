@@ -12,8 +12,10 @@ function makeAuth(overrides: AuthOverrides = {}) {
     isAuthenticated: false,
     isImpersonating: false,
     loading: false,
+    sessionValidated: true,
     user: null as unknown,
     signOut: vi.fn(),
+    refreshSession: vi.fn().mockResolvedValue(null),
     authReady: false,
     authSettled: false,
     appwriteUser: null,
@@ -58,7 +60,7 @@ describe('ProtectedRoute', () => {
       isAuthenticated: true,
       authSettled: true,
       authReady: true,
-      user: { id: 'real-user' },
+      user: { id: 'real-user', email: 'user@example.com', emailVerification: true },
     }));
     renderProtected();
     expect(screen.getByTestId('protected-content')).toBeInTheDocument();

@@ -12,80 +12,176 @@ import { Button } from '@/components/ui/button';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { account } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0d0d1e 100%)';
 
-type PageMode = 'pending' | 'confirming' | 'confirmed' | 'error';
+type PageMode = 'pending' | 'ready-to-confirm' | 'confirming' | 'confirmed' | 'error';
 
 /**
  * AuthVerifyEmailPage — dual-mode email verification page.
  *
  * Mode 1 — Pending (no ?secret= in URL):
  *   User just signed up and needs to check their inbox.
- *   Provides a "Resend email" button that calls the email-service function.
  *
- * Mode 2 — Confirming (?userId=...&secret=... in URL):
- *   User clicked the link in their verification email (Appwrite callback).
- *   Calls account.updateVerification(userId, secret), then redirects to dashboard.
+ * Mode 2 — Confirm (userId + secret in URL):
+ *   User clicked the email link. They must click "Verify my email" so link
+ *   scanners (Outlook Safe Links) do not consume the token on page load.
  */
 export default function AuthVerifyEmailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { data: meData, refetch: refetchMe } = useMe();
   const queryClient = useQueryClient();
 
-  const secret = searchParams.get('secret');
-  const userId = searchParams.get('userId');
-  const [mode, setMode] = useState<PageMode>(secret && userId ? 'confirming' : 'pending');
+  const callbackQuery = searchParams.toString();
+  const { userId, secret } = getAuthEmailCallbackParams(
+    callbackQuery ? `?${callbackQuery}` : '',
+    typeof window !== 'undefined' ? window.location.hash : '',
+  );
+  const hasCallbackParams = Boolean(userId && secret);
+  const [mode, setMode] = useState<PageMode>(hasCallbackParams ? 'ready-to-confirm' : 'pending');
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const confirmedOnce = useRef(false);
 
-  // Redirect already-verified authenticated users straight to dashboard.
-  useEffect(() => {
-    if (authLoading || !isAuthenticated || !meData?.profile) return;
-    const profile = meData.profile as Record<string, unknown>;
-    if (profile.email_verified === true) {
-      navigate('/dashboard', { replace: true });
+  const persistVerifiedSession = useCallback(async () => {
+    try {
+      const fresh = await account.get();
+      sessionStorage.setItem(
+        'wr_auth_user',
+        JSON.stringify({
+          $id: fresh.$id,
+          email: fresh.email,
+          name: fresh.name,
+          emailVerification: fresh.emailVerification,
+        }),
+      );
+      return fresh.emailVerification === true;
+    } catch {
+      return false;
     }
-  }, [authLoading, isAuthenticated, meData, navigate]);
+  }, []);
 
-  // Auto-confirm when Appwrite callback params are present in the URL.
+  const finishConfirmed = useCallback(async () => {
+    await persistVerifiedSession();
+    await queryClient.invalidateQueries({ queryKey: ['me'] });
+    await refetchMe();
+    setMode('confirmed');
+    void appwriteFunctions.invoke('email-service', { body: { action: 'send-welcome' } }).catch(() => {
+      // Non-fatal
+    });
+    setTimeout(() => {
+      try { sessionStorage.removeItem('wr_auth_user'); } catch {}
+      window.location.replace('/dashboard');
+    }, 2200);
+  }, [persistVerifiedSession, queryClient, refetchMe]);
+
+  // If the email link included userId, check Appwrite (no secret needed) so we can
+  // redirect when the token was already consumed by a scanner or an old auto-verify page.
   useEffect(() => {
-    if (!secret || !userId || confirmedOnce.current) return;
-    confirmedOnce.current = true;
+    if (!userId || authLoading) return;
 
     void (async () => {
       try {
-        setMode('confirming');
-        await account.updateVerification(userId, secret);
-        // Invalidate meData so the verified status propagates instantly.
-        await queryClient.invalidateQueries({ queryKey: ['me'] });
-        await refetchMe();
-        setMode('confirmed');
-        // Fire welcome email (non-fatal — don't block the confirmation flow).
-        void appwriteFunctions.invoke('email-service', { body: { action: 'send-welcome' } }).catch(() => {
-          // Non-fatal: welcome email failure must not surface to the user.
+        const { data, error: fnError } = await appwriteFunctions.invoke<{
+          emailVerification?: boolean;
+        }>('email-service', {
+          body: { action: 'get-verification-status', userId },
         });
-        // Hard reload after the "confirmed" flash so AuthContext re-fetches
-        // account.get() with the fresh emailVerification: true state.
-        setTimeout(() => {
-          try { sessionStorage.removeItem('wr_auth_user'); } catch {}
-          window.location.replace('/dashboard');
-        }, 2200);
-      } catch (err) {
-        console.error('[AuthVerifyEmailPage] confirm failed:', err);
-        const msg =
-          err instanceof AppwriteException
-            ? err.message
-            : 'Verification failed. The link may have expired — request a new one below.';
-        toast.error(msg);
-        setMode('error');
+        if (!fnError && data?.emailVerification === true) {
+          toast.info('Your email is already verified. Taking you to the dashboard…');
+          await finishConfirmed();
+        }
+      } catch {
+        // Non-fatal — user can still click Verify my email
       }
     })();
-  }, [secret, userId, queryClient, refetchMe, navigate]);
+  }, [userId, authLoading, finishConfirmed]);
+
+  // Redirect already-verified users (Appwrite account is source of truth).
+  useEffect(() => {
+    if (authLoading) return;
+
+    void (async () => {
+      try {
+        const acct = await account.get();
+        if (acct.emailVerification === true) {
+          try {
+            sessionStorage.setItem(
+              'wr_auth_user',
+              JSON.stringify({
+                $id: acct.$id,
+                email: acct.email,
+                name: acct.name,
+                emailVerification: true,
+              }),
+            );
+          } catch {
+            // ignore
+          }
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+      } catch {
+        // not logged in — stay on verify page
+      }
+
+      if (!isAuthenticated || !meData?.profile) return;
+      const profile = meData.profile as Record<string, unknown>;
+      if (profile.email_verified === true || user?.emailVerification === true) {
+        navigate('/dashboard', { replace: true });
+      }
+    })();
+  }, [authLoading, isAuthenticated, meData, navigate, user?.emailVerification]);
+
+  const handleConfirmLink = useCallback(async () => {
+    if (!userId || !secret || mode === 'confirming') return;
+
+    setMode('confirming');
+    try {
+      const { data, error: fnError } = await appwriteFunctions.invoke<{
+        success?: boolean;
+        alreadyVerified?: boolean;
+        error?: string;
+      }>('email-service', {
+        body: { action: 'complete-email-verification', userId, secret },
+      });
+
+      if (fnError) throw new Error(fnError.message);
+      if (data?.error) throw new Error(data.error);
+      if (data?.success || data?.alreadyVerified) {
+        if (data.alreadyVerified) {
+          toast.info('Your email is already verified. Taking you to the dashboard…');
+        }
+        await finishConfirmed();
+        return;
+      }
+
+      throw new Error('Verification failed. Please request a new link.');
+    } catch (err) {
+      const verified = await persistVerifiedSession();
+      if (verified) {
+        toast.info('Your email is already verified. Taking you to the dashboard…');
+        await finishConfirmed();
+        return;
+      }
+
+      console.error('[AuthVerifyEmailPage] confirm failed:', err);
+      const rawMsg =
+        err instanceof AppwriteException
+          ? err.message
+          : err instanceof Error
+          ? err.message
+          : 'Verification failed. The link may have expired — request a new one below.';
+      const msg = /rate limit/i.test(rawMsg)
+        ? 'Too many verification attempts. Wait about an hour, or sign in if you already verified.'
+        : rawMsg;
+      toast.error(msg);
+      setMode('error');
+    }
+  }, [userId, secret, mode, finishConfirmed, persistVerifiedSession]);
 
   const startCooldown = useCallback((seconds: number) => {
     setResendCooldown(seconds);
@@ -107,9 +203,16 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      // Send branded verification email via email-service function (bypasses Appwrite template).
-      const { error: fnError } = await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification' } });
+      const { data, error: fnError } = await appwriteFunctions.invoke<{ alreadyVerified?: boolean; message?: string }>(
+        'email-service',
+        { body: { action: 'send-verification' } },
+      );
       if (fnError) throw new Error(fnError.message);
+      if (data?.alreadyVerified) {
+        toast.info(data.message || 'Your email is already verified. Redirecting…');
+        navigate('/dashboard', { replace: true });
+        return;
+      }
       toast.success('Verification email sent — check your inbox.');
       startCooldown(60);
     } catch (err) {
@@ -123,7 +226,7 @@ export default function AuthVerifyEmailPage() {
     } finally {
       setResending(false);
     }
-  }, [resending, resendCooldown, startCooldown]);
+  }, [resending, resendCooldown, startCooldown, navigate]);
 
   if (authLoading) return null;
 
@@ -147,7 +250,6 @@ export default function AuthVerifyEmailPage() {
       <OfflineBanner />
       <div className="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
         <AnimatePresence mode="wait">
-          {/* ── Pending mode ─────────────────────────────────────────────── */}
           {mode === 'pending' && (
             <motion.div
               key="pending"
@@ -182,7 +284,7 @@ export default function AuthVerifyEmailPage() {
                       ) : (
                         'your email address'
                       )}
-                      . Click it to activate your account.
+                      . Open the email and click the button to activate your account.
                     </p>
                   );
                 })()}
@@ -216,15 +318,6 @@ export default function AuthVerifyEmailPage() {
                     </span>
                   )}
                 </Button>
-                {isAuthenticated && (
-                  <button
-                    onClick={() => navigate('/dashboard')}
-                    className="text-xs w-full text-center"
-                    style={{ color: 'rgba(255,255,255,0.3)' }}
-                  >
-                    Skip for now
-                  </button>
-                )}
               </div>
               <p className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
                 Didn't get it? Check your spam folder.
@@ -232,7 +325,39 @@ export default function AuthVerifyEmailPage() {
             </motion.div>
           )}
 
-          {/* ── Confirming mode ───────────────────────────────────────────── */}
+          {mode === 'ready-to-confirm' && (
+            <motion.div
+              key="ready-to-confirm"
+              className="flex flex-col items-center gap-6 px-8 py-10 rounded-2xl max-w-sm w-full text-center"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(12px)',
+              }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              <div
+                className="flex h-16 w-16 items-center justify-center rounded-full"
+                style={{ background: 'rgba(230,57,70,0.15)' }}
+              >
+                <Mail className="h-8 w-8 text-red-400" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-xl font-semibold text-white">Confirm your email</h1>
+                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  Click the button below to finish verifying your account. This extra step keeps
+                  email security scanners from using your link before you do.
+                </p>
+              </div>
+              <Button className="w-full" onClick={handleConfirmLink}>
+                Verify my email
+              </Button>
+            </motion.div>
+          )}
+
           {mode === 'confirming' && (
             <motion.div
               key="confirming"
@@ -257,7 +382,6 @@ export default function AuthVerifyEmailPage() {
             </motion.div>
           )}
 
-          {/* ── Confirmed mode ────────────────────────────────────────────── */}
           {mode === 'confirmed' && (
             <motion.div
               key="confirmed"
@@ -293,7 +417,6 @@ export default function AuthVerifyEmailPage() {
             </motion.div>
           )}
 
-          {/* ── Error mode ────────────────────────────────────────────────── */}
           {mode === 'error' && (
             <motion.div
               key="error"
@@ -317,8 +440,8 @@ export default function AuthVerifyEmailPage() {
               <div className="space-y-2">
                 <h1 className="text-xl font-semibold text-white">Link expired or invalid</h1>
                 <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  This verification link has expired or already been used.
-                  Request a new one below.
+                  This link may have expired, already been used, or opened by an email security
+                  scanner. Request a fresh link, or sign in if you already verified.
                 </p>
               </div>
               <div className="w-full space-y-3">
@@ -331,15 +454,18 @@ export default function AuthVerifyEmailPage() {
                 >
                   Request a new link
                 </Button>
-                {isAuthenticated && (
-                  <button
-                    onClick={() => navigate('/dashboard')}
-                    className="text-xs w-full text-center"
-                    style={{ color: 'rgba(255,255,255,0.3)' }}
-                  >
-                    Skip for now
-                  </button>
-                )}
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => navigate('/auth', { replace: true })}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    borderColor: 'rgba(255,255,255,0.12)',
+                    color: 'rgba(255,255,255,0.85)',
+                  }}
+                >
+                  Sign in
+                </Button>
               </div>
             </motion.div>
           )}

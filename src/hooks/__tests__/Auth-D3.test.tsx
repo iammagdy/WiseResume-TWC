@@ -24,11 +24,15 @@ const mockUseAuth = vi.mocked(useAuthHook.useAuth);
 
 const makeAuth = (overrides = {}) => ({
   isAuthenticated: false,
+  isImpersonating: false,
   loading: false,
+  sessionValidated: true,
+  authSettled: true,
   user: null as any,
   authReady: false,
   kindeUser: null as any,
   signOut: vi.fn(),
+  refreshSession: vi.fn().mockResolvedValue(null),
   getKindeToken: vi.fn().mockResolvedValue(null),
   ...overrides,
 });
@@ -78,7 +82,7 @@ describe("ProtectedRoute — redirect param (D3)", () => {
 
   it("renders protected content when authenticated", () => {
     mockUseAuth.mockReturnValue(
-      makeAuth({ isAuthenticated: true, authSettled: true, authReady: true, user: { id: "u1", email: "jane@example.com", name: "Jane" } })
+      makeAuth({ isAuthenticated: true, authSettled: true, authReady: true, user: { id: "u1", email: "jane@example.com", name: "Jane", emailVerification: true } })
     );
 
     render(
@@ -97,7 +101,12 @@ describe("ProtectedRoute — redirect param (D3)", () => {
 
 describe("ProtectedRoute — session-expired event (D3)", () => {
   it("calls navigate with /auth?reason=session_expired when event fires", () => {
-    mockUseAuth.mockReturnValue(makeAuth({ isAuthenticated: true, authSettled: true, authReady: true }));
+    mockUseAuth.mockReturnValue(makeAuth({
+      isAuthenticated: true,
+      authSettled: true,
+      authReady: true,
+      user: { id: "u1", email: "jane@example.com", emailVerification: true },
+    }));
     mockNavigate.mockClear();
 
     render(

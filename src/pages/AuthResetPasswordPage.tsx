@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 import { account as appwriteAccount } from '@/lib/appwrite';
+import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { Button } from '@/components/ui/button';
@@ -16,8 +17,12 @@ export default function AuthResetPasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const userId = searchParams.get('userId') ?? '';
-  const secret = searchParams.get('secret') ?? '';
+  const { userId: callbackUserId, secret: callbackSecret } = getAuthEmailCallbackParams(
+    typeof window !== 'undefined' ? window.location.search : searchParams.toString(),
+    typeof window !== 'undefined' ? window.location.hash : '',
+  );
+  const userId = callbackUserId ?? '';
+  const secret = callbackSecret ?? '';
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');

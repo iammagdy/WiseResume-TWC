@@ -24,10 +24,13 @@ export interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<AppUser | null>;
   isAuthenticated: boolean;
   isImpersonating: boolean;
   appwriteUser: any | null;
   authAvailable: boolean;
+  /** True after the first Appwrite account.get() (or failure) this page load. */
+  sessionValidated: boolean;
   authSettled: boolean;
   authReady: boolean;
 }
@@ -38,64 +41,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const lastSeenUserIdRef = useRef<string | null>(null);
 
-  const cachedUser = (() => {
+  const [appwriteUser, setAppwriteUser] = useState<any>(null);
+  const [appwriteLoading, setAppwriteLoading] = useState(isAppwriteEnabled);
+  const [sessionValidated, setSessionValidated] = useState(!isAppwriteEnabled);
+
+  const persistSessionUser = useCallback((user: { $id: string; email?: string; name?: string; emailVerification?: boolean } | null) => {
     try {
-      const raw = sessionStorage.getItem('wr_auth_user');
-      return raw ? JSON.parse(raw) : null;
+      if (!user?.$id) {
+        sessionStorage.removeItem('wr_auth_user');
+        return;
+      }
+      sessionStorage.setItem(
+        'wr_auth_user',
+        JSON.stringify({
+          $id: user.$id,
+          email: user.email,
+          name: user.name,
+          emailVerification: user.emailVerification,
+        }),
+      );
     } catch {
-      return null;
+      // ignore quota / private mode
     }
-  })();
-
-  const [appwriteUser, setAppwriteUser] = useState<any>(cachedUser);
-  const [appwriteLoading, setAppwriteLoading] = useState(!cachedUser);
-
-  // Check Appwrite Session
-  useEffect(() => {
-    if (!isAppwriteEnabled) {
-      setAppwriteLoading(false);
-      return;
-    }
-
-    let settled = false;
-
-    (async () => {
-      try {
-        const user = await appwriteAccount.get();
-        if (!settled) {
-          setAppwriteUser(user);
-          setAppwriteLoading(false);
-          settled = true;
-          try {
-            sessionStorage.setItem(
-              'wr_auth_user',
-              JSON.stringify({ $id: user.$id, email: user.email, name: user.name, emailVerification: user.emailVerification })
-            );
-          } catch {}
-        }
-      } catch (err) {
-        if (!settled) {
-          setAppwriteUser(null);
-          setAppwriteLoading(false);
-          settled = true;
-          try { sessionStorage.removeItem('wr_auth_user'); } catch {}
-        }
-      }
-    })();
-
-    const timeout = setTimeout(() => {
-      if (!settled) {
-        setAppwriteUser(null);
-        setAppwriteLoading(false);
-        settled = true;
-      }
-    }, 5_000);
-
-    return () => {
-      settled = true;
-      clearTimeout(timeout);
-    };
   }, []);
+
+  const refreshSession = useCallback(async (): Promise<AppUser | null> => {
+    if (!isAppwriteEnabled) return null;
+    try {
+      const live = await appwriteAccount.get();
+      setAppwriteUser(live);
+      persistSessionUser(live);
+      return {
+        id: live.$id,
+        email: live.email,
+        name: live.name,
+        emailVerification: live.emailVerification === true,
+      };
+    } catch {
+      setAppwriteUser(null);
+      persistSessionUser(null);
+      return null;
+    } finally {
+      setAppwriteLoading(false);
+      setSessionValidated(true);
+    }
+  }, [persistSessionUser]);
+
+  // Always confirm session with Appwrite — never trust sessionStorage for route guards.
+  useEffect(() => {
+    if (!isAppwriteEnabled) return;
+    void refreshSession();
+  }, [refreshSession]);
+
+  useEffect(() => {
+    if (!isAppwriteEnabled || !sessionValidated) return;
+    const onFocus = () => {
+      void refreshSession();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [sessionValidated, refreshSession]);
 
   useSyncExternalStore(
     subscribeImpersonation,
@@ -158,29 +163,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAllEditorSessions();
     lastSeenUserIdRef.current = null;
     setAppwriteUser(null);
-    try { sessionStorage.removeItem('wr_auth_user'); } catch {}
+    persistSessionUser(null);
     useSettingsStore.getState().resetUserSettings();
     
     try {
       await appwriteAccount.deleteSession('current');
     } catch (e) {}
     window.location.replace('/');
-  }, [queryClient]);
+  }, [queryClient, persistSessionUser]);
 
-  const authSettled = !appwriteLoading;
-  const authReady = !appwriteLoading && (impersonating || !!appwriteUser);
+  const authSettled = sessionValidated && !appwriteLoading;
+  const authReady = authSettled && (impersonating || !!appwriteUser);
 
   const value = useMemo<AuthContextType>(() => ({
     user,
     loading,
     signOut,
+    refreshSession,
     isAuthenticated,
     isImpersonating: impersonating,
     appwriteUser,
     authAvailable: isAppwriteEnabled,
+    sessionValidated,
     authSettled,
     authReady,
-  }), [user, loading, signOut, isAuthenticated, impersonating, appwriteUser, authSettled, authReady]);
+  }), [user, loading, signOut, refreshSession, isAuthenticated, impersonating, appwriteUser, sessionValidated, authSettled, authReady]);
 
   return (
     <AuthContext.Provider value={value}>
