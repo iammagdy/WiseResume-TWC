@@ -65,7 +65,10 @@ export default function AuthPage() {
     setLoading(true);
     try {
       // Send branded password-reset email via email-service function (bypasses Appwrite template).
-      await appwriteFunctions.invoke('email-service', { body: { action: 'send-password-reset', email } });
+      const { error: fnError } = await appwriteFunctions.invoke('email-service', {
+        body: { action: 'send-password-reset', email },
+      });
+      if (fnError) throw new Error(fnError.message);
       toast.success('Reset link sent! Check your inbox.');
       setView('login');
     } catch (err: unknown) {
@@ -80,7 +83,10 @@ export default function AuthPage() {
     setLoading(true);
     try {
       // Send branded password-reset email via email-service function (bypasses Appwrite template).
-      await appwriteFunctions.invoke('email-service', { body: { action: 'send-password-reset', email } });
+      const { error: fnError } = await appwriteFunctions.invoke('email-service', {
+        body: { action: 'send-password-reset', email },
+      });
+      if (fnError) throw new Error(fnError.message);
       toast.success('Reset link sent! Check your email to set your new password.');
       setView('login');
     } catch (err: unknown) {

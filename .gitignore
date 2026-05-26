@@ -113,3 +113,4 @@ reports/e2e-results.json
 ios/
 android/
 .appwrite/
+.vercel

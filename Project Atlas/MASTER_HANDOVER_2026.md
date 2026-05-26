@@ -2,6 +2,58 @@
 
 ---
 
+## Session Log - 2026-05-26 (Email System Recovery — Direct Appwrite Deploy, No GitHub Actions)
+
+### Overview
+Recovered the PR #70 email system without using GitHub Actions, because workflow minutes were exhausted. `email-service` is now deployed directly to Appwrite and live Appwrite executions confirm password reset, verification, and welcome emails are accepted by Resend.
+
+### Root Causes Verified
+- PR #70 merged the final `email-service` architecture but did not deploy it to Appwrite.
+- GitHub Actions could not be used for Appwrite deployment due exhausted workflow hours.
+- `admin-deploy-hubs` used `git clone`, but Appwrite's Node.js runtime has no `git` binary.
+- `scripts/deploy_hubs.cjs` used the old positional Appwrite SDK signature for `functions.createVariable()`, so new variables failed with `Missing required parameter: "value"`.
+- `email-service` expected Appwrite-injected headers directly on `req.headers`, but browser calls through `appwriteFunctions.invoke()` forward custom headers in `body.__headers`.
+- DevKit `send-test` originally required raw `DEVKIT_PASSWORD` on `email-service`; the frontend sends signed DevKit session tokens. `email-service` now accepts raw password/signature if configured and can delegate token validation to the already-working `admin-devkit-data` diagnostics path.
+
+### Code Fixes Applied
+| Area | Fix |
+|------|-----|
+| `email-service` | Reads `X-Appwrite-JWT` / authorization from `body.__headers`; uses user-context `Account.get()` for email/name; adds `send-admin-verification`; validates DevKit tokens via `admin-devkit-data` when local `DEVKIT_PASSWORD` is unavailable. |
+| DevKit | Email Service smoke test now calls `email-service:send-test` to `delivered@resend.dev`; God Mode verification email now calls `email-service:send-admin-verification`. |
+| Auth UI | Forgot-password and claim-account flows now inspect `fnError` from `appwriteFunctions.invoke()`. |
+| Deploy tooling | `deploy_hubs.cjs` loads `.env.deploy`, supports `--only=...`, uses `sdk.ID.unique()` when creating variables, and avoids global side effects on targeted deploys going forward. |
+| `admin-deploy-hubs` | Uses GitHub API tarball download instead of `git clone`. |
+| Frontend UX | Pulled in unremerged PR #71 changes locally: hide Import Job FAB on auth/public pages and show user-friendly non-admin function errors. |
+
+### Direct Appwrite Deployment Completed
+No GitHub workflow was used.
+
+| Function | Active deployment | Status |
+|----------|-------------------|--------|
+| `admin-deploy-hubs` | `6a1515c3abe4f3a9fd8d` | `ready`, activated |
+| `email-service` | `6a1516cd249d2b749492` | `ready`, activated |
+
+`email-service` execute access is `any`. This is intentional because logged-out password reset must be public; authenticated/user/admin actions enforce auth inside the function.
+
+### Live Verification
+- `send-password-reset` for an existing user returned `{"success":true}` and logged "Password reset email sent".
+- `send-verification` for a temporary Appwrite user with JWT returned `{"success":true}` and logged "Verification email sent" to `delivered@resend.dev`.
+- `send-welcome` for a temporary Appwrite user with JWT returned `{"success":true}` and logged "Welcome email sent" to `delivered@resend.dev`.
+- Appwrite Auth email templates for verification and recovery were blanked to a single space.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed.
+
+### MCP / Deployment Status
+- Resend MCP is configured with an invalid API key and could not list domains/logs. This is a Cursor MCP configuration problem, not an app runtime blocker; live Appwrite execution logs confirm Resend sends were accepted.
+- Vercel MCP shows recent preview deployments from Claude branches, but this local recovery code is not on production until it is committed and pushed. Do not use manual `vercel deploy`; Vercel Git integration should deploy from the normal push.
+
+### Where We Stopped
+- Appwrite email backend is live and verified.
+- Local frontend/build code is verified but not pushed in this session.
+- Next step: commit and push these changes when ready so Vercel's Git integration deploys the frontend normally.
+
+---
+
 ## Session Log - 2026-05-24 — Part 2 (Welcome Email, DevKit Studio, Multi-Sender, Deploy Pipeline)
 
 ### Overview

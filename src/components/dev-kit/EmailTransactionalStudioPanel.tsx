@@ -259,7 +259,7 @@ export function EmailTransactionalStudioPanel() {
           {[
             'email-service Appwrite Function is deployed and active',
             'RESEND_API_KEY is set on the function variables',
-            'DEVKIT_PASSWORD matches your DevKit session key',
+            'Your DevKit session is unlocked and accepted by email-service',
             'thewise.cloud domain is verified in Resend → Domains',
             'All three sender addresses (noreply / hello / contact) are covered by the domain verification',
           ].map((item, i) => (

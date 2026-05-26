@@ -215,10 +215,24 @@ export function DevKitRunner() {
     },
     // === EMAIL ===
     {
-      id: 'email-service', label: 'Email Service Test', description: 'Validates the email pipeline configuration using dry_run mode — no real email is sent.', section: 'email',
+      id: 'email-service', label: 'Email Service Test', description: 'Sends a Resend sandbox test email through email-service using the DevKit token.', section: 'email',
       run: async (): Promise<TestResult> => {
-        // 'send-contact-email' function is not deployed in this Appwrite project
-        return { status: 'warn' as const, summary: 'Skipped — function "send-contact-email" is not deployed in this environment', durationMs: 0 };
+        const headers = devKitAuthHeaders();
+        if (!headers.Authorization) {
+          return { status: 'warn' as const, summary: 'Skipped — enter the DevKit password first', durationMs: 0 };
+        }
+
+        return strictInvoke('email-service', async () => appwriteFunctions.invoke('email-service', {
+          headers,
+          body: {
+            action: 'send-test',
+            to: 'delivered@resend.dev',
+            template: 'welcome',
+            name: 'DevKit Smoke',
+            from_email: 'noreply@thewise.cloud',
+            from_name: 'WiseResume',
+          },
+        }));
       },
     },
     // === AI ===

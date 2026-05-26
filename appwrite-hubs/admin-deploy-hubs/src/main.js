@@ -84,15 +84,29 @@ module.exports = async ({ req, res, log, error }) => {
   if (!apiKey) return res.json({ ok: false, error: 'APPWRITE_API_KEY not configured' }, 500);
 
   const workDir = path.join(os.tmpdir(), `deploy-hubs-${Date.now()}`);
+  const tmpTar = `${workDir}-repo.tar.gz`;
   const results = [];
 
   try {
-    log(`Cloning ${githubRepo}...`);
-    execSync(
-      `git clone --depth 1 https://x-access-token:${githubToken}@github.com/${githubRepo}.git "${workDir}"`,
-      { timeout: 90000, stdio: 'pipe' }
+    log(`Downloading ${githubRepo} from GitHub API (no git required)...`);
+    fs.mkdirSync(workDir, { recursive: true });
+    const tarResponse = await axios.get(
+      `https://api.github.com/repos/${githubRepo}/tarball/main`,
+      {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'WiseResume-DeployHubs/1.0',
+        },
+        responseType: 'arraybuffer',
+        timeout: 90000,
+        maxRedirects: 10,
+      }
     );
-    log('Repository cloned successfully');
+    fs.writeFileSync(tmpTar, Buffer.from(tarResponse.data));
+    execSync(`tar -xzf "${tmpTar}" --strip-components=1 -C "${workDir}"`, { stdio: 'pipe', timeout: 60000 });
+    try { fs.unlinkSync(tmpTar); } catch {}
+    log('Repository downloaded and extracted successfully');
 
     for (const hub of hubs) {
       const hubDir = path.join(workDir, 'appwrite-hubs', hub);
@@ -148,8 +162,13 @@ module.exports = async ({ req, res, log, error }) => {
         results.push({ hub, status: 'failed', error: msg });
       }
     }
+  } catch (fatalErr) {
+    const fatalMsg = fatalErr.response?.data?.message || fatalErr.message || String(fatalErr);
+    error(`Deploy fatal error: ${fatalMsg}`);
+    return res.json({ ok: false, error: fatalMsg, results });
   } finally {
     try { execSync(`rm -rf "${workDir}"`, { stdio: 'pipe' }); } catch {}
+    try { if (fs.existsSync(tmpTar)) fs.unlinkSync(tmpTar); } catch {}
   }
 
   const deployed = results.filter(r => r.status === 'deployed').length;

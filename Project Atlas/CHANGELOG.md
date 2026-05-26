@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-05-24
+**Last verified:** 2026-05-26
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -11,41 +11,48 @@
 
 ---
 
-## 2026-05-24 — CRITICAL: Email verification link broken ({{url}} not substituted)
+## 2026-05-26 - Email system recovery and direct Appwrite deployment
 
 ### Root Cause (Verified)
-The Appwrite Console email template for Email Verification was applied, but Appwrite's template engine was NOT substituting `{{url}}` before sending. Users received the literal string `{{url}}` as the button href — email clients rendered it as `render://init-bundle/%7B%7Burl%7D%7D` (invalid/unclickable). The alternative link showed as null/empty.
-
-Most likely cause: Appwrite Console's HTML template editor encoded the `{{url}}` curly braces before saving, producing a stored form that Appwrite's find-and-replace engine couldn't match.
+The final PR #70 code was correct but not operationally complete: `email-service` was not deployed to Appwrite, and GitHub Actions could not be used because available workflow minutes were exhausted. A second issue was found during direct recovery: Appwrite's Node.js runtime does not provide `git`, so the in-app `admin-deploy-hubs` function could fail when cloning the repo. A third issue was found in the local deployment script: `functions.createVariable()` was using the old positional Appwrite SDK signature and could not create brand-new variables for `email-service`.
 
 ### Fix
-Created a dedicated Appwrite Function `send-verification-email` that:
-- Gets the authenticated user's ID from Appwrite's injected `x-appwrite-user-id` header
-- Uses the Admin SDK `users.createVerification(userId, redirectUrl)` to generate the verification token and get the secret
-- Constructs the full verification URL directly: `${FRONTEND_URL}/auth/verify-email?userId=...&secret=...`
-- Sends the branded HTML email via Resend — **no Appwrite template system involved at all**
-
-Frontend (`AuthPage.tsx`, `AuthVerifyEmailPage.tsx`): Replaced `account.createVerification()` calls with `appwriteFunctions.invoke('send-verification-email')`.
+- Deployed `admin-deploy-hubs` directly from local using Appwrite SDK; active deployment `6a1515c3abe4f3a9fd8d`.
+- Deployed `email-service` directly from local using Appwrite SDK; active deployment `6a1516cd249d2b749492`.
+- Updated `admin-deploy-hubs` to download the GitHub repo tarball through the GitHub API instead of shelling out to `git clone`.
+- Updated `scripts/deploy_hubs.cjs` to load `.env.deploy`, support `--only=...`, create Appwrite variables with `sdk.ID.unique()`, and blank verification/recovery templates after targeted email-service deploys.
+- Updated `email-service` so browser-invoked user actions read the JWT from `body.__headers.X-Appwrite-JWT`, which is how `appwriteFunctions.invoke()` forwards headers through Appwrite executions.
+- Added `send-admin-verification` to `email-service` and routed DevKit God Mode verification sends through the branded email-service path.
+- Updated DevKit Email Service smoke test to call `email-service:send-test` instead of the unrelated skipped `send-contact-email` check.
+- Updated auth reset flows to surface `email-service` invoke errors consistently.
 
 ### Files Changed
 | File | Change |
 |------|--------|
-| `appwrite-hubs/send-verification-email/src/main.js` | New Appwrite Function — self-contained email sender via Resend |
-| `appwrite-hubs/send-verification-email/package.json` | Package manifest |
-| `src/pages/AuthPage.tsx` | Import + call `send-verification-email` function on signup |
-| `src/pages/AuthVerifyEmailPage.tsx` | Import + call `send-verification-email` on resend |
-
-### Deployment Required
-The new function must be deployed to Appwrite before this fix is live:
-1. Run `node scripts/deploy_hubs.cjs` (or deploy `send-verification-email` manually from Appwrite Console)
-2. In Appwrite Console → Functions → `send-verification-email` → Settings:
-   - **Execute access:** `Users` (not any, not guests)
-   - **Variables:** `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (noreply@thewise.cloud), `RESEND_FROM_NAME` (WiseResume), `FRONTEND_URL` (https://resume.thewise.cloud)
-3. Optionally: Reset the Appwrite Console email template for Email Verification back to default (so Appwrite doesn't also try to send a broken email)
+| `appwrite-hubs/email-service/src/main.js` | Header forwarding, DevKit token delegation, admin verification action, Any-safe internal auth |
+| `appwrite-hubs/email-service/package-lock.json` | Locked Appwrite SDK dependency for repeatable hub packaging |
+| `appwrite-hubs/admin-deploy-hubs/src/main.js` | GitHub API tarball download instead of `git clone` |
+| `scripts/deploy_hubs.cjs` | Direct targeted deploy path and Appwrite variable creation fix |
+| `scripts/deploy_webhook_hub.cjs` | Appwrite variable creation signature fix |
+| `src/components/dev-kit/DevKitRunner.tsx` | Real email-service smoke test |
+| `src/components/dev-kit/AdminUsersPanel.tsx` | Admin verification now uses `email-service` |
+| `src/pages/AuthPage.tsx` | Password reset checks `fnError` |
+| `src/pages/AuthVerifyEmailPage.tsx` | Stale resend comment corrected |
 
 ### Verification
-- `npx tsc --noEmit` — zero errors
-- Logic: function requires active session → gets userId → creates token → constructs real URL → sends via Resend
+- `node --check appwrite-hubs/email-service/src/main.js` — passed.
+- `node --check appwrite-hubs/admin-deploy-hubs/src/main.js` — passed.
+- `node --check scripts/deploy_hubs.cjs` — passed.
+- `npx tsc --noEmit` — passed.
+- `npm run build` — passed.
+- Live Appwrite `email-service` password reset execution for an existing user returned `{"success":true}` and logged "Password reset email sent".
+- Live Appwrite `email-service` verification smoke to `delivered@resend.dev` returned `{"success":true}` and logged "Verification email sent".
+- Live Appwrite `email-service` welcome smoke to `delivered@resend.dev` returned `{"success":true}` and logged "Welcome email sent".
+- Appwrite Auth email templates for verification and recovery were blanked to a single space.
+
+### Remaining Operational Notes
+- Resend MCP could not be used for account logs because the configured Resend MCP API key returns `API key is invalid`; Appwrite execution logs still confirm Resend accepted the live sends.
+- Frontend production should update through Vercel Git integration after these local changes are committed and pushed. No manual Vercel upload should be used.
 
 ---
 

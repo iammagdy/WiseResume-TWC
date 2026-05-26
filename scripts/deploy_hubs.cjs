@@ -3,12 +3,34 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+function loadEnvFile(fileName) {
+    const filePath = path.join(process.cwd(), fileName);
+    if (!fs.existsSync(filePath)) return;
+    const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+        const [key, ...rest] = trimmed.split('=');
+        if (!key || process.env[key]) continue;
+        process.env[key] = rest.join('=').replace(/^["']|["']$/g, '');
+    }
+}
+
+loadEnvFile('.env.deploy');
+
 // Per-hub timeout overrides (seconds). Appwrite hard max is 900.
 // admin-deploy-hubs needs up to 15 minutes: git clone + 18x npm/tar/upload.
 const HUB_TIMEOUTS = {
     'admin-deploy-hubs': 900,
 };
 const DEFAULT_TIMEOUT = 30;
+
+function selectedHubIds() {
+    const arg = process.argv.find(v => v.startsWith('--only='));
+    const raw = (arg ? arg.slice('--only='.length) : process.env.HUB_FILTER || '').trim();
+    if (!raw) return null;
+    return new Set(raw.split(',').map(v => v.trim()).filter(Boolean));
+}
 
 function buildHub(dir, archive) {
     const hubDir = path.join(process.cwd(), 'appwrite-hubs', dir);
@@ -36,11 +58,12 @@ async function ensureFunction(id, name, timeout = DEFAULT_TIMEOUT) {
     try {
         const fn = await functions.get(id);
         const currentTimeout = fn.timeout ?? 0;
+        const execute = Array.isArray(fn.execute) ? fn.execute : [];
         // Never reduce an existing timeout that is already higher than desired
         const effectiveTimeout = Math.max(timeout, currentTimeout);
         const needsUpdate =
-            !fn.execute ||
-            fn.execute.length === 0 ||
+            execute.length === 0 ||
+            !execute.includes('any') ||
             currentTimeout < timeout;
         if (needsUpdate) {
             await functions.update(id, name, fn.runtime || 'node-18.0', ['any'], [], '', effectiveTimeout);
@@ -68,12 +91,30 @@ async function ensureVariable(fnId, key, value) {
                 console.log(`  Updated ${key} on ${fnId}`);
             }
         } else {
-            await functions.createVariable(fnId, key, value);
+            await functions.createVariable(fnId, sdk.ID.unique(), key, value);
             console.log(`  Created ${key} on ${fnId}`);
         }
     } catch (e) {
         console.warn(`  Could not set ${key} on ${fnId}: ${e.message}`);
     }
+}
+
+async function existingVariableValue(fnId, key) {
+    try {
+        const vars = await functions.listVariables(fnId);
+        const existing = vars.variables.find(v => v.key === key);
+        return existing?.value || null;
+    } catch {
+        return null;
+    }
+}
+
+async function firstExistingVariableValue(fnIds, key) {
+    for (const fnId of fnIds) {
+        const value = await existingVariableValue(fnId, key);
+        if (value) return value;
+    }
+    return null;
 }
 
 async function deployFunction(id, name, filePath) {
@@ -125,7 +166,37 @@ async function smokeFunction(id, body) {
     }
 }
 
+async function blankAuthEmailTemplates() {
+    const endpoint = (process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
+    const projectId = process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+    const apiKey = process.env.APPWRITE_API_KEY;
+    if (!apiKey) {
+        console.warn('  Could not blank auth templates: APPWRITE_API_KEY not configured');
+        return;
+    }
+
+    console.log('\nBlanking Appwrite auth email templates...');
+    for (const type of ['verification', 'recovery']) {
+        try {
+            const response = await fetch(`${endpoint}/projects/${projectId}/templates/email/${type}/en`, {
+                method: 'PATCH',
+                headers: {
+                    'X-Appwrite-Key': apiKey,
+                    'X-Appwrite-Project': projectId,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ subject: 'WiseResume', message: ' ' }),
+            });
+            if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+            console.log(`  Blanked ${type} template`);
+        } catch (e) {
+            console.warn(`  Could not blank ${type} template: ${e.message}`);
+        }
+    }
+}
+
 async function run() {
+    const requestedHubs = selectedHubIds();
     const hubs = [
         { id: 'resume-section-ai',         name: 'Resume Section AI Hub',         file: 'resume-section-ai.tar.gz' },
         { id: 'job-import',                name: 'Job Import Hub',                file: 'job-import.tar.gz' },
@@ -149,8 +220,52 @@ async function run() {
         { id: 'email-service',             name: 'Email Service Hub',             file: 'email-service.tar.gz' },
     ];
 
-    for (const hub of hubs) {
+    const hubsToDeploy = requestedHubs ? hubs.filter(hub => requestedHubs.has(hub.id)) : hubs;
+    if (requestedHubs) {
+        const unknown = [...requestedHubs].filter(id => !hubs.some(hub => hub.id === id));
+        if (unknown.length) throw new Error(`Unknown hub id(s): ${unknown.join(', ')}`);
+        console.log(`Deploying selected hubs only: ${hubsToDeploy.map(h => h.id).join(', ')}`);
+    }
+
+    for (const hub of hubsToDeploy) {
         await deployFunction(hub.id, hub.name, hub.file);
+    }
+
+    if (requestedHubs) {
+        if (requestedHubs.has('email-service')) {
+            console.log('\nEnsuring email-service variables...');
+            const emailVarSources = ['admin-email', 'admin-testmail', 'admin-devkit-data', 'admin-deploy-hubs'];
+            const emailServiceVars = [
+                ['APPWRITE_API_KEY',    process.env.APPWRITE_API_KEY],
+                ['APPWRITE_ENDPOINT',   process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+                ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+                ['DEVKIT_PASSWORD',     process.env.DEVKIT_PASSWORD || await firstExistingVariableValue(emailVarSources, 'DEVKIT_PASSWORD')],
+                ['RESEND_API_KEY',      process.env.RESEND_API_KEY || await firstExistingVariableValue(emailVarSources, 'RESEND_API_KEY')],
+                ['RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
+                ['RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
+                ['FRONTEND_URL',        process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
+            ];
+            for (const [key, value] of emailServiceVars) {
+                await ensureVariable('email-service', key, value);
+            }
+            await blankAuthEmailTemplates();
+        }
+
+        if (requestedHubs.has('admin-deploy-hubs')) {
+            console.log('\nEnsuring admin-deploy-hubs GitHub credentials and email propagation vars...');
+            for (const [key, value] of [
+                ['GITHUB_TOKEN',     process.env.GITHUB_TOKEN],
+                ['GITHUB_REPO',      process.env.GITHUB_REPO || 'iammagdy/WiseResume-TWC'],
+                ['RESEND_API_KEY',   process.env.RESEND_API_KEY],
+                ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud'],
+                ['RESEND_FROM_NAME',  process.env.RESEND_FROM_NAME  || 'WiseResume'],
+            ]) {
+                await ensureVariable('admin-deploy-hubs', key, value);
+            }
+        }
+
+        console.log('\nSelected hubs processed.');
+        return;
     }
 
     console.log('\nEnsuring resume-section-ai provider keys...');
@@ -269,18 +384,22 @@ async function run() {
     }
 
     console.log('\nEnsuring email-service variables...');
-    for (const [key, value] of [
+    const emailVarSources = ['admin-email', 'admin-testmail', 'admin-devkit-data', 'admin-deploy-hubs'];
+    const emailServiceVars = [
         ['APPWRITE_API_KEY',    process.env.APPWRITE_API_KEY],
-        ['APPWRITE_ENDPOINT',   process.env.APPWRITE_ENDPOINT],
-        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
-        ['DEVKIT_PASSWORD',     process.env.DEVKIT_PASSWORD],
-        ['RESEND_API_KEY',      process.env.RESEND_API_KEY],
-        ['RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL],
-        ['RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME],
+        ['APPWRITE_ENDPOINT',   process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+        ['DEVKIT_PASSWORD',     process.env.DEVKIT_PASSWORD || await firstExistingVariableValue(emailVarSources, 'DEVKIT_PASSWORD')],
+        ['RESEND_API_KEY',      process.env.RESEND_API_KEY || await firstExistingVariableValue(emailVarSources, 'RESEND_API_KEY')],
+        ['RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
+        ['RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
         ['FRONTEND_URL',        process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
-    ]) {
+    ];
+    for (const [key, value] of emailServiceVars) {
         await ensureVariable('email-service', key, value);
     }
+
+    await blankAuthEmailTemplates();
 
     console.log('\nEnsuring admin-deploy-hubs GitHub credentials and email propagation vars...');
     for (const [key, value] of [

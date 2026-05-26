@@ -328,15 +328,15 @@ export const AdminUsersPanel = () => {
   const handleSendVerificationEmail = async (userId: string, email: string | null) => {
     setSendingVerificationId(userId);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      const tuple = await appwriteFunctions.invoke('email-service', {
         headers: devKitAuthHeaders(),
         body: {
-          action: 'send-verification-email',
+          action: 'send-admin-verification',
           target_user_id: userId,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
         },
       });
-      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      unwrapAdminResponse(tuple, 'email-service');
       toast.success(`Verification email sent to ${email ?? userId}`);
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to send verification email'));

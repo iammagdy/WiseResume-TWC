@@ -22,7 +22,7 @@ type PageMode = 'pending' | 'confirming' | 'confirmed' | 'error';
  *
  * Mode 1 — Pending (no ?secret= in URL):
  *   User just signed up and needs to check their inbox.
- *   Provides a "Resend email" button that calls account.createVerification().
+ *   Provides a "Resend email" button that calls the email-service function.
  *
  * Mode 2 — Confirming (?userId=...&secret=... in URL):
  *   User clicked the link in their verification email (Appwrite callback).

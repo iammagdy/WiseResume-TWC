@@ -27,7 +27,7 @@ async function ensureVariable(fnId, key, value) {
                 console.log(`  ${key} unchanged`);
             }
         } else {
-            await functions.createVariable(fnId, key, value);
+            await functions.createVariable(fnId, sdk.ID.unique(), key, value);
             console.log(`  Created ${key}`);
         }
     } catch (e) {

@@ -36,7 +36,12 @@
  *     Body:     { action: 'send-welcome' }
  *     Sends:    branded welcome email (triggered after email verification)
  *
- *   send-test   (DevKit admin only — requires DEVKIT_PASSWORD in Authorization header)
+ *   send-admin-verification
+ *     Requires: DevKit admin session
+ *     Body:     { action: 'send-admin-verification', target_user_id: '...' }
+ *     Sends:    branded email-verification email for an admin-selected user
+ *
+ *   send-test   (DevKit admin only)
  *     Body:     { action: 'send-test', to: 'email', template: 'welcome|verification|password-reset',
  *                 name: 'Name', from_email: 'noreply@thewise.cloud', from_name: 'WiseResume' }
  *     Sends:    a test render of any template to any address
@@ -53,10 +58,11 @@
  *   FRONTEND_URL          e.g. https://resume.thewise.cloud
  *
  * ─── Appwrite Console → Function → Settings ──────────────────────────────────
- *   Execute access: Users  (logged-in users trigger send-verification / send-welcome;
- *                            send-password-reset and send-test are public/devkit-guarded)
+ *   Execute access: Any  (send-password-reset is public; session/admin actions
+ *                         enforce auth inside this function)
  */
 
+const crypto = require('crypto');
 const sdk = require('node-appwrite');
 
 const ENDPOINT    = (process.env.APPWRITE_ENDPOINT    || process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
@@ -68,6 +74,76 @@ const RESEND_BASE  = 'https://api.resend.com';
 
 function json(res, payload, status = 200) {
   return res.json(payload, status);
+}
+
+function headerValue(req, body, names) {
+  const stores = [req.headers || {}, body?.__headers || {}];
+  for (const store of stores) {
+    for (const [key, value] of Object.entries(store)) {
+      if (names.some(name => key.toLowerCase() === name.toLowerCase())) {
+        return Array.isArray(value) ? value[0] : String(value || '');
+      }
+    }
+  }
+  return '';
+}
+
+function bearerToken(req, body) {
+  const authHeader = headerValue(req, body, ['authorization']);
+  return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+}
+
+function verifySignedDevKitToken(token) {
+  const secret = process.env.DEVKIT_PASSWORD || '';
+  if (!secret || !token || !token.includes('.')) return false;
+  const [encoded, sig] = token.split('.');
+  if (!encoded || !sig) return false;
+
+  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  const actualBuffer = Buffer.from(sig);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+  if (!crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
+
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+  } catch {
+    return false;
+  }
+  return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
+}
+
+async function verifyDevKitViaAdminHub(token) {
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+  if (!apiKey || !token) return false;
+
+  try {
+    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+    const functions = new sdk.Functions(adminClient);
+    const execution = await functions.createExecution({
+      functionId: 'admin-devkit-data',
+      body: JSON.stringify({
+        action: 'diagnostics',
+        __headers: { Authorization: `Bearer ${token}` },
+      }),
+      async: false,
+      path: '/',
+      method: 'POST',
+    });
+
+    return execution.status !== 'failed' && execution.responseStatusCode < 400;
+  } catch {
+    return false;
+  }
+}
+
+async function hasDevKitAuth(req, body) {
+  const devkitPassword = process.env.DEVKIT_PASSWORD || '';
+  const token = bearerToken(req, body);
+  if (!token) return false;
+  if (devkitPassword && (token === devkitPassword || verifySignedDevKitToken(token))) return true;
+  return verifyDevKitViaAdminHub(token);
 }
 
 /**
@@ -304,14 +380,14 @@ function welcomeEmail(name, dashboardUrl) {
 
 // ─── Action handlers ──────────────────────────────────────────────────────────
 
-async function handleSendVerification({ req, res, log, error }) {
+async function handleSendVerification({ req, res, log, error, body }) {
   // ── Get user JWT ────────────────────────────────────────────────────────────
   // Appwrite automatically injects this when the function is called via SDK
   // with an active user session.
-  const userJwt = req.headers['x-appwrite-user-jwt'];
-  const userId  = req.headers['x-appwrite-user-id'];
+  const userJwt = headerValue(req, body, ['x-appwrite-user-jwt', 'X-Appwrite-JWT']);
+  let userId = headerValue(req, body, ['x-appwrite-user-id']);
 
-  if (!userJwt || !userId) {
+  if (!userJwt) {
     error('send-verification called without active user session');
     return json(res, { error: 'Authentication required' }, 401);
   }
@@ -328,6 +404,8 @@ async function handleSendVerification({ req, res, log, error }) {
 
   try {
     const redirectUrl = `${FRONTEND_URL}/auth/verify-email`;
+    const sessionUser = await acct.get();
+    userId = userId || sessionUser.$id;
 
     // createVerification() returns a Token with .secret.
     // It also triggers Appwrite's built-in email pipeline — set the Console
@@ -336,24 +414,19 @@ async function handleSendVerification({ req, res, log, error }) {
 
     const verifyUrl = `${redirectUrl}?userId=${encodeURIComponent(userId)}&secret=${encodeURIComponent(token.secret)}`;
 
-    // Get user email via admin SDK (so we know where to send)
-    const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
-    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
-    const user = await new sdk.Users(adminClient).get(userId);
-
-    if (!user.email) {
+    if (!sessionUser.email) {
       error(`User ${userId} has no email address`);
       return json(res, { error: 'User has no email address' }, 400);
     }
 
-    log(`Sending verification email to ${user.email}`);
+    log(`Sending verification email to ${sessionUser.email}`);
     await resendSend({
-      to:      user.email,
+      to:      sessionUser.email,
       subject: 'Verify your WiseResume email address',
       html:    verificationEmail(verifyUrl),
     });
 
-    log(`Verification email sent to ${user.email}`);
+    log(`Verification email sent to ${sessionUser.email}`);
     return json(res, { success: true });
 
   } catch (err) {
@@ -425,24 +498,24 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
   return json(res, { success: true });
 }
 
-async function handleSendWelcome({ req, res, log, error }) {
+async function handleSendWelcome({ req, res, log, error, body }) {
   // ── Get user JWT ────────────────────────────────────────────────────────────
-  const userJwt = req.headers['x-appwrite-user-jwt'];
-  const userId  = req.headers['x-appwrite-user-id'];
+  const userJwt = headerValue(req, body, ['x-appwrite-user-jwt', 'X-Appwrite-JWT']);
 
-  if (!userJwt || !userId) {
+  if (!userJwt) {
     error('send-welcome called without active user session');
     return json(res, { error: 'Authentication required' }, 401);
   }
 
   try {
-    // Get user name and email via admin SDK
-    const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
-    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
-    const user = await new sdk.Users(adminClient).get(userId);
+    const userClient = new sdk.Client()
+      .setEndpoint(ENDPOINT)
+      .setProject(PROJECT_ID)
+      .setJWT(userJwt);
+    const user = await new sdk.Account(userClient).get();
 
     if (!user.email) {
-      error(`User ${userId} has no email address for welcome email`);
+      error(`User ${user.$id} has no email address for welcome email`);
       return json(res, { error: 'User has no email address' }, 400);
     }
 
@@ -466,20 +539,82 @@ async function handleSendWelcome({ req, res, log, error }) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     // Non-fatal for the user (they're already verified), but log the failure.
-    error(`send-welcome failed for user ${userId}: ${msg}`);
+    error(`send-welcome failed: ${msg}`);
+    return json(res, { error: msg }, 500);
+  }
+}
+
+async function handleSendAdminVerification({ req, res, log, error, body }) {
+  if (!(await hasDevKitAuth(req, body))) {
+    error('send-admin-verification: unauthorized attempt');
+    return json(res, { error: 'Unauthorized' }, 401);
+  }
+
+  const targetUserId = (body?.target_user_id || '').trim();
+  if (!targetUserId) {
+    return json(res, { error: 'target_user_id is required' }, 400);
+  }
+
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+  if (!apiKey) {
+    return json(res, { error: 'APPWRITE_API_KEY is not configured' }, 500);
+  }
+
+  try {
+    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+    const user = await new sdk.Users(adminClient).get(targetUserId);
+
+    if (user.emailVerification) {
+      log(`send-admin-verification: ${targetUserId} is already verified`);
+      return json(res, { success: true, alreadyVerified: true, email: user.email });
+    }
+
+    if (!user.email) {
+      return json(res, { error: 'User has no email address' }, 400);
+    }
+
+    const redirectUrl = `${FRONTEND_URL}/auth/verify-email`;
+    const tokenRes = await fetch(`${ENDPOINT}/users/${encodeURIComponent(targetUserId)}/verification`, {
+      method: 'POST',
+      headers: {
+        'X-Appwrite-Project': PROJECT_ID,
+        'X-Appwrite-Key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url: redirectUrl }),
+    });
+
+    const tokenText = await tokenRes.text();
+    let token;
+    try { token = JSON.parse(tokenText); } catch { token = { raw: tokenText }; }
+
+    if (!tokenRes.ok || !token?.secret) {
+      const msg = token?.message || token?.error || `Appwrite token creation failed (${tokenRes.status})`;
+      throw new Error(msg);
+    }
+
+    const verifyUrl = `${redirectUrl}?userId=${encodeURIComponent(targetUserId)}&secret=${encodeURIComponent(token.secret)}`;
+    await resendSend({
+      to: user.email,
+      subject: 'Verify your WiseResume email address',
+      html: verificationEmail(verifyUrl),
+    });
+
+    log(`send-admin-verification: email sent to ${user.email}`);
+    return json(res, { success: true, email: user.email, expires_at: token.expire });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`send-admin-verification failed for ${targetUserId}: ${msg}`);
     return json(res, { error: msg }, 500);
   }
 }
 
 /**
  * DevKit admin-only: send a test render of any template to any address.
- * Guarded by DEVKIT_PASSWORD via Authorization: Bearer header.
+ * Guarded by raw DEVKIT_PASSWORD or a signed DevKit session token.
  */
 async function handleSendTest({ req, res, log, error, body }) {
-  const devkitPassword = process.env.DEVKIT_PASSWORD || '';
-  const authHeader     = (req.headers['authorization'] || req.headers['Authorization'] || '').trim();
-
-  if (!devkitPassword || authHeader !== `Bearer ${devkitPassword}`) {
+  if (!(await hasDevKitAuth(req, body))) {
     error('send-test: unauthorized attempt');
     return json(res, { error: 'Unauthorized' }, 401);
   }
@@ -541,13 +676,16 @@ module.exports = async ({ req, res, log, error }) => {
 
   switch (action) {
     case 'send-verification':
-      return handleSendVerification({ req, res, log, error });
+      return handleSendVerification({ req, res, log, error, body });
 
     case 'send-password-reset':
       return handleSendPasswordReset({ req, res, log, error, body });
 
     case 'send-welcome':
-      return handleSendWelcome({ req, res, log, error });
+      return handleSendWelcome({ req, res, log, error, body });
+
+    case 'send-admin-verification':
+      return handleSendAdminVerification({ req, res, log, error, body });
 
     case 'send-test':
       return handleSendTest({ req, res, log, error, body });
