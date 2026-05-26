@@ -39,7 +39,10 @@ export function useCompanyBriefing() {
         if (data?.error) throw new Error(data.error);
         if (!data?.briefing) throw new Error('No briefing returned');
 
-        return data.briefing as CompanyBriefing;
+        const briefing = data.briefing as CompanyBriefing;
+        if (!briefing.companySnapshot) throw new Error('Briefing is missing company snapshot');
+
+        return briefing;
       });
 
       if (result) {
