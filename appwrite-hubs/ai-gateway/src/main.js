@@ -22,9 +22,44 @@ const BASES = {
 };
 
 const DB_ID = 'main';
+const AI_CREDITS_COLLECTION_ID = 'ai_credits';
+const SUBSCRIPTIONS_COLLECTION_ID = 'subscriptions';
+const SERVER_RATE_LIMIT_WINDOW_MS = 60_000;
+const SERVER_RATE_LIMIT_MAX_REQUESTS = 20;
+const PLAN_DAILY_LIMITS = {
+  free: 5,
+  pro: 50,
+  premium: -1,
+};
+const FEATURE_CREDIT_COSTS = {
+  'score-resume': 0,
+  'analyze-resume': 2,
+  'tailor-resume': 2,
+  'generate-cover-letter': 2,
+  'generate-question-bank': 1,
+  'recruiter-simulation': 2,
+  'agentic-chat': 1,
+  'wise-ai-chat': 1,
+  'resume-section-ai': 1,
+  'editor-ai': 1,
+  'detect-and-humanize': 1,
+  'smart-fit-rewrite': 2,
+  'career-assessment': 2,
+  'generate-portfolio-bio': 1,
+  'generate-resignation-letter': 1,
+  'validate-tailor': 1,
+  'suggest-template': 1,
+  'generate-fix-suggestions': 1,
+  'parse-resume': 1,
+  'parse-job': 1,
+  'optimize-for-linkedin': 1,
+  'company-briefing': 1,
+  'ask-portfolio': 1,
+};
 const PARSE_RESUME_SYSTEM_PROMPT =
   extractedPrompts?.['parse-resume']?.system ||
   'You are an expert resume parser. Return only valid JSON.';
+const _serverRateLimits = new Map();
 
 function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -56,6 +91,194 @@ function toStringArray(value) {
       .filter(Boolean);
   }
   return [];
+}
+
+function parseRequestBody(req) {
+  if (typeof req.body !== 'string') {
+    return isRecord(req.body) ? req.body : {};
+  }
+  const raw = req.body.trim();
+  if (!raw) return {};
+  const parsed = JSON.parse(raw);
+  return isRecord(parsed) ? parsed : {};
+}
+
+function getHeader(headers, name) {
+  if (!isRecord(headers)) return '';
+  const wanted = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (String(key).toLowerCase() === wanted) {
+      return Array.isArray(value) ? asString(value[0]) : asString(value);
+    }
+  }
+  return '';
+}
+
+function extractJwt(body, req) {
+  const embeddedHeaders = isRecord(body.__headers) ? body.__headers : {};
+  const fromEmbeddedJwt = getHeader(embeddedHeaders, 'X-Appwrite-JWT');
+  const fromRequestJwt = getHeader(req.headers, 'X-Appwrite-JWT');
+  const authHeader = getHeader(embeddedHeaders, 'Authorization') || getHeader(req.headers, 'Authorization');
+  const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
+  return fromEmbeddedJwt || fromRequestJwt || bearer;
+}
+
+function getAppwriteEndpoint() {
+  return process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+}
+
+function getAppwriteProjectId() {
+  return process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
+}
+
+async function validateUserSession(body, req) {
+  const jwt = extractJwt(body, req);
+  if (!jwt) {
+    return { ok: false, status: 401, message: 'Authentication required.' };
+  }
+
+  try {
+    const client = new sdk.Client()
+      .setEndpoint(getAppwriteEndpoint())
+      .setProject(getAppwriteProjectId())
+      .setJWT(jwt);
+    const account = new sdk.Account(client);
+    const user = await account.get();
+    return { ok: true, user };
+  } catch {
+    return { ok: false, status: 401, message: 'Invalid or expired session.' };
+  }
+}
+
+function getFeatureCreditCost(featureName) {
+  return FEATURE_CREDIT_COSTS[featureName] ?? 1;
+}
+
+function isTrialActive(subscription) {
+  const expiresAt = subscription?.trial_expires_at;
+  return !!(subscription?.trial_plan && expiresAt && new Date(expiresAt).getTime() > Date.now());
+}
+
+async function getEffectivePlan(db, userId) {
+  try {
+    const res = await db.listDocuments(DB_ID, SUBSCRIPTIONS_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    const subscription = res.documents?.[0];
+    const rawPlan = subscription?.effective_plan ||
+      (isTrialActive(subscription) ? subscription.trial_plan : subscription?.plan) ||
+      'free';
+    const plan = String(rawPlan).toLowerCase();
+    return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';
+  } catch {
+    return 'free';
+  }
+}
+
+function userCreditPermissions(userId) {
+  return [
+    sdk.Permission.read(sdk.Role.user(userId)),
+  ];
+}
+
+async function loadCreditState(db, userId, featureName) {
+  const cost = getFeatureCreditCost(featureName);
+  if (cost <= 0) {
+    return { cost, chargeable: false };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const plan = await getEffectivePlan(db, userId);
+  const planLimit = PLAN_DAILY_LIMITS[plan] ?? PLAN_DAILY_LIMITS.free;
+
+  let res;
+  try {
+    res = await db.listDocuments(DB_ID, AI_CREDITS_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+  } catch (err) {
+    return {
+      cost,
+      chargeable: true,
+      blocked: true,
+      status: 503,
+      message: 'AI credit tracking is not available.',
+      detail: err.message,
+    };
+  }
+
+  let doc = res.documents?.[0];
+  if (!doc) {
+    doc = await db.createDocument(DB_ID, AI_CREDITS_COLLECTION_ID, sdk.ID.unique(), {
+      user_id: userId,
+      daily_usage: 0,
+      daily_limit: planLimit,
+      total_usage: 0,
+      usage_date: today,
+    }, userCreditPermissions(userId));
+  }
+
+  const dailyLimit = Number(doc.daily_limit ?? planLimit);
+  const effectiveLimit = Number.isFinite(dailyLimit) ? dailyLimit : planLimit;
+  const usageDate = doc.usage_date === today ? today : doc.usage_date;
+  const currentUsage = usageDate === today ? Number(doc.daily_usage || 0) : 0;
+
+  if (effectiveLimit !== -1 && currentUsage + cost > effectiveLimit) {
+    return {
+      cost,
+      chargeable: true,
+      blocked: true,
+      status: 402,
+      code: 'ai_credits_exhausted',
+      message: 'Daily AI credit limit reached.',
+      doc,
+      dailyLimit: effectiveLimit,
+      currentUsage,
+      today,
+    };
+  }
+
+  return {
+    cost,
+    chargeable: true,
+    blocked: false,
+    doc,
+    dailyLimit: effectiveLimit,
+    currentUsage,
+    today,
+  };
+}
+
+async function recordAiUsage(db, creditState) {
+  if (!creditState?.chargeable || creditState.blocked || creditState.cost <= 0 || !creditState.doc) {
+    return;
+  }
+  await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
+    daily_usage: creditState.currentUsage + creditState.cost,
+    daily_limit: creditState.dailyLimit,
+    total_usage: Number(creditState.doc.total_usage || 0) + creditState.cost,
+    usage_date: creditState.today,
+  });
+}
+
+function checkServerRateLimit(userId, featureName) {
+  const now = Date.now();
+  const key = `${userId}:${featureName || 'general'}`;
+  const current = _serverRateLimits.get(key);
+  if (!current || now > current.resetAt) {
+    _serverRateLimits.set(key, { count: 1, resetAt: now + SERVER_RATE_LIMIT_WINDOW_MS });
+    return { ok: true };
+  }
+  if (current.count >= SERVER_RATE_LIMIT_MAX_REQUESTS) {
+    return {
+      ok: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+    };
+  }
+  current.count += 1;
+  return { ok: true };
 }
 
 function parseJsonObject(text) {
@@ -875,8 +1098,8 @@ async function syncDynamicRoutes(db) {
 }
 
 function getDbClient() {
-  const endpoint  = process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
+  const endpoint  = getAppwriteEndpoint();
+  const projectId = getAppwriteProjectId();
   const apiKey    = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
   const client    = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   return new sdk.Databases(client);
@@ -1019,9 +1242,8 @@ module.exports = async ({ req, res, log, error }) => {
 
   // Broad outer catch — preserves the JSON error contract on any unexpected failure.
   try {
-    const opts = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    const opts = parseRequestBody(req);
     const { featureName } = opts;
-    const requestMessages = buildMessages(featureName, opts);
 
     log(`AI-Gateway Hub: Processing ${featureName || 'general'} request...`);
 
@@ -1054,8 +1276,38 @@ module.exports = async ({ req, res, log, error }) => {
     }
 
     // ── 2. AI ROUTE ─────────────────────────────────────────────────────────
+    const auth = await validateUserSession(opts, req);
+    if (!auth.ok) {
+      await flushDD();
+      return res.json({ status: 'error', code: 'unauthorized', message: auth.message }, auth.status);
+    }
+
+    const rateLimit = checkServerRateLimit(auth.user.$id, featureName);
+    if (!rateLimit.ok) {
+      await flushDD();
+      return res.json({
+        status: 'error',
+        code: 'rate_limited',
+        message: 'Too many AI requests. Please wait and try again.',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      }, 429);
+    }
+
+    const creditState = await loadCreditState(db, auth.user.$id, featureName);
+    if (creditState.blocked) {
+      await flushDD();
+      return res.json({
+        status: 'error',
+        code: creditState.code || 'ai_credit_check_failed',
+        message: creditState.message,
+      }, creditState.status || 503);
+    }
+
+    log(`AI-Gateway Hub: authorized user=${auth.user.$id} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
+
     const pool       = buildPool();
     const candidates = buildCandidates(featureName, pool);
+    const requestMessages = buildMessages(featureName, opts);
 
     if (candidates.length === 0) {
       error('No keys found in environment variables.');
@@ -1072,6 +1324,10 @@ module.exports = async ({ req, res, log, error }) => {
       : featureName === 'agentic-chat'
         ? (opts.maxTokens || 1500)
         : (opts.maxTokens || 1000);
+
+    async function recordSuccessUsage() {
+      await recordAiUsage(db, creditState);
+    }
 
     /** Call a single provider candidate with the given per-attempt timeout. */
     async function callCandidate(candidate, timeoutMs = 28000) {
@@ -1098,74 +1354,13 @@ module.exports = async ({ req, res, log, error }) => {
     // Try each candidate in priority order; stop at first success.
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
-      const isFirst   = i === 0;
       const label     = candidate.routed ? 'preferred' : 'fallback';
-      log(`Trying ${label} provider: ${candidate.provider} (model: ${opts.model || candidate.model}) for ${featureName || 'general'}${isFirst ? '' : ` [attempt ${i + 1}]`}`);
+      log(`Trying ${label} provider: ${candidate.provider} (model: ${opts.model || candidate.model}) for ${featureName || 'general'}${i === 0 ? '' : ` [attempt ${i + 1}]`}`);
 
       try {
         let result;
 
-        if (isFirst && _llmobsEnabled) {
-          // Only trace the primary attempt via LLMObs.
-          let callbackExecuted = false;
-          await llmobs.trace(
-            {
-              kind:          'llm',
-              name:          featureName || 'ai-gateway',
-              modelName:     opts.model || candidate.model,
-              modelProvider: candidate.provider,
-            },
-            async (span) => {
-              callbackExecuted = true;
-              llmobs.annotate(span, {
-                inputData: requestMessages,
-                metadata: {
-                  temperature,
-                  max_tokens:        maxTokens,
-                  feature_name:      featureName || 'general',
-                  routed_by_feature: candidate.routed,
-                },
-                tags: {
-                  feature_name:      featureName || 'general',
-                  provider:          candidate.provider,
-                  model:             opts.model || candidate.model,
-                  routed_by_feature: String(candidate.routed),
-                },
-              });
-
-              try {
-                result = await callCandidate(candidate, candidateTimeout(i, candidates.length));
-              } catch (providerErr) {
-                span.setTag('error', providerErr);
-                span.setTag('error.message', providerErr.message);
-                throw providerErr;
-              }
-
-              llmobs.annotate(span, {
-                outputData: [{ role: 'assistant', content: result.content }],
-                metrics: {
-                  input_tokens:  result.usage.prompt_tokens     || 0,
-                  output_tokens: result.usage.completion_tokens || 0,
-                  total_tokens:  result.usage.total_tokens      || 0,
-                },
-              });
-            },
-          ).catch(async traceErr => {
-            if (!callbackExecuted) {
-              // trace() setup itself failed (e.g. bad kind value) — fall back
-              // to a direct untraced call for this same candidate rather than
-              // skipping it entirely and moving to the next fallback.
-              error('DD LLMObs trace setup error, retrying untraced: ' + traceErr.message);
-              result = await callCandidate(candidate, candidateTimeout(i, candidates.length));
-            } else {
-              // Provider call inside the trace threw — re-throw so the outer
-              // catch handles it and moves to the next candidate.
-              throw traceErr;
-            }
-          });
-        } else {
-          result = await callCandidate(candidate, candidateTimeout(i, candidates.length));
-        }
+        result = await callCandidate(candidate, candidateTimeout(i, candidates.length));
 
         content      = result.content;
         providerUsed = candidate.provider;
@@ -1175,6 +1370,7 @@ module.exports = async ({ req, res, log, error }) => {
         if (featureName === 'parse-resume') {
           try {
             const parsedResume = normalizeResumeData(result.content);
+            await recordSuccessUsage();
             await flushDD();
             return res.json({
               status: 'success',
@@ -1196,6 +1392,7 @@ module.exports = async ({ req, res, log, error }) => {
         if (STRUCTURED_AI_FEATURES.has(featureName)) {
           try {
             const structuredData = normalizeStructuredFeatureData(featureName, result.content, opts);
+            await recordSuccessUsage();
             await flushDD();
             return res.json({
               status: 'success',
@@ -1216,6 +1413,7 @@ module.exports = async ({ req, res, log, error }) => {
 
         if (featureName === 'agentic-chat') {
           const structuredResponse = parseAgenticChatResponse(result.content);
+          await recordSuccessUsage();
           await flushDD();
           return res.json({ status: 'success', data: structuredResponse });
         }
@@ -1226,6 +1424,7 @@ module.exports = async ({ req, res, log, error }) => {
             const outcomes = Array.isArray(parsed)
               ? parsed
               : (Array.isArray(parsed.outcomes) ? parsed.outcomes : []);
+            await recordSuccessUsage();
             await flushDD();
             return res.json({ status: 'success', data: { success: true, outcomes } });
           } catch (parseErr) {
@@ -1239,6 +1438,7 @@ module.exports = async ({ req, res, log, error }) => {
         }
 
         if (featureName === 'ask-portfolio') {
+          await recordSuccessUsage();
           await flushDD();
           return res.json({ status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false } });
         }
@@ -1267,6 +1467,7 @@ module.exports = async ({ req, res, log, error }) => {
     }
 
     await flushDD();
+    await recordSuccessUsage();
     return res.json({
       status: 'success',
       data: {

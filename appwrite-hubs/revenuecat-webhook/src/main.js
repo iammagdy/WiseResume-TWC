@@ -2,8 +2,8 @@
  * revenuecat-webhook
  *
  * Receives RevenueCat webhook events and syncs subscription state to the
- * Appwrite `subscriptions` collection. Verifies the webhook signature using
- * HMAC-SHA256 before processing any payload.
+ * Appwrite `subscriptions` collection. Verifies the configured RevenueCat
+ * Authorization header value before processing any payload.
  *
  * Required env vars:
  *   REVENUECAT_WEBHOOK_SECRET  — the secret set in RC dashboard → Integrations → Webhooks
@@ -50,6 +50,18 @@ function verifyAuthorization(authHeader, secret) {
   }
 }
 
+function parseWebhookPayload(body) {
+  if (typeof body === 'string') {
+    const raw = body.trim();
+    if (!raw) throw new Error('Empty body');
+    return JSON.parse(raw);
+  }
+  if (body && typeof body === 'object') {
+    return body;
+  }
+  throw new Error('Missing body');
+}
+
 /**
  * Maps RC entitlements object (keyed by entitlement identifier) to a plan string.
  * Highest-tier entitlement wins.
@@ -62,34 +74,15 @@ function mapEntitlementsToPlan(entitlements) {
   return 'pro'; // fallback if entitlements unclear
 }
 
-export default async function handler({ req, res, log, error }) {
-  const webhookSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
-  const appwriteKey = process.env.APPWRITE_API_KEY;
-  const appwriteEndpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-  const appwriteProject = process.env.APPWRITE_PROJECT_ID;
-
-  // Verify Authorization header (RC sends whatever you configure as Authorization header value)
-  const authHeader = req.headers['authorization'] ?? req.headers['Authorization'] ?? '';
-  if (!verifyAuthorization(authHeader, webhookSecret)) {
-    error('Webhook authorization failed');
-    return res.json({ ok: false, error: 'Unauthorized' }, 401);
-  }
-
-  let payload;
-  try {
-    payload = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
-  } catch {
-    return res.json({ ok: false, error: 'Invalid JSON body' }, 400);
-  }
-
+async function processRevenueCatPayload(payload, databases, log, error) {
   const event = payload?.event;
-  if (!event) return res.json({ ok: false, error: 'Missing event object' }, 400);
+  if (!event) return { body: { ok: false, error: 'Missing event object' }, status: 400 };
 
-  const { type: eventType, app_user_id: appUserId, product_id: productId } = event;
+  const { type: eventType, app_user_id: appUserId } = event;
 
   if (!appUserId) {
     error('Webhook missing app_user_id');
-    return res.json({ ok: false, error: 'Missing app_user_id' }, 400);
+    return { body: { ok: false, error: 'Missing app_user_id' }, status: 400 };
   }
 
   log(`RevenueCat event: ${eventType} for user ${appUserId}`);
@@ -97,14 +90,8 @@ export default async function handler({ req, res, log, error }) {
   if (!GRANT_EVENTS.has(eventType) && !REVOKE_EVENTS.has(eventType)) {
     // Non-subscription events (e.g. SUBSCRIBER_ALIAS) — acknowledge and skip
     log(`Ignoring event type: ${eventType}`);
-    return res.json({ ok: true, skipped: true });
+    return { body: { ok: true, skipped: true } };
   }
-
-  const client = new Client()
-    .setEndpoint(appwriteEndpoint)
-    .setProject(appwriteProject)
-    .setKey(appwriteKey);
-  const databases = new Databases(client);
 
   // Determine new subscription values
   let newPlan;
@@ -145,9 +132,40 @@ export default async function handler({ req, res, log, error }) {
       log(`Created new subscription for user ${appUserId} → plan=${newPlan}`);
     }
 
-    return res.json({ ok: true });
+    return { body: { ok: true } };
   } catch (e) {
     error(`Failed to update subscription: ${e.message}`);
-    return res.json({ ok: false, error: 'Database update failed' }, 500);
+    return { body: { ok: false, error: 'Database update failed' }, status: 500 };
   }
+}
+
+export { verifyAuthorization, parseWebhookPayload, mapEntitlementsToPlan, processRevenueCatPayload };
+
+export default async function handler({ req, res, log, error }) {
+  const webhookSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
+  const appwriteKey = process.env.APPWRITE_API_KEY;
+  const appwriteEndpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+  const appwriteProject = process.env.APPWRITE_PROJECT_ID;
+
+  // Verify Authorization header (RC sends whatever you configure as Authorization header value)
+  const authHeader = req.headers['authorization'] ?? req.headers['Authorization'] ?? '';
+  if (!verifyAuthorization(authHeader, webhookSecret)) {
+    error('Webhook authorization failed');
+    return res.json({ ok: false, error: 'Unauthorized' }, 401);
+  }
+
+  let payload;
+  try {
+    payload = parseWebhookPayload(req.body);
+  } catch {
+    return res.json({ ok: false, error: 'Invalid JSON body' }, 400);
+  }
+
+  const client = new Client()
+    .setEndpoint(appwriteEndpoint)
+    .setProject(appwriteProject)
+    .setKey(appwriteKey);
+  const databases = new Databases(client);
+  const result = await processRevenueCatPayload(payload, databases, log, error);
+  return res.json(result.body, result.status || 200);
 }

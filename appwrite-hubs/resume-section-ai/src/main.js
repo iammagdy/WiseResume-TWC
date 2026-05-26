@@ -1,6 +1,19 @@
 'use strict';
 
 const axios = require('axios');
+const sdk = require('node-appwrite');
+
+const DB_ID = 'main';
+const AI_CREDITS_COLLECTION_ID = 'ai_credits';
+const SUBSCRIPTIONS_COLLECTION_ID = 'subscriptions';
+const SERVER_RATE_LIMIT_WINDOW_MS = 60_000;
+const SERVER_RATE_LIMIT_MAX_REQUESTS = 20;
+const PLAN_DAILY_LIMITS = {
+  free: 5,
+  pro: 50,
+  premium: -1,
+};
+const _serverRateLimits = new Map();
 
 // ─── Provider helpers ──────────────────────────────────────────────────────────
 
@@ -29,6 +42,213 @@ function getProviderAvailability() {
     openrouter: [1, 2, 3].some(i => !!process.env[`OPENROUTER_KEY_${i}`]),
     deepseek:   !!process.env.DEEPSEEK_KEY,
   };
+}
+
+function isRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function asString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function parseRequestBody(req) {
+  if (typeof req.body !== 'string') {
+    return isRecord(req.body) ? req.body : {};
+  }
+  const raw = req.body.trim();
+  if (!raw) return {};
+  const parsed = JSON.parse(raw);
+  return isRecord(parsed) ? parsed : {};
+}
+
+function getHeader(headers, name) {
+  if (!isRecord(headers)) return '';
+  const wanted = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (String(key).toLowerCase() === wanted) {
+      return Array.isArray(value) ? asString(value[0]) : asString(value);
+    }
+  }
+  return '';
+}
+
+function extractJwt(body, req) {
+  const embeddedHeaders = isRecord(body.__headers) ? body.__headers : {};
+  const fromEmbeddedJwt = getHeader(embeddedHeaders, 'X-Appwrite-JWT');
+  const fromRequestJwt = getHeader(req.headers, 'X-Appwrite-JWT');
+  const authHeader = getHeader(embeddedHeaders, 'Authorization') || getHeader(req.headers, 'Authorization');
+  const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
+  return fromEmbeddedJwt || fromRequestJwt || bearer;
+}
+
+function getAppwriteEndpoint() {
+  return process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+}
+
+function getAppwriteProjectId() {
+  return process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
+}
+
+function getDbClient() {
+  const client = new sdk.Client()
+    .setEndpoint(getAppwriteEndpoint())
+    .setProject(getAppwriteProjectId())
+    .setKey(process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY);
+  return new sdk.Databases(client);
+}
+
+async function validateUserSession(body, req) {
+  const jwt = extractJwt(body, req);
+  if (!jwt) {
+    return { ok: false, status: 401, message: 'Authentication required.' };
+  }
+
+  try {
+    const client = new sdk.Client()
+      .setEndpoint(getAppwriteEndpoint())
+      .setProject(getAppwriteProjectId())
+      .setJWT(jwt);
+    const account = new sdk.Account(client);
+    const user = await account.get();
+    return { ok: true, user };
+  } catch {
+    return { ok: false, status: 401, message: 'Invalid or expired session.' };
+  }
+}
+
+function getResumeSectionCreditCost(aiAction, action) {
+  if (aiAction === 'tailor' || action === 'tailor' || action === 'tailor_to_job') return 2;
+  return 1;
+}
+
+function isTrialActive(subscription) {
+  const expiresAt = subscription?.trial_expires_at;
+  return !!(subscription?.trial_plan && expiresAt && new Date(expiresAt).getTime() > Date.now());
+}
+
+async function getEffectivePlan(db, userId) {
+  try {
+    const res = await db.listDocuments(DB_ID, SUBSCRIPTIONS_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    const subscription = res.documents?.[0];
+    const rawPlan = subscription?.effective_plan ||
+      (isTrialActive(subscription) ? subscription.trial_plan : subscription?.plan) ||
+      'free';
+    const plan = String(rawPlan).toLowerCase();
+    return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';
+  } catch {
+    return 'free';
+  }
+}
+
+function userCreditPermissions(userId) {
+  return [
+    sdk.Permission.read(sdk.Role.user(userId)),
+  ];
+}
+
+async function loadCreditState(db, userId, aiAction, action) {
+  const cost = getResumeSectionCreditCost(aiAction, action);
+  const today = new Date().toISOString().slice(0, 10);
+  const plan = await getEffectivePlan(db, userId);
+  const planLimit = PLAN_DAILY_LIMITS[plan] ?? PLAN_DAILY_LIMITS.free;
+
+  let res;
+  try {
+    res = await db.listDocuments(DB_ID, AI_CREDITS_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+  } catch (err) {
+    return {
+      blocked: true,
+      status: 503,
+      code: 'ai_credit_check_failed',
+      message: 'AI credit tracking is not available.',
+      detail: err.message,
+    };
+  }
+
+  let doc = res.documents?.[0];
+  if (!doc) {
+    doc = await db.createDocument(DB_ID, AI_CREDITS_COLLECTION_ID, sdk.ID.unique(), {
+      user_id: userId,
+      daily_usage: 0,
+      daily_limit: planLimit,
+      total_usage: 0,
+      usage_date: today,
+    }, userCreditPermissions(userId));
+  }
+
+  const dailyLimit = Number(doc.daily_limit ?? planLimit);
+  const effectiveLimit = Number.isFinite(dailyLimit) ? dailyLimit : planLimit;
+  const currentUsage = doc.usage_date === today ? Number(doc.daily_usage || 0) : 0;
+
+  if (effectiveLimit !== -1 && currentUsage + cost > effectiveLimit) {
+    return {
+      blocked: true,
+      status: 402,
+      code: 'ai_credits_exhausted',
+      message: 'Daily AI credit limit reached.',
+      doc,
+      dailyLimit: effectiveLimit,
+      currentUsage,
+      cost,
+      today,
+    };
+  }
+
+  return { blocked: false, doc, dailyLimit: effectiveLimit, currentUsage, cost, today };
+}
+
+async function recordAiUsage(db, creditState) {
+  if (!creditState || creditState.blocked || creditState.cost <= 0 || !creditState.doc) {
+    return;
+  }
+  await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
+    daily_usage: creditState.currentUsage + creditState.cost,
+    daily_limit: creditState.dailyLimit,
+    total_usage: Number(creditState.doc.total_usage || 0) + creditState.cost,
+    usage_date: creditState.today,
+  });
+}
+
+function checkServerRateLimit(userId, aiAction) {
+  const now = Date.now();
+  const key = `${userId}:${aiAction || 'enhance'}`;
+  const current = _serverRateLimits.get(key);
+  if (!current || now > current.resetAt) {
+    _serverRateLimits.set(key, { count: 1, resetAt: now + SERVER_RATE_LIMIT_WINDOW_MS });
+    return { ok: true };
+  }
+  if (current.count >= SERVER_RATE_LIMIT_MAX_REQUESTS) {
+    return {
+      ok: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+    };
+  }
+  current.count += 1;
+  return { ok: true };
+}
+
+function httpError(status, code, message) {
+  const err = new Error(message);
+  err.httpStatus = status;
+  err.code = code;
+  return err;
+}
+
+async function callChargedLLM(messages, pool, db, userId, aiAction, action) {
+  const creditState = await loadCreditState(db, userId, aiAction, action);
+  if (creditState.blocked) {
+    throw httpError(creditState.status || 503, creditState.code || 'ai_credit_check_failed', creditState.message);
+  }
+  const content = await callLLM(messages, pool);
+  await recordAiUsage(db, creditState);
+  return content;
 }
 
 async function callLLM(messages, pool) {
@@ -442,30 +662,44 @@ module.exports = async ({ req, res, log, error }) => {
     });
   }
 
-  // ── Parse body ───────────────────────────────────────────────────────────────
-  const body = typeof req.body === 'string'
-    ? JSON.parse(req.body || '{}')
-    : (req.body || {});
-
-  // Smoke-test short-circuit (used by DevKit health checks)
-  if (req.headers?.['x-smoke-test'] === 'true' || body['x-smoke-test'] === 'true') {
-    log('Smoke test ping — returning OK');
-    return res.json({ improved: body.currentContent || '', changes: [], suggestions: ['Smoke test OK'], _smokeTest: true, providers: getProviderAvailability() });
-  }
-
-  // Action is sent in the body (Appwrite SDK doesn't forward custom headers)
-  const aiAction = body['x-resume-section-ai-action'] || 'enhance';
-  const { section, action, currentContent, context } = body;
-
-  log(`resume-section-ai: action=${aiAction}, section=${section}, enhance_action=${action}`);
-
-  const pool = buildPool();
-  if (pool.length === 0) {
-    error('No AI provider keys found');
-    return res.json({ error: true, code: 'no_keys', message: 'No AI provider keys configured on this function.' }, 503);
-  }
-
   try {
+    // ── Parse body ───────────────────────────────────────────────────────────────
+    const body = parseRequestBody(req);
+
+    // Smoke-test short-circuit (used by DevKit health checks)
+    if (req.headers?.['x-smoke-test'] === 'true' || body['x-smoke-test'] === 'true') {
+      log('Smoke test ping — returning OK');
+      return res.json({ improved: body.currentContent || '', changes: [], suggestions: ['Smoke test OK'], _smokeTest: true, providers: getProviderAvailability() });
+    }
+
+    const auth = await validateUserSession(body, req);
+    if (!auth.ok) {
+      return res.json({ error: true, code: 'unauthorized', message: auth.message }, auth.status);
+    }
+
+    // Action is sent in the body (Appwrite SDK doesn't forward custom headers)
+    const aiAction = body['x-resume-section-ai-action'] || 'enhance';
+    const { section, action, currentContent, context } = body;
+
+    const rateLimit = checkServerRateLimit(auth.user.$id, aiAction);
+    if (!rateLimit.ok) {
+      return res.json({
+        error: true,
+        code: 'rate_limited',
+        message: 'Too many AI requests. Please wait and try again.',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      }, 429);
+    }
+
+    log(`resume-section-ai: user=${auth.user.$id}, action=${aiAction}, section=${section}, enhance_action=${action}`);
+
+    const db = getDbClient();
+    const pool = buildPool();
+    if (pool.length === 0) {
+      error('No AI provider keys found');
+      return res.json({ error: true, code: 'no_keys', message: 'No AI provider keys configured on this function.' }, 503);
+    }
+
     // ── Route to action handler ────────────────────────────────────────────────
     if (aiAction === 'enhance') {
       if (action === 'suggest_technologies') {
@@ -478,14 +712,14 @@ module.exports = async ({ req, res, log, error }) => {
           return res.json(buildSuggestTechQuestionsResponse());
         }
         const messages = buildSuggestTechMessages(currentContent, context);
-        const rawContent = await callLLM(messages, pool);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
         return res.json(result);
       }
 
       if (action === 'suggest_technologies_with_answers') {
         const messages = buildSuggestTechWithAnswersMessages(currentContent, context);
-        const rawContent = await callLLM(messages, pool);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
         return res.json(result);
       }
@@ -521,20 +755,20 @@ module.exports = async ({ req, res, log, error }) => {
       if (action === 'generate_with_answers') {
         const baseAction = section === 'summary' ? 'generate' : 'generate';
         const messages = buildEnhanceMessages(section, baseAction, currentContent, context);
-        const rawContent = await callLLM(messages, pool);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
         return res.json(result);
       }
 
       if (action === 'add_metrics_with_answers') {
         const messages = buildEnhanceMessages(section, 'add_metrics', currentContent, context);
-        const rawContent = await callLLM(messages, pool);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
         return res.json(result);
       }
 
       const messages = buildEnhanceMessages(section, action, currentContent, context);
-      const rawContent = await callLLM(messages, pool);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
       return res.json(result);
     }
@@ -542,14 +776,14 @@ module.exports = async ({ req, res, log, error }) => {
     if (aiAction === 'tailor') {
       // Tailor a single section to match a job description
       const messages = buildEnhanceMessages(section, 'tailor', currentContent, context);
-      const rawContent = await callLLM(messages, pool);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
       return res.json(result);
     }
 
     if (aiAction === 'fill-gap') {
       const messages = buildFillGapMessages(body);
-      const rawContent = await callLLM(messages, pool);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       let suggestions;
       try {
         const match = rawContent.match(/\[[\s\S]*\]/);
@@ -562,7 +796,7 @@ module.exports = async ({ req, res, log, error }) => {
 
     if (aiAction === 'explain-gap') {
       const messages = buildExplainGapMessages(body);
-      const rawContent = await callLLM(messages, pool);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       let result;
       try {
         const match = rawContent.match(/\{[\s\S]*\}/);
@@ -578,6 +812,9 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ error: true, code: 'unknown_action', message: `Unknown action: ${aiAction}` }, 400);
 
   } catch (err) {
+    if (err.httpStatus) {
+      return res.json({ error: true, code: err.code || 'request_failed', message: err.message }, err.httpStatus);
+    }
     error('resume-section-ai error: ' + err.message);
     return res.json({ error: true, code: 'internal', message: err.message }, 500);
   }

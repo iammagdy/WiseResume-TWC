@@ -4,6 +4,7 @@
   "description": "Appwrite Function — merged router for all resume section AI actions (enhance, tailor, fill-gap, explain-gap)",
   "main": "src/main.js",
   "dependencies": {
-    "axios": "^1.4.0"
+    "axios": "^1.4.0",
+    "node-appwrite": "^25.2.0"
   }
 }
