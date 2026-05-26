@@ -2,6 +2,83 @@
 
 ---
 
+## Session Log - 2026-05-26 (P0 Production Readiness Fixes — AI/Auth/Credits/Webhooks)
+
+### Overview
+Implemented the P0 production readiness plan from the comprehensive audit. The AI hubs now enforce server-side Appwrite session validation, server-side credit checks, and per-user/action rate limits before provider calls. The RevenueCat webhook runtime body parsing bug is fixed. The audit and fix documentation was added under Project Atlas. Changes were committed, pushed to `main`, and all Appwrite hubs were redeployed.
+
+### Root Causes Verified
+- `ai-gateway` and `resume-section-ai` received browser Appwrite JWTs in `body.__headers['X-Appwrite-JWT']`, but did not validate them server-side before calling AI providers.
+- AI credit UI and comments assumed server enforcement, but the Appwrite AI hubs did not check or increment `ai_credits`.
+- AI rate limiting existed only in browser memory and was bypassable by direct function execution.
+- `ai-gateway` still referenced removed Datadog LLMObs variables (`_llmobsEnabled`, `llmobs`), which could crash the first provider attempt.
+- `revenuecat-webhook` referenced undefined `rawBody`, causing malformed/missing body handling to fail at runtime.
+- Appwrite schema/permissions and Vercel production verification requirements were not documented in a reproducible launch checklist.
+
+### Code Fixes Applied
+| Area | Fix |
+|------|-----|
+| `ai-gateway` | Added safe body parsing, JWT extraction from `__headers` / request headers, Appwrite `Account.get()` validation, per-user/action warm-instance rate limit, pre-provider credit checks, post-success credit increments, and removed the dead LLMObs trace branch. |
+| `resume-section-ai` | Added `node-appwrite`, server-side JWT validation, per-user/action warm-instance rate limit, credit checks around provider-backed section actions, and post-success usage increments. Clarifying-question responses remain uncharged. |
+| AI credits | Uses `ai_credits` (`user_id`, `daily_usage`, `daily_limit`, `total_usage`, `usage_date`) and `subscriptions` (`plan`, `effective_plan`, `trial_plan`, `trial_expires_at`). Plan limits: `free=5`, `pro=50`, `premium=-1`. |
+| RevenueCat webhook | Replaced undefined `rawBody` parsing with safe `req.body` parsing for string/object bodies; malformed/missing payloads return 400; authorization remains `timingSafeEqual` against `REVENUECAT_WEBHOOK_SECRET`. |
+| Tests | Added `tests/hubs/p0-readiness.test.cjs` covering AI unauthenticated rejection and RevenueCat invalid auth, malformed body, ignored event, grant event, and revoke event. |
+| Project Atlas | Added comprehensive audit files and fix docs under `Project Atlas/Comprehensive Audit 26-05-2026/`, including Appwrite schema/permissions, Vercel verification, smoke plan, fix summary, test results, remaining unknowns, and files changed. |
+
+### Verification
+- `node tests/hubs/p0-readiness.test.cjs` — passed.
+- `npx tsc --noEmit` — passed.
+- Targeted ESLint on changed hub/test files — passed.
+- `ReadLints` on edited code/test files — no linter errors.
+- `npm run build` — passed; Vite reported existing large-chunk warnings only.
+- Full `npm run lint` — still fails on pre-existing/unrelated repo and worktree issues. Changed-file lint is clean.
+
+### Git / Deployment Completed
+- Commit pushed to `main`: `a68a23a9 fix(ai): enforce server-side readiness guards`.
+- `git push origin main` completed successfully (`7523be92..a68a23a9`).
+- `node scripts/deploy_hubs.cjs` completed successfully and processed all Appwrite hubs.
+- Appwrite deployment IDs from this run:
+  - `resume-section-ai`: `6a153c0805259fedaf26`
+  - `job-import`: `6a153c0e6edf71541b78`
+  - `ai-gateway`: `6a153c1766a5ed66ad92`
+  - `coupons`: `6a153c1d3489d8655fc7`
+  - `wisehire-gateway`: `6a153c26576f3de75612`
+  - `public-share`: `6a153c2cca4251b0c641`
+  - `ai-health`: `6a153c2eaeb688422aaf`
+  - `admin-devkit-data`: `6a153c37a218c51392a8`
+  - `admin-email`: `6a153c3d4597353d9d01`
+  - `admin-testmail`: `6a153c3f2f7e5c089720`
+  - `admin-feature-flags`: `6a153c446a199efe9c50`
+  - `admin-moderation`: `6a153c49bbb7a459cfce`
+  - `admin-portfolio-usernames`: `6a153c4f0745157789d8`
+  - `admin-visitor-analytics`: `6a153c54330cfb446b44`
+  - `admin-onboarding-funnel`: `6a153c594e61d50584ee`
+  - `admin-impersonate`: `6a153c5e99845b567451`
+  - `inspect-ai-keys`: `6a153c606f1bbe0efcec`
+  - `admin-deploy-hubs`: `6a153c66cd3bbf2d9491`
+  - `revenuecat-webhook`: `6a153c6bdfa310e8e3ad`
+  - `email-service`: `6a153c709943b19944b5`
+
+### Current State
+- P0 AI auth, AI credit enforcement, AI warm-instance rate limiting, and RevenueCat webhook parsing fixes are on `main` and deployed to Appwrite.
+- Appwrite auth email templates were re-synced by the deploy script: verification template blanked for Resend-branded verification email; recovery template synced from `password-recovery.html`.
+- `jobs` collection create permission was updated by the deploy script: added `Permission.create(Role.users())`.
+- Remaining untracked local artifacts are `.playwright-mcp/` and `reports/e2e-results-2026-05-26T04-*.json`; they were intentionally not committed.
+
+### Remaining Known Risks
+- AI credit increments use Appwrite document updates, not an atomic transaction; concurrent requests can race.
+- Rate limiting is warm-instance memory, not globally shared across all Appwrite instances.
+- Full repo lint remains red due pre-existing/unrelated issues; do not treat it as introduced by this P0 fix.
+- Live Console verification is still required for Appwrite collection attributes/ACLs, function execute permissions, Vercel env vars, RevenueCat webhook config, Resend logs, and Sentry state.
+
+### Where We Stopped
+- Code is committed and pushed to `main`.
+- All Appwrite hubs were redeployed successfully.
+- P0 fix documentation exists in `Project Atlas/Comprehensive Audit 26-05-2026/fixes/`.
+- Next agent should run the production smoke checklist after Vercel finishes deploying `main`, then verify Appwrite logs, Vercel logs, RevenueCat webhook delivery, Resend email delivery, and Sentry for new production errors.
+
+---
+
 ## Session Log - 2026-05-26 (Email System Recovery — Direct Appwrite Deploy, No GitHub Actions)
 
 ### Overview
