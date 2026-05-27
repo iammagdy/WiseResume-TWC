@@ -6,11 +6,11 @@ Date: 2026-05-26
 
 - `node --check appwrite-hubs/ai-gateway/src/main.js`
 - `node --check appwrite-hubs/resume-section-ai/src/main.js`
-- `node --check appwrite-hubs/revenuecat-webhook/src/main.js`
+- `node --check appwrite-hubs/legacy-payment-webhook/src/main.js`
 - `node --check tests/hubs/p0-readiness.test.cjs`
 - `node tests/hubs/p0-readiness.test.cjs`
 - `npx tsc --noEmit`
-- `npx eslint appwrite-hubs/ai-gateway/src/main.js appwrite-hubs/resume-section-ai/src/main.js appwrite-hubs/revenuecat-webhook/src/main.js tests/hubs/p0-readiness.test.cjs`
+- `npx eslint appwrite-hubs/ai-gateway/src/main.js appwrite-hubs/resume-section-ai/src/main.js appwrite-hubs/legacy-payment-webhook/src/main.js tests/hubs/p0-readiness.test.cjs`
 - `npm run build`
 - `ReadLints` on edited code/test files
 
@@ -20,12 +20,12 @@ Date: 2026-05-26
 
 - `ai-gateway` rejects provider-backed AI calls without a JWT.
 - `resume-section-ai` rejects provider-backed AI calls without a JWT.
-- `revenuecat-webhook` rejects invalid authorization.
-- `revenuecat-webhook` rejects malformed JSON payloads.
-- `revenuecat-webhook` accepts object and string payload parsing.
-- `revenuecat-webhook` skips ignored event types without database writes.
-- `revenuecat-webhook` creates subscription records for grant events.
-- `revenuecat-webhook` updates subscription records for revoke events.
+- `legacy-payment-webhook` rejects invalid authorization.
+- `legacy-payment-webhook` rejects malformed JSON payloads.
+- `legacy-payment-webhook` accepts object and string payload parsing.
+- `legacy-payment-webhook` skips ignored event types without database writes.
+- `legacy-payment-webhook` creates subscription records for grant events.
+- `legacy-payment-webhook` updates subscription records for revoke events.
 
 ## Failed Or Warning-Only Checks
 
@@ -41,7 +41,7 @@ Changed-file follow-up: PASS. A targeted ESLint run on all JavaScript files chan
 
 Status: PASS with Node warning
 
-Warning: Node reports `MODULE_TYPELESS_PACKAGE_JSON` when dynamically importing `appwrite-hubs/revenuecat-webhook/src/main.js`, because that function uses ESM syntax but its local package does not specify `"type": "module"`. The warning does not fail tests and was not changed because it is not part of the P0 plan.
+Warning: Node reports `MODULE_TYPELESS_PACKAGE_JSON` when dynamically importing `appwrite-hubs/legacy-payment-webhook/src/main.js`, because that function uses ESM syntax but its local package does not specify `"type": "module"`. The warning does not fail tests and was not changed because it is not part of the P0 plan.
 
 ### `npm run build`
 

@@ -31,7 +31,6 @@ import { ConsentBanner } from "@/components/layout/ConsentBanner";
 import { isAppHostname, usePublicPortfolioByDomain } from "@/hooks/usePublicPortfolio";
 import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
 import { BottomSheetProvider } from "@/context/BottomSheetContext";
-import { RevenueCatProvider } from "@/providers/RevenueCatProvider";
 
 import {
   DashboardSkeleton,
@@ -428,14 +427,12 @@ const AppInterior = () => {
       <Toaster />
       <ActingAsBanner />
       <AuthProvider>
-        <RevenueCatProvider>
-          <BottomSheetProvider>
-            <AIPrivacyDisclosureProvider>
-              <AppRoutes />
-              <DeferredProviders />
-            </AIPrivacyDisclosureProvider>
-          </BottomSheetProvider>
-        </RevenueCatProvider>
+        <BottomSheetProvider>
+          <AIPrivacyDisclosureProvider>
+            <AppRoutes />
+            <DeferredProviders />
+          </AIPrivacyDisclosureProvider>
+        </BottomSheetProvider>
       </AuthProvider>
     </MotionConfigProvider>
   );

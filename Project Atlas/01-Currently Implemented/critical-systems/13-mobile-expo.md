@@ -36,7 +36,7 @@ mobile/
 | `_layout.tsx` (root) | layout | QueryClient, ThemeProvider, SafeArea, gesture handler |
 | `+not-found.tsx` | screen | 404 |
 | `settings.tsx` | screen | Settings |
-| `paywall.tsx` | screen | RevenueCat paywall |
+| `paywall.tsx` | screen | Coming Soon payment screen |
 | `resume/new.tsx`, `resume/[id].tsx` | screens | Create / view resume (read-only Phase 1) |
 | `cover-letter/index.tsx`, `new.tsx`, `[id].tsx` | screens | Cover-letter list / create / view |
 | `resignation-letter/index.tsx`, `new.tsx`, `[id].tsx` | screens | Resignation-letter list / create / view |
@@ -84,7 +84,6 @@ Mobile-only paths now route through 2 edge functions instead of the original 10:
 | `mobile-api` | bridge JWT | **Consolidated router**: `register-push-token`, `export-pdf {kind,id}` (resume / cover-letter / resignation-letter / portfolio), `interview-next-question`, `interview-grade-answer` |
 | `mobile-config` | none (public) | Min-supported / latest version, banner, feature flags |
 | `send-push` | `EDGE_INTERNAL_TOKEN` | Server-to-server fan-out via Expo Push API |
-| `revenuecat-webhook` | `REVENUECAT_WEBHOOK_AUTH_TOKEN` | Reconcile entitlements into `subscriptions` |
 | `export-portfolio-pdf` | bridge JWT | Server-side render via `PDF_RENDERER_URL` (shared with web) |
 
 The PDF export path delegates rendering to a headless-Chromium service at `PDF_RENDERER_URL` — we explicitly do NOT ship Chromium inside an edge function. Bytes are uploaded to the `exports` Storage bucket; mobile receives a 1-hour signed URL.
@@ -106,7 +105,7 @@ Both tables are **additive** — no existing column types are touched.
 
 ## In-app purchases
 
-RevenueCat manages products and entitlements. Mobile purchases via `react-native-purchases`; RevenueCat posts to `revenuecat-webhook`, which writes the resolved plan into the same `subscriptions` table the web checkout uses. The `me` endpoint stays the single read path → plan changes take effect on the next refresh on both surfaces.
+Online payments are disabled. The mobile paywall shows plan previews with a disabled Coming Soon action. Existing server-side plan data remains the source of truth through the `me` endpoint.
 
 ## Push notifications
 

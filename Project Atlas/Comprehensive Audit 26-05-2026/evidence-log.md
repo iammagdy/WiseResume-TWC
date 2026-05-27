@@ -52,7 +52,7 @@
 - `src/lib/appwrite-functions.ts`
 - `src/lib/appwrite-bridge.ts`
 - `src/lib/appwrite-collections.ts`
-- `src/lib/revenuecat.ts` discovered through env search
+- `src/lib/billing.ts` discovered through env search
 
 ### AI / Bot
 
@@ -72,7 +72,7 @@
 - `appwrite-hubs/coupons/src/main.js`
 - `appwrite-hubs/wisehire-gateway/src/main.js`
 - `appwrite-hubs/public-share/src/main.js`
-- `appwrite-hubs/revenuecat-webhook/src/main.js`
+- `appwrite-hubs/legacy-payment-webhook/src/main.js`
 - Admin hub auth references found with search across `appwrite-hubs`.
 
 ### Server / API
@@ -100,7 +100,7 @@
 - `scripts/deploy_hubs.cjs` updates function execute permissions to include `any`.
 - `appwrite-hubs/ai-gateway/src/main.js` builds AI provider candidates and fallbacks but searched terms did not show Appwrite JWT validation or credit enforcement.
 - `appwrite-hubs/resume-section-ai/src/main.js` searched terms did not show Appwrite JWT validation or credit enforcement.
-- `appwrite-hubs/revenuecat-webhook/src/main.js` references `rawBody` without defining it.
+- `appwrite-hubs/legacy-payment-webhook/src/main.js` references `rawBody` without defining it.
 - `vercel.json` has SPA rewrite and `/api/export/pdf-native.ts` function config.
 - `.github/workflows/deploy-frontend.yml` comments say Vercel handles frontend deployment now, but FTP deployment steps remain.
 - `src/contexts/AuthContext.tsx` validates Appwrite session with `account.get()` on load.
@@ -112,7 +112,7 @@
 - **Vercel dashboard:** Not available through repo read-only audit.
 - **Appwrite dashboard:** Not accessed; repo evidence cannot prove live env vars/permissions/logs.
 - **Resend dashboard:** Not accessed; delivery/domain/API key status unknown.
-- **RevenueCat dashboard:** Not accessed; webhook event delivery unknown.
+- **legacy payment provider dashboard:** Not accessed; webhook event delivery unknown.
 - **Sentry dashboard:** Not accessed; DSN/alerts/event ingestion unknown.
 - **Production live app:** No browser production smoke was run because production test account/log access was not provided.
 - **Full build:** Not run because `npm run build` triggers `prebuild` asset-copy script; use Vercel logs or clean CI for verification.

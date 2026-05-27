@@ -18,7 +18,7 @@ The frontend is a React/Vite SPA with Appwrite auth and Vercel SPA rewrites. Rou
 | Error boundaries | `ErrorBoundary.tsx`, `main.tsx` | PASS | Catches global and route errors; handles chunk failures. | Verify Sentry DSN and alerts. |
 | Loading states | Skeleton components and Suspense fallbacks | PASS | Many lazy pages have fallbacks. | Add visual smoke for mobile/slow network. |
 | Empty/error states | Partial evidence in pages/hooks | UNKNOWN | Not exhaustively inspected. | Add e2e negative-path tests. |
-| Env var naming | `VITE_APPWRITE_*`, `VITE_SENTRY_DSN`, `VITE_REVENUECAT_WEB_API_KEY` | PASS | Client vars are correctly prefixed. | Verify no server secrets in Vercel client env. |
+| Env var naming | `VITE_APPWRITE_*`, `VITE_SENTRY_DSN`, `removed web payment API key` | PASS | Client vars are correctly prefixed. | Verify no server secrets in Vercel client env. |
 | Source maps | `vite.config.ts` disables unless Sentry token exists; deletes after upload | PASS | Reduces source exposure. | Verify Vercel artifacts contain no `.map` files. |
 | CSP/security headers | `vite.config.ts` CSP meta; `vercel.json` headers | PASS with caveat | CSP uses `script-src 'unsafe-inline'`; headers omit HSTS. | Harden CSP/HSTS after validating app behavior. |
 | Performance | Lazy routing, manual chunks, deferred Sentry | PASS | Good cold-start practices present. | Use Vercel/Lighthouse/Web Vitals data. |

@@ -85,7 +85,6 @@
 
 - [coupons](./coupons.md) — **consolidated** (3→1): admin-manage, redeem, validate
 - [manage-api-keys](./manage-api-keys.md) — BYOK key storage (legacy; BYOK fully removed but endpoint retained for compat)
-- [revenuecat-webhook](./revenuecat-webhook.md) — RevenueCat IAP entitlement reconciliation
 - [validate-api-key](./validate-api-key.md)
 
 ## Mobile (2)

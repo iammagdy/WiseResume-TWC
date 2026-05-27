@@ -156,11 +156,11 @@
 
 ## Subscription / Plan / Credits
 
-- **Expected behavior:** User sees plan, redeems coupon or pays, RevenueCat updates subscription, credits enforced server-side.
-- **Files/routes/functions involved:** `useAICredits`, `coupons`, `revenuecat-webhook`.
-- **Manual test steps:** Validate coupon, redeem coupon, trigger RevenueCat test event, run AI until limit.
+- **Expected behavior:** User sees plan, redeems coupon or pays, legacy payment provider updates subscription, credits enforced server-side.
+- **Files/routes/functions involved:** `useAICredits`, `coupons`, `legacy-payment-webhook`.
+- **Manual test steps:** Validate coupon, redeem coupon, trigger legacy payment provider test event, run AI until limit.
 - **Automatic test:** Webhook unit test with sample payload; credit enforcement integration test.
-- **Evidence found:** Coupons require Appwrite user for redemption; RevenueCat webhook has undefined `rawBody`; AI gateway lacks credit enforcement evidence.
+- **Evidence found:** Coupons require Appwrite user for redemption; legacy payment provider webhook has undefined `rawBody`; AI gateway lacks credit enforcement evidence.
 - **Status:** FAIL.
 - **Risks:** Paid users may not be upgraded; free users may abuse AI; billing trust risk.
 - **Recommendation:** Fix webhook and enforce credits in backend.

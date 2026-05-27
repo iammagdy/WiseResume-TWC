@@ -16,7 +16,7 @@ Date: 2026-05-26
   - Added warm-instance per-user/action rate limiting.
   - Preserved deterministic clarifying-question responses without credit charges.
 
-- `appwrite-hubs/revenuecat-webhook/src/main.js`
+- `appwrite-hubs/legacy-payment-webhook/src/main.js`
   - Replaced undefined `rawBody` parsing with safe `req.body` parsing.
   - Added testable helper exports for authorization, parsing, and subscription sync behavior.
   - Preserved existing authorization and subscription update/create behavior.
@@ -32,7 +32,7 @@ Date: 2026-05-26
 ## Tests
 
 - `tests/hubs/p0-readiness.test.cjs`
-  - Added focused tests for AI unauthenticated rejection and RevenueCat auth/body/grant/revoke behavior.
+  - Added focused tests for AI unauthenticated rejection and legacy payment provider auth/body/grant/revoke behavior.
 
 ## Documentation
 

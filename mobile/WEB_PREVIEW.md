@@ -6,7 +6,7 @@ to look at the screens.
 
 > **Scope.** Web preview exists for **layout review only**. It is not a
 > production target — Kinde sign-in, biometrics, push notifications,
-> in-app purchases, MMKV persistence, and SecureStore-backed Keychain
+> payments, MMKV persistence, and SecureStore-backed Keychain
 > are no-ops or stubbed on web. Always run on a real device for QA of
 > auth, payments, or storage flows.
 
@@ -103,9 +103,8 @@ profile for actual device/EAS builds, never committed to the repo.
 
 - `mobile/src/lib/secureStore.ts` — already branches on
   `Platform.OS === 'web'` to use `localStorage`.
-- `mobile/app/paywall.tsx` — `react-native-purchases` is loaded via a
-  dynamic `import()` inside `try/catch`, so it falls through to the
-  static `FALLBACK_OFFERINGS` on web.
+- `mobile/app/paywall.tsx` — payment actions are disabled and marked
+  Coming Soon on all platforms.
 - `mobile/src/hooks/usePushRegistration.ts` — gated on
   `Device.isDevice`, which is `false` on web.
 - `mobile/src/hooks/useBiometricGate.ts` — `LocalAuthentication.hasHardwareAsync()`
@@ -121,7 +120,7 @@ profile for actual device/EAS builds, never committed to the repo.
 - **Query cache persists in `localStorage`** instead of MMKV. It still
   survives reloads, but writes are slower and capped by the browser's
   ~5 MB localStorage quota.
-- **No haptics, push, biometric, or RevenueCat purchases.** All
+- **No haptics, push, biometric, or payment checkout.** All
   no-op silently as documented above.
 - **Splash screen and native fonts** render via `react-native-web`'s
   best-effort polyfill; small visual differences vs. iOS/Android are

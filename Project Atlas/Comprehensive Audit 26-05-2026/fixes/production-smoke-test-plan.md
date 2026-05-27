@@ -140,27 +140,27 @@ Use this after a production deployment or rollback. Record the deployment URL, c
 
 ## Billing And Webhooks
 
-### RevenueCat Grant Event
+### legacy payment provider Grant Event
 
 - Status:
 - Steps: replay or send a signed `INITIAL_PURCHASE`/`RENEWAL` webhook for a test user.
 - Expected: `subscriptions.plan`, `effective_plan`, and `status` reflect active paid access.
 - Evidence:
-- RevenueCat webhook delivery checked:
+- legacy payment provider webhook delivery checked:
 - Appwrite `subscriptions` checked:
 - Notes:
 
-### RevenueCat Revoke Event
+### legacy payment provider Revoke Event
 
 - Status:
 - Steps: replay or send a signed `EXPIRATION`/`CANCELLATION` webhook for a test user.
 - Expected: subscription reverts to `plan=free`, `effective_plan=free`, `status=cancelled`.
 - Evidence:
-- RevenueCat webhook delivery checked:
+- legacy payment provider webhook delivery checked:
 - Appwrite `subscriptions` checked:
 - Notes:
 
-### RevenueCat Invalid Auth
+### legacy payment provider Invalid Auth
 
 - Status:
 - Steps: send webhook with incorrect authorization header.
@@ -182,7 +182,7 @@ Use this after a production deployment or rollback. Record the deployment URL, c
 ### Appwrite Logs
 
 - Status:
-- Steps: inspect logs for `ai-gateway`, `resume-section-ai`, `revenuecat-webhook`, and `email-service`.
+- Steps: inspect logs for `ai-gateway`, `resume-section-ai`, `legacy-payment-webhook`, and `email-service`.
 - Expected: no PII in logs; no provider calls after unauthorized/credit-blocked AI requests.
 - Evidence:
 - Notes:

@@ -14,7 +14,7 @@ providers as the web app — there is no second backend.
 | Auth                 | Kinde PKCE (`expo-auth-session`) → Supabase bridge  |
 | Storage              | `expo-secure-store` for tokens, `MMKV` for caches   |
 | Push                 | Expo Notifications → `register-push-token` edge fn  |
-| Payments             | RevenueCat → `revenuecat-webhook` edge fn           |
+| Payments             | Disabled; upgrade UI is marked Coming Soon          |
 | Deep links           | `applinks:` + Android App Links (`/.well-known/`)   |
 | OTA                  | EAS Update                                          |
 | Crash + perf         | Sentry React Native                                 |
@@ -23,7 +23,7 @@ providers as the web app — there is no second backend.
 
 ```bash
 cd mobile
-cp .env.example .env       # fill in Supabase / Kinde / RevenueCat keys
+cp .env.example .env       # fill in Supabase / Kinde keys
 npm install                # heavy — ~3 minutes the first time
 npx expo prebuild --clean  # only needed if you want native ios/ android folders
 npm run ios                # or `npm run android`
@@ -35,8 +35,8 @@ The web app's `vite` dev server is unrelated; you can run both at once.
 
 All values live in `.env` and are exposed to the binary via `EXPO_PUBLIC_*`.
 See `.env.example` for the full list. Every key is **required** in production
-except RevenueCat (which gracefully falls back to a static paywall) and
-Sentry (which silently disables itself).
+except Sentry (which silently disables itself). Online payments are
+currently disabled and shown as Coming Soon.
 
 ## Authentication
 
@@ -70,13 +70,11 @@ through `send-push` (authenticated via the `EDGE_INTERNAL_TOKEN`
 service-to-service secret). Per-category opt-ins are stored on the row
 itself so the user always controls what they receive.
 
-## In-app purchases
+## Payments
 
-RevenueCat manages product configuration and entitlements. The mobile
-client subscribes via `react-native-purchases`; RevenueCat then posts to
-`revenuecat-webhook` which writes the resolved plan into the same
-`subscriptions` table the web checkout uses. Server is the source of
-truth — the `me` endpoint stays the single read path.
+Online payments are disabled for now. The paywall remains visible with
+plan previews, but upgrade actions are marked Coming Soon. Server-side
+plan data remains the source of truth through the `me` endpoint.
 
 ## Building
 

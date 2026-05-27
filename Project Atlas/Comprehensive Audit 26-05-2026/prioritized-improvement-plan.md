@@ -6,7 +6,7 @@
 |---|---|---|---|---|---|
 | Add server-side auth to `ai-gateway` and `resume-section-ai` | Critical | Backend / Security | Prevents unauthenticated direct AI function abuse. | Direct unauthenticated execution returns 401; valid session succeeds. | `appwrite-functions.ts`, `ai-gateway`, `resume-section-ai`, `deploy_hubs.cjs`. |
 | Add server-side AI credit deduction and per-user/IP rate limits | Critical | Backend / Platform | Protects cost, quotas, and billing fairness. | Free user hits limit and receives 402/429; usage row updates atomically. | `useAICredits.ts`, `rateLimiter.ts`, AI hubs. |
-| Fix RevenueCat webhook body parsing | Critical | Backend / Payments | Paid users may not receive access; subscription downgrades may fail. | RevenueCat test event updates Appwrite subscription; invalid auth returns 401. | `appwrite-hubs/revenuecat-webhook/src/main.js`. |
+| Fix legacy payment provider webhook body parsing | Critical | Backend / Payments | Paid users may not receive access; subscription downgrades may fail. | legacy payment provider test event updates Appwrite subscription; invalid auth returns 401. | `appwrite-hubs/legacy-payment-webhook/src/main.js`. |
 | Export and review Appwrite schema/permissions | High | DevOps / Security | Current DB permissions cannot be audited/rebuilt from repo. | Versioned manifest exists and matches live Appwrite project. | `appwrite-collections.ts`, direct client DB writes. |
 | Verify latest Vercel production deploy | High | DevOps | Users need the latest auth/email fixes live. | Vercel dashboard shows commit `7523be92` or newer deployed to production; smoke passes. | `vercel.json`, Git log. |
 | Run production auth/email smoke | High | QA / DevOps | Signup/signin/verify were recently changed and are critical. | New account can signup, receive one email, verify, refresh dashboard, reset password. | `AuthPage`, `AuthVerifyEmailPage`, `email-service`. |
@@ -16,7 +16,7 @@
 
 | Item | Severity | Owner Role | Why It Matters | How to Verify Resolved | Related Evidence |
 |---|---|---|---|---|---|
-| Add Appwrite function contract tests | High | Backend / QA | Prevents silent runtime regressions in hubs. | CI runs contract tests for email, AI, coupons, RevenueCat, WiseHire. | `appwrite-hubs/*/src/main.js`. |
+| Add Appwrite function contract tests | High | Backend / QA | Prevents silent runtime regressions in hubs. | CI runs contract tests for email, AI, coupons, legacy payment provider, WiseHire. | `appwrite-hubs/*/src/main.js`. |
 | Add Vercel rollback runbook | High | DevOps | Needed for launch incident response. | Runbook includes dashboard rollback and Appwrite function rollback. | `deployment-vercel-audit.md`. |
 | Verify Sentry production ingestion and privacy | High | DevOps / Security | Errors must be visible without leaking PII. | Test event appears; PII scrubbing rules reviewed. | `monitoring.ts`. |
 | Harden public share passwords | High | Backend / Security | Direct string comparison suggests plaintext or weak password handling. | Stored value is salted hash; tests verify anonymous access behavior. | `public-share/src/main.js`. |

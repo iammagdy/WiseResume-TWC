@@ -27,7 +27,6 @@ const HUBS = [
   'admin-impersonate',
   'inspect-ai-keys',
   'admin-deploy-hubs',
-  'revenuecat-webhook',
   'email-service',
 ];
 

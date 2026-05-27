@@ -1,10 +1,6 @@
-import { Crown, Lock, Check, Loader2 } from 'lucide-react';
+import { Crown, Lock, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { haptics } from '@/lib/haptics';
 import { useNavigate } from 'react-router-dom';
-import { useRevenueCat, isPurchaseCancelled } from '@/hooks/useRevenueCat';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface UpgradeWallProps {
   requiredPlan: 'pro' | 'premium';
@@ -18,47 +14,8 @@ function planLabel(plan: 'pro' | 'premium') {
   return plan === 'pro' ? 'Pro' : 'Premium';
 }
 
-function useUpgradePurchase(requiredPlan: 'pro' | 'premium') {
-  const queryClient = useQueryClient();
-  const { packages, loadingOfferings, purchasing, purchase } = useRevenueCat();
-
-  const handlePurchase = async () => {
-    haptics.medium();
-    if (packages.length === 0) {
-      toast.error('Packages not loaded. Please try again.');
-      return;
-    }
-    const targetIndex = requiredPlan === 'pro' ? 0 : packages.length - 1;
-    const pkg = packages[targetIndex];
-    try {
-      await purchase(pkg);
-      toast.success(`Welcome to ${planLabel(requiredPlan)}!`);
-      await queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-    } catch (e) {
-      if (!isPurchaseCancelled(e)) {
-        toast.error(e instanceof Error ? e.message : 'Purchase failed. Please try again.');
-      }
-    }
-  };
-
-  const targetIndex = requiredPlan === 'pro' ? 0 : packages.length - 1;
-  const pkg = packages[targetIndex];
-  const price = pkg?.webBillingProduct?.currentPrice?.formattedPrice;
-  const label = (() => {
-    if (purchasing) return 'Processing…';
-    if (loadingOfferings) return 'Loading…';
-    return price
-      ? `Upgrade to ${planLabel(requiredPlan)} — ${price}/mo`
-      : `Upgrade to ${planLabel(requiredPlan)}`;
-  })();
-
-  return { handlePurchase, purchasing, loadingOfferings, label };
-}
-
 export function UpgradeWall({ requiredPlan, featureName, description, features, compact = false }: UpgradeWallProps) {
   const navigate = useNavigate();
-  const { handlePurchase, purchasing, loadingOfferings, label } = useUpgradePurchase(requiredPlan);
-  const busy = purchasing || loadingOfferings;
 
   if (compact) {
     return (
@@ -83,9 +40,9 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
           </ul>
         )}
         <div className="flex gap-2">
-          <Button size="sm" onClick={handlePurchase} disabled={busy} className="gap-1.5">
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crown className="w-3.5 h-3.5" />}
-            {label}
+          <Button size="sm" disabled className="gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
+            Coming Soon
           </Button>
           <Button size="sm" variant="ghost" onClick={() => navigate('/subscription')} className="text-muted-foreground">
             View plans
@@ -121,10 +78,13 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
         </ul>
       )}
       <div className="flex flex-col gap-3 w-full max-w-xs">
-        <Button size="lg" className="w-full gap-2" onClick={handlePurchase} disabled={busy}>
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
-          {label}
+        <Button size="lg" className="w-full gap-2" disabled>
+          <Clock className="w-4 h-4" />
+          Coming Soon
         </Button>
+        <p className="text-xs text-muted-foreground text-center">
+          Online payment is not available yet.
+        </p>
         <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => navigate('/subscription')}>
           View all plans
         </Button>

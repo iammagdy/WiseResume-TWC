@@ -13,8 +13,6 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
  *
  * Optional:
  *  - EXPO_PUBLIC_SENTRY_DSN
- *  - EXPO_PUBLIC_REVENUECAT_IOS_API_KEY
- *  - EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY
  *  - EXPO_PUBLIC_WEB_URL  (the wiseresume.cloud-equivalent host for universal links)
  */
 
@@ -139,8 +137,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     kindeDomain: process.env.EXPO_PUBLIC_KINDE_DOMAIN,
     kindeClientId: process.env.EXPO_PUBLIC_KINDE_CLIENT_ID,
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    revenueCatIosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY,
-    revenueCatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY,
     webUrl: WEB_URL,
   },
 });

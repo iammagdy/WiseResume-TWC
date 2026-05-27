@@ -29,8 +29,7 @@ saved jobs, the same AI providers — there is no second version of your data.
 - Export any document as a PDF straight from your phone.
 - Get push reminders for interview prep and follow-ups, with per-category
   on/off switches.
-- Subscribe to Pro through Apple or Google (handled by RevenueCat); we keep
-  the website checkout too.
+- Subscribe to Pro through Apple or Google; online payment is currently disabled while the next provider is decided.
 - Lock the app with Face ID or fingerprint when you step away.
 
 **What's deferred to the next release** (we want the first one in store review

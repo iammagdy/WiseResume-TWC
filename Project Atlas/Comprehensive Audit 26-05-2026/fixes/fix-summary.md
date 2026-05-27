@@ -1,7 +1,7 @@
 # P0 Readiness Fix Summary
 
 Date: 2026-05-26
-Scope: approved P0 production readiness plan only. No deployment, Git push, or live Appwrite/Vercel/RevenueCat setting changes were performed.
+Scope: approved P0 production readiness plan only. No deployment, Git push, or live Appwrite/Vercel/legacy payment provider setting changes were performed.
 
 ## Completed Fixes
 
@@ -23,9 +23,9 @@ Scope: approved P0 production readiness plan only. No deployment, Git push, or l
 - Both AI hubs enforce a warm-instance in-memory per-user/action rate limit.
 - Zero-cost `score-resume` remains uncharged.
 
-### RevenueCat Webhook Runtime Repair
+### legacy payment provider Webhook Runtime Repair
 
-- `revenuecat-webhook` no longer references undefined `rawBody`.
+- `legacy-payment-webhook` no longer references undefined `rawBody`.
 - Payload parsing now supports string bodies and object bodies.
 - Missing or malformed payloads return 400.
 - Existing authorization behavior is preserved with `timingSafeEqual`.
@@ -43,6 +43,6 @@ Scope: approved P0 production readiness plan only. No deployment, Git push, or l
 - No production deploy.
 - No Appwrite function deployment.
 - No Git push.
-- No live Appwrite/Vercel/RevenueCat Console changes.
+- No live Appwrite/Vercel/legacy payment provider Console changes.
 - No broad lint cleanup outside the plan scope.
 

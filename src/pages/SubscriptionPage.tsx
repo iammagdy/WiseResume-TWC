@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from 'react';
+import { type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,20 +8,17 @@ import { Progress } from '@/components/ui/progress';
 import {
   Check, Crown, Gift, Sparkles, Gem, CalendarClock, FileText, Wand2, Target,
   MessageSquare, Mail, LayoutList, HeadphonesIcon, Palette, BarChart2,
-  Package, Zap, Infinity, Bot, Star, ExternalLink, Loader2,
+  Package, Zap, Infinity as InfinityIcon, Bot, Star, Clock,
 } from 'lucide-react';
 import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan, PlanName } from '@/hooks/usePlan';
 import { useMe } from '@/hooks/useMe';
-import { toast } from 'sonner';
-import { haptics } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useQueryClient } from '@tanstack/react-query';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
-import { useRevenueCat, isPurchaseCancelled } from '@/hooks/useRevenueCat';
+import { billingState } from '@/lib/billing';
 
 interface PlanFeature {
   label: string;
@@ -86,7 +83,6 @@ function formatDate(iso: string) {
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { data: resumes = [], isLoading: resumesLoading } = useResumes();
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
@@ -112,48 +108,7 @@ export default function SubscriptionPage() {
   const upgradeTargets: string[] = isPremium ? [] : isPro ? ['premium'] : ['pro', 'premium'];
   const isPaid = isPro || isPremium;
 
-  // RevenueCat
-  const { packages, loadingOfferings, purchasing, purchase, getCustomerInfo } = useRevenueCat();
-  const [managementURL, setManagementURL] = useState<string | null>(null);
-  const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
-
-  // Load management URL once user has a paid plan
-  useEffect(() => {
-    if (!isPaid) return;
-    getCustomerInfo()
-      .then((info) => setManagementURL(info.managementURL))
-      .catch(() => { /* non-fatal */ });
-  }, [isPaid, getCustomerInfo]);
-
-  const handleUpgrade = async (target: string) => {
-    haptics.medium();
-    if (packages.length === 0) {
-      toast.error('Packages not loaded. Please try again.');
-      return;
-    }
-    const targetIndex = target === 'pro' ? 0 : packages.length - 1;
-    const pkg = packages[targetIndex];
-    setPurchasingPlan(target);
-    try {
-      await purchase(pkg);
-      toast.success(`Welcome to ${planLabel(target)}!`);
-      await queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-    } catch (e) {
-      if (!isPurchaseCancelled(e)) {
-        toast.error(e instanceof Error ? e.message : 'Purchase failed. Please try again.');
-      }
-    } finally {
-      setPurchasingPlan(null);
-    }
-  };
-
-  const handleManage = () => {
-    if (managementURL) {
-      window.open(managementURL, '_blank', 'noopener,noreferrer');
-    } else {
-      navigate('/subscription');
-    }
-  };
+  const paymentsComingSoon = !billingState.paymentsEnabled;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -235,18 +190,10 @@ export default function SubscriptionPage() {
                     <TrialCountdownBadge />
                   </div>
                 )}
-                {/* Manage subscription */}
-                {managementURL && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-3 gap-1.5 text-xs"
-                    onClick={handleManage}
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Manage subscription
-                  </Button>
-                )}
+                <Badge variant="outline" className="mt-3 gap-1.5 text-xs">
+                  <Clock className="w-3.5 h-3.5" />
+                  Online payments coming soon
+                </Badge>
               </div>
             </div>
           </div>
@@ -281,7 +228,7 @@ export default function SubscriptionPage() {
                   <Skeleton className="h-4 w-16" />
                 ) : isUnlimitedResumes ? (
                   <span className="flex items-center gap-1 font-semibold text-primary">
-                    <Infinity className="w-3.5 h-3.5" />
+                    <InfinityIcon className="w-3.5 h-3.5" />
                     Unlimited
                   </span>
                 ) : (
@@ -310,7 +257,7 @@ export default function SubscriptionPage() {
                   <Skeleton className="h-4 w-16" />
                 ) : isUnlimitedCredits ? (
                   <span className="flex items-center gap-1 font-semibold text-primary">
-                    <Infinity className="w-3.5 h-3.5" />
+                    <InfinityIcon className="w-3.5 h-3.5" />
                     Unlimited
                   </span>
                 ) : (
@@ -349,7 +296,7 @@ export default function SubscriptionPage() {
             {/* Credit limit row */}
             <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isPremium ? 'bg-amber-100/60 dark:bg-amber-900/30 border border-amber-200/80 dark:border-amber-800/50' : isPro ? 'bg-blue-100/60 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-800/50' : 'bg-muted/60 border border-border'}`}>
               {isPremium ? (
-                <Infinity className="w-5 h-5 shrink-0 text-amber-500" />
+                <InfinityIcon className="w-5 h-5 shrink-0 text-amber-500" />
               ) : isPro ? (
                 <Bot className="w-5 h-5 shrink-0 text-blue-500" />
               ) : (
@@ -380,10 +327,7 @@ export default function SubscriptionPage() {
 
         {/* Upgrade cards */}
         {upgradeTargets.map((target) => {
-          const isBusy = purchasingPlan === target || (purchasing && purchasingPlan === target);
-          const targetPkg = target === 'pro' ? packages[0] : packages[packages.length - 1];
-          const rcPrice = targetPkg?.webBillingProduct?.currentPrice?.formattedPrice;
-          const displayPrice = rcPrice ?? PLAN_PRICES[target];
+          const displayPrice = PLAN_PRICES[target];
 
           return (
             <Card key={target} className={target === 'premium' ? 'border-amber-400/40 relative overflow-hidden' : 'border-blue-400/30 relative overflow-hidden'}>
@@ -411,14 +355,16 @@ export default function SubscriptionPage() {
                   })}
                 </div>
                 <Button
-                  className={`w-full mt-1 gap-2 ${target === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
-                  onClick={() => handleUpgrade(target)}
-                  disabled={isBusy || loadingOfferings || purchasing}
+                  className={`w-full mt-1 gap-2 ${target === 'premium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'}`}
+                  disabled={paymentsComingSoon}
                   data-track={`subscription-upgrade-cta-${target}`}
                 >
-                  {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
-                  {isBusy ? 'Processing…' : `Upgrade to ${planLabel(target)}`}
+                  <Clock className="w-4 h-4" />
+                  Coming Soon
                 </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Online payment is not available yet.
+                </p>
               </CardContent>
             </Card>
           );

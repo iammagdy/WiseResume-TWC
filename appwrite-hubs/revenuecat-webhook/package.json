@@ -1,9 +1,0 @@
-{
-  "name": "revenuecat-webhook-hub",
-  "version": "1.0.0",
-  "description": "Appwrite Function — receives RevenueCat webhook events and syncs subscription state",
-  "main": "src/main.js",
-  "dependencies": {
-    "node-appwrite": "^17.2.0"
-  }
-}

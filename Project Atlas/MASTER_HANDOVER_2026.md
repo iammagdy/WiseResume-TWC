@@ -2,17 +2,57 @@
 
 ---
 
+## Session Log - 2026-05-27 (Payment Provider Removal - Billing Coming Soon)
+
+### Overview
+Removed the previous payment provider from the web app, mobile app, Appwrite hub deployment list, tests, dependencies, and environment examples. No replacement payment provider was added. Billing and upgrade surfaces remain visible, but all payment actions are disabled and marked Coming Soon.
+
+### Root Causes Verified
+- Premium access is read from existing internal subscription/user data through hooks such as `useMe` and `usePlan`; it does not need an active payment SDK to keep feature gates protected.
+- The active purchase, restore, offerings, customer-info, and management-link flows were tied to the removed provider SDK and webhook.
+- The provider webhook only existed to sync external payment events into `subscriptions`; with payments disabled, keeping the webhook would create a stale active payment path.
+
+### Code Fixes Applied
+| Area | Fix |
+|------|-----|
+| Web billing | Removed the provider SDK wrapper, provider component, purchase hook, and app wrapper. Added `src/lib/billing.ts` with `paymentStatus: "coming_soon"`, `paymentsEnabled: false`, and `availablePaymentMethods: []`. |
+| Subscription UI | Kept subscription/upgrade UI visible, preserved existing internal plan display and feature gates, and changed upgrade/manage actions to disabled Coming Soon states. |
+| Premium gates | Updated upgrade dialog/wall CTAs so they no longer start checkout; premium features remain locked unless internal plan data grants access. |
+| Mobile | Removed mobile payment SDK configuration and purchase flow. The paywall now shows plan previews with a disabled Coming Soon action. |
+| Appwrite hubs | Removed the obsolete payment webhook hub and deployment helper; deploy scripts no longer deploy or provision webhook variables. |
+| Dependencies/env | Removed web and mobile payment SDK packages from package manifests/lockfiles and removed provider-specific env vars from examples. |
+| Tests | Removed obsolete webhook tests from the P0 hub test file; AI unauthenticated guard tests remain. |
+
+### Verification Status
+- `npx tsc --noEmit` passed.
+- `npm run build` passed; Vite reported existing large-chunk warnings only.
+- `node tests/hubs/p0-readiness.test.cjs` passed.
+- Focused ESLint on changed web/hub files passed.
+- Full `npm run lint` still fails on pre-existing unrelated lint issues across the repo and `.claude/worktrees`; the changed web/hub files are clean.
+- `npm test` still fails on pre-existing unrelated tests (`usePublicPortfolio`, `aiTailor-D1`, `PortfolioEditorPage`, `appShellLayout`, and PDF export expectations); no failure points to the payment removal.
+- Mobile `npm run typecheck` still fails on pre-existing mobile typing/config issues (`newArchEnabled`, `tabBarButtonTestID`, Detox globals, and existing mobile component prop types). Mobile dependencies were restored with `npm install --legacy-peer-deps` after an npm network reset during uninstall.
+- Mobile focused ESLint is blocked by an existing ESLint/plugin version mismatch (`@typescript-eslint/no-unused-expressions` reading missing `allowShortCircuit`).
+
+### Deployment Notes
+- No live provider replacement exists yet.
+- Remove obsolete provider env vars from Vercel/Appwrite/EAS after the updated code is deployed and verified.
+- Do not add a new provider or fake checkout until a separate payment-provider task is accepted.
+- The old payment webhook function may still exist remotely in Appwrite from earlier deployments; delete it manually from Appwrite Console after confirming no external webhook still targets it.
+- The GitHub Actions manual hub workflow still contains an old build step for the removed webhook and needs a separate workflow-scope update before using that workflow for hub deployment. Use DevKit or `scripts/deploy_hubs.cjs` until that workflow file is cleaned up.
+
+---
+
 ## Session Log - 2026-05-26 (P0 Production Readiness Fixes — AI/Auth/Credits/Webhooks)
 
 ### Overview
-Implemented the P0 production readiness plan from the comprehensive audit. The AI hubs now enforce server-side Appwrite session validation, server-side credit checks, and per-user/action rate limits before provider calls. The RevenueCat webhook runtime body parsing bug is fixed. The audit and fix documentation was added under Project Atlas. Changes were committed, pushed to `main`, and all Appwrite hubs were redeployed.
+Implemented the P0 production readiness plan from the comprehensive audit. The AI hubs now enforce server-side Appwrite session validation, server-side credit checks, and per-user/action rate limits before provider calls. The legacy payment provider webhook runtime body parsing bug is fixed. The audit and fix documentation was added under Project Atlas. Changes were committed, pushed to `main`, and all Appwrite hubs were redeployed.
 
 ### Root Causes Verified
 - `ai-gateway` and `resume-section-ai` received browser Appwrite JWTs in `body.__headers['X-Appwrite-JWT']`, but did not validate them server-side before calling AI providers.
 - AI credit UI and comments assumed server enforcement, but the Appwrite AI hubs did not check or increment `ai_credits`.
 - AI rate limiting existed only in browser memory and was bypassable by direct function execution.
 - `ai-gateway` still referenced removed Datadog LLMObs variables (`_llmobsEnabled`, `llmobs`), which could crash the first provider attempt.
-- `revenuecat-webhook` referenced undefined `rawBody`, causing malformed/missing body handling to fail at runtime.
+- `legacy-payment-webhook` referenced undefined `rawBody`, causing malformed/missing body handling to fail at runtime.
 - Appwrite schema/permissions and Vercel production verification requirements were not documented in a reproducible launch checklist.
 
 ### Code Fixes Applied
@@ -21,8 +61,8 @@ Implemented the P0 production readiness plan from the comprehensive audit. The A
 | `ai-gateway` | Added safe body parsing, JWT extraction from `__headers` / request headers, Appwrite `Account.get()` validation, per-user/action warm-instance rate limit, pre-provider credit checks, post-success credit increments, and removed the dead LLMObs trace branch. |
 | `resume-section-ai` | Added `node-appwrite`, server-side JWT validation, per-user/action warm-instance rate limit, credit checks around provider-backed section actions, and post-success usage increments. Clarifying-question responses remain uncharged. |
 | AI credits | Uses `ai_credits` (`user_id`, `daily_usage`, `daily_limit`, `total_usage`, `usage_date`) and `subscriptions` (`plan`, `effective_plan`, `trial_plan`, `trial_expires_at`). Plan limits: `free=5`, `pro=50`, `premium=-1`. |
-| RevenueCat webhook | Replaced undefined `rawBody` parsing with safe `req.body` parsing for string/object bodies; malformed/missing payloads return 400; authorization remains `timingSafeEqual` against `REVENUECAT_WEBHOOK_SECRET`. |
-| Tests | Added `tests/hubs/p0-readiness.test.cjs` covering AI unauthenticated rejection and RevenueCat invalid auth, malformed body, ignored event, grant event, and revoke event. |
+| legacy payment provider webhook | Replaced undefined `rawBody` parsing with safe `req.body` parsing for string/object bodies; malformed/missing payloads return 400; authorization remains `timingSafeEqual` against `removed payment webhook secret`. |
+| Tests | Added `tests/hubs/p0-readiness.test.cjs` covering AI unauthenticated rejection and legacy payment provider invalid auth, malformed body, ignored event, grant event, and revoke event. |
 | Project Atlas | Added comprehensive audit files and fix docs under `Project Atlas/Comprehensive Audit 26-05-2026/`, including Appwrite schema/permissions, Vercel verification, smoke plan, fix summary, test results, remaining unknowns, and files changed. |
 
 ### Verification
@@ -56,11 +96,11 @@ Implemented the P0 production readiness plan from the comprehensive audit. The A
   - `admin-impersonate`: `6a153c5e99845b567451`
   - `inspect-ai-keys`: `6a153c606f1bbe0efcec`
   - `admin-deploy-hubs`: `6a153c66cd3bbf2d9491`
-  - `revenuecat-webhook`: `6a153c6bdfa310e8e3ad`
+  - `legacy-payment-webhook`: `6a153c6bdfa310e8e3ad`
   - `email-service`: `6a153c709943b19944b5`
 
 ### Current State
-- P0 AI auth, AI credit enforcement, AI warm-instance rate limiting, and RevenueCat webhook parsing fixes are on `main` and deployed to Appwrite.
+- P0 AI auth, AI credit enforcement, AI warm-instance rate limiting, and legacy payment provider webhook parsing fixes are on `main` and deployed to Appwrite.
 - Appwrite auth email templates were re-synced by the deploy script: verification template blanked for Resend-branded verification email; recovery template synced from `password-recovery.html`.
 - `jobs` collection create permission was updated by the deploy script: added `Permission.create(Role.users())`.
 - Remaining untracked local artifacts are `.playwright-mcp/` and `reports/e2e-results-2026-05-26T04-*.json`; they were intentionally not committed.
@@ -69,13 +109,13 @@ Implemented the P0 production readiness plan from the comprehensive audit. The A
 - AI credit increments use Appwrite document updates, not an atomic transaction; concurrent requests can race.
 - Rate limiting is warm-instance memory, not globally shared across all Appwrite instances.
 - Full repo lint remains red due pre-existing/unrelated issues; do not treat it as introduced by this P0 fix.
-- Live Console verification is still required for Appwrite collection attributes/ACLs, function execute permissions, Vercel env vars, RevenueCat webhook config, Resend logs, and Sentry state.
+- Live Console verification is still required for Appwrite collection attributes/ACLs, function execute permissions, Vercel env vars, legacy payment provider webhook config, Resend logs, and Sentry state.
 
 ### Where We Stopped
 - Code is committed and pushed to `main`.
 - All Appwrite hubs were redeployed successfully.
 - P0 fix documentation exists in `Project Atlas/Comprehensive Audit 26-05-2026/fixes/`.
-- Next agent should run the production smoke checklist after Vercel finishes deploying `main`, then verify Appwrite logs, Vercel logs, RevenueCat webhook delivery, Resend email delivery, and Sentry for new production errors.
+- Next agent should run the production smoke checklist after Vercel finishes deploying `main`, then verify Appwrite logs, Vercel logs, legacy payment provider webhook delivery, Resend email delivery, and Sentry for new production errors.
 
 ---
 
@@ -145,7 +185,7 @@ Second session on same day. Completed all remaining email system work. PR #70 me
 | `send-test` action | DevKit-only. Guarded by `DEVKIT_PASSWORD` Bearer. Sends test render of any template (welcome/verification/password-reset) to any address with sender override. |
 | Multiple sender support | `resendSend()` accepts optional `fromEmail`/`fromName` — supports noreply@, hello@, contact@thewise.cloud |
 | DevKit Email Studio | `EmailTransactionalStudioPanel.tsx` — Studio tab in DevKit → Email hub. Template + sender selector. |
-| Deploy pipeline | `admin-deploy-hubs`: added `email-service` + `revenuecat-webhook` to HUBS. After deploying `email-service`, auto-sets all variables. After any successful deploy, blanks Appwrite auth templates. `deploy_hubs.cjs`: `email-service` entry with all vars. |
+| Deploy pipeline | `admin-deploy-hubs`: added `email-service` + `legacy-payment-webhook` to HUBS. After deploying `email-service`, auto-sets all variables. After any successful deploy, blanks Appwrite auth templates. `deploy_hubs.cjs`: `email-service` entry with all vars. |
 
 ### Deployment Status (as of merge)
 Code is on main. `email-service` NOT YET deployed to Appwrite — pending user action.
@@ -957,9 +997,9 @@ Existing local changes from before this session remain and were not reverted:
 - Smart Fit protected-token changes in `src/lib/smartFit/*`.
 - Auto-fit spacing token `7` support in `src/lib/templateCustomization.ts` and audit tests.
 - E2E export spec navigation change in `tests/e2e/specs/14-exports.spec.ts`.
-- New RevenueCat doc: `Project Atlas/01-Currently Implemented/payments-revenuecat.md`.
+- New legacy payment provider doc: `Project Atlas/01-Currently Implemented/payments-coming-soon.md`.
 - Large untracked design-system package under `Project Atlas/design-system/`.
-- New `appwrite-hubs/revenuecat-webhook/package-lock.json`.
+- New `appwrite-hubs/legacy-payment-webhook/package-lock.json`.
 - Timestamped E2E result JSON files under `reports/`.
 
 ### Known Hygiene / Follow-Up
@@ -1271,7 +1311,7 @@ Why `puppeteer-core` and `pdf-lib` are safe to bundle: `puppeteer-core@25` has d
 ### Where We Stopped
 - HEAD `af5c6dd` on `main`. PDF export working (user confirmed download after v4.7.2). LinkedIn links and page cuts fixed in v4.7.3 — pending user verification.
 - No Appwrite hub changes in this session.
-- All other pending items from prior sessions unchanged: RevenueCat prerequisites, hub redeployments for 3-Tier AI Enhancement, `DEVKIT_PASSWORD` on `admin-deploy-hubs`.
+- All other pending items from prior sessions unchanged: legacy payment provider prerequisites, hub redeployments for 3-Tier AI Enhancement, `DEVKIT_PASSWORD` on `admin-deploy-hubs`.
 
 ---
 
@@ -1363,12 +1403,12 @@ Superseded by the selectable-text PDF fix above. This session fixed the blank ca
 - `npx vitest run src/lib/nativePdfGenerator.test.ts` - passed.
 - `npx tsc --noEmit` - passed.
 - Puppeteer/html2canvas probe verified the root cause: hidden host produced a blank canvas (`nonWhite: 0`); rendered off-screen host produced visible pixels (`nonWhite: 10765`).
-- `npm run build` - passed after refreshing local `node_modules` from the existing lockfile because `@revenuecat/purchases-js` was missing locally.
+- `npm run build` - passed after refreshing local `node_modules` from the existing lockfile because `removed web payment SDK` was missing locally.
 
 ### Deployment Notes
 - Frontend-only change. Deploy through the normal WiseResume frontend workflow to `resume/`.
 - No Appwrite hub redeploy required.
-- The workspace had pre-existing unrelated dirty package-lock/RevenueCat Atlas files; they were not modified by this fix.
+- The workspace had pre-existing unrelated dirty package-lock/legacy payment provider Atlas files; they were not modified by this fix.
 
 ---
 
@@ -1492,7 +1532,7 @@ Fixed all editor issues identified in the pre-launch audit and implemented struc
 - **`resume-section-ai` hub NOT yet redeployed** — required for 3-Tier AI Enhancement plan (Tiers 1 + 2). Same process.
 - **Dead files** (now unreferenced, harmless, can be deleted later): `src/components/editor/CustomizeSheet.tsx`, `src/components/editor/SectionStylePopover.tsx`
 - **3-Tier AI Enhancement Plan** — plan file at `Project Atlas/05-Migration to Appwrite/28-Plan-3Tier-AI-Enhancement.md` — NONE of the 3 tiers implemented yet. Next agent picks this up.
-- **RevenueCat prerequisites** — RC Dashboard setup still pending (see RevenueCat session entry below).
+- **legacy payment provider prerequisites** — RC Dashboard setup still pending (see legacy payment provider session entry below).
 
 ---
 
@@ -1577,7 +1617,7 @@ Diagnosed and fixed a critical AI outage that took down all app AI features afte
   node scripts/deploy_hubs.cjs
   ```
 - **Tiers 1 + 2 take effect after that redeploy.** Tier 3 frontend changes (JD-gated buttons) are live immediately on next Vercel deploy.
-- **Still pending from prior session:** RevenueCat Dashboard prerequisites (Web Billing app, Stripe connect, products/entitlements, webhook URL). `DEVKIT_PASSWORD` missing on `admin-deploy-hubs` function.
+- **Still pending from prior session:** legacy payment provider Dashboard prerequisites (Web Billing app, Stripe connect, products/entitlements, webhook URL). `DEVKIT_PASSWORD` missing on `admin-deploy-hubs` function.
 
 ---
 
@@ -1656,60 +1696,60 @@ The Appwrite API key was exposed in plain text during this session. **Rotate it 
 - All code merged to `main`. TypeScript clean (`npm exec tsc -- --noEmit`).
 - Appwrite `resume-section-ai` function NOT yet redeployed with the `suggest_technologies` fix.
 - PDF export on live domain will work once Vercel is serving `resume.thewise.cloud` — confirm in Vercel dashboard that the domain is connected and a deployment is active.
-- RevenueCat integration (previous session) still has prerequisites pending in RC Dashboard (see session below).
+- legacy payment provider integration (previous session) still has prerequisites pending in RC Dashboard (see session below).
 
 ---
 
-## Session Summary — 2026-05-20 (RevenueCat Payment Integration)
+## Session Summary — 2026-05-20 (legacy payment provider Payment Integration)
 
 ### Overview
-Integrated RevenueCat as the payment gateway (RC Billing + Stripe) for both the web app and mobile (Expo). Replaced all "coming soon" upgrade CTAs with real purchase flows. Created a new Appwrite Function `revenuecat-webhook` for webhook-driven subscription sync. Removed the coupon UI from the upgrade surfaces (replaced by RC native promo codes).
+Integrated legacy payment provider as the payment gateway (legacy billing + Stripe) for both the web app and mobile (Expo). Replaced all "coming soon" upgrade CTAs with real purchase flows. Created a new Appwrite Function `legacy-payment-webhook` for webhook-driven subscription sync. Removed the coupon UI from the upgrade surfaces (replaced by legacy native promo codes).
 
 ### Architecture Decisions
-- **Billing engine**: RC Billing + Stripe (RC manages checkout UI, Stripe processes payments)
+- **Billing engine**: legacy billing + Stripe (RC manages checkout UI, Stripe processes payments)
 - **Entitlement IDs**: `pro` and `premium` — exact match to existing plan strings in Appwrite `subscriptions` collection
 - **No schema changes**: webhook writes to existing fields (`plan`, `effective_plan`, `status`, `trial_plan`, `trial_expires_at`)
-- **Sync strategy**: RC fires webhooks → `revenuecat-webhook` Appwrite Function verifies signature and upserts subscription document
+- **Sync strategy**: legacy provider fires webhooks → `legacy-payment-webhook` Appwrite Function verifies signature and upserts subscription document
 - **Mobile RC init**: configured in `mobile/app/_layout.tsx` after `getStoredIdentity()` resolves
 
 ### What Changed
 | File | Change |
 |------|--------|
-| `src/lib/revenuecat.ts` | NEW — singleton `configureRevenueCat(userId)` / `getRevenueCat()` |
-| `src/providers/RevenueCatProvider.tsx` | NEW — auth-aware provider, inits SDK once after `authReady` |
-| `src/hooks/useRevenueCat.ts` | NEW — `getOfferings`, `purchase`, `getCustomerInfo`, `isPurchaseCancelled` |
-| `src/AppInterior.tsx` | Added `<RevenueCatProvider>` inside `<AuthProvider>` |
+| `src/lib/billing.ts` | NEW — singleton `configurelegacy payment provider(userId)` / `getlegacy payment provider()` |
+| `src/providers/legacy payment providerProvider.tsx` | NEW — auth-aware provider, inits SDK once after `authReady` |
+| `src/hooks/old-payment-provider.ts` | Removed old offerings/purchase/customer-info hook |
+| `src/AppInterior.tsx` | Added `<legacy payment providerProvider>` inside `<AuthProvider>` |
 | `src/components/plan/UpgradeDialog.tsx` | Replaced coupon form with RC purchase button + live price |
 | `src/components/plan/UpgradeWall.tsx` | Replaced "coming soon" toast with RC purchase + live price |
 | `src/pages/SubscriptionPage.tsx` | RC purchase buttons, manage subscription link, coupon card removed |
 | `src/lib/appwrite-functions.ts` | Removed `validate-coupon` / `redeem-coupon` from `COUPON_FUNCTIONS` |
-| `appwrite-hubs/revenuecat-webhook/` | NEW Appwrite Function — HMAC-verified, handles 6 event types |
-| `scripts/deploy_hubs.cjs` | Added `revenuecat-webhook` hub + env var provisioning |
-| `.env.example` | Added `VITE_REVENUECAT_WEB_API_KEY` |
+| `appwrite-hubs/legacy-payment-webhook/` | NEW Appwrite Function — HMAC-verified, handles 6 event types |
+| `scripts/deploy_hubs.cjs` | Added `legacy-payment-webhook` hub + env var provisioning |
+| `.env.example` | Added `removed web payment API key` |
 | `mobile/app/_layout.tsx` | RC init after user identity loads |
 
 ### Verification
 - `npm exec tsc -- --noEmit` — zero errors
-- `node --check appwrite-hubs/revenuecat-webhook/src/main.js` — clean
+- `node --check appwrite-hubs/legacy-payment-webhook/src/main.js` — clean
 
 ### Where We Stopped
 - Code is complete and TypeScript-clean. **No commits yet.**
 - The coupon `validate` and `redeem` actions still exist in `appwrite-hubs/coupons/src/main.js` (kept as deprecated, unused from frontend).
 
 ### Prerequisites — User Must Complete in RC Dashboard
-1. Create a **Web Billing app** in TheWiseCloud RC project → get `VITE_REVENUECAT_WEB_API_KEY`
-2. Connect Stripe account to RC Billing
+1. Create a **Web Billing app** in TheWiseCloud RC project → get `removed web payment API key`
+2. Connect Stripe account to legacy billing
 3. Create products: Pro ($9/mo) and Premium ($19/mo)
 4. Create entitlements: `pro` and `premium`
 5. Create one Offering with two packages linked to the entitlements
-6. In RC dashboard → Integrations → Webhooks: set webhook URL to the `revenuecat-webhook` Appwrite Function HTTP endpoint, set `REVENUECAT_WEBHOOK_SECRET` (must also be added as Appwrite Function env var)
+6. In legacy payment dashboard → Integrations → Webhooks: set webhook URL to the `legacy-payment-webhook` Appwrite Function HTTP endpoint, set `removed payment webhook secret` (must also be added as Appwrite Function env var)
 7. Add iOS + Android apps → get platform API keys → add to Expo env
 
 ### Next Agent
 - Commit all changes to branch and push
-- Deploy `revenuecat-webhook` Appwrite Function: `APPWRITE_API_KEY=<key> node scripts/deploy_hubs.cjs`
-- Add `VITE_REVENUECAT_WEB_API_KEY` to Vercel environment variables
-- Add `REVENUECAT_WEBHOOK_SECRET` to Appwrite Function variables
+- Deploy `legacy-payment-webhook` Appwrite Function: `APPWRITE_API_KEY=<key> node scripts/deploy_hubs.cjs`
+- Add `removed web payment API key` to Vercel environment variables
+- Add `removed payment webhook secret` to Appwrite Function variables
 - Test: sign in → click any gated feature → UpgradeDialog shows real prices → purchase opens RC checkout modal → on success, plan updates in SubscriptionPage
 
 ---

@@ -43,7 +43,7 @@ The standard `POST /repos/.../merges` endpoint returned `409 Merge conflict` —
 |---|---|
 | `.replit` | LOCAL — environment config; local is current |
 | `EDGE_FUNCTION_AUDIT.md` | LOCAL — Phase 4 file (per task spec) |
-| `supabase/config.toml` | LOCAL — Task #66 reconciliation note explicitly supersedes origin's stale "never deployed" comment for `export-portfolio-pdf`, `mobile-config`, `revenuecat-webhook`, `send-push` (re-confirmed deployed 2026-05-03 via Supabase Management API) |
+| `supabase/config.toml` | LOCAL — Task #66 reconciliation note explicitly supersedes origin's stale "never deployed" comment for `export-portfolio-pdf`, `mobile-config`, `legacy-payment-webhook`, `send-push` (re-confirmed deployed 2026-05-03 via Supabase Management API) |
 | `supabase/functions/admin-devkit-data/index.ts` | LOCAL — Phase 4 file (per task spec) |
 | `supabase/functions/admin-integrations/index.ts` | DELETED — local removed it as part of Task #52 admin-config router consolidation |
 

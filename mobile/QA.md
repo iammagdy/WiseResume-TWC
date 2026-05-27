@@ -71,9 +71,9 @@ data between runs so cached state doesn't mask regressions.
 
 ## Payments
 
-- [ ] Paywall shows offerings from RevenueCat (or fallback copy in dev)
-- [ ] Purchase completes and `me.plan` flips after the webhook fires
-- [ ] Restore purchases path works
+- [ ] Paywall shows plan previews with a disabled Coming Soon action
+- [ ] Tapping payment controls cannot start checkout
+- [ ] Existing `me.plan` state still controls premium access
 
 ## Universal / app links
 

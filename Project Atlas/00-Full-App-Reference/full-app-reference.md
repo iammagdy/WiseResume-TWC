@@ -50,7 +50,7 @@ Both products share the same Supabase project, Kinde tenant, and AI provider poo
 | Authentication | Appwrite Auth (JWT, JWKS-verified server-side) |
 | AI providers | OpenRouter, Groq, DeepSeek (flat pool — up to 9 keys) |
 | Email | Resend |
-| Payments | RevenueCat (mobile) + Kinde-based plan management (web) |
+| Payments | Disabled; billing UI is Coming Soon |
 | File delivery | Hostinger shared hosting (FTP → `/public_html/resume/`) |
 | OG images | Edge function `og-image` |
 
@@ -61,7 +61,7 @@ Both products share the same Supabase project, Kinde tenant, and AI provider poo
 | Platforms | iOS + Android |
 | Auth | Kinde PKCE via `expo-auth-session` → `token-exchange` edge function |
 | Push | Expo Notifications → `send-push` edge function |
-| Payments | RevenueCat → `revenuecat-webhook` edge function |
+| Payments | No active payment provider |
 
 ### Key environment variables (frontend, baked into Vite build)
 ```
@@ -316,7 +316,6 @@ Admin functions additionally call `requireAdminAuth()` from `_shared/adminAuth.t
 | `mobile-api` | Mobile BFF — aggregated data endpoint for the Expo app |
 | `mobile-config` | Returns runtime config for the mobile app (feature flags, URLs) |
 | `og-image` | Generates Open Graph images for resume share links |
-| `revenuecat-webhook` | Processes RevenueCat subscription events for mobile IAP |
 | `send-push` | Sends push notifications to registered devices |
 | `transactional-email` | Sends system transactional emails (welcome, digest, alerts) |
 | `weekly-digest` | Cron-triggered: sends weekly activity digest emails to active users |
@@ -668,7 +667,7 @@ The DevKit at `/devkit` provides 27 admin panels organized into sections:
 - **WiseHireWaitlistPanel** — WiseHire access management
 - **PortfolioUsernamesPanel** — portfolio username admin
 - **OwnerOpsPanel** — owner-only destructive ops
-- **IntegrationsPanel** — integration status (Kinde, Resend, RevenueCat, etc.)
+- **IntegrationsPanel** — integration status (Kinde, Resend, etc.)
 - **FeatureFlagsPanel** — feature flag management
 - **AnalyticsPanel** — product analytics
 
@@ -801,8 +800,8 @@ wisehire/        WiseHire recruiter-facing UI components
 - **Platforms:** iOS + Android
 - **Auth:** Kinde PKCE via `expo-auth-session` → `token-exchange` edge function
 - **Push notifications:** Expo Notifications → `device_push_tokens` table → `send-push` edge fn
-- **Payments:** RevenueCat → `revenuecat-webhook` edge function
-- **Mobile-specific edge functions:** `mobile-api`, `mobile-config`, `send-push`, `revenuecat-webhook`
+- **Payments:** disabled; upgrade UI is Coming Soon
+- **Mobile-specific edge functions:** `mobile-api`, `mobile-config`, `send-push`
 - **Mobile-specific DB tables:** `device_push_tokens`, `mobile_app_versions`
 - **Capacitor:** fully removed
 
@@ -818,7 +817,6 @@ wisehire/        WiseHire recruiter-facing UI components
 | **OpenRouter** | AI model gateway (primary) | 3 key slots in Supabase secrets |
 | **Groq** | AI inference (fast structured output) | 3 key slots in Supabase secrets |
 | **DeepSeek** | AI inference (tertiary) | 3 key slots in Supabase secrets |
-| **RevenueCat** | Mobile in-app purchases | Webhook secret in Supabase secrets |
 | **Sentry** | Frontend error tracking | DSN in `VITE_SENTRY_DSN` |
 | **Hostinger** | Static frontend hosting | FTP to `82.29.154.120`, creds in GitHub secrets |
 

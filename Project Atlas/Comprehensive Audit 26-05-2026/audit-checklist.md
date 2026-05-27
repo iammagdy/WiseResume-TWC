@@ -13,7 +13,7 @@
 | Product | Resume analysis/tailoring | `src/lib/aiAnalysis.ts`, `src/lib/aiTailor.ts`, `ai-gateway` | FAIL | Backend auth/credit enforcement is not visible in AI gateway. | Add server-side auth/credit/rate checks before launch. |
 | Product | Cover letter generation | `src/lib/aiTailor.ts` invokes `generate-cover-letter` | UNKNOWN | Code exists through AI gateway, but live provider response not verified. | Smoke test with production account after AI security fix. |
 | Product | Portfolio/public portfolio | `PublicPortfolioPage`, `public-share`, `usePublicPortfolio` | UNKNOWN | Public routes exist; password verification uses plaintext compare in `public-share`. Live permissions not verified. | Verify privacy/password behavior and Appwrite permissions. |
-| Product | Subscription/credits | `useAICredits`, `coupons`, `revenuecat-webhook` | FAIL | RevenueCat webhook has `rawBody` bug; AI gateway lacks visible credit enforcement. | Fix webhook and server-side credit enforcement. |
+| Product | Subscription/credits | `useAICredits`, `coupons`, `legacy-payment-webhook` | FAIL | legacy payment provider webhook has `rawBody` bug; AI gateway lacks visible credit enforcement. | Fix webhook and server-side credit enforcement. |
 | Product | WiseHire gating | `WiseHireGuard`, `wisehire-gateway` | UNKNOWN | Guard exists, but comments still reference Kinde/Supabase and live account-type permissions were not verified. | Production test HR and job-seeker accounts. |
 | Product | Admin/devkit gating | `DevKitSessionContext`, admin hubs verify HMAC/password | PASS | Admin hubs generally check signed DevKit token. | Remove raw password acceptance and verify audit logging. |
 | AI | Bot working | `agenticChat.ts`, `ai-gateway` | UNKNOWN | UI/backend path exists, but no live AI call was made. Security gate fails. | Do not mark working until production AI smoke passes after auth fix. |
@@ -23,7 +23,7 @@
 | Backend | Appwrite functions | 21 `appwrite-hubs/*/src/main.js` files found | PASS | Hubs exist and deploy script covers 20 listed hubs. | Verify live executions/logs. |
 | Backend | Supabase functions | `supabase/` not found | UNKNOWN | Requested Supabase scope is not represented in repo. | Confirm no Supabase remains in production. |
 | Backend | Migrations/schema | No Appwrite migration folder found; Drizzle schema appears legacy | FAIL | Schema/permissions are not reproducible from repo. | Export/provision Appwrite schema and permissions as code. |
-| Backend | Webhooks | RevenueCat webhook inspected | FAIL | `rawBody` undefined. | Fix and replay RevenueCat test event. |
+| Backend | Webhooks | legacy payment provider webhook inspected | FAIL | `rawBody` undefined. | Fix and replay legacy payment provider test event. |
 | Frontend | Typecheck | `npx tsc --noEmit` | PASS | Completed with exit code 0. | Keep as required CI gate. |
 | Frontend | Lint | `npm run lint` | FAIL | 2064 problems. | Clean or scope lint gate before launch. |
 | Frontend | Error boundary | `src/components/ErrorBoundary.tsx` | PASS | Captures errors, handles chunk failures, Sentry shim. | Verify production Sentry DSN and alerting. |

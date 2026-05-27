@@ -9,7 +9,7 @@ WiseResume should not be considered production-ready for real users until:
 - Auth signup, verification, login, refresh, logout, and password reset pass in production.
 - Resume create/upload/edit/save/export pass in production.
 - Core AI flows pass in production with server-side auth/credits/rate limits.
-- RevenueCat subscription events pass with test webhook replay.
+- legacy payment provider subscription events pass with test webhook replay.
 - Sentry captures a test frontend error and backend errors are observable.
 - Appwrite schema/permissions are documented and reviewed.
 - Rollback and incident runbooks exist.
@@ -41,7 +41,7 @@ WiseResume should not be considered production-ready for real users until:
 | Frontend errors | Sentry error-free sessions | > 99% |
 | Backend errors | Appwrite function 5xx rate | < 1% |
 | Deploys | Failed production deploy rate | < 5% |
-| Webhooks | RevenueCat webhook processing success | > 99% |
+| Webhooks | legacy payment provider webhook processing success | > 99% |
 | PDF export | Successful export rate | > 97%, p95 < 45s |
 
 ## Monitoring Expectations
@@ -51,7 +51,7 @@ WiseResume should not be considered production-ready for real users until:
 - **Backend errors:** Appwrite function executions monitored by function ID, status, latency, and response code.
 - **AI providers:** Per-provider failure rate, timeout rate, 429 rate, token usage, and fallback count.
 - **Email:** Resend delivery, bounce, complaint, and webhook failure metrics.
-- **Payments:** RevenueCat webhook failure alert and subscription sync drift checks.
+- **Payments:** legacy payment provider webhook failure alert and subscription sync drift checks.
 - **Database:** Appwrite collection operation errors and permission-denied spikes.
 
 ## Incident Readiness
@@ -70,11 +70,11 @@ WiseResume should not be considered production-ready for real users until:
 ### Required Before Launch
 
 - Auth unit tests for `AuthContext`, `ProtectedRoute`, verify/reset callback parsing.
-- Appwrite function contract tests for `email-service`, `ai-gateway`, `resume-section-ai`, `coupons`, `revenuecat-webhook`.
+- Appwrite function contract tests for `email-service`, `ai-gateway`, `resume-section-ai`, `coupons`, `legacy-payment-webhook`.
 - E2E tests for signup/verify/login/refresh/logout/password reset.
 - E2E tests for resume upload/create/edit/save/export.
 - E2E tests for core AI flows with test fixtures and mocked provider fallback where possible.
-- Webhook replay test for RevenueCat.
+- Webhook replay test for legacy payment provider.
 - Production smoke after deploy.
 
 ### Current Evidence

@@ -6,8 +6,6 @@ interface MobileConfig {
   kindeDomain: string;
   kindeClientId: string;
   sentryDsn: string | null;
-  revenueCatIosKey: string | null;
-  revenueCatAndroidKey: string | null;
   webUrl: string;
 }
 
@@ -39,8 +37,6 @@ export function getConfig(): MobileConfig {
     kindeDomain: require_('kindeDomain'),
     kindeClientId: require_('kindeClientId'),
     sentryDsn: read('sentryDsn'),
-    revenueCatIosKey: read('revenueCatIosKey'),
-    revenueCatAndroidKey: read('revenueCatAndroidKey'),
     webUrl: read('webUrl') ?? 'https://resume.thewise.cloud',
   };
   return cached;

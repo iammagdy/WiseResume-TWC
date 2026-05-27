@@ -36,7 +36,7 @@ From repo evidence:
 - `VITE_APPWRITE_ENDPOINT`
 - `VITE_APPWRITE_PROJECT_ID`
 - `VITE_SENTRY_DSN`
-- `VITE_REVENUECAT_WEB_API_KEY`
+- `removed web payment API key`
 - Optional `VITE_API_URL` if not using same-origin Vercel PDF endpoint
 - Sentry upload variables if source maps are uploaded: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, optional `VITE_SENTRY_RELEASE`
 

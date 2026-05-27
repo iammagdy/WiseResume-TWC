@@ -4,7 +4,7 @@
 
 **UNKNOWN overall, with specific FAIL items.**
 
-The repository contains Appwrite hub functions, a minimal Express server, and one Vercel serverless PDF export function. TypeScript passes locally, and the function source is present. Repo evidence alone cannot prove live Appwrite function health, environment variables, database permissions, or production logs. The RevenueCat webhook has a clear runtime bug and the AI hubs have a security/credit enforcement blocker.
+The repository contains Appwrite hub functions, a minimal Express server, and one Vercel serverless PDF export function. TypeScript passes locally, and the function source is present. Repo evidence alone cannot prove live Appwrite function health, environment variables, database permissions, or production logs. The legacy payment provider webhook has a clear runtime bug and the AI hubs have a security/credit enforcement blocker.
 
 ## Backend Components
 
@@ -19,7 +19,7 @@ The repository contains Appwrite hub functions, a minimal Express server, and on
 | Supabase functions | Requested scope | No `supabase/` directory found | UNKNOWN | Cannot audit absent Supabase functions from repo. | Confirm Supabase is decommissioned or provide dashboard access. |
 | Database migrations | Reproducible DB state | No Appwrite migration/permission manifest found | FAIL | Live schema cannot be rebuilt from repo. | Add Appwrite schema/permissions as code. |
 | Drizzle schema | Legacy PostgreSQL schema | `server/schema.ts`, `drizzle.config.ts` | UNKNOWN | Comments/docs show legacy Supabase/Postgres references. | Decide if Drizzle/Postgres is active or remove/archive. |
-| RevenueCat webhook | Subscription events | `appwrite-hubs/revenuecat-webhook/src/main.js` | FAIL | `rawBody` is undefined; webhook likely fails. | Fix handler body parsing and replay test events. |
+| legacy payment provider webhook | Subscription events | `appwrite-hubs/legacy-payment-webhook/src/main.js` | FAIL | `rawBody` is undefined; webhook likely fails. | Fix handler body parsing and replay test events. |
 | Coupon backend | Coupon validate/redeem/subscription | `appwrite-hubs/coupons/src/main.js` | PASS | Requires user for redeem/get-subscription; validate is public. | Add abuse rate limit for validate. |
 | WiseHire gateway | Recruiter actions | `appwrite-hubs/wisehire-gateway/src/main.js` | UNKNOWN | Requires user except waitlist; HR authorization not clearly enforced inside gateway. | Enforce account_type/plan server-side. |
 | Public share | Password gate | `appwrite-hubs/public-share/src/main.js` | UNKNOWN | Checks active/expiry and direct password equality. | Hash share passwords; verify anonymous read restrictions. |
@@ -63,13 +63,13 @@ The active database appears to be Appwrite `main`, not Supabase PostgreSQL.
 | Supabase | Legacy mentions only; no `supabase/` tree | UNKNOWN | Old docs can mislead ops. | Archive or clearly label legacy Supabase docs. |
 | Resend | `email-service`, `admin-email` | UNKNOWN live | Email failures block signup/reset. | Verify domain, key scope, bounce/spam logs. |
 | AI providers | `ai-gateway`, `resume-section-ai`, `wisehire-gateway` | UNKNOWN live | Provider keys/limits can break core product. | Verify key health and failover with smoke tests. |
-| RevenueCat | `revenuecat-webhook`, `revenuecat.ts` | FAIL | Webhook likely fails; paid access broken. | Fix webhook and verify dashboard events. |
+| legacy payment provider | `legacy-payment-webhook`, `billing.ts` | FAIL | Webhook likely fails; paid access broken. | Fix webhook and verify dashboard events. |
 | Sentry | `monitoring.ts`, `ErrorBoundary`, dependencies | UNKNOWN live | No error visibility if DSN/alerts absent. | Send test event and verify alert routing. |
 | Vercel | `vercel.json`, workflows comments | UNKNOWN live | Deployment branch/env may differ from repo assumption. | Verify Vercel dashboard project settings. |
 
 ## Backend Launch Blockers
 
 1. AI gateway and section AI need server-side auth/credits/rate limiting.
-2. RevenueCat webhook must be fixed and replay-tested.
+2. legacy payment provider webhook must be fixed and replay-tested.
 3. Appwrite schema/permissions must be exported and reviewed.
 4. Production Appwrite function variables and execution logs must be verified.

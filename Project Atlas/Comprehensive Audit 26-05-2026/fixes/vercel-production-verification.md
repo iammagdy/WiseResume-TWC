@@ -22,7 +22,7 @@ Frontend-exposed values must be intentionally public because Vite embeds all `VI
 
 - `VITE_APPWRITE_ENDPOINT`
 - `VITE_APPWRITE_PROJECT_ID`
-- `VITE_REVENUECAT_WEB_API_KEY`
+- `removed web payment API key`
 - `VITE_SENTRY_DSN`
 - `VITE_API_URL` only if production should call a separate API origin for native PDF generation
 
@@ -31,7 +31,7 @@ Server-only values must not use the `VITE_` prefix:
 - Any Appwrite API key
 - Any AI provider API key
 - Any Resend API key
-- Any RevenueCat webhook secret
+- Any legacy payment provider webhook secret
 - Any DevKit/admin password or token
 
 ## Pre-Deployment Verification
@@ -73,12 +73,12 @@ Vercel:
 Appwrite:
 - `ai-gateway` logs show feature/action/user ID only, not prompts, resumes, job descriptions, or AI responses.
 - `resume-section-ai` logs show action/section/user ID only.
-- `revenuecat-webhook` logs show event type and user ID only.
+- `legacy-payment-webhook` logs show event type and user ID only.
 - Failed unauthenticated AI executions return 401 before any provider log line.
 - Credit exhaustion returns 402 before any provider log line.
 
 Sentry:
-- No new release-blocking errors in auth, dashboard route guards, AI calls, PDF export, or RevenueCat webhook handling.
+- No new release-blocking errors in auth, dashboard route guards, AI calls, PDF export, or legacy payment provider webhook handling.
 
 Resend:
 - Verification/reset emails are delivered and not duplicated.

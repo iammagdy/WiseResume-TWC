@@ -66,7 +66,7 @@ Launch-critical collection attributes to verify:
 - `admin-impersonate`
 - `inspect-ai-keys`
 - `admin-deploy-hubs`
-- `revenuecat-webhook`
+- `legacy-payment-webhook`
 - `email-service`
 
 ## Required Env Vars
@@ -96,7 +96,7 @@ Admin/ops env vars:
 - `GITHUB_REPO`
 
 Billing env vars:
-- `REVENUECAT_WEBHOOK_SECRET`
+- `removed payment webhook secret`
 
 ## Required Execute Policy
 
@@ -104,8 +104,8 @@ Production function execute access must be verified in Appwrite Console:
 
 - AI functions `ai-gateway` and `resume-section-ai`: may remain executable by the frontend Appwrite SDK, but now must reject AI work unless a valid Appwrite user JWT is supplied in `__headers['X-Appwrite-JWT']`, request `X-Appwrite-JWT`, or `Authorization: Bearer <jwt>`.
 - Smoke-test bypass: allowed only when `x-smoke-test` is present and only returns health/provider availability data.
-- Public/anonymous allowed intentionally only where product behavior requires it: public share verification/read paths, waitlist checks, RevenueCat webhook with secret authorization, and guarded smoke tests.
-- RevenueCat webhook: may be public-executable at the Appwrite layer only if `REVENUECAT_WEBHOOK_SECRET` is set and the configured `Authorization` header matches.
+- Public/anonymous allowed intentionally only where product behavior requires it: public share verification/read paths, waitlist checks, legacy payment provider webhook with secret authorization, and guarded smoke tests.
+- legacy payment provider webhook: may be public-executable at the Appwrite layer only if `removed payment webhook secret` is set and the configured `Authorization` header matches.
 - Admin functions: require DevKit/admin controls and must not expose public write paths.
 
 ## P0 Fix Implementation Notes
@@ -122,7 +122,7 @@ Production function execute access must be verified in Appwrite Console:
 - Confirm all launch-critical collections and attributes above exist.
 - Confirm `ai_credits` documents can be read by their owning user.
 - Confirm AI functions have all required Appwrite, AI provider, and email env vars.
-- Confirm `revenuecat-webhook` has `REVENUECAT_WEBHOOK_SECRET`.
+- Confirm `legacy-payment-webhook` has `removed payment webhook secret`.
 - Confirm only intended public functions are executable anonymously.
 - Confirm Appwrite function logs do not contain resume text, job descriptions, prompts, or AI responses.
 

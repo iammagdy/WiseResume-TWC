@@ -1,4 +1,4 @@
-import { Crown, Check, Loader2 } from 'lucide-react';
+import { Crown, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -8,10 +8,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { haptics } from '@/lib/haptics';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { useRevenueCat, isPurchaseCancelled } from '@/hooks/useRevenueCat';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface UpgradeDialogProps {
   open: boolean;
@@ -35,34 +32,11 @@ export function UpgradeDialog({
   features,
 }: UpgradeDialogProps) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { packages, loadingOfferings, purchasing, purchase } = useRevenueCat();
 
   const handleViewPlans = () => {
     haptics.light();
     onClose();
     navigate('/subscription');
-  };
-
-  const handlePurchase = async () => {
-    haptics.medium();
-    // Pick the package matching requiredPlan by price tier (cheapest = pro)
-    if (packages.length === 0) {
-      toast.error('Packages not loaded. Please try again.');
-      return;
-    }
-    const targetIndex = requiredPlan === 'pro' ? 0 : packages.length - 1;
-    const pkg = packages[targetIndex];
-    try {
-      await purchase(pkg);
-      toast.success(`Welcome to ${planLabel(requiredPlan)}!`);
-      await queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-      onClose();
-    } catch (e) {
-      if (!isPurchaseCancelled(e)) {
-        toast.error(e instanceof Error ? e.message : 'Purchase failed. Please try again.');
-      }
-    }
   };
 
   return (
@@ -95,28 +69,16 @@ export function UpgradeDialog({
         )}
 
         <div className="flex flex-col gap-3 pt-2">
-          {/* Upgrade CTA — shows price from RC if loaded */}
           <Button
             className="w-full gap-2"
-            onClick={handlePurchase}
-            disabled={purchasing || loadingOfferings}
+            disabled
           >
-            {purchasing || loadingOfferings ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Crown className="w-4 h-4" />
-            )}
-            {(() => {
-              if (purchasing) return 'Processing…';
-              if (loadingOfferings) return 'Loading…';
-              const targetIndex = requiredPlan === 'pro' ? 0 : packages.length - 1;
-              const pkg = packages[targetIndex];
-              const price = pkg?.webBillingProduct?.currentPrice?.formattedPrice;
-              return price
-                ? `Upgrade to ${planLabel(requiredPlan)} — ${price}/mo`
-                : `Upgrade to ${planLabel(requiredPlan)}`;
-            })()}
+            <Clock className="w-4 h-4" />
+            Coming Soon
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Online payment is not available yet.
+          </p>
 
           <Button variant="outline" className="w-full gap-2 text-muted-foreground" onClick={handleViewPlans}>
             View all plans

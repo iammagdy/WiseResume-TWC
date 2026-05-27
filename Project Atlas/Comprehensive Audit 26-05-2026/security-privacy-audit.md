@@ -23,7 +23,7 @@ The app has several good security patterns: Appwrite session validation, protect
 | Secrets exposure | Client envs and workflows | `VITE_*`, workflows, no obvious real secrets in inspected output | PASS with caveat | Public Appwrite project IDs are expected; server keys not found in client usage. | Run secret scan and verify Vercel env scopes. |
 | PII logging | Sentry and console | `monitoring.ts` `sendDefaultPii: true`, global console errors | FAIL | Resume/user data could be captured in error context. | Define redaction policy; set Sentry PII intentionally. |
 | AI prompt privacy | Resume/job data sent to providers | `aiTailor`, `aiAnalysis`, gateway prompts | UNKNOWN | Resume data is sensitive and sent to third-party AI providers. | Publish policy, provider retention controls, and opt-in disclosure. |
-| Webhook verification | RevenueCat | `timingSafeEqual` auth header check | PASS for auth; FAIL runtime | Verification pattern exists, but handler body bug blocks processing. | Fix runtime and verify replay. |
+| Webhook verification | legacy payment provider | `timingSafeEqual` auth header check | PASS for auth; FAIL runtime | Verification pattern exists, but handler body bug blocks processing. | Fix runtime and verify replay. |
 | Public share password | Password verification | `public-share` compares string equality | UNKNOWN/FAIL | If stored password is plaintext, confidentiality risk. | Store salted hashes and compare server-side. |
 | Dependency risk | package inventory | Large dependency set; no audit run | UNKNOWN | Supply-chain risk unknown. | Run `npm audit`/dependency review in CI, no auto-fix. |
 
@@ -49,7 +49,7 @@ The app has several good security patterns: Appwrite session validation, protect
 ### FAIL
 
 - AI hubs are callable through functions configured with `any` execute and no visible backend auth/credit enforcement.
-- RevenueCat webhook cannot reliably update paid access because of runtime bug.
+- legacy payment provider webhook cannot reliably update paid access because of runtime bug.
 - Public share password handling needs proof of hashing; inspected function performs direct string compare.
 
 ### UNKNOWN
@@ -64,7 +64,7 @@ The app has several good security patterns: Appwrite session validation, protect
 ## Security Launch Blockers
 
 1. Enforce auth, credit checks, and rate limits server-side in AI hubs.
-2. Fix and verify RevenueCat webhook.
+2. Fix and verify legacy payment provider webhook.
 3. Export/review Appwrite schema and permissions.
 4. Verify production secrets/env vars are not exposed to client bundles.
 5. Define PII/AI prompt logging and retention policy.
