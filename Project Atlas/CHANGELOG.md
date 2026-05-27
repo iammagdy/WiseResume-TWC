@@ -22,6 +22,7 @@ Removed the previous payment provider from web, mobile, Appwrite hub deployment,
 - Removed obsolete web/mobile payment SDK dependencies from package manifests and lockfiles.
 - Removed obsolete provider-specific env vars from web/mobile env examples.
 - Updated Atlas current-state docs to document disabled online payments and future provider integration requirements.
+- Updated `Deploy.bat` so local click-to-deploy runs the current hub deployment script from the repo root, removes the stale `revenuecat-webhook.tar.gz` archive before deploying, and fails visibly if deployment fails.
 - Remote Appwrite cleanup note: delete the old payment webhook function from Appwrite Console if it still exists after this code is deployed.
 - Follow-up: the GitHub Actions manual hub workflow still has a stale build step for the removed webhook and requires a separate workflow-scope update before that workflow is used again.
 

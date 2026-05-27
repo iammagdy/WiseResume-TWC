@@ -11,6 +11,7 @@ Removed the previous payment provider from the web app, mobile app, Appwrite hub
 - Premium access is read from existing internal subscription/user data through hooks such as `useMe` and `usePlan`; it does not need an active payment SDK to keep feature gates protected.
 - The active purchase, restore, offerings, customer-info, and management-link flows were tied to the removed provider SDK and webhook.
 - The provider webhook only existed to sync external payment events into `subscriptions`; with payments disabled, keeping the webhook would create a stale active payment path.
+- `Deploy.bat` delegated to `scripts\deploy_hubs.cjs`, which no longer deploys the removed webhook, but the local folder still contained an ignored stale `revenuecat-webhook.tar.gz` archive that could confuse manual deployments.
 
 ### Code Fixes Applied
 | Area | Fix |
@@ -22,6 +23,7 @@ Removed the previous payment provider from the web app, mobile app, Appwrite hub
 | Appwrite hubs | Removed the obsolete payment webhook hub and deployment helper; deploy scripts no longer deploy or provision webhook variables. |
 | Dependencies/env | Removed web and mobile payment SDK packages from package manifests/lockfiles and removed provider-specific env vars from examples. |
 | Tests | Removed obsolete webhook tests from the P0 hub test file; AI unauthenticated guard tests remain. |
+| Local deployment helper | Updated `Deploy.bat` to run from the repo root, validate `.env.deploy`, remove stale `revenuecat-webhook.tar.gz`, call `scripts\deploy_hubs.cjs`, and fail visibly on deployment errors. |
 
 ### Verification Status
 - `npx tsc --noEmit` passed.
@@ -32,13 +34,26 @@ Removed the previous payment provider from the web app, mobile app, Appwrite hub
 - `npm test` still fails on pre-existing unrelated tests (`usePublicPortfolio`, `aiTailor-D1`, `PortfolioEditorPage`, `appShellLayout`, and PDF export expectations); no failure points to the payment removal.
 - Mobile `npm run typecheck` still fails on pre-existing mobile typing/config issues (`newArchEnabled`, `tabBarButtonTestID`, Detox globals, and existing mobile component prop types). Mobile dependencies were restored with `npm install --legacy-peer-deps` after an npm network reset during uninstall.
 - Mobile focused ESLint is blocked by an existing ESLint/plugin version mismatch (`@typescript-eslint/no-unused-expressions` reading missing `allowShortCircuit`).
+- `node --check scripts/deploy_hubs.cjs` passed after the `Deploy.bat` update.
+- `git diff --check` passed for the `Deploy.bat`/Atlas update with only normal Windows line-ending warnings.
+- Appwrite hub redeployment was not run during the `Deploy.bat` update; the file is ready for the owner to double-click or run when redeployment is intended.
 
 ### Deployment Notes
 - No live provider replacement exists yet.
 - Remove obsolete provider env vars from Vercel/Appwrite/EAS after the updated code is deployed and verified.
 - Do not add a new provider or fake checkout until a separate payment-provider task is accepted.
 - The old payment webhook function may still exist remotely in Appwrite from earlier deployments; delete it manually from Appwrite Console after confirming no external webhook still targets it.
+- `Deploy.bat` now runs `scripts\deploy_hubs.cjs` from the repo root, removes any stale `revenuecat-webhook.tar.gz` archive before deployment, and exits with an error if hub deployment fails. It does not redeploy the removed webhook hub.
 - The GitHub Actions manual hub workflow still contains an old build step for the removed webhook and needs a separate workflow-scope update before using that workflow for hub deployment. Use DevKit or `scripts/deploy_hubs.cjs` until that workflow file is cleaned up.
+
+### Where We Stopped
+- RevenueCat is removed from active code, dependencies, env examples, and Appwrite hub deployment scripts.
+- Payments remain disabled and displayed as Coming Soon; no replacement payment provider exists.
+- Appwrite `main` database / `subscriptions` collection remains the source of truth for manual Premium/Pro access.
+- Manual Premium grant path remains: create or update a subscription document with `user_id`, `plan: premium` or `plan: pro`, and `status: active`; downgrade by setting `plan: free`.
+- `Deploy.bat` is updated for local all-hub redeployment and will not redeploy the removed webhook hub.
+- Remote Appwrite may still have the old removed webhook function deployed; delete it manually from Appwrite Console after confirming no external webhook still targets it.
+- Do not use the GitHub Actions manual hub workflow until its stale removed-webhook build step is cleaned up with workflow-scope credentials.
 
 ---
 

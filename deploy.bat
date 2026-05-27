@@ -1,10 +1,16 @@
 @echo off
-title WiseResume — Deploy Hubs
+setlocal
+title WiseResume - Deploy Hubs
 
 echo ================================
 echo  WiseResume Hub Deployer
 echo ================================
 echo.
+echo Redeploying the current Appwrite hubs from scripts\deploy_hubs.cjs.
+echo RevenueCat webhook deployment has been removed.
+echo.
+
+cd /d "%~dp0"
 
 :: Load keys from .env.deploy
 if not exist ".env.deploy" (
@@ -14,8 +20,14 @@ if not exist ".env.deploy" (
     exit /b 1
 )
 
-for /f "usebackq tokens=1,2 delims==" %%a in (".env.deploy") do (
-    set "%%a=%%b"
+for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env.deploy") do (
+    if not "%%a"=="" set "%%a=%%b"
+)
+
+if "%APPWRITE_API_KEY%"=="" (
+    echo ERROR: APPWRITE_API_KEY is not set in .env.deploy.
+    pause
+    exit /b 1
 )
 
 if "%APPWRITE_API_KEY%"=="paste_your_api_key_here" (
@@ -25,12 +37,32 @@ if "%APPWRITE_API_KEY%"=="paste_your_api_key_here" (
     exit /b 1
 )
 
+if not exist "scripts\deploy_hubs.cjs" (
+    echo ERROR: scripts\deploy_hubs.cjs was not found.
+    echo Make sure this file is being run from the WiseResume repo folder.
+    pause
+    exit /b 1
+)
+
+if exist "revenuecat-webhook.tar.gz" (
+    echo Removing stale RevenueCat webhook archive...
+    del /f /q "revenuecat-webhook.tar.gz"
+)
+
 echo Starting deployment...
 echo.
-node scripts/deploy_hubs.cjs
+node scripts\deploy_hubs.cjs
+if errorlevel 1 (
+    echo.
+    echo ================================
+    echo  Deployment failed. Check output above.
+    echo ================================
+    pause
+    exit /b 1
+)
 
 echo.
 echo ================================
-echo  Done! Check output above.
+echo  Done! All current hubs processed.
 echo ================================
 pause
