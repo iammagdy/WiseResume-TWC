@@ -1,21 +1,24 @@
 /**
  * D1 — tailorResumeWithProgress unit tests
- * Tests the lib function directly — calls global.fetch (mocked in setup).
+ * Tests the lib function directly — mocks appwriteFunctions.invoke.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ResumeData } from "@/types/resume";
-
-// Mock supabaseAuth so getSupabaseToken doesn't touch real session
-vi.mock("@/lib/supabaseAuth", () => ({
-  getSupabaseToken: vi.fn().mockResolvedValue(null),
-}));
 
 vi.mock("@/lib/aiFallbackToast", () => ({
   checkAIFallback: vi.fn(),
 }));
 
+vi.mock("@/lib/appwrite-functions", () => ({
+  appwriteFunctions: {
+    invoke: vi.fn(),
+  },
+}));
+
 import { tailorResumeWithProgress } from "@/lib/aiTailor";
-import { mockFetch } from "@/test/mocks/fetch";
+import { appwriteFunctions } from "@/lib/appwrite-functions";
+
+const mockInvoke = appwriteFunctions.invoke as ReturnType<typeof vi.fn>;
 
 const mockResume: Partial<ResumeData> = {
   personalInfo: {
@@ -54,13 +57,8 @@ describe("tailorResumeWithProgress (D1)", () => {
     vi.useRealTimers();
   });
 
-  it("resolves with result on successful fetch", async () => {
-    const mockResult = makeMockResult();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: vi.fn().mockResolvedValue(mockResult),
-    });
+  it("resolves with result on successful invoke", async () => {
+    mockInvoke.mockResolvedValueOnce({ data: makeMockResult(), error: null });
 
     const onProgress = vi.fn();
     const result = await tailorResumeWithProgress(
@@ -78,12 +76,7 @@ describe("tailorResumeWithProgress (D1)", () => {
   });
 
   it("calls onProgress with complete step at 100% on success", async () => {
-    const mockResult = makeMockResult();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: vi.fn().mockResolvedValue(mockResult),
-    });
+    mockInvoke.mockResolvedValueOnce({ data: makeMockResult(), error: null });
 
     const onProgress = vi.fn();
     await tailorResumeWithProgress(
@@ -92,16 +85,14 @@ describe("tailorResumeWithProgress (D1)", () => {
       onProgress
     );
 
-    // Final call must be the "complete" step at 100%
     const lastCall = onProgress.mock.calls[onProgress.mock.calls.length - 1][0];
     expect(lastCall).toMatchObject({ step: "complete", progress: 100 });
   });
 
   it("throws rate_limit error on 429 response", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 429,
-      json: vi.fn().mockResolvedValue({ error: "rate limit exceeded" }),
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: { message: "rate limit exceeded", status: 429 },
     });
 
     const onProgress = vi.fn();
@@ -115,10 +106,9 @@ describe("tailorResumeWithProgress (D1)", () => {
   });
 
   it("throws credits_exhausted error on 402 response", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 402,
-      json: vi.fn().mockResolvedValue({ error: "credits exhausted" }),
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: { message: "credits exhausted", status: 402 },
     });
 
     const onProgress = vi.fn();
@@ -131,23 +121,16 @@ describe("tailorResumeWithProgress (D1)", () => {
     ).rejects.toMatchObject({ code: "credits_exhausted" });
   });
 
-  it("retries once on generic (500) error after 2s delay", async () => {
+  it("retries once on generic (500) error after delay", async () => {
     vi.useFakeTimers();
     const mockResult = makeMockResult();
 
-    // First call: 500 server error → code = 'generic' → triggers retry
-    // Second call: success
-    mockFetch
+    mockInvoke
       .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: vi.fn().mockResolvedValue({ error: "internal server error" }),
+        data: null,
+        error: { message: "internal server error", status: 500 },
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue(mockResult),
-      });
+      .mockResolvedValueOnce({ data: mockResult, error: null });
 
     const onProgress = vi.fn();
     const promise = tailorResumeWithProgress(
@@ -156,19 +139,18 @@ describe("tailorResumeWithProgress (D1)", () => {
       onProgress
     );
 
-    // Advance past the 2s retry delay
-    await vi.advanceTimersByTimeAsync(3000);
+    // Advance past the 4s retry delay
+    await vi.advanceTimersByTimeAsync(5000);
     const result = await promise;
 
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
     expect(result.overallScore).toEqual({ before: 58, after: 84 });
   });
 
   it("does not retry rate_limit errors — throws after first call", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 429,
-      json: vi.fn().mockResolvedValue({ error: "rate limit" }),
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: { message: "rate limit", status: 429 },
     });
 
     const onProgress = vi.fn();
@@ -180,27 +162,33 @@ describe("tailorResumeWithProgress (D1)", () => {
       )
     ).rejects.toMatchObject({ code: "rate_limit" });
 
-    // Should only have been called once — no retry
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 
   it("aborts when AbortSignal is triggered", async () => {
+    vi.useFakeTimers();
     const controller = new AbortController();
-    mockFetch.mockRejectedValueOnce(
-      Object.assign(new Error("AbortError"), { name: "AbortError" })
-    );
+    controller.abort(); // abort before calling
+
+    // Transient error triggers retry path; after retry delay, abort check fires
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: { message: "internal server error", status: 500 },
+    });
 
     const onProgress = vi.fn();
-    controller.abort();
 
-    await expect(
-      tailorResumeWithProgress(
-        mockResume as ResumeData,
-        mockJobDescription,
-        onProgress,
-        "moderate",
-        controller.signal
-      )
-    ).rejects.toThrow();
+    const promise = tailorResumeWithProgress(
+      mockResume as ResumeData,
+      mockJobDescription,
+      onProgress,
+      "moderate",
+      controller.signal
+    );
+
+    // Attach rejection handler BEFORE advancing timers to prevent unhandled rejection
+    const assertion = expect(promise).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(5000);
+    await assertion;
   });
 });

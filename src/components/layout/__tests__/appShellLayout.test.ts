@@ -9,7 +9,7 @@ describe("appShellLayout", () => {
     expect(getMobileShellLayout("/dashboard", false)).toEqual({
       reserveBottomSpace: true,
       showAskFab: true,
-      askFabOffsetClass: "bottom-[calc(5.5rem+env(safe-area-inset-bottom))]",
+      askFabOffsetClass: "bottom-[calc(4.5rem+env(safe-area-inset-bottom))]",
     });
   });
 

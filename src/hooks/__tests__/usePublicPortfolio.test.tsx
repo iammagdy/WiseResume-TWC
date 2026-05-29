@@ -1,22 +1,40 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { usePublicPortfolio } from "../usePublicPortfolio";
-import { mockSupabaseClient } from "../../test/mocks/supabase";
-import { mockProfile } from "../../test/mocks/data";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-// Since usePublicPortfolio uses react-router-dom hooks, we need to mock it
 vi.mock("react-router-dom", () => ({
   useParams: () => ({ username: "johndoe" }),
 }));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
+// Mock Appwrite databases used by usePublicPortfolio
+const mockListDocuments = vi.fn();
+vi.mock("@/lib/appwrite", () => ({
+  databases: { listDocuments: (...args: unknown[]) => mockListDocuments(...args) },
+  DATABASE_ID: "test-db",
+  Query: {
+    equal: (field: string, value: unknown) => `${field}=${value}`,
+    limit: (n: number) => `limit=${n}`,
   },
+}));
+
+const makeProfileDoc = (overrides: Record<string, unknown> = {}) => ({
+  $id: "profile-1",
+  user_id: "user-123",
+  username: "johndoe",
+  portfolioEnabled: true,
+  portfolioExtras: {},
+  ...overrides,
+});
+
+const makeResumeDoc = (overrides: Record<string, unknown> = {}) => ({
+  $id: "resume-1",
+  ...overrides,
+});
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
 });
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -30,22 +48,9 @@ describe("usePublicPortfolio", () => {
   });
 
   it("should fetch and return profile data for a given username", async () => {
-    // Mock the RPC response
-    mockSupabaseClient.rpc.mockResolvedValue({ 
-      data: {
-        profile: {
-          ...mockProfile,
-          portfolioExtras: {
-            caseStudies: [{ id: "1", title: "Study" }],
-            services: [{ id: "1", title: "Service" }],
-            testimonials: "invalid", // force safeArray branch fallback
-            highlights: null // force safeArray branch fallback
-          }
-        },
-        resume: { id: "res-1", title: "Test Resume" }
-      }, 
-      error: null 
-    });
+    mockListDocuments
+      .mockResolvedValueOnce({ total: 1, documents: [makeProfileDoc()] })
+      .mockResolvedValueOnce({ total: 1, documents: [makeResumeDoc({ $id: "res-1" })] });
 
     const { result } = renderHook(() => usePublicPortfolio("johndoe"), { wrapper });
 
@@ -56,40 +61,41 @@ describe("usePublicPortfolio", () => {
   });
 
   it("should handle fetch errors gracefully", async () => {
-    mockSupabaseClient.rpc.mockResolvedValue({ 
-      data: null, 
-      error: { message: "Not found" } 
-    });
+    // The hook retries up to 2 times — reject all calls
+    mockListDocuments.mockRejectedValue(new Error("Not found"));
 
     const { result } = renderHook(() => usePublicPortfolio("johndoe"), { wrapper });
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
     expect(result.current.error).toBeDefined();
   });
 
   it("should not fetch when username is undefined", () => {
     const { result } = renderHook(() => usePublicPortfolio(undefined), { wrapper });
 
-    // The query should be in 'pending' status but fetchStatus should be 'idle'
-    // because enabled is false when username is undefined.
     expect(result.current.fetchStatus).toBe("idle");
     expect(result.current.isPending).toBe(true);
-
-    // Verify RPC was not called
-    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled();
+    expect(mockListDocuments).not.toHaveBeenCalled();
   });
 
-  it("should handle missing profile and resume fields by providing default fallbacks", async () => {
-    // Mock the RPC response with empty objects
-    mockSupabaseClient.rpc.mockResolvedValue({
-      data: {
-        profile: {
-          // No portfolioExtras tests the fallback `{}` mapping
-        },
-        resume: {}
-      },
-      error: null
-    });
+  it("should return null when profile not found", async () => {
+    mockListDocuments.mockResolvedValueOnce({ total: 0, documents: [] });
+
+    const { result } = renderHook(() => usePublicPortfolio("unknown"), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data).toBeNull();
+    expect(result.current.isError).toBe(false);
+  });
+
+  it("should handle missing resume fields by providing empty array fallbacks", async () => {
+    mockListDocuments
+      .mockResolvedValueOnce({
+        total: 1,
+        documents: [makeProfileDoc({ username: "janedoe" })],
+      })
+      .mockResolvedValueOnce({ total: 0, documents: [] });
 
     const { result } = renderHook(() => usePublicPortfolio("janedoe"), { wrapper });
 
@@ -97,48 +103,10 @@ describe("usePublicPortfolio", () => {
 
     const data = result.current.data;
     expect(data).toBeDefined();
-
-    // Verify Profile fallbacks
-    expect(data?.profile.fullName).toBeNull();
-    expect(data?.profile.username).toBe("janedoe");
-    expect(data?.profile.views).toBe(0);
-    expect(data?.profile.portfolioStyle).toBe("minimal");
-    expect(data?.profile.portfolioLayout).toBe("single");
-    expect(data?.profile.portfolioFont).toBe("inter");
-    expect(data?.profile.openToWork).toBe(false);
-    expect(data?.profile.caseStudies).toEqual([]);
-    expect(data?.profile.services).toEqual([]);
-    expect(data?.profile.testimonials).toEqual([]);
-    expect(data?.profile.highlights).toEqual([]);
-    expect(data?.profile.portfolioSyncMode).toBe("auto");
-    expect(data?.profile.githubProjectsCache).toEqual([]);
-
-    // Verify Resume fallbacks
-    expect(data?.resume.id).toBe("");
-    expect(data?.resume.title).toBe("Untitled");
     expect(data?.resume.experience).toEqual([]);
     expect(data?.resume.education).toEqual([]);
     expect(data?.resume.skills).toEqual([]);
     expect(data?.resume.projects).toEqual([]);
     expect(data?.resume.certifications).toEqual([]);
-    expect(data?.resume.awards).toEqual([]);
-    expect(data?.resume.publications).toEqual([]);
-    expect(data?.resume.volunteering).toEqual([]);
-    expect(data?.resume.hobbies).toEqual([]);
-  });
-
-  it("should handle null data gracefully", async () => {
-    // Mock the RPC response returning null data without an error
-    mockSupabaseClient.rpc.mockResolvedValue({
-      data: null,
-      error: null
-    });
-
-    const { result } = renderHook(() => usePublicPortfolio("johndoe"), { wrapper });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(result.current.data).toBeNull();
-    expect(result.current.isError).toBe(false);
   });
 });

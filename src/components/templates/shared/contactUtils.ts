@@ -24,3 +24,21 @@ export function extractDomain(url: string): string {
 }
 
 export const DEFAULT_HEADER_ORDER = ['email', 'phone', 'location', 'linkedin', 'github', 'portfolio'];
+
+/** Builds a full LinkedIn profile URL from any form (full URL, domain-relative, or bare username). */
+export function ensureLinkedinUrl(raw: string): string {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/linkedin\.com/i.test(trimmed)) return `https://${trimmed}`;
+  return `https://linkedin.com/in/${trimmed}`;
+}
+
+/** Builds a full GitHub profile URL from any form (full URL, domain-relative, or bare username). */
+export function ensureGithubUrl(raw: string): string {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/github\.com/i.test(trimmed)) return `https://${trimmed}`;
+  return `https://github.com/${trimmed}`;
+}

@@ -24,6 +24,7 @@ import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { normalizeUrl } from '@/lib/urlUtils';
+import { ensureLinkedinUrl, ensureGithubUrl } from '@/components/templates/shared/contactUtils';
 
 import type { PortfolioStyle, PortfolioLayout, PortfolioFont } from '@/components/portfolio/editor/AppearanceSection';
 import { type PortfolioSections, DEFAULT_SECTIONS } from '@/components/portfolio/editor/ContentVisibilitySection';
@@ -935,10 +936,10 @@ export default function PortfolioEditorPage() {
         portfolioBio: bio || null,
         portfolioEnabled: overrides?.portfolioEnabled !== undefined ? overrides.portfolioEnabled : portfolioEnabled,
         portfolioResumeId: selectedResumeId || null,
-        githubUrl: normalizeUrl(githubUrl) || null,
+        githubUrl: ensureGithubUrl(githubUrl) || null,
         websiteUrl: normalizeUrl(websiteUrl) || null,
         twitterUrl: normalizeUrl(twitterUrl) || null,
-        linkedinUrl: normalizeUrl(linkedinUrl) || null,
+        linkedinUrl: ensureLinkedinUrl(linkedinUrl) || null,
         contactEmail: contactEmail?.trim().toLowerCase() || null,
         theme: selectedTheme,
         portfolioSections: sections,
@@ -1111,7 +1112,9 @@ export default function PortfolioEditorPage() {
               );
               return;
             }
-            updateProfile({ portfolioExtras: nextExtras } as Parameters<typeof updateProfile>[0]).catch(() => {});
+            updateProfile({ portfolioExtras: nextExtras } as Parameters<typeof updateProfile>[0]).catch(() => {
+              toast.warning('Portfolio published — secondary language content could not be synced. Try saving again.');
+            });
           }
         }).catch(() => {});
       }

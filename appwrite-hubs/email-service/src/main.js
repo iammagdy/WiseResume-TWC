@@ -546,13 +546,11 @@ async function handleSendVerification({ req, res, log, error, body }) {
       return json(res, { success: true, delivery: 'resend' });
     }
 
-    // Token was created once; Appwrite may have sent its template email already.
-    log(`Verification token created for ${sessionUser.email}; Appwrite mailer only (no Resend secret)`);
+    // Token was created but Appwrite did not return a secret — Resend email cannot be sent.
+    error(`Verification token created for ${sessionUser.email} but no secret returned — cannot send Resend email`);
     return json(res, {
-      success: true,
-      delivery: 'appwrite',
-      message: 'Verification email sent — check your inbox.',
-    });
+      error: 'Verification email could not be sent. Please try again.',
+    }, 500);
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

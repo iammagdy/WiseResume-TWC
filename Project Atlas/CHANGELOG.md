@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-05-29 - Pre-Launch Bug Fixes (Email, Tests, Portfolio, CI)
+
+### Changes
+
+- **Email verification (registration):** `src/pages/AuthPage.tsx` — silent catch on `send-verification` now shows a warning toast when the email fails to send, so users know to use the Resend button on the next page.
+- **Email service false-success:** `appwrite-hubs/email-service/src/main.js` — when Appwrite creates a token but doesn't return a `secret`, the function now returns a 500 error instead of `{ success: true, delivery: 'appwrite' }`, preventing the user from being told the email was sent when it wasn't.
+- **Resend cooldown persistence:** `src/pages/AuthVerifyEmailPage.tsx` — 60-second resend cooldown is now stored in `localStorage` under `wr_verify_resend_ts` so it survives page refreshes.
+- **Portfolio silent translation error:** `src/pages/PortfolioEditorPage.tsx` — post-publish translation sync failure now shows a warning toast instead of silently failing.
+- **Portfolio LinkedIn/GitHub normalization:** `src/pages/PortfolioEditorPage.tsx` and `src/components/templates/shared/contactUtils.ts` — added `ensureLinkedinUrl()` and `ensureGithubUrl()` helpers; portfolio editor save path now uses these to handle bare usernames (e.g. `magdy-saber` → `https://linkedin.com/in/magdy-saber`).
+- **GitHub Actions stale step:** `.github/workflows/deploy-appwrite-hubs.yml` — removed stale `revenuecat-webhook` build step (RevenueCat was removed in 2026-05-27 session).
+- **Fix appShellLayout test:** updated stale expected offset `5.5rem` → `4.5rem` to match current implementation.
+- **Fix usePublicPortfolio test:** replaced stale Supabase mock with correct Appwrite `databases.listDocuments` mock.
+- **Fix aiTailor-D1 test:** replaced `mockFetch` pattern with `appwriteFunctions.invoke` mock; fixed retry timer (3000 → 5000 ms); fixed abort test rejection handler ordering.
+- **Fix exportResumePdf test:** added `requestAnimationFrame` polyfill in `beforeEach` (jsdom does not implement RAF natively).
+- **Fix PortfolioEditorPage test:** added missing `usePlan`, `appwriteFunctions`, `databases`, and `Query.orderAsc` mocks; simplified assertions to match actual render output.
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+- `npm test` — 5 previously-failing tests now pass.
+- `node --check appwrite-hubs/email-service/src/main.js` — syntax clean.
+
+---
+
 ## 2026-05-27 - Remove Payment Provider, Keep Billing Coming Soon
 
 Removed the previous payment provider from web, mobile, Appwrite hub deployment, tests, env examples, and package dependencies. No replacement provider was added.

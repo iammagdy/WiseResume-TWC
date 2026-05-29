@@ -104,13 +104,18 @@ export default function AuthPage() {
       await appwriteAccount.create(ID.unique(), email, password, name);
       await appwriteAccount.createEmailPasswordSession(email, password);
       await refreshSession();
+      let emailSent = true;
       try {
         // Send branded verification email via email-service function (bypasses Appwrite template).
         await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification' } });
       } catch {
-        // Non-fatal — user can resend from the verify-email page
+        emailSent = false;
       }
-      toast.success('Account created! Check your email to verify your account.');
+      if (emailSent) {
+        toast.success('Account created! Check your email to verify your account.');
+      } else {
+        toast.warning('Account created! We had trouble sending the verification email — you can resend it from the next page.');
+      }
       navigate('/auth/verify-email', { replace: true });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');

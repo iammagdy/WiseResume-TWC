@@ -43,6 +43,11 @@ const paintedResume = {
 
 describe('exportResumePdfFromData', () => {
   beforeEach(() => {
+    // jsdom does not implement requestAnimationFrame — polyfill with setTimeout(0)
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
+      setTimeout(() => cb(performance.now()), 0) as unknown as number,
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
     Object.defineProperty(document, 'fonts', {
       value: { ready: Promise.resolve() },
       writable: true,
@@ -51,6 +56,7 @@ describe('exportResumePdfFromData', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
     document.body.innerHTML = '';
     (generateNativePDF as ReturnType<typeof vi.fn>).mockClear();

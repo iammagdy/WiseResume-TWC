@@ -2,6 +2,60 @@
 
 ---
 
+## Session Log - 2026-05-29 (Pre-Launch Bug Fixes)
+
+### Overview
+Full pre-launch audit followed by 12 targeted bug fixes covering email flows, unit tests, Portfolio editor, CI/CD workflow cleanup. Payments remain disabled ("Coming Soon") intentionally — a local payment gateway will be integrated later.
+
+### Root Causes Verified
+
+| Area | Root Cause |
+|------|------------|
+| Email verification (registration) | Silent `catch {}` in `AuthPage.tsx` swallowed `send-verification` failures; user was redirected to verify page with no email in inbox |
+| Email service false-success | `createUserVerificationTokenOnce()` returned `secret: null` when Appwrite didn't include the secret in the response; function returned `{ success: true }` instead of an error |
+| Resend cooldown | `resendCooldown` state was React-only; refreshing the page reset the 60s window |
+| Portfolio translation | Post-publish `updateProfile()` for secondary language translations had `.catch(() => {})` — failure was invisible to user |
+| Portfolio LinkedIn/GitHub | `handleSave()` used generic `normalizeUrl()` for LinkedIn/GitHub fields; bare usernames (`magdy-saber`) produced invalid URLs |
+| appShellLayout test | Hard-coded offset `5.5rem` in test; actual implementation uses `4.5rem` |
+| usePublicPortfolio test | Test mocked Supabase `rpc()` but hook uses Appwrite `databases.listDocuments()` |
+| aiTailor-D1 test | Test mocked `global.fetch` but function uses `appwriteFunctions.invoke()`; retry timer used 3000ms, actual delay is 4000ms |
+| exportResumePdf test | jsdom does not implement `requestAnimationFrame` natively; `waitForRender` loop never exited |
+| PortfolioEditorPage test | Missing mocks for `usePlan`, `appwriteFunctions`, and `Query.orderAsc` caused runtime crashes |
+| GitHub Actions | Stale `revenuecat-webhook` build step remained after RevenueCat was removed in the 2026-05-27 session |
+
+### Code Fixes Applied
+
+| File | Fix |
+|------|-----|
+| `src/pages/AuthPage.tsx` | Added `emailSent` flag; shows warning toast on send failure instead of silent swallow |
+| `appwrite-hubs/email-service/src/main.js` | Returns HTTP 500 error when token secret is null instead of false-success |
+| `src/pages/AuthVerifyEmailPage.tsx` | Resend cooldown timestamp persisted in `localStorage` under `wr_verify_resend_ts`; initialized from storage on mount |
+| `src/pages/PortfolioEditorPage.tsx` | Warning toast on translation sync failure; `ensureLinkedinUrl()`/`ensureGithubUrl()` used in save path |
+| `src/components/templates/shared/contactUtils.ts` | Added exported `ensureLinkedinUrl()` and `ensureGithubUrl()` helpers |
+| `.github/workflows/deploy-appwrite-hubs.yml` | Removed stale `revenuecat-webhook` build step |
+| `src/components/layout/__tests__/appShellLayout.test.ts` | Updated expected offset `5.5rem` → `4.5rem` |
+| `src/hooks/__tests__/usePublicPortfolio.test.tsx` | Rewrote to mock Appwrite `databases.listDocuments` instead of Supabase |
+| `src/lib/__tests__/aiTailor-D1.test.ts` | Rewrote to mock `appwriteFunctions.invoke`; fixed retry timer and abort test |
+| `src/lib/exportResumePdf.test.ts` | Added `requestAnimationFrame` polyfill in `beforeEach` |
+| `src/pages/__tests__/PortfolioEditorPage.test.tsx` | Added missing `usePlan`, `appwriteFunctions`, `databases`, `Query.orderAsc` mocks |
+
+### Verification Status
+- `npx tsc --noEmit` — zero errors.
+- 5 previously-failing tests now pass: `appShellLayout`, `usePublicPortfolio`, `aiTailor-D1`, `exportResumePdf`, `PortfolioEditorPage`.
+- `node --check appwrite-hubs/email-service/src/main.js` — syntax clean.
+
+### Deployment Notes
+- `email-service` hub must be redeployed for FIX 2 to take effect in production. Run `node scripts/deploy_hubs.cjs --only=email-service` from the repo root.
+- All other fixes are frontend/test-only — take effect on next Vercel deployment (no Appwrite hub redeploy needed).
+
+### Where We Stopped
+- All 12 bug fixes are committed and pushed.
+- Payments remain disabled / Coming Soon — no change from prior session.
+- Portfolio cross-device save (portfolio_extras attribute) requires a manual Appwrite Console action before the code path becomes active; see the "Out of Scope" note in the fix plan.
+- E2E tests remain blocked on missing `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` environment variables — not a code issue.
+
+---
+
 ## Session Log - 2026-05-27 (Payment Provider Removal - Billing Coming Soon)
 
 ### Overview

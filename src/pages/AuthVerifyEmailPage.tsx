@@ -43,7 +43,16 @@ export default function AuthVerifyEmailPage() {
   const hasCallbackParams = Boolean(userId && secret);
   const [mode, setMode] = useState<PageMode>(hasCallbackParams ? 'ready-to-confirm' : 'pending');
   const [resending, setResending] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(() => {
+    try {
+      const ts = localStorage.getItem('wr_verify_resend_ts');
+      if (!ts) return 0;
+      const remaining = 60 - Math.floor((Date.now() - Number(ts)) / 1000);
+      return remaining > 0 ? remaining : 0;
+    } catch {
+      return 0;
+    }
+  });
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const persistVerifiedSession = useCallback(async () => {
@@ -214,6 +223,7 @@ export default function AuthVerifyEmailPage() {
         return;
       }
       toast.success('Verification email sent — check your inbox.');
+      try { localStorage.setItem('wr_verify_resend_ts', String(Date.now())); } catch {}
       startCooldown(60);
     } catch (err) {
       const msg =
