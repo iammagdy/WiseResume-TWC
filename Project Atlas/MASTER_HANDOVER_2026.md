@@ -49,10 +49,12 @@ Full pre-launch audit followed by 12 targeted bug fixes covering email flows, un
 - All other fixes are frontend/test-only — take effect on next Vercel deployment (no Appwrite hub redeploy needed).
 
 ### Where We Stopped
-- All 12 bug fixes are committed and pushed.
-- Payments remain disabled / Coming Soon — no change from prior session.
-- Portfolio cross-device save (portfolio_extras attribute) requires a manual Appwrite Console action before the code path becomes active; see the "Out of Scope" note in the fix plan.
-- E2E tests remain blocked on missing `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` environment variables — not a code issue.
+- 11 of 12 file changes committed to `main` as `bf565450` and pushed to `origin/main`.
+- **One file NOT pushed:** `.github/workflows/deploy-appwrite-hubs.yml` — the stale `revenuecat-webhook` build step removal is staged locally but not committed. GitHub rejected the push because the OAuth token in use lacks the `workflow` scope. The change is a single line deletion. Next agent or user must push this manually using a token with `workflow` scope: `git add .github/workflows/deploy-appwrite-hubs.yml && git commit -m "ci: remove stale revenuecat-webhook build step" && git push origin main`.
+- **`email-service` hub must be redeployed** for the false-success fix (FIX 2) to take effect in production: `node scripts/deploy_hubs.cjs --only=email-service`. All other fixes are frontend-only and go live on the next Vercel deploy of `main`.
+- Payments remain disabled / Coming Soon — unchanged from 2026-05-27 session.
+- Portfolio cross-device save: `portfolio_extras` attribute does not exist in the live Appwrite `profiles` collection. The code path is silently skipped. To enable it: add `portfolio_extras` (String, size ~200KB) to the `profiles` collection in Appwrite Console, then add `portfolio_extras` to `LIVE_PROFILE_ATTRIBUTES` in `src/hooks/useProfile.ts` lines ~141–161.
+- E2E tests remain blocked on missing `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` env vars — not a code issue.
 
 ---
 
