@@ -13,6 +13,15 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
+      "functionId": "6a0760710000ff231048",
+      "name": "admin-sentry",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-sentry",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "admin-deploy-hubs",
       "name": "Admin Deploy Hubs",
       "runtime": "node-18.0",
