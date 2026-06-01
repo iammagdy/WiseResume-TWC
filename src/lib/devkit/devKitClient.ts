@@ -73,7 +73,7 @@ function classifyMessage(message: string, status?: number): DevKitErrorCode {
   if (/session expired|user.*session|login again|sign in again/.test(raw)) return 'APPWRITE_SESSION_EXPIRED';
   if (/function.*could not be found|not deployed|function_not_found|requested id could not be found/.test(raw)) return 'FUNCTION_NOT_FOUND';
   if (/unknown action|action is required/.test(raw)) return 'UNKNOWN_ACTION';
-  if (/missing.*env|missing.*variable|not configured|config_missing|devkit_password|appwrite_api_key/.test(raw)) return 'MISSING_ENV';
+  if (/missing.*env|missing.*variable|not configured|config_missing|appwrite_api_key/.test(raw)) return 'MISSING_ENV';
   if (/index|attribute|collection|document.*could not be found|invalid query|schema/.test(raw)) return 'SCHEMA_OR_INDEX_ERROR';
   if (/failed to fetch|network|cannot reach|timed out|timeout/.test(raw)) return 'NETWORK_ERROR';
   if (status && status >= 500) return 'FUNCTION_RUNTIME_FAILED';
@@ -106,10 +106,15 @@ export function toDevKitError(input: unknown, context: { functionId?: string; ac
   };
 }
 
-export async function devKitLogin(password: string): Promise<DevKitAuthResponse> {
+/**
+ * Authenticates the current Appwrite session as DevKit admin.
+ * The backend verifies the caller's Appwrite JWT and checks that their email
+ * matches the configured ADMIN_EMAIL — no password is required.
+ */
+export async function devKitLogin(): Promise<DevKitAuthResponse> {
   const result = await withDevKitTimeout(
     appwriteFunctions.invoke<AdminEnvelope<never>>('admin-devkit-data', {
-      body: { action: 'verify-devkit-session', password },
+      body: { action: 'verify-devkit-session' },
     }),
     15000,
     'DevKit login timed out. Appwrite did not answer the session request.',

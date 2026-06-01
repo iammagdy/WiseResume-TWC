@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Sparkles,
   CreditCard,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Dialog,
@@ -46,6 +47,10 @@ interface DashboardWorkspaceProfileDialogProps {
   onHelp?: () => void;
   onUpgrade?: () => void;
   onSignOut: () => void | Promise<void>;
+  /** If provided, an "Admin Panel" item is shown at the top of the menu. */
+  onAdminPanel?: () => void;
+  /** Unread count badge shown on the admin item (e.g. pending bug reports). */
+  adminBadgeCount?: number;
 }
 
 function planDisplayName(plan: PlanName) {
@@ -69,6 +74,8 @@ export const DashboardWorkspaceProfileDialog = memo(function DashboardWorkspaceP
   onHelp,
   onUpgrade,
   onSignOut,
+  onAdminPanel,
+  adminBadgeCount = 0,
 }: DashboardWorkspaceProfileDialogProps) {
   const initials = userName?.trim()
     ? userName
@@ -186,6 +193,32 @@ export const DashboardWorkspaceProfileDialog = memo(function DashboardWorkspaceP
 
         <nav className="p-2" aria-label="Account actions">
           <ul className="space-y-0.5">
+            {onAdminPanel && (
+              <>
+                <li>
+                  <button
+                    type="button"
+                    className="dashboard-profile-dialog__item w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left min-h-[52px] touch-manipulation transition-colors hover:bg-blue-500/10 active:scale-[0.99]"
+                    onClick={() => run(onAdminPanel)}
+                  >
+                    <span className="relative flex items-center justify-center w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 shrink-0">
+                      <ShieldCheck className="w-4 h-4 text-blue-500" aria-hidden />
+                      {adminBadgeCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white leading-none">
+                          {adminBadgeCount > 99 ? '99+' : adminBadgeCount}
+                        </span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-sm font-medium text-blue-500 block">Admin Panel</span>
+                      <span className="text-[11px] text-muted-foreground block mt-0.5">DevKit · app control centre</span>
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-blue-500/50 shrink-0" aria-hidden />
+                  </button>
+                </li>
+                <li className="py-1"><div className="h-px bg-border/40 mx-2" /></li>
+              </>
+            )}
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (

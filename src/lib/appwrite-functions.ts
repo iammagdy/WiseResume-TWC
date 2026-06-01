@@ -160,7 +160,7 @@ export const appwriteFunctions = {
     try {
       const bodyPayload = await buildBodyPayload(options?.body);
       const headers = { ...(options?.headers || {}) };
-      if (!headers.Authorization && !isAdminFunction(fnName)) {
+      if (!headers.Authorization) {
         const jwt = await getAppwriteJWT();
         if (jwt) headers['X-Appwrite-JWT'] = jwt;
       }

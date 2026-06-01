@@ -28,6 +28,8 @@ interface AppWorkspaceSidebarProps {
   onSignOut: () => void | Promise<void>;
   onHelp?: () => void;
   onUpgrade?: () => void;
+  onAdminPanel?: () => void;
+  adminBadgeCount?: number;
   /** Drawer sheet on mobile — overrides `hidden lg:flex`. */
   forceVisible?: boolean;
   className?: string;
@@ -45,6 +47,8 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   onSignOut,
   onHelp,
   onUpgrade,
+  onAdminPanel,
+  adminBadgeCount,
   forceVisible = false,
   className,
 }: AppWorkspaceSidebarProps) {
@@ -384,6 +388,8 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
         onHelp={onHelp}
         onUpgrade={onUpgrade}
         onSignOut={onSignOut}
+        onAdminPanel={onAdminPanel}
+        adminBadgeCount={adminBadgeCount}
       />
     </aside>
   );

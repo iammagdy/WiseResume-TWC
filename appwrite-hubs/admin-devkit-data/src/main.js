@@ -9,6 +9,8 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
+// Authoritative admin identity — set ADMIN_EMAIL in Appwrite function variables to override.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'magdy.saber@outlook.com').toLowerCase().trim();
 
 function requestId() {
   return `dk_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
@@ -22,21 +24,28 @@ function base64url(input) {
   return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
+function getSigningSecret() {
+  // Use APPWRITE_API_KEY as the HMAC signing secret for DevKit session tokens.
+  const s = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!s) throw new Error('APPWRITE_API_KEY is not configured');
+  return s;
+}
+
 function signToken(payload) {
-  const secret = process.env.DEVKIT_PASSWORD;
-  if (!secret) throw new Error('DEVKIT_PASSWORD is not configured');
+  const secret = getSigningSecret();
   const encoded = base64url(JSON.stringify(payload));
   const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
   return `${encoded}.${sig}`;
 }
 
 function verifySignedToken(token) {
-  const secret = process.env.DEVKIT_PASSWORD;
-  if (!secret || !token || !token.includes('.')) return false;
+  let secret;
+  try { secret = getSigningSecret(); } catch { return false; }
+  if (!token || !token.includes('.')) return false;
   const [encoded, sig] = token.split('.');
   if (!encoded || !sig) return false;
   const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
-  const actualBuffer = Buffer.from(sig);
+  const actualBuffer   = Buffer.from(sig);
   const expectedBuffer = Buffer.from(expected);
   if (actualBuffer.length !== expectedBuffer.length) return false;
   if (!crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
@@ -52,9 +61,7 @@ function bearerToken(req, body) {
 
 function checkAuth(req, body) {
   const token = bearerToken(req, body);
-  const password = process.env.DEVKIT_PASSWORD;
-  if (!password || !token) return false;
-  if (token === password) return true;
+  if (!token) return false;
   return verifySignedToken(token);
 }
 
@@ -158,13 +165,13 @@ async function safeList(databases, collectionId, queries = []) {
   catch (e) { return { documents: [], total: 0, error: e.message }; }
 }
 
-async function auditLog(databases, action, metadata = {}) {
+async function auditLog(databases, action, metadata = {}, actorId = null) {
   try {
     await databases.createDocument(DB_ID, 'admin_audit_logs', sdk.ID.unique(), {
       action,
       category: 'devkit',
       metadata: JSON.stringify(metadata),
-      user_id: null,
+      user_id: actorId,
     });
   } catch (_) {}
 }
@@ -181,18 +188,28 @@ function worstStatus(items) {
 }
 
 async function verifyDevKitSession(body) {
-  const password = process.env.DEVKIT_PASSWORD;
-  if (!password) return { success: false, code: 'CONFIG_MISSING', error: 'DEVKIT_PASSWORD is not configured.' };
-  if (!body.password || body.password !== password) {
-    return { success: false, code: 'INVALID_PASSWORD', error: 'Invalid DevKit password.' };
+  // Verify the caller's Appwrite JWT and confirm the account email matches ADMIN_EMAIL.
+  const jwt = body?.__headers?.['X-Appwrite-JWT'];
+  if (!jwt) {
+    return { success: false, code: 'UNAUTHORIZED', error: 'No Appwrite session found. Please sign in first.' };
   }
-  const now = Date.now();
-  const expiresAtMs = now + SESSION_TTL_MS;
-  const token = signToken({ purpose: 'devkit', iat: now, exp: expiresAtMs, version: 1 });
-  return {
-    success: true,
-    session: { token, expiresAt: new Date(expiresAtMs).toISOString(), email: 'admin@thewise.cloud' },
-  };
+  try {
+    const jwtClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setJWT(jwt);
+    const account   = new sdk.Account(jwtClient);
+    const user      = await account.get();
+    if (!user.email || user.email.toLowerCase().trim() !== ADMIN_EMAIL) {
+      return { success: false, code: 'UNAUTHORIZED', error: 'Access denied.' };
+    }
+    const now         = Date.now();
+    const expiresAtMs = now + SESSION_TTL_MS;
+    const token = signToken({ purpose: 'devkit', iat: now, exp: expiresAtMs, version: 2, uid: user.$id });
+    return {
+      success: true,
+      session: { token, expiresAt: new Date(expiresAtMs).toISOString(), email: user.email },
+    };
+  } catch {
+    return { success: false, code: 'UNAUTHORIZED', error: 'Session verification failed. Please sign in again.' };
+  }
 }
 
 async function handleDiagnostics(log, error) {
