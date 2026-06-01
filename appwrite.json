@@ -4,6 +4,24 @@
   "endpoint": "https://fra.cloud.appwrite.io/v1",
   "functions": [
     {
+      "functionId": "ai-gateway",
+      "name": "AI Gateway Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/ai-gateway",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-deploy-hubs",
+      "name": "Admin Deploy Hubs",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-deploy-hubs",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "admin-devkit-data",
       "name": "admin-devkit-data",
       "runtime": "node-18.0",
