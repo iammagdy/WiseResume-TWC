@@ -313,6 +313,7 @@ export interface TailorHistory {
   jobTitle: string;
   company: string;
   jobDescription: string;
+  jobUrl?: string | null;
   tailorResult: EnhancedTailorResult;
   scoreBeforeAfter: { before: number; after: number };
   /** Verified match score from validate-tailor (or generator fallback). Stored when the resume is saved. */

@@ -155,7 +155,8 @@ export default function UploadPage() {
           useATSScoreHistoryStore.getState().addScore(newResume.id, importATSScore);
         }
       } catch {
-        setCurrentResume(validationResumeData);
+        toast.error('Failed to save your resume. Please try again.', { duration: 5000 });
+        return;
       }
     } else {
       setCurrentResume(validationResumeData);

@@ -664,6 +664,7 @@ export default function TailorPage() {
         jobTitle,
         company,
         jobDescription,
+        jobUrl: jobUrl || null,
         tailorResult,
         scoreBeforeAfter: tailorResult.overallScore ?? { before: 0, after: 0 },
         verifiedScore: finalMatchScore,
