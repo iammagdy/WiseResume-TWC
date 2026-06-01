@@ -53,8 +53,9 @@ function sentryHeaders(authToken) {
 function getSentryConfig() {
   return {
     authToken: process.env.SENTRY_AUTH_TOKEN,
-    org: process.env.SENTRY_ORG,
-    project: process.env.SENTRY_PROJECT,
+    // Accept both _SLUG suffix (Appwrite console convention) and bare name
+    org: process.env.SENTRY_ORG_SLUG || process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT_SLUG || process.env.SENTRY_PROJECT,
     webhookSecret: process.env.SENTRY_WEBHOOK_SECRET,
   };
 }
@@ -176,7 +177,7 @@ module.exports = async ({ req, res, log, error }) => {
   if (!sentryConfigured(cfg)) {
     return json(res, rid, {
       success: false,
-      error: 'Sentry not fully configured. Set SENTRY_AUTH_TOKEN, SENTRY_ORG, and SENTRY_PROJECT in Appwrite function variables.',
+      error: 'Sentry not fully configured. Set SENTRY_AUTH_TOKEN, SENTRY_ORG_SLUG, and SENTRY_PROJECT_SLUG in Appwrite function variables.',
       configured: { authToken: !!cfg.authToken, org: !!cfg.org, project: !!cfg.project },
     }, 503);
   }
