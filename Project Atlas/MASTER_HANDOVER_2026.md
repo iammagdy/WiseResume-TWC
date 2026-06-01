@@ -60,6 +60,120 @@ Total: 1 new dir (`src/components/loader/`), 113 files modified.
 
 ---
 
+## Session Log - 2026-06-01 (App Audit, Admin Panel Security, Appwrite CI Fixes, admin-sentry)
+
+### Overview
+Four-part session: (1) comprehensive app audit with 7 bug fixes, (2) locked DevKit/admin panel behind admin-only email auth, (3) fixed Appwrite GitHub CI never building for `ai-gateway` and `admin-deploy-hubs`, (4) created `admin-sentry` Appwrite function from scratch.
+
+Branch: `claude/app-audit-report-y0dzO` — PR #74 (draft). All changes pushed, Vercel deployed.
+
+---
+
+### Part 1 — App Audit Bug Fixes (commit `b38fb6a`)
+
+| Area | Root Cause | Fix |
+|---|---|---|
+| `ai-gateway` email route — no rate limit | No server-side abuse protection on public email endpoint | IP-based rate limit: 5 emails/hour/IP via in-memory `_emailRateLimits` Map |
+| `ai-gateway` email route — HTML body | `opts.message` was a plain string; email client rendered raw HTML tags | Built `htmlBody` from `opts.message` before passing to Resend |
+| `ai-gateway` email route — unlocked fields | Caller could override `to`/`from` in body | Hard-coded `to: CONTACT_EMAIL` and `from: NOREPLY_EMAIL` server-side; caller input ignored |
+| `ai-gateway` email route — no success flag | Response was `{}` — frontend could not confirm delivery | Added `success: true` to response body |
+| `TailorHistory` type — missing `jobUrl` | `TailorHistory` interface had no `jobUrl` field | Added `jobUrl?: string \| null` to `src/types/resume.ts` |
+| `TailorPage.tsx` — jobUrl not stored | `addTailorHistory()` call omitted `jobUrl` | Added `jobUrl: jobUrl \|\| null` to the call |
+| `UploadPage.tsx` — silent upload failure | `saveResume()` catch block was empty; failure invisible to user | Added `toast.error(...)` and early return on failure |
+| `appwrite-bridge.ts` — dead code | `invokeAppwriteHub()` export and `export-resume-pdf`/`export-portfolio-pdf` in `AI_HUB_FUNCTIONS` were unreachable | Removed both; cleaned dead import |
+| `ANTHROPIC_API_KEY` — never used | `buildPool()` in `ai-gateway` never included Anthropic as a provider | No code change — user removes key from Appwrite console |
+
+---
+
+### Part 2 — Admin Panel Security (commit `498e300`)
+
+**Goal:** `/devkit` inaccessible to public; Admin Panel button only visible when `magdy.saber@outlook.com` is signed in; no separate password prompt.
+
+| File | Change |
+|---|---|
+| `src/hooks/useIsAdmin.ts` | NEW — exports `ADMIN_EMAIL` constant and `useIsAdmin()` hook; returns `true` only when `user.email?.toLowerCase() === 'magdy.saber@outlook.com'` |
+| `src/components/layout/AdminRoute.tsx` | NEW — route guard; shows spinner while auth loads, `<Navigate to="/" replace />` for non-admin, renders children for admin |
+| `src/AppInterior.tsx` | Wrapped `/devkit` route in `<AdminRoute>`; added `useIsAdmin()` + Cmd+Shift+A keyboard shortcut (admin only) |
+| `src/components/layout/AppWorkspaceLayout.tsx` | Added `useIsAdmin()`; conditionally passes `onAdminPanel: () => navigate('/devkit')` to sidebar props |
+| `src/components/layout/AppWorkspaceSidebar.tsx` | Added `onAdminPanel?` and `adminBadgeCount?` props; threads to `DashboardWorkspaceProfileDialog` |
+| `src/components/dashboard/DashboardWorkspaceProfileDialog.tsx` | Added Admin Panel button at top of menu (blue ShieldCheck icon, red unread badge); only renders when `onAdminPanel` prop is present |
+| `src/pages/DevToolsPage.tsx` | Removed password form and biometric login; auto-login on mount via `devKitLogin()` (sends Appwrite JWT, no password); redirects to `/` on failure; added admin mode banner at top |
+| `src/lib/devkit/devKitClient.ts` | Removed `password` parameter from `devKitLogin`; sends `{ action: 'verify-devkit-session' }` only |
+| `appwrite-hubs/ai-gateway/src/main.js` | Added `ADMIN_EMAIL` constant; replaced `verifyDevKitSession` to verify Appwrite JWT via `Account.get()` + email check; HMAC signing secret changed from `DEVKIT_PASSWORD` to `APPWRITE_API_KEY`; removed plaintext password fallback from `checkAuth` |
+| `src/lib/appwrite-functions.ts` | Removed `isAdminFunction` JWT exclusion — JWT now flows to all admin functions including `admin-devkit-data` |
+
+**UX extras implemented:** Admin mode overlay banner, notification badge prop wired (always `undefined` until a fetch is added), Cmd+Shift+A shortcut, minimal profile dropdown entry.
+
+---
+
+### Part 3 — Appwrite GitHub CI Fix (commit `68f750b`)
+
+**Root cause:** `ai-gateway` and `admin-deploy-hubs` were connected to the GitHub repo in the Appwrite console for auto-deploy, but neither appeared in `appwrite.json`. On every push Appwrite looked up the path from `appwrite.json`, found no entry, produced a 0-byte / 0-second failed deployment. Manual deployments worked because they bypass the path lookup.
+
+**Fix:** Added both functions to `appwrite.json` with correct `path`, `entrypoint`, `runtime`, and `commands`.
+
+```json
+{ "functionId": "ai-gateway",        "path": "appwrite-hubs/ai-gateway",        "entrypoint": "src/main.js", ... }
+{ "functionId": "admin-deploy-hubs", "path": "appwrite-hubs/admin-deploy-hubs", "entrypoint": "src/main.js", ... }
+```
+
+---
+
+### Part 4 — `admin-sentry` Appwrite Function (commits `2bccc49`, `3337845`)
+
+**Root cause:** Function ID `6a0760710000ff231048` (`admin-sentry`) existed in Appwrite and was GitHub-connected, but had no source directory in the repo. All GitHub deployments failed. A previous working version existed only as a manual deployment (not in source control).
+
+**Fix:** Created `appwrite-hubs/admin-sentry/` from scratch and registered in `appwrite.json` with the correct function ID.
+
+**Function capabilities:**
+
+| Action | Auth | What it does |
+|---|---|---|
+| `get-issues` | DevKit session token | Fetch paginated Sentry issues; supports `query`, `limit`, cursor |
+| `get-stats` | DevKit session token | Total unresolved count + 24h hourly event volume + project info |
+| `resolve-issue` | DevKit session token | Mark a Sentry issue resolved via Sentry API |
+| `ignore-issue` | DevKit session token | Mark a Sentry issue ignored via Sentry API |
+| `webhook` | None (HMAC-verified) | Receive Sentry alert webhooks; verifies `Sentry-Hook-Signature` when `SENTRY_WEBHOOK_SECRET` is set |
+
+Auth pattern: same HMAC-signed DevKit session token as `admin-devkit-data`.
+
+Env vars read: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG_SLUG` (or `SENTRY_ORG`), `SENTRY_PROJECT_SLUG` (or `SENTRY_PROJECT`), `SENTRY_WEBHOOK_SECRET` (optional).
+
+---
+
+### Verification
+- `npx tsc --noEmit` — zero errors after all changes.
+- Vercel preview: ✅ Ready (deployed).
+- `admin-sentry`: ✅ Built (28s, 4 MB) — deployment `6a1db9175c65a3ff6917` is **Ready**, not yet activated.
+- `ai-gateway` + `admin-deploy-hubs`: Queued on Appwrite runners (new deployments from latest push).
+
+---
+
+### Pending Actions (user must do in Appwrite console)
+
+| Action | Why |
+|---|---|
+| **Activate** `admin-sentry` deployment `6a1db9175c65a3ff6917` | Click `...` → Activate on the Ready row — function has no active deployment yet |
+| Set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG_SLUG`, `SENTRY_PROJECT_SLUG` on `admin-sentry` | Required for Sentry API calls to work (user has already added these) |
+| Remove `DEVKIT_PASSWORD` from `admin-devkit-data` function variables | Auth no longer uses the password; old var is dead weight |
+| Optionally add `ADMIN_EMAIL=magdy.saber@outlook.com` to `admin-devkit-data` | Defaults to that value if missing; explicit var makes it auditable |
+| Remove `ANTHROPIC_API_KEY` from Appwrite console | Never read by any function — `buildPool()` in `ai-gateway` never included Anthropic |
+| Disable Appwrite GitHub auto-deploy for `ai-gateway`, `admin-deploy-hubs`, `admin-sentry` | Per user request. In Appwrite console: each function → Settings → Git → toggle off "Activate automatic deployments" |
+| Merge PR #74 to main | All changes reviewed and ready |
+
+---
+
+### Where We Stopped
+- All code changes committed and pushed to `claude/app-audit-report-y0dzO`.
+- PR #74 is open as draft. Vercel preview is live.
+- `admin-sentry` built successfully but **not yet activated** — no active deployment.
+- `ai-gateway` and `admin-deploy-hubs` have new deployments queued from the latest push; outcome not yet confirmed (still in Appwrite runner queue at session end).
+- GitHub Actions workflows (`deploy-frontend.yml`, `deploy-landing.yml`) were already manual-only (`workflow_dispatch` only) — no change needed.
+- `VITE_DEV_KIT_PASSWORD` reference still exists in `deploy-frontend.yml` env block (line 38) — this was a pre-existing artifact; the app no longer uses it, but the workflow file was not cleaned up this session.
+- `adminBadgeCount` prop is wired through the sidebar but always passes `undefined` — no fetch for pending items is implemented. Future enhancement: fetch unread bug reports/moderation items and pass count.
+
+---
+
 ## Session Log - 2026-05-29 (Pre-Launch Bug Fixes)
 
 ### Overview
