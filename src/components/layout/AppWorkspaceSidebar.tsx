@@ -24,11 +24,11 @@ interface AppWorkspaceSidebarProps {
   profileCompletion?: number;
   onManageAccount: () => void;
   onSettings: () => void;
+  onAdminPanel?: () => void;
   onBilling: () => void;
   onSignOut: () => void | Promise<void>;
   onHelp?: () => void;
   onUpgrade?: () => void;
-  onAdminPanel?: () => void;
   adminBadgeCount?: number;
   /** Drawer sheet on mobile — overrides `hidden lg:flex`. */
   forceVisible?: boolean;
@@ -43,6 +43,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   profileCompletion,
   onManageAccount,
   onSettings,
+  onAdminPanel,
   onBilling,
   onSignOut,
   onHelp,
@@ -384,11 +385,11 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
         showUpgrade={showUpgradeCta}
         onManageAccount={onManageAccount}
         onSettings={onSettings}
+        onAdminPanel={onAdminPanel}
         onBilling={onBilling}
         onHelp={onHelp}
         onUpgrade={onUpgrade}
         onSignOut={onSignOut}
-        onAdminPanel={onAdminPanel}
         adminBadgeCount={adminBadgeCount}
       />
     </aside>

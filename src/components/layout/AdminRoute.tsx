@@ -1,30 +1,26 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { ADMIN_EMAIL } from '@/hooks/useIsAdmin';
-import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAdminStatus } from '@/hooks/useIsAdmin';
 
-interface AdminRouteProps {
-  children: React.ReactNode;
-}
-
-/**
- * Renders children only when the signed-in user is the application admin.
- * Any other visitor — authenticated or not — is silently redirected to /.
- */
-export function AdminRoute({ children }: AdminRouteProps) {
-  const { user, isLoading } = useAuth();
+export function AdminRoute() {
+  const location = useLocation();
+  const { isAdmin, isLoading } = useAdminStatus();
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <PageLoadingSpinner />
+      <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
+        <div className="h-10 w-32 rounded-lg bg-muted" />
+        <div className="h-6 w-48 rounded bg-muted" />
+        <div className="space-y-3 mt-6">
+          <div className="h-24 rounded-xl bg-muted" />
+          <div className="h-24 rounded-xl bg-muted" />
+        </div>
       </div>
     );
   }
 
-  if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL) {
-    return <Navigate to="/" replace />;
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace state={{ from: location }} />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 }

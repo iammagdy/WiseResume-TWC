@@ -43,12 +43,11 @@ interface DashboardWorkspaceProfileDialogProps {
   showUpgrade?: boolean;
   onManageAccount: () => void;
   onSettings: () => void;
+  onAdminPanel?: () => void;
   onBilling: () => void;
   onHelp?: () => void;
   onUpgrade?: () => void;
   onSignOut: () => void | Promise<void>;
-  /** If provided, an "Admin Panel" item is shown at the top of the menu. */
-  onAdminPanel?: () => void;
   /** Unread count badge shown on the admin item (e.g. pending bug reports). */
   adminBadgeCount?: number;
 }
@@ -70,11 +69,11 @@ export const DashboardWorkspaceProfileDialog = memo(function DashboardWorkspaceP
   showUpgrade = false,
   onManageAccount,
   onSettings,
+  onAdminPanel,
   onBilling,
   onHelp,
   onUpgrade,
   onSignOut,
-  onAdminPanel,
   adminBadgeCount = 0,
 }: DashboardWorkspaceProfileDialogProps) {
   const initials = userName?.trim()

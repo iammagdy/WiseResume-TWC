@@ -11,6 +11,22 @@
 
 ---
 
+## 2026-06-02 - Admin Panel Profile Menu Access
+
+### Root Cause (Verified)
+- `useAuth()` returns a normalized `AppUser` from Appwrite with `id`, `email`, `name`, and `emailVerification`; the Appwrite email is at `appwriteUser.email`.
+- In the current checkout, the admin access chain was missing from the workspace shell: `AppWorkspaceLayout` did not evaluate admin status or pass `onAdminPanel`, `DashboardWorkspaceProfileDialog` did not accept/render `onAdminPanel`, and `/devkit` was mounted without an admin route wrapper.
+
+### Fix
+- Added `src/hooks/useIsAdmin.ts` with the unchanged admin email value and an auth-settled comparison against `user.email`.
+- Added `src/components/layout/AdminRoute.tsx` so direct `/devkit` navigation waits for hydrated auth before allowing only the admin email through.
+- Wired `onAdminPanel` through `AppWorkspaceLayout`, desktop/mobile workspace sidebars, and `DashboardWorkspaceProfileDialog`.
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+
+---
+
 ## 2026-05-29 - Pre-Launch Bug Fixes (Email, Tests, Portfolio, CI)
 
 ### Changes

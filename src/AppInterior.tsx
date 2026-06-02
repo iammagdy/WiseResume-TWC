@@ -15,8 +15,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useResumeStore } from "@/store/resumeStore";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
 import { AdminRoute } from "@/components/layout/AdminRoute";
+import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { WiseHireGuard } from "@/components/wisehire/WiseHireGuard";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -389,7 +389,11 @@ function AppRoutes() {
           <Route path="/store-screenshots" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense></RouteEB>} />
           <Route path="/screenshots-gallery" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense></RouteEB>} />
         </Route>
-        <Route path="/devkit" element={<AdminRoute><RouteEB><Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense></RouteEB></AdminRoute>} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AdminRoute />}>
+            <Route path="/devkit" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense></RouteEB>} />
+          </Route>
+        </Route>
         <Route path="*" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense></RouteEB>} />
       </Routes>
       <PrefetchOnIdle />

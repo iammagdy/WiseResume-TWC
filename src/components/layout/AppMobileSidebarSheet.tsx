@@ -14,6 +14,7 @@ interface AppMobileSidebarSheetProps {
   profileCompletion?: number;
   onManageAccount: () => void;
   onSettings: () => void;
+  onAdminPanel?: () => void;
   onBilling: () => void;
   onSignOut: () => void | Promise<void>;
   onHelp?: () => void;

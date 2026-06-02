@@ -69,31 +69,11 @@ Branch: `claude/app-audit-report-y0dzO` — PR #74 merged to `main`.
 
 ---
 
-### 🐛 KNOWN BUG — Admin Panel button not rendering in production (unresolved)
+### Resolved Bug - Admin Panel button not rendering in production
 
-**Symptom:** Logged in as `magdy.saber@outlook.com` (Premium account). Profile dialog opens and correctly shows the email. No "Admin Panel" button appears at the top of the dialog. The `/devkit` route is also inaccessible. Cmd+Shift+A shortcut does nothing.
+**Original symptom:** Logged in as `magdy.saber@outlook.com`; the profile dialog showed the email, but no Admin Panel button appeared and `/devkit` was inaccessible.
 
-**What we know:**
-- `user.email` is confirmed `magdy.saber@outlook.com` (visible in profile dialog screenshot)
-- `DashboardWorkspaceProfileDialog` only renders the Admin Panel button when `onAdminPanel` prop is present
-- `onAdminPanel` is only passed from `AppWorkspaceLayout` when `useIsAdmin()` returns `true`
-- `useIsAdmin()` compares `user.email?.toLowerCase()` against `'magdy.saber@outlook.com'`
-- If `user.email` is correctly set, `useIsAdmin()` should return `true` — but it isn't
-
-**Suspected root causes (in order of likelihood):**
-1. `useIsAdmin()` calls `useAuth()` internally, but `useAuth()` may return the user object before the email field is populated (timing/async issue on mount)
-2. `useAuth()` used in `useIsAdmin` vs `useAuth()` in `AppWorkspaceLayout` may be different hook instances with different initialization states
-3. The Appwrite `user` object shape may not expose `.email` directly at the point `useIsAdmin` reads it (check what `useAuth` actually returns)
-4. Production Vercel deployment may still be serving old code (check deploy timestamp)
-
-**Files to investigate:**
-- `src/hooks/useIsAdmin.ts` — the hook itself
-- `src/hooks/useAuth.ts` — what shape does `user` have? Is `email` always present?
-- `src/components/layout/AppWorkspaceLayout.tsx` — is `isAdmin` evaluated before `user` is hydrated?
-- `src/components/layout/AdminRoute.tsx` — same hook, same issue would affect route guard
-
-**Next agent action:** See Codex investigation prompt in the "Where We Stopped" section below.
-
+**Resolution:** Fixed in the 2026-06-02 "Admin Panel Profile Menu Access" session below by waiting for hydrated Appwrite auth before comparing the normalized `user.email`, then wiring the same result through the profile menu and `/devkit` route guard.
 ---
 
 ### Part 1 — App Audit Bug Fixes (commit `b38fb6a`)
@@ -197,7 +177,35 @@ Env vars read: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG_SLUG` (or `SENTRY_ORG`), `SENTRY
 - GitHub Actions workflows already manual-only — no change needed.
 - `VITE_DEV_KIT_PASSWORD` reference still in `deploy-frontend.yml` line 38 — pre-existing artifact, not cleaned up.
 - `adminBadgeCount` prop always passes `undefined` — no fetch implemented.
-- **🐛 PRIORITY BUG: Admin Panel button not rendering in production.** `useIsAdmin()` appears to return `false` even when logged in as `magdy.saber@outlook.com`. See bug section above. Needs Codex investigation before admin panel is usable.
+- Admin Panel profile-menu access bug resolved in the 2026-06-02 session below.
+## Session Log - 2026-06-02 (Admin Panel Profile Menu Access)
+
+### Overview
+Fixed the missing Admin Panel action in the workspace profile dropdown for the admin Appwrite account `magdy.saber@outlook.com`. Also added a matching route guard for direct `/devkit` navigation.
+
+### Root Cause Verified
+- `src/hooks/useAuth.ts` returns `AuthContext` directly. `AuthContext` normalizes Appwrite account data into `AppUser` with `id`, `email`, `name`, and `emailVerification`; the live Appwrite email path is `appwriteUser.email`.
+- `user` is only non-null after `appwriteUser` exists, or during impersonation. The normalized type requires `email`, but the safe comparison now still handles missing/blank email defensively.
+- In this checkout, `src/hooks/useIsAdmin.ts` and `src/components/layout/AdminRoute.tsx` did not exist, `AppWorkspaceLayout` never computed admin status, the sidebars did not receive `onAdminPanel`, and `DashboardWorkspaceProfileDialog` did not render an Admin Panel action.
+- Direct `/devkit` access was not blocked by the same email-comparison bug because there was no admin route wrapper mounted around it.
+
+### Code Fixes Applied
+| File | Fix |
+|------|-----|
+| `src/hooks/useIsAdmin.ts` | Added auth-settled admin status hook using unchanged `ADMIN_EMAIL = 'magdy.saber@outlook.com'` and `user.email?.trim().toLowerCase()`. |
+| `src/components/layout/AdminRoute.tsx` | Added direct `/devkit` guard that waits for auth hydration and redirects non-admin users to `/dashboard`. |
+| `src/components/layout/AppWorkspaceLayout.tsx` | Uses `useIsAdmin()` and passes `onAdminPanel` only when the hydrated admin check is true. |
+| `src/components/layout/AppWorkspaceSidebar.tsx` | Accepts and forwards `onAdminPanel` to the profile dialog. |
+| `src/components/layout/AppMobileSidebarSheet.tsx` | Includes `onAdminPanel` in the mobile sidebar props. |
+| `src/components/dashboard/DashboardWorkspaceProfileDialog.tsx` | Renders the Admin Panel menu item when `onAdminPanel` is present. |
+| `src/AppInterior.tsx` | Wraps `/devkit` in `ProtectedRoute` + `AdminRoute`. |
+
+### Verification Status
+- `npx tsc --noEmit` — zero errors.
+
+### Deployment Notes
+- Frontend-only change. Takes effect on the next frontend deployment.
+- No admin email value, password prompt, Appwrite schema, or Appwrite hub changed.
 
 ---
 
