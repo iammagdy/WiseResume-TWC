@@ -188,6 +188,7 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 - `user` is only non-null after `appwriteUser` exists, or during impersonation. The normalized type requires `email`, but the safe comparison now still handles missing/blank email defensively.
 - In this checkout, `src/hooks/useIsAdmin.ts` and `src/components/layout/AdminRoute.tsx` did not exist, `AppWorkspaceLayout` never computed admin status, the sidebars did not receive `onAdminPanel`, and `DashboardWorkspaceProfileDialog` did not render an Admin Panel action.
 - Direct `/devkit` access was not blocked by the same email-comparison bug because there was no admin route wrapper mounted around it.
+- Follow-up deployment failure verified locally with `npm run build`: Vite/esbuild failed because `src/components/layout/AppWorkspaceSidebar.tsx` destructured `onAdminPanel` twice after the rebase overlap with upstream admin-menu work.
 
 ### Code Fixes Applied
 | File | Fix |
@@ -202,6 +203,7 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 
 ### Verification Status
 - `npx tsc --noEmit` — zero errors.
+- `npm run build` — passed after removing the duplicate `onAdminPanel` binding.
 
 ### Deployment Notes
 - Frontend-only change. Takes effect on the next frontend deployment.

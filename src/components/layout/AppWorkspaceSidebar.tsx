@@ -48,7 +48,6 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   onSignOut,
   onHelp,
   onUpgrade,
-  onAdminPanel,
   adminBadgeCount,
   forceVisible = false,
   className,
