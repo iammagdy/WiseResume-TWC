@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import {
-  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages, CalendarDays, Lock, Globe, MessageSquare,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Sparkles, Search, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages, CalendarDays, Lock, Globe, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -339,7 +338,7 @@ export function MoreTab(props: MoreTabProps) {
               onClick={onTranslate}
               disabled={translating}
             >
-              {translating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
+              {translating ? <MiniSpinner size={14} className="mr-1.5" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
               {translating ? 'Translating...' : `Re-translate to ${portfolioSecondaryLanguage}`}
             </Button>
           )}
@@ -491,7 +490,7 @@ export function MoreTab(props: MoreTabProps) {
         <div className="flex items-center justify-between mb-1">
           <p className="text-[11px] text-muted-foreground">Customize how your portfolio appears on Google & social media.</p>
           <Button variant="ghost" size="sm" onClick={onGenerateSEO} disabled={generatingSEO} className="h-7 text-xs px-2 active:scale-95 shrink-0 ml-2">
-            {generatingSEO ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+            {generatingSEO ? <MiniSpinner size={12} className="mr-1" /> : <Sparkles className="w-3 h-3 mr-1" />}
             AI Generate
           </Button>
         </div>

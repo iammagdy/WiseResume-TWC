@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { CheckCircle2, Loader2, Mail, Building2, Users, Briefcase, ArrowLeft, ChevronDown, KeyRound } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { CheckCircle2, Mail, Building2, Users, Briefcase, ArrowLeft, ChevronDown, KeyRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
 import { useWaitlistEmailCheck } from '@/hooks/wisehire/useWaitlistEmailCheck';
@@ -323,7 +324,7 @@ export default function WaitlistPage() {
                   }}
                 >
                   {eaLoading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> Verifying…</>
+                    ? <><MiniSpinner size={16} /> Verifying…</>
                     : 'Continue with Early Access'
                   }
                 </button>
@@ -385,18 +386,7 @@ export default function WaitlistPage() {
                       }}
                     />
                     {isCheckingEmail && (
-                      <Loader2
-                        className="w-4 h-4 animate-spin"
-                        style={{
-                          position: 'absolute',
-                          right: 10,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          color: '#1D4ED8',
-                          pointerEvents: 'none',
-                        }}
-                        aria-label="Checking email"
-                      />
+                      <MiniSpinner size={16} />
                     )}
                   </div>
                   {errors.email && (
@@ -577,7 +567,7 @@ export default function WaitlistPage() {
                   }}
                 >
                   {isPending || isCheckingEmail
-                    ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> {isPending ? 'Joining…' : 'Checking…'}</>
+                    ? <><MiniSpinner size={16} /> {isPending ? 'Joining…' : 'Checking…'}</>
                     : 'Join the Waitlist'
                   }
                 </button>

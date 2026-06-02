@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { History, User, Terminal, RefreshCw, Loader2, Search, Filter, ChevronDown } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { History, User, Terminal, RefreshCw, Search, Filter, ChevronDown } from 'lucide-react';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
@@ -149,7 +150,7 @@ export const AuditLogPanel = () => {
             disabled={loading}
             className="rounded-xl border-white/10 bg-white/5 h-8 w-8"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <MiniSpinner size={14} /> : <RefreshCw className="h-3.5 w-3.5" />}
           </Button>
         </div>
       </div>
@@ -217,7 +218,7 @@ export const AuditLogPanel = () => {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-12 gap-3 text-white/40">
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm">Loading audit logs…</span>
         </div>
       )}
@@ -292,7 +293,7 @@ export const AuditLogPanel = () => {
                 disabled={loadingMore}
                 className="rounded-2xl border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 gap-2"
               >
-                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {loadingMore ? <MiniSpinner size={16} /> : null}
                 {loadingMore ? 'Loading…' : `Load more (${total - allLogs.length} remaining)`}
               </Button>
             </div>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { GlassSurface } from '@/components/ui/GlassSurface';
-import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown, Sparkles, Lightbulb } from 'lucide-react';
+import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown, Sparkles, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -200,7 +201,7 @@ function ProgressChip({
                 className="h-7 px-2.5 text-[11px] gap-1 rounded-md border-warning/40 text-warning hover:bg-warning/10 hover:border-warning/60"
               >
                 {isSaving ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <MiniSpinner size={12} />
                 ) : (
                   <Save className="w-3 h-3" />
                 )}
@@ -502,7 +503,7 @@ export function EditorHeader({
             aria-label="Export resume"
             data-track="editor-export"
           >
-            {isQuickDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isQuickDownloading ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />}
             {embeddedInWorkspace ? <span>Export</span> : <span className="text-[9px] font-semibold leading-none">Export</span>}
           </button>
           {!embeddedInWorkspace && (

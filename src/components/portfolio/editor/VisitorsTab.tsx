@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Globe, Users, TrendingUp, Share2, Eye, Monitor, Smartphone, Tablet, Building2, FlaskConical, Trophy, Link2, Plus, Loader2, Copy, Trash2, Check, ChevronRight } from 'lucide-react';
+import { Globe, Users, TrendingUp, Share2, Eye, Monitor, Smartphone, Tablet, Building2, FlaskConical, Trophy, Link2, Plus, Copy, Trash2, Check, ChevronRight } from 'lucide-react';
 import { usePortfolioAnalytics, useShortLinks, useCreateShortLink, useDeleteShortLink, type ShortLink } from '@/hooks/usePortfolioAnalytics';
 import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
 import { toast } from 'sonner';
@@ -282,7 +283,7 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
                         maxLength={50}
                       />
                       <Button onClick={handleCreate} disabled={creating || !newLinkLabel.trim()} className="h-8 px-3 text-xs rounded-lg shrink-0">
-                        {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+                        {creating ? <MiniSpinner size={12} /> : 'Create'}
                       </Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
@@ -396,7 +397,7 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
                       maxLength={50}
                     />
                     <Button onClick={handleCreate} disabled={creating || !newLinkLabel.trim()} className="h-8 px-3 text-xs rounded-lg shrink-0">
-                      {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+                      {creating ? <MiniSpinner size={12} /> : 'Create'}
                     </Button>
                   </div>
                   <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">

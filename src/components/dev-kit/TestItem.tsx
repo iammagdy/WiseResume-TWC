@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Copy, Check, Play, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Copy, Check, Play, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { type TestDef, type TestResult } from './types';
 import { StatusBadge } from './DevKitBadges';
@@ -42,7 +43,7 @@ export function TestItem({ test, result = { status: 'idle' }, isExpanded, onRun,
           onClick={onRun}
           className="shadow-sm active:scale-95 transition-transform"
         >
-          {result.status === 'running' ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Play className="w-3.5 h-3.5 mr-1" />}
+          {result.status === 'running' ? <MiniSpinner size={14} className="mr-1" /> : <Play className="w-3.5 h-3.5 mr-1" />}
           Run
         </Button>
       </div>

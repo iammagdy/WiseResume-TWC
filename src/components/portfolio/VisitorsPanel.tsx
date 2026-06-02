@@ -1,12 +1,8 @@
 import { useState, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Eye, Link2, Plus, Copy, Trash2, Globe2, Clock, Layers,
-  TrendingUp, Check, Loader2, ChevronRight, BarChart2,
-  ChevronDown, ChevronUp, ExternalLink, Search, MapPin,
-  Activity, Building2, FlaskConical, Trophy,
-} from 'lucide-react';
+import { Eye, Link2, Plus, Copy, Trash2, Globe2, Clock, Layers, TrendingUp, Check, ChevronRight, BarChart2, ChevronDown, ChevronUp, ExternalLink, Search, MapPin, Activity, Building2, FlaskConical, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -418,7 +414,7 @@ function ShortLinkRow({
           title="Delete link"
           aria-label="Delete short link"
         >
-          {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+          {isPending ? <MiniSpinner size={12} /> : <Trash2 className="w-3 h-3" />}
         </Button>
       </div>
     </div>
@@ -779,7 +775,7 @@ export function VisitorsPanel({ username, userId, portfolioEnabled, portfolioSty
                     disabled={creating || !newLinkLabel.trim()}
                     className="h-9 px-3 rounded-xl shrink-0"
                   >
-                    {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Create'}
+                    {creating ? <MiniSpinner size={14} /> : 'Create'}
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">

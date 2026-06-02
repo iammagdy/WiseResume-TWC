@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   RefreshCw, BarChart2, Users, Eye, Zap, Globe, Lock, TrendingUp, Activity,
   Smartphone, Link2, MapPin, Calendar, Layers, FileText,
@@ -142,7 +143,7 @@ export function AnalyticsPanel() {
         <div className="flex items-center gap-2">
           <RangeSwitcher value={range} onChange={setRange} disabled={loading} />
           <Button variant="outline" size="sm" onClick={() => fetchAnalytics(range)} disabled={loading} className="flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
             Refresh
           </Button>
         </div>

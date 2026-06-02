@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   RefreshCw, Lock, Filter, Users, ListChecks, AlertTriangle, SkipForward, Activity,
 } from 'lucide-react';
@@ -181,7 +182,7 @@ export function OnboardingFunnelPanel() {
             </select>
           </div>
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
             Refresh
           </Button>
         </div>

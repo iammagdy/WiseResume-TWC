@@ -1,24 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Loader2,
-  GitCommit,
-  BrainCircuit,
-  Mail,
-  Database,
-  KeyRound,
-  Activity,
-  ExternalLink,
-  Clock,
-  Globe,
-  Zap,
-  Lock,
-  Network,
-  Users,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { RefreshCw, CheckCircle, XCircle, AlertTriangle, GitCommit, BrainCircuit, Mail, Database, KeyRound, Activity, ExternalLink, Clock, Globe, Zap, Lock, Network, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { client } from '@/lib/appwrite';
@@ -400,7 +382,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
             <p className="text-xs text-muted-foreground mt-0.5">Loading system status…</p>
           </div>
           <Button variant="outline" size="sm" disabled>
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            <MiniSpinner size={16} className="mr-2" />
             Refreshing
           </Button>
         </div>
@@ -419,7 +401,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-foreground">Mission Control</h2>
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
+            {loading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Retry
           </Button>
         </div>
@@ -552,7 +534,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           )}
         </div>
         <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-          <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
           Refresh now
         </Button>
       </div>

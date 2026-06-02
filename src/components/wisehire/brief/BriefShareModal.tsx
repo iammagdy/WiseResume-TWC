@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -73,7 +74,7 @@ export function BriefShareModal({ brief, open, onClose, onRenew, isRenewing }: B
                 onClick={onRenew}
                 disabled={isRenewing}
               >
-                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRenewing ? 'animate-spin' : ''}`} />
+                {isRenewing ? <MiniSpinner size={14} className="mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                 Revoke & Renew
               </Button>
             </div>

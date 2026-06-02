@@ -1,21 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Loader2,
-  CheckCircle2,
-  Scissors,
-  AlertCircle,
-  Sparkles,
-  ShieldCheck,
-  Layers,
-  Wand2,
-  Check,
-  X,
-  Type,
-  RotateCcw,
-  CreditCard,
-  Wifi,
-} from 'lucide-react';
+import { CheckCircle2, Scissors, AlertCircle, Sparkles, ShieldCheck, Layers, Wand2, Check, X, Type, RotateCcw, CreditCard, Wifi } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -585,7 +571,7 @@ export function SmartFitWizardSheet({
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="p-6 space-y-4 text-center"
               >
-                <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto" />
+                <MiniSpinner size={40} className="text-primary mx-auto" />
                 <p className="text-sm font-medium">{STAGE_LABEL[analyzeStage]}</p>
                 {analyzeStage === 'converging' && convergeProgress && (
                   <p className="text-xs text-muted-foreground">
@@ -693,7 +679,7 @@ export function SmartFitWizardSheet({
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => setView('intro')}>Back</Button>
               <Button size="sm" onClick={handleApply} disabled={isApplying || totalSelected === 0}>
-                {isApplying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                {isApplying ? <MiniSpinner size={16} className="mr-2" /> : <Check className="w-4 h-4 mr-2" />}
                 Apply selected
               </Button>
             </div>
@@ -837,7 +823,7 @@ function RewriteFailureBanner({
         disabled={retryBlocked}
       >
         {isRetrying
-          ? <Loader2 className="w-3 h-3 animate-spin" />
+          ? <MiniSpinner size={12} />
           : <RotateCcw className="w-3 h-3" />}
         {retryLabel}
       </Button>

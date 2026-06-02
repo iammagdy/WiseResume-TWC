@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
-import { X, CheckCircle2, Loader2, Briefcase, Mail, Building2, Users, KeyRound, ArrowLeft, ChevronDown } from 'lucide-react';
+import { X, CheckCircle2, Briefcase, Mail, Building2, Users, KeyRound, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
 import { useWaitlistEmailCheck } from '@/hooks/wisehire/useWaitlistEmailCheck';
 import { validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
@@ -422,7 +423,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 }}
               >
                 {eaLoading
-                  ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> Verifying…</>
+                  ? <><MiniSpinner size={16} /> Verifying…</>
                   : 'Continue with Early Access'
                 }
               </button>
@@ -495,18 +496,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                     }}
                   />
                   {emailCheck.status === 'checking' && (
-                    <Loader2
-                      className="w-4 h-4 animate-spin"
-                      style={{
-                        position: 'absolute',
-                        right: 10,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: '#1D4ED8',
-                        pointerEvents: 'none',
-                      }}
-                      aria-label="Checking email"
-                    />
+                    <MiniSpinner size={16} />
                   )}
                 </div>
                 {errors.email && (
@@ -689,7 +679,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 }}
               >
                 {isPending
-                  ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> Joining…</>
+                  ? <><MiniSpinner size={16} /> Joining…</>
                   : isCheckingEmail
                   ? 'Checking email…'
                   : 'Join the Waitlist'

@@ -1,12 +1,8 @@
 import { useState, useMemo, useCallback, useRef, useEffect, memo, Suspense } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import editorLogger from '@/lib/editorLogger';
 import { formatDegreeAndField } from '@/lib/educationFormat';
-import { 
-  Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
-  History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
-  Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, Settings,
-  ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download, Eye
-} from 'lucide-react';
+import { Wand2, CheckCircle, ArrowRight, Undo2, GitCompare, History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3, Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, Settings, ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download, Eye } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1092,7 +1088,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                 </Button>
                 {appliedMergedResume && (
                   <Button variant="outline" className="min-h-[44px]" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
-                    {isDownloadingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                    {isDownloadingPdf ? <MiniSpinner size={16} className="mr-2" /> : <Download className="w-4 h-4 mr-2" />}
                     {isDownloadingPdf ? 'Generating PDF…' : 'Download PDF'}
                   </Button>
                 )}
@@ -1207,7 +1203,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleRetryScore} disabled={isRetryingScore}>
-                          {isRetryingScore ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                          {isRetryingScore ? <MiniSpinner size={12} className="mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
                           {isRetryingScore ? 'Calculating...' : 'Calculate Score (free)'}
                         </Button>
                         <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
@@ -1640,7 +1636,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               >
                 {isTailoring ? (
                   <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <MiniSpinner size={20} className="mr-2" />
                     Tailoring Resume...
                   </>
                 ) : (

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   RefreshCw,
   Bug,
@@ -166,7 +167,7 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
           </button>
         ))}
         <Button size="sm" variant="ghost" onClick={fetchBugs} disabled={loading} className="ml-auto">
-          <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
         </Button>
       </div>
 
@@ -405,7 +406,7 @@ function BlocklistTab() {
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">{entries.length} entries</p>
         <Button size="sm" variant="ghost" onClick={fetchEntries} disabled={loading}>
-          <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
         </Button>
       </div>
 
@@ -514,7 +515,7 @@ function ModerationQueueTab() {
           </button>
         ))}
         <Button size="sm" variant="ghost" onClick={fetchItems} disabled={loading} className="ml-auto">
-          <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
         </Button>
       </div>
 

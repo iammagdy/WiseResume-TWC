@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { TrendingUp, RefreshCw, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -217,7 +218,7 @@ export function SkillsGapSheet({ open, onOpenChange }: SkillsGapSheetProps) {
               </div>
               <Button className="w-full gradient-primary" onClick={handleAnalyze} disabled={isLoading || !currentResume}>
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analyzing gap...</>
+                  <><MiniSpinner size={16} className="mr-2" />Analyzing gap...</>
                 ) : (
                   <><TrendingUp className="w-4 h-4 mr-2" />Analyze Skills Gap</>
                 )}

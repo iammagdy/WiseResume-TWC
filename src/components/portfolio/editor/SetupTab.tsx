@@ -1,6 +1,5 @@
-import {
-  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap, Video, ScanSearch, Crown,
-} from 'lucide-react';
+import { Sparkles, CheckCircle2, XCircle, Eye, Zap, Video, ScanSearch, Crown } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -110,7 +109,7 @@ export function SetupTab(props: SetupTabProps) {
           <div className="flex items-center gap-1.5">
             {checkingUsername && (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                <MiniSpinner size={14} className="text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Checking...</span>
               </>
             )}
@@ -232,7 +231,7 @@ export function SetupTab(props: SetupTabProps) {
             disabled={generatingBio}
             className="h-8 text-xs active:scale-95 shrink-0"
           >
-            {generatingBio ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+            {generatingBio ? <MiniSpinner size={14} className="mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
             {generatingBio ? 'Generating...' : 'AI Generate'}
           </Button>
         </div>
@@ -328,7 +327,7 @@ export function SetupTab(props: SetupTabProps) {
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-foreground">Availability headline</label>
               <Button variant="ghost" size="sm" onClick={onGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
-                {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                {generatingAvailability ? <MiniSpinner size={12} className="mr-1" /> : <Sparkles className="w-3 h-3 mr-1" />}
                 AI Suggest
               </Button>
             </div>
@@ -362,7 +361,7 @@ export function SetupTab(props: SetupTabProps) {
             className="w-full h-10 rounded-xl active:scale-95 touch-manipulation"
           >
             {generatingCritique
-              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analyzing…</>
+              ? <><MiniSpinner size={16} className="mr-2" />Analyzing…</>
               : <><Sparkles className="w-4 h-4 mr-2" />Get AI Critique</>
             }
           </Button>

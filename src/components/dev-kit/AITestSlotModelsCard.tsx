@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BrainCircuit, ExternalLink, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { BrainCircuit, ExternalLink, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   fetchAITestSlotModels,
@@ -67,7 +68,7 @@ export function AITestSlotModelsCard({ onNavigateToKeys }: AITestSlotModelsCardP
             onClick={load} disabled={loading}
             className="h-7 px-2 text-muted-foreground hover:text-foreground"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
           </Button>
           <Button
             size="sm" variant="outline"
@@ -81,7 +82,7 @@ export function AITestSlotModelsCard({ onNavigateToKeys }: AITestSlotModelsCardP
 
       {loading && (
         <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <MiniSpinner size={16} />
           <span>Loading slot models…</span>
         </div>
       )}

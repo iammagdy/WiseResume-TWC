@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { createPortal } from 'react-dom';
-import { Check, X, Sparkles, ArrowRight, Loader2, Minimize2, Wand2, RefreshCw, Pencil, ChevronDown, ChevronRight, Plus, Equal } from 'lucide-react';
+import { Check, X, Sparkles, ArrowRight, Minimize2, Wand2, RefreshCw, Pencil, ChevronDown, ChevronRight, Plus, Equal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -193,7 +194,7 @@ export function AIEnhanceDialog({
                 </div>
                 {isEnhancing && trimmedEdited.length === 0 ? (
                   <div className="p-6 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-center text-sm text-muted-foreground">
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating…
+                    <MiniSpinner size={16} className="mr-2" /> Generating…
                   </div>
                 ) : isEditing ? (
                   <Textarea
@@ -256,13 +257,13 @@ export function AIEnhanceDialog({
                   disabled={!onRerun || isEnhancing}
                   className="gap-1.5"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isEnhancing ? 'animate-spin' : ''}`} />
+                  {isEnhancing ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
                   Regenerate
                 </Button>
               )}
               {isEnhancing && (
                 <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                  <Loader2 className="w-3 h-3 animate-spin" /> AI is working…
+                  <MiniSpinner size={12} /> AI is working…
                 </span>
               )}
             </div>
@@ -335,7 +336,7 @@ function EntryDiffView({ entries, isEnhancing }: { entries: EntryDiff[]; isEnhan
   if (isEnhancing && entries.length === 0) {
     return (
       <div className="p-6 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-center text-sm text-muted-foreground">
-        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating…
+        <MiniSpinner size={16} className="mr-2" /> Generating…
       </div>
     );
   }

@@ -1,16 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useScrollFade } from '@/hooks/useScrollFade';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle2,
-  Loader2,
-  Copy,
-  Wand2,
-  RotateCcw,
-  Info,
-} from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle2, Copy, Wand2, RotateCcw, Info } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
@@ -607,7 +598,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                   disabled={isHumanizing}
                 >
                   {isHumanizing ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <MiniSpinner size={16} className="mr-2" />
                   ) : (
                     <Wand2 className="w-4 h-4 mr-2" />
                   )}

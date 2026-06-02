@@ -1,18 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Link2,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Clipboard,
-  Sparkles,
-  Building2,
-  MapPin,
-  Globe,
-  Briefcase,
-} from 'lucide-react';
+import { Link2, CheckCircle2, AlertCircle, Clipboard, Sparkles, Building2, MapPin, Globe, Briefcase } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -339,7 +329,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
               >
                 <div className="flex flex-col items-center gap-3">
                   <div className="import-job-sheet__loader-ring flex items-center justify-center w-14 h-14 rounded-2xl">
-                    <Loader2 className="w-7 h-7 text-primary animate-spin" />
+                    <MiniSpinner size={28} className="text-primary" />
                   </div>
                   <p className="text-sm font-medium text-foreground">Importing job…</p>
                   <p className="text-xs text-muted-foreground text-center max-w-xs">
@@ -363,7 +353,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                         {done ? (
                           <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                         ) : active ? (
-                          <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                          <MiniSpinner size={16} className="text-primary shrink-0" />
                         ) : (
                           <span className="w-4 h-4 rounded-full border border-border shrink-0" />
                         )}

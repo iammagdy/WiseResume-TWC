@@ -13,11 +13,10 @@
  */
 
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Upload, FileText, Camera, Loader2, AlertTriangle, X, Check,
-} from 'lucide-react';
+import { Upload, FileText, Camera, AlertTriangle, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ImportReviewSheet, SelectedSections, ContactEdits } from '@/components/upload/ImportReviewSheet';
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
@@ -234,7 +233,7 @@ export function DashboardUploadWidget({
             aria-label="Upload existing resume"
           >
             {isProcessing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <MiniSpinner size={16} />
             ) : (
               <Upload className="w-4 h-4" />
             )}
@@ -337,7 +336,7 @@ export function DashboardUploadWidget({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                <MiniSpinner size={16} className="text-primary shrink-0" />
                 <div className="min-w-0 flex-1">
                   <UploadProgressSteps currentStep={parseStep} fileName={fileName ?? undefined} />
                 </div>

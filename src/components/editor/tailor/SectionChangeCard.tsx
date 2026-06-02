@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { ChevronDown, TrendingUp, Eye, Pencil, Check, X, RotateCcw, RefreshCw, Loader2, Lightbulb } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { ChevronDown, TrendingUp, Eye, Pencil, Check, X, RotateCcw, RefreshCw, Lightbulb } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -345,7 +346,7 @@ export function SectionChangeCard({
                       disabled
                       className="p-1.5 rounded-md text-muted-foreground min-h-[32px] min-w-[32px] flex items-center justify-center opacity-50"
                     >
-                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <MiniSpinner size={12} />
                     </button>
                   ) : (
                     <Popover open={regenPopoverOpen} onOpenChange={setRegenPopoverOpen}>
@@ -425,7 +426,7 @@ export function SectionChangeCard({
           <div className="px-4 py-3 border-t border-border bg-muted/20 text-sm relative">
             {isRegenerating ? (
               <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <MiniSpinner size={16} />
                 <span className="text-xs">Regenerating with AI…</span>
               </div>
             ) : (

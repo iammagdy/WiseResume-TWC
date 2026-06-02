@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Copy, Trash2, CheckCheck, Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { FileText, Copy, Trash2, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import type { WiseHireRole } from '@/hooks/wisehire/useJDs';
@@ -106,7 +107,7 @@ export function JDLibrary({ roles, isLoading, onDelete, isDeleting, highlightedR
               title={confirmDeleteId === role.id ? 'Click again to confirm' : 'Delete'}
             >
               {isDeleting
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ? <MiniSpinner size={14} />
                 : <Trash2 className="h-3.5 w-3.5" />}
             </Button>
           </div>

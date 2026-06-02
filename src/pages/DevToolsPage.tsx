@@ -1,10 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database,
-  Fingerprint, Flag, History, Home, LayoutDashboard, Link2, Loader2,
-  Lock, Mail, Menu, Play, Search, ServerCog, ShieldCheck, Ticket, TrendingUp, Users,
-  Wrench, X,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database, Fingerprint, Flag, History, Home, LayoutDashboard, Link2, Lock, Mail, Menu, Play, Search, ServerCog, ShieldCheck, Ticket, TrendingUp, Users, Wrench, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -247,17 +243,17 @@ function DevToolsInner() {
           <div className="space-y-2 text-center">
             {canUseBiometric ? (
               <button type="button" onClick={handleBiometricLogin} disabled={isVerifying} className="mb-4 inline-flex rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4 transition-all hover:bg-blue-500/20 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/50" aria-label="Unlock with biometrics">
-                {isVerifying ? <Loader2 className="h-10 w-10 animate-spin text-blue-500" /> : <Fingerprint className="h-10 w-10 text-blue-500" />}
+                {isVerifying ? <MiniSpinner size={40} className="text-blue-500" /> : <Fingerprint className="h-10 w-10 text-blue-500" />}
               </button>
             ) : <div className="mb-4 inline-flex rounded-3xl border border-white/10 bg-white/5 p-4"><Lock className="h-10 w-10 text-white/30" /></div>}
             <h1 className="text-3xl font-black tracking-tight text-white">DEV-KIT 2026</h1>
             <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Server-issued admin session required</p>
           </div>
-          {canUseBiometric && <button type="button" onClick={handleBiometricLogin} disabled={isVerifying} className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-blue-500/30 bg-blue-500/10 text-sm font-bold text-blue-400 transition-all hover:bg-blue-500/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50">{isVerifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint className="h-5 w-5" />}{isVerifying ? 'Verifying...' : 'Unlock with Face ID / Touch ID / PIN'}</button>}
+          {canUseBiometric && <button type="button" onClick={handleBiometricLogin} disabled={isVerifying} className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-blue-500/30 bg-blue-500/10 text-sm font-bold text-blue-400 transition-all hover:bg-blue-500/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50">{isVerifying ? <MiniSpinner size={20} /> : <Fingerprint className="h-5 w-5" />}{isVerifying ? 'Verifying...' : 'Unlock with Face ID / Touch ID / PIN'}</button>}
           <form onSubmit={handlePasswordLogin} className="space-y-4">
             {canUseBiometric && <div className="flex items-center gap-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[10px] uppercase tracking-widest text-white/30">or password</span><div className="h-px flex-1 bg-white/10" /></div>}
             <div className="group relative"><Lock className="absolute left-4 top-4 h-5 w-5 text-white/20 transition-colors group-focus-within:text-blue-500" /><input type="password" placeholder="DevKit access key" className="h-14 w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 font-mono text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50" value={password} onChange={e => setPassword(e.target.value)} autoFocus={!canUseBiometric} /></div>
-            <Button type="submit" disabled={isVerifying || !password.trim()} className="h-14 w-full rounded-2xl bg-blue-600 text-lg font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500">{isVerifying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}Issue DevKit Session</Button>
+            <Button type="submit" disabled={isVerifying || !password.trim()} className="h-14 w-full rounded-2xl bg-blue-600 text-lg font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500">{isVerifying ? <MiniSpinner size={20} className="mr-2" /> : null}Issue DevKit Session</Button>
           </form>
         </div>
       </div>

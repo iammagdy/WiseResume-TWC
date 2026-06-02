@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Send, RefreshCw, ChevronLeft, Scissors, Zap, BarChart2, Wand2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Send, RefreshCw, ChevronLeft, Scissors, Zap, BarChart2, Wand2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -408,7 +409,7 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
 
         {phase === 'loading' && (
           <div className="py-8 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="w-6 h-6 animate-spin" />
+            <MiniSpinner size={24} />
             <span className="text-sm">
               {selectedEntry
                 ? `AI is rewriting ${selectedEntry.position || 'this entry'}…`

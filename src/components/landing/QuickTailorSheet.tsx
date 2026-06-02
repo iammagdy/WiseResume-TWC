@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, Wand2, ArrowLeft, Save, FileDown, Mail, CheckCircle2, Loader2, ChevronRight, Trash2, X } from 'lucide-react';
+import { Upload, FileText, Wand2, ArrowLeft, Save, FileDown, Mail, CheckCircle2, ChevronRight, Trash2, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -280,7 +281,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                   className="w-full p-5 rounded-2xl bg-card border border-border shadow-soft text-left flex items-center gap-4 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
                 >
                   <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center shrink-0 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.4)]">
-                    {isUploading ? <Loader2 className="w-7 h-7 text-primary-foreground animate-spin" /> : <Upload className="w-7 h-7 text-primary-foreground" />}
+                    {isUploading ? <MiniSpinner size={28} className="text-primary-foreground" /> : <Upload className="w-7 h-7 text-primary-foreground" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-base mb-0.5">{isUploading ? 'Parsing...' : 'Upload Your CV'}</h3>
@@ -514,7 +515,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                       onClick={handleSave}
                       disabled={createResume.isPending}
                     >
-                      {createResume.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      {createResume.isPending ? <MiniSpinner size={20} /> : <Save className="w-5 h-5" />}
                       Save Tailored Resume
                     </Button>
                   ) : (

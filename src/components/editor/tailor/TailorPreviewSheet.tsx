@@ -1,5 +1,6 @@
 import { CSSProperties, Suspense, memo, useMemo, useCallback, useRef, useState } from 'react';
-import { Eye, X, Download, Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Eye, X, Download } from 'lucide-react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -191,7 +192,7 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
               aria-label="Download PDF"
             >
               {isDownloadingPdf
-                ? <Loader2 className="w-4 h-4 animate-spin" />
+                ? <MiniSpinner size={16} />
                 : <Download className="w-4 h-4" />}
             </Button>
             {onApply && (

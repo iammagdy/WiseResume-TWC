@@ -1,4 +1,5 @@
-import { Loader2, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -74,7 +75,7 @@ export function SaveBar({
             onClick={onSaveDraft}
             disabled={savingDraft || saving || disabled}
             className="h-9 px-3 rounded-xl text-xs shrink-0 touch-manipulation active:scale-95">
-            {savingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save draft'}
+            {savingDraft ? <MiniSpinner size={14} /> : 'Save draft'}
           </Button>
         )}
 
@@ -101,7 +102,7 @@ export function SaveBar({
           className="flex-1 h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation">
           
             {primaryBusy
-              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{saveDraftMode ? 'Saving draft…' : 'Publishing…'}</>
+              ? <><MiniSpinner size={16} className="mr-2" />{saveDraftMode ? 'Saving draft…' : 'Publishing…'}</>
               : publishLabel
             }
           </Button>

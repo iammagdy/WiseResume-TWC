@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Activity, BarChart3, ShieldCheck, Zap, Loader2, RefreshCw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Activity, BarChart3, ShieldCheck, Zap, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { devKitCall, type DevKitError } from '@/lib/devkit/devKitClient';
 import { DevKitErrorCard } from './DevKitErrorCard';
@@ -53,7 +54,7 @@ export const AIRadarPanel = () => {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
         <div className="flex items-center gap-3 text-white/60">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm font-semibold">Loading AI Radar…</span>
         </div>
       </div>
@@ -101,7 +102,7 @@ export const AIRadarPanel = () => {
               <BarChart3 size={20} /> Traffic Distribution
             </h3>
             <Button variant="ghost" size="sm" onClick={fetchRadar} disabled={loading} className="h-7 px-2 text-white/40 hover:text-white">
-              <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+              {loading ? <MiniSpinner size={14} /> : <RefreshCw className="h-3.5 w-3.5" />}
             </Button>
           </div>
           {data?.usageFetchError ? (

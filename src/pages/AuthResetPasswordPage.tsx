@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
 import { account as appwriteAccount } from '@/lib/appwrite';
 import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
@@ -114,7 +115,7 @@ export default function AuthResetPasswordPage() {
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
               <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : 'Update Password'}
+                {loading ? <MiniSpinner size={18} className="mr-2" /> : 'Update Password'}
               </Button>
               <p className="text-xs text-center text-white/30">
                 Remembered it?{' '}

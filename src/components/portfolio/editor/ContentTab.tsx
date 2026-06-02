@@ -1,9 +1,6 @@
 import { useState } from 'react';
-import {
-  Briefcase, Star, Plus, X, FileText,
-  MessageSquareQuote, TrendingUp, RefreshCw, Lock, AlertTriangle,
-  ChevronUp, ChevronDown, Pin, Link, Award, Sparkles, Loader2, Copy, Check,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Briefcase, Star, Plus, X, FileText, MessageSquareQuote, TrendingUp, RefreshCw, Lock, AlertTriangle, ChevronUp, ChevronDown, Pin, Link, Award, Sparkles, Copy, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -410,7 +407,7 @@ export function ContentTab(props: ContentTabProps) {
                         className="w-full h-8 text-xs rounded-lg"
                       >
                         {generatingPromptFor === t.id
-                          ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generating…</>
+                          ? <><MiniSpinner size={14} className="mr-1.5" />Generating…</>
                           : <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Generate Request Message</>
                         }
                       </Button>

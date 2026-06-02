@@ -1,4 +1,5 @@
-import { QrCode, Wand2, Loader2 } from 'lucide-react';
+import { QrCode, Wand2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { cn } from '@/lib/utils';
 
 interface PortfolioQuickActionsProps {
@@ -46,7 +47,7 @@ export function PortfolioQuickActions({
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 border border-primary/25">
           {busy ? (
-            <Loader2 className="w-5 h-5 text-primary animate-spin" aria-hidden />
+            <MiniSpinner size={20} className="text-primary" />
           ) : (
             <Wand2 className="w-5 h-5 text-primary" aria-hidden />
           )}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FileSearch, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { ResumeDropzone } from '@/components/wisehire/bulk-screen/ResumeDropzone';
 import { BulkResultsTable } from '@/components/wisehire/bulk-screen/BulkResultsTable';
@@ -152,7 +153,7 @@ export default function BulkScreenPage() {
           >
             {runScreen.isPending ? (
               <>
-                <span className="animate-spin">⏳</span>
+                <MiniSpinner size={16} />
                 Screening {files.length} resume{files.length !== 1 ? 's' : ''}…
               </>
             ) : (

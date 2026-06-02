@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Zap, AlertTriangle, WifiOff, RefreshCw, Settings } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
@@ -268,7 +269,7 @@ export function AIHealthBadge() {
               className="flex items-center gap-1 text-[11px] text-primary/70 hover:text-primary disabled:opacity-40 transition-colors"
               aria-label="Ping again"
             >
-              <RefreshCw className={cn('w-3 h-3', pingState === 'pinging' && 'animate-spin')} />
+              {pingState === 'pinging' ? <MiniSpinner size={12} /> : <RefreshCw className="w-3 h-3" />}
               <span>{pingState === 'pinging' ? 'Pinging…' : 'Ping'}</span>
             </button>
           </div>

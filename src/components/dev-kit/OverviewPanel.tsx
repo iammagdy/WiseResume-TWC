@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import type { ReactNode } from 'react';
-import { RefreshCw, Users, FileText, Globe, ShieldCheck, AlertTriangle, Loader2, Check } from 'lucide-react';
+import { RefreshCw, Users, FileText, Globe, ShieldCheck, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
@@ -152,7 +153,7 @@ export const OverviewPanel = () => {
         </h2>
         <Button size="sm" variant="outline" onClick={fetchStats} disabled={loading}>
           {loading
-            ? <RefreshCw className="animate-spin mr-2" size={14} />
+            ? <MiniSpinner size={14} className="mr-2" />
             : <RefreshCw size={14} className="mr-2" />}
           Refresh
         </Button>
@@ -222,7 +223,7 @@ export const OverviewPanel = () => {
       {purgePhase === 'previewing' && (
         <div className="p-4 rounded-2xl bg-card border border-border">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 size={14} className="animate-spin" />
+            <MiniSpinner size={14} />
             <span className="text-xs">Scanning for orphaned documents…</span>
           </div>
         </div>
@@ -300,7 +301,7 @@ export const OverviewPanel = () => {
       {purgePhase === 'purging' && (
         <div className="p-4 rounded-2xl bg-card border border-border">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 size={14} className="animate-spin" />
+            <MiniSpinner size={14} />
             <span className="text-xs">Deleting orphaned documents…</span>
           </div>
         </div>

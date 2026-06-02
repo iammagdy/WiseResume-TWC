@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ShieldCheck, Upload, Download, Trash2, AlertCircle, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -231,7 +232,7 @@ export default function CandidateMaskingPage() {
             >
               {maskCVs.isPending ? (
                 <>
-                  <span className="animate-spin inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  <MiniSpinner size={16} />
                   Masking {files.length} CV{files.length !== 1 ? 's' : ''}…
                 </>
               ) : (

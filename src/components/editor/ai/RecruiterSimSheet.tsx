@@ -1,20 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useScrollFade } from '@/hooks/useScrollFade';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  UserCheck, 
-  AlertTriangle, 
-  MessageSquare, 
-  Star, 
-  Sparkles,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-  HelpCircle,
-  Loader2,
-  Wand2,
-  RotateCcw,
-} from 'lucide-react';
+import { UserCheck, AlertTriangle, MessageSquare, Star, Sparkles, ChevronRight, CheckCircle2, XCircle, HelpCircle, Wand2, RotateCcw } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
@@ -484,7 +471,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                               disabled={isApplyingFix === flag.issue}
                             >
                               {isApplyingFix === flag.issue ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <MiniSpinner size={14} />
                               ) : (
                                 <Wand2 className="w-3.5 h-3.5" />
                               )}

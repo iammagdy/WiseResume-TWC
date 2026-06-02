@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import editorLogger from '@/lib/editorLogger';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, MoreHorizontal, Check, X, Info } from 'lucide-react';
+import { Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, MoreHorizontal, Check, X, Info } from 'lucide-react';
 import { GapInfo } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
@@ -264,7 +265,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
           >
             {isGenerating ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <MiniSpinner size={16} />
                 Generating suggestions...
               </>
             ) : (

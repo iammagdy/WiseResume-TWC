@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Loader2, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Sparkles, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
@@ -373,7 +374,7 @@ export default function ResignationLetterNewPage() {
               onClick={handleGenerate}
               disabled={generating}
             >
-              {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+              {generating ? <MiniSpinner size={20} /> : <Sparkles className="w-5 h-5" />}
               {generating ? 'Generating...' : 'Generate Letter'}
             </Button>
           )}

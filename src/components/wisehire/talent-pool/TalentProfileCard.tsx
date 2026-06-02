@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
-import { MapPin, Wifi, UserPlus, Check, Loader2, Eye } from 'lucide-react';
+import { MapPin, Wifi, UserPlus, Check, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TalentProfile } from '@/hooks/wisehire/useTalentPool';
 import { PIPELINE_STAGES } from '@/hooks/wisehire/usePipeline';
@@ -120,7 +121,7 @@ export function TalentProfileCard({ profile, onAddToPipeline, adding, added, onV
           <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) onView?.(profile); }}>
             <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className="h-8 gap-1.5" disabled={adding}>
-                {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                {adding ? <MiniSpinner size={14} /> : <UserPlus className="h-3.5 w-3.5" />}
                 Add to Pipeline
               </Button>
             </PopoverTrigger>

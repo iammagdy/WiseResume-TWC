@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle, Mail, Lock } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, XCircle, AlertTriangle, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
@@ -172,7 +173,7 @@ interface ContactRequest {
 }
 
 function StatusDot({ status }: { status: HealthStatus }) {
-  if (status === 'checking') return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
+  if (status === 'checking') return <MiniSpinner size={12} className="text-muted-foreground" />;
   if (status === 'ok') return <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" title="OK" />;
   if (status === 'warn') return <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" title="Degraded" />;
   if (status === 'error') return <span className="w-2.5 h-2.5 rounded-full bg-destructive inline-block" title="Error" />;
@@ -526,7 +527,7 @@ export function LiveActivityPanel() {
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchEvents} disabled={eventsLoading} className="flex items-center gap-2">
-          <RefreshCw className={`w-4 h-4 ${eventsLoading ? 'animate-spin' : ''}`} />
+          {eventsLoading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
           Refresh Feed
         </Button>
       </div>
@@ -560,7 +561,7 @@ export function LiveActivityPanel() {
             className="flex items-center gap-1.5 h-8 text-xs"
           >
             {healthRunning
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Checking…</>
+              ? <><MiniSpinner size={14} />Checking…</>
               : <><PlayCircle className="w-3.5 h-3.5" />Run health check</>
             }
           </Button>
@@ -704,7 +705,7 @@ export function LiveActivityPanel() {
             Recent Usage Events
             <span className="text-xs font-normal text-muted-foreground">(last 50)</span>
           </p>
-          {eventsLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          {eventsLoading && <MiniSpinner size={16} className="text-muted-foreground" />}
         </div>
 
         {eventsError && (
@@ -771,7 +772,7 @@ export function LiveActivityPanel() {
             disabled={contactRequestsLoading}
             className="h-7 px-2"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${contactRequestsLoading ? 'animate-spin' : ''}`} />
+            {contactRequestsLoading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
           </Button>
         </div>
 

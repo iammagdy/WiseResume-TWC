@@ -2,6 +2,64 @@
 
 ---
 
+## Session Log - 2026-06-02 (Unified Brand Loading System — WiseLogoLoader)
+
+### Overview
+Replaced every ad-hoc loading spinner across the app with a single brand- and size-aware `WiseLogoLoader` (the assembling Wise logo). UI/visual-only — no loading conditions, routes, APIs, auth, data-fetching, or business logic changed. Source component delivered by user at `Loader/`; copied into `src/components/loader/`.
+
+### Scope Decisions (user-confirmed)
+| Decision | Outcome |
+|----------|---------|
+| Inline-spinner breadth | Replace **all** real spinners, including in-button ones (via size-adaptive compact mode) |
+| Boot splash | `AnimatedSplash` visual swapped to the logo loader (timing/brand-name logic kept) |
+| WiseHire branding | Loader must render **blue** in WiseHire areas, not red |
+
+### Component Design (`src/components/loader/WiseLogoLoader.tsx`)
+- `variant`: `"wiseresume"` (red) / `"wisehire"` (blue via blue bg gradient + `hue-rotate(220deg) saturate(2) brightness(0.85)` on the PNG parts — same filter the app already uses for AppIcon). Omitting `variant` **auto-detects** from route (`/wisehire`, `/enterprises`, `?for=companies`), so inline spinners in WiseHire areas go blue with no prop threading.
+- `size`: tokens `xs(16)/sm(20)/md(96)/lg(160)/xl(200)` or raw px.
+- **Size-adaptive render**: `≤44px` → compact brand-colored CSS ring (no PNG load in buttons); `>44px` → full assembling logo. Solves the "don't force the heavy logo into tiny buttons" constraint inside one component.
+- Assets: `wise-loader-assets/` (4 PNGs: part-w, part-sep, part-text, part-badge).
+
+### Changes Applied
+| Area | Change |
+|------|--------|
+| `src/components/ui/PageLoadingSpinner.tsx` | Overlay (`fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm`) + `<WiseLogoLoader size="lg">`; blue on WiseHire. Drives ~20 route Suspense fallbacks |
+| `src/components/ui/MiniSpinner.tsx` | Now thin wrapper over `WiseLogoLoader` (compact ring at button sizes). 46 `MiniSpinner` + 5 `LoadingButton` consumers inherit with no edits |
+| `src/components/AnimatedSplash.tsx` | `AppIcon` → `<WiseLogoLoader size="md">` (blue for WiseHire); timing/dismiss/brand-name logic untouched |
+| 98 files / 185 sites | Codemod: `<Loader2 …animate-spin>` → `<MiniSpinner size={px}>` (px mapped from original `h-/w-`/`size=`; margins preserved). All were unconditional spinners |
+| 28 files / 37 sites | Conditional `RefreshCw` (`cond && animate-spin`) → `{cond ? <MiniSpinner/> : <RefreshCw/>}` (loader when active, icon at rest — no layout shift) |
+| 4 sites | Always-spinning `RefreshCw`/`Save` already gated by a ternary → spinning branch → `<MiniSpinner>` (`AIRoutingSwitcher` x2, `OverviewPanel`, `EmailManagementPanel`) |
+| `src/pages/wisehire/BulkScreenPage.tsx`, `CandidateMaskingPage.tsx` | Hand-rolled ⏳/CSS-ring spinners → `<MiniSpinner>` (auto-blue) |
+| `src/pages/AuthCallbackPage.tsx` | Full-page CSS-ring loader → `<PageLoadingSpinner />` |
+
+Total: 1 new dir (`src/components/loader/`), 113 files modified.
+
+### Intentionally Left (5 `animate-spin` sites)
+| Site | Why |
+|------|-----|
+| `landing/EditorDemo.tsx:199` `<Sparkles>`, `landing/TailoringDemo.tsx:108` `<Wand2>` | Decorative demo animations, not loading states |
+| `career/CareerMindmap.tsx:266` | Decorative conic-gradient rotating border |
+| `career/CareerMindmap.tsx:204` | A `querySelectorAll('.animate-spin')` string in code, not UI |
+| `portfolio/public/PortfolioContactForm.tsx:221` | Visitor-facing, portfolio-owner-themed button (custom `accentColor`, white spinner matched to text). Brand-red ring would clash with owner themes — left themed by design |
+
+### Verification Status
+- `npx tsc --noEmit` — zero errors.
+- `npm run build` — exit 0; 4 PNGs bundled with hashed names, loader code in main chunk; no sourcemap leak.
+- `eslint` (changed files) — **0 new** problems. The 22 errors present are pre-existing (`no-empty`, `no-unsafe-finally` in `AuthVerifyEmailPage.tsx`, `TailorPage.tsx`) — confirmed identical on committed versions.
+- Grep: `0` raw `<Loader2>` / `Loader2` imports remaining.
+- Duplicate-loader audit: all 3 direct `PageLoadingSpinner` renders are exclusive early-returns; no file mixes full-page + inline loaders; no stray `WiseLogoLoader` outside the 3 primitives.
+- Browser visual check (dev server :5000): app boots clean (no console errors); both variants verified with real bundled assets — WiseResume red, WiseHire blue.
+
+### Deployment Notes
+- Frontend-only. Goes live on next Vercel deploy of the branch once merged. No Appwrite hub redeploy needed.
+
+### Where We Stopped
+- **Not committed.** All changes live in the working tree on branch `claude/zen-herschel-d10996` (clean base was `0a5959bf`). Next step is to commit + push, then open a PR to `main`.
+- Local-only dev artifact: a `node_modules` junction was created in the worktree (`Y:\WiseResume-TWC\.claude\worktrees\zen-herschel-d10996\node_modules` → main repo's `node_modules`) so tsc/build/lint run in the worktree. It is gitignored — will not be committed.
+- No follow-up work outstanding. One open question for the user: whether `PortfolioContactForm.tsx:221` (themed visitor spinner) should also adopt the brand loader — currently left themed by design.
+
+---
+
 ## Session Log - 2026-05-29 (Pre-Launch Bug Fixes)
 
 ### Overview

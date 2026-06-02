@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { AppIcon } from '@/components/brand/AppIcon';
+import WiseLogoLoader from '@/components/loader/WiseLogoLoader';
 import { haptics } from '@/lib/haptics';
 
 interface AnimatedSplashProps {
@@ -120,15 +120,14 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
             />
           )}
 
-          {/* Icon */}
+          {/* Logo loader */}
           <motion.div
             className="relative"
             initial={prefersReduced || skipEntry ? false : { scale: 0.5, opacity: 0 }}
             animate={prefersReduced || skipEntry ? false : { scale: [0.5, 1.08, 1], opacity: 1 }}
             transition={{ duration: 0.6, times: [0, 0.7, 1], ease: 'easeOut', delay: 0.05 }}
-            style={brand.isWH ? { filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)' } : undefined}
           >
-            <AppIcon size={72} />
+            <WiseLogoLoader size="md" variant={brand.isWH ? 'wisehire' : 'wiseresume'} />
           </motion.div>
 
           {/* Brand name */}

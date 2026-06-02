@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+
 
 import { useAuth } from '@/hooks/useAuth';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
@@ -160,7 +161,7 @@ export default function AuthPage() {
                 </div>
               </div>
               <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : 'Login'}
+                {loading ? <MiniSpinner size={18} className="mr-2" /> : 'Login'}
               </Button>
               <p className="text-xs text-center text-white/40">
                 Don't have an account?{' '}
@@ -178,7 +179,7 @@ export default function AuthPage() {
               </p>
               <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
               <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : 'Send Reset Link'}
+                {loading ? <MiniSpinner size={18} className="mr-2" /> : 'Send Reset Link'}
               </Button>
               <p className="text-xs text-center text-white/40">
                 Remembered it?{' '}
@@ -193,7 +194,7 @@ export default function AuthPage() {
             <div className="space-y-4 text-center">
               <p className="text-sm text-white/60">We found your migrated data. To keep it secure, please set a new password.</p>
               <Button onClick={handleClaimAccount} className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : 'Send Reset Link'}
+                {loading ? <MiniSpinner size={18} className="mr-2" /> : 'Send Reset Link'}
               </Button>
               <button onClick={() => setView('login')} className="text-xs text-white/30 hover:underline">Back to Login</button>
             </div>
@@ -208,7 +209,7 @@ export default function AuthPage() {
                 <p className="text-xs text-white/40 mt-1">At least 8 characters.</p>
               </div>
               <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : 'Create Account'}
+                {loading ? <MiniSpinner size={18} className="mr-2" /> : 'Create Account'}
               </Button>
               <p className="text-xs text-center text-white/40">
                 Already have an account?{' '}

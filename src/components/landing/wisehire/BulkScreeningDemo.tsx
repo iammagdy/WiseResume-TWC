@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Upload, Loader2, CheckCircle2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Upload, CheckCircle2 } from 'lucide-react';
 
 const CANDIDATES = [
   { initials: 'AK', name: 'Alex Kim', score: 91, status: 'done' as const },
@@ -93,7 +94,7 @@ export function BulkScreeningDemo() {
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Bulk Screening</span>
         {uploading ? (
           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.62rem', color: '#3B82F6', fontWeight: 600 }}>
-            <Loader2 className="w-3 h-3 animate-spin" /> Uploading CVs…
+            <MiniSpinner size={12} /> Uploading CVs…
           </span>
         ) : (
           <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: 'var(--lp-text-muted)', fontWeight: 500 }}>

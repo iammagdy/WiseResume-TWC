@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  User, Shield, Crown, Trash2, Search, Loader2, FileText,
-  ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal,
-  CheckSquare, Square, Gift, TrendingUp, MessageSquare,
-  Merge, Check, X, Activity, LayoutList,
-} from 'lucide-react';
+import { User, Shield, Crown, Trash2, Search, FileText, ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal, CheckSquare, Square, Gift, TrendingUp, MessageSquare, Merge, Check, X, Activity, LayoutList } from 'lucide-react';
 import { ActAsDialog, type ActAsSession } from './ActAsDialog';
 import { UserDetailDrawer } from './UserDetailDrawer';
 import { DevKitErrorCard } from './DevKitErrorCard';
@@ -503,7 +499,7 @@ export const AdminUsersPanel = () => {
   if (loading && users.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <MiniSpinner size={32} className="text-blue-500" />
         <p className="text-sm text-muted-foreground font-mono">Loading Real-Time User Data…</p>
       </div>
     );
@@ -558,7 +554,7 @@ export const AdminUsersPanel = () => {
                   'bg-white hover:bg-white/90 text-black'
                 )}
               >
-                {savingPlanId === planConfirm.userId ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+                {savingPlanId === planConfirm.userId ? <MiniSpinner size={14} className="mr-2" /> : null}
                 Set {planConfirm.plan.toUpperCase()}
               </Button>
             </div>
@@ -593,7 +589,7 @@ export const AdminUsersPanel = () => {
                   bulkConfirmAction.type === 'suspend' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-white hover:bg-white/90 text-black'
                 )}
               >
-                {bulkActing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+                {bulkActing ? <MiniSpinner size={14} className="mr-2" /> : null}
                 Confirm
               </Button>
             </div>
@@ -642,11 +638,11 @@ export const AdminUsersPanel = () => {
               <button onClick={() => setSelected(new Set())} className="text-white/40 hover:text-white/70">
                 <X size={10} />
               </button>
-              {bulkActing && <Loader2 size={12} className="animate-spin text-white/40" />}
+              {bulkActing && <MiniSpinner size={12} className="text-white/40" />}
             </div>
           )}
           <Button onClick={refresh} variant="outline" size="icon" className="rounded-xl border-white/10 bg-white/5 h-8 w-8">
-            <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+            {loading ? <MiniSpinner size={14} /> : <RefreshCw className="h-3.5 w-3.5" />}
           </Button>
         </div>
       </div>
@@ -668,7 +664,7 @@ export const AdminUsersPanel = () => {
         ))}
         {globalStats === null && (
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
-            <Loader2 size={12} className="animate-spin text-white/30" />
+            <MiniSpinner size={12} className="text-white/30" />
             <span className="text-[11px] text-white/30">Loading global stats…</span>
           </div>
         )}
@@ -963,7 +959,7 @@ function UserRow({
                   user.plan_name === p ? 'bg-white text-black' : 'text-white/30 hover:text-white/60',
                 )}
               >
-                {planSaving && user.plan_name !== p ? p[0] : planSaving && user.plan_name === p ? <Loader2 size={9} className="animate-spin" /> : p[0]}
+                {planSaving && user.plan_name !== p ? p[0] : planSaving && user.plan_name === p ? <MiniSpinner size={9} /> : p[0]}
               </button>
             ))}
           </div>
@@ -973,7 +969,7 @@ function UserRow({
             className="p-1.5 rounded-lg bg-blue-500/15 border border-blue-500/20 text-blue-400 hover:bg-blue-500/25 transition-all"
             title="Act As"
           >
-            {impersonating ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
+            {impersonating ? <MiniSpinner size={11} /> : <ExternalLink size={11} />}
           </button>
           <ChevronDown size={13} className={cn('text-white/30 transition-transform flex-shrink-0', expanded && 'rotate-180')} />
         </div>
@@ -1038,7 +1034,7 @@ function UserRow({
                     disabled={trialSaving}
                     className="flex-1 py-1.5 text-[10px] font-semibold rounded-lg bg-violet-500/15 border border-violet-500/20 text-violet-400 hover:bg-violet-500/25 transition-all flex items-center justify-center gap-1"
                   >
-                    {trialSaving ? <Loader2 size={10} className="animate-spin" /> : <Gift size={10} />}
+                    {trialSaving ? <MiniSpinner size={10} /> : <Gift size={10} />}
                     {trialSaving ? 'Granting…' : 'Grant'}
                   </button>
                   {isTrialActive && (
@@ -1091,7 +1087,7 @@ function UserRow({
                   disabled={creditsSaving}
                   className="w-full py-1.5 text-[10px] font-semibold rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all flex items-center justify-center gap-1"
                 >
-                  {creditsSaving ? <Loader2 size={10} className="animate-spin" /> : <TrendingUp size={10} />}
+                  {creditsSaving ? <MiniSpinner size={10} /> : <TrendingUp size={10} />}
                   {creditsSaving ? 'Saving…' : 'Apply credits'}
                 </button>
               </div>
@@ -1107,7 +1103,7 @@ function UserRow({
                 disabled={impersonating}
                 className="w-full py-2 text-[10px] font-semibold rounded-lg bg-blue-500/15 border border-blue-500/20 text-blue-400 hover:bg-blue-500/25 transition-all flex items-center justify-center gap-1.5"
               >
-                {impersonating ? <Loader2 size={11} className="animate-spin" /> : <ExternalLink size={11} />}
+                {impersonating ? <MiniSpinner size={11} /> : <ExternalLink size={11} />}
                 {impersonating ? 'Generating…' : 'Act As this user'}
               </button>
 
@@ -1145,7 +1141,7 @@ function UserRow({
                       disabled={merging}
                       className="flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-amber-500 text-black flex items-center justify-center gap-1"
                     >
-                      {merging ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                      {merging ? <MiniSpinner size={10} /> : <Check size={10} />}
                       {merging ? 'Merging…' : 'Confirm'}
                     </button>
                     <button
@@ -1197,7 +1193,7 @@ function UserRow({
                     disabled={suspendSaving}
                     className="w-full py-2 text-[10px] font-semibold rounded-lg bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25 transition-all flex items-center justify-center gap-1.5"
                   >
-                    {suspendSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                    {suspendSaving ? <MiniSpinner size={11} /> : <Check size={11} />}
                     Unsuspend user
                   </button>
                 </div>
@@ -1214,7 +1210,7 @@ function UserRow({
                     disabled={suspendSaving}
                     className="w-full py-2 text-[10px] font-semibold rounded-lg bg-red-500/15 border border-red-500/20 text-red-400 hover:bg-red-500/25 transition-all flex items-center justify-center gap-1.5"
                   >
-                    {suspendSaving ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
+                    {suspendSaving ? <MiniSpinner size={11} /> : <Ban size={11} />}
                     Suspend user
                   </button>
                 </div>
@@ -1232,7 +1228,7 @@ function UserRow({
                   disabled={noteSaving}
                   className="w-full py-1.5 text-[10px] font-semibold rounded-lg bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 transition-all flex items-center justify-center gap-1"
                 >
-                  {noteSaving ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} />}
+                  {noteSaving ? <MiniSpinner size={10} /> : <MessageSquare size={10} />}
                   Save note
                 </button>
               </div>
@@ -1241,7 +1237,7 @@ function UserRow({
                 disabled={deleting}
                 className="w-full py-1.5 text-[10px] font-semibold rounded-lg bg-red-500/8 border border-red-500/10 text-red-400/50 hover:bg-red-500/15 hover:text-red-400 transition-all flex items-center justify-center gap-1"
               >
-                {deleting ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                {deleting ? <MiniSpinner size={10} /> : <Trash2 size={10} />}
                 Delete profile
               </button>
             </div>

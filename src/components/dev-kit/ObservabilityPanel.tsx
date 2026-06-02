@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Activity, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, CheckCircle2, Clock, Loader2, Lock, Filter, TrendingUp, LogIn } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { RefreshCw, Activity, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, CheckCircle2, Clock, Lock, Filter, TrendingUp, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
@@ -354,7 +355,7 @@ export function ObservabilityPanel() {
             disabled={telemetryLoading || errorsLoading}
             className="flex items-center gap-1.5"
           >
-            <RefreshCw className={cn('w-3.5 h-3.5', (telemetryLoading || errorsLoading) && 'animate-spin')} />
+            {(telemetryLoading || errorsLoading) ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
             Refresh
           </Button>
         </div>
@@ -607,7 +608,7 @@ export function ObservabilityPanel() {
                           className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-border hover:bg-muted/40 transition-colors text-muted-foreground hover:text-foreground"
                         >
                           {reviewingId === err.id
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            ? <MiniSpinner size={12} />
                             : <CheckCircle2 className="w-3 h-3" />}
                           {reviewingId === err.id ? 'Saving…' : 'Mark reviewed'}
                         </button>

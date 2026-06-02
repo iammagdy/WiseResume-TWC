@@ -1,7 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Loader2, Check, Clock, Zap } from 'lucide-react';
+import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Check, Clock, Zap } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 const ProfileImportSheet = lazy(() =>
@@ -498,7 +499,7 @@ export function CreateResumeDialog({
                   disabled={isCreatingTrial}
                 >
                   {isCreatingTrial ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <MiniSpinner size={14} />
                   ) : (
                     <Zap className="w-3.5 h-3.5" />
                   )}
@@ -902,7 +903,7 @@ export function CreateResumeDialog({
 
             {isCreating && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <MiniSpinner size={16} />
                 <span>Structuring your career history…</span>
               </div>
             )}
@@ -922,7 +923,7 @@ export function CreateResumeDialog({
               >
                 {isCreating ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <MiniSpinner size={16} className="mr-2" />
                     Generating…
                   </>
                 ) : 'Generate Resume'}

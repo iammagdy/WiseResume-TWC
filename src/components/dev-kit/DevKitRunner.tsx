@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { databases, account, Query } from '@/lib/appwrite';
@@ -7,7 +8,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { Button } from '@/components/ui/button';
-import { Trash2, Loader2, PlayCircle, AlertCircle, CheckCircle, Activity } from 'lucide-react';
+import { Trash2, PlayCircle, AlertCircle, CheckCircle, Activity } from 'lucide-react';
 import { type TestStatus, type TestResult, type TestDef, type SectionId } from './types';
 import { SECTIONS } from './config';
 import { SectionSummaryBadge } from './DevKitBadges';
@@ -506,7 +507,7 @@ export function DevKitRunner() {
             onClick={() => runAllInSection(section.id)}
             className="hover:bg-primary/10 hover:text-primary transition-colors h-8 flex-shrink-0 ml-2"
           >
-            {running ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <PlayCircle className="h-3 w-3 mr-1" />}
+            {running ? <MiniSpinner size={12} className="mr-1" /> : <PlayCircle className="h-3 w-3 mr-1" />}
             Run all
           </Button>
         </div>
@@ -539,7 +540,7 @@ export function DevKitRunner() {
           className="bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {globalRunning
-            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running smoke…</>
+            ? <><MiniSpinner size={16} className="mr-2" />Running smoke…</>
             : <><Activity className="h-4 w-4 mr-2" />Run smoke suite</>
           }
         </Button>

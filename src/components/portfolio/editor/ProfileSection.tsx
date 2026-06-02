@@ -1,7 +1,6 @@
 import React from 'react';
-import {
-  User, Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Linkedin, Github, ShieldCheck,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { User, Sparkles, CheckCircle2, XCircle, Link2, Zap, Linkedin, Github, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -67,7 +66,7 @@ export function ProfileSection(props: ProfileSectionProps) {
         {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
         {!usernameError && username.length >= 3 && (
           <div className="flex items-center gap-1.5">
-            {checkingUsername && <><Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Checking...</span></>}
+            {checkingUsername && <><MiniSpinner size={14} className="text-muted-foreground" /><span className="text-xs text-muted-foreground">Checking...</span></>}
             {!checkingUsername && usernameAvailable === true && <><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-500">Available</span></>}
             {!checkingUsername && usernameAvailable === false && <><XCircle className="w-3.5 h-3.5 text-destructive" /><span className="text-xs text-destructive">Taken</span></>}
           </div>
@@ -95,7 +94,7 @@ export function ProfileSection(props: ProfileSectionProps) {
       <div className="flex items-center justify-between mb-1">
         <p className="text-xs text-muted-foreground">Write a friendly bio or let AI generate one.</p>
         <Button variant="ghost" size="sm" onClick={onGenerateBio} disabled={generatingBio} className="h-8 text-xs active:scale-95 shrink-0">
-          {generatingBio ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+          {generatingBio ? <MiniSpinner size={14} className="mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
           {generatingBio ? 'Generating...' : 'AI Generate'}
         </Button>
       </div>
@@ -136,7 +135,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-foreground">Availability headline</label>
             <Button variant="ghost" size="sm" onClick={onGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
-              {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+              {generatingAvailability ? <MiniSpinner size={12} className="mr-1" /> : <Sparkles className="w-3 h-3 mr-1" />}
               AI Suggest
             </Button>
           </div>

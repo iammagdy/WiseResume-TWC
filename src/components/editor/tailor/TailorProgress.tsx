@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, Circle, Loader2, Sparkles, TrendingUp, Clock, X } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Check, Circle, Sparkles, TrendingUp, Clock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TailorProgress as TailorProgressType, TailorStep, EnhancedTailorProgress, EnhancedTailorStep } from '@/types/resume';
 import { cn } from '@/lib/utils';
@@ -245,7 +246,7 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                       >
-                        <Loader2 className="w-3 h-3" />
+                        <MiniSpinner size={12} />
                       </motion.div>
                     ) : (
                       <Circle className="w-2 h-2" />

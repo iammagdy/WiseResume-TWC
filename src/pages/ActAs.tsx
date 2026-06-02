@@ -9,8 +9,9 @@
  * Hash schema:  btoa(JSON.stringify({ t: access_token, u: user_id, e: email, x: expires_at }))
  */
 import { useEffect, useRef, useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, UserX, AlertCircle } from 'lucide-react';
+import { UserX, AlertCircle } from 'lucide-react';
 import { startImpersonation } from '@/lib/impersonationStore';
 
 interface ActAsPayload {
@@ -76,7 +77,7 @@ export default function ActAs() {
       <div className="flex flex-col items-center gap-4">
         <div className="flex items-center gap-3">
           <UserX className="w-8 h-8 text-red-500" />
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <MiniSpinner size={24} className="text-muted-foreground" />
         </div>
         <p className="text-sm text-muted-foreground">Starting Act As session…</p>
       </div>

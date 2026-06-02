@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FileCheck, Loader2, Copy, Check, Download, RotateCcw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { FileCheck, Copy, Check, Download, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -195,7 +196,7 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
               </div>
               <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading}>
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating letter...</>
+                  <><MiniSpinner size={16} className="mr-2" />Generating letter...</>
                 ) : (
                   <><FileCheck className="w-4 h-4 mr-2" />Generate Reference Letter</>
                 )}
@@ -209,7 +210,7 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
                   Copy
                 </Button>
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownload} disabled={isDownloading}>
-                  {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  {isDownloading ? <MiniSpinner size={14} /> : <Download className="w-3.5 h-3.5" />}
                   Download .docx
                 </Button>
                 <Button variant="ghost" size="sm" className="gap-1.5 ml-auto text-xs" onClick={() => { setLetter(''); clearDraft(); }}>

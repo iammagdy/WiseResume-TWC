@@ -1,5 +1,6 @@
 import { useState, useEffect, memo } from 'react';
-import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus, Briefcase, Search, Award } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus, Briefcase, Search, Award } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -163,7 +164,7 @@ export const InlineAIButton = memo(function InlineAIButton({
   const buttonInner = (
     <>
       {isLoading ? (
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        <MiniSpinner size={14} />
       ) : (
         <Sparkles className={`w-3.5 h-3.5 ${showPulse && isAuthenticated ? 'animate-pulse' : ''}`} />
       )}

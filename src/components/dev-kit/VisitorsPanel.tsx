@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   RefreshCw, Users, Globe, Smartphone, Monitor, Tablet, MousePointerClick,
   Layers, Clock, ChevronRight, ArrowLeft, Lock, BarChart2, Map,
@@ -397,7 +398,7 @@ export function VisitorsPanel() {
             disabled={loading}
           />
           <Button variant="outline" size="sm" onClick={fetchAll} disabled={loading} className="flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
             Refresh
           </Button>
         </div>

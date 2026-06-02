@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Clock, Sparkles, Tag, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, Clock, Sparkles, Tag, AlertCircle, ArrowLeft } from 'lucide-react';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -180,7 +181,7 @@ export default function WiseHireSubscriptionPage() {
               disabled={couponLoading || !couponCode.trim()}
               className="bg-blue-700 hover:bg-blue-800 text-white"
             >
-              {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+              {couponLoading ? <MiniSpinner size={16} /> : 'Apply'}
             </Button>
           </form>
           {couponError && (

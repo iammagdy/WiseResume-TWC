@@ -1,16 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  Inbox,
-  RefreshCw,
-  Send,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Tag,
-  Mail,
-  Loader2,
-  FlaskConical,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Inbox, RefreshCw, Send, ChevronDown, ChevronRight, Clock, Tag, Mail, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
@@ -238,7 +228,7 @@ export function TestmailInboxPanel() {
             disabled={loading}
             className="h-8 text-xs flex items-center gap-1.5"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
             Refresh
           </Button>
           <Button
@@ -249,7 +239,7 @@ export function TestmailInboxPanel() {
             className="h-8 text-xs flex items-center gap-1.5"
           >
             {sending
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Sending…</>
+              ? <><MiniSpinner size={14} />Sending…</>
               : <><Send className="w-3.5 h-3.5" />Send test</>}
           </Button>
         </div>

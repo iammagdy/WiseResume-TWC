@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Sparkles, Send, Loader2 } from 'lucide-react';
+import { Sparkles, Send } from 'lucide-react';
 import { useAIDraftOutreach, useSendOutreach } from '@/hooks/wisehire/useOutreach';
 import { toast } from 'sonner';
 
@@ -107,7 +108,7 @@ export function OutreachDialog({
                 disabled={isBusy}
               >
                 {aiDraft.isPending
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  ? <MiniSpinner size={12} />
                   : <Sparkles className="h-3 w-3" />}
                 AI Draft
               </Button>
@@ -137,7 +138,7 @@ export function OutreachDialog({
                 className="gap-1.5"
               >
                 {sendEmail.isPending
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ? <MiniSpinner size={14} />
                   : <Send className="h-3.5 w-3.5" />}
                 Send
               </Button>

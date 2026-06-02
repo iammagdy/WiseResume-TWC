@@ -1,9 +1,7 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Sparkles, Loader2, Building2, Code2, Users, Zap,
-  ChevronRight, Lightbulb,
-} from 'lucide-react';
+import { Sparkles, Building2, Code2, Users, Zap, ChevronRight, Lightbulb } from 'lucide-react';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
@@ -108,7 +106,7 @@ export function QuestionBankSheet({
                 size="lg"
               >
                 {loading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Generating questions...</>
+                  <><MiniSpinner size={20} /> Generating questions...</>
                 ) : (
                   <><Sparkles className="w-5 h-5" /> Generate Question Bank</>
                 )}
@@ -236,7 +234,7 @@ export function QuestionBankSheet({
                 disabled={loading}
                 className="w-full h-10 text-xs text-muted-foreground"
               >
-                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                {loading ? <MiniSpinner size={14} className="mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
                 Regenerate Questions
               </Button>
             </>

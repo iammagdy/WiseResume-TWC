@@ -1,14 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  Mail,
-  RefreshCw,
-  Search,
-  Send,
-  AlertCircle,
-  CheckCircle,
-  ChevronDown,
-  Loader2,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Mail, RefreshCw, Search, Send, AlertCircle, CheckCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -168,7 +160,7 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
           disabled={loading}
           className="h-8 flex items-center gap-1.5 text-xs shrink-0"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
           Refresh
         </Button>
       </div>
@@ -258,7 +250,7 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
                               onClick={() => handleResendConfirmation(user)}
                             >
                               {sendingId === user.user_id ? (
-                                <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Sending…</>
+                                <><MiniSpinner size={12} className="mr-1" />Sending…</>
                               ) : (
                                 'Resend Confirmation'
                               )}
@@ -288,7 +280,7 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
               </p>
               {users.length < total && !query.trim() && (
                 <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={loading} className="h-7 text-xs">
-                  {loading ? <><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Loading…</> : `Load more (${total - users.length} remaining)`}
+                  {loading ? <><MiniSpinner size={12} className="mr-1" />Loading…</> : `Load more (${total - users.length} remaining)`}
                 </Button>
               )}
             </div>
@@ -507,7 +499,7 @@ function ComposeEmailForm({
           <div className="relative">
             <div className="relative">
               {searching ? (
-                <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />
+                <MiniSpinner size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               ) : (
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               )}
@@ -604,7 +596,7 @@ function ComposeEmailForm({
         size="sm"
       >
         {sending ? (
-          <><Loader2 className="w-4 h-4 animate-spin" />Sending…</>
+          <><MiniSpinner size={16} />Sending…</>
         ) : (
           <><Send className="w-4 h-4" />{ACTION_LABELS[action]}</>
         )}
@@ -700,7 +692,7 @@ function RecentSendsSection() {
           Recent Sends
         </h3>
         <Button variant="ghost" size="sm" onClick={fetchRecentSends} disabled={loading} className="h-7 text-xs text-muted-foreground">
-          <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? <MiniSpinner size={12} className="mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
           Refresh
         </Button>
       </div>
@@ -774,7 +766,7 @@ export function EmailManagementPanel() {
       {/* Preflight diagnostic banner */}
       {diagnosing ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <MiniSpinner size={14} />
           Checking email configuration…
         </div>
       ) : apiKeyMissing ? (

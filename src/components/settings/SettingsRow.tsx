@@ -1,5 +1,6 @@
 import { ReactNode, useState, useEffect, useRef, memo } from 'react';
-import { ChevronRight, Loader2, Check } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { ChevronRight, Check } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -192,7 +193,7 @@ function ToggleRow(props: SettingsRowToggleProps) {
         )}
         {props.loading ? (
           <div className="w-12 flex items-center justify-center">
-            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            <MiniSpinner size={20} className="text-primary" />
           </div>
         ) : showSuccess ? (
           <div className="w-12 flex items-center justify-center animate-scale-in">

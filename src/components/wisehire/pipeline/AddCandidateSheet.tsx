@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
@@ -8,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Loader2, UserPlus, AlertTriangle } from 'lucide-react';
+import { UserPlus, AlertTriangle } from 'lucide-react';
 import { databases, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
@@ -249,7 +250,7 @@ export function AddCandidateSheet({ open, onClose, roles, defaultRoleId, default
             disabled={!canSubmit}
             className="w-full bg-blue-700 hover:bg-blue-800 text-white"
           >
-            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Adding…</> : 'Add Candidate'}
+            {loading ? <><MiniSpinner size={16} className="mr-2" />Adding…</> : 'Add Candidate'}
           </Button>
         </form>
       </SheetContent>

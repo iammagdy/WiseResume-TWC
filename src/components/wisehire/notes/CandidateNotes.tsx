@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
-import { Pin, Trash2, Loader2 } from 'lucide-react';
+import { Pin, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -62,7 +63,7 @@ export function CandidateNotes({ candidateId }: Props) {
             onClick={handleAdd}
             disabled={!body.trim() || addNote.isPending}
           >
-            {addNote.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {addNote.isPending ? <MiniSpinner size={12} className="mr-1" /> : null}
             Add note
           </Button>
         </div>

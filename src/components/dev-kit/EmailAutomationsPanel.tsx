@@ -1,18 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  RefreshCw,
-  Search,
-  Plus,
-  Minus,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  ExternalLink,
-  Loader2,
-  Users,
-  Zap,
-  BarChart2,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { RefreshCw, Search, Plus, Minus, CheckCircle, AlertTriangle, XCircle, ExternalLink, Users, Zap, BarChart2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -125,7 +113,7 @@ function AudienceCard({
             onClick={() => onManualAdd(envKey, audience.label)}
           >
             {isLoading && actionLoading === audience.key + '_add' ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
+              <MiniSpinner size={12} />
             ) : (
               <Plus className="w-3 h-3" />
             )}
@@ -139,7 +127,7 @@ function AudienceCard({
             onClick={() => onManualRemove(envKey, audience.label)}
           >
             {isLoading && actionLoading === audience.key + '_remove' ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
+              <MiniSpinner size={12} />
             ) : (
               <Minus className="w-3 h-3" />
             )}
@@ -364,7 +352,7 @@ export function EmailAutomationsPanel() {
           disabled={loading}
           className="h-8 flex items-center gap-1.5 text-xs shrink-0"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
           Refresh
         </Button>
       </div>
@@ -426,7 +414,7 @@ export function EmailAutomationsPanel() {
             onClick={handleLookup}
             disabled={lookupLoading || !lookupEmail.trim()}
           >
-            {lookupLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Search'}
+            {lookupLoading ? <MiniSpinner size={14} /> : 'Search'}
           </Button>
         </div>
         {lookupResult !== null && (
@@ -470,7 +458,7 @@ export function EmailAutomationsPanel() {
             disabled={syncLoading}
           >
             {syncLoading ? (
-              <><Loader2 className="w-3.5 h-3.5 animate-spin" />Syncing…</>
+              <><MiniSpinner size={14} />Syncing…</>
             ) : (
               <>Run Sync</>
             )}

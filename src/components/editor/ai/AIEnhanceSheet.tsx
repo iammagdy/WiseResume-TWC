@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useScrollFade } from '@/hooks/useScrollFade';
-import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, Layers } from 'lucide-react';
+import { Sparkles, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, Layers } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -859,7 +860,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           >
             {isEnhancing ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <MiniSpinner size={16} className="mr-2" />
                 {variantsMode ? 'Generating 3 variants…' : atsMode ? 'Optimizing for ATS…' : 'Enhancing…'}
               </>
             ) : (
@@ -964,7 +965,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                                 onClick={() => retryFailedSection(i)}
                               >
                                 {r.retrying ? (
-                                  <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Retrying…</>
+                                  <><MiniSpinner size={16} className="mr-1" /> Retrying…</>
                                 ) : (
                                   <><Sparkles className="w-4 h-4 mr-1" /> Retry</>
                                 )}

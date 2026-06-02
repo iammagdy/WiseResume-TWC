@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Mail, FileText, Clock, Loader2, MessageSquare, Send } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { X, Mail, FileText, Clock, MessageSquare, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
@@ -153,7 +154,7 @@ export function CandidateDetailPanel({
                 disabled={isMutating}
                 className="mt-2 h-7 text-xs bg-blue-700 hover:bg-blue-800 text-white"
               >
-                {isMutating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                {isMutating ? <MiniSpinner size={12} className="mr-1" /> : null}
                 Save notes
               </Button>
             )}

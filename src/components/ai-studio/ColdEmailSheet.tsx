@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Mail, Loader2, Copy, Check, RefreshCw, RotateCcw, AlertTriangle } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Mail, Copy, Check, RefreshCw, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -234,7 +235,7 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
               )}
               <Button className="w-full gradient-primary" onClick={() => handleGenerate()} disabled={isLoading}>
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating emails...</>
+                  <><MiniSpinner size={16} className="mr-2" />Generating emails...</>
                 ) : (
                   <><Mail className="w-4 h-4 mr-2" />Generate Cold Email</>
                 )}
@@ -253,7 +254,7 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
                   }}
                   disabled={isLoading}
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  {isLoading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
                   Regenerate
                 </Button>
               </div>

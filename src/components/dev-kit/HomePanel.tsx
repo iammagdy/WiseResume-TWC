@@ -1,21 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  Briefcase,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  Loader2,
-  RefreshCw,
-  ServerCrash,
-  Shield,
-  ShieldAlert,
-  Users,
-  Wrench,
-  XCircle,
-  Zap,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Activity, AlertTriangle, Briefcase, CheckCircle2, Clock, ExternalLink, RefreshCw, ServerCrash, Shield, ShieldAlert, Users, Wrench, XCircle, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { devKitCall } from '@/lib/devkit/devKitClient';
 import { DevKitErrorCard } from './DevKitErrorCard';
@@ -147,7 +132,7 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
         <div className="flex items-center gap-3 text-white/60">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm font-semibold">Loading Command Center…</span>
         </div>
       </div>
@@ -186,7 +171,7 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
           disabled={loading}
           className="rounded-xl self-start sm:self-auto"
         >
-          <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           Refresh
         </Button>
       </div>
@@ -305,7 +290,7 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
 
         {loading && !data && (
           <div className="flex items-center justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-white/30" />
+            <MiniSpinner size={20} className="text-white/30" />
           </div>
         )}
 

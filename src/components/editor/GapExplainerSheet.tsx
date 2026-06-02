@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Copy, Check, Lightbulb, ChevronDown, Loader2 } from 'lucide-react';
+import { Sparkles, Copy, Check, Lightbulb, ChevronDown } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -370,7 +371,7 @@ export function GapExplainerSheet({
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <MiniSpinner size={16} />
                   Generating...
                 </>
               ) : (
@@ -441,7 +442,7 @@ export function GapExplainerSheet({
                 >
                   {isGenerating ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <MiniSpinner size={16} />
                       Regenerating...
                     </>
                   ) : (

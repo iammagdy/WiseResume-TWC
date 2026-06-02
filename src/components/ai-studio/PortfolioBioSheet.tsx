@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BookOpen, Loader2, Copy, Check, RefreshCw, ExternalLink } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { BookOpen, Copy, Check, RefreshCw, ExternalLink } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -174,7 +175,7 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
               </div>
               <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading || !currentResume}>
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</>
+                  <><MiniSpinner size={16} className="mr-2" />Generating...</>
                 ) : (
                   <><BookOpen className="w-4 h-4 mr-2" />Generate Portfolio Bio</>
                 )}
@@ -188,7 +189,7 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Your Portfolio Bios</h3>
                 <Button variant="ghost" size="sm" onClick={handleGenerate} disabled={isLoading} className="gap-1 text-xs">
-                  <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+                  {isLoading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
                   Regenerate
                 </Button>
               </div>
@@ -234,7 +235,7 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
                   disabled={isSaving}
                 >
                   {isSaving ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
+                    <><MiniSpinner size={16} className="mr-2" />Saving...</>
                   ) : (
                     <><ExternalLink className="w-4 h-4 mr-2" />Use in Portfolio</>
                   )}

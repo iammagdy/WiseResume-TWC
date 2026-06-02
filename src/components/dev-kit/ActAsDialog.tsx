@@ -19,7 +19,8 @@
  * leak channels when the dialog isn't open.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Copy, Check, ExternalLink, Clock, Loader2, XCircle } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Copy, Check, ExternalLink, Clock, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -277,7 +278,7 @@ export function ActAsDialog({ session, onClose }: Props) {
             className="sm:mr-auto"
           >
             {revoking ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <MiniSpinner size={16} className="mr-2" />
             ) : (
               <XCircle className="mr-2 h-4 w-4" />
             )}

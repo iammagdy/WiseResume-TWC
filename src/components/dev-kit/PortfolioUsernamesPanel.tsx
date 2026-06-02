@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   RefreshCw,
   Search,
@@ -284,7 +285,7 @@ function DirectorySection() {
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={load} disabled={loading} aria-label="Refresh">
-          <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
         </Button>
       </div>
 
@@ -641,7 +642,7 @@ function RulesSection() {
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={cn('w-3.5 h-3.5 mr-1', loading && 'animate-spin')} />
+            {loading ? <MiniSpinner size={14} className="mr-1" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
             Reload
           </Button>
           <Button size="sm" onClick={saveRules} disabled={saving}>
@@ -831,7 +832,7 @@ function ReservedSection() {
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter reserved words…" className="pl-9" />
         </div>
         <Button variant="outline" size="icon" onClick={load} aria-label="Refresh">
-          <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
         </Button>
         <Button onClick={() => setAdding(true)}>
           <Plus className="w-4 h-4 mr-1" />
@@ -983,7 +984,7 @@ function ExclusiveSection() {
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter exclusives…" className="pl-9" />
         </div>
         <Button variant="outline" size="icon" onClick={load} aria-label="Refresh">
-          <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+          {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
         </Button>
         <Button onClick={() => setAdding(true)}>
           <Plus className="w-4 h-4 mr-1" />
@@ -1192,7 +1193,7 @@ function PremiumSection() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={load} disabled={loading} aria-label="Refresh">
-            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+            {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
           </Button>
           <Button size="sm" onClick={() => setAdding(true)}>
             <Plus className="w-4 h-4 mr-1" />

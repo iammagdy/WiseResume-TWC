@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { captureWithRetry } from '@/lib/html2canvasRetry';
 import { toast } from 'sonner';
 import { StoreScreenshot } from '@/components/store/StoreScreenshot';
@@ -130,7 +131,7 @@ export default function StoreScreenshotsPage() {
           size="lg"
           className="rounded-full"
         >
-          {downloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+          {downloading ? <MiniSpinner size={16} className="mr-2" /> : <Download className="w-4 h-4 mr-2" />}
           Download All
         </Button>
       </div>

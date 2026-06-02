@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Mail, RotateCcw, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Mail, RotateCcw, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -313,7 +314,7 @@ export default function AuthVerifyEmailPage() {
                 >
                   {resending ? (
                     <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <MiniSpinner size={16} />
                       Sending…
                     </span>
                   ) : resendCooldown > 0 ? (
@@ -382,7 +383,7 @@ export default function AuthVerifyEmailPage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <Loader2 className="h-12 w-12 animate-spin text-red-400" />
+              <MiniSpinner size={48} className="text-red-400" />
               <div className="space-y-2">
                 <h1 className="text-xl font-semibold text-white">Verifying your email…</h1>
                 <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>

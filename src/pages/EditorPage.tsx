@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, Suspense } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import type { ImperativePanelGroupHandle } from 'react-resizable-panels';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { preloadLazy } from '@/lib/preloadLazy';
@@ -10,7 +11,7 @@ import {
   isValidEditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Loader2, Undo2, Redo2, FileDown, Palette, ChevronLeft, ChevronRight, Download, LayoutGrid, Star } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Undo2, Redo2, FileDown, Palette, ChevronLeft, ChevronRight, Download, LayoutGrid, Star } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -1434,7 +1435,7 @@ export default function EditorPage() {
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <Suspense fallback={
                     <div className="flex-1 flex flex-col items-center justify-center gap-2 h-full bg-muted/30">
-                      <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden />
+                      <MiniSpinner size={24} className="text-primary" />
                       <p className="text-sm text-muted-foreground">Loading preview…</p>
                     </div>
                   }>
@@ -1460,7 +1461,7 @@ export default function EditorPage() {
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <Suspense fallback={
                     <div className="flex-1 flex flex-col items-center justify-center gap-2 h-full bg-muted/30">
-                      <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden />
+                      <MiniSpinner size={24} className="text-primary" />
                       <p className="text-sm text-muted-foreground">Loading ATS view…</p>
                     </div>
                   }>
@@ -1525,7 +1526,7 @@ export default function EditorPage() {
               <div className="flex-1 min-h-0">
                 <Suspense fallback={
                   <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/30">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden />
+                    <MiniSpinner size={24} className="text-primary" />
                     <p className="text-sm text-muted-foreground">Loading preview…</p>
                   </div>
                 }>

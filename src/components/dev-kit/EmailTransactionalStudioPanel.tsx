@@ -9,7 +9,8 @@
  */
 
 import { useState } from 'react';
-import { CheckCircle, FlaskConical, Loader2, Send } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { CheckCircle, FlaskConical, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -238,7 +239,7 @@ export function EmailTransactionalStudioPanel() {
           className="flex items-center gap-2"
         >
           {sending ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />Sending…</>
+            <><MiniSpinner size={16} />Sending…</>
           ) : (
             <><Send className="w-4 h-4" />Send Test Email</>
           )}

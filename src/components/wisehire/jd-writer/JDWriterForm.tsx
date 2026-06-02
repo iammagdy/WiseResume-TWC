@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Sparkles, KeyRound, AlertCircle } from 'lucide-react';
+import { Sparkles, KeyRound, AlertCircle } from 'lucide-react';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import type { JDData } from './JDInlineEditor';
 import type { WiseHireRole } from '@/hooks/wisehire/useJDs';
@@ -125,7 +126,7 @@ export function JDWriterForm({ roles, onResult }: JDWriterFormProps) {
         className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold"
       >
         {loading ? (
-          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating JD…</>
+          <><MiniSpinner size={16} className="mr-2" /> Generating JD…</>
         ) : (
           <><Sparkles className="h-4 w-4 mr-2" /> Write JD with AI</>
         )}

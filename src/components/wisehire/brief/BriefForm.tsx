@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Sparkles, KeyRound, AlertCircle } from 'lucide-react';
+import { Sparkles, KeyRound, AlertCircle } from 'lucide-react';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import type { CandidateBrief } from '@/hooks/wisehire/useBriefs';
 import { useQueryClient } from '@tanstack/react-query';
@@ -137,7 +138,7 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
         className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold"
       >
         {loading ? (
-          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating brief…</>
+          <><MiniSpinner size={16} className="mr-2" /> Generating brief…</>
         ) : (
           <><Sparkles className="h-4 w-4 mr-2" /> Generate Brief</>
         )}

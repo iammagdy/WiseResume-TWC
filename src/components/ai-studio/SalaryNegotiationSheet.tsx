@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, Loader2, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { DollarSign, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -222,7 +223,7 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating script...</>
+                  <><MiniSpinner size={16} className="mr-2" />Generating script...</>
                 ) : (
                   <><DollarSign className="w-4 h-4 mr-2" />Generate Negotiation Script</>
                 )}

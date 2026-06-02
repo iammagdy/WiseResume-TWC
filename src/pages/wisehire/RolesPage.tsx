@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { useRoles, ROLE_STATUSES, type RoleWithStats } from '@/hooks/wisehire/useRoles';
 import { useClients } from '@/hooks/wisehire/useClients';
@@ -11,7 +12,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { Briefcase, Plus, Pencil, Trash2, Users, FileText, Building2, Loader2 } from 'lucide-react';
+import { Briefcase, Plus, Pencil, Trash2, Users, FileText, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
@@ -98,7 +99,7 @@ function EditDialog({ role, clients, open, onClose, onSave, isSaving }: EditDial
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+            {isSaving ? <MiniSpinner size={16} /> : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -164,7 +165,7 @@ function CreateDialog({ clients, open, onClose, onCreate, isCreating }: CreateDi
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleCreate} disabled={isCreating || !title.trim()}>
-            {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+            {isCreating ? <MiniSpinner size={16} /> : 'Create'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -390,7 +391,7 @@ export default function RolesPage() {
                       disabled={deleteRole.isPending}
                     >
                       {deleteRole.isPending
-                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ? <MiniSpinner size={14} />
                         : <Trash2 className="h-3.5 w-3.5" />}
                     </Button>
                   </div>

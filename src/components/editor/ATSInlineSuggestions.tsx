@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useEffect } from 'react';
-import { ChevronDown, ChevronUp, X, Zap, AlertTriangle, Info, Sparkles, Check, Loader2, FileText } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { ChevronDown, ChevronUp, X, Zap, AlertTriangle, Info, Sparkles, Check, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -112,7 +113,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
             {/* Stepped progress while analyzing */}
             {isAnalyzing && (
               <div className="flex items-center gap-2 rounded-lg px-2.5 py-2.5 bg-primary/5 border border-primary/10">
-                <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                <MiniSpinner size={16} className="text-primary shrink-0" />
                 <span className="text-xs text-primary font-medium">
                   {PROGRESS_STEPS[progressStep]}
                 </span>
@@ -216,7 +217,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                     disabled={isAnalyzing}
                   >
                     {isAnalyzing ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      <MiniSpinner size={14} className="mr-1.5" />
                     ) : (
                       <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                     )}

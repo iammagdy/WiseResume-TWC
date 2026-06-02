@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, AlertCircle, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, AlertCircle, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface CritiqueItem {
   category: string;
@@ -122,7 +123,7 @@ export function AICritiqueSheet({ open, onOpenChange, items, loading, onRunCriti
 
           {loading && (
             <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <MiniSpinner size={32} className="text-primary" />
               <p className="text-sm text-muted-foreground">Analyzing your portfolio…</p>
             </div>
           )}

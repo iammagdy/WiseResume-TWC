@@ -1,20 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  RefreshCw,
-  Flag,
-  Plus,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-  Save,
-  X,
-  Zap,
-  AlertTriangle,
-  ShieldAlert,
-  Rocket,
-  CheckCircle2,
-  Loader2,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { RefreshCw, Flag, Plus, Trash2, ChevronDown, ChevronUp, Save, X, Zap, AlertTriangle, ShieldAlert, Rocket, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -167,7 +153,7 @@ function AppWideSettingsSection() {
   if (loading) {
     return (
       <div className="flex items-center gap-3 py-6 text-muted-foreground text-sm">
-        <Loader2 className="w-4 h-4 animate-spin" />
+        <MiniSpinner size={16} />
         Loading app-wide settings…
       </div>
     );
@@ -221,7 +207,7 @@ function AppWideSettingsSection() {
                 disabled={confirmTyped !== 'OFFLINE' || toggling === 'maintenance_mode'}
                 className="flex-1 py-2 rounded-xl text-xs font-black uppercase bg-red-600 text-white disabled:opacity-30 transition-all"
               >
-                {toggling === 'maintenance_mode' ? <Loader2 size={13} className="animate-spin mx-auto" /> : 'Activate'}
+                {toggling === 'maintenance_mode' ? <MiniSpinner size={13} className="mx-auto" /> : 'Activate'}
               </button>
             </div>
           </div>
@@ -237,7 +223,7 @@ function AppWideSettingsSection() {
           >
             {toggling === 'maintenance_mode' ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 size={14} className="animate-spin" /> Saving…
+                <MiniSpinner size={14} /> Saving…
               </span>
             ) : (
               settings.maintenance_mode === 'true' ? 'Disable Maintenance' : 'Activate Maintenance'
@@ -734,7 +720,7 @@ export function FeatureFlagsPanel() {
                 className="flex-1 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-bold"
               >
                 {deleting === deleteConfirmName
-                  ? <Loader2 size={14} className="animate-spin mr-2" />
+                  ? <MiniSpinner size={14} className="mr-2" />
                   : <Trash2 size={14} className="mr-2" />}
                 Delete
               </Button>
@@ -800,7 +786,7 @@ export function FeatureFlagsPanel() {
               New flag
             </Button>
             <Button variant="outline" size="sm" onClick={fetchFlags} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
             </Button>
           </div>
         </div>

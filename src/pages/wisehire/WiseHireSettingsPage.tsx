@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,13 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertCircle,
-  Loader2,
-  Building2,
-  User,
-  Save,
-} from 'lucide-react';
+import { AlertCircle, Building2, User, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 const COMPANY_SIZES = [
@@ -138,7 +133,7 @@ function CompanyProfileSection() {
         disabled={saving || !name.trim()}
         className="bg-blue-700 hover:bg-blue-800 text-white"
       >
-        {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+        {saving ? <MiniSpinner size={16} className="mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
         Save profile
       </Button>
     </section>

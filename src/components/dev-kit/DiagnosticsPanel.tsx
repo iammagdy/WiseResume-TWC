@@ -1,18 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import type { ElementType } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  CircleDashed,
-  Clock,
-  Database,
-  KeyRound,
-  Loader2,
-  RefreshCw,
-  ServerCog,
-  ShieldCheck,
-  XCircle,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDashed, Clock, Database, KeyRound, RefreshCw, ServerCog, ShieldCheck, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { devKitCall, type DevKitError } from '@/lib/devkit/devKitClient';
 import { DevKitErrorCard } from './DevKitErrorCard';
@@ -118,7 +107,7 @@ export function DiagnosticsPanel() {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
         <div className="flex items-center gap-3 text-white/60">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm font-semibold">Running DevKit diagnostics</span>
         </div>
       </div>
@@ -154,7 +143,7 @@ export function DiagnosticsPanel() {
           <span className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400">{counts.broken} broken</span>
           <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-white/45">{counts.notConfigured} not configured</span>
           <Button variant="outline" size="sm" onClick={runDiagnostics} disabled={loading} className="rounded-xl">
-            <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
+            {loading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             Refresh
           </Button>
         </div>

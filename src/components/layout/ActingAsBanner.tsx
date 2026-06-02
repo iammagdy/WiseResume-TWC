@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { UserX, X, Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { UserX, X } from 'lucide-react';
 import { getImpersonationState, exitImpersonation, subscribe, isImpersonating, isNewTabSession } from '@/lib/impersonationStore';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
@@ -111,7 +112,7 @@ export function ActingAsBanner() {
           disabled={exiting}
           className="flex items-center gap-1.5 shrink-0 rounded-md bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60"
         >
-          {exiting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+          {exiting ? <MiniSpinner size={14} /> : <X className="w-3.5 h-3.5" />}
           Exit
         </button>
       )}

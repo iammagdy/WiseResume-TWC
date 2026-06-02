@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, AlertTriangle, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, Link as LinkIcon } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -486,7 +487,7 @@ export default function UploadPage() {
                       className="min-h-[44px] sm:min-w-[120px] shrink-0"
                       disabled={isProcessing || !urlInput.trim()}
                     >
-                      {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : 'Import'}
+                      {isProcessing ? <MiniSpinner size={16} /> : 'Import'}
                     </Button>
                   </div>
                   {urlError && (

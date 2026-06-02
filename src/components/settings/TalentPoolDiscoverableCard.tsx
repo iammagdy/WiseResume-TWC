@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Eye, EyeOff, Loader2, X } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMyTalentProfile, useUpsertTalentProfile } from '@/hooks/wisehire/useTalentPoolProfile';
 import { toast } from 'sonner';
@@ -207,7 +208,7 @@ export function TalentPoolDiscoverableCard() {
 
       {upsert.isPending && (
         <div className="flex items-center gap-2 px-4 pb-3 text-xs text-slate-400">
-          <Loader2 className="h-3 w-3 animate-spin" />
+          <MiniSpinner size={12} />
           Saving…
         </div>
       )}

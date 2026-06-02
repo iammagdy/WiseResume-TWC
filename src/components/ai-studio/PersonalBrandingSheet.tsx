@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Star, Loader2, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Star, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -198,7 +199,7 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
               </div>
               <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading || !currentResume}>
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</>
+                  <><MiniSpinner size={16} className="mr-2" />Generating...</>
                 ) : (
                   <><Star className="w-4 h-4 mr-2" />Generate My Brand Statement</>
                 )}
@@ -212,7 +213,7 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Your Brand Statements</h3>
                 <Button variant="ghost" size="sm" onClick={handleGenerate} disabled={isLoading} className="gap-1 text-xs">
-                  <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+                  {isLoading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
                   Regenerate
                 </Button>
               </div>

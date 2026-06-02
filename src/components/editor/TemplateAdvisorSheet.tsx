@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Loader2, Palette, Type, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Palette, Type, CheckCircle2 } from 'lucide-react';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
@@ -106,7 +107,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
                 size="lg"
               >
                 {loading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing your resume...</>
+                  <><MiniSpinner size={20} /> Analyzing your resume...</>
                 ) : (
                   <><Sparkles className="w-5 h-5" /> Get AI Recommendation</>
                 )}
@@ -182,7 +183,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
                     className="h-12 rounded-xl px-4"
                     disabled={loading}
                   >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Retry'}
+                    {loading ? <MiniSpinner size={16} /> : 'Retry'}
                   </Button>
                 </div>
               </motion.div>

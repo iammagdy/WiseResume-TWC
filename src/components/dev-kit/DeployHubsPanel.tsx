@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { AlertTriangle, CheckCircle2, XCircle, Loader2, Rocket, SkipForward } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { AlertTriangle, CheckCircle2, XCircle, Rocket, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
@@ -113,9 +114,9 @@ export function DeployHubsPanel() {
           className="w-full h-12 rounded-xl bg-blue-600 font-bold hover:bg-blue-500 disabled:opacity-60"
         >
           {state === 'deploying' ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deploying… this takes ~5 minutes</>
+            <><MiniSpinner size={16} className="mr-2" />Deploying… this takes ~5 minutes</>
           ) : statusLoading ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking deploy configuration</>
+            <><MiniSpinner size={16} className="mr-2" />Checking deploy configuration</>
           ) : !status?.ready ? (
             <><AlertTriangle className="mr-2 h-4 w-4" />Deploy Hubs disabled</>
           ) : (

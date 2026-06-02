@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Rocket, Brain, MessageSquare, Target, Users, Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Sparkles, Rocket, Brain, MessageSquare, Target, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { RoleAnalysis } from '@/hooks/useVoiceInterview';
 
@@ -34,7 +35,7 @@ export function InterviewPreview({ roleAnalysis, isLoading, onReady }: Interview
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div className="absolute inset-3 rounded-full bg-card border border-primary/30 flex items-center justify-center">
-            <Loader2 className="w-7 h-7 text-primary animate-spin" />
+            <MiniSpinner size={28} className="text-primary" />
           </div>
         </div>
         <div className="space-y-2">

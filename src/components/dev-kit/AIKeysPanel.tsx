@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  KeyRound, RefreshCw, Loader2, AlertTriangle, CheckCircle2,
-  XCircle, Save, ChevronDown,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { KeyRound, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Save, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
@@ -213,7 +211,7 @@ export function AIKeysPanel() {
             onClick={() => load(true)} disabled={loading}
             className="h-8 gap-1.5 text-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
             Refresh
           </Button>
         </div>
@@ -221,7 +219,7 @@ export function AIKeysPanel() {
 
       {loading && (
         <div className="flex items-center gap-2 py-8 text-muted-foreground text-sm justify-center">
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <MiniSpinner size={16} />
           <span>Loading key slots…</span>
         </div>
       )}
@@ -342,7 +340,7 @@ export function AIKeysPanel() {
                             className={`h-6 px-2.5 text-[9px] font-bold flex-1 border rounded-lg transition-all ${PROVIDER_SAVE_BTN[provider]} ${(!dirty || !draft.trim()) ? 'opacity-40 cursor-not-allowed' : ''}`}
                           >
                             {isSaving ? (
-                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                              <MiniSpinner size={10} />
                             ) : (
                               <><Save className="w-2.5 h-2.5" /> Save</>
                             )}

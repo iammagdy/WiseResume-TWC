@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  BrainCircuit, KeyRound, Route, RefreshCw, Loader2,
-  CheckCircle2, XCircle, BarChart3, Activity, Clock,
-} from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { BrainCircuit, KeyRound, Route, RefreshCw, CheckCircle2, XCircle, BarChart3, Activity, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { devKitCall, type DevKitError } from '@/lib/devkit/devKitClient';
 import { DevKitErrorCard } from './DevKitErrorCard';
@@ -117,7 +115,7 @@ function AIOverviewTab() {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
         <div className="flex items-center gap-3 text-white/60">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm font-semibold">Loading AI Overview…</span>
         </div>
       </div>
@@ -147,7 +145,7 @@ function AIOverviewTab() {
           disabled={mcLoading || actLoading}
           className="rounded-xl"
         >
-          <RefreshCw className={cn('mr-2 h-3.5 w-3.5', (mcLoading || actLoading) && 'animate-spin')} />
+          {(mcLoading || actLoading) ? <MiniSpinner size={14} className="mr-2" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
           Refresh
         </Button>
       </div>

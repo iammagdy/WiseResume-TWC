@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, X, Loader2, Copy, Check } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, X, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { captureError, getLastSentryEventId } from '@/lib/captureErrorShim';
 import { sendFeedback } from '@/lib/sendFeedback';
@@ -473,7 +474,7 @@ export class ErrorBoundary extends Component<Props, State> {
                         className="flex-1"
                       >
                         {this.state.reportStatus === 'sending' ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <MiniSpinner size={16} className="mr-2" />
                         ) : (
                           <Send className="w-4 h-4 mr-2" />
                         )}

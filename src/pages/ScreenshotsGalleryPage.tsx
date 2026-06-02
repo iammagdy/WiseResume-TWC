@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, ArrowLeft, ImageDown } from 'lucide-react';
+import { Download, ArrowLeft, ImageDown } from 'lucide-react';
 import { captureWithRetry } from '@/lib/html2canvasRetry';
 import { toast } from 'sonner';
 import { StoreScreenshot } from '@/components/store/StoreScreenshot';
@@ -85,7 +86,7 @@ export default function ScreenshotsGalleryPage() {
             </div>
           </div>
           <Button onClick={downloadAll} disabled={downloading} size="sm" className="rounded-full">
-            {downloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            {downloading ? <MiniSpinner size={16} className="mr-2" /> : <Download className="w-4 h-4 mr-2" />}
             Capture All
           </Button>
         </div>
@@ -120,7 +121,7 @@ export default function ScreenshotsGalleryPage() {
               {/* Hover overlay */}
               <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
                 {capturingId === ss.id ? (
-                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  <MiniSpinner size={24} className="text-white" />
                 ) : (
                   <ImageDown className="w-6 h-6 text-white" />
                 )}

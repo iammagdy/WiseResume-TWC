@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge, RotateCcw, Activity, Filter, CalendarDays, Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge, RotateCcw, Activity, Filter, CalendarDays } from 'lucide-react';
 import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1007,7 +1008,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
 
                 {activityLoading && (
                   <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <MiniSpinner size={16} />
                     <span className="text-sm">Loading activity…</span>
                   </div>
                 )}

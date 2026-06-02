@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate, Link } from 'react-router-dom';
 import { databases, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
@@ -16,16 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Building2,
-  ChevronRight,
-  ChevronLeft,
-  Zap,
-  CheckCircle2,
-  Loader2,
-  KeyRound,
-  Briefcase,
-} from 'lucide-react';
+import { Building2, ChevronRight, ChevronLeft, Zap, CheckCircle2, KeyRound, Briefcase } from 'lucide-react';
 
 const DRAFT_KEY = 'wisehire_onboarding_draft';
 const TOTAL_STEPS = 5;
@@ -543,7 +535,7 @@ function StepReady({
         >
           {submitting ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <MiniSpinner size={16} className="mr-2" />
               Saving…
             </>
           ) : (

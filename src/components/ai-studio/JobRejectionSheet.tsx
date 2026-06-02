@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { XCircle, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { XCircle, RefreshCw, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -145,7 +146,7 @@ export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analyzing...</>
+                  <><MiniSpinner size={16} className="mr-2" />Analyzing...</>
                 ) : (
                   <><XCircle className="w-4 h-4 mr-2" />Analyze Rejection</>
                 )}

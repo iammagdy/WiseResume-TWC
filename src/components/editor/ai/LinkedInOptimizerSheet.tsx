@@ -1,18 +1,7 @@
 import { useState, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Linkedin, 
-  Loader2,
-  Copy,
-  Check,
-  Briefcase,
-  User,
-  Hash,
-  Lightbulb,
-  Globe,
-  FileDown,
-  ClipboardList,
-} from 'lucide-react';
+import { Linkedin, Copy, Check, Briefcase, User, Hash, Lightbulb, Globe, FileDown, ClipboardList } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -554,7 +543,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
               disabled={isLoading || !currentResume}
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <MiniSpinner size={16} className="mr-2" />
               ) : (
                 <Linkedin className="w-4 h-4 mr-2" />
               )}
@@ -565,7 +554,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
               <div className="grid grid-cols-2 gap-2">
                 <Button onClick={handleDownloadDocx} disabled={isDownloading}>
                   {isDownloading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <MiniSpinner size={16} className="mr-2" />
                   ) : (
                     <FileDown className="w-4 h-4 mr-2" />
                   )}

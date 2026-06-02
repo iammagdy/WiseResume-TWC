@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { History, X, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { History, X, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePortfolioHistory, type PortfolioHistoryRecord } from '@/hooks/usePortfolioHistory';
 import { formatDistanceToNow } from 'date-fns';
@@ -52,7 +53,7 @@ export function PortfolioHistorySheet({ open, onOpenChange, userId, onRestore, i
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {loading ? (
               <div className="py-10 flex flex-col items-center justify-center text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                <MiniSpinner size={24} className="mb-2" />
                 <p className="text-sm">Loading history...</p>
               </div>
             ) : history.length === 0 ? (
@@ -109,7 +110,7 @@ export function PortfolioHistorySheet({ open, onOpenChange, userId, onRestore, i
                         disabled={isRestoring || isLatest}
                         className="text-xs h-8 px-3 shrink-0"
                       >
-                        {isRestoring ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : (
+                        {isRestoring ? <MiniSpinner size={12} className="mr-1.5" /> : (
                           isLatest ? <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> : <History className="w-3.5 h-3.5 mr-1.5" />
                         )}
                         {isLatest ? 'Current' : 'Restore'}

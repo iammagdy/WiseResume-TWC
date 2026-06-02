@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save, Copy, CheckCheck, Loader2 } from 'lucide-react';
+import { Save, Copy, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface JDData {
@@ -141,7 +142,7 @@ export function JDInlineEditor({ jd: initialJD, onSave, isSaving }: JDInlineEdit
             disabled={isSaving}
             className="bg-blue-700 hover:bg-blue-800 text-white"
           >
-            {isSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+            {isSaving ? <MiniSpinner size={16} className="mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
             Save JD
           </Button>
         )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   BrainCircuit, Save, RefreshCw, AlertTriangle, FileEdit,
   Target, MessageSquare, FileText, Globe, ChevronDown, ChevronUp,
@@ -577,7 +578,7 @@ export const AIRoutingSwitcher = () => {
                 className="rounded-2xl h-11 px-5 font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
               >
                 {applyingSmartDefaults
-                  ? <RefreshCw className="animate-spin mr-2" size={16} />
+                  ? <MiniSpinner size={16} className="mr-2" />
                   : <Sparkles className="mr-2" size={16} />}
                 Smart Defaults
               </Button>
@@ -591,7 +592,7 @@ export const AIRoutingSwitcher = () => {
             disabled={saving}
             className="bg-purple-600 hover:bg-purple-500 text-white rounded-2xl h-11 px-7 font-bold shadow-lg shadow-purple-500/20"
           >
-            {saving ? <RefreshCw className="animate-spin mr-2" size={16} /> : <Save className="mr-2" size={16} />}
+            {saving ? <MiniSpinner size={16} className="mr-2" /> : <Save className="mr-2" size={16} />}
             Save All
           </Button>
         </div>

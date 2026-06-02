@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen, ArrowLeft, Download, Link2, BookmarkPlus, Loader2 } from 'lucide-react';
+import { RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen, ArrowLeft, Download, Link2, BookmarkPlus } from 'lucide-react';
 import { InterviewResultsCardSheet } from './InterviewResultsCardSheet';
 import { SaveAnswerDialog } from './SaveAnswerDialog';
 import ReactMarkdown from 'react-markdown';
@@ -344,7 +345,7 @@ export function InterviewSummary({
           disabled={createToken.isPending}
         >
           {createToken.isPending ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <MiniSpinner size={16} className="mr-2" />
           ) : (
             <Link2 className="w-4 h-4 mr-2" />
           )}

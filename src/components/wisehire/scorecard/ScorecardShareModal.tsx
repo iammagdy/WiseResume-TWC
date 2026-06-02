@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Copy, ExternalLink, RefreshCw, AlertTriangle, Check } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -90,7 +91,7 @@ export function ScorecardShareModal({
                     disabled={isRevoking}
                     className="gap-2"
                   >
-                    <RefreshCw className={`h-3 w-3 ${isRevoking ? 'animate-spin' : ''}`} />
+                    {isRevoking ? <MiniSpinner size={12} /> : <RefreshCw className="h-3 w-3" />}
                     Confirm Revoke
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setConfirmRevoke(false)}>

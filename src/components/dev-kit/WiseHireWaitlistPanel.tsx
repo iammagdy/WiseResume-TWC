@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Briefcase, UserPlus, Clock, Loader2, X, AlertTriangle } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Briefcase, UserPlus, Clock, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { devKitCall } from '@/lib/devkit/devKitClient';
@@ -108,7 +109,7 @@ export const WiseHireWaitlistPanel = ({ onBadgeClear }: Props) => {
     return (
       <div className="flex min-h-[200px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
         <div className="flex items-center gap-3 text-white/60">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm font-semibold">Loading waitlist…</span>
         </div>
       </div>
@@ -209,7 +210,7 @@ export const WiseHireWaitlistPanel = ({ onBadgeClear }: Props) => {
               className="rounded-2xl h-10 px-4 border-white/10 bg-white/5 text-white/50 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 font-bold uppercase italic disabled:opacity-30"
             >
               {dismissingIds.has(e.$id)
-                ? <Loader2 size={14} className="mr-1.5 animate-spin" />
+                ? <MiniSpinner size={14} className="mr-1.5" />
                 : <X size={14} className="mr-1.5" />
               }
               {dismissingIds.has(e.$id) ? 'Dismissing…' : 'Dismiss'}
@@ -220,7 +221,7 @@ export const WiseHireWaitlistPanel = ({ onBadgeClear }: Props) => {
               className="rounded-2xl h-10 px-6 bg-white text-black hover:bg-white/90 font-bold uppercase italic disabled:opacity-50"
             >
               {approvingIds.has(e.$id)
-                ? <Loader2 size={16} className="mr-2 animate-spin" />
+                ? <MiniSpinner size={16} className="mr-2" />
                 : <UserPlus size={16} className="mr-2" />
               }
               {approvingIds.has(e.$id) ? 'Approving…' : 'Grant Access'}

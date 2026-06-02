@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Database, Search, Clock, Layout, User, Loader2, RefreshCw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Database, Search, Clock, Layout, User, RefreshCw } from 'lucide-react';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
@@ -70,7 +71,7 @@ export const DatabaseXRay = () => {
           disabled={loading}
           className="rounded-xl border-white/10 bg-white/5 h-8 w-8"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? <MiniSpinner size={14} /> : <RefreshCw className="h-3.5 w-3.5" />}
         </Button>
       </div>
 
@@ -86,7 +87,7 @@ export const DatabaseXRay = () => {
 
       {loading && (
         <div className="flex items-center justify-center py-12 gap-3 text-white/40">
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm">Loading resumes…</span>
         </div>
       )}

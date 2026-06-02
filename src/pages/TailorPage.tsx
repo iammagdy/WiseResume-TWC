@@ -1,12 +1,8 @@
 import { useState, useMemo, useCallback, useRef, useEffect, Fragment, type ReactNode } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Wand2, Loader2, CheckCircle, Sparkles, Zap, Gauge, Flame,
-  Settings, RefreshCw, Copy, Check, ExternalLink, ChevronDown, ChevronUp,
-  Key, HeartHandshake, Bug, X, Briefcase, Eye, Globe, TrendingUp,
-  Shield, AlertTriangle,
-} from 'lucide-react';
+import { Wand2, CheckCircle, Sparkles, Zap, Gauge, Flame, Settings, RefreshCw, Copy, Check, ExternalLink, ChevronDown, ChevronUp, Key, HeartHandshake, Bug, X, Briefcase, Eye, Globe, TrendingUp, Shield, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -1046,7 +1042,7 @@ export default function TailorPage() {
                       disabled={isTailoring || !hasJobForFlow || !hasResumeForFlow}
                     >
                       {isTailoring ? (
-                        <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Optimizing…</>
+                        <><MiniSpinner size={20} className="mr-2" />Optimizing…</>
                       ) : (
                         <><Wand2 className="w-5 h-5 mr-2" />Run optimizer</>
                       )}
@@ -1141,7 +1137,7 @@ function SectionRevealWrapper({ revealed, title, children }: { revealed: boolean
     <div className="rounded-xl border-2 border-l-4 border-primary/20 border-l-primary/40 bg-primary/5 p-4 animate-pulse">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin text-primary/60" />
+          <MiniSpinner size={16} className="text-primary/60" />
           <span className="text-sm font-medium text-muted-foreground">{title}</span>
         </div>
         <div className="h-5 rounded w-12 bg-primary/20" />
@@ -1543,7 +1539,7 @@ function ResultsPanel({
                   <div className="flex items-center gap-2">
                     <div className={cn('w-4 h-4 rounded', sectionsReady[s] ? 'bg-primary/30' : 'bg-muted-foreground/20')} />
                     <div className={cn('h-3 rounded w-24', sectionsReady[s] ? 'bg-primary/30' : 'bg-muted-foreground/20')} />
-                    {sectionsReady[s] && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+                    {sectionsReady[s] && <MiniSpinner size={12} className="text-primary" />}
                   </div>
                   <div className={cn('h-5 rounded w-12', sectionsReady[s] ? 'bg-primary/20' : 'bg-muted-foreground/10')} />
                 </div>
@@ -1826,7 +1822,7 @@ function ResultsPanel({
                 <h4 className="font-semibold text-sm flex-1">Validator Check</h4>
                 {isPreValidating && !preValidatorResult && (
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <MiniSpinner size={14} />
                     Checking…
                   </span>
                 )}
@@ -1880,7 +1876,7 @@ function ResultsPanel({
                         <Sparkles className="w-3.5 h-3.5 text-primary" />
                         AI suggestions to improve your match
                         {isGeneratingFixes && (
-                          <Loader2 className="w-3 h-3 animate-spin ml-1 text-muted-foreground" />
+                          <MiniSpinner size={12} className="ml-1 text-muted-foreground" />
                         )}
                       </p>
                       {!isGeneratingFixes && fixSuggestions !== null && fixSuggestions.length === 0 && (
@@ -1953,7 +1949,7 @@ function ResultsPanel({
                 disabled={enabledSections.length === 0 || isApplying}
               >
                 {isApplying ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <MiniSpinner size={16} className="mr-2" />
                 ) : (
                   <CheckCircle className="w-4 h-4 mr-2" />
                 )}

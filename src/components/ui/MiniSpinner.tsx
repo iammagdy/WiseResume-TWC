@@ -1,33 +1,19 @@
-import { cn } from '@/lib/utils';
+import WiseLogoLoader, { type WiseLoaderVariant } from '@/components/loader/WiseLogoLoader';
 
 interface MiniSpinnerProps {
+  /** rendered size in px. Default 16. Small sizes render the compact brand ring. */
   size?: number;
   className?: string;
+  /** brand styling. Omit to auto-detect from the current route. */
+  variant?: WiseLoaderVariant;
 }
 
-export function MiniSpinner({ size = 16, className }: MiniSpinnerProps) {
-  const borderWidth = Math.max(1.5, size * 0.12);
-  
-  return (
-    <span
-      className={cn('inline-flex items-center justify-center relative', className)}
-      style={{ width: size, height: size }}
-      role="status"
-      aria-label="Loading"
-    >
-      <span
-        className="absolute inset-0 rounded-full"
-        style={{
-          border: `${borderWidth}px solid hsl(var(--muted))`,
-          borderTopColor: 'hsl(var(--primary))',
-          animation: 'mini-spin-cw 0.7s linear infinite',
-        }}
-      />
-      <style>{`
-        @keyframes mini-spin-cw {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </span>
-  );
+/**
+ * Inline loading indicator. Thin wrapper over {@link WiseLogoLoader} so every
+ * button/icon spinner shares the single brand-aware loading visual. At these
+ * small sizes the loader renders its compact ring (brand-coloured), which keeps
+ * buttons clean and avoids pulling the heavy logo PNGs into tiny slots.
+ */
+export function MiniSpinner({ size = 16, className, variant }: MiniSpinnerProps) {
+  return <WiseLogoLoader size={size} variant={variant} className={className} />;
 }

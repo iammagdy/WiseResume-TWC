@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowLeft, ArrowRight, Sparkles, Target, Briefcase, BookOpen,
-  Linkedin, ChevronRight, Pencil, Upload, FileText, Loader2, Check,
-  Wand2, Copy, Link2, AlertCircle,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Target, Briefcase, BookOpen, Linkedin, ChevronRight, Pencil, Upload, FileText, Check, Wand2, Copy, Link2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppIcon } from '@/components/brand/AppIcon';
@@ -802,7 +799,7 @@ function CvStep({
         <div className="rounded-[14px] bg-card px-6 py-12 flex flex-col items-center justify-center text-center">
           {processing ? (
             <>
-              <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+              <MiniSpinner size={48} className="text-primary mb-4" />
               <p className="font-semibold text-foreground">Reading your CV…</p>
               <p className="text-xs text-muted-foreground mt-1">This usually takes a few seconds.</p>
             </>
@@ -917,7 +914,7 @@ function LinkedInStep({
               className="w-full h-11 rounded-xl"
             >
               {urlProcessing ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Fetching…</>
+                <><MiniSpinner size={16} className="mr-2" /> Fetching…</>
               ) : (
                 <>Continue with URL <ArrowRight className="w-4 h-4 ml-1.5" /></>
               )}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Ticket, Plus, Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Ticket, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -81,14 +82,14 @@ export const CouponsPanel = () => {
           disabled={adding || !newCode.trim()}
           className="rounded-xl h-11 px-8 bg-blue-600 hover:bg-blue-500 font-bold uppercase italic shrink-0"
         >
-          {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus size={18} className="mr-2" />}
+          {adding ? <MiniSpinner size={16} /> : <Plus size={18} className="mr-2" />}
           {adding ? 'Adding…' : 'Generate'}
         </Button>
       </div>
 
       {loading && (
         <div className="flex items-center justify-center py-12 gap-3 text-white/40">
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <MiniSpinner size={20} />
           <span className="text-sm">Loading discount codes…</span>
         </div>
       )}
