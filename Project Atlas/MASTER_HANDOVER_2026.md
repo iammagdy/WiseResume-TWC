@@ -189,6 +189,7 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 - In this checkout, `src/hooks/useIsAdmin.ts` and `src/components/layout/AdminRoute.tsx` did not exist, `AppWorkspaceLayout` never computed admin status, the sidebars did not receive `onAdminPanel`, and `DashboardWorkspaceProfileDialog` did not render an Admin Panel action.
 - Direct `/devkit` access was not blocked by the same email-comparison bug because there was no admin route wrapper mounted around it.
 - Follow-up deployment failure verified locally with `npm run build`: Vite/esbuild failed because `src/components/layout/AppWorkspaceSidebar.tsx` destructured `onAdminPanel` twice after the rebase overlap with upstream admin-menu work.
+- Follow-up UI/auth mismatch verified in code: `appwrite-hubs/admin-devkit-data/src/main.js` already issues DevKit sessions by validating the Appwrite JWT and comparing `Account.get().email` to `ADMIN_EMAIL`, but `src/pages/DevToolsPage.tsx` still rendered the old password/access-key form and called `devKitLogin(password)`. `src/components/landing/LandingHeader.tsx` also lacked an admin-only dropdown item.
 
 ### Code Fixes Applied
 | File | Fix |
@@ -200,10 +201,14 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 | `src/components/layout/AppMobileSidebarSheet.tsx` | Includes `onAdminPanel` in the mobile sidebar props. |
 | `src/components/dashboard/DashboardWorkspaceProfileDialog.tsx` | Renders the Admin Panel menu item when `onAdminPanel` is present. |
 | `src/AppInterior.tsx` | Wraps `/devkit` in `ProtectedRoute` + `AdminRoute`. |
+| `src/pages/DevToolsPage.tsx` | Removed the password/access-key form; page now auto-requests the server-issued DevKit session using the signed-in Appwrite admin email and shows that email while verifying. |
+| `src/components/landing/LandingHeader.tsx` | Added an Admin Panel item to the landing-page avatar dropdown, gated by `useIsAdmin()`. |
+| `src/lib/appwrite-functions.ts` | Updated stale unauthorized DevKit copy to reference signing in with the admin email instead of re-entering a password. |
 
 ### Verification Status
 - `npx tsc --noEmit` — zero errors.
 - `npm run build` — passed after removing the duplicate `onAdminPanel` binding.
+- `npm run build` — passed after the passwordless DevKit/landing-dropdown update.
 
 ### Deployment Notes
 - Frontend-only change. Takes effect on the next frontend deployment.

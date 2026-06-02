@@ -17,16 +17,21 @@
 - `useAuth()` returns a normalized `AppUser` from Appwrite with `id`, `email`, `name`, and `emailVerification`; the Appwrite email is at `appwriteUser.email`.
 - In the current checkout, the admin access chain was missing from the workspace shell: `AppWorkspaceLayout` did not evaluate admin status or pass `onAdminPanel`, `DashboardWorkspaceProfileDialog` did not accept/render `onAdminPanel`, and `/devkit` was mounted without an admin route wrapper.
 - Follow-up deployment failure: Vite/esbuild rejected a duplicate `onAdminPanel` binding left in `AppWorkspaceSidebar.tsx` after rebasing over upstream admin-menu work.
+- Follow-up UI/auth mismatch: `admin-devkit-data` already verifies the signed-in Appwrite JWT email, but `DevToolsPage` still rendered the obsolete DevKit access-key/password form and called `devKitLogin(password)`. The landing-page avatar dropdown also did not include the admin-only panel entry.
 
 ### Fix
 - Added `src/hooks/useIsAdmin.ts` with the unchanged admin email value and an auth-settled comparison against `user.email`.
 - Added `src/components/layout/AdminRoute.tsx` so direct `/devkit` navigation waits for hydrated auth before allowing only the admin email through.
 - Wired `onAdminPanel` through `AppWorkspaceLayout`, desktop/mobile workspace sidebars, and `DashboardWorkspaceProfileDialog`.
 - Removed the duplicate `onAdminPanel` destructuring in `AppWorkspaceSidebar.tsx` so the production Vite build can complete.
+- Removed the DevKit password/access-key form. `/devkit` now auto-requests the server-issued DevKit session from the signed-in Appwrite admin email and displays the verified email while loading.
+- Added the Admin Panel item to the landing-page avatar dropdown, gated by the same `useIsAdmin()` hydrated email check.
+- Updated stale admin-function error copy so expired/unauthorized DevKit sessions tell the user to sign in with the admin email account instead of mentioning a password.
 
 ### Verification
 - `npx tsc --noEmit` — zero errors.
 - `npm run build` — passed after the duplicate binding fix.
+- `npm run build` — passed after the passwordless DevKit/landing-dropdown update.
 
 ---
 

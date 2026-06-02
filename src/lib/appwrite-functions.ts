@@ -117,7 +117,7 @@ function classifyHttpError(fnName: string, statusCode: number, parsed: unknown):
   if (statusCode === 402) return 'AI credits exhausted. Please check your account.';
   if (statusCode === 401 || statusCode === 403) {
     return isAdminFunction(fnName)
-      ? 'DevKit session unauthorized or expired - re-enter the DevKit password.'
+      ? 'DevKit session unauthorized or expired - sign in with the admin email account.'
       : 'Appwrite session expired - please sign in again.';
   }
   if (statusCode === 404) return isAdminFunction(fnName)

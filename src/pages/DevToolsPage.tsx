@@ -1,17 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database, Fingerprint, Flag, History, Home, LayoutDashboard, Link2, Lock, Mail, Menu, Play, Search, ServerCog, ShieldCheck, Ticket, TrendingUp, Users, Wrench, X } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database, Flag, History, Home, LayoutDashboard, Link2, Lock, Mail, Menu, Play, Search, ServerCog, ShieldCheck, Ticket, TrendingUp, Users, Wrench, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import {
-  DevKitSessionProvider, useDevKitSession, loadRememberedToken,
-  isBiometricAvailable, hasBiometricCredential, registerBiometricCredential,
-  verifyBiometricCredential,
-} from '@/contexts/DevKitSessionContext';
+import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { devKitLogin, devKitCall } from '@/lib/devkit/devKitClient';
+import { useAuth } from '@/hooks/useAuth';
 import { DevKitPanelBoundary } from '@/components/dev-kit/DevKitPanelBoundary';
 import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
@@ -118,20 +115,53 @@ export default function DevToolsPage() {
 
 function DevToolsInner() {
   const navigate = useNavigate();
-  const { isUnlocked, unlock, lock, hasRememberedSession, secondsUntilLock } = useDevKitSession();
+  const { user } = useAuth();
+  const { isUnlocked, unlock, lock, secondsUntilLock } = useDevKitSession();
   const [activePanel, setActivePanel] = useState('home');
-  const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [biometricReady, setBiometricReady] = useState(false);
-  const [hasCred, setHasCred] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
   const [cmdKOpen, setCmdKOpen] = useState(false);
   const [cmdKQuery, setCmdKQuery] = useState('');
   const [cmdKIndex, setCmdKIndex] = useState(0);
+  const loginAttemptedRef = useRef(false);
 
-  useEffect(() => { isBiometricAvailable().then(ok => { setBiometricReady(ok); setHasCred(hasBiometricCredential()); }); }, []);
-  useEffect(() => { if (!isUnlocked) setHasCred(hasBiometricCredential()); }, [isUnlocked]);
+  const requestAdminSession = useCallback(async (force = false) => {
+    if (isVerifying || (!force && loginAttemptedRef.current)) return;
+    loginAttemptedRef.current = true;
+    setIsVerifying(true);
+    setUnlockError(null);
+    try {
+      const result = await devKitLogin();
+      if (!result.success) {
+        const message = result.code === 'CONFIG_MISSING'
+          ? 'DevKit auth is not configured on Appwrite.'
+          : 'Access denied. Sign in with the admin email account.';
+        setUnlockError(message);
+        toast.error(message);
+        return;
+      }
+      const email = result.session.email ?? user?.email ?? 'admin@thewise.cloud';
+      unlock(result.session.token, {
+        rememberMe: true,
+        expiresAt: new Date(result.session.expiresAt).getTime(),
+        email,
+      });
+      toast.success(`Admin session issued for ${email}.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'DevKit login failed.';
+      setUnlockError(message);
+      toast.error(message);
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [isVerifying, unlock, user?.email]);
+
+  useEffect(() => {
+    if (isUnlocked) return;
+    void requestAdminSession();
+  }, [isUnlocked, requestAdminSession]);
 
   // Cmd+K / Ctrl+K global shortcut
   useEffect(() => {
@@ -160,37 +190,6 @@ function DevToolsInner() {
       })
       .catch(() => {});
   }, [isUnlocked]);
-
-  const handlePasswordLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isVerifying) return;
-    setIsVerifying(true);
-    try {
-      const result = await devKitLogin(password);
-      if (!result.success) { toast.error(result.code === 'CONFIG_MISSING' ? 'DevKit auth is not configured on Appwrite.' : 'Access denied.'); return; }
-      unlock(result.session.token, { rememberMe: true, expiresAt: new Date(result.session.expiresAt).getTime(), email: result.session.email ?? 'admin@thewise.cloud' });
-      setPassword('');
-      toast.success('Access granted. DevKit session issued by Appwrite.');
-      if (biometricReady && !hasBiometricCredential() && await registerBiometricCredential()) {
-        setHasCred(true);
-        toast.success('Biometric shortcut registered for this device.', { duration: 4000 });
-      }
-    } catch (err) { toast.error(err instanceof Error ? err.message : 'DevKit login failed.'); }
-    finally { setIsVerifying(false); }
-  };
-
-  const handleBiometricLogin = async () => {
-    if (isVerifying) return;
-    setIsVerifying(true);
-    try {
-      if (!await verifyBiometricCredential()) { toast.error('Biometric verification failed or was cancelled.'); return; }
-      const remembered = loadRememberedToken();
-      if (!remembered) { toast.error('DevKit session expired. Please enter your password.'); return; }
-      unlock(remembered.token);
-      toast.success('Biometric access granted.');
-    } catch { toast.error('Biometric error. Please use your password instead.'); }
-    finally { setIsVerifying(false); }
-  };
 
   const navigatePanel = (id: string) => {
     const aliases: Record<string, string> = {
@@ -235,26 +234,52 @@ function DevToolsInner() {
     }
   };
 
-  const canUseBiometric = biometricReady && hasCred && hasRememberedSession;
   if (!isUnlocked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black p-6">
-        <div className="w-full max-w-md space-y-8">
+        <div className="w-full max-w-md space-y-8 text-center">
           <div className="space-y-2 text-center">
-            {canUseBiometric ? (
-              <button type="button" onClick={handleBiometricLogin} disabled={isVerifying} className="mb-4 inline-flex rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4 transition-all hover:bg-blue-500/20 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/50" aria-label="Unlock with biometrics">
-                {isVerifying ? <MiniSpinner size={40} className="text-blue-500" /> : <Fingerprint className="h-10 w-10 text-blue-500" />}
-              </button>
-            ) : <div className="mb-4 inline-flex rounded-3xl border border-white/10 bg-white/5 p-4"><Lock className="h-10 w-10 text-white/30" /></div>}
+            <div className="mb-4 inline-flex rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4">
+              {isVerifying ? <MiniSpinner size={40} className="text-blue-500" /> : <ShieldCheck className="h-10 w-10 text-blue-500" />}
+            </div>
             <h1 className="text-3xl font-black tracking-tight text-white">DEV-KIT 2026</h1>
-            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Server-issued admin session required</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              Verifying Appwrite admin session
+            </p>
+            {user?.email && (
+              <p className="text-sm text-white/45">
+                Signed in as <span className="font-mono text-blue-300">{user.email}</span>
+              </p>
+            )}
           </div>
-          {canUseBiometric && <button type="button" onClick={handleBiometricLogin} disabled={isVerifying} className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-blue-500/30 bg-blue-500/10 text-sm font-bold text-blue-400 transition-all hover:bg-blue-500/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50">{isVerifying ? <MiniSpinner size={20} /> : <Fingerprint className="h-5 w-5" />}{isVerifying ? 'Verifying...' : 'Unlock with Face ID / Touch ID / PIN'}</button>}
-          <form onSubmit={handlePasswordLogin} className="space-y-4">
-            {canUseBiometric && <div className="flex items-center gap-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[10px] uppercase tracking-widest text-white/30">or password</span><div className="h-px flex-1 bg-white/10" /></div>}
-            <div className="group relative"><Lock className="absolute left-4 top-4 h-5 w-5 text-white/20 transition-colors group-focus-within:text-blue-500" /><input type="password" placeholder="DevKit access key" className="h-14 w-full rounded-2xl border border-white/10 bg-white/5 pl-12 pr-4 font-mono text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50" value={password} onChange={e => setPassword(e.target.value)} autoFocus={!canUseBiometric} /></div>
-            <Button type="submit" disabled={isVerifying || !password.trim()} className="h-14 w-full rounded-2xl bg-blue-600 text-lg font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500">{isVerifying ? <MiniSpinner size={20} className="mr-2" /> : null}Issue DevKit Session</Button>
-          </form>
+          {unlockError ? (
+            <div className="space-y-3">
+              <p className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {unlockError}
+              </p>
+              <Button
+                type="button"
+                onClick={() => void requestAdminSession(true)}
+                disabled={isVerifying}
+                className="h-12 w-full rounded-2xl bg-blue-600 text-sm font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500"
+              >
+                {isVerifying ? <MiniSpinner size={18} className="mr-2" /> : null}
+                Retry admin verification
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => navigate('/dashboard')}
+                className="h-12 w-full rounded-2xl text-white/65 hover:bg-white/10 hover:text-white"
+              >
+                Back to dashboard
+              </Button>
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/45">
+              No password is required. Access is granted only when the signed-in Appwrite email matches the admin account.
+            </p>
+          )}
         </div>
       </div>
     );

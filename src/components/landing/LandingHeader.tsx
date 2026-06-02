@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import {
-  LayoutDashboard, Settings, LogOut, Sun, Moon, Menu, Tag, Zap, User,
+  LayoutDashboard, Settings, LogOut, Sun, Moon, Menu, Tag, Zap, User, ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import {
 import triggerHaptic from '@/lib/haptics';
 import { LandingToggle } from '@/components/landing/LandingToggle';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface LandingHeaderProps {
   mode: 'jobseeker' | 'wisehire';
@@ -36,6 +37,7 @@ export function LandingHeader({
 }: LandingHeaderProps) {
   const navigate = useNavigate();
   const { authAvailable } = useAuth();
+  const isAdmin = useIsAdmin();
 
   const getInitials = () => {
     if (profile?.fullName) {
@@ -190,6 +192,11 @@ export function LandingHeader({
                 <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}>
                   <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/devkit'); }}>
+                    <ShieldCheck className="w-4 h-4 mr-2 text-blue-500" /> Admin Panel
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
                   <Settings className="w-4 h-4 mr-2" /> Settings
                 </DropdownMenuItem>
