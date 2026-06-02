@@ -60,6 +60,27 @@ const PARSE_RESUME_SYSTEM_PROMPT =
   extractedPrompts?.['parse-resume']?.system ||
   'You are an expert resume parser. Return only valid JSON.';
 const _serverRateLimits = new Map();
+const _emailRateLimits  = new Map(); // ip → { count, resetAt }
+const EMAIL_RATE_LIMIT_WINDOW_MS  = 60 * 60 * 1000; // 1 hour
+const EMAIL_RATE_LIMIT_MAX        = 5;
+
+function checkEmailRateLimit(ip) {
+  if (!ip) return { ok: true }; // no IP header → allow (shouldn't happen in practice)
+  const now     = Date.now();
+  const current = _emailRateLimits.get(ip);
+  if (!current || now > current.resetAt) {
+    _emailRateLimits.set(ip, { count: 1, resetAt: now + EMAIL_RATE_LIMIT_WINDOW_MS });
+    return { ok: true };
+  }
+  if (current.count >= EMAIL_RATE_LIMIT_MAX) {
+    return {
+      ok: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+    };
+  }
+  current.count += 1;
+  return { ok: true };
+}
 
 function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -1256,23 +1277,48 @@ module.exports = async ({ req, res, log, error }) => {
 
     // ── 1. EMAIL ROUTE (never traced as LLM span) ───────────────────────────
     if (featureName === 'send-email' || featureName === 'send-contact-email') {
+      const clientIp = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim()
+        || req.headers?.['x-real-ip']
+        || 'unknown';
+      const ipLimit = checkEmailRateLimit(clientIp);
+      if (!ipLimit.ok) {
+        await flushDD();
+        return res.json({
+          status: 'error',
+          message: `Too many messages sent from your address. Please wait ${Math.ceil(ipLimit.retryAfterSeconds / 60)} minute(s) before trying again.`,
+        }, 429);
+      }
+
       const resendKey = process.env.RESEND_API_KEY;
       if (!resendKey) {
         await flushDD();
         return res.json({ status: 'error', message: 'RESEND_API_KEY not found.' }, 500);
       }
 
+      // Build HTML body from opts.message when the caller doesn't supply pre-rendered HTML
+      // (sendFeedback sends plain text fields; portfolio contact form sends structured fields).
+      const builtHtml = opts.html || (() => {
+        const lines = [];
+        if (opts.name)    lines.push(`<p><strong>From:</strong> ${opts.name} &lt;${opts.email || ''}&gt;</p>`);
+        else if (opts.email) lines.push(`<p><strong>From:</strong> ${opts.email}</p>`);
+        if (opts.type)    lines.push(`<p><strong>Type:</strong> ${opts.type}</p>`);
+        if (opts.message) lines.push(`<p><strong>Message:</strong></p><pre style="white-space:pre-wrap">${opts.message}</pre>`);
+        if (opts.metadata) lines.push(`<p><strong>Metadata:</strong></p><pre style="white-space:pre-wrap">${JSON.stringify(opts.metadata, null, 2)}</pre>`);
+        return lines.length ? lines.join('\n') : '<p>No message content provided.</p>';
+      })();
+
+      // Lock destination — never forward to a caller-controlled address.
       const emailResponse = await axios.post('https://api.resend.com/emails', {
-        from:    opts.from    || 'WiseResume <notifications@thewise.cloud>',
-        to:      opts.to      || ['contact@thewise.cloud'],
-        subject: opts.subject || 'System Notification',
-        html:    opts.html    || '<p>Default notification body</p>',
+        from:    'WiseResume <notifications@thewise.cloud>',
+        to:      ['contact@thewise.cloud'],
+        subject: opts.subject || `[${opts.type || 'contact'}] New message`,
+        html:    builtHtml,
       }, {
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       });
 
       await flushDD();
-      return res.json({ status: 'success', data: { id: emailResponse.data.id } });
+      return res.json({ status: 'success', data: { id: emailResponse.data.id, success: true } });
     }
 
     // ── 2. AI ROUTE ─────────────────────────────────────────────────────────

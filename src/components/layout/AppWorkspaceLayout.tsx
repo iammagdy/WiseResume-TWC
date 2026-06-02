@@ -9,6 +9,7 @@ import { AppMobileSidebarSheet } from '@/components/layout/AppMobileSidebarSheet
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface AppWorkspaceLayoutProps {
   children: ReactNode;
@@ -22,6 +23,7 @@ export function AppWorkspaceLayout({ children, onImportJob, onHelp }: AppWorkspa
   const { user, signOut } = useAuth();
   const { profile } = useProfile(user?.id);
   const { plan } = usePlan();
+  const isAdmin = useIsAdmin();
   const collapsed = useAppSidebarStore((s) => s.collapsed);
   const hideWorkspaceTopBar =
     location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
@@ -44,6 +46,7 @@ export function AppWorkspaceLayout({ children, onImportJob, onHelp }: AppWorkspa
       await signOut();
       navigate('/');
     },
+    ...(isAdmin ? { onAdminPanel: () => navigate('/devkit') } : {}),
   };
 
   return (
