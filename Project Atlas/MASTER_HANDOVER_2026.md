@@ -2,6 +2,38 @@
 
 ---
 
+## Session Log - 2026-06-02 (Appwrite Functions Audit, AI Gateway, Admin Hub Token Alignment)
+
+### Overview
+Audited all 21 Appwrite Functions after the live DevKit/admin access fix. The active Appwrite state is now aligned: all functions are enabled, every active deployment is `ready`, and no function has a latest execution failure. Some old failures remain in Appwrite's recent execution history, but the latest checked executions are successful.
+
+### Root Causes Verified
+- `ai-gateway` needed redeploy and had old provider failures. A live real-request smoke test also proved `__headers.X-Appwrite-JWT` could leak into the model prompt payload for `wise-ai-chat`.
+- Passwordless DevKit sessions are issued by `admin-devkit-data` using an HMAC over `APPWRITE_API_KEY`, but older admin functions still verified only `DEVKIT_PASSWORD`, causing valid DevKit tokens to return `401`.
+- `inspect-ai-keys` imported `node-appwrite` but its function package did not declare the dependency, causing runtime module-load failure.
+- `admin-testmail` sent the Testmail API key as a Bearer header; the Testmail inbox endpoint expects `apikey` in the query string.
+- Stale active deployments were found for `admin-deploy-hubs`, `coupons`, `email-service`, `job-import`, `public-share`, and `wisehire-gateway`.
+
+### Changes Applied
+- `ai-gateway`: sanitizes request options before sending any payload to AI providers; auth/session headers, JWTs, tokens, passwords, API keys, and authorization fields are stripped from model-facing content.
+- Admin functions: `admin-email`, `admin-testmail`, `admin-feature-flags`, `admin-moderation`, `admin-portfolio-usernames`, `admin-visitor-analytics`, `admin-onboarding-funnel`, `admin-impersonate`, `inspect-ai-keys`, and `admin-deploy-hubs` now accept the passwordless DevKit session token signed with the Appwrite API key. `DEVKIT_PASSWORD` remains a temporary compatibility fallback.
+- `inspect-ai-keys`: added `node-appwrite` to package dependencies.
+- `admin-testmail`: Testmail inbox calls now pass `apikey` as the API expects and return a clean unconfigured response when the key is absent.
+- Redeployed stale or changed functions directly via `scripts/deploy_hubs.cjs --only=...`.
+
+### Verification
+- `node --check` passed for all changed function entrypoints.
+- Live `ai-gateway` smoke returned provider availability for Groq, OpenRouter, DeepSeek, and NVIDIA.
+- Live real `ai-gateway` request returned HTTP 200 through Groq and did not include `__headers`, `X-Appwrite-JWT`, or JWT text in the response.
+- Live DevKit token flow: `verify-devkit-session` returned HTTP 200 for `magdy.saber@outlook.com`.
+- Live admin smoke checks returned HTTP 200 for `admin-devkit-data`, `admin-email`, `admin-testmail`, `admin-feature-flags`, `admin-moderation`, `admin-portfolio-usernames`, `admin-visitor-analytics`, `admin-onboarding-funnel`, and `inspect-ai-keys`.
+- Final Appwrite audit: 21 functions checked; deployment problems: none; latest execution failures: none.
+
+### Admin Function Consolidation Recommendation
+Do not collapse every admin-labeled function into one physical function immediately. The safer end-state is a single browser-facing Admin/DevKit gateway (`admin-devkit-data`) with admin actions routed through one interface, while specialized workers such as deployment, email, Sentry, analytics, and provider inspection remain separate until each can be migrated without widening secrets or increasing blast radius. This reduces UI/operator confusion without turning one admin function into a fragile mega-function.
+
+---
+
 ## Session Log - 2026-06-02 (Unified Brand Loading System — WiseLogoLoader)
 
 ### Overview
@@ -3825,6 +3857,6 @@ The following hubs intentionally do **not** declare or use the `node-appwrite` S
 | `ai-health` | Probes external AI provider endpoints via `fetch`; no Appwrite DB usage |
 | `job-import` | LLM calls via `axios`; DB writes via raw Appwrite REST (SDK sends request bodies with GET calls, which Appwrite Cloud rejects) |
 | `resume-section-ai` | LLM calls only via `axios`; no DB access |
-| `inspect-ai-keys` | Validates AI provider API keys via direct HTTP; no DB access |
+| `inspect-ai-keys` | Removed from this exception list on 2026-06-02; it imports `node-appwrite` to read/write AI slot model overrides in `app_settings`. |
 
 Do not add `node-appwrite` to these hubs unless a specific DB/storage feature is genuinely needed and confirmed compatible with Appwrite Cloud's GET-request behavior.

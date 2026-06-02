@@ -53,15 +53,21 @@ function base64url(input) {
 }
 
 function verifySignedToken(token) {
-  const secret = process.env.DEVKIT_PASSWORD;
-  if (!secret || !token || !token.includes('.')) return false;
+  const secrets = [
+    process.env.APPWRITE_API_KEY,
+    process.env.APPWRITE_FUNCTION_API_KEY,
+    process.env.DEVKIT_PASSWORD,
+  ].filter(Boolean);
+  if (!secrets.length || !token || !token.includes('.')) return false;
   const [encoded, sig] = token.split('.');
   if (!encoded || !sig) return false;
-  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
-  const actualBuffer = Buffer.from(sig);
-  const expectedBuffer = Buffer.from(expected);
-  if (actualBuffer.length !== expectedBuffer.length) return false;
-  if (!crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return false;
+  const signed = secrets.some(secret => {
+    const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+    const actualBuffer = Buffer.from(sig);
+    const expectedBuffer = Buffer.from(expected);
+    return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+  });
+  if (!signed) return false;
   let payload;
   try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
   return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
@@ -75,8 +81,8 @@ function bearerToken(req, body) {
 function checkAuth(req, body) {
   const token = bearerToken(req, body);
   const password = process.env.DEVKIT_PASSWORD;
-  if (!password || !token) return false;
-  if (token === password) return true;
+  if (!token) return false;
+  if (password && token === password) return true;
   return verifySignedToken(token);
 }
 

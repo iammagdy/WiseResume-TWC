@@ -144,6 +144,41 @@ function extractJwt(body, req) {
   return fromEmbeddedJwt || fromRequestJwt || bearer;
 }
 
+function isSensitivePayloadKey(key) {
+  const normalized = String(key || '').toLowerCase();
+  return normalized === '__headers' ||
+    normalized === 'headers' ||
+    normalized === 'authorization' ||
+    normalized === 'x-appwrite-jwt' ||
+    normalized === 'jwt' ||
+    normalized === 'token' ||
+    normalized === 'session' ||
+    normalized === 'password' ||
+    normalized === 'apikey' ||
+    normalized === 'api_key' ||
+    normalized.endsWith('token') ||
+    normalized.endsWith('jwt') ||
+    normalized.includes('authorization') ||
+    normalized.includes('password');
+}
+
+function sanitizeAiPayload(value, depth = 0) {
+  if (depth > 8) return null;
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeAiPayload(item, depth + 1));
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const safe = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (isSensitivePayloadKey(key)) continue;
+    safe[key] = sanitizeAiPayload(item, depth + 1);
+  }
+  return safe;
+}
+
 function getAppwriteEndpoint() {
   return process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 }
@@ -1353,7 +1388,8 @@ module.exports = async ({ req, res, log, error }) => {
 
     const pool       = buildPool();
     const candidates = buildCandidates(featureName, pool);
-    const requestMessages = buildMessages(featureName, opts);
+    const aiOpts = sanitizeAiPayload(opts);
+    const requestMessages = buildMessages(featureName, aiOpts);
 
     if (candidates.length === 0) {
       error('No keys found in environment variables.');
@@ -1362,14 +1398,14 @@ module.exports = async ({ req, res, log, error }) => {
     }
 
     const temperature = featureName === 'parse-resume'
-      ? (opts.temperature ?? 0.1)
-      : (opts.temperature || 0.7);
+      ? (aiOpts.temperature ?? 0.1)
+      : (aiOpts.temperature || 0.7);
     // agentic-chat needs more tokens for full rewrites; parse-resume needs 4k for full resumes
     const maxTokens   = featureName === 'parse-resume'
-      ? (opts.maxTokens ?? 4000)
+      ? (aiOpts.maxTokens ?? 4000)
       : featureName === 'agentic-chat'
-        ? (opts.maxTokens || 1500)
-        : (opts.maxTokens || 1000);
+        ? (aiOpts.maxTokens || 1500)
+        : (aiOpts.maxTokens || 1000);
 
     async function recordSuccessUsage() {
       await recordAiUsage(db, creditState);
@@ -1378,7 +1414,7 @@ module.exports = async ({ req, res, log, error }) => {
     /** Call a single provider candidate with the given per-attempt timeout. */
     async function callCandidate(candidate, timeoutMs = 28000) {
       const response = await axios.post(BASES[candidate.provider], {
-        model:      opts.model || candidate.model,
+        model:      aiOpts.model || candidate.model,
         messages:   requestMessages,
         temperature,
         max_tokens: maxTokens,
@@ -1401,7 +1437,7 @@ module.exports = async ({ req, res, log, error }) => {
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
       const label     = candidate.routed ? 'preferred' : 'fallback';
-      log(`Trying ${label} provider: ${candidate.provider} (model: ${opts.model || candidate.model}) for ${featureName || 'general'}${i === 0 ? '' : ` [attempt ${i + 1}]`}`);
+      log(`Trying ${label} provider: ${candidate.provider} (model: ${aiOpts.model || candidate.model}) for ${featureName || 'general'}${i === 0 ? '' : ` [attempt ${i + 1}]`}`);
 
       try {
         let result;
@@ -1410,7 +1446,7 @@ module.exports = async ({ req, res, log, error }) => {
 
         content      = result.content;
         providerUsed = candidate.provider;
-        modelUsed    = opts.model || candidate.model;
+        modelUsed    = aiOpts.model || candidate.model;
         routedBy     = candidate.routed;
 
         if (featureName === 'parse-resume') {
@@ -1437,7 +1473,7 @@ module.exports = async ({ req, res, log, error }) => {
 
         if (STRUCTURED_AI_FEATURES.has(featureName)) {
           try {
-            const structuredData = normalizeStructuredFeatureData(featureName, result.content, opts);
+            const structuredData = normalizeStructuredFeatureData(featureName, result.content, aiOpts);
             await recordSuccessUsage();
             await flushDD();
             return res.json({

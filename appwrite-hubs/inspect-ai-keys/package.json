@@ -3,5 +3,7 @@
   "version": "1.0.0",
   "description": "DevKit admin function — inspect and manage per-slot AI provider keys",
   "main": "src/main.js",
-  "dependencies": {}
+  "dependencies": {
+    "node-appwrite": "^17.2.0"
+  }
 }

@@ -11,6 +11,32 @@
 
 ---
 
+## 2026-06-02 - Appwrite Functions Audit and Admin Hub Token Alignment
+
+### Root Cause (Verified)
+- `ai-gateway` had an inactive latest deployment and one recent provider failure. After redeploy, smoke and real AI requests succeeded, but the real test exposed that `__headers.X-Appwrite-JWT` could be included in the model payload for generic `wise-ai-chat` requests.
+- Several legacy admin functions rejected the passwordless DevKit session with `401` because `admin-devkit-data` now signs DevKit sessions with `APPWRITE_API_KEY`, while the older functions still verified only `DEVKIT_PASSWORD`.
+- `inspect-ai-keys` failed at runtime because its package did not include `node-appwrite`, even though the function imports it.
+- `admin-testmail` failed inbox checks because Testmail's API expects `apikey` in the query string for this endpoint, not a Bearer header.
+- Six functions had stale active deployments (`admin-deploy-hubs`, `coupons`, `email-service`, `job-import`, `public-share`, `wisehire-gateway`).
+
+### Fix
+- Redeployed `ai-gateway` and stripped sensitive transport/auth fields before building any model messages.
+- Redeployed stale hubs so every active deployment now matches the latest deployment.
+- Updated legacy admin functions to accept DevKit session tokens signed with `APPWRITE_API_KEY` / `APPWRITE_FUNCTION_API_KEY`, while keeping `DEVKIT_PASSWORD` as a temporary compatibility fallback.
+- Added `node-appwrite` to `inspect-ai-keys`.
+- Updated `admin-testmail` inbox calls to pass `apikey` as Testmail expects and to report a clean unconfigured state if the key is missing.
+
+### Verification
+- Live Appwrite audit: 21 functions checked; no disabled functions, no stale active deployments, no latest-execution failures.
+- Live smoke tests returned HTTP 200 for `ai-gateway`, `admin-devkit-data`, `admin-email`, `admin-testmail`, `admin-feature-flags`, `admin-moderation`, `admin-portfolio-usernames`, `admin-visitor-analytics`, `admin-onboarding-funnel`, and `inspect-ai-keys`.
+- Real `ai-gateway` request returned HTTP 200 through Groq, and the response did not contain JWT/header leakage.
+
+### Architecture Note
+- Recommended consolidation path: keep one browser-facing Admin/DevKit gateway (`admin-devkit-data`) and migrate admin actions behind it gradually. Do not merge every admin worker into one physical function immediately; deployment, email, Sentry, analytics, and provider tools have different dependencies, secrets, and failure risks.
+
+---
+
 ## 2026-06-02 - Admin Panel Profile Menu Access
 
 ### Root Cause (Verified)

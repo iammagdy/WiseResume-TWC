@@ -45,13 +45,20 @@ const FLAGS_COLL    = 'feature_flags';
 const crypto = require('crypto');
 
 function verifySignedToken(token) {
-  const secret = process.env.DEVKIT_PASSWORD;
-  if (!secret || !token || !token.includes('.')) return false;
+  const secrets = [
+    process.env.APPWRITE_API_KEY,
+    process.env.APPWRITE_FUNCTION_API_KEY,
+    process.env.DEVKIT_PASSWORD,
+  ].filter(Boolean);
+  if (!secrets.length || !token || !token.includes('.')) return false;
   const [encoded, sig] = token.split('.');
-  let expected;
-  try { expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url'); } catch { return false; }
-  if (sig.length !== expected.length) return false;
-  try { if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false; } catch { return false; }
+  const signed = secrets.some(secret => {
+    let expected;
+    try { expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url'); } catch { return false; }
+    if (sig.length !== expected.length) return false;
+    try { return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)); } catch { return false; }
+  });
+  if (!signed) return false;
   let payload;
   try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
   return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
