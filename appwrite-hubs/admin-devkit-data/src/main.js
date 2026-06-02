@@ -104,6 +104,33 @@ async function appwriteGet(path, queries = []) {
   return payload;
 }
 
+async function getAccountFromJwt(jwt) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${ENDPOINT}/account`, {
+      method: 'GET',
+      headers: {
+        'X-Appwrite-Project': PROJECT_ID,
+        'X-Appwrite-JWT': jwt,
+      },
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let payload;
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { message: text }; }
+    if (!response.ok) {
+      const message = payload?.message || `Appwrite account lookup failed with HTTP ${response.status}`;
+      const err = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+    return payload;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function listUsers(queries = []) {
   return appwriteGet('/users', queries);
 }
@@ -194,9 +221,7 @@ async function verifyDevKitSession(body) {
     return { success: false, code: 'UNAUTHORIZED', error: 'No Appwrite session found. Please sign in first.' };
   }
   try {
-    const jwtClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setJWT(jwt);
-    const account   = new sdk.Account(jwtClient);
-    const user      = await account.get();
+    const user      = await getAccountFromJwt(jwt);
     if (!user.email || user.email.toLowerCase().trim() !== ADMIN_EMAIL) {
       return { success: false, code: 'UNAUTHORIZED', error: 'Access denied.' };
     }

@@ -18,6 +18,7 @@
 - In the current checkout, the admin access chain was missing from the workspace shell: `AppWorkspaceLayout` did not evaluate admin status or pass `onAdminPanel`, `DashboardWorkspaceProfileDialog` did not accept/render `onAdminPanel`, and `/devkit` was mounted without an admin route wrapper.
 - Follow-up deployment failure: Vite/esbuild rejected a duplicate `onAdminPanel` binding left in `AppWorkspaceSidebar.tsx` after rebasing over upstream admin-menu work.
 - Follow-up UI/auth mismatch: `admin-devkit-data` already verifies the signed-in Appwrite JWT email, but `DevToolsPage` still rendered the obsolete DevKit access-key/password form and called `devKitLogin(password)`. The landing-page avatar dropdown also did not include the admin-only panel entry.
+- Follow-up live Appwrite mismatch: the active `admin-devkit-data` deployment was still running old password-based code (`Invalid DevKit password`). After redeploying the current source, JWT verification initially timed out because `node-appwrite` `Account.get()` hung inside the function runtime.
 
 ### Fix
 - Added `src/hooks/useIsAdmin.ts` with the unchanged admin email value and an auth-settled comparison against `user.email`.
@@ -27,11 +28,14 @@
 - Removed the DevKit password/access-key form. `/devkit` now auto-requests the server-issued DevKit session from the signed-in Appwrite admin email and displays the verified email while loading.
 - Added the Admin Panel item to the landing-page avatar dropdown, gated by the same `useIsAdmin()` hydrated email check.
 - Updated stale admin-function error copy so expired/unauthorized DevKit sessions tell the user to sign in with the admin email account instead of mentioning a password.
+- Updated `admin-devkit-data` JWT email verification to call Appwrite REST `/account` with `X-Appwrite-JWT` and an 8s timeout instead of `node-appwrite Account.get()`.
+- Redeployed `admin-devkit-data`; active deployment `6a1e5eddedbdc0a4b4e0`.
 
 ### Verification
 - `npx tsc --noEmit` — zero errors.
 - `npm run build` — passed after the duplicate binding fix.
 - `npm run build` — passed after the passwordless DevKit/landing-dropdown update.
+- Live Appwrite test — `verify-devkit-session` with a JWT for `magdy.saber@outlook.com` returned HTTP 200 and a DevKit session.
 
 ---
 

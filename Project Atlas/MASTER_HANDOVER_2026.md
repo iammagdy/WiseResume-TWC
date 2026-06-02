@@ -190,6 +190,7 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 - Direct `/devkit` access was not blocked by the same email-comparison bug because there was no admin route wrapper mounted around it.
 - Follow-up deployment failure verified locally with `npm run build`: Vite/esbuild failed because `src/components/layout/AppWorkspaceSidebar.tsx` destructured `onAdminPanel` twice after the rebase overlap with upstream admin-menu work.
 - Follow-up UI/auth mismatch verified in code: `appwrite-hubs/admin-devkit-data/src/main.js` already issues DevKit sessions by validating the Appwrite JWT and comparing `Account.get().email` to `ADMIN_EMAIL`, but `src/pages/DevToolsPage.tsx` still rendered the old password/access-key form and called `devKitLogin(password)`. `src/components/landing/LandingHeader.tsx` also lacked an admin-only dropdown item.
+- Follow-up live Appwrite mismatch verified through Appwrite API: active `admin-devkit-data` initially returned the old password-era response `Invalid DevKit password`, proving the function had not been redeployed. After redeploying current source, JWT verification timed out because `node-appwrite` `Account.get()` hung inside the Appwrite Function runtime.
 
 ### Code Fixes Applied
 | File | Fix |
@@ -204,15 +205,19 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 | `src/pages/DevToolsPage.tsx` | Removed the password/access-key form; page now auto-requests the server-issued DevKit session using the signed-in Appwrite admin email and shows that email while verifying. |
 | `src/components/landing/LandingHeader.tsx` | Added an Admin Panel item to the landing-page avatar dropdown, gated by `useIsAdmin()`. |
 | `src/lib/appwrite-functions.ts` | Updated stale unauthorized DevKit copy to reference signing in with the admin email instead of re-entering a password. |
+| `appwrite-hubs/admin-devkit-data/src/main.js` | Replaced `node-appwrite Account.get()` JWT verification with direct Appwrite REST `/account` lookup using `X-Appwrite-JWT` and an 8s timeout. |
 
 ### Verification Status
 - `npx tsc --noEmit` — zero errors.
 - `npm run build` — passed after removing the duplicate `onAdminPanel` binding.
 - `npm run build` — passed after the passwordless DevKit/landing-dropdown update.
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js` — syntax clean.
+- `node scripts/deploy_hubs.cjs --only=admin-devkit-data` — deployed active Appwrite deployment `6a1e5eddedbdc0a4b4e0`.
+- Live Appwrite verification — `verify-devkit-session` with a JWT for `magdy.saber@outlook.com` returned HTTP 200 and a signed DevKit session.
 
 ### Deployment Notes
 - Frontend-only change. Takes effect on the next frontend deployment.
-- No admin email value, password prompt, Appwrite schema, or Appwrite hub changed.
+- No admin email value, password prompt, or Appwrite schema changed. `admin-devkit-data` was redeployed for the server-side verification fix.
 
 ---
 
