@@ -65,7 +65,34 @@ Total: 1 new dir (`src/components/loader/`), 113 files modified.
 ### Overview
 Four-part session: (1) comprehensive app audit with 7 bug fixes, (2) locked DevKit/admin panel behind admin-only email auth, (3) fixed Appwrite GitHub CI never building for `ai-gateway` and `admin-deploy-hubs`, (4) created `admin-sentry` Appwrite function from scratch.
 
-Branch: `claude/app-audit-report-y0dzO` — PR #74 (draft). All changes pushed, Vercel deployed.
+Branch: `claude/app-audit-report-y0dzO` — PR #74 merged to `main`.
+
+---
+
+### 🐛 KNOWN BUG — Admin Panel button not rendering in production (unresolved)
+
+**Symptom:** Logged in as `magdy.saber@outlook.com` (Premium account). Profile dialog opens and correctly shows the email. No "Admin Panel" button appears at the top of the dialog. The `/devkit` route is also inaccessible. Cmd+Shift+A shortcut does nothing.
+
+**What we know:**
+- `user.email` is confirmed `magdy.saber@outlook.com` (visible in profile dialog screenshot)
+- `DashboardWorkspaceProfileDialog` only renders the Admin Panel button when `onAdminPanel` prop is present
+- `onAdminPanel` is only passed from `AppWorkspaceLayout` when `useIsAdmin()` returns `true`
+- `useIsAdmin()` compares `user.email?.toLowerCase()` against `'magdy.saber@outlook.com'`
+- If `user.email` is correctly set, `useIsAdmin()` should return `true` — but it isn't
+
+**Suspected root causes (in order of likelihood):**
+1. `useIsAdmin()` calls `useAuth()` internally, but `useAuth()` may return the user object before the email field is populated (timing/async issue on mount)
+2. `useAuth()` used in `useIsAdmin` vs `useAuth()` in `AppWorkspaceLayout` may be different hook instances with different initialization states
+3. The Appwrite `user` object shape may not expose `.email` directly at the point `useIsAdmin` reads it (check what `useAuth` actually returns)
+4. Production Vercel deployment may still be serving old code (check deploy timestamp)
+
+**Files to investigate:**
+- `src/hooks/useIsAdmin.ts` — the hook itself
+- `src/hooks/useAuth.ts` — what shape does `user` have? Is `email` always present?
+- `src/components/layout/AppWorkspaceLayout.tsx` — is `isAdmin` evaluated before `user` is hydrated?
+- `src/components/layout/AdminRoute.tsx` — same hook, same issue would affect route guard
+
+**Next agent action:** See Codex investigation prompt in the "Where We Stopped" section below.
 
 ---
 
@@ -164,13 +191,13 @@ Env vars read: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG_SLUG` (or `SENTRY_ORG`), `SENTRY
 ---
 
 ### Where We Stopped
-- All code changes committed and pushed to `claude/app-audit-report-y0dzO`.
-- PR #74 is open as draft. Vercel preview is live.
-- `admin-sentry` built successfully but **not yet activated** — no active deployment.
-- `ai-gateway` and `admin-deploy-hubs` have new deployments queued from the latest push; outcome not yet confirmed (still in Appwrite runner queue at session end).
-- GitHub Actions workflows (`deploy-frontend.yml`, `deploy-landing.yml`) were already manual-only (`workflow_dispatch` only) — no change needed.
-- `VITE_DEV_KIT_PASSWORD` reference still exists in `deploy-frontend.yml` env block (line 38) — this was a pre-existing artifact; the app no longer uses it, but the workflow file was not cleaned up this session.
-- `adminBadgeCount` prop is wired through the sidebar but always passes `undefined` — no fetch for pending items is implemented. Future enhancement: fetch unread bug reports/moderation items and pass count.
+- PR #74 merged to `main`. Vercel deployed.
+- `admin-sentry` built successfully (deployment `6a1dbbbc6a95ec9862a8` — Ready). **User must activate in Appwrite console** (`...` → Activate).
+- `ai-gateway` and `admin-deploy-hubs` had new deployments queued at session end.
+- GitHub Actions workflows already manual-only — no change needed.
+- `VITE_DEV_KIT_PASSWORD` reference still in `deploy-frontend.yml` line 38 — pre-existing artifact, not cleaned up.
+- `adminBadgeCount` prop always passes `undefined` — no fetch implemented.
+- **🐛 PRIORITY BUG: Admin Panel button not rendering in production.** `useIsAdmin()` appears to return `false` even when logged in as `magdy.saber@outlook.com`. See bug section above. Needs Codex investigation before admin panel is usable.
 
 ---
 
