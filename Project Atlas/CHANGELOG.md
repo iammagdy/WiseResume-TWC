@@ -11,6 +11,48 @@
 
 ---
 
+## 2026-06-03 - Admin Panel / DevKit Audit Fixes (7 code + 2 ops items)
+
+### Root Causes (Verified via codebase audit)
+- `admin-devkit-data` returned `daily_limit: null` for users with no `ai_credits` document, causing the admin UI to display `∞ unlimited` for all plans.
+- The `ChevronDown` expand indicator in `AdminUsersPanel` was inside a `stopPropagation` div, making the most natural click target (the chevron) swallow the event and appear broken.
+- `ActAs.tsx` called `startImpersonation()` inside a `useEffect`, so route guards evaluated auth state before the impersonation store was updated, causing a brief "access denied" flash.
+- During impersonation, `appwriteFunctions.invoke` always created an Appwrite JWT for the **admin** session; `ai-gateway` charged credits to the admin's account instead of the impersonated user.
+- `ActingAsBanner` renders `fixed top-0` (~40px) with no compensating padding on the content below it, obscuring the UI during Act As sessions.
+- `ai-gateway` schema for `company-briefing` instructed the AI to return `{overview, talkingPoints, risks, questions}` while the client validated for `companySnapshot`, causing every Company Briefing call to fail.
+- `VITE_DEV_KIT_PASSWORD` was still referenced in `deploy-frontend.yml` even after the password auth was removed.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/admin-devkit-data/src/main.js` | Derive `daily_limit` from plan defaults (`free=5, pro=50, premium=-1`) when no `ai_credits` document exists |
+| `src/components/dev-kit/AdminUsersPanel.tsx` | Move `ChevronDown` outside the `stopPropagation` wrapper; expand click now works reliably |
+| `src/pages/ActAs.tsx` | Move `startImpersonation()` + `history.replaceState()` to module-level synchronous init; eliminates auth-flash race condition |
+| `src/lib/appwrite-functions.ts` | Import `isImpersonating`/`getImpersonationState`; attach `X-Impersonating-User-Id` header during Act As so credits go to the correct user |
+| `appwrite-hubs/ai-gateway/src/main.js` | Accept `X-Impersonating-User-Id` (admin-only); introduce `effectiveUserId` for rate-limit + credit attribution; fix `company-briefing` schema to match `CompanyBriefing` TypeScript type; add `logPoolSummary` startup log (counts only, no key values); document credits race condition with TODO |
+| `src/AppInterior.tsx` | Add `useImpersonatingBanner` hook via `useSyncExternalStore`; wrap content in `pt-10` div when banner is active |
+| `.github/workflows/deploy-frontend.yml` | Remove stale `VITE_DEV_KIT_PASSWORD` env reference (no longer used in any source file) |
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js` — clean.
+- `npm run build` blocked by worktree `node_modules` absence (known worktree limitation); full build must be verified in the main repo on merge.
+- No secret values logged or committed. `sanitizeAiPayload` confirmed to strip `__headers` before any AI provider call.
+
+### Deployment Required
+- Redeploy `admin-devkit-data` for credit default fix: `node scripts/deploy_hubs.cjs --only=admin-devkit-data`
+- Redeploy `ai-gateway` for impersonation credit fix + company-briefing fix + pool logging: `node scripts/deploy_hubs.cjs --only=ai-gateway`
+- Frontend changes go live on next Vercel deploy of the branch after merge.
+
+### Not Fixed (Requires Appwrite Console)
+- `admin-sentry` deployment still needs manual activation in Appwrite Console: Functions → admin-sentry → `...` → Activate.
+
+### Known Remaining Risk (Documented)
+- AI credits race condition: `loadCreditState` + `recordAiUsage` is a non-atomic read-write. Documented with TODO comment in `ai-gateway`. Risk is LOW for typical usage; warm-instance rate limiter mitigates the common case.
+
+---
+
 ## 2026-06-02 - Appwrite Functions Audit and Admin Hub Token Alignment
 
 ### Root Cause (Verified)

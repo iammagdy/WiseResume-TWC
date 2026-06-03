@@ -7,8 +7,14 @@
  * works in both dev (Express proxy) and production (Supabase Edge Functions).
  *
  * Hash schema:  btoa(JSON.stringify({ t: access_token, u: user_id, e: email, x: expires_at }))
+ *
+ * IMPORTANT: impersonation state is initialized synchronously at module-evaluation
+ * time (before any React render) so route guards (AdminRoute, ProtectedRoute) already
+ * see the impersonated context on their first evaluation, eliminating the
+ * "access denied" flash that would occur if we only called startImpersonation()
+ * inside a useEffect.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { UserX, AlertCircle } from 'lucide-react';
@@ -33,25 +39,31 @@ function parseHashPayload(): ActAsPayload {
   return parsed as ActAsPayload;
 }
 
+// ── Synchronous module-level initialization ───────────────────────────────────
+// Called once when this module is first imported (before any React renders).
+// Route guards evaluate impersonation state synchronously during their first
+// render, so setting the state here ensures they see the correct context
+// immediately — no flash of an "access denied" redirect.
+let _initError: string | null = null;
+try {
+  const payload = parseHashPayload();
+  startImpersonation(payload.t, payload.u, payload.e, payload.x, true);
+  // Remove the hash from history so the token doesn't persist in the URL bar.
+  history.replaceState(null, '', '/act-as');
+} catch (err) {
+  _initError = err instanceof Error ? err.message : String(err);
+}
+
 export default function ActAs() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const started = useRef(false);
+  const [error] = useState<string | null>(_initError);
 
   useEffect(() => {
-    // StrictMode guard — only run once per tab lifetime
-    if (started.current) return;
-    started.current = true;
-
-    try {
-      const payload = parseHashPayload();
-      startImpersonation(payload.t, payload.u, payload.e, payload.x, true);
-      // Replace the hash before navigating so the JWT doesn't stay in history
-      history.replaceState(null, '', '/act-as');
+    // Navigate after React mounts; impersonation state is already set above.
+    if (!error) {
       navigate('/dashboard', { replace: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {

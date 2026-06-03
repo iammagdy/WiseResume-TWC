@@ -107,12 +107,17 @@ BUILD_TIME
 | Plan | Daily AI Credits | Price |
 |------|-----------------|-------|
 | free | 5 | $0 |
-| pro | 100 | $9/mo |
+| pro | 50 | $9/mo |
 | premium | Unlimited (stored as `-1`) | $19/mo |
 
-Source of truth: `supabase/functions/_shared/creditLimits.json`  
-Both `src/lib/planConfig.ts` (frontend) and `supabase/functions/_shared/planLimits.ts`
-(edge functions) import from this JSON — they cannot drift.
+Source of truth: `src/lib/planConfig.ts` (`PLAN_CREDIT_LIMITS`) and
+`appwrite-hubs/ai-gateway/src/main.js` (`PLAN_DAILY_LIMITS`).  
+The old `supabase/functions/_shared/creditLimits.json` was deleted with the Supabase removal.
+Both files currently say `pro: 50`. Keep them in sync manually until a shared config module
+is introduced.  
+**Note:** A previous Atlas entry stated `pro = 100` — that value came from the now-deleted
+Supabase file and was never updated in the active Appwrite stack. The verified current value
+is 50 (confirmed 2026-06-03).
 
 ### Credit flow
 1. User triggers an AI action (e.g. tailor-resume)

@@ -311,6 +311,21 @@ async function recordAiUsage(db, creditState) {
   if (!creditState?.chargeable || creditState.blocked || creditState.cost <= 0 || !creditState.doc) {
     return;
   }
+  // TODO(race-condition): This read-then-write is NOT atomic. Two concurrent requests
+  // for the same user can both pass the credit check before either increments the
+  // counter, allowing up to (cost * concurrent_requests) over-spending.
+  //
+  // Risk level: LOW for typical usage (users rarely fire parallel AI requests).
+  // Worst case: a user with limit=5 could consume 5+N credits if N requests are
+  // in-flight simultaneously during the same daily window.
+  //
+  // Safe fix (requires Appwrite backend support): use Appwrite's atomic increment
+  // operator when it becomes available, or add a per-user server-side mutex via a
+  // short-lived Appwrite document lock checked before loadCreditState.
+  //
+  // Current mitigation: the warm-instance rate limiter (checkServerRateLimit) already
+  // serialises rapid requests from the same user on the same function instance,
+  // which covers the common case. Cross-instance races remain possible.
   await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
     daily_usage: creditState.currentUsage + creditState.cost,
     daily_limit: creditState.dailyLimit,
@@ -754,7 +769,13 @@ function normalizeStructuredFeatureData(featureName, raw, opts) {
   if (featureName === 'generate-fix-suggestions') return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.suggestions) ? parsed.suggestions : []);
   if (featureName === 'generate-portfolio-bio') return parsed;
   if (featureName === 'career-assessment') return parsed;
-  if (featureName === 'company-briefing') return { briefing: parsed.briefing || parsed };
+  if (featureName === 'company-briefing') {
+    const briefing = isRecord(parsed.briefing) ? parsed.briefing : parsed;
+    if (!isRecord(briefing.companySnapshot)) {
+      throw new Error('company-briefing: AI response missing companySnapshot field. The model may have returned an unexpected format.');
+    }
+    return { briefing };
+  }
   if (featureName === 'suggest-template') return parsed;
   if (featureName === 'generate-question-bank') return parsed;
   if (featureName === 'generate-resignation-letter') return parsed;
@@ -775,7 +796,7 @@ function schemaPrompt(featureName, opts) {
     'generate-fix-suggestions': '{"suggestions":[{"type":"add_skill","section":"skills","after":"","reason":""}]}',
     'generate-portfolio-bio': '{"bio":"","metaTitle":"","metaDescription":"","translations":{}}',
     'career-assessment': '{"currentLevel":"","yearsExperience":0,"primaryField":"","nextRoles":[{"title":"","matchScore":0,"requiredSkills":[],"existingSkills":[],"timeToReady":"","description":""}],"skillGaps":[{"skill":"","priority":"critical","forRoles":[],"suggestion":"","youtubeQuery":""}],"industryAlternatives":[{"industry":"","role":"","transferableSkills":[],"newSkillsNeeded":[],"salaryComparison":"similar"}],"actionPlan":[{"step":1,"action":"","timeframe":"","impact":"high"}],"strengthSummary":"","riskFactors":[]}',
-    'company-briefing': '{"briefing":{"overview":"","talkingPoints":[],"risks":[],"questions":[]}}',
+    'company-briefing': '{"briefing":{"companySnapshot":{"name":"","industry":"","size":"","hq":"","founded":"","mission":"","website":"","revenue":""},"recentHighlights":[{"title":"","summary":"","relevance":""}],"cultureSignals":[{"signal":"","detail":""}],"keyPeople":[{"role":"","context":""}],"talkingPoints":[{"point":"","connection":""}],"questionsToAsk":[{"question":"","why":""}],"competitors":[],"productsOrServices":[],"techStack":[]}}',
     'suggest-template': '{"templateId":"modern","reason":""}',
     'generate-question-bank': '{"categories":[]}',
     'generate-resignation-letter': '{"letter":""}',
@@ -1205,7 +1226,9 @@ function candidateTimeout(i, total) {
 
 /**
  * Build the full provider pool from environment variables.
+ * Reads: GROQ_KEY_1-3, OPENROUTER_KEY_1-3, DEEPSEEK_KEY, NVIDIA_KEY_1-3.
  * Returns an array of { provider, key } entries for every configured key.
+ * Key values are NEVER logged.
  */
 function buildPool() {
   const pool = [];
@@ -1225,6 +1248,20 @@ function buildPool() {
     if (key) pool.push({ provider: 'nvidia', key });
   }
   return pool;
+}
+
+/** Log pool composition — provider names and counts only, never key values. */
+function logPoolSummary(pool, logFn) {
+  const counts = {};
+  for (const entry of pool) {
+    counts[entry.provider] = (counts[entry.provider] || 0) + 1;
+  }
+  logFn(`[ai-gateway] Loaded AI key pool: total=${pool.length} providers=${JSON.stringify(counts)}`);
+  if (pool.length < 10) {
+    const expected = { GROQ_KEY_1:1,GROQ_KEY_2:1,GROQ_KEY_3:1,OPENROUTER_KEY_1:1,OPENROUTER_KEY_2:1,OPENROUTER_KEY_3:1,DEEPSEEK_KEY:1,NVIDIA_KEY_1:1,NVIDIA_KEY_2:1,NVIDIA_KEY_3:1 };
+    const missing = Object.keys(expected).filter(k => !process.env[k]);
+    if (missing.length) logFn(`[ai-gateway] Missing env vars (keys not loaded): ${missing.join(', ')}`);
+  }
 }
 
 function getProviderAvailability() {
@@ -1363,7 +1400,20 @@ module.exports = async ({ req, res, log, error }) => {
       return res.json({ status: 'error', code: 'unauthorized', message: auth.message }, auth.status);
     }
 
-    const rateLimit = checkServerRateLimit(auth.user.$id, featureName);
+    // When the admin acts as another user (DevKit impersonation), the Appwrite
+    // JWT belongs to the admin account. The frontend attaches X-Impersonating-User-Id
+    // so that rate-limiting and credit attribution apply to the impersonated user.
+    // This override is only trusted when the validated Appwrite email matches the
+    // configured ADMIN_EMAIL — non-admin callers cannot trigger this path.
+    const ADMIN_EMAIL_ENV = process.env.ADMIN_EMAIL || 'magdy.saber@outlook.com';
+    const impersonatingUserId = asString(opts?.__headers?.['X-Impersonating-User-Id'] || '').trim();
+    const effectiveUserId = (
+      impersonatingUserId &&
+      typeof auth.user.email === 'string' &&
+      auth.user.email.toLowerCase() === ADMIN_EMAIL_ENV.toLowerCase()
+    ) ? impersonatingUserId : auth.user.$id;
+
+    const rateLimit = checkServerRateLimit(effectiveUserId, featureName);
     if (!rateLimit.ok) {
       await flushDD();
       return res.json({
@@ -1374,7 +1424,7 @@ module.exports = async ({ req, res, log, error }) => {
       }, 429);
     }
 
-    const creditState = await loadCreditState(db, auth.user.$id, featureName);
+    const creditState = await loadCreditState(db, effectiveUserId, featureName);
     if (creditState.blocked) {
       await flushDD();
       return res.json({
@@ -1384,9 +1434,10 @@ module.exports = async ({ req, res, log, error }) => {
       }, creditState.status || 503);
     }
 
-    log(`AI-Gateway Hub: authorized user=${auth.user.$id} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
+    log(`AI-Gateway Hub: authorized user=${effectiveUserId}${effectiveUserId !== auth.user.$id ? ` (impersonated by admin)` : ''} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
 
     const pool       = buildPool();
+    logPoolSummary(pool, log);
     const candidates = buildCandidates(featureName, pool);
     const aiOpts = sanitizeAiPayload(opts);
     const requestMessages = buildMessages(featureName, aiOpts);

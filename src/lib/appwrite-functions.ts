@@ -10,6 +10,7 @@ import { AppwriteException } from 'appwrite';
 import { functions } from '@/lib/appwrite';
 import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
+import { isImpersonating, getImpersonationState } from '@/lib/impersonationStore';
 
 interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
@@ -163,6 +164,15 @@ export const appwriteFunctions = {
       if (!headers.Authorization) {
         const jwt = await getAppwriteJWT();
         if (jwt) headers['X-Appwrite-JWT'] = jwt;
+      }
+      // During Act As impersonation the Appwrite SDK session still belongs to the
+      // admin. Pass the impersonated user's ID in a safe header so the AI gateway
+      // can attribute usage and credits to the correct account.
+      // The gateway only honours this header when the validated Appwrite JWT also
+      // belongs to the admin email — it cannot be abused by non-admin callers.
+      if (isImpersonating()) {
+        const impState = getImpersonationState();
+        if (impState.userId) headers['X-Impersonating-User-Id'] = impState.userId;
       }
       const finalPayload = {
         ...bodyPayload,
