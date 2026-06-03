@@ -14,9 +14,8 @@ import { CheckCircle, FlaskConical, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { cn } from '@/lib/utils';
+import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
 
 // ─── Senders ──────────────────────────────────────────────────────────────────
 
@@ -86,25 +85,27 @@ export function EmailTransactionalStudioPanel() {
         body.name = name.trim();
       }
 
-      const tuple = await appwriteFunctions.invoke('email-service', {
-        headers: devKitAuthHeaders(),
-        body,
+      const result = await devKitCall<{ message_id?: string; id?: string }>({
+        functionId: 'admin-email',
+        action: 'send_test_template',
+        payload: {
+          module: 'email-actions',
+          ...body,
+        },
       });
+      if (!result.ok) throw result.error;
 
-      // Appwrite invoke returns [data, error]
-      const [data, err] = Array.isArray(tuple) ? tuple : [tuple, null];
-      if (err) throw new Error(typeof err === 'string' ? err : JSON.stringify(err));
-
-      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-      if (parsed?.error) throw new Error(parsed.error);
-
-      const msgId = parsed?.message_id || parsed?.id;
+      const parsed = result.data;
+      const msgId =
+        typeof parsed === 'object' && parsed !== null
+          ? ('message_id' in parsed ? parsed.message_id : ('id' in parsed ? parsed.id : undefined))
+          : undefined;
       setLastSent(trimmedTo);
       toast.success(`Test email sent to ${trimmedTo}`, {
         description: msgId ? `Message ID: ${msgId}` : 'Accepted by Resend. Check your inbox.',
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = toDevKitError(e, { functionId: 'admin-email', action: 'send_test_template' }).message;
       toast.error(`Failed to send test email: ${msg}`);
     } finally {
       setSending(false);

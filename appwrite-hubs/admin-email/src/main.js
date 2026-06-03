@@ -383,11 +383,11 @@ function handleDiagnose() {
 // When EMAIL_TEST_MODE=true, replaces `to` with `{namespace}.{tag}@inbox.testmail.app`
 // so outgoing emails land in Testmail instead of the real inbox.
 
-async function sendAppEmail({ to, subject, html, text, tag }) {
+async function sendAppEmail({ to, subject, html, text, tag, fromEmail, fromName }) {
   const apiKey    = process.env.RESEND_API_KEY || '';
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
-  const fromName  = process.env.RESEND_FROM_NAME  || 'WiseResume';
-  const from      = `${fromName} <${fromEmail}>`;
+  const resolvedFromEmail = fromEmail || process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
+  const resolvedFromName  = fromName  || process.env.RESEND_FROM_NAME  || 'WiseResume';
+  const from      = `${resolvedFromName} <${resolvedFromEmail}>`;
   const namespace = process.env.TESTMAIL_NAMESPACE || 'ajku9';
   const testMode  = process.env.EMAIL_TEST_MODE === 'true';
 
@@ -417,7 +417,7 @@ async function handleEmailAction(action, body) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured in Appwrite Function Variables');
 
-  const to = body.target_email;
+  const to = body.target_email || body.to;
   if (!to) throw new Error('target_email is required');
 
   let subject, html, tag;
@@ -446,6 +446,42 @@ async function handleEmailAction(action, body) {
       html    = passwordResetEmailHtml(to);
       tag     = 'reset-password';
       break;
+
+    case 'send_test_template': {
+      const template = String(body.template || 'welcome').trim();
+      const displayName = String(body.name || 'Tester').trim() || 'Tester';
+      const previewVerificationUrl = 'https://resume.thewise.cloud/auth/verify-email?userId=test&secret=TEST_TOKEN_PREVIEW';
+      const previewResetUrl = 'https://resume.thewise.cloud/auth/reset-password?userId=test&secret=TEST_TOKEN_PREVIEW';
+
+      switch (template) {
+        case 'verification':
+          subject = '[TEST] Verify your WiseResume email address';
+          html = confirmationEmailHtml(to, previewVerificationUrl);
+          tag = 'verification-preview';
+          break;
+        case 'password-reset':
+          subject = '[TEST] Reset your WiseResume password';
+          html = passwordResetEmailHtml(to, previewResetUrl);
+          tag = 'password-reset-preview';
+          break;
+        case 'welcome':
+        default:
+          subject = '[TEST] Welcome to WiseResume';
+          html = welcomeEmailHtml(displayName);
+          tag = 'welcome-preview';
+          break;
+      }
+
+      const result = await sendAppEmail({
+        to,
+        subject,
+        html,
+        tag,
+        fromEmail: body.from_email || null,
+        fromName: body.from_name || null,
+      });
+      return { email: result.email, message_id: result.message_id };
+    }
 
     case 'send_custom': {
       const customSubject = body.custom_subject;
@@ -492,7 +528,7 @@ function baseTemplate(content) {
 </body></html>`;
 }
 
-function confirmationEmailHtml(email) {
+function confirmationEmailHtml(email, confirmUrl = 'https://thewise.cloud/confirm') {
   return baseTemplate(`
     <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Confirm your email address</h2>
     <p style="color:#374151;line-height:1.6;">Hi there,</p>
@@ -501,9 +537,9 @@ function confirmationEmailHtml(email) {
       If you did not request this email, you can ignore it.
     </p>
     <div style="margin:24px 0;">
-      <a href="https://thewise.cloud/confirm" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Confirm Email</a>
+      <a href="${escapeHtml(confirmUrl)}" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Confirm Email</a>
     </div>
-    <p style="font-size:13px;color:#6b7280;">If the button doesn't work, copy this link: https://thewise.cloud/confirm</p>
+    <p style="font-size:13px;color:#6b7280;">If the button doesn't work, copy this link: ${escapeHtml(confirmUrl)}</p>
   `);
 }
 
@@ -534,7 +570,21 @@ function otpEmailHtml() {
   `);
 }
 
-function passwordResetEmailHtml(email) {
+function welcomeEmailHtml(name = 'there') {
+  return baseTemplate(`
+    <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Welcome to WiseResume</h2>
+    <p style="color:#374151;line-height:1.6;">Hi ${escapeHtml(name)},</p>
+    <p style="color:#374151;line-height:1.6;">
+      Your WiseResume account is active and ready to go. Build AI-powered resumes tailored for modern hiring — smarter, faster, and built to impress.
+    </p>
+    <div style="margin:24px 0;">
+      <a href="https://resume.thewise.cloud/dashboard" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Go to Dashboard</a>
+    </div>
+    <p style="font-size:13px;color:#6b7280;">This is a preview-only test render sent from the DevKit email studio.</p>
+  `);
+}
+
+function passwordResetEmailHtml(email, resetUrl = 'https://thewise.cloud/auth/reset') {
   return baseTemplate(`
     <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Reset your password</h2>
     <p style="color:#374151;line-height:1.6;">Hi there,</p>
@@ -543,7 +593,7 @@ function passwordResetEmailHtml(email) {
       Click the button below to choose a new password.
     </p>
     <div style="margin:24px 0;">
-      <a href="https://thewise.cloud/auth/reset" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Reset Password</a>
+      <a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Reset Password</a>
     </div>
     <p style="font-size:13px;color:#6b7280;">This link expires in 1 hour. If you didn't request a reset, you can ignore this email.</p>
   `);

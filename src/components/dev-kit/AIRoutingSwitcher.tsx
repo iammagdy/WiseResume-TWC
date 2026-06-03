@@ -333,28 +333,6 @@ export const AIRoutingSwitcher = () => {
     setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] }));
   };
 
-  if (loading) {
-    return <div className="py-20 text-center animate-pulse text-muted-foreground font-mono">Fetching AI Global Config…</div>;
-  }
-
-  if (loadError) {
-    return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-6 space-y-3">
-        <div className="flex items-center gap-2 text-destructive">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-medium">Failed to load AI routing config</span>
-        </div>
-        <p className="text-xs text-muted-foreground">{loadError}</p>
-        <button
-          onClick={() => void fetchRoutes()}
-          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-        >
-          <RefreshCw className="w-3 h-3" /> Retry
-        </button>
-      </div>
-    );
-  }
-
   const testRoute = useCallback(async (featureId: string) => {
     setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'running' } }));
     try {
@@ -402,6 +380,28 @@ export const AIRoutingSwitcher = () => {
       setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'error', error: msg } }));
     }
   }, []);
+
+  if (loading) {
+    return <div className="py-20 text-center animate-pulse text-muted-foreground font-mono">Fetching AI Global Config…</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-6 space-y-3">
+        <div className="flex items-center gap-2 text-destructive">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="text-sm font-medium">Failed to load AI routing config</span>
+        </div>
+        <p className="text-xs text-muted-foreground">{loadError}</p>
+        <button
+          onClick={() => void fetchRoutes()}
+          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          <RefreshCw className="w-3 h-3" /> Retry
+        </button>
+      </div>
+    );
+  }
 
   const totalOverrides = Object.keys(routes).length;
 
