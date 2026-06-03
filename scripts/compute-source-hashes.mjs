@@ -14,6 +14,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+const outPath = join(ROOT, 'src', 'lib', 'devkit', 'sourceHashes.generated.json');
 
 // All hubs that the DevKit Appwrite Functions console tracks
 const HUBS = [
@@ -44,15 +45,27 @@ const hashes = {};
 for (const hub of HUBS) {
   const mainPath = join(ROOT, 'appwrite-hubs', hub, 'src', 'main.js');
   if (existsSync(mainPath)) {
-    const content = readFileSync(mainPath, 'utf8');
+    const content = readFileSync(mainPath, 'utf8').replace(/\r\n/g, '\n');
     hashes[hub] = createHash('sha256').update(content).digest('hex').slice(0, 16);
   } else {
     hashes[hub] = null;
   }
 }
 
-const out = { generatedAt: new Date().toISOString(), hashes };
-const outPath = join(ROOT, 'src', 'lib', 'devkit', 'sourceHashes.generated.json');
+let generatedAt = new Date().toISOString();
+if (existsSync(outPath)) {
+  try {
+    const previous = JSON.parse(readFileSync(outPath, 'utf8'));
+    const previousHashes = previous?.hashes ?? {};
+    if (JSON.stringify(previousHashes) === JSON.stringify(hashes) && typeof previous?.generatedAt === 'string') {
+      generatedAt = previous.generatedAt;
+    }
+  } catch {
+    // Ignore parse failures and write a fresh manifest.
+  }
+}
+
+const out = { generatedAt, hashes };
 writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n');
 
 console.log(`[compute-source-hashes] Written to ${outPath.replace(ROOT, '.')}`);
