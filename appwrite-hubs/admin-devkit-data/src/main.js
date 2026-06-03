@@ -925,6 +925,74 @@ async function handleDeleteRoutingConfig(body, log) {
   return { deleted: true };
 }
 
+// ─── list-routes: merged static defaults + DB overrides, no API keys ─────────
+
+async function handleListRoutes(log) {
+  // Mirrors FEATURE_ROUTES in appwrite-hubs/ai-gateway/src/main.js
+  const STATIC_DEFAULTS = {
+    'generate-cover-letter':        { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
+    'tailor-resume':                { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
+    'recruiter-simulation':         { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
+    'agentic-chat':                 { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'wise-ai-chat':                 { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'resume-section-ai':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'editor-ai':                    { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'detect-and-humanize':          { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'smart-fit-rewrite':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'career-assessment':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'generate-portfolio-bio':       { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'generate-resignation-letter':  { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'validate-tailor':              { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'suggest-template':             { provider: 'groq',       model: 'llama-3.1-8b-instant' },
+    'analyze-resume':               { provider: 'deepseek',   model: 'deepseek-chat' },
+    'generate-fix-suggestions':     { provider: 'deepseek',   model: 'deepseek-chat' },
+    'parse-resume':                 { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    'parse-job':                    { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    'optimize-for-linkedin':        { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    'generate-question-bank':       { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    'company-briefing':             { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+    'ask-portfolio':                { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+  };
+
+  // Mirrors FEATURE_CREDIT_COSTS in appwrite-hubs/ai-gateway/src/main.js
+  const CREDIT_COSTS = {
+    'score-resume': 0, 'analyze-resume': 2, 'tailor-resume': 2,
+    'generate-cover-letter': 2, 'generate-question-bank': 1, 'recruiter-simulation': 2,
+    'agentic-chat': 1, 'wise-ai-chat': 1, 'resume-section-ai': 1, 'editor-ai': 1,
+    'detect-and-humanize': 1, 'smart-fit-rewrite': 2, 'career-assessment': 2,
+    'generate-portfolio-bio': 1, 'generate-resignation-letter': 1, 'validate-tailor': 1,
+    'suggest-template': 1, 'generate-fix-suggestions': 1, 'parse-resume': 1,
+    'parse-job': 1, 'optimize-for-linkedin': 1, 'company-briefing': 1, 'ask-portfolio': 1,
+  };
+
+  const { databases } = getClients();
+  const res = await safeList(databases, 'ai_routing_config', [sdk.Query.limit(100)]);
+  const overrideMap = {};
+  for (const doc of (res.documents || [])) {
+    overrideMap[doc.feature_id] = { provider: doc.provider, model: doc.model, docId: doc.$id };
+  }
+
+  const routes = {};
+  for (const [featureId, def] of Object.entries(STATIC_DEFAULTS)) {
+    const override = overrideMap[featureId];
+    routes[featureId] = {
+      provider: override ? override.provider : def.provider,
+      model:    override ? override.model    : def.model,
+      source:   override ? 'override' : 'default',
+      creditCost: CREDIT_COSTS[featureId] ?? 1,
+    };
+  }
+  // Pool-fallback features: credit cost defined but no dedicated static route
+  for (const [featureId, cost] of Object.entries(CREDIT_COSTS)) {
+    if (!routes[featureId]) {
+      routes[featureId] = { provider: null, model: null, source: 'pool', creditCost: cost };
+    }
+  }
+
+  log(`list-routes: ${Object.keys(routes).length} features, ${Object.keys(overrideMap).length} overrides`);
+  return { routes, overrideCount: Object.keys(overrideMap).length, checkedAt: isoNow() };
+}
+
 async function handleListDiscountCodes(log) {
   const { databases } = getClients();
   const res = await safeList(databases, 'discount_codes', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(100)]);
@@ -2159,6 +2227,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'update-routing-config') data = await handleUpdateRoutingConfig(body, log);
     else if (action === 'create-routing-config') data = await handleCreateRoutingConfig(body, log);
     else if (action === 'delete-routing-config') data = await handleDeleteRoutingConfig(body, log);
+    else if (action === 'list-routes') data = await handleListRoutes(log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
     return json(res, rid, { success: true, ...data });
