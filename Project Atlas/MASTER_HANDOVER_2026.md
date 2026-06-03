@@ -4185,6 +4185,176 @@ Both commits pushed to `origin/main`. Both deploy workflows triggered:
 
 ---
 
+## Session Log - 2026-06-03 (Admin Panel / DevKit Refactor - Phases 5–10)
+
+### Overview
+
+Continuation of the DevKit refactor. All six pending phases (5–10) were implemented, committed, and merged to `main` via PR #78. TypeScript compiled clean throughout. All 8 vitest catalogue tests pass.
+
+**Branch:** `claude/admin-devkit-refactor-phase5-Mw1QH` → merged to `main`
+
+**Commits created (on branch, merged via merge commit `6004b9b`)**
+- `3eaf77d` - `feat(devkit): Phase 5 — AI Tools Map MVP`
+- `ee96b26` - `feat(devkit): Phase 6 — Secure Real Route Testing`
+- `e6489d1` - `Add gateway meta + ai_request_logs (Phase 7)`
+- `db8e680` - `Add key pinning + slot-aware routing (Phase 8)`
+- `e7248e2` - `Add source hash drift detection (Phase 9)`
+- `30bcffd` - `DevKit mobile UX pass (Phase 10)`
+
+---
+
+### Phase 5 — AI Tools Map MVP
+
+#### Changes completed
+- **`src/lib/devkit/aiToolsCatalogue.ts`** (new): canonical typed catalogue — 23 AI tools across 5 `ToolAppArea` values (`resume-editor`, `tailoring`, `chat`, `documents`, `portfolio`). Exports `TOOL_CREDIT_COSTS`, `TOOL_GATEWAY_DEFAULTS`, `AI_TOOLS_CATALOGUE`. Single source of truth; mirrors `FEATURE_ROUTES` and `FEATURE_CREDIT_COSTS` in `ai-gateway`.
+- **`src/lib/devkit/aiToolsCatalogue.test.ts`** (new): 8 vitest tests — count=23, valid appAreas, credit cost parity, gateway default parity, `wise-ai-chat` `sharedRouteWith` annotation, `score-resume` pool-fallback, `ask-portfolio` groq route, no duplicate IDs.
+- **`AIRoutingSwitcher.tsx`**: replaced 200-line hardcoded FEATURES/GATEWAY_DEFAULTS with catalogue import. Added credit cost badges (Free/1cr/2cr), `sharedRouteWith` tooltip, "Probe Routes" button, live source badges (`live:default`, `live:override`, `live:pool`). Header renamed "AI Tools Map".
+- **`admin-devkit-data`**: added `list-routes` action — returns merged static defaults + DB overrides with `source` field; no API keys in response.
+
+#### Root causes fixed
+- `ask-portfolio` was incorrectly set as `gatewayDefault: null` in the original frontend code. Root cause: copy-paste error when the original GATEWAY_DEFAULTS map was written. Fixed: `ask-portfolio` has a dedicated groq route in `FEATURE_ROUTES` and is now correctly reflected.
+- Frontend FEATURES array had drifted from gateway FEATURE_ROUTES. Root cause: no shared source of truth. Fixed: catalogue is now authoritative.
+
+---
+
+### Phase 6 — Secure Real Route Testing
+
+#### Changes completed
+- **`admin-devkit-data`**: added `issue-test-nonce` action — HMAC-SHA256 signed (same key as gateway: `APPWRITE_API_KEY`), 60-second TTL, `{ purpose: 'gateway-admin-test', featureId, iat, exp }` payload.
+- **`ai-gateway`**: added `verifyAdminTestNonce()` — validates signature, purpose, and expiry. When `isAdminTest` is true: skips credit check, caps `maxTokens` at 80, skips `recordSuccessUsage()`, returns `{ status: 'ok', adminTest: true, feature, provider, model, preview }` immediately after first successful LLM call.
+- **`AIRoutingSwitcher.tsx`**: per-feature "test" button. Flow: issue nonce → get JWT → call gateway with `__admin_test_nonce`. Shows spinner, error panel, or "Route OK ✓" with provider/model/preview.
+
+#### Root causes
+- No way to verify a route override was actually working without making a real chargeable user request. Fixed: admin test path uses signed nonce, zero credits, capped output.
+
+---
+
+### Phase 7 — Consistent Gateway Metadata + Persistent AI Logs
+
+#### Changes completed
+- **`ai-gateway`**: all 6 success return points now include a top-level `meta` sibling: `{ feature, provider, model, latencyMs, fallback: boolean, adminTest?: true }`. Existing `data` shapes are unchanged.
+- **`ai-gateway`**: added `safeLogAiRequest(db, meta, userId)` — writes to `ai_request_logs` collection, fire-and-forget (`.catch(() => {})`), silent on missing collection.
+- `requestStartTime = Date.now()` captured before the candidate loop; `latencyMs` is accurate end-to-end.
+- No raw API keys anywhere in logged data.
+
+#### Manual Appwrite step required (not yet done)
+Create collection `ai_request_logs` in DB `main`:
+```
+Attributes: feature_id (str 64), provider (str 32), model (str 128),
+  latency_ms (int), is_fallback (bool), is_admin_test (bool),
+  user_id (str 36), created_at (str 32)
+Permissions: server-only
+```
+Until this collection exists, `safeLogAiRequest` silently no-ops. Gateway behavior is unaffected.
+
+---
+
+### Phase 8 — Key Pinning + Advanced Rotation
+
+#### Changes completed
+- **`ai-gateway`** `buildPool()`: every pool entry now includes `slot: number` (1–3).
+- **`ai-gateway`** `loadKeyConfig(db)`: reads `app_settings.ai_key_modes` JSON (cached 60s). Per-slot modes: `active` (default), `pinned` (try first), `standby` (try last), `disabled` (never use). Stored as `{ 'groq:1': 'pinned', 'nvidia:2': 'disabled', ... }`.
+- **`ai-gateway`** `buildCandidates(featureName, pool, { noFallback })`: filters disabled slots (safety net: if ALL disabled, falls back to full pool), sorts pinned→active→standby within the preferred provider, excludes standby from primary round-robin selection.
+- **`noFallback`**: only honored when `isAdminTest && opts.__admin_no_fallback === true`. Production cross-provider fallback is never disabled.
+- **`admin-devkit-data`**: added `get-key-modes` and `set-key-mode` actions. `set-key-mode` patches the JSON map without replacing other slots. Deletes `'active'` entries (active is default, no storage needed). Audit-logged.
+- `logPoolSummary` updated to include non-default slot modes in log line.
+
+#### Key invariants preserved
+- Production fallback always enabled.
+- Key values never logged.
+- All slots default to `active` if `app_settings.ai_key_modes` doc doesn't exist.
+
+---
+
+### Phase 9 — Appwrite Functions Console: Source Drift Detection
+
+#### Changes completed
+- **`scripts/compute-source-hashes.mjs`** (new): hashes every hub's `src/main.js` (SHA-256, 16-char hex prefix). Writes `src/lib/devkit/sourceHashes.generated.json`. Run after any hub change to keep manifest current.
+- **`src/lib/devkit/sourceHashes.generated.json`** (new): committed manifest of current source hashes for all 21 hubs (null for `email-templates` which has no `main.js`).
+- **`admin-devkit-data`**: added `get-deployed-hashes` (reads `app_settings.fn_deployed_hashes`) and `set-deployed-hash` (patches one hub's entry). Audit-logged.
+- **`DeployHubsPanel.tsx`**: loads deployed hashes alongside function list. Shows "Needs Redeploy" (amber border + badge) when `sourceHashes[hubId] !== deployedHashes[hubId]` or deployed hash is missing. Shows "In Sync" (emerald badge) when hashes match. Shows current hash and deployed hash if mismatched. After a successful redeploy, auto-calls `set-deployed-hash` with the current source hash.
+
+#### Usage
+Run `node scripts/compute-source-hashes.mjs` after editing any hub to update `sourceHashes.generated.json` and commit it. Then call `set-deployed-hash` (or deploy via DevKit which does it automatically) to mark what's live.
+
+---
+
+### Phase 10 — Mobile UX Pass
+
+#### Changes completed
+- **`AIRoutingSwitcher.tsx`**:
+  - Header toolbar right side: `flex flex-wrap` so provider status dots + action buttons wrap on small screens.
+  - Per-tool right panel: `items-start lg:items-end`, `w-full lg:w-auto` — left-aligned on mobile, right-aligned on desktop.
+  - Provider toggle pill: `flex-wrap` so buttons wrap on narrow viewports.
+  - Model select: `w-full lg:max-w-[260px]` — full width on mobile.
+  - Test result panels: `max-w-full lg:max-w-[280px]` — no fixed max-width clipping on mobile.
+- **`DeployHubsPanel.tsx`**: search bar `min-w-0` on mobile, `sm:min-w-[260px]` — removes forced-width overflow.
+- **`DevToolsPage.tsx`**: main content area gets `overflow-x-hidden` to contain stray overflow from nested panels.
+
+---
+
+### Validation completed
+
+```bash
+npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts   # 8/8 pass
+npx tsc --noEmit                                          # clean
+```
+
+---
+
+### Hard boundaries — all preserved
+
+- No auth rewrite.
+- No user-facing AI prompt changes.
+- AI Studio routes not split (`wise-ai-chat` shares routing with `agentic-chat`; `sharedRouteWith` annotation prevents accidental split).
+- No raw API keys logged anywhere.
+- Production fallback always enabled (`noFallback` gated behind `isAdminTest`).
+- Existing gateway `data` payload shapes unchanged — `meta` is a new top-level sibling only.
+- No Appwrite schema migrations attempted inline — new collections documented with manual setup instructions.
+
+---
+
+### Hubs requiring redeploy (cumulative — not yet done in production)
+
+From Phases 1–4 (still pending):
+- `admin-email`
+- `inspect-ai-keys`
+
+From Phases 5–10 (new):
+- `admin-devkit-data` — new actions: `list-routes`, `issue-test-nonce`, `get-key-modes`, `set-key-mode`, `get-deployed-hashes`, `set-deployed-hash`
+- `ai-gateway` — gateway `meta`, `safeLogAiRequest`, `verifyAdminTestNonce`, slot-aware `buildPool`/`buildCandidates`, `loadKeyConfig`
+
+Vercel preview deployment for PR #78 built and passed. Appwrite auto-deployed `admin-sentry` (unrelated hub, triggered by git integration). `admin-devkit-data` and `ai-gateway` were queued by Appwrite git integration but require confirmation they completed successfully.
+
+---
+
+### Where we stopped
+
+All Phases 1–10 are complete and merged to `main` (merge commit `6004b9b`).
+
+```bash
+git log --oneline -8
+# 6004b9b Merge pull request #78 ...
+# 30bcffd DevKit mobile UX pass (Phase 10)
+# e7248e2 Add source hash drift detection (Phase 9)
+# db8e680 Add key pinning + slot-aware routing (Phase 8)
+# e6489d1 Add gateway meta + ai_request_logs (Phase 7)
+# ee96b26 feat(devkit): Phase 6 — Secure Real Route Testing
+# 3eaf77d feat(devkit): Phase 5 — AI Tools Map MVP
+# e71a936 docs(atlas): add DevKit phases 1-4 handover
+```
+
+**Next agent:** pull `main`. No pending code phases. Outstanding manual steps only:
+
+1. **Redeploy** `admin-devkit-data` and `ai-gateway` in Appwrite Console (Phases 5–10 backend changes not live until redeployed).
+2. **Redeploy** `admin-email` and `inspect-ai-keys` (Phases 1–4 backend changes still pending from previous session).
+3. **Create** `ai_request_logs` collection in Appwrite DB `main` (Phase 7 persistent logging — see schema above, or in `safeLogAiRequest` comment in `ai-gateway/src/main.js`).
+4. **Run** `node scripts/compute-source-hashes.mjs` after any future hub edit and commit the updated `sourceHashes.generated.json`.
+
+No code regressions found. No schema migrations were applied. No auth changes were made.
+
+---
+
 ## Hub Architecture: Intentional Raw-Axios Hubs
 
 The following hubs intentionally do **not** declare or use the `node-appwrite` SDK. This is by design — not an omission.
