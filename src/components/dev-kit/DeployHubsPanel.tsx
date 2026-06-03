@@ -1,11 +1,16 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { AlertTriangle, CheckCircle2, XCircle, Rocket, SkipForward } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, FileText, RefreshCw, Rocket, Search, TerminalSquare, Wrench, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
-import { unwrapAdminResponse } from '@/lib/devkit/edgeResponse';
+import { unwrapAdminResponse } from '@/lib/devkit/appwriteResponse';
 import { cn } from '@/lib/utils';
+
+interface DeployStatus {
+  ready: boolean;
+  missing?: string[];
+}
 
 interface HubResult {
   hub: string;
@@ -15,162 +20,365 @@ interface HubResult {
 }
 
 interface DeployResponse {
-  ok: boolean;
   results: HubResult[];
   summary: { deployed: number; failed: number; skipped: number };
 }
 
-interface DeployStatus {
-  ready: boolean;
-  missing?: string[];
+interface FunctionRow {
+  id: string;
+  name: string;
+  enabled: boolean;
+  runtime: string;
+  deployment: string | null;
+  updatedAt: string | null;
+}
+
+interface ExecutionRow {
+  id: string;
+  status: string;
+  trigger: string;
+  duration: number | null;
+  responseStatusCode: number | null;
+  createdAt: string | null;
+}
+
+interface ExecutionDetail extends ExecutionRow {
+  logs: string;
+  errors: string;
+}
+
+type TabId = 'functions' | 'logs';
+
+function formatTimestamp(value: string | null) {
+  if (!value) return 'Unknown';
+  return new Date(value).toLocaleString();
 }
 
 export function DeployHubsPanel() {
-  const [state, setState] = useState<'idle' | 'deploying' | 'done'>('idle');
-  const [results, setResults] = useState<HubResult[]>([]);
-  const [summary, setSummary] = useState<DeployResponse['summary'] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabId>('functions');
   const [status, setStatus] = useState<DeployStatus | null>(null);
-  const [statusLoading, setStatusLoading] = useState(true);
-  const abortRef = useRef(false);
+  const [functions, setFunctions] = useState<FunctionRow[]>([]);
+  const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deploying, setDeploying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<DeployResponse['summary'] | null>(null);
+  const [results, setResults] = useState<HubResult[]>([]);
+  const [selectedFunctionId, setSelectedFunctionId] = useState<string>('');
+  const [executions, setExecutions] = useState<ExecutionRow[]>([]);
+  const [executionsLoading, setExecutionsLoading] = useState(false);
+  const [executionDetail, setExecutionDetail] = useState<ExecutionDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const filteredFunctions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return functions;
+    return functions.filter(fn => fn.id.toLowerCase().includes(query) || fn.name.toLowerCase().includes(query));
+  }, [functions, search]);
+
+  const loadFunctions = async (searchValue = search) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statusTuple, listTuple] = await Promise.all([
+        appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({ action: 'deploy-hubs-status' })),
+        appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({ action: 'list-functions', search: searchValue })),
+      ]);
+      const statusData = unwrapAdminResponse<DeployStatus>(statusTuple, 'admin-devkit-data');
+      const listData = unwrapAdminResponse<{ functions: FunctionRow[] }>(listTuple, 'admin-devkit-data');
+      setStatus(statusData);
+      setFunctions(listData.functions ?? []);
+      setSelectedIds(prev => prev.filter(id => (listData.functions ?? []).some(fn => fn.id === id)));
+      if (!selectedFunctionId && (listData.functions ?? []).length > 0) {
+        setSelectedFunctionId(listData.functions[0].id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load Appwrite Functions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadExecutions = async (functionId: string) => {
+    if (!functionId) return;
+    setExecutionsLoading(true);
+    setExecutionDetail(null);
+    try {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({
+        action: 'list-function-executions',
+        functionId,
+        limit: 12,
+      }));
+      const data = unwrapAdminResponse<{ executions: ExecutionRow[] }>(tuple, 'admin-devkit-data');
+      setExecutions(data.executions ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load executions');
+    } finally {
+      setExecutionsLoading(false);
+    }
+  };
+
+  const loadExecutionDetail = async (functionId: string, executionId: string) => {
+    setDetailLoading(true);
+    try {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({
+        action: 'get-execution-log',
+        functionId,
+        executionId,
+      }));
+      const data = unwrapAdminResponse<{ execution: ExecutionDetail }>(tuple, 'admin-devkit-data');
+      setExecutionDetail(data.execution ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load execution detail');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    const loadStatus = async () => {
-      setStatusLoading(true);
-      try {
-        const tuple = await appwriteFunctions.invoke(
-          'admin-devkit-data',
-          devKitInvokeOptions({ action: 'deploy-hubs-status' }),
-        );
-        const data = unwrapAdminResponse<DeployStatus & Record<string, unknown>>(tuple, 'admin-devkit-data');
-        if (!cancelled) setStatus({ ready: data.ready, missing: data.missing ?? [] });
-      } catch (err) {
-        if (!cancelled) setStatus({ ready: false, missing: ['deploy-hubs-status'] });
-        console.warn('[DeployHubsPanel] status check failed:', err);
-      } finally {
-        if (!cancelled) setStatusLoading(false);
-      }
-    };
-    loadStatus();
-    return () => { cancelled = true; };
+    void loadFunctions('');
   }, []);
 
-  const deploy = async () => {
+  useEffect(() => {
+    if (tab === 'logs' && selectedFunctionId) {
+      void loadExecutions(selectedFunctionId);
+    }
+  }, [tab, selectedFunctionId]);
+
+  const toggleSelection = (functionId: string) => {
+    setSelectedIds(prev => prev.includes(functionId) ? prev.filter(id => id !== functionId) : [...prev, functionId]);
+  };
+
+  const deploy = async (hubs: string[] | null, label: string) => {
     if (!status?.ready) {
-      setError('Deploy Hubs is disabled until the missing server variables are configured.');
+      setError('This function deploys all others. If it breaks, use Appwrite Console to redeploy manually.');
       return;
     }
-    setState('deploying');
-    setResults([]);
-    setSummary(null);
+    if (!window.confirm(`Proceed with ${label}?`)) return;
+    setDeploying(true);
     setError(null);
-    abortRef.current = false;
-
+    setSummary(null);
+    setResults([]);
     try {
-      const result = await appwriteFunctions.invoke<DeployResponse>(
-        'admin-deploy-hubs',
-        devKitInvokeOptions({ }),
-      );
-
-      if (result.error) {
-        setError(result.error.message || 'Deployment failed');
-        setState('done');
-        return;
-      }
-
-      const data = result.data;
-      if (!data) {
-        setError('No response from deploy function');
-        setState('done');
-        return;
-      }
-
-      setResults(data.results ?? []);
+      const tuple = await appwriteFunctions.invoke('admin-deploy-hubs', devKitInvokeOptions(hubs ? { hubs } : {}));
+      const data = unwrapAdminResponse<DeployResponse>(tuple, 'admin-deploy-hubs');
       setSummary(data.summary ?? null);
-      setState('done');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      setState('done');
+      setResults(data.results ?? []);
+      await loadFunctions(search);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Deployment failed');
+    } finally {
+      setDeploying(false);
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/20">
-            <Rocket className="h-5 w-5 text-blue-400" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/20">
+                <Wrench className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white">Appwrite Functions</h2>
+                <p className="text-xs text-white/45">Browse functions, redeploy safely, and inspect recent execution logs.</p>
+              </div>
+            </div>
+            <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              This function deploys all others. If it breaks, use Appwrite Console to redeploy manually.
+            </p>
           </div>
-          <div>
-            <h2 className="text-lg font-black text-white">Deploy AI Hubs</h2>
-            <p className="text-xs text-white/45">Clones GitHub, builds &amp; deploys all 18 Appwrite functions from latest main</p>
+          <div className="flex gap-2">
+            <Button variant={tab === 'functions' ? 'default' : 'outline'} onClick={() => setTab('functions')} className="rounded-xl">
+              <Rocket className="mr-2 h-4 w-4" /> Functions
+            </Button>
+            <Button variant={tab === 'logs' ? 'default' : 'outline'} onClick={() => setTab('logs')} className="rounded-xl">
+              <TerminalSquare className="mr-2 h-4 w-4" /> Logs
+            </Button>
+            <Button variant="outline" onClick={() => void loadFunctions(search)} disabled={loading || deploying} className="rounded-xl">
+              {loading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Refresh
+            </Button>
           </div>
         </div>
 
-        <Button
-          onClick={deploy}
-          disabled={state === 'deploying' || statusLoading || !status?.ready}
-          className="w-full h-12 rounded-xl bg-blue-600 font-bold hover:bg-blue-500 disabled:opacity-60"
-        >
-          {state === 'deploying' ? (
-            <><MiniSpinner size={16} className="mr-2" />Deploying… this takes ~5 minutes</>
-          ) : statusLoading ? (
-            <><MiniSpinner size={16} className="mr-2" />Checking deploy configuration</>
-          ) : !status?.ready ? (
-            <><AlertTriangle className="mr-2 h-4 w-4" />Deploy Hubs disabled</>
-          ) : (
-            <><Rocket className="mr-2 h-4 w-4" />Deploy All Hubs</>
-          )}
-        </Button>
-
-        {!statusLoading && !status?.ready && (
+        {!status?.ready && !loading && (
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-200">
             Missing server variables on <span className="font-mono">admin-deploy-hubs</span>: {(status?.missing ?? []).join(', ') || 'unknown'}.
           </div>
         )}
-
-        {state === 'deploying' && (
-          <p className="text-center text-xs text-white/40">
-            The function is running on Appwrite's servers. Don't close this tab.
-          </p>
-        )}
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
           {error}
         </div>
       )}
 
       {summary && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Stat label="Deployed" value={summary.deployed} color="emerald" />
           <Stat label="Failed" value={summary.failed} color="red" />
           <Stat label="Skipped" value={summary.skipped} color="white" />
         </div>
       )}
 
+      {tab === 'functions' && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex min-w-[260px] flex-1 items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+              <Search className="h-4 w-4 text-white/30" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search functions"
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+              />
+            </div>
+            <Button onClick={() => void loadFunctions(search)} variant="outline" className="rounded-xl">Apply Search</Button>
+            <Button onClick={() => void deploy(selectedIds, `redeploying ${selectedIds.length} selected function(s)`)} disabled={deploying || selectedIds.length === 0 || !status?.ready} className="rounded-xl bg-blue-600 hover:bg-blue-500">
+              {deploying ? <MiniSpinner size={16} className="mr-2" /> : <Rocket className="mr-2 h-4 w-4" />}
+              Redeploy Selected
+            </Button>
+            <Button onClick={() => void deploy(null, 'deploying all functions')} disabled={deploying || !status?.ready} variant="outline" className="rounded-xl">
+              Deploy All
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {loading ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-white/45">
+                <MiniSpinner size={18} className="mx-auto mb-3" />
+                Loading function inventory…
+              </div>
+            ) : filteredFunctions.map(fn => (
+              <div key={fn.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(fn.id)}
+                      onChange={() => toggleSelection(fn.id)}
+                      className="mt-1 h-4 w-4 rounded border-white/20 bg-transparent"
+                    />
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-sm text-white">{fn.id}</span>
+                        <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', fn.enabled ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' : 'border-red-500/20 bg-red-500/10 text-red-300')}>
+                          {fn.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/45">{fn.name}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-white/55">
+                        <span>Runtime: <span className="font-mono text-white/75">{fn.runtime}</span></span>
+                        <span>Deployment: <span className="font-mono text-white/75">{fn.deployment ?? 'None'}</span></span>
+                        <span>Updated: <span className="text-white/75">{formatTimestamp(fn.updatedAt)}</span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setTab('logs'); setSelectedFunctionId(fn.id); }} className="rounded-xl">
+                      <FileText className="mr-2 h-4 w-4" /> Logs
+                    </Button>
+                    <Button onClick={() => void deploy([fn.id], `redeploying ${fn.id}`)} disabled={deploying || !status?.ready} className="rounded-xl bg-blue-600 hover:bg-blue-500">
+                      <Rocket className="mr-2 h-4 w-4" /> Redeploy
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'logs' && (
+        <div className="grid gap-4 lg:grid-cols-[320px,1fr]">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-white/35">Function</label>
+              <select
+                value={selectedFunctionId}
+                onChange={e => setSelectedFunctionId(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              >
+                {functions.map(fn => <option key={fn.id} value={fn.id}>{fn.id}</option>)}
+              </select>
+            </div>
+            <Button onClick={() => void loadExecutions(selectedFunctionId)} disabled={!selectedFunctionId || executionsLoading} variant="outline" className="w-full rounded-xl">
+              {executionsLoading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Refresh Executions
+            </Button>
+            <div className="space-y-2">
+              {executions.map(execution => (
+                <button
+                  key={execution.id}
+                  onClick={() => void loadExecutionDetail(selectedFunctionId, execution.id)}
+                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-left hover:bg-white/5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-white">{execution.id.slice(0, 10)}</span>
+                    <ChevronRight className="h-4 w-4 text-white/30" />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-white/55">
+                    <span>{execution.status}</span>
+                    <span>{execution.responseStatusCode ?? '—'}</span>
+                    <span>{execution.duration ?? '—'}ms</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-white/35">{formatTimestamp(execution.createdAt)}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            {detailLoading ? (
+              <div className="py-10 text-center text-white/45">
+                <MiniSpinner size={18} className="mx-auto mb-3" />
+                Loading execution details…
+              </div>
+            ) : executionDetail ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-mono text-sm text-white">{executionDetail.id}</span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/65">{executionDetail.status}</span>
+                  <span className="text-xs text-white/45">{executionDetail.duration ?? '—'}ms</span>
+                  <span className="text-xs text-white/45">HTTP {executionDetail.responseStatusCode ?? '—'}</span>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/35">Logs</p>
+                  <pre className="max-h-[280px] overflow-auto rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-white/75 whitespace-pre-wrap">
+                    {executionDetail.logs || 'No logs returned.'}
+                  </pre>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/35">Errors</p>
+                  <pre className="max-h-[200px] overflow-auto rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-red-200 whitespace-pre-wrap">
+                    {executionDetail.errors || 'No errors returned.'}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <div className="py-10 text-center text-white/35">
+                Select a recent execution to inspect its logs.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {results.length > 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] divide-y divide-white/5">
-          {results.map(r => (
-            <div key={r.hub} className="flex items-center gap-3 px-4 py-3">
-              {r.status === 'deployed' && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />}
-              {r.status === 'failed'   && <XCircle      className="h-4 w-4 shrink-0 text-red-400" />}
-              {r.status === 'skipped' && <SkipForward   className="h-4 w-4 shrink-0 text-white/30" />}
-              <span className={cn(
-                'flex-1 font-mono text-sm',
-                r.status === 'deployed' ? 'text-white'     :
-                r.status === 'failed'   ? 'text-red-300'   : 'text-white/35',
-              )}>
-                {r.hub}
-              </span>
-              {r.deploymentId && (
-                <span className="font-mono text-[10px] text-white/25">{r.deploymentId.slice(0, 8)}</span>
-              )}
-              {r.error && (
-                <span className="max-w-[200px] truncate text-xs text-red-400" title={r.error}>{r.error}</span>
-              )}
+          {results.map(result => (
+            <div key={result.hub} className="flex items-center gap-3 px-4 py-3">
+              {result.status === 'deployed' && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+              {result.status === 'failed' && <XCircle className="h-4 w-4 text-red-400" />}
+              {result.status === 'skipped' && <AlertTriangle className="h-4 w-4 text-white/35" />}
+              <span className="flex-1 font-mono text-sm text-white">{result.hub}</span>
+              {result.deploymentId && <span className="font-mono text-[10px] text-white/30">{result.deploymentId.slice(0, 8)}</span>}
+              {result.error && <span className="max-w-[240px] truncate text-xs text-red-300">{result.error}</span>}
             </div>
           ))}
         </div>
@@ -182,9 +390,10 @@ export function DeployHubsPanel() {
 function Stat({ label, value, color }: { label: string; value: number; color: 'emerald' | 'red' | 'white' }) {
   const cls = {
     emerald: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
-    red:     'border-red-500/20 bg-red-500/10 text-red-400',
-    white:   'border-white/10 bg-white/5 text-white/50',
+    red: 'border-red-500/20 bg-red-500/10 text-red-400',
+    white: 'border-white/10 bg-white/5 text-white/50',
   }[color];
+
   return (
     <div className={cn('rounded-xl border p-3 text-center', cls)}>
       <div className="text-2xl font-black">{value}</div>

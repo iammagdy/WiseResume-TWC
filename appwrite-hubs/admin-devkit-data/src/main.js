@@ -143,6 +143,14 @@ async function listFunctions(queries = []) {
   return appwriteGet('/functions', queries);
 }
 
+async function listFunctionExecutions(functionId, queries = []) {
+  return appwriteGet(`/functions/${encodeURIComponent(functionId)}/executions`, queries);
+}
+
+async function getFunctionExecution(functionId, executionId) {
+  return appwriteGet(`/functions/${encodeURIComponent(functionId)}/executions/${encodeURIComponent(executionId)}`);
+}
+
 async function listFunctionVariables(functionId) {
   return appwriteGet(`/functions/${encodeURIComponent(functionId)}/variables`);
 }
@@ -488,26 +496,54 @@ async function handleMissionControl(log, error) {
 
 async function handleEdgeFnDrift(log) {
   const now = isoNow();
-  log('fn-drift: returning stub summary from admin-devkit-data');
-  return {
-    checkedAt: now,
-    projectRef: PROJECT_ID,
-    deployedCount: 0,
-    freshness: {
-      oldestDeployedAt: null,
-      newestDeployedAt: null,
-      olderThan30d: 0,
-    },
-    authPosture: {
-      total: 0,
-      pass: 0,
-      fail: 0,
-      knownDriftCount: 0,
-      failures: [],
-      knownDrifts: [],
-      defaultExpected: 200,
-    },
-  };
+  try {
+    const page = await listFunctions([sdk.Query.limit(200)]);
+    const functions = page.functions || [];
+    const updatedAtValues = functions
+      .map(fn => fn.$updatedAt || fn.dateUpdated || fn.dateCreated || null)
+      .filter(Boolean)
+      .sort();
+    return {
+      checkedAt: now,
+      projectRef: PROJECT_ID,
+      deployedCount: functions.length,
+      freshness: {
+        oldestDeployedAt: updatedAtValues[0] || null,
+        newestDeployedAt: updatedAtValues[updatedAtValues.length - 1] || null,
+        olderThan30d: updatedAtValues.filter(value => Date.now() - new Date(value).getTime() > 30 * 86400000).length,
+      },
+      authPosture: {
+        total: functions.length,
+        pass: functions.filter(fn => fn.enabled !== false).length,
+        fail: functions.filter(fn => fn.enabled === false).length,
+        knownDriftCount: 0,
+        failures: [],
+        knownDrifts: [],
+        defaultExpected: 200,
+      },
+    };
+  } catch (err) {
+    log(`[warn] fn-drift: ${err.message}`);
+    return {
+      checkedAt: now,
+      projectRef: PROJECT_ID,
+      deployedCount: 0,
+      freshness: {
+        oldestDeployedAt: null,
+        newestDeployedAt: null,
+        olderThan30d: 0,
+      },
+      authPosture: {
+        total: 0,
+        pass: 0,
+        fail: 0,
+        knownDriftCount: 0,
+        failures: [{ name: 'functions.read', expected: 1, got: 0, note: err.message }],
+        knownDrifts: [],
+        defaultExpected: 200,
+      },
+    };
+  }
 }
 
 async function handleObservability(body, log) {
@@ -797,6 +833,61 @@ async function handleDeployHubsStatus() {
     ready: missing.length === 0,
     required,
     missing,
+  };
+}
+
+async function handleListFunctions(body, log) {
+  const page = await listFunctions([sdk.Query.limit(200)]);
+  const search = String(body.search || '').trim().toLowerCase();
+  const functions = (page.functions || [])
+    .map(fn => ({
+      id: fn.$id,
+      name: fn.name || fn.$id,
+      enabled: !!fn.enabled,
+      runtime: fn.runtime || 'unknown',
+      deployment: fn.deployment || fn.deploymentId || null,
+      updatedAt: fn.$updatedAt || fn.dateUpdated || fn.dateCreated || null,
+    }))
+    .filter(fn => !search || fn.id.toLowerCase().includes(search) || fn.name.toLowerCase().includes(search));
+  log(`list-functions: ${functions.length} functions`);
+  return { functions, total: functions.length };
+}
+
+async function handleListFunctionExecutions(body, log) {
+  const functionId = String(body.functionId || '').trim();
+  const limit = Math.min(Math.max(1, Number(body.limit) || 10), 25);
+  if (!functionId) throw new Error('Missing functionId');
+  const page = await listFunctionExecutions(functionId, [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit)]);
+  const executions = (page.executions || []).map(execution => ({
+    id: execution.$id,
+    status: execution.status || 'unknown',
+    trigger: execution.trigger || 'unknown',
+    duration: execution.duration ?? null,
+    responseStatusCode: execution.responseStatusCode ?? null,
+    createdAt: execution.$createdAt || null,
+  }));
+  return { executions, total: executions.length };
+}
+
+async function handleGetExecutionLog(body, log) {
+  const functionId = String(body.functionId || '').trim();
+  const executionId = String(body.executionId || '').trim();
+  if (!functionId || !executionId) throw new Error('Missing functionId or executionId');
+  const execution = await getFunctionExecution(functionId, executionId);
+  const logs = String(execution.logs || execution.stdout || execution.responseBody || '').slice(0, 4000);
+  const errors = String(execution.errors || execution.stderr || execution.error || '').slice(0, 4000);
+  log(`get-execution-log: ${functionId}/${executionId}`);
+  return {
+    execution: {
+      id: execution.$id || executionId,
+      status: execution.status || 'unknown',
+      trigger: execution.trigger || 'unknown',
+      duration: execution.duration ?? null,
+      responseStatusCode: execution.responseStatusCode ?? null,
+      createdAt: execution.$createdAt || null,
+      logs,
+      errors,
+    },
   };
 }
 
@@ -2024,6 +2115,9 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'list-provider-models') data = await handleListProviderModels(body, log);
     else if (action === 'fn-drift' || action === 'edge-fn-drift') data = await handleEdgeFnDrift(log);
     else if (action === 'deploy-hubs-status') data = await handleDeployHubsStatus();
+    else if (action === 'list-functions') data = await handleListFunctions(body, log);
+    else if (action === 'list-function-executions') data = await handleListFunctionExecutions(body, log);
+    else if (action === 'get-execution-log') data = await handleGetExecutionLog(body, log);
     else if (action === 'observability') data = await handleObservability(body, log);
     else if (action === 'overview-stats') data = await handleOverviewStats(log);
     else if (action === 'global-stats') data = await handleGlobalStats(log);
