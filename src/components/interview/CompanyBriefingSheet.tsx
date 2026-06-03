@@ -152,15 +152,18 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
             {briefing && activeTab === 'generate' && (
               <>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant="outline"
+                  size="sm"
                   onClick={handleSave}
-                  className="h-9 w-9"
-                  title="Save briefing"
+                  className="h-8 gap-1.5 text-xs"
+                  title="Save briefing to library"
                   aria-label="Save briefing"
                   disabled={saveCompanyBriefing.isPending}
                 >
-                  <Bookmark className="w-4 h-4" />
+                  {saveCompanyBriefing.isPending
+                    ? <Bookmark className="w-3.5 h-3.5 animate-pulse" />
+                    : <Bookmark className="w-3.5 h-3.5" />}
+                  Save
                 </Button>
                 <Button variant="ghost" size="icon" onClick={handleDownloadPDF} className="h-9 w-9" title="Download PDF" aria-label="Download PDF">
                   <Download className="w-4 h-4" />
