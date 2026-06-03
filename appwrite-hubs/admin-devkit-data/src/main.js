@@ -691,11 +691,16 @@ async function handleListUsersPage(body, log) {
   const subMap = new Map(subs.map(s => [s.user_id, s]));
   const credMap = new Map(creds.map(c => [c.user_id, c]));
 
+  // Mirrors PLAN_DAILY_LIMITS in ai-gateway so the admin panel shows the real cap
+  // even before a user's first AI request creates an ai_credits document.
+  const PLAN_CREDIT_DEFAULTS = { premium: -1, pro: 50, free: 5 };
+
   return {
     users: authPage.users.map(authUser => {
       const doc = profileMap.get(authUser.$id) || {};
       const s = subMap.get(authUser.$id) || {};
       const c = credMap.get(authUser.$id) || {};
+      const plan_name = s.plan ?? doc.plan ?? 'free';
       return {
         $id: doc.$id || authUser.$id,
         $createdAt: authUser.$createdAt || doc.$createdAt,
@@ -703,11 +708,13 @@ async function handleListUsersPage(body, log) {
         email: authUser.email || doc.email || null,
         full_name: doc.full_name || authUser.name || null,
         contact_email: doc.contact_email ?? null,
-        plan_name: s.plan ?? doc.plan ?? 'free',
+        plan_name,
         plan_updated_at: s.$updatedAt ?? null,
         is_suspended: doc.is_suspended ?? false,
         suspension_reason: doc.suspension_reason ?? null,
-        daily_limit: c.daily_limit ?? null,
+        // Use the ai_credits document limit when present; fall back to plan default
+        // so free/pro users without a credits doc show their actual cap (not ∞).
+        daily_limit: c.daily_limit != null ? c.daily_limit : (PLAN_CREDIT_DEFAULTS[plan_name] ?? 5),
         credits_used_today: c.daily_usage ?? 0,
         trial_plan: s.trial_plan ?? null,
         trial_expires_at: s.trial_expires_at ?? null,

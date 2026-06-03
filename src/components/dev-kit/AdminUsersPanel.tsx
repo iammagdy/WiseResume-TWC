@@ -946,8 +946,8 @@ function UserRow({
             : <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-400">active</span>}
         </div>
 
-        {/* Quick row actions */}
-        <div className="flex-1 flex items-center gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
+        {/* Quick row actions — stopPropagation so row-expand click isn't triggered by buttons */}
+        <div className="flex items-center gap-1.5 justify-end" onClick={e => e.stopPropagation()}>
           <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
             {(['free', 'pro', 'premium'] as const).map(p => (
               <button
@@ -971,8 +971,13 @@ function UserRow({
           >
             {impersonating ? <MiniSpinner size={11} /> : <ExternalLink size={11} />}
           </button>
-          <ChevronDown size={13} className={cn('text-white/30 transition-transform flex-shrink-0', expanded && 'rotate-180')} />
         </div>
+        {/* Chevron is outside stopPropagation so clicking it always toggles the expand panel */}
+        <ChevronDown
+          size={14}
+          className={cn('ml-1 text-white/40 transition-transform flex-shrink-0 cursor-pointer hover:text-white/70', expanded && 'rotate-180')}
+          aria-label={expanded ? 'Collapse user options' : 'Expand user options'}
+        />
       </div>
 
       {/* Expanded panel */}

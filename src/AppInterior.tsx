@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { toast } from 'sonner';
 import { MotionConfig, useReducedMotion } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
@@ -26,6 +26,7 @@ import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { BroadcastBanner, MaintenanceCountdown } from "@/components/layout/BroadcastBanner";
 import { ActingAsBanner } from "@/components/layout/ActingAsBanner";
+import { isImpersonating, subscribe as subscribeImpersonation } from "@/lib/impersonationStore";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
@@ -442,19 +443,35 @@ function MotionConfigProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Reads impersonation state outside AuthProvider so we can offset the layout
+// by the banner height (≈40px) without prop-drilling through the auth tree.
+function useImpersonatingBanner(): boolean {
+  return useSyncExternalStore(
+    subscribeImpersonation,
+    () => isImpersonating(),
+    () => false,
+  );
+}
+
 const AppInterior = () => {
+  const showingImpersonationBanner = useImpersonatingBanner();
+
   return (
     <MotionConfigProvider>
       <Toaster />
       <ActingAsBanner />
-      <AuthProvider>
-        <BottomSheetProvider>
-          <AIPrivacyDisclosureProvider>
-            <AppRoutes />
-            <DeferredProviders />
-          </AIPrivacyDisclosureProvider>
-        </BottomSheetProvider>
-      </AuthProvider>
+      {/* Push all app content below the fixed impersonation banner so it is
+          never obscured. The banner is ~40px tall (py-2 + one text line). */}
+      <div className={showingImpersonationBanner ? 'pt-10' : undefined}>
+        <AuthProvider>
+          <BottomSheetProvider>
+            <AIPrivacyDisclosureProvider>
+              <AppRoutes />
+              <DeferredProviders />
+            </AIPrivacyDisclosureProvider>
+          </BottomSheetProvider>
+        </AuthProvider>
+      </div>
     </MotionConfigProvider>
   );
 };
