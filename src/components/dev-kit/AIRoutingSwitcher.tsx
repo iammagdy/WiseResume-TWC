@@ -420,8 +420,8 @@ export const AIRoutingSwitcher = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {PROVIDERS.map(p => {
               const ping = pings[p.id];
               const dot = !ping
@@ -707,13 +707,13 @@ export const AIRoutingSwitcher = () => {
                             }
                             if (testResult.status === 'error') {
                               return (
-                                <div className="mt-1 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 max-w-[280px]">
+                                <div className="mt-1 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 max-w-full lg:max-w-[280px]">
                                   <p className="text-[9px] text-red-400 font-mono leading-snug">{testResult.error}</p>
                                 </div>
                               );
                             }
                             return (
-                              <div className="mt-1 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 max-w-[280px] space-y-0.5">
+                              <div className="mt-1 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 max-w-full lg:max-w-[280px] space-y-0.5">
                                 <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Route OK ✓</p>
                                 {testResult.provider && (
                                   <p className="text-[8px] font-mono text-emerald-400/60">
@@ -731,9 +731,9 @@ export const AIRoutingSwitcher = () => {
                         </div>
 
                         {/* Right: provider toggle + model picker */}
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex bg-white/5 rounded-xl p-0.5 border border-white/10">
+                        <div className="flex flex-col items-start lg:items-end gap-2 shrink-0 w-full lg:w-auto">
+                          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                            <div className="flex flex-wrap bg-white/5 rounded-xl p-0.5 border border-white/10">
                               {PROVIDERS.map(p => (
                                 <button
                                   key={p.id}
@@ -773,11 +773,11 @@ export const AIRoutingSwitcher = () => {
                           {hasOverride && override.provider && (() => {
                             const models = getCuratedModels(override.provider as AITestProvider);
                             return (
-                              <div className="flex items-center gap-2 w-full justify-end">
+                              <div className="flex flex-wrap items-center gap-2 w-full lg:justify-end">
                                 <select
                                   value={override.model}
                                   onChange={e => handleUpdateModel(feature.id, e.target.value)}
-                                  className="bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-white/80 px-2 py-1.5 max-w-[260px] focus:outline-none focus:border-purple-500/50 transition-colors"
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-white/80 px-2 py-1.5 lg:max-w-[260px] focus:outline-none focus:border-purple-500/50 transition-colors"
                                 >
                                   {models.map(m => (
                                     <option key={m.value} value={m.value} className="bg-zinc-900">
