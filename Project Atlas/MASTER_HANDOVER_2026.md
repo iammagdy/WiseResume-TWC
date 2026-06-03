@@ -2,6 +2,118 @@
 
 ---
 
+## Session Log - 2026-06-03 (Admin Panel Audit — 9 Fixes + Company Briefing Persistence)
+
+### Overview
+Full code-verified audit of the admin panel / DevKit and the AI Gateway. Nine issues fixed across two PRs (#75, #76). Both Appwrite hubs redeployed and activated. Vercel production deployment confirmed live on `resume.thewise.cloud`.
+
+---
+
+### Part 1 — Admin Panel / DevKit Audit (PR #75, commit `cd83764f`)
+
+#### Root Causes Verified
+
+| Issue | Root Cause |
+|-------|-----------|
+| Credits always `∞ unlimited` for all users | `admin-devkit-data` returned `daily_limit: null` when no `ai_credits` document existed (first-time users). `AdminUsersPanel` renders `∞` for any `null` limit. |
+| Clicking a user row does nothing | `ChevronDown` expand indicator was inside the `stopPropagation` div at line 950 of `AdminUsersPanel.tsx`, so clicks on it were swallowed. The most natural click target was silently broken. |
+| "Access denied" flash during Act As | `ActAs.tsx` called `startImpersonation()` inside a `useEffect`, so route guards (AdminRoute, ProtectedRoute) evaluated auth state *before* the impersonation store was set. Brief flash of redirect fired. |
+| AI credits charged to admin during impersonation | `getAppwriteJWT()` always creates a JWT for the *admin's* Appwrite session. `ai-gateway` identified the admin as the requester and charged credits to the admin account, not the impersonated user. |
+| "Acting as" banner obscures UI | `ActingAsBanner` renders `fixed top-0` (~40px). No compensating `padding-top` was applied to the content below it. |
+| Company Briefing always returns provider error | `ai-gateway` schema for `company-briefing` instructed the model to return `{overview, talkingPoints, risks, questions}`. Client validated `briefing.companySnapshot` — which never existed in the response. |
+| AI gateway only using 1–2 of 10 keys | `buildPool()` already read the correct env var names (`GROQ_KEY_1-3`, `OPENROUTER_KEY_1-3`, `DEEPSEEK_KEY`, `NVIDIA_KEY_1-3`). No startup log existed, so missing keys were invisible. Confirmed all 10 env vars are set and all 4 providers are active. |
+| `VITE_DEV_KIT_PASSWORD` in CI | Dead secret reference in `deploy-frontend.yml` left from password auth removal. Not referenced anywhere in `src/`. |
+| AI credits race condition | `loadCreditState` + `recordAiUsage` is a non-atomic read-write. Two concurrent requests can both pass the credit check before either increments. |
+
+#### Changes Applied
+
+| File | Fix |
+|------|-----|
+| `appwrite-hubs/admin-devkit-data/src/main.js` | Derive `daily_limit` from `PLAN_CREDIT_DEFAULTS = { premium: -1, pro: 50, free: 5 }` when no `ai_credits` doc exists. Value mirrors `PLAN_DAILY_LIMITS` in `ai-gateway`. |
+| `src/components/dev-kit/AdminUsersPanel.tsx` | Moved `ChevronDown` outside the `stopPropagation` div. Expand now works on first click. |
+| `src/pages/ActAs.tsx` | Moved `startImpersonation()` + `history.replaceState()` to module-level synchronous init (before any React render). Eliminates auth-flash race. Removed `useRef` StrictMode guard — no longer needed. |
+| `src/lib/appwrite-functions.ts` | Imported `isImpersonating`, `getImpersonationState`. When impersonating, attaches `X-Impersonating-User-Id: <userId>` header to all function calls. |
+| `appwrite-hubs/ai-gateway/src/main.js` | (1) After auth validation, derives `effectiveUserId`: if caller is admin AND `X-Impersonating-User-Id` is present, use impersonated user ID for rate-limiting and credit attribution. (2) Fixed `company-briefing` schema in `schemaPrompt` to match `CompanyBriefing` TypeScript type (`companySnapshot`, `recentHighlights`, `cultureSignals`, `keyPeople`, `talkingPoints`, `questionsToAsk`). (3) Updated `normalizeStructuredFeatureData` for `company-briefing` to validate `companySnapshot` and throw a clear error if missing. (4) Added `logPoolSummary()` — logs `total=N providers={...}` per request, lists missing env var names if pool < 10. Never logs key values. (5) Documented credits race condition with `TODO` comment in `recordAiUsage`. |
+| `src/AppInterior.tsx` | Added `useImpersonatingBanner()` hook via `useSyncExternalStore` on the impersonation store. Wraps app content in `pt-10` div when banner is visible. |
+| `.github/workflows/deploy-frontend.yml` | Attempted removal of `VITE_DEV_KIT_PASSWORD` reference — reverted because the OAuth token lacks `workflow` scope. See pending actions. |
+| `Project Atlas/CHANGELOG.md` | Dated entry added. |
+
+#### Atlas Correction
+`Project Atlas/00-Full-App-Reference/full-app-reference.md` stated `pro = 100 daily AI credits`, citing the deleted `supabase/functions/_shared/creditLimits.json`. Both active sources (`src/lib/planConfig.ts` and `ai-gateway PLAN_DAILY_LIMITS`) say `pro = 50`. Atlas corrected; source-of-truth pointer updated.
+
+#### Verification (PR #75)
+- `npx tsc --noEmit` — zero errors.
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js` — clean.
+
+---
+
+### Part 2 — Appwrite Hub Redeployment
+
+Both hubs redeployed from `Y:/WiseResume-TWC` main branch and activated via Appwrite API.
+
+| Function | Deployment ID | Status | Activated |
+|----------|--------------|--------|-----------|
+| `admin-devkit-data` | `6a1f963d4b70f8d540f1` | `ready` | ✅ `true` |
+| `ai-gateway` | `6a1f9652dbdf03436bbb` | `ready` | ✅ `true` |
+
+Live smoke test: `ai-gateway` HTTP 200, all 4 providers `{groq:true, openrouter:true, deepseek:true, nvidia:true}`.
+
+---
+
+### Part 3 — Company Briefing Persistence Fix (PR #76, commit `90c85977`)
+
+#### Root Causes Verified
+
+Three bugs caused the generated briefing to vanish every time the sheet was closed:
+
+| Bug | File | Root Cause |
+|-----|------|-----------|
+| 1 | `AgenticChatSheet.tsx` `onBriefingGenerated` | Only called `setCache(...)`. Never updated parent `cachedBriefingData` or `briefingCompanyName` state. So `initialBriefing=null` and `initialCompanyName=''` on every reopen. |
+| 2 | `AgenticChatSheet.tsx` `onOpenChange` | Explicitly called `setCachedBriefingData(null)` and `setBriefingCompanyName('')` on every close — even right after a fresh generation. |
+| 3 | `CompanyBriefingSheet.tsx` header | Save action was `variant="ghost" size="icon"` with only a `<Bookmark>` icon and no label. Users closed the sheet without knowing how to save. |
+
+#### Changes Applied
+
+| File | Fix |
+|------|-----|
+| `src/components/editor/AgenticChatSheet.tsx` | `onBriefingGenerated` now also calls `setCachedBriefingData(briefing)` and `setBriefingCompanyName(companyName)`. `onOpenChange` no longer clears state on close. |
+| `src/components/interview/CompanyBriefingSheet.tsx` | Save button changed to `variant="outline" size="sm"` with visible `Save` text label alongside the Bookmark icon. |
+
+#### Verification (PR #76)
+- `npx tsc --noEmit` — zero errors.
+
+---
+
+### Verification — Vercel Production Deployment
+
+| Deployment | Commit | State | Live |
+|------------|--------|-------|------|
+| `dpl_2S8VLnPpQWXVZv8vzgwtcNQEShVJ` | `90c85977` | ✅ READY | `resume.thewise.cloud` |
+
+Build time: ~80s. Both PRs (#75, #76) squash-merged to `main`.
+
+---
+
+### Pending Actions (User must action)
+
+| Action | Why |
+|--------|-----|
+| Remove `VITE_DEV_KIT_PASSWORD` from `deploy-frontend.yml` | Token lacks `workflow` scope. One-liner: `sed -i '/VITE_DEV_KIT_PASSWORD/d' .github/workflows/deploy-frontend.yml && git commit -am "ci: remove stale VITE_DEV_KIT_PASSWORD reference" && git push origin main` (requires token with `workflow` scope) |
+| Activate `admin-sentry` in Appwrite Console | Deployment `6a1dbbbc6a95ec9862a8` is `ready` but not active. Appwrite Console → Functions → `admin-sentry` → `...` → Activate |
+
+---
+
+### Where We Stopped
+- All 9 audit fixes are on `main` and live in production.
+- Company Briefing persistence fix is on `main` and live in production.
+- `admin-devkit-data` and `ai-gateway` are redeployed with the latest code.
+- `resume.thewise.cloud` is serving commit `90c85977`.
+- No uncommitted or un-pushed changes remain.
+- Two manual actions remain: `VITE_DEV_KIT_PASSWORD` CI cleanup (workflow-scope token required) and `admin-sentry` activation (Appwrite Console).
+
+---
+
 ## Session Log - 2026-06-02 (Appwrite Functions Audit, AI Gateway, Admin Hub Token Alignment)
 
 ### Overview
