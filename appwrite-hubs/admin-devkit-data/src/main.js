@@ -1687,6 +1687,51 @@ async function handleToggleAppSetting(body, log) {
   }
 }
 
+// ─── get-key-modes / set-key-mode: slot pinning config ───────────────────────
+
+const VALID_KEY_MODES = new Set(['active', 'pinned', 'standby', 'disabled']);
+
+async function handleGetKeyModes(log) {
+  const { databases } = getClients();
+  const res = await safeList(databases, 'app_settings', [sdk.Query.equal('key', ['ai_key_modes']), sdk.Query.limit(1)]);
+  let modes = {};
+  if (res.documents?.[0]?.value) {
+    try { modes = JSON.parse(res.documents[0].value) || {}; } catch { modes = {}; }
+  }
+  log(`get-key-modes: ${Object.keys(modes).length} slot overrides`);
+  return { modes };
+}
+
+async function handleSetKeyMode(body, log) {
+  const { databases } = getClients();
+  const { provider, slot, mode } = body;
+  if (!provider || !slot) throw new Error('provider and slot are required');
+  const slotKey = `${provider}:${slot}`;
+  if (!VALID_KEY_MODES.has(mode)) throw new Error(`Invalid mode "${mode}". Allowed: active, pinned, standby, disabled`);
+
+  const res = await safeList(databases, 'app_settings', [sdk.Query.equal('key', ['ai_key_modes']), sdk.Query.limit(1)]);
+  let modes = {};
+  if (res.documents?.[0]?.value) {
+    try { modes = JSON.parse(res.documents[0].value) || {}; } catch { modes = {}; }
+  }
+
+  if (mode === 'active') {
+    delete modes[slotKey]; // 'active' is default, no need to store
+  } else {
+    modes[slotKey] = mode;
+  }
+
+  const serialized = JSON.stringify(modes);
+  if (res.documents?.[0]) {
+    await databases.updateDocument(DB_ID, 'app_settings', res.documents[0].$id, { value: serialized });
+  } else {
+    await databases.createDocument(DB_ID, 'app_settings', sdk.ID.unique(), { key: 'ai_key_modes', value: serialized });
+  }
+  await auditLog(databases, 'set-key-mode', { slotKey, mode });
+  log(`set-key-mode: ${slotKey} -> ${mode}`);
+  return { modes, updated: slotKey, mode };
+}
+
 async function handleListWisehireWaitlist(log) {
   const res = await safeList(null, 'wisehire_waitlist', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(100)]);
   if (res.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error)) {
@@ -2241,6 +2286,8 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'delete-routing-config') data = await handleDeleteRoutingConfig(body, log);
     else if (action === 'list-routes') data = await handleListRoutes(log);
     else if (action === 'issue-test-nonce') data = await handleIssueTestNonce(body, log);
+    else if (action === 'get-key-modes') data = await handleGetKeyModes(log);
+    else if (action === 'set-key-mode') data = await handleSetKeyMode(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
     return json(res, rid, { success: true, ...data });

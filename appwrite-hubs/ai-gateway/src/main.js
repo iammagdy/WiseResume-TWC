@@ -1242,6 +1242,37 @@ function getDbClient() {
 const _keyBackoff     = new Map(); // apiKey → backoffUntilMs
 const _keyRoundRobin  = new Map(); // provider → next-index counter
 
+// ─── Key pinning config (warm-instance cache, TTL 60s) ────────────────────────
+// key_mode per slot: 'active' (default) | 'pinned' (try first) |
+//   'standby' (try last) | 'disabled' (never use)
+// Stored in app_settings doc { key: 'ai_key_modes', value: JSON string }
+// fallback_strategy: 'enabled' (default, production invariant) | 'disabled'
+// Stored in app_settings doc { key: 'ai_fallback_strategy', value: string }
+// Production fallback is NEVER disabled — 'disabled' only applies to admin tests.
+let _keyModes          = {}; // { 'groq:1': 'pinned', 'nvidia:2': 'disabled', ... }
+let _keyModesTs        = 0;
+const KEY_CONFIG_TTL   = 60_000;
+
+async function loadKeyConfig(db) {
+  if (Date.now() - _keyModesTs < KEY_CONFIG_TTL) return;
+  try {
+    const res = await db.listDocuments(DB_ID, 'app_settings', [
+      sdk.Query.equal('key', ['ai_key_modes']),
+      sdk.Query.limit(1),
+    ]);
+    const doc = res.documents?.[0];
+    if (doc?.value && typeof doc.value === 'string') {
+      try { _keyModes = JSON.parse(doc.value) || {}; } catch { _keyModes = {}; }
+    }
+    _keyModesTs = Date.now();
+  } catch { /* silently ignore — app_settings key may not exist yet */ }
+}
+
+function getKeyMode(provider, slot) {
+  const mode = _keyModes[`${provider}:${slot}`];
+  return (mode === 'pinned' || mode === 'standby' || mode === 'disabled') ? mode : 'active';
+}
+
 function isKeyHealthy(key) {
   const until = _keyBackoff.get(key);
   return !until || Date.now() > until;
@@ -1288,29 +1319,33 @@ function buildPool() {
   const pool = [];
   for (let i = 1; i <= 3; i++) {
     const key = process.env[`GROQ_KEY_${i}`];
-    if (key) pool.push({ provider: 'groq', key });
+    if (key) pool.push({ provider: 'groq', key, slot: i });
   }
   for (let i = 1; i <= 3; i++) {
     const key = process.env[`OPENROUTER_KEY_${i}`];
-    if (key) pool.push({ provider: 'openrouter', key });
+    if (key) pool.push({ provider: 'openrouter', key, slot: i });
   }
   if (process.env.DEEPSEEK_KEY) {
-    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY });
+    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY, slot: 1 });
   }
   for (let i = 1; i <= 3; i++) {
     const key = process.env[`NVIDIA_KEY_${i}`];
-    if (key) pool.push({ provider: 'nvidia', key });
+    if (key) pool.push({ provider: 'nvidia', key, slot: i });
   }
   return pool;
 }
 
-/** Log pool composition — provider names and counts only, never key values. */
+/** Log pool composition — provider names, counts, and slot modes only, never key values. */
 function logPoolSummary(pool, logFn) {
   const counts = {};
+  const modes  = [];
   for (const entry of pool) {
     counts[entry.provider] = (counts[entry.provider] || 0) + 1;
+    const mode = getKeyMode(entry.provider, entry.slot);
+    if (mode !== 'active') modes.push(`${entry.provider}:${entry.slot}=${mode}`);
   }
-  logFn(`[ai-gateway] Loaded AI key pool: total=${pool.length} providers=${JSON.stringify(counts)}`);
+  const modesSuffix = modes.length ? ` pinning=[${modes.join(',')}]` : '';
+  logFn(`[ai-gateway] Loaded AI key pool: total=${pool.length} providers=${JSON.stringify(counts)}${modesSuffix}`);
   if (pool.length < 10) {
     const expected = { GROQ_KEY_1:1,GROQ_KEY_2:1,GROQ_KEY_3:1,OPENROUTER_KEY_1:1,OPENROUTER_KEY_2:1,OPENROUTER_KEY_3:1,DEEPSEEK_KEY:1,NVIDIA_KEY_1:1,NVIDIA_KEY_2:1,NVIDIA_KEY_3:1 };
     const missing = Object.keys(expected).filter(k => !process.env[k]);
@@ -1331,17 +1366,28 @@ function getProviderAvailability() {
  * Build an ordered candidate list for a given featureName.
  *
  * Tries in this order:
- *  1. Preferred provider (from FEATURE_ROUTES): primary key via round-robin +
- *     health-aware selection, then the remaining keys for that same provider
- *     (all using the route model so quality is preserved on same-provider retry).
- *  2. Cross-provider fallbacks in buildPool() order (groq → openrouter →
- *     deepseek → nvidia), each using that provider's default free model.
+ *  1. Preferred provider (from FEATURE_ROUTES): pinned slots first, then active,
+ *     then standby. Disabled slots are never used. Primary key via round-robin +
+ *     health-aware selection; same-provider fallbacks keep the route model.
+ *  2. Cross-provider fallbacks in buildPool() order — omitted when noFallback
+ *     is true (admin-test-only flag that must never affect production requests).
  *
- * Returns an array of { provider, key, model, routed } objects, or [] when
- * the pool is empty.
+ * Returns an array of { provider, key, slot, model, routed } objects.
+ *
+ * @param {string} featureName
+ * @param {Array<{provider,key,slot}>} pool
+ * @param {{ noFallback?: boolean }} [opts]
  */
-function buildCandidates(featureName, pool) {
+function buildCandidates(featureName, pool, opts = {}) {
   if (pool.length === 0) return [];
+
+  const { noFallback = false } = opts;
+
+  // Filter out disabled slots; if all slots disabled, fall back to full pool as safety net.
+  const activePool = pool.filter(e => getKeyMode(e.provider, e.slot) !== 'disabled');
+  const workingPool = activePool.length > 0 ? activePool : pool;
+
+  const modeOrder = { pinned: 0, active: 1, standby: 2, disabled: 3 };
 
   const defaultModelFor = p =>
     p === 'openrouter' ? OPENROUTER_FREE_MODEL :
@@ -1354,27 +1400,38 @@ function buildCandidates(featureName, pool) {
   const route      = FEATURE_ROUTES[featureName];
 
   if (route) {
-    const providerKeys = pool.filter(e => e.provider === route.provider);
-    if (providerKeys.length > 0) {
-      // Primary: round-robin + health-aware (skips rate-limited keys)
-      const primary = pickKey(pool, route.provider);
-      candidates.push({ provider: primary.provider, key: primary.key, model: route.model, routed: true });
-      usedKeys.add(primary.key);
+    // Sort same-provider keys: pinned first, then active, then standby
+    const providerKeys = workingPool
+      .filter(e => e.provider === route.provider)
+      .sort((a, b) => (modeOrder[getKeyMode(a.provider, a.slot)] ?? 1) - (modeOrder[getKeyMode(b.provider, b.slot)] ?? 1));
 
-      // Same-provider fallbacks keep the route model — quality maintained on retry
+    if (providerKeys.length > 0) {
+      // Primary: prefer pinned/active for round-robin; standby enters only if no active available
+      const primaryPool = providerKeys.filter(e => getKeyMode(e.provider, e.slot) !== 'standby');
+      const roundRobinSource = primaryPool.length > 0 ? primaryPool : providerKeys;
+      const primary = pickKey(roundRobinSource, route.provider);
+      if (primary) {
+        candidates.push({ provider: primary.provider, key: primary.key, slot: primary.slot, model: route.model, routed: true });
+        usedKeys.add(primary.key);
+      }
+
+      // Same-provider fallbacks (pinned → active → standby order), keep route model
       for (const entry of providerKeys) {
         if (usedKeys.has(entry.key)) continue;
-        candidates.push({ provider: entry.provider, key: entry.key, model: route.model, routed: true });
+        candidates.push({ provider: entry.provider, key: entry.key, slot: entry.slot, model: route.model, routed: true });
         usedKeys.add(entry.key);
       }
     }
   }
 
-  // Cross-provider fallbacks in pool order (groq → openrouter → deepseek → nvidia)
-  for (const entry of pool) {
-    if (usedKeys.has(entry.key)) continue;
-    candidates.push({ provider: entry.provider, key: entry.key, model: defaultModelFor(entry.provider), routed: false });
-    usedKeys.add(entry.key);
+  // Cross-provider fallbacks — never disabled in production.
+  // noFallback is honored only when the caller guarantees isAdminTest.
+  if (!noFallback) {
+    for (const entry of workingPool) {
+      if (usedKeys.has(entry.key)) continue;
+      candidates.push({ provider: entry.provider, key: entry.key, slot: entry.slot, model: defaultModelFor(entry.provider), routed: false });
+      usedKeys.add(entry.key);
+    }
   }
 
   return candidates;
@@ -1385,7 +1442,7 @@ function buildCandidates(featureName, pool) {
 module.exports = async ({ req, res, log, error }) => {
   enableLLMObs();
   const db = getDbClient();
-  await syncDynamicRoutes(db);
+  await Promise.all([syncDynamicRoutes(db), loadKeyConfig(db)]);
 
   // Broad outer catch — preserves the JSON error contract on any unexpected failure.
   try {
@@ -1501,9 +1558,11 @@ module.exports = async ({ req, res, log, error }) => {
 
     log(`AI-Gateway Hub: authorized user=${effectiveUserId}${effectiveUserId !== auth.user.$id ? ` (impersonated by admin)` : ''}${isAdminTest ? ' [admin-test]' : ''} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
 
+    // noFallback: only honored when isAdminTest — never disables production fallback.
+    const noFallback = isAdminTest && opts.__admin_no_fallback === true;
     const pool       = buildPool();
     logPoolSummary(pool, log);
-    const candidates = buildCandidates(featureName, pool);
+    const candidates = buildCandidates(featureName, pool, { noFallback });
     const aiOpts = sanitizeAiPayload(opts);
     const requestMessages = buildMessages(featureName, aiOpts);
 
