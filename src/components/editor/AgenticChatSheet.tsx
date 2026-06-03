@@ -1379,10 +1379,9 @@ export function WiseWorkspaceChat({
       open={briefingOpen}
       onOpenChange={(o) => {
         setBriefingOpen(o);
-        if (!o) {
-          setCachedBriefingData(null);
-          setBriefingCompanyName('');
-        }
+        // Do NOT clear cachedBriefingData or briefingCompanyName on close.
+        // Preserving them means the briefing is restored immediately on next open
+        // without requiring the user to re-generate.
       }}
       jobDescription=""
       resumeData={currentResume ?? undefined}
@@ -1390,6 +1389,10 @@ export function WiseWorkspaceChat({
       initialBriefing={cachedBriefingData}
       onBriefingGenerated={(briefing, companyName) => {
         setCache('get_company_briefing', companyName, briefing);
+        // Also update local parent state so initialBriefing and initialCompanyName
+        // are correct on the next open — without this the sheet reopens blank.
+        setCachedBriefingData(briefing);
+        setBriefingCompanyName(companyName);
       }}
     />
 
