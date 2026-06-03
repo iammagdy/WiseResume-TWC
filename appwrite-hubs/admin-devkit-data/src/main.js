@@ -925,6 +925,18 @@ async function handleDeleteRoutingConfig(body, log) {
   return { deleted: true };
 }
 
+// ─── issue-test-nonce: short-lived signed nonce for gateway admin tests ───────
+
+async function handleIssueTestNonce(body, log) {
+  const featureId = String(body.featureId || '').trim();
+  if (!featureId) throw new Error('Missing featureId');
+  const now = Date.now();
+  const exp = now + 60_000; // 60-second TTL — single-use window
+  const nonce = signToken({ purpose: 'gateway-admin-test', featureId, iat: now, exp });
+  log(`issue-test-nonce: featureId=${featureId} exp=${new Date(exp).toISOString()}`);
+  return { nonce, expiresAt: new Date(exp).toISOString() };
+}
+
 // ─── list-routes: merged static defaults + DB overrides, no API keys ─────────
 
 async function handleListRoutes(log) {
@@ -2228,6 +2240,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'create-routing-config') data = await handleCreateRoutingConfig(body, log);
     else if (action === 'delete-routing-config') data = await handleDeleteRoutingConfig(body, log);
     else if (action === 'list-routes') data = await handleListRoutes(log);
+    else if (action === 'issue-test-nonce') data = await handleIssueTestNonce(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
     return json(res, rid, { success: true, ...data });

@@ -13,6 +13,7 @@ import type { LucideIcon } from 'lucide-react';
 import { getCuratedModels } from '@/lib/devkit/aiTestSlotModels';
 import type { AITestProvider } from '@/lib/devkit/aiTestSlotModels';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { account } from '@/lib/appwrite';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { tryUnwrapAdminResponse } from '@/lib/devkit/edgeResponse';
 import {
@@ -146,6 +147,7 @@ export const AIRoutingSwitcher = () => {
   const [pinging, setPinging] = useState(false);
   const [liveRoutes, setLiveRoutes] = useState<Record<string, LiveRouteEntry> | null>(null);
   const [probingRoutes, setProbingRoutes] = useState(false);
+  const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string }>>({});
 
   const fetchRoutes = async () => {
     setLoading(true);
@@ -352,6 +354,54 @@ export const AIRoutingSwitcher = () => {
       </div>
     );
   }
+
+  const testRoute = useCallback(async (featureId: string) => {
+    setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'running' } }));
+    try {
+      // 1. Issue a short-lived nonce from admin-devkit-data
+      const nonceTuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'issue-test-nonce', featureId },
+      });
+      const nonceResult = tryUnwrapAdminResponse<{ nonce: string }>(nonceTuple, 'admin-devkit-data');
+      if (!nonceResult?.nonce) throw new Error('Failed to obtain test nonce');
+
+      // 2. Get the admin's Appwrite JWT for gateway auth
+      const jwtToken = await account.createJWT();
+      const jwt = jwtToken.jwt;
+
+      // 3. Call ai-gateway with the nonce (no credit deduction, 80-token cap)
+      const gwTuple = await appwriteFunctions.invoke('ai-gateway', {
+        headers: { 'X-Appwrite-JWT': jwt },
+        body: {
+          feature: featureId,
+          message: 'Admin route test. Reply with exactly: ROUTE_OK',
+          __admin_test_nonce: nonceResult.nonce,
+        },
+      });
+      // ai-gateway returns plain JSON (not wrapped in admin response envelope)
+      const gwRaw = gwTuple?.response ?? gwTuple;
+      const gwData = typeof gwRaw === 'string' ? (() => { try { return JSON.parse(gwRaw); } catch { return { status: 'error', message: gwRaw }; } })() : gwRaw;
+
+      if (gwData?.status === 'ok' || gwData?.adminTest) {
+        setRouteTestResults(prev => ({
+          ...prev,
+          [featureId]: {
+            status: 'ok',
+            provider: gwData.provider,
+            model: gwData.model,
+            preview: gwData.preview ?? '',
+          },
+        }));
+      } else {
+        const errMsg = gwData?.message || gwData?.error || 'Unknown gateway error';
+        setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'error', error: errMsg } }));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Test failed';
+      setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'error', error: msg } }));
+    }
+  }, []);
 
   const totalOverrides = Object.keys(routes).length;
 
@@ -642,6 +692,42 @@ export const AIRoutingSwitcher = () => {
                               </span>
                             </div>
                           )}
+
+                          {/* Route test result */}
+                          {(() => {
+                            const testResult = routeTestResults[feature.id];
+                            if (!testResult) return null;
+                            if (testResult.status === 'running') {
+                              return (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <MiniSpinner size={10} />
+                                  <span className="text-[9px] text-muted-foreground/60 font-mono">Testing route…</span>
+                                </div>
+                              );
+                            }
+                            if (testResult.status === 'error') {
+                              return (
+                                <div className="mt-1 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 max-w-[280px]">
+                                  <p className="text-[9px] text-red-400 font-mono leading-snug">{testResult.error}</p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="mt-1 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 max-w-[280px] space-y-0.5">
+                                <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Route OK ✓</p>
+                                {testResult.provider && (
+                                  <p className="text-[8px] font-mono text-emerald-400/60">
+                                    [{testResult.provider}] {testResult.model}
+                                  </p>
+                                )}
+                                {testResult.preview && (
+                                  <p className="text-[8px] text-muted-foreground/50 font-mono leading-snug line-clamp-2 break-all">
+                                    {testResult.preview.slice(0, 100)}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Right: provider toggle + model picker */}
@@ -673,6 +759,14 @@ export const AIRoutingSwitcher = () => {
                                 reset
                               </button>
                             )}
+                            <button
+                              onClick={() => void testRoute(feature.id)}
+                              disabled={routeTestResults[feature.id]?.status === 'running'}
+                              className="text-[9px] text-muted-foreground/50 hover:text-emerald-400 font-mono uppercase tracking-wider transition-colors px-2 disabled:opacity-40"
+                              title="Test this route — admin only, no credit deduction"
+                            >
+                              {routeTestResults[feature.id]?.status === 'running' ? '…' : 'test'}
+                            </button>
                           </div>
 
                           {/* Model picker — shown only when an override provider is selected */}

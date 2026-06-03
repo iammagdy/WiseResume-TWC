@@ -1,6 +1,7 @@
 'use strict';
 
 const axios = require('axios');
+const crypto = require('crypto');
 const sdk = require('node-appwrite');
 const extractedPrompts = require('./extracted_prompts.json');
 
@@ -185,6 +186,33 @@ function getAppwriteEndpoint() {
 
 function getAppwriteProjectId() {
   return process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
+}
+
+/**
+ * Verify a short-lived admin test nonce issued by admin-devkit-data.
+ * Returns the decoded payload on success, or null if invalid/expired.
+ * Uses the same HMAC-SHA256 scheme as admin-devkit-data signToken().
+ * No API keys are exposed in the gateway response — only preview content.
+ */
+function verifyAdminTestNonce(nonce) {
+  const secret = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!secret || !nonce || typeof nonce !== 'string' || !nonce.includes('.')) return null;
+  const dotIdx = nonce.lastIndexOf('.');
+  const encoded = nonce.slice(0, dotIdx);
+  const sig = nonce.slice(dotIdx + 1);
+  if (!encoded || !sig) return null;
+  try {
+    const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+    const actualBuf   = Buffer.from(sig, 'base64url');
+    const expectedBuf = Buffer.from(expected, 'base64url');
+    if (actualBuf.length !== expectedBuf.length) return null;
+    if (!crypto.timingSafeEqual(actualBuf, expectedBuf)) return null;
+  } catch { return null; }
+  let payload;
+  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return null; }
+  if (payload?.purpose !== 'gateway-admin-test') return null;
+  if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
+  return payload;
 }
 
 async function validateUserSession(body, req) {
@@ -1393,6 +1421,14 @@ module.exports = async ({ req, res, log, error }) => {
       return res.json({ status: 'success', data: { id: emailResponse.data.id, success: true } });
     }
 
+    // ── 1b. ADMIN TEST NONCE CHECK ────────────────────────────────────────────
+    // If a valid admin test nonce is present, credit checks and usage recording
+    // are skipped. Token output is capped to 80. Raw preview is returned without
+    // structured JSON parsing. No API keys are included in the response.
+    const adminTestNonceRaw = asString(opts.__admin_test_nonce || '');
+    const adminTestPayload = adminTestNonceRaw ? verifyAdminTestNonce(adminTestNonceRaw) : null;
+    const isAdminTest = !!adminTestPayload;
+
     // ── 2. AI ROUTE ─────────────────────────────────────────────────────────
     const auth = await validateUserSession(opts, req);
     if (!auth.ok) {
@@ -1424,7 +1460,10 @@ module.exports = async ({ req, res, log, error }) => {
       }, 429);
     }
 
-    const creditState = await loadCreditState(db, effectiveUserId, featureName);
+    // Admin tests skip credit checks entirely — nonce validity is the gate.
+    const creditState = isAdminTest
+      ? { cost: 0, chargeable: false, blocked: false }
+      : await loadCreditState(db, effectiveUserId, featureName);
     if (creditState.blocked) {
       await flushDD();
       return res.json({
@@ -1434,7 +1473,7 @@ module.exports = async ({ req, res, log, error }) => {
       }, creditState.status || 503);
     }
 
-    log(`AI-Gateway Hub: authorized user=${effectiveUserId}${effectiveUserId !== auth.user.$id ? ` (impersonated by admin)` : ''} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
+    log(`AI-Gateway Hub: authorized user=${effectiveUserId}${effectiveUserId !== auth.user.$id ? ` (impersonated by admin)` : ''}${isAdminTest ? ' [admin-test]' : ''} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
 
     const pool       = buildPool();
     logPoolSummary(pool, log);
@@ -1451,14 +1490,18 @@ module.exports = async ({ req, res, log, error }) => {
     const temperature = featureName === 'parse-resume'
       ? (aiOpts.temperature ?? 0.1)
       : (aiOpts.temperature || 0.7);
-    // agentic-chat needs more tokens for full rewrites; parse-resume needs 4k for full resumes
-    const maxTokens   = featureName === 'parse-resume'
-      ? (aiOpts.maxTokens ?? 4000)
-      : featureName === 'agentic-chat'
-        ? (aiOpts.maxTokens || 1500)
-        : (aiOpts.maxTokens || 1000);
+    // Admin tests are capped at 80 tokens — just enough to verify connectivity.
+    // agentic-chat needs more tokens for full rewrites; parse-resume needs 4k for full resumes.
+    const maxTokens = isAdminTest
+      ? 80
+      : featureName === 'parse-resume'
+        ? (aiOpts.maxTokens ?? 4000)
+        : featureName === 'agentic-chat'
+          ? (aiOpts.maxTokens || 1500)
+          : (aiOpts.maxTokens || 1000);
 
     async function recordSuccessUsage() {
+      if (isAdminTest) return;
       await recordAiUsage(db, creditState);
     }
 
@@ -1499,6 +1542,20 @@ module.exports = async ({ req, res, log, error }) => {
         providerUsed = candidate.provider;
         modelUsed    = aiOpts.model || candidate.model;
         routedBy     = candidate.routed;
+
+        // Admin test: skip all structured parsing, return raw preview immediately.
+        // Credits are not recorded. No API keys are included in the response.
+        if (isAdminTest) {
+          await flushDD();
+          return res.json({
+            status: 'ok',
+            adminTest: true,
+            feature: featureName,
+            provider: providerUsed,
+            model: modelUsed,
+            preview: String(content || '').slice(0, 300),
+          });
+        }
 
         if (featureName === 'parse-resume') {
           try {
