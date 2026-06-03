@@ -7,7 +7,7 @@ import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import {
   AI_TEST_PROVIDERS,
-  AI_TEST_SLOTS,
+  AI_KEY_SLOT_MAP,
   DROPDOWN_PROVIDERS,
   getCuratedModels,
   fetchLiveProviderModels,
@@ -198,6 +198,9 @@ export function AIKeysPanel() {
             <p className="text-xs text-muted-foreground">
               Key slot status · per-slot model overrides · saved to app_settings
             </p>
+            <p className="text-[11px] text-muted-foreground/80">
+              3 OpenRouter + 3 Groq + 3 NVIDIA + 1 DeepSeek = 10 cards
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -246,7 +249,7 @@ export function AIKeysPanel() {
               </div>
 
               <div className="space-y-3">
-                {(AI_TEST_SLOTS as readonly AITestSlot[]).map(slot => {
+                {AI_KEY_SLOT_MAP[provider].map(slot => {
                   const entry = getEntry(provider, slot);
                   const k = slotKey(provider, slot);
                   const present = entry?.present ?? false;

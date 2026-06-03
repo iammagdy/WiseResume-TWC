@@ -23,7 +23,12 @@ const NVIDIA_VALID_MODELS = [
 ];
 
 const PROVIDERS = ['openrouter', 'groq', 'deepseek', 'nvidia'];
-const SLOTS = [1, 2, 3];
+const PROVIDER_SLOTS = {
+  openrouter: [1, 2, 3],
+  groq: [1, 2, 3],
+  nvidia: [1, 2, 3],
+  deepseek: [1],
+};
 
 function getDb() {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -113,7 +118,9 @@ module.exports = async ({ req, res, log }) => {
   if (provider && slot && model) {
     if (!PROVIDERS.includes(provider)) return res.json({ success: false, error: `Unknown provider: ${provider}` }, 400);
     const slotNum = Number(slot);
-    if (![1, 2, 3].includes(slotNum)) return res.json({ success: false, error: 'Slot must be 1, 2, or 3' }, 400);
+    if (!(PROVIDER_SLOTS[provider] || []).includes(slotNum)) {
+      return res.json({ success: false, error: `Slot ${slotNum} is not valid for ${provider}` }, 400);
+    }
     if (typeof model !== 'string' || !model.trim()) return res.json({ success: false, error: 'model must be a non-empty string' }, 400);
 
     log(`Saving model override: ${provider}:${slotNum}`);
@@ -129,7 +136,7 @@ module.exports = async ({ req, res, log }) => {
   const slotModels = await readSlotModels(databases);
   const keys = [];
   for (const p of PROVIDERS) {
-    for (const s of SLOTS) {
+    for (const s of (PROVIDER_SLOTS[p] || [])) {
       const rawKey = getEnvKey(p, s);
       const rawSaved = slotModels[`${p}:${s}`];
       const savedModel = (p === 'nvidia' && rawSaved && !NVIDIA_VALID_MODELS.includes(rawSaved)) ? null : rawSaved;

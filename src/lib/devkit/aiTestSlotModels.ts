@@ -24,6 +24,12 @@ export type AITestSlot = 1 | 2 | 3;
 
 export const AI_TEST_PROVIDERS: readonly AITestProvider[] = ['openrouter', 'groq', 'deepseek', 'nvidia'] as const;
 export const AI_TEST_SLOTS: readonly AITestSlot[] = [1, 2, 3] as const;
+export const AI_KEY_SLOT_MAP = {
+  openrouter: [1, 2, 3],
+  groq: [1, 2, 3],
+  nvidia: [1, 2, 3],
+  deepseek: [1],
+} as const satisfies Record<AITestProvider, readonly AITestSlot[]>;
 
 /**
  * A curated LLM model entry for use in DevKit dropdowns.
