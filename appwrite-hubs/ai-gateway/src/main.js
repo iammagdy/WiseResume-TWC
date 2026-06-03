@@ -1,6 +1,7 @@
 'use strict';
 
 const axios = require('axios');
+const crypto = require('crypto');
 const sdk = require('node-appwrite');
 const extractedPrompts = require('./extracted_prompts.json');
 
@@ -187,6 +188,33 @@ function getAppwriteProjectId() {
   return process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 }
 
+/**
+ * Verify a short-lived admin test nonce issued by admin-devkit-data.
+ * Returns the decoded payload on success, or null if invalid/expired.
+ * Uses the same HMAC-SHA256 scheme as admin-devkit-data signToken().
+ * No API keys are exposed in the gateway response — only preview content.
+ */
+function verifyAdminTestNonce(nonce) {
+  const secret = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!secret || !nonce || typeof nonce !== 'string' || !nonce.includes('.')) return null;
+  const dotIdx = nonce.lastIndexOf('.');
+  const encoded = nonce.slice(0, dotIdx);
+  const sig = nonce.slice(dotIdx + 1);
+  if (!encoded || !sig) return null;
+  try {
+    const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+    const actualBuf   = Buffer.from(sig, 'base64url');
+    const expectedBuf = Buffer.from(expected, 'base64url');
+    if (actualBuf.length !== expectedBuf.length) return null;
+    if (!crypto.timingSafeEqual(actualBuf, expectedBuf)) return null;
+  } catch { return null; }
+  let payload;
+  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return null; }
+  if (payload?.purpose !== 'gateway-admin-test') return null;
+  if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
+  return payload;
+}
+
 async function validateUserSession(body, req) {
   const jwt = extractJwt(body, req);
   if (!jwt) {
@@ -305,6 +333,32 @@ async function loadCreditState(db, userId, featureName) {
     currentUsage,
     today,
   };
+}
+
+const AI_REQUEST_LOGS_COLLECTION_ID = 'ai_request_logs';
+
+/**
+ * Append one row to ai_request_logs. Fails silently when the collection
+ * doesn't exist yet — create it manually in Appwrite Console to activate:
+ *   DB: main | Collection ID: ai_request_logs
+ *   Attributes: feature_id (str 64), provider (str 32), model (str 128),
+ *     latency_ms (int), is_fallback (bool), is_admin_test (bool),
+ *     user_id (str 36), created_at (str 32)
+ *   Permissions: server-only (no user read/write)
+ */
+async function safeLogAiRequest(db, { feature, provider, model, latencyMs, fallback, adminTest }, userId) {
+  try {
+    await db.createDocument(DB_ID, AI_REQUEST_LOGS_COLLECTION_ID, sdk.ID.unique(), {
+      feature_id: feature || 'unknown',
+      provider: provider || 'unknown',
+      model: model || 'unknown',
+      latency_ms: Math.round(latencyMs || 0),
+      is_fallback: fallback === true,
+      is_admin_test: adminTest === true,
+      user_id: userId || 'unknown',
+      created_at: new Date().toISOString(),
+    });
+  } catch { /* silently skip — collection may not exist yet */ }
 }
 
 async function recordAiUsage(db, creditState) {
@@ -1188,6 +1242,37 @@ function getDbClient() {
 const _keyBackoff     = new Map(); // apiKey → backoffUntilMs
 const _keyRoundRobin  = new Map(); // provider → next-index counter
 
+// ─── Key pinning config (warm-instance cache, TTL 60s) ────────────────────────
+// key_mode per slot: 'active' (default) | 'pinned' (try first) |
+//   'standby' (try last) | 'disabled' (never use)
+// Stored in app_settings doc { key: 'ai_key_modes', value: JSON string }
+// fallback_strategy: 'enabled' (default, production invariant) | 'disabled'
+// Stored in app_settings doc { key: 'ai_fallback_strategy', value: string }
+// Production fallback is NEVER disabled — 'disabled' only applies to admin tests.
+let _keyModes          = {}; // { 'groq:1': 'pinned', 'nvidia:2': 'disabled', ... }
+let _keyModesTs        = 0;
+const KEY_CONFIG_TTL   = 60_000;
+
+async function loadKeyConfig(db) {
+  if (Date.now() - _keyModesTs < KEY_CONFIG_TTL) return;
+  try {
+    const res = await db.listDocuments(DB_ID, 'app_settings', [
+      sdk.Query.equal('key', ['ai_key_modes']),
+      sdk.Query.limit(1),
+    ]);
+    const doc = res.documents?.[0];
+    if (doc?.value && typeof doc.value === 'string') {
+      try { _keyModes = JSON.parse(doc.value) || {}; } catch { _keyModes = {}; }
+    }
+    _keyModesTs = Date.now();
+  } catch { /* silently ignore — app_settings key may not exist yet */ }
+}
+
+function getKeyMode(provider, slot) {
+  const mode = _keyModes[`${provider}:${slot}`];
+  return (mode === 'pinned' || mode === 'standby' || mode === 'disabled') ? mode : 'active';
+}
+
 function isKeyHealthy(key) {
   const until = _keyBackoff.get(key);
   return !until || Date.now() > until;
@@ -1234,29 +1319,33 @@ function buildPool() {
   const pool = [];
   for (let i = 1; i <= 3; i++) {
     const key = process.env[`GROQ_KEY_${i}`];
-    if (key) pool.push({ provider: 'groq', key });
+    if (key) pool.push({ provider: 'groq', key, slot: i });
   }
   for (let i = 1; i <= 3; i++) {
     const key = process.env[`OPENROUTER_KEY_${i}`];
-    if (key) pool.push({ provider: 'openrouter', key });
+    if (key) pool.push({ provider: 'openrouter', key, slot: i });
   }
   if (process.env.DEEPSEEK_KEY) {
-    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY });
+    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY, slot: 1 });
   }
   for (let i = 1; i <= 3; i++) {
     const key = process.env[`NVIDIA_KEY_${i}`];
-    if (key) pool.push({ provider: 'nvidia', key });
+    if (key) pool.push({ provider: 'nvidia', key, slot: i });
   }
   return pool;
 }
 
-/** Log pool composition — provider names and counts only, never key values. */
+/** Log pool composition — provider names, counts, and slot modes only, never key values. */
 function logPoolSummary(pool, logFn) {
   const counts = {};
+  const modes  = [];
   for (const entry of pool) {
     counts[entry.provider] = (counts[entry.provider] || 0) + 1;
+    const mode = getKeyMode(entry.provider, entry.slot);
+    if (mode !== 'active') modes.push(`${entry.provider}:${entry.slot}=${mode}`);
   }
-  logFn(`[ai-gateway] Loaded AI key pool: total=${pool.length} providers=${JSON.stringify(counts)}`);
+  const modesSuffix = modes.length ? ` pinning=[${modes.join(',')}]` : '';
+  logFn(`[ai-gateway] Loaded AI key pool: total=${pool.length} providers=${JSON.stringify(counts)}${modesSuffix}`);
   if (pool.length < 10) {
     const expected = { GROQ_KEY_1:1,GROQ_KEY_2:1,GROQ_KEY_3:1,OPENROUTER_KEY_1:1,OPENROUTER_KEY_2:1,OPENROUTER_KEY_3:1,DEEPSEEK_KEY:1,NVIDIA_KEY_1:1,NVIDIA_KEY_2:1,NVIDIA_KEY_3:1 };
     const missing = Object.keys(expected).filter(k => !process.env[k]);
@@ -1277,17 +1366,28 @@ function getProviderAvailability() {
  * Build an ordered candidate list for a given featureName.
  *
  * Tries in this order:
- *  1. Preferred provider (from FEATURE_ROUTES): primary key via round-robin +
- *     health-aware selection, then the remaining keys for that same provider
- *     (all using the route model so quality is preserved on same-provider retry).
- *  2. Cross-provider fallbacks in buildPool() order (groq → openrouter →
- *     deepseek → nvidia), each using that provider's default free model.
+ *  1. Preferred provider (from FEATURE_ROUTES): pinned slots first, then active,
+ *     then standby. Disabled slots are never used. Primary key via round-robin +
+ *     health-aware selection; same-provider fallbacks keep the route model.
+ *  2. Cross-provider fallbacks in buildPool() order — omitted when noFallback
+ *     is true (admin-test-only flag that must never affect production requests).
  *
- * Returns an array of { provider, key, model, routed } objects, or [] when
- * the pool is empty.
+ * Returns an array of { provider, key, slot, model, routed } objects.
+ *
+ * @param {string} featureName
+ * @param {Array<{provider,key,slot}>} pool
+ * @param {{ noFallback?: boolean }} [opts]
  */
-function buildCandidates(featureName, pool) {
+function buildCandidates(featureName, pool, opts = {}) {
   if (pool.length === 0) return [];
+
+  const { noFallback = false } = opts;
+
+  // Filter out disabled slots; if all slots disabled, fall back to full pool as safety net.
+  const activePool = pool.filter(e => getKeyMode(e.provider, e.slot) !== 'disabled');
+  const workingPool = activePool.length > 0 ? activePool : pool;
+
+  const modeOrder = { pinned: 0, active: 1, standby: 2, disabled: 3 };
 
   const defaultModelFor = p =>
     p === 'openrouter' ? OPENROUTER_FREE_MODEL :
@@ -1300,27 +1400,38 @@ function buildCandidates(featureName, pool) {
   const route      = FEATURE_ROUTES[featureName];
 
   if (route) {
-    const providerKeys = pool.filter(e => e.provider === route.provider);
-    if (providerKeys.length > 0) {
-      // Primary: round-robin + health-aware (skips rate-limited keys)
-      const primary = pickKey(pool, route.provider);
-      candidates.push({ provider: primary.provider, key: primary.key, model: route.model, routed: true });
-      usedKeys.add(primary.key);
+    // Sort same-provider keys: pinned first, then active, then standby
+    const providerKeys = workingPool
+      .filter(e => e.provider === route.provider)
+      .sort((a, b) => (modeOrder[getKeyMode(a.provider, a.slot)] ?? 1) - (modeOrder[getKeyMode(b.provider, b.slot)] ?? 1));
 
-      // Same-provider fallbacks keep the route model — quality maintained on retry
+    if (providerKeys.length > 0) {
+      // Primary: prefer pinned/active for round-robin; standby enters only if no active available
+      const primaryPool = providerKeys.filter(e => getKeyMode(e.provider, e.slot) !== 'standby');
+      const roundRobinSource = primaryPool.length > 0 ? primaryPool : providerKeys;
+      const primary = pickKey(roundRobinSource, route.provider);
+      if (primary) {
+        candidates.push({ provider: primary.provider, key: primary.key, slot: primary.slot, model: route.model, routed: true });
+        usedKeys.add(primary.key);
+      }
+
+      // Same-provider fallbacks (pinned → active → standby order), keep route model
       for (const entry of providerKeys) {
         if (usedKeys.has(entry.key)) continue;
-        candidates.push({ provider: entry.provider, key: entry.key, model: route.model, routed: true });
+        candidates.push({ provider: entry.provider, key: entry.key, slot: entry.slot, model: route.model, routed: true });
         usedKeys.add(entry.key);
       }
     }
   }
 
-  // Cross-provider fallbacks in pool order (groq → openrouter → deepseek → nvidia)
-  for (const entry of pool) {
-    if (usedKeys.has(entry.key)) continue;
-    candidates.push({ provider: entry.provider, key: entry.key, model: defaultModelFor(entry.provider), routed: false });
-    usedKeys.add(entry.key);
+  // Cross-provider fallbacks — never disabled in production.
+  // noFallback is honored only when the caller guarantees isAdminTest.
+  if (!noFallback) {
+    for (const entry of workingPool) {
+      if (usedKeys.has(entry.key)) continue;
+      candidates.push({ provider: entry.provider, key: entry.key, slot: entry.slot, model: defaultModelFor(entry.provider), routed: false });
+      usedKeys.add(entry.key);
+    }
   }
 
   return candidates;
@@ -1331,7 +1442,7 @@ function buildCandidates(featureName, pool) {
 module.exports = async ({ req, res, log, error }) => {
   enableLLMObs();
   const db = getDbClient();
-  await syncDynamicRoutes(db);
+  await Promise.all([syncDynamicRoutes(db), loadKeyConfig(db)]);
 
   // Broad outer catch — preserves the JSON error contract on any unexpected failure.
   try {
@@ -1393,6 +1504,14 @@ module.exports = async ({ req, res, log, error }) => {
       return res.json({ status: 'success', data: { id: emailResponse.data.id, success: true } });
     }
 
+    // ── 1b. ADMIN TEST NONCE CHECK ────────────────────────────────────────────
+    // If a valid admin test nonce is present, credit checks and usage recording
+    // are skipped. Token output is capped to 80. Raw preview is returned without
+    // structured JSON parsing. No API keys are included in the response.
+    const adminTestNonceRaw = asString(opts.__admin_test_nonce || '');
+    const adminTestPayload = adminTestNonceRaw ? verifyAdminTestNonce(adminTestNonceRaw) : null;
+    const isAdminTest = !!adminTestPayload;
+
     // ── 2. AI ROUTE ─────────────────────────────────────────────────────────
     const auth = await validateUserSession(opts, req);
     if (!auth.ok) {
@@ -1424,7 +1543,10 @@ module.exports = async ({ req, res, log, error }) => {
       }, 429);
     }
 
-    const creditState = await loadCreditState(db, effectiveUserId, featureName);
+    // Admin tests skip credit checks entirely — nonce validity is the gate.
+    const creditState = isAdminTest
+      ? { cost: 0, chargeable: false, blocked: false }
+      : await loadCreditState(db, effectiveUserId, featureName);
     if (creditState.blocked) {
       await flushDD();
       return res.json({
@@ -1434,11 +1556,13 @@ module.exports = async ({ req, res, log, error }) => {
       }, creditState.status || 503);
     }
 
-    log(`AI-Gateway Hub: authorized user=${effectiveUserId}${effectiveUserId !== auth.user.$id ? ` (impersonated by admin)` : ''} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
+    log(`AI-Gateway Hub: authorized user=${effectiveUserId}${effectiveUserId !== auth.user.$id ? ` (impersonated by admin)` : ''}${isAdminTest ? ' [admin-test]' : ''} feature=${featureName || 'general'} cost=${creditState.cost || 0}`);
 
+    // noFallback: only honored when isAdminTest — never disables production fallback.
+    const noFallback = isAdminTest && opts.__admin_no_fallback === true;
     const pool       = buildPool();
     logPoolSummary(pool, log);
-    const candidates = buildCandidates(featureName, pool);
+    const candidates = buildCandidates(featureName, pool, { noFallback });
     const aiOpts = sanitizeAiPayload(opts);
     const requestMessages = buildMessages(featureName, aiOpts);
 
@@ -1451,14 +1575,18 @@ module.exports = async ({ req, res, log, error }) => {
     const temperature = featureName === 'parse-resume'
       ? (aiOpts.temperature ?? 0.1)
       : (aiOpts.temperature || 0.7);
-    // agentic-chat needs more tokens for full rewrites; parse-resume needs 4k for full resumes
-    const maxTokens   = featureName === 'parse-resume'
-      ? (aiOpts.maxTokens ?? 4000)
-      : featureName === 'agentic-chat'
-        ? (aiOpts.maxTokens || 1500)
-        : (aiOpts.maxTokens || 1000);
+    // Admin tests are capped at 80 tokens — just enough to verify connectivity.
+    // agentic-chat needs more tokens for full rewrites; parse-resume needs 4k for full resumes.
+    const maxTokens = isAdminTest
+      ? 80
+      : featureName === 'parse-resume'
+        ? (aiOpts.maxTokens ?? 4000)
+        : featureName === 'agentic-chat'
+          ? (aiOpts.maxTokens || 1500)
+          : (aiOpts.maxTokens || 1000);
 
     async function recordSuccessUsage() {
+      if (isAdminTest) return;
       await recordAiUsage(db, creditState);
     }
 
@@ -1479,6 +1607,7 @@ module.exports = async ({ req, res, log, error }) => {
       };
     }
 
+    const requestStartTime = Date.now();
     let content      = null;
     let providerUsed = null;
     let modelUsed    = null;
@@ -1500,14 +1629,32 @@ module.exports = async ({ req, res, log, error }) => {
         modelUsed    = aiOpts.model || candidate.model;
         routedBy     = candidate.routed;
 
+        // Admin test: skip all structured parsing, return raw preview immediately.
+        // Credits are not recorded. No API keys are included in the response.
+        if (isAdminTest) {
+          await flushDD();
+          return res.json({
+            status: 'ok',
+            adminTest: true,
+            feature: featureName,
+            provider: providerUsed,
+            model: modelUsed,
+            preview: String(content || '').slice(0, 300),
+            meta: { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true },
+          });
+        }
+
         if (featureName === 'parse-resume') {
           try {
             const parsedResume = normalizeResumeData(result.content);
             await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
             await flushDD();
             return res.json({
               status: 'success',
               data: parsedResume,
+              meta,
             });
           } catch (parseErr) {
             error(`Provider ${candidate.provider} returned malformed resume JSON: ${parseErr.message}`);
@@ -1526,10 +1673,13 @@ module.exports = async ({ req, res, log, error }) => {
           try {
             const structuredData = normalizeStructuredFeatureData(featureName, result.content, aiOpts);
             await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
             await flushDD();
             return res.json({
               status: 'success',
               data: structuredData,
+              meta,
             });
           } catch (parseErr) {
             error(`Provider ${candidate.provider} returned malformed ${featureName} JSON: ${parseErr.message}`);
@@ -1547,8 +1697,10 @@ module.exports = async ({ req, res, log, error }) => {
         if (featureName === 'agentic-chat') {
           const structuredResponse = parseAgenticChatResponse(result.content);
           await recordSuccessUsage();
+          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+          safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
           await flushDD();
-          return res.json({ status: 'success', data: structuredResponse });
+          return res.json({ status: 'success', data: structuredResponse, meta });
         }
 
         if (featureName === 'smart-fit-rewrite') {
@@ -1558,8 +1710,10 @@ module.exports = async ({ req, res, log, error }) => {
               ? parsed
               : (Array.isArray(parsed.outcomes) ? parsed.outcomes : []);
             await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
             await flushDD();
-            return res.json({ status: 'success', data: { success: true, outcomes } });
+            return res.json({ status: 'success', data: { success: true, outcomes }, meta });
           } catch (parseErr) {
             error(`smart-fit-rewrite: malformed JSON from ${candidate.provider}: ${parseErr.message}`);
             if (i === candidates.length - 1) {
@@ -1572,8 +1726,10 @@ module.exports = async ({ req, res, log, error }) => {
 
         if (featureName === 'ask-portfolio') {
           await recordSuccessUsage();
+          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+          safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
           await flushDD();
-          return res.json({ status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false } });
+          return res.json({ status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false }, meta });
         }
 
         break;
@@ -1599,8 +1755,10 @@ module.exports = async ({ req, res, log, error }) => {
       }
     }
 
-    await flushDD();
     await recordSuccessUsage();
+    const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+    safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+    await flushDD();
     return res.json({
       status: 'success',
       data: {
@@ -1609,6 +1767,7 @@ module.exports = async ({ req, res, log, error }) => {
         modelUsed,
         routedByFeature: routedBy,
       },
+      meta,
     });
 
   } catch (err) {

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { AlertTriangle, CheckCircle2, ChevronRight, FileText, RefreshCw, Rocket, Search, TerminalSquare, Wrench, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, FileText, GitCommit, RefreshCw, Rocket, Search, TerminalSquare, Wrench, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse } from '@/lib/devkit/appwriteResponse';
 import { cn } from '@/lib/utils';
+import sourceHashManifest from '@/lib/devkit/sourceHashes.generated.json';
 
 interface DeployStatus {
   ready: boolean;
@@ -54,6 +55,10 @@ function formatTimestamp(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
+const SOURCE_HASHES = sourceHashManifest.hashes as Record<string, string | null>;
+
+type DriftStatus = 'in-sync' | 'needs-redeploy' | 'unknown';
+
 export function DeployHubsPanel() {
   const [tab, setTab] = useState<TabId>('functions');
   const [status, setStatus] = useState<DeployStatus | null>(null);
@@ -70,6 +75,7 @@ export function DeployHubsPanel() {
   const [executionsLoading, setExecutionsLoading] = useState(false);
   const [executionDetail, setExecutionDetail] = useState<ExecutionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deployedHashes, setDeployedHashes] = useState<Record<string, string>>({});
 
   const filteredFunctions = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -81,9 +87,10 @@ export function DeployHubsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [statusTuple, listTuple] = await Promise.all([
+      const [statusTuple, listTuple, hashTuple] = await Promise.all([
         appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({ action: 'deploy-hubs-status' })),
         appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({ action: 'list-functions', search: searchValue })),
+        appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({ action: 'get-deployed-hashes' })).catch(() => null),
       ]);
       const statusData = unwrapAdminResponse<DeployStatus>(statusTuple, 'admin-devkit-data');
       const listData = unwrapAdminResponse<{ functions: FunctionRow[] }>(listTuple, 'admin-devkit-data');
@@ -93,12 +100,39 @@ export function DeployHubsPanel() {
       if (!selectedFunctionId && (listData.functions ?? []).length > 0) {
         setSelectedFunctionId(listData.functions[0].id);
       }
+      if (hashTuple) {
+        try {
+          const hashData = unwrapAdminResponse<{ hashes: Record<string, string> }>(hashTuple, 'admin-devkit-data');
+          setDeployedHashes(hashData.hashes ?? {});
+        } catch { /* non-critical */ }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Appwrite Functions');
     } finally {
       setLoading(false);
     }
   };
+
+  const getDriftStatus = useCallback((hubId: string): DriftStatus => {
+    const currentHash = SOURCE_HASHES[hubId];
+    if (!currentHash) return 'unknown';
+    const deployedHash = deployedHashes[hubId];
+    if (!deployedHash) return 'needs-redeploy';
+    return currentHash === deployedHash ? 'in-sync' : 'needs-redeploy';
+  }, [deployedHashes]);
+
+  const recordDeployedHash = useCallback(async (hubId: string) => {
+    const currentHash = SOURCE_HASHES[hubId];
+    if (!currentHash) return;
+    try {
+      await appwriteFunctions.invoke('admin-devkit-data', devKitInvokeOptions({
+        action: 'set-deployed-hash',
+        hubId,
+        hash: currentHash,
+      }));
+      setDeployedHashes(prev => ({ ...prev, [hubId]: currentHash }));
+    } catch { /* non-critical — hash recording is best-effort */ }
+  }, []);
 
   const loadExecutions = async (functionId: string) => {
     if (!functionId) return;
@@ -165,6 +199,9 @@ export function DeployHubsPanel() {
       const data = unwrapAdminResponse<DeployResponse>(tuple, 'admin-deploy-hubs');
       setSummary(data.summary ?? null);
       setResults(data.results ?? []);
+      // Record deployed hash for each successfully deployed hub
+      const deployedHubs = (data.results ?? []).filter(r => r.status === 'deployed').map(r => r.hub);
+      await Promise.allSettled(deployedHubs.map(hubId => recordDeployedHash(hubId)));
       await loadFunctions(search);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Deployment failed');
@@ -229,7 +266,7 @@ export function DeployHubsPanel() {
       {tab === 'functions' && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex min-w-[260px] flex-1 items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+            <div className="flex w-full min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 sm:min-w-[260px]">
               <Search className="h-4 w-4 text-white/30" />
               <input
                 value={search}
@@ -254,8 +291,11 @@ export function DeployHubsPanel() {
                 <MiniSpinner size={18} className="mx-auto mb-3" />
                 Loading function inventory…
               </div>
-            ) : filteredFunctions.map(fn => (
-              <div key={fn.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            ) : filteredFunctions.map(fn => {
+              const drift = getDriftStatus(fn.id);
+              const currentHash = SOURCE_HASHES[fn.id];
+              return (
+              <div key={fn.id} className={cn('rounded-2xl border p-4', drift === 'needs-redeploy' ? 'border-amber-500/20 bg-amber-500/5' : 'border-white/10 bg-white/[0.03]')}>
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-start gap-3">
                     <input
@@ -270,26 +310,50 @@ export function DeployHubsPanel() {
                         <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', fn.enabled ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' : 'border-red-500/20 bg-red-500/10 text-red-300')}>
                           {fn.enabled ? 'Enabled' : 'Disabled'}
                         </span>
+                        {drift === 'needs-redeploy' && (
+                          <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                            Needs Redeploy
+                          </span>
+                        )}
+                        {drift === 'in-sync' && (
+                          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                            In Sync
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-white/45">{fn.name}</p>
                       <div className="flex flex-wrap gap-3 text-xs text-white/55">
                         <span>Runtime: <span className="font-mono text-white/75">{fn.runtime}</span></span>
                         <span>Deployment: <span className="font-mono text-white/75">{fn.deployment ?? 'None'}</span></span>
                         <span>Updated: <span className="text-white/75">{formatTimestamp(fn.updatedAt)}</span></span>
+                        {currentHash && (
+                          <span title="Current source hash (first 16 chars of SHA-256)">
+                            Hash: <span className="font-mono text-white/55">{currentHash}</span>
+                            {deployedHashes[fn.id] && deployedHashes[fn.id] !== currentHash && (
+                              <span className="ml-1 text-amber-400" title={`Deployed: ${deployedHashes[fn.id]}`}>(deployed: {deployedHashes[fn.id]})</span>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={() => { setTab('logs'); setSelectedFunctionId(fn.id); }} className="rounded-xl">
                       <FileText className="mr-2 h-4 w-4" /> Logs
                     </Button>
+                    {drift === 'in-sync' && currentHash && (
+                      <Button variant="outline" onClick={() => void recordDeployedHash(fn.id)} className="rounded-xl text-white/50" title="Mark current source hash as deployed">
+                        <GitCommit className="mr-2 h-4 w-4" /> Mark Deployed
+                      </Button>
+                    )}
                     <Button onClick={() => void deploy([fn.id], `redeploying ${fn.id}`)} disabled={deploying || !status?.ready} className="rounded-xl bg-blue-600 hover:bg-blue-500">
                       <Rocket className="mr-2 h-4 w-4" /> Redeploy
                     </Button>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

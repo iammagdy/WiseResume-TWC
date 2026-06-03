@@ -335,7 +335,7 @@ function DevToolsInner() {
       </aside>
 
       {/* Main content */}
-      <main className="h-full flex-1 overflow-y-auto bg-black/20">
+      <main className="h-full flex-1 overflow-x-hidden overflow-y-auto bg-black/20">
         <div className="mx-auto max-w-6xl p-4 lg:p-12">
           <header className="mb-8 flex flex-col justify-between gap-6 lg:mb-12 md:flex-row md:items-end">
             <div className="space-y-2">

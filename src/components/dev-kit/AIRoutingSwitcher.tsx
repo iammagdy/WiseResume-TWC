@@ -3,7 +3,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   BrainCircuit, Save, RefreshCw, AlertTriangle, FileEdit,
   Target, MessageSquare, FileText, Globe, ChevronDown, ChevronUp,
-  Wifi, Sparkles, Info,
+  Wifi, Sparkles, Info, Link2,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -13,20 +13,23 @@ import type { LucideIcon } from 'lucide-react';
 import { getCuratedModels } from '@/lib/devkit/aiTestSlotModels';
 import type { AITestProvider } from '@/lib/devkit/aiTestSlotModels';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { account } from '@/lib/appwrite';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { tryUnwrapAdminResponse } from '@/lib/devkit/edgeResponse';
+import {
+  AI_TOOLS_CATALOGUE,
+  TOOL_GATEWAY_DEFAULTS,
+  type ToolAppArea,
+  type AiToolDef,
+} from '@/lib/devkit/aiToolsCatalogue';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type FeatureCategory = 'resume-editor' | 'tailoring' | 'chat' | 'documents' | 'portfolio';
+type FeatureCategory = ToolAppArea;
 type ProviderId = 'nvidia' | 'groq' | 'deepseek' | 'openrouter';
 
-interface FeatureDef {
-  id: string;
-  label: string;
-  description: string;
+interface FeatureDef extends AiToolDef {
   category: FeatureCategory;
-  gatewayDefault: { provider: ProviderId; model: string } | null;
 }
 
 interface RouteState {
@@ -36,207 +39,12 @@ interface RouteState {
   model: string;
 }
 
-// ─── Gateway defaults (mirrors FEATURE_ROUTES in appwrite-hubs/ai-gateway/src/main.js) ──
+// ─── Feature catalogue — sourced from aiToolsCatalogue.ts ────────────────────
 
-const GATEWAY_DEFAULTS: Record<string, { provider: ProviderId; model: string }> = {
-  'generate-cover-letter':        { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
-  'tailor-resume':                { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
-  'recruiter-simulation':         { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
-  'agentic-chat':                 { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'wise-ai-chat':                 { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'resume-section-ai':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'editor-ai':                    { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'detect-and-humanize':          { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'smart-fit-rewrite':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'career-assessment':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'generate-portfolio-bio':       { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'generate-resignation-letter':  { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'validate-tailor':              { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'suggest-template':             { provider: 'groq',       model: 'llama-3.1-8b-instant' },
-  'analyze-resume':               { provider: 'deepseek',   model: 'deepseek-chat' },
-  'generate-fix-suggestions':     { provider: 'deepseek',   model: 'deepseek-chat' },
-  'parse-resume':                 { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-  'parse-job':                    { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-  'optimize-for-linkedin':        { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-  'generate-question-bank':       { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-  'company-briefing':             { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-  'ask-portfolio':                { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
-};
-
-// ─── Feature catalogue ────────────────────────────────────────────────────────
-
-const FEATURES: FeatureDef[] = [
-  // Resume Editor AI
-  {
-    id: 'resume-section-ai',
-    label: 'Section Enhance',
-    description: 'Improve, shorten, ATS-optimize, and rewrite individual resume sections (Summary, Skills, Experience bullets, etc.)',
-    category: 'resume-editor',
-    gatewayDefault: GATEWAY_DEFAULTS['resume-section-ai'] ?? null,
-  },
-  {
-    id: 'editor-ai',
-    label: 'In-Editor Rewrite',
-    description: 'Inline grammar, tone, and rewrite adjustments triggered from the rich-text editor toolbar',
-    category: 'resume-editor',
-    gatewayDefault: GATEWAY_DEFAULTS['editor-ai'] ?? null,
-  },
-  {
-    id: 'generate-fix-suggestions',
-    label: 'ATS Fix Suggestions',
-    description: 'Generates targeted improvement tips after an ATS score run highlights red-zone sections',
-    category: 'resume-editor',
-    gatewayDefault: GATEWAY_DEFAULTS['generate-fix-suggestions'] ?? null,
-  },
-  {
-    id: 'detect-and-humanize',
-    label: 'Humanize Text',
-    description: 'Detects AI-generated phrasing and rewrites it to read naturally and authentically',
-    category: 'resume-editor',
-    gatewayDefault: GATEWAY_DEFAULTS['detect-and-humanize'] ?? null,
-  },
-  {
-    id: 'suggest-template',
-    label: 'Template Suggestions',
-    description: 'Recommends the best resume template layout based on the user\'s role and industry',
-    category: 'resume-editor',
-    gatewayDefault: GATEWAY_DEFAULTS['suggest-template'] ?? null,
-  },
-
-  // Tailoring & Job Match
-  {
-    id: 'tailor-resume',
-    label: 'Resume Tailoring',
-    description: 'Full resume tailoring pass — rewrites and re-orders content to match a specific job description',
-    category: 'tailoring',
-    gatewayDefault: GATEWAY_DEFAULTS['tailor-resume'] ?? null,
-  },
-  {
-    id: 'parse-resume',
-    label: 'Resume Parsing',
-    description: 'Parses raw resume text (paste or upload) into structured JSON for the editor',
-    category: 'tailoring',
-    gatewayDefault: GATEWAY_DEFAULTS['parse-resume'] ?? null,
-  },
-  {
-    id: 'parse-job',
-    label: 'Job Description Parsing',
-    description: 'Parses a job posting into structured role requirements used by Tailoring and ATS scoring',
-    category: 'tailoring',
-    gatewayDefault: GATEWAY_DEFAULTS['parse-job'] ?? null,
-  },
-  {
-    id: 'smart-fit-rewrite',
-    label: 'Smart Fit Rewrite',
-    description: 'Rewrites individual bullet points to better echo keywords and requirements from a job posting',
-    category: 'tailoring',
-    gatewayDefault: GATEWAY_DEFAULTS['smart-fit-rewrite'] ?? null,
-  },
-  {
-    id: 'validate-tailor',
-    label: 'Tailor Validation',
-    description: 'Verifies that a tailored resume adequately addresses the target job\'s key requirements',
-    category: 'tailoring',
-    gatewayDefault: GATEWAY_DEFAULTS['validate-tailor'] ?? null,
-  },
-  {
-    id: 'optimize-for-linkedin',
-    label: 'LinkedIn Optimisation',
-    description: 'Rewrites resume sections using LinkedIn-friendly phrasing and character limits',
-    category: 'tailoring',
-    gatewayDefault: GATEWAY_DEFAULTS['optimize-for-linkedin'] ?? null,
-  },
-  {
-    id: 'score-resume',
-    label: 'Resume Scoring',
-    description: 'Scores a resume against a job description for ATS compatibility — uses provider pool, no dedicated route',
-    category: 'tailoring',
-    gatewayDefault: null,
-  },
-
-  // Chat & Analysis
-  {
-    id: 'agentic-chat',
-    label: 'Career Coach Chat',
-    description: 'Main AI assistant chat — answers resume, job search, and career questions with tool-calling support',
-    category: 'chat',
-    gatewayDefault: GATEWAY_DEFAULTS['agentic-chat'] ?? null,
-  },
-  {
-    id: 'wise-ai-chat',
-    label: 'WiseAI Chat',
-    description: 'Secondary chat interface with a different system prompt; mirrors agentic-chat routing',
-    category: 'chat',
-    gatewayDefault: GATEWAY_DEFAULTS['wise-ai-chat'] ?? null,
-  },
-  {
-    id: 'analyze-resume',
-    label: 'Resume Analysis',
-    description: 'Deep resume analysis: scores sections, identifies gaps, and produces a full ATS compatibility report',
-    category: 'chat',
-    gatewayDefault: GATEWAY_DEFAULTS['analyze-resume'] ?? null,
-  },
-  {
-    id: 'career-assessment',
-    label: 'Career Assessment',
-    description: 'Career path assessment and skills-gap analysis based on the user\'s current profile and goals',
-    category: 'chat',
-    gatewayDefault: GATEWAY_DEFAULTS['career-assessment'] ?? null,
-  },
-  {
-    id: 'recruiter-simulation',
-    label: 'Recruiter Simulation',
-    description: 'Simulates a recruiter reviewing the resume, providing realistic feedback as if in an early screening',
-    category: 'chat',
-    gatewayDefault: GATEWAY_DEFAULTS['recruiter-simulation'] ?? null,
-  },
-  {
-    id: 'company-briefing',
-    label: 'Company Briefing',
-    description: 'Generates a pre-interview briefing on the target company — culture, product, recent news',
-    category: 'chat',
-    gatewayDefault: GATEWAY_DEFAULTS['company-briefing'] ?? null,
-  },
-
-  // Document Generation
-  {
-    id: 'generate-cover-letter',
-    label: 'Cover Letter',
-    description: 'Generates a personalised, job-specific cover letter from the resume and job description',
-    category: 'documents',
-    gatewayDefault: GATEWAY_DEFAULTS['generate-cover-letter'] ?? null,
-  },
-  {
-    id: 'generate-portfolio-bio',
-    label: 'Portfolio Bio',
-    description: 'Writes the "About Me" bio displayed on the user\'s public portfolio page',
-    category: 'documents',
-    gatewayDefault: GATEWAY_DEFAULTS['generate-portfolio-bio'] ?? null,
-  },
-  {
-    id: 'generate-resignation-letter',
-    label: 'Resignation Letter',
-    description: 'Generates a professional resignation letter based on the user\'s role and chosen tone',
-    category: 'documents',
-    gatewayDefault: GATEWAY_DEFAULTS['generate-resignation-letter'] ?? null,
-  },
-  {
-    id: 'generate-question-bank',
-    label: 'Question Bank',
-    description: 'Generates a role-specific interview Q&A bank, including behavioural and technical questions',
-    category: 'documents',
-    gatewayDefault: GATEWAY_DEFAULTS['generate-question-bank'] ?? null,
-  },
-
-  // Portfolio & Other
-  {
-    id: 'ask-portfolio',
-    label: 'Ask Portfolio',
-    description: 'Answers visitor questions about a user\'s public portfolio — uses provider pool, no dedicated route',
-    category: 'portfolio',
-    gatewayDefault: null,
-  },
-];
+const FEATURES: FeatureDef[] = AI_TOOLS_CATALOGUE.map(tool => ({
+  ...tool,
+  category: tool.appArea,
+}));
 
 // ─── Category metadata ─────────────────────────────────────────────────────────
 
@@ -319,6 +127,13 @@ interface ProviderPing {
   configured: boolean;
 }
 
+interface LiveRouteEntry {
+  provider: string | null;
+  model: string | null;
+  source: 'default' | 'override' | 'pool';
+  creditCost: number;
+}
+
 export const AIRoutingSwitcher = () => {
   const [routes, setRoutes] = useState<Record<string, RouteState>>({});
   // Tracks $ids of ai_routing_config documents that have been reset locally
@@ -330,6 +145,9 @@ export const AIRoutingSwitcher = () => {
   const [collapsed, setCollapsed] = useState<Partial<Record<FeatureCategory, boolean>>>({});
   const [pings, setPings] = useState<Record<string, ProviderPing>>({});
   const [pinging, setPinging] = useState(false);
+  const [liveRoutes, setLiveRoutes] = useState<Record<string, LiveRouteEntry> | null>(null);
+  const [probingRoutes, setProbingRoutes] = useState(false);
+  const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string }>>({});
 
   const fetchRoutes = async () => {
     setLoading(true);
@@ -414,6 +232,29 @@ export const AIRoutingSwitcher = () => {
       toast.error('Provider ping failed');
     } finally {
       setPinging(false);
+    }
+  }, []);
+
+  const probeRoutes = useCallback(async () => {
+    setProbingRoutes(true);
+    try {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'list-routes' },
+      });
+      const result = tryUnwrapAdminResponse<{
+        routes: Record<string, LiveRouteEntry>;
+        overrideCount: number;
+      }>(tuple, 'admin-devkit-data');
+      if (result?.routes) {
+        setLiveRoutes(result.routes);
+        toast.success(`Live route table loaded — ${result.overrideCount} override${result.overrideCount !== 1 ? 's' : ''} active`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Route probe failed';
+      toast.error('Route probe failed: ' + msg);
+    } finally {
+      setProbingRoutes(false);
     }
   }, []);
 
@@ -514,6 +355,54 @@ export const AIRoutingSwitcher = () => {
     );
   }
 
+  const testRoute = useCallback(async (featureId: string) => {
+    setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'running' } }));
+    try {
+      // 1. Issue a short-lived nonce from admin-devkit-data
+      const nonceTuple = await appwriteFunctions.invoke('admin-devkit-data', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'issue-test-nonce', featureId },
+      });
+      const nonceResult = tryUnwrapAdminResponse<{ nonce: string }>(nonceTuple, 'admin-devkit-data');
+      if (!nonceResult?.nonce) throw new Error('Failed to obtain test nonce');
+
+      // 2. Get the admin's Appwrite JWT for gateway auth
+      const jwtToken = await account.createJWT();
+      const jwt = jwtToken.jwt;
+
+      // 3. Call ai-gateway with the nonce (no credit deduction, 80-token cap)
+      const gwTuple = await appwriteFunctions.invoke('ai-gateway', {
+        headers: { 'X-Appwrite-JWT': jwt },
+        body: {
+          feature: featureId,
+          message: 'Admin route test. Reply with exactly: ROUTE_OK',
+          __admin_test_nonce: nonceResult.nonce,
+        },
+      });
+      // ai-gateway returns plain JSON (not wrapped in admin response envelope)
+      const gwRaw = gwTuple?.response ?? gwTuple;
+      const gwData = typeof gwRaw === 'string' ? (() => { try { return JSON.parse(gwRaw); } catch { return { status: 'error', message: gwRaw }; } })() : gwRaw;
+
+      if (gwData?.status === 'ok' || gwData?.adminTest) {
+        setRouteTestResults(prev => ({
+          ...prev,
+          [featureId]: {
+            status: 'ok',
+            provider: gwData.provider,
+            model: gwData.model,
+            preview: gwData.preview ?? '',
+          },
+        }));
+      } else {
+        const errMsg = gwData?.message || gwData?.error || 'Unknown gateway error';
+        setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'error', error: errMsg } }));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Test failed';
+      setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'error', error: msg } }));
+    }
+  }, []);
+
   const totalOverrides = Object.keys(routes).length;
 
   return (
@@ -525,14 +414,14 @@ export const AIRoutingSwitcher = () => {
             <BrainCircuit className="text-purple-400" size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white">AI Global Routing</h2>
+            <h2 className="text-xl font-black text-white">AI Tools Map</h2>
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-mono">
-              Master Override Console · {FEATURES.length} features · {totalOverrides} active override{totalOverrides !== 1 ? 's' : ''}
+              Route Override Console · {FEATURES.length} tools across {Object.keys(CATEGORY_META).length} app areas · {totalOverrides} active override{totalOverrides !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {PROVIDERS.map(p => {
               const ping = pings[p.id];
               const dot = !ping
@@ -574,6 +463,26 @@ export const AIRoutingSwitcher = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                onClick={probeRoutes}
+                variant="ghost"
+                size="sm"
+                disabled={probingRoutes}
+                className={cn(
+                  'h-9 px-3 text-xs hover:text-white',
+                  liveRoutes ? 'text-emerald-400 hover:text-emerald-300' : 'text-muted-foreground',
+                )}
+              >
+                <Link2 size={14} className={cn('mr-1.5', probingRoutes && 'animate-pulse')} />
+                {probingRoutes ? 'Probing…' : liveRoutes ? 'Live ✓' : 'Probe Routes'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs">
+              Fetches the live effective route table from admin-devkit-data — static gateway defaults merged with any active DB overrides. No API keys are returned.
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
                 onClick={applySmartDefaults}
                 disabled={applyingSmartDefaults || saving}
                 variant="outline"
@@ -605,6 +514,9 @@ export const AIRoutingSwitcher = () => {
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500/60" /> Admin override (saved)</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/20" /> Gateway default (hardcoded)</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/5 border border-white/15" /> No dedicated route (uses pool)</span>
+        {liveRoutes && (
+          <span className="flex items-center gap-1.5 text-emerald-400/70"><span className="w-2 h-2 rounded-full bg-emerald-400/60" /> Live probe active</span>
+        )}
       </div>
 
       {/* Feature groups */}
@@ -662,6 +574,17 @@ export const AIRoutingSwitcher = () => {
                         <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-bold text-white text-sm leading-tight">{feature.label}</p>
+                            {/* Credit cost badge */}
+                            <span className={cn(
+                              'px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider',
+                              feature.creditCost === 0
+                                ? 'bg-emerald-500/15 text-emerald-400'
+                                : feature.creditCost === 1
+                                  ? 'bg-sky-500/15 text-sky-400'
+                                  : 'bg-amber-500/15 text-amber-400',
+                            )}>
+                              {feature.creditCost === 0 ? 'Free' : `${feature.creditCost}cr`}
+                            </span>
                             {hasOverride && (
                               <span className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-400 text-[9px] font-black uppercase tracking-wider">
                                 overridden
@@ -670,6 +593,32 @@ export const AIRoutingSwitcher = () => {
                             {noRoute && (
                               <span className="px-1.5 py-0.5 rounded-md bg-white/5 text-muted-foreground/50 text-[9px] font-mono">
                                 pool fallback
+                              </span>
+                            )}
+                            {feature.sharedRouteWith && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 text-[9px] font-mono cursor-help">
+                                    <Link2 size={8} />
+                                    shared route
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[240px] text-xs">
+                                  Shares default routing with <span className="font-mono text-white">{feature.sharedRouteWith}</span>. Override each independently if needed — do not split into separate gateway features.
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {/* Live probe source indicator */}
+                            {liveRoutes?.[feature.id] && (
+                              <span className={cn(
+                                'px-1.5 py-0.5 rounded-md text-[9px] font-mono',
+                                liveRoutes[feature.id].source === 'override'
+                                  ? 'bg-purple-500/20 text-purple-400'
+                                  : liveRoutes[feature.id].source === 'pool'
+                                    ? 'bg-white/5 text-muted-foreground/50'
+                                    : 'bg-emerald-500/10 text-emerald-400/70',
+                              )}>
+                                live:{liveRoutes[feature.id].source}
                               </span>
                             )}
                             {FEATURE_METADATA[feature.id] && (() => {
@@ -716,6 +665,20 @@ export const AIRoutingSwitcher = () => {
                               </span>
                             </div>
                           )}
+                          {/* Live probe route — shows actual effective route when probe has run */}
+                          {liveRoutes?.[feature.id]?.model && liveRoutes[feature.id].model !== activeModel && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] text-emerald-400/50 uppercase font-mono tracking-wider">live:</span>
+                              <span className="text-[9px] font-mono truncate max-w-[260px] text-emerald-300/70">
+                                {liveRoutes[feature.id].provider && (
+                                  <span className={cn('mr-1 font-black', PROVIDER_COLOR[liveRoutes[feature.id].provider as ProviderId] ?? 'text-white')}>
+                                    [{liveRoutes[feature.id].provider}]
+                                  </span>
+                                )}
+                                {liveRoutes[feature.id].model}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Gateway default chip (only shown when there's an override so both are visible) */}
                           {hasOverride && feature.gatewayDefault && (
@@ -729,12 +692,48 @@ export const AIRoutingSwitcher = () => {
                               </span>
                             </div>
                           )}
+
+                          {/* Route test result */}
+                          {(() => {
+                            const testResult = routeTestResults[feature.id];
+                            if (!testResult) return null;
+                            if (testResult.status === 'running') {
+                              return (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <MiniSpinner size={10} />
+                                  <span className="text-[9px] text-muted-foreground/60 font-mono">Testing route…</span>
+                                </div>
+                              );
+                            }
+                            if (testResult.status === 'error') {
+                              return (
+                                <div className="mt-1 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 max-w-full lg:max-w-[280px]">
+                                  <p className="text-[9px] text-red-400 font-mono leading-snug">{testResult.error}</p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="mt-1 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 max-w-full lg:max-w-[280px] space-y-0.5">
+                                <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Route OK ✓</p>
+                                {testResult.provider && (
+                                  <p className="text-[8px] font-mono text-emerald-400/60">
+                                    [{testResult.provider}] {testResult.model}
+                                  </p>
+                                )}
+                                {testResult.preview && (
+                                  <p className="text-[8px] text-muted-foreground/50 font-mono leading-snug line-clamp-2 break-all">
+                                    {testResult.preview.slice(0, 100)}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Right: provider toggle + model picker */}
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex bg-white/5 rounded-xl p-0.5 border border-white/10">
+                        <div className="flex flex-col items-start lg:items-end gap-2 shrink-0 w-full lg:w-auto">
+                          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                            <div className="flex flex-wrap bg-white/5 rounded-xl p-0.5 border border-white/10">
                               {PROVIDERS.map(p => (
                                 <button
                                   key={p.id}
@@ -760,17 +759,25 @@ export const AIRoutingSwitcher = () => {
                                 reset
                               </button>
                             )}
+                            <button
+                              onClick={() => void testRoute(feature.id)}
+                              disabled={routeTestResults[feature.id]?.status === 'running'}
+                              className="text-[9px] text-muted-foreground/50 hover:text-emerald-400 font-mono uppercase tracking-wider transition-colors px-2 disabled:opacity-40"
+                              title="Test this route — admin only, no credit deduction"
+                            >
+                              {routeTestResults[feature.id]?.status === 'running' ? '…' : 'test'}
+                            </button>
                           </div>
 
                           {/* Model picker — shown only when an override provider is selected */}
                           {hasOverride && override.provider && (() => {
                             const models = getCuratedModels(override.provider as AITestProvider);
                             return (
-                              <div className="flex items-center gap-2 w-full justify-end">
+                              <div className="flex flex-wrap items-center gap-2 w-full lg:justify-end">
                                 <select
                                   value={override.model}
                                   onChange={e => handleUpdateModel(feature.id, e.target.value)}
-                                  className="bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-white/80 px-2 py-1.5 max-w-[260px] focus:outline-none focus:border-purple-500/50 transition-colors"
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-white/80 px-2 py-1.5 lg:max-w-[260px] focus:outline-none focus:border-purple-500/50 transition-colors"
                                 >
                                   {models.map(m => (
                                     <option key={m.value} value={m.value} className="bg-zinc-900">
