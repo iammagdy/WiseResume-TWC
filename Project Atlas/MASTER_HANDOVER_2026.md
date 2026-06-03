@@ -4355,6 +4355,64 @@ No code regressions found. No schema migrations were applied. No auth changes we
 
 ---
 
+## Session Log - 2026-06-04 (Manual Appwrite Steps — Post Phase 10)
+
+### Overview
+
+Executed only the outstanding manual Appwrite steps called out after Phases 5-10. No code refactors, no new phase work, and no changes outside the requested schema setup, targeted hub redeploys, and handover logging.
+
+### Step 1 - `ai_request_logs` collection
+
+Status: Success
+
+- Added `scripts/setup_ai_logs_schema.cjs` following the same pattern as `scripts/setup_observability_schema.cjs`.
+- Ran the script against Appwrite DB `main` using `APPWRITE_API_KEY` from `.env.deploy`.
+- Created server-only collection `ai_request_logs`.
+- Confirmed all 8 attributes are present and `available`:
+  - `feature_id` (string, 64)
+  - `provider` (string, 32)
+  - `model` (string, 128)
+  - `latency_ms` (integer, min 0, max 999999)
+  - `is_fallback` (boolean, default false)
+  - `is_admin_test` (boolean, default false)
+  - `user_id` (string, 36)
+  - `created_at` (string, 32)
+
+### Step 2 - Targeted Appwrite hub redeploys
+
+Status: Success
+
+Ran:
+
+```bash
+node scripts/deploy_hubs.cjs --only=admin-devkit-data,ai-gateway,admin-email,inspect-ai-keys
+```
+
+Deployments created with no errors:
+
+- `ai-gateway` -> deployment `6a20a1d86a472915a969`
+- `admin-devkit-data` -> deployment `6a20a1e450e37ef51763`
+- `admin-email` -> deployment `6a20a1ed5fd8b33c4d5b`
+- `inspect-ai-keys` -> deployment `6a20a1f5df27df1bbf36`
+
+Post-deploy verification:
+
+- `ai-gateway` -> `ready`, `activate=true`
+- `admin-devkit-data` -> `ready`, `activate=true`
+- `admin-email` -> `ready`, `activate=true`
+- `inspect-ai-keys` -> `ready`, `activate=true`
+
+### Where we stopped
+
+- The manual Appwrite sync work requested after Phase 10 is complete.
+- `ai_request_logs` now exists live in Appwrite and is ready for persistent gateway logging.
+- The four pending hubs listed in the prior handover are redeployed and active with the current `main` code.
+- Repo changes from this session are limited to:
+  - `scripts/setup_ai_logs_schema.cjs`
+  - this handover entry
+
+---
+
 ## Hub Architecture: Intentional Raw-Axios Hubs
 
 The following hubs intentionally do **not** declare or use the `node-appwrite` SDK. This is by design — not an omission.
