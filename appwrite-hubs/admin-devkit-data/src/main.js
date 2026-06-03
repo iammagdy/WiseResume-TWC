@@ -1005,6 +1005,47 @@ async function handleListRoutes(log) {
   return { routes, overrideCount: Object.keys(overrideMap).length, checkedAt: isoNow() };
 }
 
+// ─── Phase 9: deployed source hash storage ────────────────────────────────────
+// Stores { hubId: hash } in app_settings key 'fn_deployed_hashes'.
+// Set by the deploy pipeline (or manually) when a hub is deployed.
+// DevKit compares against sourceHashes.generated.json to detect drift.
+
+async function handleGetDeployedHashes(log) {
+  const { databases } = getClients();
+  const res = await safeList(databases, 'app_settings', [sdk.Query.equal('key', ['fn_deployed_hashes']), sdk.Query.limit(1)]);
+  let hashes = {};
+  if (res.documents?.[0]?.value) {
+    try { hashes = JSON.parse(res.documents[0].value) || {}; } catch { hashes = {}; }
+  }
+  log(`get-deployed-hashes: ${Object.keys(hashes).length} stored hashes`);
+  return { hashes };
+}
+
+async function handleSetDeployedHash(body, log) {
+  const { databases } = getClients();
+  const { hubId, hash } = body;
+  if (!hubId || typeof hubId !== 'string') throw new Error('hubId is required');
+  if (!hash || typeof hash !== 'string') throw new Error('hash is required');
+
+  const res = await safeList(databases, 'app_settings', [sdk.Query.equal('key', ['fn_deployed_hashes']), sdk.Query.limit(1)]);
+  let hashes = {};
+  if (res.documents?.[0]?.value) {
+    try { hashes = JSON.parse(res.documents[0].value) || {}; } catch { hashes = {}; }
+  }
+
+  hashes[hubId] = hash.slice(0, 16); // store 16-char prefix only
+  const serialized = JSON.stringify(hashes);
+
+  if (res.documents?.[0]) {
+    await databases.updateDocument(DB_ID, 'app_settings', res.documents[0].$id, { value: serialized });
+  } else {
+    await databases.createDocument(DB_ID, 'app_settings', sdk.ID.unique(), { key: 'fn_deployed_hashes', value: serialized });
+  }
+  await auditLog(databases, 'set-deployed-hash', { hubId, hash: hash.slice(0, 16) });
+  log(`set-deployed-hash: ${hubId} -> ${hash.slice(0, 16)}`);
+  return { hashes, updated: hubId };
+}
+
 async function handleListDiscountCodes(log) {
   const { databases } = getClients();
   const res = await safeList(databases, 'discount_codes', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(100)]);
@@ -2288,6 +2329,8 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'issue-test-nonce') data = await handleIssueTestNonce(body, log);
     else if (action === 'get-key-modes') data = await handleGetKeyModes(log);
     else if (action === 'set-key-mode') data = await handleSetKeyMode(body, log);
+    else if (action === 'get-deployed-hashes') data = await handleGetDeployedHashes(log);
+    else if (action === 'set-deployed-hash') data = await handleSetDeployedHash(body, log);
     else return json(res, rid, { success: false, code: 'UNKNOWN_ACTION', error: `Unknown action: ${action}` }, 400);
 
     return json(res, rid, { success: true, ...data });
