@@ -4409,7 +4409,235 @@ Post-deploy verification:
 - The four pending hubs listed in the prior handover are redeployed and active with the current `main` code.
 - Repo changes from this session are limited to:
   - `scripts/setup_ai_logs_schema.cjs`
-  - this handover entry
+- this handover entry
+
+---
+
+## Session Log - 2026-06-04 (Appwrite Operational Repair and Deployment Ownership)
+
+### Overview
+
+Follow-up operational repair after the Appwrite audit findings. Goal was to make the Appwrite Functions estate repo-owned, redeployable, smoke-testable, and safe to push without depending on broken Appwrite Git auto-deploy behavior.
+
+This session:
+
+- fixed the live `admin-sentry` runtime/entrypoint mismatch
+- retired the unmanaged legacy `auth-master` function
+- cleaned up the broken `admin-deploy-hubs` Git-linked waiting deployments
+- repaired the `app_settings` schema required by Phase 9 deployed-hash tracking
+- repopulated `fn_deployed_hashes`
+- restored a GitHub Actions hub deploy workflow and made it the deployment source of truth
+- redeployed every managed Appwrite hub through the repaired local deployment script
+
+No backend business logic, user-facing AI behavior, auth contracts, routing, or database application schema were changed beyond the minimal operational/testing helpers needed for deployment verification.
+
+### Deployment source of truth
+
+**Chosen source of truth:** GitHub Actions on push to `main`, backed by `scripts/deploy_hubs.cjs`.
+
+Why:
+
+- Appwrite Git integration had already produced repeated bad `waiting` deployments for `admin-deploy-hubs` with `sourceSize: 0`.
+- The repo had no current `.github/workflows/deploy-appwrite-hubs.yml`, so automatic redeploy on push had drifted out of source control.
+- Mixed deployment ownership was the root cause of the operational uncertainty.
+
+Final state:
+
+- `.github/workflows/deploy-appwrite-hubs.yml` restored.
+- Managed hub metadata centralized in `appwrite.json`.
+- `scripts/deploy_hubs.cjs` now:
+  - syncs runtime, entrypoint, commands, execute permissions, timeout, and Git-link settings
+  - waits for deployments to reach `ready`
+  - runs safe smoke checks
+  - updates `app_settings.fn_deployed_hashes`
+  - deletes stale `admin-deploy-hubs` zero-byte waiting deployments
+- Appwrite Git integration was cleared on managed live functions (`installationId`, `providerRepositoryId`, `providerBranch`, `providerRootDirectory` all empty in final live inventory).
+
+### Root causes and fixes
+
+#### 1. `admin-sentry` was live but unrunnable
+
+Root cause:
+
+- Repo source and metadata used `src/main.js`.
+- Live Appwrite function had drifted to `runtime=node-25` and `entrypoint=index.js`.
+- The build completed, but every real execution failed with `Failed to load entrypoint, file index.js does not exist`.
+
+Fix:
+
+- Added `admin-sentry` to the canonical deploy path.
+- Repaired live function settings to:
+  - runtime `node-18.0`
+  - entrypoint `src/main.js`
+  - commands `npm install`
+- Removed live Appwrite Git linkage.
+- Redeployed and smoke-tested successfully.
+
+Final live deployment:
+
+- `admin-sentry` (`6a0760710000ff231048`) -> active deployment `6a20aec4d38aa69a0efc`
+
+#### 2. `auth-master` was live-only and unmanaged
+
+Evidence:
+
+- No local `appwrite-hubs/auth-master/`
+- No entry in `appwrite.json`
+- No entry in `src/lib/devkit/sourceHashes.generated.json`
+- No recent live executions
+- Historic removal commit `438496da` explicitly documented it as a dead early Appwrite auth layer superseded by direct Appwrite SDK usage
+
+Decision:
+
+- `auth-master` was determined to be legacy/unneeded for the current Appwrite-native app.
+
+Fix:
+
+- Deleted live Appwrite function `auth-master`.
+
+This removed the unmanaged live-only function rather than pretending it was still part of the supported backend.
+
+#### 3. `admin-deploy-hubs` manual path worked but live deployment state was unhealthy
+
+Root cause:
+
+- Appwrite Git-linked auto-deploys kept creating `waiting` deployments with `sourceSize: 0`.
+- Those stuck deployments were newer than the last good active deployment, creating operational noise and ambiguity.
+
+Fix:
+
+- Added a minimal admin-only `action: 'health'` path to `admin-deploy-hubs` for safe smoke testing.
+- Cleared live Appwrite Git linkage.
+- Redeployed through the repaired script.
+- Deleted the stale historical `waiting` / `sourceSize: 0` deployments.
+
+Final live deployment:
+
+- `admin-deploy-hubs` -> active deployment `6a20aeb620933e1647b8`
+
+#### 4. Phase 9 deployed-hash tracking was empty
+
+Root cause:
+
+- `admin-devkit-data` expected `app_settings` documents with `key` / `value`.
+- Live `app_settings` collection existed but only had `user_id`, so `fn_deployed_hashes` could not be queried or written.
+
+Fix:
+
+- Added `scripts/setup_app_settings_schema.cjs`.
+- Added missing `app_settings` attributes:
+  - `key` string(128)
+  - `value` string(65535)
+- Updated `scripts/deploy_hubs.cjs` to write `fn_deployed_hashes` directly after deploy.
+- Recomputed `src/lib/devkit/sourceHashes.generated.json`.
+- Redeployed all managed hubs and repopulated the stored deployed hashes.
+
+Validation:
+
+- `admin-devkit-data` `get-deployed-hashes` now returns populated data.
+
+### Local managed hub inventory
+
+| Function | Local Path | Function ID | Runtime | Entrypoint | Deploy Source | Safe Smoke |
+| --- | --- | --- | --- | --- | --- | --- |
+| AI Gateway Hub | `appwrite-hubs/ai-gateway` | `ai-gateway` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `x-smoke-test` |
+| Admin Sentry Hub | `appwrite-hubs/admin-sentry` | `6a0760710000ff231048` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=get-stats` |
+| Admin Deploy Hubs | `appwrite-hubs/admin-deploy-hubs` | `admin-deploy-hubs` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=health` |
+| Admin DevKit Data Hub | `appwrite-hubs/admin-devkit-data` | `admin-devkit-data` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=diagnostics` |
+| Admin Email Hub | `appwrite-hubs/admin-email` | `admin-email` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `module=resend-stats` |
+| Admin Feature Flags Hub | `appwrite-hubs/admin-feature-flags` | `admin-feature-flags` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=list` |
+| Admin Impersonate Hub | `appwrite-hubs/admin-impersonate` | `admin-impersonate` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `-` |
+| Admin Moderation Hub | `appwrite-hubs/admin-moderation` | `admin-moderation` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=list_bug_reports` |
+| Admin Onboarding Funnel Hub | `appwrite-hubs/admin-onboarding-funnel` | `admin-onboarding-funnel` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `days=7` |
+| Admin Portfolio Usernames Hub | `appwrite-hubs/admin-portfolio-usernames` | `admin-portfolio-usernames` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=directory_list` |
+| Admin Testmail Hub | `appwrite-hubs/admin-testmail` | `admin-testmail` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `module=testmail-inbox` |
+| Admin Visitor Analytics Hub | `appwrite-hubs/admin-visitor-analytics` | `admin-visitor-analytics` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=kpis` |
+| AI Health Hub | `appwrite-hubs/ai-health` | `ai-health` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `empty POST` |
+| Coupons Hub | `appwrite-hubs/coupons` | `coupons` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `-` |
+| Email Service Hub | `appwrite-hubs/email-service` | `email-service` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `-` |
+| Inspect AI Keys Hub | `appwrite-hubs/inspect-ai-keys` | `inspect-ai-keys` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `action=inspect` |
+| Job Import Hub | `appwrite-hubs/job-import` | `job-import` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `-` |
+| Public Share Hub | `appwrite-hubs/public-share` | `public-share` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `-` |
+| Resume Section AI Hub | `appwrite-hubs/resume-section-ai` | `resume-section-ai` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `-` |
+| WiseHire Gateway Hub | `appwrite-hubs/wisehire-gateway` | `wisehire-gateway` | `node-18.0` | `src/main.js` | GitHub Actions + `scripts/deploy_hubs.cjs` | `-` |
+
+### Live Appwrite inventory after repair
+
+| Function | Function ID | Runtime | Entrypoint | Active Deployment | Status | Source Size | Git Linked |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Admin Deploy Hubs | `admin-deploy-hubs` | `node-18.0` | `src/main.js` | `6a20aeb620933e1647b8` | `ready` | `946761` | no |
+| Admin DevKit Data Hub | `admin-devkit-data` | `node-18.0` | `src/main.js` | `6a20adfc3cd231cdf419` | `ready` | `1484835` | no |
+| Admin Email Hub | `admin-email` | `node-18.0` | `src/main.js` | `6a20ae102db414cecf03` | `ready` | `565559` | no |
+| Admin Feature Flags Hub | `admin-feature-flags` | `node-18.0` | `src/main.js` | `6a20ae339b8295aafe87` | `ready` | `561122` | no |
+| Admin Impersonate Hub | `admin-impersonate` | `node-18.0` | `src/main.js` | `6a20ae94394645187f28` | `ready` | `558348` | no |
+| Admin Moderation Hub | `admin-moderation` | `node-18.0` | `src/main.js` | `6a20ae47d7fc265ec3f2` | `ready` | `561615` | no |
+| Admin Onboarding Funnel Hub | `admin-onboarding-funnel` | `node-18.0` | `src/main.js` | `6a20ae814bd5a1a2e3eb` | `ready` | `562167` | no |
+| Admin Portfolio Usernames Hub | `admin-portfolio-usernames` | `node-18.0` | `src/main.js` | `6a20ae5b713f42277484` | `ready` | `565391` | no |
+| Admin Sentry Hub | `6a0760710000ff231048` | `node-18.0` | `src/main.js` | `6a20aec4d38aa69a0efc` | `ready` | `662360` | no |
+| Admin Testmail Hub | `admin-testmail` | `node-18.0` | `src/main.js` | `6a20ae1e83ea953784e8` | `ready` | `3691` | no |
+| Admin Visitor Analytics Hub | `admin-visitor-analytics` | `node-18.0` | `src/main.js` | `6a20ae6e8ef58e12d513` | `ready` | `563223` | no |
+| AI Gateway Hub | `ai-gateway` | `node-18.0` | `src/main.js` | `6a20ad94ee379c4d0fbe` | `ready` | `1486692` | no |
+| AI Health Hub | `ai-health` | `node-18.0` | `src/main.js` | `6a20ade26e329e0480bf` | `ready` | `1578` | no |
+| Coupons Hub | `coupons` | `node-18.0` | `src/main.js` | `6a20ada907d2385f6fa8` | `ready` | `559419` | no |
+| Email Service Hub | `email-service` | `node-18.0` | `src/main.js` | `6a20aeda3683a02fadb6` | `ready` | `566467` | no |
+| Inspect AI Keys Hub | `inspect-ai-keys` | `node-18.0` | `src/main.js` | `6a20aea6830e1ba38746` | `ready` | `559153` | no |
+| Job Import Hub | `job-import` | `node-18.0` | `src/main.js` | `6a20ad7cd326c97e0ee8` | `ready` | `946698` | no |
+| Public Share Hub | `public-share` | `node-18.0` | `src/main.js` | `6a20add41185431ae4a8` | `ready` | `557917` | no |
+| Resume Section AI Hub | `resume-section-ai` | `node-18.0` | `src/main.js` | `6a20ad698d39ad36a660` | `ready` | `2039052` | no |
+| WiseHire Gateway Hub | `wisehire-gateway` | `node-18.0` | `src/main.js` | `6a20adc054521232e5bb` | `ready` | `1504811` | no |
+
+### Validation
+
+Local verification:
+
+```bash
+Get-ChildItem appwrite-hubs -Directory | ? { Test-Path (Join-Path $_.FullName 'src/main.js') } | % { node --check (Join-Path $_.FullName 'src/main.js') }
+node scripts/compute-source-hashes.mjs
+node --check scripts/deploy_hubs.cjs
+node --check scripts/setup_app_settings_schema.cjs
+node --check appwrite-hubs/admin-deploy-hubs/src/main.js
+```
+
+Live verification:
+
+- `admin-sentry` `action=get-stats` -> HTTP 200
+- `admin-devkit-data` `action=diagnostics` -> HTTP 200
+- `admin-email` `module=resend-stats` -> HTTP 200
+- `admin-feature-flags` `action=list` -> HTTP 200
+- `admin-moderation` `action=list_bug_reports` -> HTTP 200
+- `admin-portfolio-usernames` `action=directory_list` -> HTTP 200
+- `admin-visitor-analytics` `action=kpis` -> HTTP 200
+- `admin-onboarding-funnel` -> HTTP 200
+- `inspect-ai-keys` `action=inspect` -> HTTP 200
+- `admin-deploy-hubs` `action=health` -> HTTP 200
+- `ai-gateway` smoke path -> HTTP 200, all 4 providers available
+- `ai-health` -> HTTP 200, overall `healthy`
+- `admin-devkit-data` `action=get-deployed-hashes` -> populated data returned
+
+### Files changed
+
+- `appwrite.json`
+- `.github/workflows/deploy-appwrite-hubs.yml`
+- `appwrite-hubs/admin-deploy-hubs/src/main.js`
+- `scripts/deploy_hubs.cjs`
+- `scripts/setup_app_settings_schema.cjs`
+- `scripts/README.md`
+- `src/lib/devkit/sourceHashes.generated.json`
+- `Project Atlas/MASTER_HANDOVER_2026.md`
+
+### Where we stopped
+
+- Managed Appwrite hubs are now repo-owned and redeployable from source.
+- GitHub Actions + `scripts/deploy_hubs.cjs` is the canonical deployment path.
+- Appwrite Git auto-deploy is not active on the managed live functions.
+- `auth-master` has been retired and removed from the live project.
+- `fn_deployed_hashes` is now populated and DevKit sync state is meaningful.
+- Fresh active deployments for every managed live function are `ready`.
+- Safe smoke tests passed for the required functions listed above.
+
+Remaining caveat:
+
+- The restored GitHub Actions workflow uses GitHub secrets for Appwrite, AI provider, Resend, DevKit, and Sentry variables. Before relying on CI for future pushes, confirm those secrets exist in the GitHub repo with the expected names.
 
 ---
 

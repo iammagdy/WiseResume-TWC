@@ -14,7 +14,7 @@
     },
     {
       "functionId": "6a0760710000ff231048",
-      "name": "admin-sentry",
+      "name": "Admin Sentry Hub",
       "runtime": "node-18.0",
       "path": "appwrite-hubs/admin-sentry",
       "entrypoint": "src/main.js",
@@ -32,7 +32,7 @@
     },
     {
       "functionId": "admin-devkit-data",
-      "name": "admin-devkit-data",
+      "name": "Admin DevKit Data Hub",
       "runtime": "node-18.0",
       "path": "appwrite-hubs/admin-devkit-data",
       "entrypoint": "src/main.js",
@@ -40,8 +40,89 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
+      "functionId": "admin-email",
+      "name": "Admin Email Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-email",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-feature-flags",
+      "name": "Admin Feature Flags Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-feature-flags",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-impersonate",
+      "name": "Admin Impersonate Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-impersonate",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-moderation",
+      "name": "Admin Moderation Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-moderation",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-onboarding-funnel",
+      "name": "Admin Onboarding Funnel Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-onboarding-funnel",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-portfolio-usernames",
+      "name": "Admin Portfolio Usernames Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-portfolio-usernames",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-testmail",
+      "name": "Admin Testmail Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-testmail",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "admin-visitor-analytics",
+      "name": "Admin Visitor Analytics Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/admin-visitor-analytics",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "ai-health",
+      "name": "AI Health Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/ai-health",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "coupons",
-      "name": "coupons",
+      "name": "Coupons Hub",
       "runtime": "node-18.0",
       "path": "appwrite-hubs/coupons",
       "entrypoint": "src/main.js",
@@ -49,19 +130,55 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
-      "functionId": "wisehire-gateway",
-      "name": "wisehire-gateway",
+      "functionId": "email-service",
+      "name": "Email Service Hub",
       "runtime": "node-18.0",
-      "path": "appwrite-hubs/wisehire-gateway",
+      "path": "appwrite-hubs/email-service",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "inspect-ai-keys",
+      "name": "Inspect AI Keys Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/inspect-ai-keys",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "job-import",
+      "name": "Job Import Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/job-import",
       "entrypoint": "src/main.js",
       "commands": "npm install",
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
       "functionId": "public-share",
-      "name": "public-share",
+      "name": "Public Share Hub",
       "runtime": "node-18.0",
       "path": "appwrite-hubs/public-share",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "resume-section-ai",
+      "name": "Resume Section AI Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/resume-section-ai",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "wisehire-gateway",
+      "name": "WiseHire Gateway Hub",
+      "runtime": "node-18.0",
+      "path": "appwrite-hubs/wisehire-gateway",
       "entrypoint": "src/main.js",
       "commands": "npm install",
       "ignore": [".git", ".gitignore", "*.tar.gz"]

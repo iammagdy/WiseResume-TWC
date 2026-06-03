@@ -1,0 +1,100 @@
+name: Deploy Appwrite Hubs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'appwrite-hubs/**'
+      - 'appwrite.json'
+      - 'scripts/deploy_hubs.cjs'
+      - 'scripts/compute-source-hashes.mjs'
+      - 'scripts/setup_observability_schema.cjs'
+      - 'scripts/setup_ai_logs_schema.cjs'
+      - '.github/workflows/deploy-appwrite-hubs.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-appwrite-hubs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Recompute hub source hashes
+        run: node scripts/compute-source-hashes.mjs
+
+      - name: Ensure source hash manifest is committed
+        run: git diff --exit-code -- src/lib/devkit/sourceHashes.generated.json
+
+      - name: Ensure observability schema
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup_observability_schema.cjs
+
+      - name: Ensure app settings schema
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup_app_settings_schema.cjs
+
+      - name: Ensure AI logs schema
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup_ai_logs_schema.cjs
+
+      - name: Deploy Appwrite hubs
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          OPENROUTER_KEY_1: ${{ secrets.OPENROUTER_KEY_1 }}
+          OPENROUTER_KEY_2: ${{ secrets.OPENROUTER_KEY_2 }}
+          OPENROUTER_KEY_3: ${{ secrets.OPENROUTER_KEY_3 }}
+          GROQ_KEY_1: ${{ secrets.GROQ_KEY_1 }}
+          GROQ_KEY_2: ${{ secrets.GROQ_KEY_2 }}
+          GROQ_KEY_3: ${{ secrets.GROQ_KEY_3 }}
+          DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_KEY }}
+          NVIDIA_KEY_1: ${{ secrets.NVIDIA_KEY_1 }}
+          NVIDIA_KEY_2: ${{ secrets.NVIDIA_KEY_2 }}
+          NVIDIA_KEY_3: ${{ secrets.NVIDIA_KEY_3 }}
+          DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ secrets.DD_SITE }}
+          DEVKIT_PASSWORD: ${{ secrets.DEVKIT_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+          RESEND_FROM_NAME: ${{ secrets.RESEND_FROM_NAME }}
+          GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN }}
+          GITHUB_REPO: iammagdy/WiseResume-TWC
+          FRONTEND_URL: https://resume.thewise.cloud
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_ORG_SLUG: ${{ secrets.SENTRY_ORG_SLUG }}
+          SENTRY_PROJECT_SLUG: ${{ secrets.SENTRY_PROJECT_SLUG }}
+          SENTRY_WEBHOOK_SECRET: ${{ secrets.SENTRY_WEBHOOK_SECRET }}
+        run: node scripts/deploy_hubs.cjs

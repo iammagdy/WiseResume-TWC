@@ -76,6 +76,15 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ ok: false, error: 'Unauthorized' }, 401);
   }
 
+  if (body?.action === 'health') {
+    return res.json({
+      ok: true,
+      managedHubs: HUBS.length,
+      gitConfigured: !!process.env.GITHUB_TOKEN,
+      appwriteConfigured: !!process.env.APPWRITE_API_KEY,
+    });
+  }
+
   const filter = body?.hubs || null; // optional array to deploy only specific hubs
   const hubs = filter ? HUBS.filter(h => filter.includes(h)) : HUBS;
 

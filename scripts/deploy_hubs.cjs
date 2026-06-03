@@ -1,6 +1,7 @@
 const sdk = require('node-appwrite');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 function loadEnvFile(fileName) {
@@ -18,12 +19,59 @@ function loadEnvFile(fileName) {
 
 loadEnvFile('.env.deploy');
 
-// Per-hub timeout overrides (seconds). Appwrite hard max is 900.
-// admin-deploy-hubs needs up to 15 minutes: git clone + 18x npm/tar/upload.
+const ROOT = process.cwd();
+const APPWRITE_MANIFEST_PATH = path.join(ROOT, 'appwrite.json');
+const SOURCE_HASHES_PATH = path.join(ROOT, 'src', 'lib', 'devkit', 'sourceHashes.generated.json');
+const DEFAULT_RUNTIME = 'node-18.0';
+const DEFAULT_TIMEOUT = 30;
+const DEPLOY_POLL_INTERVAL_MS = 2000;
+const DEPLOY_POLL_ATTEMPTS = 120;
+
+// GitHub Actions + this script are the canonical deployment path.
+// Appwrite Git auto-deploy is intentionally disabled for managed hubs.
+const DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true;
+
 const HUB_TIMEOUTS = {
     'admin-deploy-hubs': 900,
 };
-const DEFAULT_TIMEOUT = 30;
+
+const HUBS = [
+    { id: 'resume-section-ai', name: 'Resume Section AI Hub', file: 'resume-section-ai.tar.gz' },
+    { id: 'job-import', name: 'Job Import Hub', file: 'job-import.tar.gz' },
+    { id: 'ai-gateway', name: 'AI Gateway Hub', file: 'ai-gateway.tar.gz' },
+    { id: 'coupons', name: 'Coupons Hub', file: 'coupons.tar.gz' },
+    { id: 'wisehire-gateway', name: 'WiseHire Gateway Hub', file: 'wisehire-gateway.tar.gz' },
+    { id: 'public-share', name: 'Public Share Hub', file: 'public-share.tar.gz' },
+    { id: 'ai-health', name: 'AI Health Hub', file: 'ai-health.tar.gz' },
+    { id: 'admin-devkit-data', name: 'Admin DevKit Data Hub', file: 'admin-devkit-data.tar.gz' },
+    { id: 'admin-email', name: 'Admin Email Hub', file: 'admin-email.tar.gz' },
+    { id: 'admin-testmail', name: 'Admin Testmail Hub', file: 'admin-testmail.tar.gz' },
+    { id: 'admin-feature-flags', name: 'Admin Feature Flags Hub', file: 'admin-feature-flags.tar.gz' },
+    { id: 'admin-moderation', name: 'Admin Moderation Hub', file: 'admin-moderation.tar.gz' },
+    { id: 'admin-portfolio-usernames', name: 'Admin Portfolio Usernames Hub', file: 'admin-portfolio-usernames.tar.gz' },
+    { id: 'admin-visitor-analytics', name: 'Admin Visitor Analytics Hub', file: 'admin-visitor-analytics.tar.gz' },
+    { id: 'admin-onboarding-funnel', name: 'Admin Onboarding Funnel Hub', file: 'admin-onboarding-funnel.tar.gz' },
+    { id: 'admin-impersonate', name: 'Admin Impersonate Hub', file: 'admin-impersonate.tar.gz' },
+    { id: 'inspect-ai-keys', name: 'Inspect AI Keys Hub', file: 'inspect-ai-keys.tar.gz' },
+    { id: 'admin-deploy-hubs', name: 'Admin Deploy Hubs', file: 'admin-deploy-hubs.tar.gz' },
+    { id: 'admin-sentry', functionId: '6a0760710000ff231048', name: 'Admin Sentry Hub', file: 'admin-sentry.tar.gz' },
+    { id: 'email-service', name: 'Email Service Hub', file: 'email-service.tar.gz' },
+];
+
+const SAFE_SMOKE_CHECKS = new Map([
+    ['admin-sentry', { auth: 'none', body: { action: 'webhook', resource: 'health' } }],
+    ['admin-devkit-data', { auth: 'devkit', body: { action: 'diagnostics' } }],
+    ['admin-email', { auth: 'devkit', body: { module: 'resend-stats', action: 'stats' } }],
+    ['admin-feature-flags', { auth: 'devkit', body: { action: 'list' } }],
+    ['admin-moderation', { auth: 'devkit', body: { action: 'list_bug_reports', page: 1, per_page: 1 } }],
+    ['admin-portfolio-usernames', { auth: 'devkit', body: { action: 'directory_list', page: 1, per_page: 1 } }],
+    ['admin-visitor-analytics', { auth: 'devkit', body: { action: 'kpis', range: '7d' } }],
+    ['admin-onboarding-funnel', { auth: 'devkit', body: { days: 7, granularity: 'day' } }],
+    ['inspect-ai-keys', { auth: 'devkit', body: { action: 'inspect', includeModels: true } }],
+    ['admin-deploy-hubs', { auth: 'devkit', body: { action: 'health' } }],
+    ['ai-gateway', { auth: 'none', body: { featureName: 'smoke-check', 'x-smoke-test': 'true' } }],
+    ['ai-health', { auth: 'none', body: {} }],
+]);
 
 function selectedHubIds() {
     const arg = process.argv.find(v => v.startsWith('--only='));
@@ -32,18 +80,53 @@ function selectedHubIds() {
     return new Set(raw.split(',').map(v => v.trim()).filter(Boolean));
 }
 
-function buildHub(dir, archive) {
-    const hubDir = path.join(process.cwd(), 'appwrite-hubs', dir);
-    const archivePath = path.join(process.cwd(), archive);
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function functionIdForHub(hub) {
+    return hub.functionId || hub.id;
+}
+
+function loadAppwriteManifest() {
+    if (!fs.existsSync(APPWRITE_MANIFEST_PATH)) {
+        throw new Error(`Missing Appwrite manifest: ${APPWRITE_MANIFEST_PATH}`);
+    }
+    const manifest = JSON.parse(fs.readFileSync(APPWRITE_MANIFEST_PATH, 'utf8'));
+    const byFunctionId = new Map();
+    for (const fn of manifest.functions || []) {
+        byFunctionId.set(fn.functionId, fn);
+    }
+    return { manifest, byFunctionId };
+}
+
+function loadSourceHashes() {
+    if (!fs.existsSync(SOURCE_HASHES_PATH)) return {};
+    const parsed = JSON.parse(fs.readFileSync(SOURCE_HASHES_PATH, 'utf8'));
+    return parsed.hashes || {};
+}
+
+const appwriteManifest = loadAppwriteManifest();
+const sourceHashes = loadSourceHashes();
+
+function manifestConfigForHub(hub) {
+    const fn = appwriteManifest.byFunctionId.get(functionIdForHub(hub));
+    if (!fn) throw new Error(`Missing appwrite.json entry for ${hub.id} (${functionIdForHub(hub)})`);
+    return fn;
+}
+
+function buildHub(hub) {
+    const hubDir = path.join(ROOT, 'appwrite-hubs', hub.id);
+    const archivePath = path.join(ROOT, hub.file);
     if (!fs.existsSync(hubDir)) throw new Error(`Hub directory not found: ${hubDir}`);
     const pkgJson = path.join(hubDir, 'package.json');
     if (fs.existsSync(pkgJson)) {
-        console.log(`  Installing deps for ${dir}...`);
+        console.log(`  Installing deps for ${hub.id}...`);
         execSync('npm install --omit=dev --silent', { cwd: hubDir, stdio: 'inherit' });
     }
-    console.log(`  Packaging ${dir}...`);
+    console.log(`  Packaging ${hub.id}...`);
     execSync(`tar -czf "${archivePath}" .`, { cwd: hubDir });
-    console.log(`  Built ${archive}`);
+    console.log(`  Built ${hub.file}`);
 }
 
 const client = new sdk.Client()
@@ -54,30 +137,111 @@ const client = new sdk.Client()
 const functions = new sdk.Functions(client);
 const databases = new sdk.Databases(client);
 
-async function ensureFunction(id, name, timeout = DEFAULT_TIMEOUT) {
+function desiredFunctionSettings(hub, currentFn = null) {
+    const manifestEntry = manifestConfigForHub(hub);
+    const timeoutTarget = HUB_TIMEOUTS[hub.id] ?? DEFAULT_TIMEOUT;
+    return {
+        functionId: functionIdForHub(hub),
+        name: manifestEntry.name || hub.name,
+        runtime: manifestEntry.runtime || currentFn?.runtime || DEFAULT_RUNTIME,
+        execute: ['any'],
+        events: Array.isArray(currentFn?.events) ? currentFn.events : [],
+        schedule: currentFn?.schedule || '',
+        timeout: Math.max(timeoutTarget, currentFn?.timeout ?? 0),
+        enabled: true,
+        logging: true,
+        entrypoint: manifestEntry.entrypoint || 'src/main.js',
+        commands: typeof manifestEntry.commands === 'string' ? manifestEntry.commands : '',
+        scopes: Array.isArray(currentFn?.scopes) ? currentFn.scopes : [],
+        installationId: DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS ? '' : (currentFn?.installationId || ''),
+        providerRepositoryId: DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS ? '' : (currentFn?.providerRepositoryId || ''),
+        providerBranch: DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS ? '' : (currentFn?.providerBranch || ''),
+        providerSilentMode: false,
+        providerRootDirectory: DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS ? '' : (currentFn?.providerRootDirectory || ''),
+        buildSpecification: currentFn?.buildSpecification,
+        runtimeSpecification: currentFn?.runtimeSpecification,
+        deploymentRetention: currentFn?.deploymentRetention ?? 0,
+    };
+}
+
+function settingsNeedUpdate(currentFn, desired) {
+    const currentExecute = Array.isArray(currentFn.execute) ? currentFn.execute : [];
+    const desiredExecute = Array.isArray(desired.execute) ? desired.execute : [];
+    const sameExecute = currentExecute.length === desiredExecute.length && currentExecute.every(v => desiredExecute.includes(v));
+    return (
+        currentFn.name !== desired.name ||
+        currentFn.runtime !== desired.runtime ||
+        !sameExecute ||
+        (currentFn.timeout ?? 0) !== desired.timeout ||
+        (currentFn.enabled ?? true) !== desired.enabled ||
+        (currentFn.logging ?? true) !== desired.logging ||
+        (currentFn.entrypoint || '') !== desired.entrypoint ||
+        (currentFn.commands || '') !== desired.commands ||
+        (currentFn.installationId || '') !== desired.installationId ||
+        (currentFn.providerRepositoryId || '') !== desired.providerRepositoryId ||
+        (currentFn.providerBranch || '') !== desired.providerBranch ||
+        (currentFn.providerRootDirectory || '') !== desired.providerRootDirectory
+    );
+}
+
+async function ensureFunction(hub) {
+    const functionId = functionIdForHub(hub);
     try {
-        const fn = await functions.get(id);
-        const currentTimeout = fn.timeout ?? 0;
-        const execute = Array.isArray(fn.execute) ? fn.execute : [];
-        // Never reduce an existing timeout that is already higher than desired
-        const effectiveTimeout = Math.max(timeout, currentTimeout);
-        const needsUpdate =
-            execute.length === 0 ||
-            !execute.includes('any') ||
-            currentTimeout < timeout;
-        if (needsUpdate) {
-            await functions.update(id, name, fn.runtime || 'node-18.0', ['any'], [], '', effectiveTimeout);
-            console.log(`  Updated permissions/timeout for ${id} (${effectiveTimeout}s)`);
+        const fn = await functions.get(functionId);
+        const desired = desiredFunctionSettings(hub, fn);
+        if (settingsNeedUpdate(fn, desired)) {
+            await functions.update(desired);
+            console.log(`  Updated settings for ${hub.id}`);
         }
-        console.log(`  ${id} already exists`);
+        console.log(`  ${hub.id} already exists`);
     } catch (e) {
         if (e.code === 404) {
-            const effectiveTimeout = Math.max(timeout, DEFAULT_TIMEOUT);
-            console.log(`  Creating ${id} with node-18.0 (${effectiveTimeout}s)...`);
-            await functions.create(id, name, 'node-18.0', ['any'], [], '', effectiveTimeout);
-            console.log(`  Created ${id}`);
-        } else throw e;
+            const desired = desiredFunctionSettings(hub, null);
+            await functions.create(desired);
+            console.log(`  Created ${hub.id}`);
+        } else {
+            throw e;
+        }
     }
+}
+
+async function waitForDeploymentReady(functionId, deploymentId) {
+    for (let attempt = 0; attempt < DEPLOY_POLL_ATTEMPTS; attempt += 1) {
+        const deployment = await functions.getDeployment(functionId, deploymentId);
+        if (!['waiting', 'processing', 'building'].includes(deployment.status)) {
+            if (deployment.status !== 'ready') {
+                throw new Error(`${functionId} deployment ${deploymentId} finished with status=${deployment.status}`);
+            }
+            return deployment;
+        }
+        await sleep(DEPLOY_POLL_INTERVAL_MS);
+    }
+    throw new Error(`${functionId} deployment ${deploymentId} did not reach ready state in time`);
+}
+
+async function deployFunction(hub) {
+    const absPath = path.join(ROOT, hub.file);
+    const functionId = functionIdForHub(hub);
+    const manifestEntry = manifestConfigForHub(hub);
+
+    console.log(`\nDeploying ${hub.name} (${hub.id})...`);
+    buildHub(hub);
+
+    await ensureFunction(hub);
+
+    const fileBuffer = fs.readFileSync(absPath);
+    const fileName = path.basename(absPath);
+    const file = new File([fileBuffer], fileName, { type: 'application/gzip' });
+    const deployment = await functions.createDeployment({
+        functionId,
+        code: file,
+        activate: true,
+        entrypoint: manifestEntry.entrypoint || 'src/main.js',
+    });
+    console.log(`  Deployed: ${deployment.$id}, status=${deployment.status}`);
+    const readyDeployment = await waitForDeploymentReady(functionId, deployment.$id);
+    console.log(`  Ready: ${readyDeployment.$id}, status=${readyDeployment.status}`);
+    return readyDeployment;
 }
 
 async function ensureVariable(fnId, key, value) {
@@ -117,52 +281,52 @@ async function firstExistingVariableValue(fnIds, key) {
     return null;
 }
 
-async function deployFunction(id, name, filePath) {
-    const absPath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
-    console.log(`\nDeploying ${name} (${id})...`);
-
-    // Always rebuild from source — never reuse a stale archive.
-    // Reusing old tars caused silent deploys of outdated code.
-    buildHub(id, filePath);
-
-    try {
-        await ensureFunction(id, name, HUB_TIMEOUTS[id] ?? DEFAULT_TIMEOUT);
-        const fileBuffer = fs.readFileSync(absPath);
-        const fileName = path.basename(absPath);
-        const file = new File([fileBuffer], fileName, { type: 'application/gzip' });
-        const deployment = await functions.createDeployment({
-            functionId: id,
-            code: file,
-            activate: true,
-            entrypoint: 'src/main.js',
-        });
-        console.log(`  Deployed: ${deployment.$id}, status=${deployment.status}`);
-    } catch (e) {
-        console.error(`  Failed: ${e.message}`);
-        if (e.response) console.error(JSON.stringify(e.response, null, 2).slice(0, 400));
-        throw e;
-    }
+function base64url(input) {
+    return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-async function smokeFunction(id, body) {
-    if (!process.env.DEVKIT_PASSWORD) return;
-    try {
-        const execution = await functions.createExecution({
-            functionId: id,
-            body: JSON.stringify({
-                ...body,
-                __headers: { Authorization: `Bearer ${process.env.DEVKIT_PASSWORD}` },
-            }),
-            async: false,
-            path: '/',
-            method: 'POST',
-        });
-        if (execution.status === 'failed' || execution.responseStatusCode >= 500) {
-            throw new Error(execution.errors || `HTTP ${execution.responseStatusCode}`);
-        }
-        console.log(`  Smoke ${id}: HTTP ${execution.responseStatusCode}`);
-    } catch (e) {
-        console.warn(`  Smoke ${id} failed: ${e.message}`);
+function devKitToken() {
+    const secret = process.env.APPWRITE_API_KEY;
+    if (!secret) throw new Error('APPWRITE_API_KEY is required for signed DevKit smoke tests');
+    const now = Date.now();
+    const payload = { purpose: 'devkit', iat: now, exp: now + (15 * 60 * 1000), version: 2, uid: 'deploy-script' };
+    const encoded = base64url(JSON.stringify(payload));
+    const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+    return `${encoded}.${sig}`;
+}
+
+async function smokeFunction(hubId, smoke) {
+    const hub = HUBS.find(entry => entry.id === hubId);
+    if (!hub) throw new Error(`Unknown hub for smoke test: ${hubId}`);
+    const functionId = functionIdForHub(hub);
+    const body = { ...(smoke.body || {}) };
+    if (smoke.auth === 'devkit') {
+        body.__headers = { Authorization: `Bearer ${devKitToken()}` };
+    }
+    const execution = await functions.createExecution({
+        functionId,
+        body: JSON.stringify(body),
+        async: false,
+        path: '/',
+        method: 'POST',
+    });
+    if (execution.status === 'failed') {
+        throw new Error(`${hubId} smoke execution failed: ${execution.errors || 'execution failed'}`);
+    }
+    if (execution.responseStatusCode < 200 || execution.responseStatusCode >= 300) {
+        throw new Error(`${hubId} smoke returned HTTP ${execution.responseStatusCode}`);
+    }
+    console.log(`  Smoke ${hubId}: HTTP ${execution.responseStatusCode}`);
+    return execution;
+}
+
+async function runSmokeChecks(hubsToCheck) {
+    if (!hubsToCheck.length) return;
+    console.log('\nRunning safe smoke checks...');
+    for (const hub of hubsToCheck) {
+        const smoke = SAFE_SMOKE_CHECKS.get(hub.id);
+        if (!smoke) continue;
+        await smokeFunction(hub.id, smoke);
     }
 }
 
@@ -188,12 +352,10 @@ async function patchAuthEmailTemplate(type, subject, message) {
 }
 
 async function syncAuthEmailTemplates() {
-    const templatesDir = path.join(process.cwd(), 'appwrite-hubs', 'email-templates');
+    const templatesDir = path.join(ROOT, 'appwrite-hubs', 'email-templates');
 
     console.log('\nConfiguring Appwrite auth email templates...');
 
-    // Blank Appwrite verification template — Resend sends the only user-visible email.
-    // (Each createVerification still fires Appwrite SMTP; blank body avoids duplicate links.)
     try {
         await patchAuthEmailTemplate('verification', ' ', ' ');
         console.log('  Blanked verification template (Resend is the branded verification email)');
@@ -213,79 +375,91 @@ async function syncAuthEmailTemplates() {
     }
 }
 
-async function run() {
-    const requestedHubs = selectedHubIds();
-    const hubs = [
-        { id: 'resume-section-ai',         name: 'Resume Section AI Hub',         file: 'resume-section-ai.tar.gz' },
-        { id: 'job-import',                name: 'Job Import Hub',                file: 'job-import.tar.gz' },
-        { id: 'ai-gateway',                name: 'AI Gateway Hub',                file: 'ai-gateway.tar.gz' },
-        { id: 'coupons',                   name: 'Coupons Hub',                   file: 'coupons.tar.gz' },
-        { id: 'wisehire-gateway',          name: 'WiseHire Gateway Hub',          file: 'wisehire-gateway.tar.gz' },
-        { id: 'public-share',              name: 'Public Share Hub',              file: 'public-share.tar.gz' },
-        { id: 'ai-health',                 name: 'AI Health Hub',                 file: 'ai-health.tar.gz' },
-{ id: 'admin-devkit-data',         name: 'Admin DevKit Data Hub',         file: 'admin-devkit-data.tar.gz' },
-        { id: 'admin-email',               name: 'Admin Email Hub',               file: 'admin-email.tar.gz' },
-        { id: 'admin-testmail',            name: 'Admin Testmail Hub',            file: 'admin-testmail.tar.gz' },
-        { id: 'admin-feature-flags',       name: 'Admin Feature Flags Hub',       file: 'admin-feature-flags.tar.gz' },
-        { id: 'admin-moderation',          name: 'Admin Moderation Hub',          file: 'admin-moderation.tar.gz' },
-        { id: 'admin-portfolio-usernames', name: 'Admin Portfolio Usernames Hub', file: 'admin-portfolio-usernames.tar.gz' },
-        { id: 'admin-visitor-analytics',   name: 'Admin Visitor Analytics Hub',   file: 'admin-visitor-analytics.tar.gz' },
-        { id: 'admin-onboarding-funnel',   name: 'Admin Onboarding Funnel Hub',   file: 'admin-onboarding-funnel.tar.gz' },
-        { id: 'admin-impersonate',         name: 'Admin Impersonate Hub',         file: 'admin-impersonate.tar.gz' },
-        { id: 'inspect-ai-keys',           name: 'Inspect AI Keys Hub',           file: 'inspect-ai-keys.tar.gz' },
-        { id: 'admin-deploy-hubs',         name: 'Admin Deploy Hubs',             file: 'admin-deploy-hubs.tar.gz' },
-        { id: 'email-service',             name: 'Email Service Hub',             file: 'email-service.tar.gz' },
+async function upsertDeployedHashes(hubIds) {
+    const hashesToWrite = {};
+    for (const hubId of hubIds) {
+        if (sourceHashes[hubId]) hashesToWrite[hubId] = String(sourceHashes[hubId]).slice(0, 16);
+    }
+    if (!Object.keys(hashesToWrite).length) return;
+
+    const existing = await databases.listDocuments('main', 'app_settings', [sdk.Query.limit(100)]);
+    const existingDoc = (existing.documents || []).find(doc => doc.key === 'fn_deployed_hashes');
+
+    let merged = {};
+    if (existingDoc?.value) {
+        try { merged = JSON.parse(existingDoc.value) || {}; } catch { merged = {}; }
+    }
+    merged = { ...merged, ...hashesToWrite };
+    const serialized = JSON.stringify(merged);
+
+    if (existingDoc) {
+        await databases.updateDocument('main', 'app_settings', existingDoc.$id, { value: serialized });
+    } else {
+        await databases.createDocument('main', 'app_settings', sdk.ID.unique(), { key: 'fn_deployed_hashes', value: serialized });
+    }
+    console.log(`\nUpdated fn_deployed_hashes for: ${Object.keys(hashesToWrite).join(', ')}`);
+}
+
+async function cleanupStaleDeployments(hub, keepDeploymentId) {
+    const functionId = functionIdForHub(hub);
+    const deployments = await functions.listDeployments(functionId, [
+        sdk.Query.limit(100),
+        sdk.Query.orderDesc('$createdAt'),
+    ]);
+    const stale = deployments.deployments.filter(deployment =>
+        deployment.$id !== keepDeploymentId &&
+        deployment.status === 'waiting' &&
+        (deployment.sourceSize || 0) === 0
+    );
+
+    for (const deployment of stale) {
+        await functions.deleteDeployment(functionId, deployment.$id);
+        console.log(`  Deleted stale waiting deployment ${deployment.$id} from ${hub.id}`);
+    }
+}
+
+async function ensureAiGatewayVariables() {
+    const vars = [
+        ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
+        ['OPENROUTER_KEY_2', process.env.OPENROUTER_KEY_2],
+        ['OPENROUTER_KEY_3', process.env.OPENROUTER_KEY_3],
+        ['GROQ_KEY_1', process.env.GROQ_KEY_1],
+        ['GROQ_KEY_2', process.env.GROQ_KEY_2],
+        ['GROQ_KEY_3', process.env.GROQ_KEY_3],
+        ['DEEPSEEK_KEY', process.env.DEEPSEEK_KEY],
+        ['NVIDIA_KEY_1', process.env.NVIDIA_KEY_1],
+        ['NVIDIA_KEY_2', process.env.NVIDIA_KEY_2],
+        ['NVIDIA_KEY_3', process.env.NVIDIA_KEY_3],
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+        ['DEVKIT_PASSWORD', process.env.DEVKIT_PASSWORD],
+        ['DATADOG_API_KEY', process.env.DATADOG_API_KEY],
+        ['DD_API_KEY', process.env.DD_API_KEY],
+        ['DD_SITE', process.env.DD_SITE],
+        ['ADMIN_EMAIL', process.env.ADMIN_EMAIL],
+        ['RESEND_API_KEY', process.env.RESEND_API_KEY],
     ];
+    for (const [key, value] of vars) await ensureVariable('ai-gateway', key, value);
+}
 
-    const hubsToDeploy = requestedHubs ? hubs.filter(hub => requestedHubs.has(hub.id)) : hubs;
-    if (requestedHubs) {
-        const unknown = [...requestedHubs].filter(id => !hubs.some(hub => hub.id === id));
-        if (unknown.length) throw new Error(`Unknown hub id(s): ${unknown.join(', ')}`);
-        console.log(`Deploying selected hubs only: ${hubsToDeploy.map(h => h.id).join(', ')}`);
-    }
+async function ensureAiHealthVariables() {
+    const vars = [
+        ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
+        ['OPENROUTER_KEY_2', process.env.OPENROUTER_KEY_2],
+        ['OPENROUTER_KEY_3', process.env.OPENROUTER_KEY_3],
+        ['GROQ_KEY_1', process.env.GROQ_KEY_1],
+        ['GROQ_KEY_2', process.env.GROQ_KEY_2],
+        ['GROQ_KEY_3', process.env.GROQ_KEY_3],
+        ['DEEPSEEK_KEY', process.env.DEEPSEEK_KEY],
+        ['NVIDIA_KEY_1', process.env.NVIDIA_KEY_1],
+        ['NVIDIA_KEY_2', process.env.NVIDIA_KEY_2],
+        ['NVIDIA_KEY_3', process.env.NVIDIA_KEY_3],
+    ];
+    for (const [key, value] of vars) await ensureVariable('ai-health', key, value);
+}
 
-    for (const hub of hubsToDeploy) {
-        await deployFunction(hub.id, hub.name, hub.file);
-    }
-
-    if (requestedHubs) {
-        if (requestedHubs.has('email-service')) {
-            console.log('\nEnsuring email-service variables...');
-            const emailVarSources = ['admin-email', 'admin-testmail', 'admin-devkit-data', 'admin-deploy-hubs'];
-            const emailServiceVars = [
-                ['APPWRITE_API_KEY',    process.env.APPWRITE_API_KEY],
-                ['APPWRITE_ENDPOINT',   process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
-                ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
-                ['DEVKIT_PASSWORD',     process.env.DEVKIT_PASSWORD || await firstExistingVariableValue(emailVarSources, 'DEVKIT_PASSWORD')],
-                ['RESEND_API_KEY',      process.env.RESEND_API_KEY || await firstExistingVariableValue(emailVarSources, 'RESEND_API_KEY')],
-                ['RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
-                ['RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
-                ['FRONTEND_URL',        process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
-            ];
-            for (const [key, value] of emailServiceVars) {
-                await ensureVariable('email-service', key, value);
-            }
-            await syncAuthEmailTemplates();
-        }
-
-        if (requestedHubs.has('admin-deploy-hubs')) {
-            console.log('\nEnsuring admin-deploy-hubs GitHub credentials and email propagation vars...');
-            for (const [key, value] of [
-                ['GITHUB_TOKEN',     process.env.GITHUB_TOKEN],
-                ['GITHUB_REPO',      process.env.GITHUB_REPO || 'iammagdy/WiseResume-TWC'],
-                ['RESEND_API_KEY',   process.env.RESEND_API_KEY],
-                ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud'],
-                ['RESEND_FROM_NAME',  process.env.RESEND_FROM_NAME  || 'WiseResume'],
-            ]) {
-                await ensureVariable('admin-deploy-hubs', key, value);
-            }
-        }
-
-        console.log('\nSelected hubs processed.');
-        return;
-    }
-
-    console.log('\nEnsuring resume-section-ai provider keys...');
+async function ensureResumeSectionVariables() {
     for (const [key, value] of [
         ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
         ['OPENROUTER_KEY_2', process.env.OPENROUTER_KEY_2],
@@ -293,8 +467,9 @@ async function run() {
     ]) {
         await ensureVariable('resume-section-ai', key, value);
     }
+}
 
-    console.log('\nEnsuring job-import provider keys...');
+async function ensureJobImportVariables() {
     for (const [key, value] of [
         ['GROQ_KEY_1', process.env.GROQ_KEY_1],
         ['OPENROUTER_KEY_1', process.env.OPENROUTER_KEY_1],
@@ -305,34 +480,42 @@ async function run() {
     ]) {
         await ensureVariable('job-import', key, value);
     }
+}
 
-    console.log('\nEnsuring shared admin hub variables...');
-    const adminFunctionIds = [
-        'admin-devkit-data',
-        'admin-email',
-        'admin-testmail',
-        'admin-feature-flags',
-        'admin-moderation',
-        'admin-portfolio-usernames',
-        'admin-visitor-analytics',
-        'admin-onboarding-funnel',
-        'admin-impersonate',
-        'inspect-ai-keys',
-        'admin-deploy-hubs',
-    ];
-    for (const fnId of adminFunctionIds) {
+async function ensureSharedAdminVariables(fnIds) {
+    for (const fnId of fnIds) {
         for (const [key, value] of [
             ['DEVKIT_PASSWORD', process.env.DEVKIT_PASSWORD],
             ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
             ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
             ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+            ['ADMIN_EMAIL', process.env.ADMIN_EMAIL],
         ]) {
             await ensureVariable(fnId, key, value);
         }
     }
+}
 
-    console.log('\nEnsuring email hub variables...');
-    for (const fnId of ['admin-email', 'admin-testmail', 'admin-devkit-data']) {
+async function ensureAdminSentryVariables() {
+    const fnId = functionIdForHub(HUBS.find(hub => hub.id === 'admin-sentry'));
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+        ['SENTRY_AUTH_TOKEN', process.env.SENTRY_AUTH_TOKEN],
+        ['SENTRY_ORG_SLUG', process.env.SENTRY_ORG_SLUG],
+        ['SENTRY_PROJECT_SLUG', process.env.SENTRY_PROJECT_SLUG],
+        ['SENTRY_ORG', process.env.SENTRY_ORG],
+        ['SENTRY_PROJECT', process.env.SENTRY_PROJECT],
+        ['SENTRY_WEBHOOK_SECRET', process.env.SENTRY_WEBHOOK_SECRET],
+        ['VITE_SENTRY_DSN', process.env.VITE_SENTRY_DSN],
+    ]) {
+        await ensureVariable(fnId, key, value);
+    }
+}
+
+async function ensureEmailHubVariables(fnIds) {
+    for (const fnId of fnIds) {
         for (const [key, value] of [
             ['RESEND_API_KEY', process.env.RESEND_API_KEY],
             ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL],
@@ -341,9 +524,10 @@ async function run() {
             await ensureVariable(fnId, key, value);
         }
     }
+}
 
-    console.log('\nEnsuring coupons and WiseHire gateway variables...');
-    for (const fnId of ['coupons', 'wisehire-gateway', 'public-share']) {
+async function ensureCouponsWiseHireVariables(fnIds) {
+    for (const fnId of fnIds) {
         for (const [key, value] of [
             ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
             ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
@@ -359,68 +543,152 @@ async function run() {
             await ensureVariable(fnId, key, value);
         }
     }
+}
 
-    console.log('\nRunning safe admin hub smoke checks...');
-    await smokeFunction('admin-devkit-data', { action: 'diagnostics' });
-    await smokeFunction('admin-email', { module: 'resend-stats', action: 'stats' });
-    await smokeFunction('admin-testmail', { module: 'testmail-inbox', tag: null });
-    await smokeFunction('admin-portfolio-usernames', { action: 'directory_list', page: 1, per_page: 1 });
-    await smokeFunction('admin-visitor-analytics', { action: 'kpis', range: '7d' });
-    await smokeFunction('admin-onboarding-funnel', { days: 7, granularity: 'day' });
-    await smokeFunction('admin-feature-flags', { action: 'list' });
-    await smokeFunction('admin-moderation', { action: 'list_bug_reports', page: 1, per_page: 1 });
+async function ensureAdminDeployHubsVariables() {
+    for (const [key, value] of [
+        ['GITHUB_TOKEN', process.env.GITHUB_TOKEN],
+        ['GITHUB_REPO', process.env.GITHUB_REPO || 'iammagdy/WiseResume-TWC'],
+        ['RESEND_API_KEY', process.env.RESEND_API_KEY],
+        ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud'],
+        ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME || 'WiseResume'],
+    ]) {
+        await ensureVariable('admin-deploy-hubs', key, value);
+    }
+}
 
-    // Ensure jobs collection allows authenticated users to create documents.
-    // Without this, client-side job creation fails with "No permissions for action 'create'".
+async function ensureEmailServiceVariables() {
+    const emailVarSources = ['admin-email', 'admin-testmail', 'admin-devkit-data', 'admin-deploy-hubs'];
+    const emailServiceVars = [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+        ['DEVKIT_PASSWORD', process.env.DEVKIT_PASSWORD || await firstExistingVariableValue(emailVarSources, 'DEVKIT_PASSWORD')],
+        ['RESEND_API_KEY', process.env.RESEND_API_KEY || await firstExistingVariableValue(emailVarSources, 'RESEND_API_KEY')],
+        ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
+        ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
+        ['FRONTEND_URL', process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
+    ];
+    for (const [key, value] of emailServiceVars) {
+        await ensureVariable('email-service', key, value);
+    }
+}
+
+async function ensureJobsCreatePermission() {
     console.log('\nEnsuring jobs collection create permission...');
     try {
         const col = await databases.getCollection('main', 'jobs');
         const hasCreate = (col.permissions || []).some(p => p.includes('create') && p.includes('users'));
         if (!hasCreate) {
-            const existing = col.permissions || [];
             await databases.updateCollection('main', 'jobs', col.name, [
-                ...existing,
+                ...(col.permissions || []),
                 sdk.Permission.create(sdk.Role.users()),
             ]);
-            console.log('  ✅ Added Permission.create(Role.users()) to jobs collection');
+            console.log('  Added Permission.create(Role.users()) to jobs collection');
         } else {
             console.log('  jobs collection create permission already set');
         }
     } catch (e) {
         console.warn(`  Could not update jobs collection permissions: ${e.message}`);
     }
-
-    console.log('\nEnsuring email-service variables...');
-    const emailVarSources = ['admin-email', 'admin-testmail', 'admin-devkit-data', 'admin-deploy-hubs'];
-    const emailServiceVars = [
-        ['APPWRITE_API_KEY',    process.env.APPWRITE_API_KEY],
-        ['APPWRITE_ENDPOINT',   process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
-        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
-        ['DEVKIT_PASSWORD',     process.env.DEVKIT_PASSWORD || await firstExistingVariableValue(emailVarSources, 'DEVKIT_PASSWORD')],
-        ['RESEND_API_KEY',      process.env.RESEND_API_KEY || await firstExistingVariableValue(emailVarSources, 'RESEND_API_KEY')],
-        ['RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
-        ['RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
-        ['FRONTEND_URL',        process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
-    ];
-    for (const [key, value] of emailServiceVars) {
-        await ensureVariable('email-service', key, value);
-    }
-
-    await syncAuthEmailTemplates();
-
-    console.log('\nEnsuring admin-deploy-hubs GitHub credentials and email propagation vars...');
-    for (const [key, value] of [
-        ['GITHUB_TOKEN',    process.env.GITHUB_TOKEN],
-        ['GITHUB_REPO',     process.env.GITHUB_REPO || 'iammagdy/WiseResume-TWC'],
-        // Resend vars — admin-deploy-hubs uses these to auto-set them on email-service after deploy
-        ['RESEND_API_KEY',   process.env.RESEND_API_KEY],
-        ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud'],
-        ['RESEND_FROM_NAME',  process.env.RESEND_FROM_NAME  || 'WiseResume'],
-    ]) {
-        await ensureVariable('admin-deploy-hubs', key, value);
-    }
-
-    console.log('\nAll hubs processed.');
 }
 
-run().catch(e => { console.error('Fatal:', e.message); process.exit(1); });
+async function syncVariablesForHubs(hubIds) {
+    const selected = new Set(hubIds);
+    const hasAny = ids => ids.some(id => selected.has(id));
+
+    if (selected.has('ai-gateway')) await ensureAiGatewayVariables();
+    if (selected.has('ai-health')) await ensureAiHealthVariables();
+    if (selected.has('resume-section-ai')) await ensureResumeSectionVariables();
+    if (selected.has('job-import')) await ensureJobImportVariables();
+
+    const sharedAdminIds = [
+        'admin-devkit-data',
+        'admin-email',
+        'admin-testmail',
+        'admin-feature-flags',
+        'admin-moderation',
+        'admin-portfolio-usernames',
+        'admin-visitor-analytics',
+        'admin-onboarding-funnel',
+        'admin-impersonate',
+        'inspect-ai-keys',
+        'admin-deploy-hubs',
+        functionIdForHub(HUBS.find(hub => hub.id === 'admin-sentry')),
+    ];
+    const selectedAdminTargets = sharedAdminIds.filter(id => selected.has(id) || selected.has('admin-sentry') && id === functionIdForHub(HUBS.find(hub => hub.id === 'admin-sentry')));
+    if (selectedAdminTargets.length) await ensureSharedAdminVariables(selectedAdminTargets);
+    if (selected.has('admin-sentry')) await ensureAdminSentryVariables();
+
+    const emailTargets = ['admin-email', 'admin-testmail', 'admin-devkit-data'].filter(id => selected.has(id));
+    if (emailTargets.length) await ensureEmailHubVariables(emailTargets);
+
+    const couponsTargets = ['coupons', 'wisehire-gateway', 'public-share'].filter(id => selected.has(id));
+    if (couponsTargets.length) await ensureCouponsWiseHireVariables(couponsTargets);
+
+    if (selected.has('admin-deploy-hubs')) await ensureAdminDeployHubsVariables();
+    if (selected.has('email-service')) await ensureEmailServiceVariables();
+}
+
+function resolveRequestedHubs(requestedIds) {
+    if (!requestedIds) return HUBS;
+    const selected = [];
+    const unknown = [];
+
+    for (const requestedId of requestedIds) {
+        const match = HUBS.find(hub => hub.id === requestedId || functionIdForHub(hub) === requestedId);
+        if (match) {
+            if (!selected.includes(match)) selected.push(match);
+        } else {
+            unknown.push(requestedId);
+        }
+    }
+
+    if (unknown.length) {
+        throw new Error(`Unknown hub id(s): ${unknown.join(', ')}`);
+    }
+    return selected;
+}
+
+async function run() {
+    const requestedIds = selectedHubIds();
+    const hubsToDeploy = resolveRequestedHubs(requestedIds);
+
+    if (requestedIds) {
+        console.log(`Deploying selected hubs only: ${hubsToDeploy.map(h => h.id).join(', ')}`);
+    }
+
+    const deployed = [];
+    for (const hub of hubsToDeploy) {
+        const readyDeployment = await deployFunction(hub);
+        deployed.push({ hub, deploymentId: readyDeployment.$id });
+    }
+
+    await syncVariablesForHubs(hubsToDeploy.map(hub => hub.id));
+
+    if (hubsToDeploy.some(hub => hub.id === 'email-service')) {
+        await syncAuthEmailTemplates();
+    }
+
+    await upsertDeployedHashes(hubsToDeploy.map(hub => hub.id));
+
+    for (const { hub, deploymentId } of deployed) {
+        if (hub.id === 'admin-deploy-hubs') {
+            await cleanupStaleDeployments(hub, deploymentId);
+        }
+    }
+
+    await runSmokeChecks(hubsToDeploy);
+
+    if (!requestedIds) {
+        await ensureJobsCreatePermission();
+        await syncAuthEmailTemplates();
+    }
+
+    console.log('\nAll requested hubs processed successfully.');
+}
+
+run().catch(e => {
+    console.error('Fatal:', e.message);
+    process.exit(1);
+});
