@@ -335,6 +335,32 @@ async function loadCreditState(db, userId, featureName) {
   };
 }
 
+const AI_REQUEST_LOGS_COLLECTION_ID = 'ai_request_logs';
+
+/**
+ * Append one row to ai_request_logs. Fails silently when the collection
+ * doesn't exist yet — create it manually in Appwrite Console to activate:
+ *   DB: main | Collection ID: ai_request_logs
+ *   Attributes: feature_id (str 64), provider (str 32), model (str 128),
+ *     latency_ms (int), is_fallback (bool), is_admin_test (bool),
+ *     user_id (str 36), created_at (str 32)
+ *   Permissions: server-only (no user read/write)
+ */
+async function safeLogAiRequest(db, { feature, provider, model, latencyMs, fallback, adminTest }, userId) {
+  try {
+    await db.createDocument(DB_ID, AI_REQUEST_LOGS_COLLECTION_ID, sdk.ID.unique(), {
+      feature_id: feature || 'unknown',
+      provider: provider || 'unknown',
+      model: model || 'unknown',
+      latency_ms: Math.round(latencyMs || 0),
+      is_fallback: fallback === true,
+      is_admin_test: adminTest === true,
+      user_id: userId || 'unknown',
+      created_at: new Date().toISOString(),
+    });
+  } catch { /* silently skip — collection may not exist yet */ }
+}
+
 async function recordAiUsage(db, creditState) {
   if (!creditState?.chargeable || creditState.blocked || creditState.cost <= 0 || !creditState.doc) {
     return;
@@ -1522,6 +1548,7 @@ module.exports = async ({ req, res, log, error }) => {
       };
     }
 
+    const requestStartTime = Date.now();
     let content      = null;
     let providerUsed = null;
     let modelUsed    = null;
@@ -1554,6 +1581,7 @@ module.exports = async ({ req, res, log, error }) => {
             provider: providerUsed,
             model: modelUsed,
             preview: String(content || '').slice(0, 300),
+            meta: { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true },
           });
         }
 
@@ -1561,10 +1589,13 @@ module.exports = async ({ req, res, log, error }) => {
           try {
             const parsedResume = normalizeResumeData(result.content);
             await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
             await flushDD();
             return res.json({
               status: 'success',
               data: parsedResume,
+              meta,
             });
           } catch (parseErr) {
             error(`Provider ${candidate.provider} returned malformed resume JSON: ${parseErr.message}`);
@@ -1583,10 +1614,13 @@ module.exports = async ({ req, res, log, error }) => {
           try {
             const structuredData = normalizeStructuredFeatureData(featureName, result.content, aiOpts);
             await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
             await flushDD();
             return res.json({
               status: 'success',
               data: structuredData,
+              meta,
             });
           } catch (parseErr) {
             error(`Provider ${candidate.provider} returned malformed ${featureName} JSON: ${parseErr.message}`);
@@ -1604,8 +1638,10 @@ module.exports = async ({ req, res, log, error }) => {
         if (featureName === 'agentic-chat') {
           const structuredResponse = parseAgenticChatResponse(result.content);
           await recordSuccessUsage();
+          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+          safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
           await flushDD();
-          return res.json({ status: 'success', data: structuredResponse });
+          return res.json({ status: 'success', data: structuredResponse, meta });
         }
 
         if (featureName === 'smart-fit-rewrite') {
@@ -1615,8 +1651,10 @@ module.exports = async ({ req, res, log, error }) => {
               ? parsed
               : (Array.isArray(parsed.outcomes) ? parsed.outcomes : []);
             await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
             await flushDD();
-            return res.json({ status: 'success', data: { success: true, outcomes } });
+            return res.json({ status: 'success', data: { success: true, outcomes }, meta });
           } catch (parseErr) {
             error(`smart-fit-rewrite: malformed JSON from ${candidate.provider}: ${parseErr.message}`);
             if (i === candidates.length - 1) {
@@ -1629,8 +1667,10 @@ module.exports = async ({ req, res, log, error }) => {
 
         if (featureName === 'ask-portfolio') {
           await recordSuccessUsage();
+          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+          safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
           await flushDD();
-          return res.json({ status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false } });
+          return res.json({ status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false }, meta });
         }
 
         break;
@@ -1656,8 +1696,10 @@ module.exports = async ({ req, res, log, error }) => {
       }
     }
 
-    await flushDD();
     await recordSuccessUsage();
+    const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+    safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+    await flushDD();
     return res.json({
       status: 'success',
       data: {
@@ -1666,6 +1708,7 @@ module.exports = async ({ req, res, log, error }) => {
         modelUsed,
         routedByFeature: routedBy,
       },
+      meta,
     });
 
   } catch (err) {
