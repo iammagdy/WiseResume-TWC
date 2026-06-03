@@ -2,6 +2,233 @@
 
 ---
 
+## Session Log - 2026-06-03 (Admin Panel / DevKit Refactor - Phases 1-4)
+
+### Overview
+Documentation-only closeout for the WiseResume Admin Panel / DevKit refactor session. Codex verified the repo state first, confirmed earlier claimed Phase 1 work was not actually present in the codebase, then implemented and committed Phases 1 through 4 only. No deploy was performed in this session.
+
+**Branch at stop:** `main`
+
+**Commits created**
+- `fdb6e77d` - `Refine DevKit IA and Appwrite terminology`
+- `a035ff4b` - `Fix DevKit plan emails and branded templates`
+- `3e72993a` - `Fix DevKit AI key slot inventory`
+- `18690082` - `Add Appwrite Functions console MVP`
+
+---
+
+### Phase 1A / 1B - DevKit IA + Appwrite terminology
+
+#### Changes completed
+- DevKit information architecture cleaned up and confusing labels renamed.
+- AI Center is no longer treated as one hidden nested panel.
+- AI sub-panels are now visible as first-class DevKit surfaces.
+- `company-briefing` and `ask-portfolio` frontend defaults now point to Groq correctly.
+- `src/lib/devkit/appwriteResponse.ts` now exists.
+- Legacy `src/lib/devkit/edgeResponse.ts` remains as a backward-compatible shim.
+- Diagnostics now treat `DEVKIT_PASSWORD` as an optional fallback, not a hard failure.
+- Backend accepts both `fn-drift` and legacy `edge-fn-drift`.
+
+#### Root causes
+- Admin IA had grown organically and was confusing.
+- Supabase/Edge terminology remained after the Appwrite migration.
+- Frontend routing defaults had drifted from `ai-gateway`.
+
+---
+
+### Phase 2 - Plan / trial emails + branded templates
+
+#### Changes completed
+- Plan changes now use explicit change types instead of assuming every change is an upgrade.
+- Downgrading to Free no longer sends "You've been upgraded to Free".
+- Same-plan changes now skip email.
+- Trial start and trial revoke now use correct email behavior.
+- Email status is surfaced in admin UI toasts.
+- Admin-triggered emails now use WiseResume crimson branding.
+- Brand color used: `#9E1B22`.
+- Indigo `#6366f1` was removed from active admin email / DevKit templates.
+- Remaining `#6366f1` grep hit is unrelated marketing gradient in `src/pages/index-landing.css`.
+
+#### Root causes
+- Previous logic treated every plan mutation as an upgrade.
+- Email templates were functional but not aligned with Project Atlas / WiseResume branding.
+
+---
+
+### Phase 3 - API key slot inventory
+
+#### Changes completed
+DevKit API Keys now reflect the real inventory:
+- 3 OpenRouter keys
+- 3 Groq keys
+- 3 NVIDIA keys
+- 1 DeepSeek key
+
+Total: 10 real slots.
+
+DeepSeek phantom slots 2 and 3 were removed from the UI and backend inspection logic.
+
+#### Root cause
+- The old UI assumed every provider used `[1,2,3]`.
+- The gateway only uses one `DEEPSEEK_KEY`.
+
+---
+
+### Phase 4 - Appwrite Functions Console MVP
+
+#### Changes completed
+The old Deploy Hubs experience was upgraded into an Appwrite Functions Console MVP:
+- lists functions
+- supports single redeploy
+- supports multi-select redeploy
+- supports deploy all
+- shows recent executions
+- shows execution detail
+- uses existing `admin-deploy-hubs` selective deploy support via `body.hubs`
+- includes confirmation dialogs for redeploy actions
+
+#### Root causes
+- `admin-deploy-hubs` already supported selected deployments, but the DevKit UI only exposed a blunt deploy-all flow.
+- `handleEdgeFnDrift` previously returned fake / stub data.
+
+---
+
+### Validation completed
+
+Passed:
+
+```bash
+npx vitest run src/lib/devkit/devToolsPanelConfig.test.ts
+npx vitest run src/lib/devkit/aiTestSlotModels.test.ts
+npx tsc --noEmit
+node --check appwrite-hubs/admin-devkit-data/src/main.js
+node --check appwrite-hubs/admin-email/src/main.js
+node --check appwrite-hubs/inspect-ai-keys/src/main.js
+```
+
+Additional grep verification:
+
+```bash
+grep -R "#6366f1|C41E3A" ...
+```
+
+Result:
+- no remaining admin email / DevKit hits
+- only unrelated marketing gradient in `src/pages/index-landing.css`
+
+---
+
+### Hubs requiring redeploy
+
+Backend hubs that must be redeployed before production reflects the backend changes from this session:
+- `admin-devkit-data`
+- `admin-email`
+- `inspect-ai-keys`
+
+Notes:
+- Frontend changes still require the normal frontend deployment flow.
+- `ai-gateway` was not part of the completed work in this session.
+- `admin-deploy-hubs` was not modified by the completed Phase 1-4 commits.
+- No redeploy was performed in this session.
+
+---
+
+### What was not done yet
+
+Phases 5 through 10 remain pending.
+
+#### Phase 5 - AI Tools Map MVP
+Pending:
+- app-area based AI Tools Map
+- `aiToolsCatalogue`
+- grouped AI Studio tools under shared `wise-ai-chat`
+- safe `list-routes` probe
+- no AI Studio route splitting
+
+#### Phase 6 - Secure Real Route Testing
+Pending:
+- admin-only test button
+- signed nonce from `admin-devkit-data`
+- gateway verification
+- no user credit deduction for admin test
+- token cap and output preview
+
+#### Phase 7 - Consistent Gateway Metadata + Persistent AI Logs
+Pending:
+- top-level `meta` sibling on all gateway success responses
+- `ai_request_logs` collection
+- persistent provider / model / fallback / latency logs
+- no raw key logging
+
+#### Phase 8 - Key Pinning + Advanced Rotation
+Pending:
+- `key_mode`
+- `key_slot`
+- `fallback_strategy`
+- gateway slot-aware `buildPool`
+- production fallback remains enabled
+- test-only fallback-disabled option
+
+#### Phase 9 - Appwrite Functions Console Ideal Upgrade
+Pending:
+- per-function source hash
+- last deployed source hash storage
+- needs-redeploy detection
+
+#### Phase 10 - Mobile UX Pass
+Pending:
+- DevKit mobile / tablet layout
+- AI Tools Map mobile layout
+- Appwrite Functions mobile cards
+- no horizontal overflow
+
+---
+
+### Important safety state
+
+Completed work did not:
+- rewrite auth
+- change user-facing AI prompts
+- split AI Studio routes
+- log raw API keys
+- disable production fallback
+- implement route testing
+- implement key pinning
+- create new schema
+
+---
+
+### Where we stopped
+
+The next agent should start from:
+
+```bash
+git status
+git log --oneline -10
+```
+
+Then confirm the four commits exist:
+- `fdb6e77d`
+- `a035ff4b`
+- `3e72993a`
+- `18690082`
+
+Current local state at session close:
+- no tracked code changes were left from this session
+- local untracked artifacts still exist in the working tree (`.playwright-mcp/`, `Loader/`, and report JSON files)
+
+Continue from:
+- **Phase 5 - AI Tools Map MVP**
+
+Do not redo Phases 1-4 unless validation shows regression.
+
+Before continuing Phase 5, confirm whether backend hubs from Phases 2-4 have been redeployed:
+- `admin-devkit-data`
+- `admin-email`
+- `inspect-ai-keys`
+
+---
+
 ## Session Log - 2026-06-03 (Admin Panel Audit — 9 Fixes + Company Briefing Persistence)
 
 ### Overview
