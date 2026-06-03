@@ -191,7 +191,7 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
           label="AI Providers"
           value={data ? (data.aiConfigured ? 'Ready' : 'No Keys') : '—'}
           status={data ? (data.aiConfigured ? 'ok' : 'warn') : 'loading'}
-          onClick={() => onNavigate('ai-center')}
+          onClick={() => onNavigate('ai-health')}
         />
         <StatusCard
           icon={data?.maintenanceModeOn ? ShieldAlert : Shield}
@@ -225,7 +225,7 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
             onClick={() => onNavigate('users')}
             className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"
           >
-            God Mode <ExternalLink className="w-2.5 h-2.5" />
+            Users <ExternalLink className="w-2.5 h-2.5" />
           </button>
         </div>
 
@@ -341,10 +341,12 @@ export function HomePanel({ onNavigate }: HomePanelProps) {
         <div className="flex flex-wrap gap-2">
           {[
             { label: 'Mission Control', panel: 'mission' },
-            { label: 'God Mode', panel: 'users' },
-            { label: 'Feature Control', panel: 'flags' },
-            { label: 'AI Center', panel: 'ai-center' },
-            { label: 'Audit History', panel: 'audit' },
+            { label: 'Users', panel: 'users' },
+            { label: 'Feature Flags', panel: 'flags' },
+            { label: 'AI Health', panel: 'ai-health' },
+            { label: 'AI Tools Map', panel: 'ai-tools-map' },
+            { label: 'API Keys', panel: 'ai-keys' },
+            { label: 'Audit Log', panel: 'audit' },
             { label: 'Growth & Traffic', panel: 'growth' },
             { label: 'Email', panel: 'email-hub' },
             { label: 'Moderation', panel: 'moderation' },

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { Activity, ArrowLeft, BarChart2, Briefcase, BrainCircuit, CheckCircle2, Cog, Database, Flag, History, Home, LayoutDashboard, Link2, Lock, Mail, Menu, Play, Search, ServerCog, ShieldCheck, Ticket, TrendingUp, Users, Wrench, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Cog, Lock, Menu, Search, ShieldCheck, Wrench, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -28,47 +28,9 @@ import { GrowthTrafficPanel } from '@/components/dev-kit/GrowthTrafficPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { HomePanel } from '@/components/dev-kit/HomePanel';
 import { DeployHubsPanel } from '@/components/dev-kit/DeployHubsPanel';
-
-type PanelStatus = 'Live' | 'Needs Appwrite Function' | 'Needs Schema' | 'Planned';
-
-interface PanelDef {
-  id: string;
-  title: string;
-  icon: React.ElementType;
-  status: PanelStatus;
-  blockers?: string[];
-}
-
-const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
-  { label: 'System Health', panels: [
-    { id: 'home',         title: 'Home',             icon: Home,           status: 'Live' },
-    { id: 'mission',      title: 'Mission Control',  icon: Activity,       status: 'Live' },
-    { id: 'diagnostics',  title: 'Diagnostics',      icon: ServerCog,      status: 'Live' },
-    { id: 'observability',title: 'Observability',    icon: BarChart2,      status: 'Live' },
-    { id: 'growth',       title: 'Growth & Traffic', icon: TrendingUp,     status: 'Live' },
-  ]},
-  { label: 'Command Center', panels: [
-    { id: 'overview', title: 'Infrastructure',    icon: LayoutDashboard, status: 'Live' },
-    { id: 'users',    title: 'God Mode (Users)',  icon: Users,           status: 'Live' },
-    { id: 'db',       title: 'Database X-Ray',    icon: Database,        status: 'Live' },
-    { id: 'flags',    title: 'Feature Control',   icon: Flag,            status: 'Live' },
-  ]},
-  { label: 'AI Operations', panels: [
-    { id: 'ai-center', title: 'AI Center', icon: BrainCircuit, status: 'Live' },
-  ]},
-  { label: 'Support & Business Ops', panels: [
-    { id: 'moderation',        title: 'Moderation',       icon: ShieldCheck, status: 'Live' },
-    { id: 'email-hub',         title: 'Email',            icon: Mail,        status: 'Live' },
-    { id: 'coupons',           title: 'Coupons',          icon: Ticket,      status: 'Live' },
-    { id: 'portfolios',        title: 'Portfolios',       icon: Link2,       status: 'Live' },
-    { id: 'wisehire-waitlist', title: 'WiseHire Waitlist',icon: Briefcase,   status: 'Live' },
-    { id: 'audit',             title: 'History',          icon: History,     status: 'Live' },
-  ]},
-  { label: 'Developer Tools', panels: [
-    { id: 'runner',       title: 'Smoke Runner',  icon: Play,   status: 'Live' },
-    { id: 'deploy-hubs', title: 'Deploy Hubs',   icon: Wrench, status: 'Live' },
-  ]},
-];
+import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
+import { AIRoutingSwitcher } from '@/components/dev-kit/AIRoutingSwitcher';
+import { PANEL_GROUPS, DEVTOOLS_PANEL_ALIASES, allPanels, groupForPanel, statusShort, type PanelDef, type PanelStatus } from '@/lib/devkit/devToolsPanelConfig';
 
 const STATUS_CLASSES: Record<PanelStatus, string> = {
   Live: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
@@ -76,12 +38,6 @@ const STATUS_CLASSES: Record<PanelStatus, string> = {
   'Needs Schema': 'border-blue-500/20 bg-blue-500/10 text-blue-400',
   Planned: 'border-white/10 bg-white/5 text-white/35',
 };
-
-function allPanels() { return PANEL_GROUPS.flatMap(g => g.panels); }
-function statusShort(status: PanelStatus) { return status === 'Needs Appwrite Function' ? 'Function' : status === 'Needs Schema' ? 'Schema' : status; }
-function groupForPanel(panelId: string): string {
-  return PANEL_GROUPS.find(g => g.panels.some(p => p.id === panelId))?.label ?? 'DevKit';
-}
 
 function NotReadyPanel({ panel }: { panel: PanelDef }) {
   return (
@@ -192,14 +148,7 @@ function DevToolsInner() {
   }, [isUnlocked]);
 
   const navigatePanel = (id: string) => {
-    const aliases: Record<string, string> = {
-      deployment: 'diagnostics', openrouter: 'ai-center', 'ai-keys': 'ai-center',
-      ai: 'ai-center', 'ai-routing': 'ai-center', email: 'email-hub', testmail: 'email-hub',
-      'email-automations': 'email-hub', visitors: 'growth', analytics: 'growth',
-      'onboarding-funnel': 'growth', settings: 'flags', overview: 'overview',
-      live: 'growth',
-    };
-    setActivePanel(aliases[id] ?? id);
+    setActivePanel(DEVTOOLS_PANEL_ALIASES[id] ?? id);
     setIsMobileMenuOpen(false);
   };
 
@@ -215,21 +164,23 @@ function DevToolsInner() {
       case 'home':              return wrap('Home',             <HomePanel onNavigate={navigatePanel} />);
       case 'diagnostics':       return wrap('Diagnostics',      <DiagnosticsPanel />);
       case 'mission':           return wrap('Mission Control',  <MissionControlPanel onNavigate={navigatePanel} />);
-      case 'runner':            return wrap('Smoke Runner',     <DevKitRunner />);
-      case 'deploy-hubs':      return wrap('Deploy Hubs',      <DeployHubsPanel />);
+      case 'runner':            return wrap('System Test Runner', <DevKitRunner />);
+      case 'deploy-hubs':       return wrap('Appwrite Functions', <DeployHubsPanel />);
       case 'observability':     return wrap('Observability',    <ObservabilityPanel />);
       case 'growth':            return wrap('Growth & Traffic', <GrowthTrafficPanel />);
       case 'coupons':           return wrap('Coupons',          <CouponsPanel />);
-      case 'overview':          return wrap('Infrastructure',   <OverviewPanel />);
-      case 'users':             return wrap('God Mode',         <AdminUsersPanel />);
+      case 'overview':          return wrap('Data Integrity',   <OverviewPanel />);
+      case 'users':             return wrap('Users',            <AdminUsersPanel />);
       case 'db':                return wrap('Database X-Ray',   <DatabaseXRay />);
-      case 'ai-center':        return wrap('AI Center',        <AICommandCenterPanel />);
-      case 'flags':             return wrap('Feature Control',  <FeatureFlagsPanel />);
+      case 'ai-health':         return wrap('AI Health',        <AICommandCenterPanel />);
+      case 'ai-tools-map':      return wrap('AI Tools Map',     <AIRoutingSwitcher />);
+      case 'ai-keys':           return wrap('API Keys',         <AIKeysPanel />);
+      case 'flags':             return wrap('Feature Flags',    <FeatureFlagsPanel />);
       case 'moderation':        return wrap('Moderation',       <ModerationPanel />);
       case 'email-hub':         return wrap('Email',            <EmailHubPanel />);
       case 'portfolios':        return wrap('Portfolios',       <PortfolioUsernamesPanel />);
-      case 'wisehire-waitlist': return wrap('WiseHire Waitlist', <WiseHireWaitlistPanel onBadgeClear={() => clearBadge('wisehire-waitlist')} />);
-      case 'audit':             return wrap('History',          <AuditLogPanel />);
+      case 'wisehire-waitlist': return wrap('WiseHire Queue',   <WiseHireWaitlistPanel onBadgeClear={() => clearBadge('wisehire-waitlist')} />);
+      case 'audit':             return wrap('Audit Log',        <AuditLogPanel />);
       default:                  return wrap('Mission Control',  <MissionControlPanel onNavigate={navigatePanel} />);
     }
   };

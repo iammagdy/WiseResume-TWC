@@ -6,7 +6,7 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { client } from '@/lib/appwrite';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { devKitCall } from '@/lib/devkit/devKitClient';
-import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
+import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/appwriteResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { cn } from '@/lib/utils';
 import { AITestSlotModelsCard } from './AITestSlotModelsCard';
@@ -18,7 +18,7 @@ interface SecretItem {
   key: string;
   label: string;
   present: boolean;
-  source: 'replit_env' | 'supabase_vault' | 'optional' | 'appwrite_function_variable';
+  source: 'replit_env' | 'optional' | 'appwrite_function_variable';
   lastRotatedAt: string | null;
   stale: boolean;
   daysSinceRotation: number | null;
@@ -70,14 +70,14 @@ interface MissionControlData {
     groqConfigured: boolean;
     anyProviderOk: boolean;
     allProvidersOk: boolean;
-    keysInSupabaseVault: boolean;
+    keysInAppwriteVars: boolean;
   };
   email: {
     resendKeyPresent: boolean;
     reachable: boolean;
     httpStatus: number;
     sends24h: number | null;
-    keyInSupabaseVault: boolean;
+    keyInAppwriteVars: boolean;
     /** Set by edge fn when the upstream returned a recognized failure shape (e.g. 'restricted_key'). */
     reason?: 'restricted_key' | 'missing_key' | string;
   };
@@ -310,7 +310,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     try {
       const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'edge-fn-drift' },
+        body: { action: 'fn-drift' },
       });
       const result = unwrapAdminResponse<EdgeFnDriftData>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
@@ -435,7 +435,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? data.ai.allProvidersOk
       ? 'green'
       : 'yellow'
-    : data.ai.keysInSupabaseVault
+    : data.ai.keysInAppwriteVars
     ? 'yellow'   // keys exist in Appwrite variables — works in production
     : 'red';
 
@@ -443,7 +443,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? 'grey'
     : data.email.resendKeyPresent && data.email.reachable
     ? 'green'
-    : data.email.keyInSupabaseVault
+    : data.email.keyInAppwriteVars
     ? 'yellow'   // key exists in Appwrite variables — works in production
     : data.email.resendKeyPresent
     ? 'yellow'
@@ -457,7 +457,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     ? 'yellow'
     : 'green';
 
-  // missingCount from server only counts replit_env secrets — supabase_vault secrets are excluded
+  // missingCount from server only counts replit_env secrets — Appwrite function variables are excluded
   const secretsMissingCount = data?.secrets.missingCount ?? 0;
   const secretsStaleCount = data?.secrets.staleCount ?? 0;
   const secretsStatus: StatusDot = !data
@@ -467,7 +467,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     : secretsStaleCount > 0
     ? 'yellow'
     : 'green';
-  const vaultCount = data?.secrets.items.filter(s => s.source === 'supabase_vault').length ?? 0;
+  const vaultCount = data?.secrets.items.filter(s => s.source === 'appwrite_function_variable').length ?? 0;
 
   const errorCount = data?.recentErrors.length ?? 0;
   const errorsStatus: StatusDot = !data
@@ -496,7 +496,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
   const isDevEnv = data?.isDevEnvironment ?? false;
 
   const aiSummary = data
-    ? data.ai.keysInSupabaseVault
+    ? data.ai.keysInAppwriteVars
       ? 'Keys in Appwrite variables · operational in production'
       : [
           data.ai.openrouterConfigured
@@ -619,7 +619,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
         >
           {data && (
             <div className="flex flex-wrap gap-2">
-              {data.ai.keysInSupabaseVault ? (
+              {data.ai.keysInAppwriteVars ? (
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
                   <Lock className="w-2.5 h-2.5" />
                   Appwrite variables · prod only
@@ -644,7 +644,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
             data
               ? data.email.reason === 'restricted_key'
                 ? 'RESEND_API_KEY is restricted (send-only) — replace with a full-access key to enable read APIs'
-                : data.email.keyInSupabaseVault
+                : data.email.keyInAppwriteVars
                 ? 'RESEND_API_KEY in Appwrite variables · operational in production'
                 : data.email.resendKeyPresent
                 ? data.email.reachable
@@ -656,13 +656,13 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           onDeepLink={() => onNavigate('email')}
           deepLinkLabel="Email"
         >
-          {data && data.email.keyInSupabaseVault && (
+          {data && data.email.keyInAppwriteVars && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1 w-fit">
               <Lock className="w-2.5 h-2.5" />
               Appwrite variables · prod only
             </span>
           )}
-          {data && !data.email.keyInSupabaseVault && data.email.sends24h !== null && (
+          {data && !data.email.keyInAppwriteVars && data.email.sends24h !== null && (
             <div className="flex items-center gap-1.5">
               <Zap className="w-3 h-3 text-muted-foreground" />
               <span className="text-[10px] text-muted-foreground">
@@ -738,7 +738,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
             </div>
           )}
           {/* Defence-in-depth: in production every required secret is classified
-              as 'supabase_vault' so secretsMissingCount is structurally 0. If
+              as 'appwrite_function_variable' so secretsMissingCount is structurally 0. If
               that invariant ever breaks (e.g. WISE_ENV unset on a deploy),
               surface a clear note so the operator knows where to look. */}
           {data && !isDevEnv && secretsMissingCount > 0 && (
@@ -911,7 +911,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
                 ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'
                 : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
             )}>
-              {data.secrets.items.filter(s => s.present || s.source === 'supabase_vault').length} / {data.secrets.items.length} accounted for
+              {data.secrets.items.filter(s => s.present || s.source === 'appwrite_function_variable').length} / {data.secrets.items.length} accounted for
             </span>
             {vaultCount > 0 && (
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
@@ -922,7 +922,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {data.secrets.items.map(secret => {
-              const inVault = secret.source === 'supabase_vault';
+              const inVault = secret.source === 'appwrite_function_variable';
               const missingFromReplit = !secret.present && !inVault;
               return (
                 <div

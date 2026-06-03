@@ -59,7 +59,8 @@ const GATEWAY_DEFAULTS: Record<string, { provider: ProviderId; model: string }> 
   'parse-job':                    { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'optimize-for-linkedin':        { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   'generate-question-bank':       { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-  'company-briefing':             { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+  'company-briefing':             { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+  'ask-portfolio':                { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
 };
 
 // ─── Feature catalogue ────────────────────────────────────────────────────────
@@ -304,7 +305,8 @@ const FEATURE_METADATA: Record<string, FeatureMeta> = {
   'parse-resume':               { priority: 'context',   rationale: 'Full resume text can be long — needs a large context window',               recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-scout:free' },
   'parse-job':                  { priority: 'context',   rationale: 'Job postings vary in length — large context handles edge cases',            recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-scout:free' },
   'generate-question-bank':     { priority: 'context',   rationale: 'Generates many Q&A pairs — large context + free tier is optimal',          recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-maverick:free' },
-  'company-briefing':           { priority: 'context',   rationale: 'Research synthesis requires large context to process source material',      recommendedProvider: 'openrouter', recommendedModel: 'meta-llama/llama-4-maverick:free' },
+  'company-briefing':           { priority: 'context',   rationale: 'Research synthesis requires large context to process source material',      recommendedProvider: 'groq',       recommendedModel: 'llama-3.3-70b-versatile' },
+  'ask-portfolio':              { priority: 'latency',   rationale: 'Public portfolio chat should stay responsive while handling short answers', recommendedProvider: 'groq',       recommendedModel: 'llama-3.3-70b-versatile' },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

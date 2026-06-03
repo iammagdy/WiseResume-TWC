@@ -240,7 +240,7 @@ async function verifyDevKitSession(body) {
 async function handleDiagnostics(log, error) {
   const items = [];
 
-  items.push(item('Access', 'devkit-password', 'DevKit Password', envPresent('DEVKIT_PASSWORD') ? 'healthy' : 'broken', envPresent('DEVKIT_PASSWORD') ? 'DEVKIT_PASSWORD is present.' : 'DEVKIT_PASSWORD is missing.', 'Required for login and signed token verification.'));
+  items.push(item('Access', 'devkit-password', 'DevKit Password', envPresent('DEVKIT_PASSWORD') ? 'healthy' : 'warning', envPresent('DEVKIT_PASSWORD') ? 'DEVKIT_PASSWORD is present.' : 'DEVKIT_PASSWORD is missing.', 'Optional legacy fallback only. Primary DevKit auth uses Appwrite session verification and signed tokens.'));
   items.push(item('Access', 'appwrite-api-key', 'Appwrite API Key', envPresent('APPWRITE_API_KEY') || envPresent('APPWRITE_FUNCTION_API_KEY') ? 'healthy' : 'broken', envPresent('APPWRITE_API_KEY') || envPresent('APPWRITE_FUNCTION_API_KEY') ? 'Server API key is present.' : 'Server API key is missing.', 'Required for cross-user admin reads.'));
 
   try {
@@ -472,12 +472,13 @@ async function handleMissionControl(log, error) {
       anyProviderOk: providerPings.some(p => p.ok),
       allProvidersOk: providerPings.length > 0 && providerPings.every(p => p.ok),
       keysConfigured: providerPings.some(p => p.ok),
+      keysInAppwriteVars: providerPings.some(p => p.configured),
     },
-    email: { resendKeyPresent: !!process.env.RESEND_API_KEY, reachable: !!process.env.RESEND_API_KEY, httpStatus: 0, sends24h: null, keyInSupabaseVault: false, reason: process.env.RESEND_API_KEY ? undefined : 'missing_key' },
+    email: { resendKeyPresent: !!process.env.RESEND_API_KEY, reachable: !!process.env.RESEND_API_KEY, httpStatus: 0, sends24h: null, keyInAppwriteVars: false, reason: process.env.RESEND_API_KEY ? undefined : 'missing_key' },
     database: { ok: !errorDocs.error, error: errorDocs.error || null, errorCount1h: errorDocs.total },
     secrets: {
       items: ['DEVKIT_PASSWORD', 'APPWRITE_API_KEY', 'RESEND_API_KEY'].map(key => ({ key, label: key, present: envPresent(key), source: 'appwrite_function_variable', lastRotatedAt: null, stale: false, daysSinceRotation: null })),
-      missingCount: ['DEVKIT_PASSWORD', 'APPWRITE_API_KEY'].filter(k => !envPresent(k)).length,
+      missingCount: ['APPWRITE_API_KEY'].filter(k => !envPresent(k)).length,
       staleCount: 0,
     },
     recentErrors: errorDocs.documents.map(d => ({ id: d.$id, message: d.message || '', context: d.context || null, created_at: d.$createdAt, level: d.level || 'error' })),
@@ -487,7 +488,7 @@ async function handleMissionControl(log, error) {
 
 async function handleEdgeFnDrift(log) {
   const now = isoNow();
-  log('edge-fn-drift: returning stub (real drift scanner not yet wired)');
+  log('fn-drift: returning stub summary from admin-devkit-data');
   return {
     checkedAt: now,
     projectRef: PROJECT_ID,
@@ -1872,7 +1873,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'mission-control') data = await handleMissionControl(log, error);
     else if (action === 'ping-providers') data = await handlePingProviders();
     else if (action === 'list-provider-models') data = await handleListProviderModels(body, log);
-    else if (action === 'edge-fn-drift') data = await handleEdgeFnDrift(log);
+    else if (action === 'fn-drift' || action === 'edge-fn-drift') data = await handleEdgeFnDrift(log);
     else if (action === 'deploy-hubs-status') data = await handleDeployHubsStatus();
     else if (action === 'observability') data = await handleObservability(body, log);
     else if (action === 'overview-stats') data = await handleOverviewStats(log);
