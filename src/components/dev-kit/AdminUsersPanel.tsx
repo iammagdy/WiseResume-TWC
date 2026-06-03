@@ -198,6 +198,15 @@ export const AdminUsersPanel = () => {
     }
   };
 
+  const describeEmailStatus = (emailStatus?: string) => {
+    if (emailStatus === 'sent') return 'Confirmation email sent successfully.';
+    if (emailStatus === 'skipped_no_change') return 'No email sent because the plan did not change.';
+    if (emailStatus === 'skipped_no_key') return 'Plan updated, but email sending is not configured.';
+    if (emailStatus === 'skipped_no_email') return 'Plan updated, but the user has no email address on file.';
+    if (emailStatus === 'failed') return 'Plan updated, but the email attempt failed.';
+    return 'The user\'s app will reflect this within ~15 seconds via polling.';
+  };
+
   const handleSetPlan = async (userId: string, plan: 'free' | 'pro' | 'premium') => {
     setSavingPlanId(userId);
     try {
@@ -205,13 +214,13 @@ export const AdminUsersPanel = () => {
         headers: devKitAuthHeaders(),
         body: { action: 'set-plan', target_user_id: userId, plan, actor_email: authUser?.email ?? 'admin (dev-kit)' },
       });
-      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       updateUser(userId, { plan_name: plan, plan_updated_at: new Date().toISOString() });
       queryClient.invalidateQueries({ queryKey: ['me'] });
       toast.success(`Plan set to ${plan.toUpperCase()}`, {
         description: userId === authUser?.id
           ? 'Your plan is now active — app features will reflect this immediately.'
-          : 'The user\'s app will reflect this within ~15 seconds via polling.',
+          : describeEmailStatus(result.emailStatus),
         duration: 5000,
       });
       fetchGlobalStats();
@@ -231,11 +240,11 @@ export const AdminUsersPanel = () => {
         headers: devKitAuthHeaders(),
         body: { action: 'grant-trial', target_user_id: userId, plan, days },
       });
-      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
       updateUser(userId, { trial_plan: plan, trial_expires_at: expiresAt });
       queryClient.invalidateQueries({ queryKey: ['me'] });
-      toast.success(`${plan} trial granted for ${days} days`);
+      toast.success(`${plan} trial granted for ${days} days`, { description: describeEmailStatus(result.emailStatus) });
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to grant trial'));
     } finally {
@@ -250,9 +259,9 @@ export const AdminUsersPanel = () => {
         headers: devKitAuthHeaders(),
         body: { action: 'revoke-trial', target_user_id: userId },
       });
-      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       updateUser(userId, { trial_plan: null, trial_expires_at: null });
-      toast.success('Trial revoked');
+      toast.success('Trial revoked', { description: describeEmailStatus(result.emailStatus) });
     } catch (e) {
       toast.error(formatEdgeError(e, 'Failed to revoke trial'));
     } finally {

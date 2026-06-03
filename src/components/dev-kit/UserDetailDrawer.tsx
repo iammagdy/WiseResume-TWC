@@ -537,6 +537,14 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const trialDaysLeft = user.trial_expires_at
     ? Math.max(0, Math.ceil((new Date(user.trial_expires_at).getTime() - Date.now()) / 86400000))
     : 0;
+  const describeEmailStatus = (emailStatus?: string) => {
+    if (emailStatus === 'sent') return 'Confirmation email sent successfully.';
+    if (emailStatus === 'skipped_no_change') return 'No email sent because the plan did not change.';
+    if (emailStatus === 'skipped_no_key') return 'Plan updated, but email sending is not configured.';
+    if (emailStatus === 'skipped_no_email') return 'Plan updated, but the user has no email address on file.';
+    if (emailStatus === 'failed') return 'Plan updated, but the email attempt failed.';
+    return "The user's app will reflect this within ~60 seconds, or instantly if they switch back to their browser window.";
+  };
 
   const handleSetPlan = async () => {
     if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
@@ -546,10 +554,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         headers: devKitAuthHeaders(),
         body: { action: 'set-plan', target_user_id: user.user_id, plan: selectedPlan },
       });
-      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       toast.success(`Plan set to ${selectedPlan}`, {
-        description: "The user's app will reflect this within ~60 seconds, or instantly if they switch back to their browser window.",
+        description: describeEmailStatus(result.emailStatus),
         duration: 6000,
       });
       setUser(prev => ({ ...prev, plan_name: selectedPlan, plan_updated_at: new Date().toISOString() }));
@@ -569,10 +577,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         headers: devKitAuthHeaders(),
         body: { action: 'grant-trial', target_user_id: user.user_id, plan: trialPlan, days: trialDays },
       });
-      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
       const expiresAt = new Date(Date.now() + trialDays * 86400000).toISOString();
-      toast.success(`${trialPlan} trial granted for ${trialDays} days`);
+      toast.success(`${trialPlan} trial granted for ${trialDays} days`, { description: describeEmailStatus(result.emailStatus) });
       setUser(prev => ({ ...prev, trial_plan: trialPlan, trial_expires_at: expiresAt }));
       onUserUpdated();
     } catch (e) {
@@ -589,9 +597,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         headers: devKitAuthHeaders(),
         body: { action: 'revoke-trial', target_user_id: user.user_id },
       });
-      unwrapAdminResponse(tuple, 'admin-devkit-data');
+      const result = unwrapAdminResponse<{ emailStatus?: string }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
-      toast.success('Trial revoked');
+      toast.success('Trial revoked', { description: describeEmailStatus(result.emailStatus) });
       setUser(prev => ({ ...prev, trial_plan: null, trial_expires_at: null }));
       onUserUpdated();
     } catch (e) {

@@ -875,6 +875,7 @@ async function getProfileDoc(databases, userId) {
 // ─── Plan change helpers: notification + email ────────────────────────────────
 
 const PLAN_LABELS = { free: 'Free', pro: 'Pro', premium: 'Premium' };
+const PLAN_RANK = { free: 0, pro: 1, premium: 2 };
 
 async function resendRequest(method, path, body) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -902,16 +903,16 @@ function planUpgradeEmailHtml(userEmail, planLabel, durationLabel) {
     <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">${heading}</h2>
     ${body}
     <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p>
-    <a href="https://resume.thewise.cloud/dashboard" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>`;
+    <a href="https://resume.thewise.cloud/dashboard" style="display:inline-block;background:#9E1B22;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WiseResume</title></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
-  <div style="background:#6366f1;padding:24px 32px;">
+  <div style="background:#9E1B22;padding:24px 32px;">
     <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">WiseResume</span>
   </div>
   <div style="padding:32px;">${content}</div>
   <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">
-    This email was sent to ${userEmail} by the WiseResume admin panel. thewise.cloud
+    WiseResume · The Wise Cloud · thewise.cloud
   </div>
 </div>
 </body></html>`;
@@ -967,6 +968,142 @@ async function sendPlanUpgradeEmail(userId, planLabel, durationLabel, log) {
   }
 }
 
+function buildBrandedEmail({
+  logoLabel = 'WiseResume',
+  heading,
+  bodyHtml,
+  ctaLabel,
+  ctaUrl,
+  footerNote,
+}) {
+  const ctaHtml = ctaLabel && ctaUrl
+    ? `<a href="${ctaUrl}" style="display:inline-block;background:#9E1B22;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${ctaLabel}</a>`
+    : '';
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${logoLabel}</title></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+  <div style="background:#9E1B22;padding:24px 32px;">
+    <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">${logoLabel}</span>
+  </div>
+  <div style="padding:32px;">
+    <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">${heading}</h2>
+    ${bodyHtml}
+    ${ctaHtml ? `<div style="margin:24px 0;">${ctaHtml}</div>` : ''}
+  </div>
+  <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">
+    ${footerNote || 'WiseResume · The Wise Cloud · thewise.cloud'}
+  </div>
+</div>
+</body></html>`;
+}
+
+function classifyPlanChange(previousPlan, newPlan) {
+  if (previousPlan === newPlan) return 'no_change';
+  return (PLAN_RANK[newPlan] || 0) > (PLAN_RANK[previousPlan] || 0) ? 'upgrade' : 'downgrade';
+}
+
+function getPlanEmailCopy({ previousPlan, newPlan, changeType, durationLabel }) {
+  const previousLabel = PLAN_LABELS[previousPlan] || previousPlan;
+  const newLabel = PLAN_LABELS[newPlan] || newPlan;
+
+  if (changeType === 'trial_start') {
+    return {
+      subject: `Your ${newLabel} trial has started - WiseResume`,
+      heading: `Your ${newLabel} trial has started`,
+      bodyHtml: `<p style="margin:0 0 16px;color:#374151;">Your account has been granted a <strong>${newLabel} trial</strong> for <strong>${durationLabel}</strong>.</p><p style="margin:0;color:#374151;">All ${newLabel} features are now unlocked during the trial period.</p>`,
+      notificationTitle: `Your ${newLabel} trial has started`,
+      notificationMessage: `You now have access to all ${newLabel} features for ${durationLabel}.`,
+    };
+  }
+
+  if (changeType === 'trial_end') {
+    return {
+      subject: `Your ${newLabel} plan is active - WiseResume`,
+      heading: 'Your trial has ended',
+      bodyHtml: `<p style="margin:0 0 16px;color:#374151;">Your trial has ended and your account is now on the <strong>${newLabel}</strong> plan.</p><p style="margin:0;color:#374151;">You can continue using WiseResume with the features included in ${newLabel}.</p>`,
+      notificationTitle: 'Your trial has ended',
+      notificationMessage: `Your account is now on the ${newLabel} plan.`,
+    };
+  }
+
+  if (changeType === 'downgrade') {
+    return {
+      subject: `Your WiseResume plan is now ${newLabel}`,
+      heading: `Your plan has changed to ${newLabel}`,
+      bodyHtml: `<p style="margin:0 0 16px;color:#374151;">Your WiseResume plan has been changed from <strong>${previousLabel}</strong> to <strong>${newLabel}</strong>.</p><p style="margin:0;color:#374151;">Your account will continue on the features included in ${newLabel}.</p>`,
+      notificationTitle: `Your plan is now ${newLabel}`,
+      notificationMessage: `Your WiseResume plan changed from ${previousLabel} to ${newLabel}.`,
+    };
+  }
+
+  return {
+    subject: `You've been upgraded to ${newLabel} - WiseResume`,
+    heading: `You've been upgraded to ${newLabel}`,
+    bodyHtml: `<p style="margin:0 0 16px;color:#374151;">Your WiseResume plan has been upgraded from <strong>${previousLabel}</strong> to <strong>${newLabel}</strong>.</p><p style="margin:0;color:#374151;">All ${newLabel} features are now active on your account.</p>`,
+    notificationTitle: `You've been upgraded to ${newLabel}`,
+    notificationMessage: `Your WiseResume plan is now ${newLabel}. All features are active on your account.`,
+  };
+}
+
+async function createPlanNotificationForChange(databases, userId, options, log) {
+  try {
+    const copy = getPlanEmailCopy(options);
+    await databases.createDocument(DB_ID, 'notifications', sdk.ID.unique(), {
+      user_id: userId,
+      type: 'system',
+      title: copy.notificationTitle,
+      message: copy.notificationMessage,
+      is_read: false,
+    }, [
+      sdk.Permission.read(sdk.Role.user(userId)),
+      sdk.Permission.update(sdk.Role.user(userId)),
+      sdk.Permission.delete(sdk.Role.user(userId)),
+    ]);
+    return true;
+  } catch (err) {
+    log(`[warn] createPlanNotificationForChange failed (non-fatal): ${err.message}`);
+    return false;
+  }
+}
+
+async function sendPlanChangeEmail({ userId, previousPlan, newPlan, changeType, durationLabel, log }) {
+  if (changeType === 'no_change') return { emailSent: false, emailStatus: 'skipped_no_change' };
+  if (!process.env.RESEND_API_KEY) {
+    log('[warn] sendPlanChangeEmail: RESEND_API_KEY not set - skipping email');
+    return { emailSent: false, emailStatus: 'skipped_no_key' };
+  }
+
+  try {
+    const user = await getUser(userId);
+    const email = user.email;
+    if (!email) {
+      log('[warn] sendPlanChangeEmail: user has no email - skipping');
+      return { emailSent: false, emailStatus: 'skipped_no_email' };
+    }
+
+    const copy = getPlanEmailCopy({ previousPlan, newPlan, changeType, durationLabel });
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
+    const fromName = process.env.RESEND_FROM_NAME || 'WiseResume';
+    await resendRequest('POST', '/emails', {
+      from: `${fromName} <${fromEmail}>`,
+      to: email,
+      subject: copy.subject,
+      html: buildBrandedEmail({
+        heading: copy.heading,
+        bodyHtml: copy.bodyHtml,
+        ctaLabel: 'Go to Dashboard',
+        ctaUrl: 'https://resume.thewise.cloud/dashboard',
+      }),
+    });
+    log(`sendPlanChangeEmail: sent to ${email} (${previousPlan} -> ${newPlan}, ${changeType})`);
+    return { emailSent: true, emailStatus: 'sent' };
+  } catch (err) {
+    log(`[warn] sendPlanChangeEmail failed (non-fatal): ${err.message}`);
+    return { emailSent: false, emailStatus: 'failed' };
+  }
+}
+
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function handleSetPlan(body, log) {
@@ -987,6 +1124,8 @@ async function handleSetPlan(body, log) {
 
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
+  const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || profile?.plan || 'free';
+  const changeType = classifyPlanChange(previousPlan, plan);
   const patch = { plan, effective_plan: plan, status: 'active', trial_plan: null, trial_expires_at: null };
   const subPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
@@ -1012,13 +1151,12 @@ async function handleSetPlan(body, log) {
   await auditLog(databases, 'set-plan', { target_user_id, plan, actor_email });
   log(`set-plan: ${target_user_id} -> ${plan}`);
 
-  const planLabel = PLAN_LABELS[plan] || plan;
-  await Promise.allSettled([
-    createPlanNotification(databases, target_user_id, planLabel, null, log),
-    sendPlanUpgradeEmail(target_user_id, planLabel, null, log),
+  const [notificationCreated, emailResult] = await Promise.all([
+    createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: plan, changeType, durationLabel: null }, log),
+    sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: plan, changeType, durationLabel: null, log }),
   ]);
 
-  return { plan };
+  return { plan, notificationCreated, ...emailResult };
 }
 
 async function handleGrantTrial(body, log) {
@@ -1031,6 +1169,7 @@ async function handleGrantTrial(body, log) {
 
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
+  const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
   const trialPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
     sdk.Permission.update(sdk.Role.user(target_user_id)),
@@ -1049,14 +1188,13 @@ async function handleGrantTrial(body, log) {
   await auditLog(databases, 'grant-trial', { target_user_id, plan, days });
   log(`grant-trial: ${target_user_id} -> ${plan} for ${days}d`);
 
-  const planLabel = PLAN_LABELS[plan] || plan;
   const durationLabel = `${days} day${Number(days) === 1 ? '' : 's'}`;
-  await Promise.allSettled([
-    createPlanNotification(databases, target_user_id, planLabel, durationLabel, log),
-    sendPlanUpgradeEmail(target_user_id, planLabel, durationLabel, log),
+  const [notificationCreated, emailResult] = await Promise.all([
+    createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: plan, changeType: 'trial_start', durationLabel }, log),
+    sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: plan, changeType: 'trial_start', durationLabel, log }),
   ]);
 
-  return { trial_plan: plan, trial_expires_at: expiresAt };
+  return { trial_plan: plan, trial_expires_at: expiresAt, notificationCreated, ...emailResult };
 }
 
 async function handleRevokeTrial(body, log) {
@@ -1066,8 +1204,9 @@ async function handleRevokeTrial(body, log) {
 
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
+  const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
+  const basePlan = subDoc?.plan || 'free';
   if (subDoc) {
-    const basePlan = subDoc.plan || 'free';
     const revokePerms = [
       sdk.Permission.read(sdk.Role.user(target_user_id)),
       sdk.Permission.update(sdk.Role.user(target_user_id)),
@@ -1084,7 +1223,11 @@ async function handleRevokeTrial(body, log) {
 
   await auditLog(databases, 'revoke-trial', { target_user_id });
   log(`revoke-trial: ${target_user_id}`);
-  return { ok: true };
+  const [notificationCreated, emailResult] = await Promise.all([
+    createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: basePlan, changeType: 'trial_end', durationLabel: null }, log),
+    sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: basePlan, changeType: 'trial_end', durationLabel: null, log }),
+  ]);
+  return { ok: true, plan: basePlan, notificationCreated, ...emailResult };
 }
 
 async function handleSuspendUser(body, log) {
@@ -1468,7 +1611,13 @@ async function handleApproveWisehireWaitlist(body, log) {
       from: fromAddr,
       to: email,
       subject: 'Your WiseHire access has been approved!',
-      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;padding:40px;"><h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">You're in! Welcome to WiseHire</h2><p style="margin:0 0 16px;color:#374151;">Hi ${name},</p><p style="margin:0 0 16px;color:#374151;">${bodyText}</p><p style="margin:0 0 24px;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p><a href="${actionUrl}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${actionLabel}</a></div></body></html>`,
+      html: buildBrandedEmail({
+        logoLabel: 'WiseHire',
+        heading: "You're in! Welcome to WiseHire",
+        bodyHtml: `<p style="margin:0 0 16px;color:#374151;">Hi ${name},</p><p style="margin:0 0 16px;color:#374151;">${bodyText}</p><p style="margin:0;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p>`,
+        ctaLabel: actionLabel,
+        ctaUrl: actionUrl,
+      }),
     });
     emailSent = true;
     log(`approve-wisehire-waitlist: approval email sent to ${email} (outcome: ${approvalOutcome})`);

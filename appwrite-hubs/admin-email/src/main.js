@@ -481,12 +481,12 @@ function baseTemplate(content) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WiseResume</title></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
-  <div style="background:#6366f1;padding:24px 32px;">
+  <div style="background:#9E1B22;padding:24px 32px;">
     <span style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">WiseResume</span>
   </div>
   <div style="padding:32px;">${content}</div>
   <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">
-    This email was sent via the WiseResume admin panel. thewise.cloud
+    WiseResume · The Wise Cloud · thewise.cloud
   </div>
 </div>
 </body></html>`;
@@ -498,10 +498,10 @@ function confirmationEmailHtml(email) {
     <p style="color:#374151;line-height:1.6;">Hi there,</p>
     <p style="color:#374151;line-height:1.6;">
       Please confirm your email address (${escapeHtml(email)}) by clicking the button below.
-      This link was sent by the admin panel — please ignore it if you didn't request it.
+      If you did not request this email, you can ignore it.
     </p>
     <div style="margin:24px 0;">
-      <a href="https://thewise.cloud/confirm" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Confirm Email</a>
+      <a href="https://thewise.cloud/confirm" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Confirm Email</a>
     </div>
     <p style="font-size:13px;color:#6b7280;">If the button doesn't work, copy this link: https://thewise.cloud/confirm</p>
   `);
@@ -516,7 +516,7 @@ function magicLinkEmailHtml(email) {
       This link expires in 1 hour.
     </p>
     <div style="margin:24px 0;">
-      <a href="https://thewise.cloud/auth/magic" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Sign In</a>
+      <a href="https://thewise.cloud/auth/magic" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Sign In</a>
     </div>
     <p style="font-size:13px;color:#6b7280;">This sign-in link was triggered by the admin panel.</p>
   `);
@@ -528,7 +528,7 @@ function otpEmailHtml() {
     <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Your verification code</h2>
     <p style="color:#374151;line-height:1.6;">Use the code below to verify your identity. It expires in 10 minutes.</p>
     <div style="margin:24px 0;text-align:center;">
-      <span style="display:inline-block;font-size:36px;font-weight:700;letter-spacing:8px;color:#6366f1;background:#f5f3ff;padding:16px 32px;border-radius:12px;font-family:monospace;">${otp}</span>
+      <span style="display:inline-block;font-size:36px;font-weight:700;letter-spacing:8px;color:#9E1B22;background:#fef2f2;padding:16px 32px;border-radius:12px;font-family:monospace;">${otp}</span>
     </div>
     <p style="font-size:13px;color:#6b7280;">If you didn't request this, please ignore this email.</p>
   `);
@@ -543,7 +543,7 @@ function passwordResetEmailHtml(email) {
       Click the button below to choose a new password.
     </p>
     <div style="margin:24px 0;">
-      <a href="https://thewise.cloud/auth/reset" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Reset Password</a>
+      <a href="https://thewise.cloud/auth/reset" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Reset Password</a>
     </div>
     <p style="font-size:13px;color:#6b7280;">This link expires in 1 hour. If you didn't request a reset, you can ignore this email.</p>
   `);
