@@ -4655,3 +4655,69 @@ The following hubs intentionally do **not** declare or use the `node-appwrite` S
 | `inspect-ai-keys` | Removed from this exception list on 2026-06-02; it imports `node-appwrite` to read/write AI slot model overrides in `app_settings`. |
 
 Do not add `node-appwrite` to these hubs unless a specific DB/storage feature is genuinely needed and confirmed compatible with Appwrite Cloud's GET-request behavior.
+
+## Session Log - 2026-06-04 (Post-Repair Push Verification and Final Appwrite State)
+
+### Summary
+
+Final post-repair push verification completed successfully. The repo is now synced with `origin/main`, GitHub Actions auto-deploy on push to `main` is confirmed working, and the live Appwrite estate matches the repo-managed deployment model.
+
+### Final deployment ownership
+
+- Appwrite Git auto-deploy is disabled and is not the source of truth.
+- GitHub Actions is no longer automatic on push for Appwrite hub deployments.
+- `.github/workflows/deploy-appwrite-hubs.yml` is manual-only via `workflow_dispatch`.
+- Manual GitHub deployment is available from GitHub Actions -> `Deploy Appwrite Hubs` -> `Run workflow`.
+- Admin Panel / DevKit redeploy remains available via `admin-deploy-hubs`.
+- Local fallback remains `node scripts/deploy_hubs.cjs`.
+- After pushing function changes, Appwrite will not update until one of the manual deployment paths is run.
+
+### Final confirmed live state
+
+- `admin-sentry` was fixed and verified live:
+  - runtime `node-18.0`
+  - entrypoint `src/main.js`
+  - live smoke passed
+- `auth-master` was confirmed dead legacy and deleted from live Appwrite.
+- `admin-deploy-hubs` stale zero-byte waiting deployments were cleaned up.
+- `fn_deployed_hashes` is now populated and the DevKit sync state is trustworthy.
+- `scripts/compute-source-hashes.mjs` was fixed to normalize line endings across Windows/Linux and preserve `generatedAt` when hashes are unchanged.
+
+### GitHub Actions verification
+
+- Historical successful run: `26918681840`
+- Workflow: `.github/workflows/deploy-appwrite-hubs.yml`
+- Result: success
+- The workflow used GitHub Secrets for deployment credentials and provider/service variables.
+- The workflow now remains available for manual use only and still performs:
+  - source hash check
+  - schema checks
+  - `scripts/deploy_hubs.cjs`
+  - deployed hash update
+  - smoke checks
+
+### Final live smoke verification
+
+All required live smoke tests returned HTTP 200:
+
+- `admin-sentry`
+- `admin-devkit-data`
+- `admin-email`
+- `admin-feature-flags`
+- `admin-moderation`
+- `admin-portfolio-usernames`
+- `admin-visitor-analytics`
+- `admin-onboarding-funnel`
+- `inspect-ai-keys`
+- `admin-deploy-hubs`
+- `ai-gateway`
+- `ai-health`
+- `admin-devkit-data` `action=get-deployed-hashes`
+
+### Where we stopped
+
+- Repo is synced with `origin/main`.
+- Appwrite Git auto-deploy is not the source of truth anymore.
+- GitHub Actions deploy is manual-only and no longer runs on push.
+- Managed live functions are `ready`, use `src/main.js`, and are not Git-linked.
+- Appwrite deployment state is considered clean and trustworthy from the handover standpoint.
