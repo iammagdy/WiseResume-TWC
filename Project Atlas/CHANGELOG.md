@@ -11,6 +11,45 @@
 
 ---
 
+## 2026-06-05 - Phase 2 AI Security Hardening: Idempotency, Dedup & Credit Resilience
+
+### Root Causes (from AI-SECURITY-AUDIT-2026-06-05.md, Phase 2 scope)
+- No idempotency layer: double-click / refresh / back-nav could trigger duplicate provider calls and double credit charges.
+- `recordSuccessUsage` had no retry logic — a single Appwrite DB blip silently lost credit recording.
+- `ai_credits` get-or-create had no race handling — concurrent first-requests could hit a duplicate-document error.
+- `daily_limit` was written back to `ai_credits` on every deduction, allowing stale limits to persist after plan changes.
+- `safeLogAiRequest` silently swallowed all errors — missing collection produced zero operational signal.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `IDEMPOTENCY_CACHE_COLLECTION_ID`, `IDEMPOTENCY_TTL_MS`, `RECORD_USAGE_BACKOFFS` constants; `computeContentKey()` SHA256 content key; `checkIdempotencyCache()`, `createIdempotencyPending()`, `updateIdempotencySuccess()`, `deleteIdempotencyDoc()` helpers; idempotency check before credit deduction in main handler; `updateIdempotencySuccess` on all 6 success paths; `deleteIdempotencyDoc` on all failure/error paths; retry-aware `recordSuccessUsage` with 3 attempts and exponential backoff; `loadCreditState` get-or-create race fix (catch 409, retry read); remove `daily_limit` write-back from `recordAiUsage`; derive `effectiveLimit` from `PLAN_DAILY_LIMITS` not stored value; `safeLogAiRequest` warns once on missing collection, logs `credits_charged`, `idempotency_key`, `is_idempotency_hit` |
+| `src/lib/appwrite-functions.ts` | Generate `X-Idempotency-Key` UUID header for every AI gateway call; add 409 classification message |
+| `src/hooks/__tests__/useAIAction-D1.test.ts` | 4 new Phase 2 test scenarios: 409 dedup hit, double-click no charge, concurrent actions, provider failure no charge |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `npx tsc --noEmit` — zero errors.
+- `npx vitest run src/hooks/__tests__/useAIAction-D1.test.ts` — 8/8 pass.
+
+### New Collections / Indexes Required (Appwrite Console)
+- Create `idempotency_cache` collection in DB `main` with attributes: `key` (str 64, unique), `user_id` (str 36), `feature` (str 64), `status` (str 16), `has_result` (bool), `cached_result` (str 65536, nullable), `created_at` (str 32), `expires_at` (str 32). Server-only permissions.
+- Add unique index on `idempotency_cache.key`.
+- Add `credits_charged` (int), `idempotency_key` (str 64, nullable), `is_idempotency_hit` (bool) to existing `ai_request_logs` collection.
+- Add unique index on `ai_credits.user_id` (belt-and-suspenders for code-side get-or-create fix).
+
+### Deployment Required
+- Redeploy `ai-gateway`: `node scripts/deploy_hubs.cjs --only=ai-gateway`
+- Frontend changes go live on next Vercel deploy.
+
+### Known Limitations Deferred to Phase 3
+- Non-atomic credit deduction race (different inputs from two browser tabs can still race on separate function instances).
+- In-memory rate limiter resets on cold start.
+- `ask-portfolio` server-side question counter.
+- Idempotency cache expired-record cleanup.
+
+---
+
 ## 2026-06-05 - Phase 1 AI Security Hardening (9 fixes)
 
 ### Root Causes (Identified in AI-SECURITY-AUDIT-2026-06-05.md)

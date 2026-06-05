@@ -91,6 +91,15 @@ const FEATURE_TEMPERATURE = {
   'suggest-template': 0.1,
 };
 const DEFAULT_TEMPERATURE = 0.7;
+// ─── Phase-2: Idempotency & credit resilience constants ──────────────────────
+const IDEMPOTENCY_CACHE_COLLECTION_ID = 'idempotency_cache';
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000;   // 5-minute dedup window
+const IDEMPOTENCY_RESULT_MAX_BYTES = 60000;  // truncate cached results above 60 KB
+const RECORD_USAGE_BACKOFFS = [100, 500, 2000]; // ms between credit-recording retry attempts
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Warn once per cold start when optional collections are unavailable.
+let _idempotencyCollectionMissing = false;
+let _logCollectionMissing = false;
 const PARSE_RESUME_SYSTEM_PROMPT =
   extractedPrompts?.['parse-resume']?.system ||
   'You are an expert resume parser. Return only valid JSON.';
@@ -338,6 +347,123 @@ function userCreditPermissions(userId) {
   ];
 }
 
+// ─── Idempotency helpers ──────────────────────────────────────────────────────
+
+/**
+ * Deterministic content key: SHA256(userId:featureName:payloadHash:timeBucket).
+ * Two requests with the same user + feature + sanitized input within the same
+ * 5-minute window produce the same key — catches double-click, refresh, back-nav,
+ * and multi-tab replay without needing a client-side UUID.
+ */
+function computeContentKey(userId, featureName, sanitizedOpts) {
+  const payloadHash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify(sanitizedOpts || {}))
+    .digest('hex');
+  const bucket = Math.floor(Date.now() / IDEMPOTENCY_TTL_MS);
+  return crypto
+    .createHash('sha256')
+    .update(`${userId}:${featureName}:${payloadHash}:${bucket}`)
+    .digest('hex');
+}
+
+/**
+ * Look up an idempotency key in the cache.
+ * Returns: { hit: false }
+ *        | { hit: true, status: 'pending', docId }
+ *        | { hit: true, status: 'success', result, docId }
+ *        | { hit: true, status: 'failed' }  — allows retry (pending doc already deleted)
+ */
+async function checkIdempotencyCache(db, key, logFn) {
+  try {
+    const res = await db.listDocuments(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, [
+      sdk.Query.equal('key', [key]),
+      sdk.Query.limit(1),
+    ]);
+    const doc = res.documents?.[0];
+    if (!doc) return { hit: false };
+
+    // Treat expired records as a miss — TTL is enforced by expiresAt, not Appwrite TTL.
+    if (new Date(doc.expires_at).getTime() < Date.now()) return { hit: false };
+
+    if (doc.status === 'pending') {
+      return { hit: true, status: 'pending', docId: doc.$id };
+    }
+    if (doc.status === 'success') {
+      let result = null;
+      if (doc.has_result && doc.cached_result) {
+        try { result = JSON.parse(doc.cached_result); } catch { result = null; }
+      }
+      return { hit: true, status: 'success', result, docId: doc.$id };
+    }
+    if (doc.status === 'failed') {
+      // Failed earlier — allow retry (document already cleaned up or expired).
+      return { hit: false };
+    }
+    return { hit: false };
+  } catch (err) {
+    if (!_idempotencyCollectionMissing) {
+      _idempotencyCollectionMissing = true;
+      console.warn(
+        `[ai-gateway][warn] idempotency_cache collection unavailable: ${err.message}. ` +
+        'Create it in Appwrite Console (DB: main, Collection ID: idempotency_cache) to enable dedup protection.'
+      );
+    }
+    return { hit: false }; // collection missing — degrade gracefully, don't fail the request
+  }
+}
+
+/**
+ * Create a 'pending' record so duplicate requests within the TTL window are detected.
+ * Returns the new document's $id on success, or null if the collection is missing.
+ */
+async function createIdempotencyPending(db, key, userId, featureName) {
+  try {
+    const now = Date.now();
+    const doc = await db.createDocument(
+      DB_ID,
+      IDEMPOTENCY_CACHE_COLLECTION_ID,
+      sdk.ID.unique(),
+      {
+        key,
+        user_id:    userId,
+        feature:    featureName,
+        status:     'pending',
+        has_result: false,
+        cached_result: null,
+        created_at: new Date(now).toISOString(),
+        expires_at: new Date(now + IDEMPOTENCY_TTL_MS).toISOString(),
+      },
+    );
+    return doc.$id;
+  } catch { return null; } // collection missing or unique-key collision — skip gracefully
+}
+
+/**
+ * Mark the pending record as successful and store the result payload.
+ * Result is truncated if it exceeds IDEMPOTENCY_RESULT_MAX_BYTES.
+ */
+async function updateIdempotencySuccess(db, docId, resultPayload) {
+  if (!docId) return;
+  try {
+    const resultStr = JSON.stringify(resultPayload);
+    const hasResult = resultStr.length <= IDEMPOTENCY_RESULT_MAX_BYTES;
+    await db.updateDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+      status:       'success',
+      has_result:   hasResult,
+      cached_result: hasResult ? resultStr : null,
+    });
+  } catch { /* non-fatal — a cache miss on next retry is acceptable */ }
+}
+
+/** Delete the pending record so the user can retry after a provider failure. */
+async function deleteIdempotencyDoc(db, docId) {
+  if (!docId) return;
+  try {
+    await db.deleteDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId);
+  } catch { /* non-fatal */ }
+}
+
 async function loadCreditState(db, userId, featureName) {
   const cost = getFeatureCreditCost(featureName);
   if (cost <= 0) {
@@ -367,17 +493,34 @@ async function loadCreditState(db, userId, featureName) {
 
   let doc = res.documents?.[0];
   if (!doc) {
-    doc = await db.createDocument(DB_ID, AI_CREDITS_COLLECTION_ID, sdk.ID.unique(), {
-      user_id: userId,
-      daily_usage: 0,
-      daily_limit: planLimit,
-      total_usage: 0,
-      usage_date: today,
-    }, userCreditPermissions(userId));
+    try {
+      doc = await db.createDocument(DB_ID, AI_CREDITS_COLLECTION_ID, sdk.ID.unique(), {
+        user_id:     userId,
+        daily_usage: 0,
+        // daily_limit intentionally NOT stored — always derived from plan at read time
+        // to prevent stale limits persisting across plan changes.
+        total_usage: 0,
+        usage_date:  today,
+      }, userCreditPermissions(userId));
+    } catch (createErr) {
+      // Race condition: concurrent request created the doc first (unique-key conflict).
+      // Retry the read to get the document the other request created.
+      if (createErr.code === 409 || /already exists/i.test(createErr.message || '')) {
+        const retryRes = await db.listDocuments(DB_ID, AI_CREDITS_COLLECTION_ID, [
+          sdk.Query.equal('user_id', userId),
+          sdk.Query.limit(1),
+        ]);
+        doc = retryRes.documents?.[0];
+        if (!doc) throw createErr; // truly unexpected — re-raise
+      } else {
+        throw createErr;
+      }
+    }
   }
 
-  const dailyLimit = Number(doc.daily_limit ?? planLimit);
-  const effectiveLimit = Number.isFinite(dailyLimit) ? dailyLimit : planLimit;
+  // Always derive the effective limit from the server-side plan config.
+  // Never trust doc.daily_limit — it can drift when a user's plan changes.
+  const effectiveLimit = planLimit;
   const usageDate = doc.usage_date === today ? today : doc.usage_date;
   const currentUsage = usageDate === today ? Number(doc.daily_usage || 0) : 0;
 
@@ -410,27 +553,43 @@ async function loadCreditState(db, userId, featureName) {
 const AI_REQUEST_LOGS_COLLECTION_ID = 'ai_request_logs';
 
 /**
- * Append one row to ai_request_logs. Fails silently when the collection
- * doesn't exist yet — create it manually in Appwrite Console to activate:
- *   DB: main | Collection ID: ai_request_logs
+ * Append one row to ai_request_logs.
+ * Logs a one-time console.warn when the collection is missing (not silent).
+ * Create the collection manually in Appwrite Console to activate:
+ *   DB: main | Collection ID: ai_request_logs | Permissions: server-only
  *   Attributes: feature_id (str 64), provider (str 32), model (str 128),
  *     latency_ms (int), is_fallback (bool), is_admin_test (bool),
- *     user_id (str 36), created_at (str 32)
- *   Permissions: server-only (no user read/write)
+ *     user_id (str 36), credits_charged (int), idempotency_key (str 64, nullable),
+ *     is_idempotency_hit (bool), created_at (str 32)
  */
-async function safeLogAiRequest(db, { feature, provider, model, latencyMs, fallback, adminTest }, userId) {
+async function safeLogAiRequest(
+  db,
+  { feature, provider, model, latencyMs, fallback, adminTest, credits, idempotencyKey, isIdempotencyHit },
+  userId,
+) {
   try {
     await db.createDocument(DB_ID, AI_REQUEST_LOGS_COLLECTION_ID, sdk.ID.unique(), {
-      feature_id: feature || 'unknown',
-      provider: provider || 'unknown',
-      model: model || 'unknown',
-      latency_ms: Math.round(latencyMs || 0),
-      is_fallback: fallback === true,
-      is_admin_test: adminTest === true,
-      user_id: userId || 'unknown',
-      created_at: new Date().toISOString(),
+      feature_id:        feature  || 'unknown',
+      provider:          provider || 'unknown',
+      model:             model    || 'unknown',
+      latency_ms:        Math.round(latencyMs || 0),
+      is_fallback:       fallback          === true,
+      is_admin_test:     adminTest         === true,
+      is_idempotency_hit: isIdempotencyHit === true,
+      user_id:           userId || 'unknown',
+      credits_charged:   typeof credits === 'number' ? credits : 0,
+      idempotency_key:   idempotencyKey || null,
+      created_at:        new Date().toISOString(),
     });
-  } catch { /* silently skip — collection may not exist yet */ }
+  } catch (err) {
+    if (!_logCollectionMissing) {
+      _logCollectionMissing = true;
+      console.warn(
+        `[ai-gateway][warn] ai_request_logs collection unavailable: ${err.message}. ` +
+        'Create it in Appwrite Console (DB: main, Collection ID: ai_request_logs) to enable request logging.'
+      );
+    }
+  }
 }
 
 async function recordAiUsage(db, creditState) {
@@ -454,9 +613,10 @@ async function recordAiUsage(db, creditState) {
   // which covers the common case. Cross-instance races remain possible.
   await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
     daily_usage: creditState.currentUsage + creditState.cost,
-    daily_limit: creditState.dailyLimit,
+    // daily_limit intentionally NOT written — always derived from PLAN_DAILY_LIMITS at read time.
+    // Writing it here caused stale plan limits to persist after plan changes.
     total_usage: Number(creditState.doc.total_usage || 0) + creditState.cost,
-    usage_date: creditState.today,
+    usage_date:  creditState.today,
   });
 }
 
@@ -1637,11 +1797,63 @@ module.exports = async ({ req, res, log, error }) => {
       }, 429);
     }
 
+    // Sanitize opts early — needed for both idempotency key and message building.
+    const aiOpts = sanitizeAiPayload(opts);
+
+    // ── IDEMPOTENCY CHECK ───────────────────────────────────────────────────────
+    // Server-side content key: SHA256(userId:feature:payloadHash:5-min-bucket).
+    // Handles double-click, refresh, back-nav, and multi-tab replay without
+    // requiring the client to generate or track a UUID across page loads.
+    // Admin tests bypass idempotency — nonce validity is their dedup gate.
+    const clientIdempotencyKey = asString(opts.__headers?.['X-Idempotency-Key']).slice(0, 128);
+    let idempotencyDocId = null;
+    let contentKey = null;
+
+    if (!isAdminTest) {
+      contentKey = computeContentKey(effectiveUserId, featureName, aiOpts);
+      const cacheHit = await checkIdempotencyCache(db, contentKey, log);
+
+      if (cacheHit.hit && cacheHit.status === 'pending') {
+        // Another request with the same fingerprint is already in flight.
+        // Tell the client to back off rather than queuing another provider call.
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code:   'request_in_progress',
+          message: 'This request is already being processed. Please wait a moment and try again.',
+        }, 409);
+      }
+
+      if (cacheHit.hit && cacheHit.status === 'success') {
+        // Exact duplicate within the dedup window — return cached result at zero cost.
+        log(`Idempotency cache hit for user=${effectiveUserId} feature=${featureName} key=${contentKey.slice(0, 16)}…`);
+        safeLogAiRequest(db, {
+          feature: featureName, provider: 'cache', model: 'none', latencyMs: 0,
+          fallback: false, adminTest: false, credits: 0,
+          idempotencyKey: contentKey, isIdempotencyHit: true,
+        }, effectiveUserId).catch(() => {});
+        await flushDD();
+        if (cacheHit.result) return res.json(cacheHit.result);
+        // Result payload was larger than the 60 KB cache limit — can't replay.
+        return res.json({
+          status: 'error',
+          code:   'idempotency_result_unavailable',
+          message: 'This request was already processed. The result is no longer available — please reload.',
+        }, 409);
+      }
+
+      // Cache miss — mark this key as in-flight so rapid duplicates get a 409.
+      idempotencyDocId = await createIdempotencyPending(db, contentKey, effectiveUserId, featureName);
+    }
+    // ───────────────────────────────────────────────────────────────────────────
+
     // Admin tests skip credit checks entirely — nonce validity is the gate.
     const creditState = isAdminTest
       ? { cost: 0, chargeable: false, blocked: false }
       : await loadCreditState(db, effectiveUserId, featureName);
     if (creditState.blocked) {
+      // Release the in-flight lock so the user can try again (e.g. after topping up credits).
+      await deleteIdempotencyDoc(db, idempotencyDocId);
       await flushDD();
       return res.json({
         status: 'error',
@@ -1657,10 +1869,10 @@ module.exports = async ({ req, res, log, error }) => {
     const pool       = buildPool();
     logPoolSummary(pool, log);
     const candidates = buildCandidates(featureName, pool, { noFallback });
-    const aiOpts = sanitizeAiPayload(opts);
     const requestMessages = buildMessages(featureName, aiOpts);
 
     if (candidates.length === 0) {
+      await deleteIdempotencyDoc(db, idempotencyDocId);
       error('No keys found in environment variables.');
       await flushDD();
       return res.json({ status: 'error', message: 'No AI keys found on server.' }, 503);
@@ -1674,9 +1886,26 @@ module.exports = async ({ req, res, log, error }) => {
       ? 80
       : (FEATURE_MAX_TOKENS[featureName] ?? DEFAULT_MAX_TOKENS);
 
+    // Credit recording with exponential back-off.
+    // 3 retries at ~100ms, 500ms, 2s before giving up and logging CRITICAL.
+    // Provider call has already succeeded at this point — do not throw on credit
+    // failure, but log loudly so ops can investigate reconciliation.
     async function recordSuccessUsage() {
       if (isAdminTest) return;
-      await recordAiUsage(db, creditState);
+      let lastErr;
+      for (let attempt = 0; attempt <= RECORD_USAGE_BACKOFFS.length; attempt++) {
+        try {
+          await recordAiUsage(db, creditState);
+          return; // success
+        } catch (err) {
+          lastErr = err;
+          if (attempt < RECORD_USAGE_BACKOFFS.length) await sleep(RECORD_USAGE_BACKOFFS[attempt]);
+        }
+      }
+      error(
+        `[CRITICAL] Credit recording failed after ${RECORD_USAGE_BACKOFFS.length + 1} attempts ` +
+        `for user=${effectiveUserId} feature=${featureName}: ${lastErr?.message}`
+      );
     }
 
     /** Call a single provider candidate with the given per-attempt timeout. */
@@ -1738,21 +1967,17 @@ module.exports = async ({ req, res, log, error }) => {
             const parsedResume = normalizeResumeData(result.content);
             await recordSuccessUsage();
             const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
-            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+            const responsePayload = { status: 'success', data: parsedResume, meta };
+            await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+            safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
             await flushDD();
-            return res.json({
-              status: 'success',
-              data: parsedResume,
-              meta,
-            });
+            return res.json(responsePayload);
           } catch (parseErr) {
             error(`Provider ${candidate.provider} returned malformed resume JSON: ${parseErr.message}`);
             if (i === candidates.length - 1) {
+              await deleteIdempotencyDoc(db, idempotencyDocId);
               await flushDD();
-              return res.json({
-                status: 'error',
-                message: 'AI resume parser returned malformed data.',
-              }, 500);
+              return res.json({ status: 'error', message: 'AI resume parser returned malformed data.' }, 500);
             }
             continue;
           }
@@ -1763,21 +1988,17 @@ module.exports = async ({ req, res, log, error }) => {
             const structuredData = normalizeStructuredFeatureData(featureName, result.content, aiOpts);
             await recordSuccessUsage();
             const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
-            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+            const responsePayload = { status: 'success', data: structuredData, meta };
+            await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+            safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
             await flushDD();
-            return res.json({
-              status: 'success',
-              data: structuredData,
-              meta,
-            });
+            return res.json(responsePayload);
           } catch (parseErr) {
             error(`Provider ${candidate.provider} returned malformed ${featureName} JSON: ${parseErr.message}`);
             if (i === candidates.length - 1) {
+              await deleteIdempotencyDoc(db, idempotencyDocId);
               await flushDD();
-              return res.json({
-                status: 'error',
-                message: `${featureName} returned malformed data.`,
-              }, 500);
+              return res.json({ status: 'error', message: `${featureName} returned malformed data.` }, 500);
             }
             continue;
           }
@@ -1787,9 +2008,11 @@ module.exports = async ({ req, res, log, error }) => {
           const structuredResponse = parseAgenticChatResponse(result.content);
           await recordSuccessUsage();
           const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
-          safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+          const responsePayload = { status: 'success', data: structuredResponse, meta };
+          await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+          safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
           await flushDD();
-          return res.json({ status: 'success', data: structuredResponse, meta });
+          return res.json(responsePayload);
         }
 
         if (featureName === 'smart-fit-rewrite') {
@@ -1800,12 +2023,15 @@ module.exports = async ({ req, res, log, error }) => {
               : (Array.isArray(parsed.outcomes) ? parsed.outcomes : []);
             await recordSuccessUsage();
             const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
-            safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+            const responsePayload = { status: 'success', data: { success: true, outcomes }, meta };
+            await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+            safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
             await flushDD();
-            return res.json({ status: 'success', data: { success: true, outcomes }, meta });
+            return res.json(responsePayload);
           } catch (parseErr) {
             error(`smart-fit-rewrite: malformed JSON from ${candidate.provider}: ${parseErr.message}`);
             if (i === candidates.length - 1) {
+              await deleteIdempotencyDoc(db, idempotencyDocId);
               await flushDD();
               return res.json({ status: 'error', message: 'AI rewrite returned malformed data.' }, 500);
             }
@@ -1816,9 +2042,11 @@ module.exports = async ({ req, res, log, error }) => {
         if (featureName === 'ask-portfolio') {
           await recordSuccessUsage();
           const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
-          safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+          const responsePayload = { status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false }, meta };
+          await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+          safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
           await flushDD();
-          return res.json({ status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false }, meta });
+          return res.json(responsePayload);
         }
 
         break;
@@ -1836,7 +2064,8 @@ module.exports = async ({ req, res, log, error }) => {
 
         error(`Provider ${candidate.provider} failed [${httpStatus ?? (isTimeout ? 'timeout' : candidateErr.code) ?? 'err'}]: ${candidateErr.message}`);
         if (i === candidates.length - 1) {
-          // All candidates exhausted.
+          // All candidates exhausted — remove in-flight lock so user can retry.
+          await deleteIdempotencyDoc(db, idempotencyDocId);
           await flushDD();
           return res.json({ status: 'error', message: candidateErr.message }, 500);
         }
@@ -1846,21 +2075,15 @@ module.exports = async ({ req, res, log, error }) => {
 
     await recordSuccessUsage();
     const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
-    safeLogAiRequest(db, meta, effectiveUserId).catch(() => {});
+    const responsePayload = { status: 'success', data: { content, providerUsed, modelUsed, routedByFeature: routedBy }, meta };
+    await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+    safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
     await flushDD();
-    return res.json({
-      status: 'success',
-      data: {
-        content,
-        providerUsed,
-        modelUsed,
-        routedByFeature: routedBy,
-      },
-      meta,
-    });
+    return res.json(responsePayload);
 
   } catch (err) {
-    // Catch-all — preserves stable JSON error contract on any unexpected failure
+    // Catch-all — preserves stable JSON error contract on any unexpected failure.
+    // Clean up any in-flight idempotency record so the user can retry.
     error('AI-Gateway Error: ' + err.message);
     await flushDD();
     return res.json({ status: 'error', message: err.message }, 500);
