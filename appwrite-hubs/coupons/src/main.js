@@ -86,7 +86,8 @@ async function writeSubscription(databases, userId, patch) {
   ];
   const perms = [
     sdk.Permission.read(sdk.Role.user(userId)),
-    sdk.Permission.update(sdk.Role.user(userId)),
+    // UPDATE intentionally omitted: subscription documents are written exclusively
+    // by server-side functions (admin API key). Client sessions need read-only access.
   ];
 
   let lastError;

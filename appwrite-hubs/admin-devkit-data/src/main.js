@@ -9,8 +9,9 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
-// Authoritative admin identity — set ADMIN_EMAIL in Appwrite function variables to override.
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'magdy.saber@outlook.com').toLowerCase().trim();
+// Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
+// No hard-coded fallback: when absent, admin-only paths fail closed.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
 
 function requestId() {
   return `dk_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
@@ -1341,7 +1342,7 @@ async function handleSetPlan(body, log) {
   const patch = { plan, effective_plan: plan, status: 'active', trial_plan: null, trial_expires_at: null };
   const subPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
-    sdk.Permission.update(sdk.Role.user(target_user_id)),
+    // UPDATE intentionally omitted: written exclusively by server-side admin client.
   ];
   // Always repair document permissions so the user's client session can read their subscription.
   // Use a fallback without effective_plan for schemas that don't have that attribute yet.
@@ -1384,7 +1385,7 @@ async function handleGrantTrial(body, log) {
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
   const trialPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
-    sdk.Permission.update(sdk.Role.user(target_user_id)),
+    // UPDATE intentionally omitted: written exclusively by server-side admin client.
   ];
   if (subDoc) {
     const trialPatch = { trial_plan: plan, effective_plan: plan, trial_expires_at: expiresAt, status: 'active' };
@@ -1421,7 +1422,7 @@ async function handleRevokeTrial(body, log) {
   if (subDoc) {
     const revokePerms = [
       sdk.Permission.read(sdk.Role.user(target_user_id)),
-      sdk.Permission.update(sdk.Role.user(target_user_id)),
+      // UPDATE intentionally omitted: written exclusively by server-side admin client.
     ];
     const revokePatches = [
       { trial_plan: null, trial_expires_at: null, effective_plan: basePlan },

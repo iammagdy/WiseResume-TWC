@@ -11,6 +11,51 @@
 
 ---
 
+## 2026-06-05 - Phase 1 AI Security Hardening (9 fixes)
+
+### Root Causes (Identified in AI-SECURITY-AUDIT-2026-06-05.md)
+- Clients could override `model`, `maxTokens`, and `temperature` on every AI call, enabling cost-abuse through inflated token budgets and model substitution.
+- `agentic-chat` accepted unbounded `conversationHistory` with no shape validation, enabling token flooding.
+- `send-contact-email` interpolated raw user strings into HTML without escaping, creating stored-XSS risk in the admin inbox; rate limit was 5/hr per IP.
+- `x-smoke-test` path bypassed authentication entirely, exposing provider availability to unauthenticated callers.
+- `wise-ai-chat` dumped the entire `opts` object (up to 60 KB) into the AI prompt, allowing clients to inject arbitrary keys and content.
+- `agentic-chat` function-response error strings were injected verbatim into the user content slot, enabling prompt injection via crafted `functionResponse.result.error`.
+- `ADMIN_EMAIL` had hard-coded fallback `'magdy.saber@outlook.com'` in both `ai-gateway` and `admin-devkit-data`; if the env var was unset, the fallback could be exploited.
+- Subscription documents granted users `Permission.update` via Appwrite client, allowing direct field manipulation.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `FEATURE_MAX_TOKENS` and `FEATURE_TEMPERATURE` server-side constant maps; remove all client `aiOpts.model / maxTokens / temperature` overrides; `callCandidate` uses `candidate.model` exclusively |
+| `appwrite-hubs/ai-gateway/src/main.js` | `agentic-chat` history: cap to last 10 messages, validate `role` ∈ {user, assistant}, sanitize content to 2000 chars per item |
+| `appwrite-hubs/ai-gateway/src/main.js` | `agentic-chat` function-response: escape `fr.name` to 64 chars; never expose raw error string in SYSTEM NOTE |
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `escapeHtml()` helper; apply to all user fields in `send-contact-email` HTML builder; add 200/254/100/5000 char content limits; escape subject line |
+| `appwrite-hubs/ai-gateway/src/main.js` | Tighten `EMAIL_RATE_LIMIT_MAX` from 5 to 3 per IP per hour |
+| `appwrite-hubs/ai-gateway/src/main.js` | `x-smoke-test`: require valid JWT before returning provider availability |
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `WISE_AI_CHAT_ALLOWED_FIELDS` whitelist map + `buildWiseAiChatPayload()` function; replace raw `opts` dump with whitelisted, length-capped payload (8 KB cap down from 60 KB) |
+| `appwrite-hubs/ai-gateway/src/main.js` | Add prompt-injection defense instruction to `wise-ai-chat` and `agentic-chat` system prompts |
+| `appwrite-hubs/ai-gateway/src/main.js` | Remove hard-coded `ADMIN_EMAIL` fallback; impersonation fails closed when env var absent |
+| `appwrite-hubs/admin-devkit-data/src/main.js` | Remove hard-coded `ADMIN_EMAIL` fallback (same pattern); remove `Permission.update` from subscription docs at all three write sites (set-plan, grant-trial, revoke-trial) |
+| `appwrite-hubs/coupons/src/main.js` | Remove `Permission.update` from subscription document permissions |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js` — clean.
+- `node --check appwrite-hubs/coupons/src/main.js` — clean.
+
+### Deployment Required
+- Redeploy `ai-gateway`: `node scripts/deploy_hubs.cjs --only=ai-gateway`
+- Redeploy `coupons`: `node scripts/deploy_hubs.cjs --only=coupons`
+- Redeploy `admin-devkit-data`: `node scripts/deploy_hubs.cjs --only=admin-devkit-data`
+- Set `ADMIN_EMAIL` env variable in Appwrite Console for both `ai-gateway` and `admin-devkit-data` functions (hard-coded fallback removed).
+
+### Not Fixed (Requires Appwrite Console — out of scope for code-only phase)
+- Remove `UPDATE` from Appwrite collection-level rules for `subscriptions` (belt-and-suspenders alongside function-level permission change).
+- `ask-portfolio` server-side question counter requires a `question_count` attribute on the `chat_sessions` collection.
+- Atomic credit deduction (read-write race condition) — documented as Phase 2 work.
+
+---
+
 ## 2026-06-03 - Admin Panel / DevKit Audit Fixes (7 code + 2 ops items)
 
 ### Root Causes (Verified via codebase audit)
