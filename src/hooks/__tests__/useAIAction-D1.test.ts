@@ -183,4 +183,55 @@ describe("useAIAction (D1)", () => {
     // Credits should NOT be invalidated — provider failed, no deduction occurred.
     expect(mockInvalidateQueries).not.toHaveBeenCalled();
   });
+
+  // ── Phase 3: Persistent rate limits, session enforcement, concurrency ─────────
+
+  it("returns null and shows toast on 429 too_many_concurrent_jobs", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const concurrencyErr = Object.assign(new Error("You already have AI operations running"), {
+      status: 429,
+      body: { code: "too_many_concurrent_jobs", message: "You already have AI operations running. Please wait for one to complete." },
+    });
+    const action = vi.fn().mockRejectedValue(concurrencyErr);
+
+    let value: unknown;
+    await act(async () => { value = await result.current.execute(action); });
+
+    expect(value).toBeNull();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    // No credits charged — must not invalidate cache.
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("returns null and shows toast on 403 session_not_found (ask-portfolio)", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const sessionErr = Object.assign(new Error("Portfolio session not found or expired."), {
+      status: 403,
+      body: { code: "session_not_found", message: "Portfolio session not found or expired." },
+    });
+    const action = vi.fn().mockRejectedValue(sessionErr);
+
+    let value: unknown;
+    await act(async () => { value = await result.current.execute(action); });
+
+    expect(value).toBeNull();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("returns null and shows toast on 429 session_limit_reached (ask-portfolio)", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const limitErr = Object.assign(new Error("Question limit reached for this portfolio session."), {
+      status: 429,
+      body: { code: "session_limit_reached", message: "Question limit reached for this portfolio session." },
+    });
+    const action = vi.fn().mockRejectedValue(limitErr);
+
+    let value: unknown;
+    await act(async () => { value = await result.current.execute(action); });
+
+    expect(value).toBeNull();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
 });

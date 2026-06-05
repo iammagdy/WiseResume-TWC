@@ -100,6 +100,36 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Warn once per cold start when optional collections are unavailable.
 let _idempotencyCollectionMissing = false;
 let _logCollectionMissing = false;
+// ─── Phase-3: Persistent rate limits, session enforcement, concurrency ────────
+const CHAT_SESSIONS_COLLECTION_ID = 'chat_sessions';
+const PORTFOLIO_MAX_QUESTIONS = 10;      // server-side per-session question cap
+const MAX_CONCURRENT_JOBS_PER_USER = 2;  // max simultaneous expensive AI jobs per user
+// Per-plan per-minute request caps — cross-instance, cold-start-safe.
+const PLAN_PER_MINUTE_LIMITS = { free: 3, pro: 10, premium: 20 };
+let _chatSessionsMissing = false;        // warn once when question_count attr is absent
+
+// ─── Phase-4: Cold-start startup validation ───────────────────────────────────
+// Runs once per function instance.  Logs ALERT for missing critical env vars so
+// ops dashboards can surface misconfigured deployments without a live request failing.
+(function performStartupValidation() {
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!apiKey) {
+    console.error('[ALERT] ai-gateway: APPWRITE_API_KEY not configured — all DB operations will fail');
+  }
+  if (!process.env.ADMIN_EMAIL) {
+    console.warn('[ALERT] ai-gateway: ADMIN_EMAIL not set — impersonation and admin-gated paths will fail closed');
+  }
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[ALERT] ai-gateway: RESEND_API_KEY not set — contact-email feature unavailable');
+  }
+  const hasAnyAiKey = [
+    'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'DEEPSEEK_API_KEY', 'NVIDIA_API_KEY',
+  ].some(k => !!process.env[k]);
+  if (!hasAnyAiKey) {
+    console.error('[ALERT] ai-gateway: No AI provider API keys found — all AI requests will fail');
+  }
+})();
+
 const PARSE_RESUME_SYSTEM_PROMPT =
   extractedPrompts?.['parse-resume']?.system ||
   'You are an expert resume parser. Return only valid JSON.';
@@ -464,14 +494,14 @@ async function deleteIdempotencyDoc(db, docId) {
   } catch { /* non-fatal */ }
 }
 
-async function loadCreditState(db, userId, featureName) {
+async function loadCreditState(db, userId, featureName, prefetchedPlan = null) {
   const cost = getFeatureCreditCost(featureName);
   if (cost <= 0) {
     return { cost, chargeable: false };
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const plan = await getEffectivePlan(db, userId);
+  const plan = prefetchedPlan ?? await getEffectivePlan(db, userId);
   const planLimit = PLAN_DAILY_LIMITS[plan] ?? PLAN_DAILY_LIMITS.free;
 
   let res;
@@ -636,6 +666,93 @@ function checkServerRateLimit(userId, featureName) {
   }
   current.count += 1;
   return { ok: true };
+}
+
+/**
+ * Persistent cross-instance per-minute rate limit.
+ * Counts ai_request_logs rows for this user in the last 60 seconds.
+ * Degrades gracefully (allows request) when the collection is unavailable or the
+ * query fails — the in-memory warm-instance check already covers the hot path.
+ */
+async function checkPersistentRateLimit(db, userId, plan) {
+  const limit = PLAN_PER_MINUTE_LIMITS[plan] ?? PLAN_PER_MINUTE_LIMITS.free;
+  try {
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const result = await db.listDocuments(DB_ID, AI_REQUEST_LOGS_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.greaterThanEqual('created_at', since),
+      sdk.Query.limit(limit + 1), // only need to know if count >= limit
+    ]);
+    const count = result.total ?? result.documents?.length ?? 0;
+    if (count >= limit) {
+      return { ok: false, retryAfterSeconds: 60 };
+    }
+  } catch {
+    // Collection unavailable or missing index — degrade gracefully.
+  }
+  return { ok: true };
+}
+
+/**
+ * Count in-flight (pending) idempotency jobs for this user.
+ * Used to prevent a user from queueing more than MAX_CONCURRENT_JOBS_PER_USER
+ * expensive AI operations simultaneously.
+ * Returns 0 on any error (graceful degradation when collection is unavailable).
+ */
+async function countPendingJobs(db, userId) {
+  if (_idempotencyCollectionMissing) return 0;
+  try {
+    const result = await db.listDocuments(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.equal('status', 'pending'),
+      sdk.Query.limit(MAX_CONCURRENT_JOBS_PER_USER + 1),
+    ]);
+    return result.total ?? result.documents?.length ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Validate a portfolio chat session and atomically increment its question counter.
+ * Requires chat_sessions.question_count (Integer, default 0) — degrades gracefully
+ * with a one-time warn when the attribute has not yet been added via Appwrite Console.
+ * Session documents are keyed by $id (the sessionToken the client received).
+ * Returns { ok: true } or { ok: false, status, code, message }.
+ */
+async function validatePortfolioSession(db, sessionToken) {
+  if (!sessionToken) {
+    return { ok: false, status: 403, code: 'session_required', message: 'Portfolio session token is required.' };
+  }
+  try {
+    const doc = await db.getDocument(DB_ID, CHAT_SESSIONS_COLLECTION_ID, sessionToken);
+    if (typeof doc.question_count !== 'number') {
+      if (!_chatSessionsMissing) {
+        _chatSessionsMissing = true;
+        console.warn(
+          '[ai-gateway][warn] chat_sessions.question_count attribute is missing. ' +
+          'Add it in Appwrite Console (DB: main, Collection: chat_sessions, ' +
+          'Type: Integer, default: 0) to enable server-side question-count enforcement.'
+        );
+      }
+      return { ok: true }; // degrade: client-side cap remains active
+    }
+    if (doc.question_count >= PORTFOLIO_MAX_QUESTIONS) {
+      return { ok: false, status: 429, code: 'session_limit_reached', message: 'Question limit reached for this portfolio session.' };
+    }
+    await db.updateDocument(DB_ID, CHAT_SESSIONS_COLLECTION_ID, doc.$id, {
+      question_count: doc.question_count + 1,
+    });
+    return { ok: true };
+  } catch (err) {
+    if (err.code === 404 || /could not be found/i.test(err.message || '')) {
+      return { ok: false, status: 403, code: 'session_not_found', message: 'Portfolio session not found or expired.' };
+    }
+    // Transient DB error — degrade gracefully so a temporary outage doesn't block
+    // all portfolio chat. Client-side guard remains active.
+    console.warn(`[ai-gateway][warn] validatePortfolioSession error: ${err.message}`);
+    return { ok: true };
+  }
 }
 
 function parseJsonObject(text) {
@@ -1786,6 +1903,25 @@ module.exports = async ({ req, res, log, error }) => {
       auth.user.email.toLowerCase() === ADMIN_EMAIL_ENV
     ) ? impersonatingUserId : auth.user.$id;
 
+    // Fetch plan once here — reused by persistent rate limit and credit state.
+    // Admin tests skip plan lookup (nonce already gates them).
+    const plan = isAdminTest ? 'free' : await getEffectivePlan(db, effectiveUserId);
+
+    // ── 2b. ASK-PORTFOLIO SESSION ENFORCEMENT ────────────────────────────────
+    // Server-side per-session question cap.  Degrades gracefully when the
+    // chat_sessions.question_count attribute has not yet been added in Appwrite Console.
+    if (featureName === 'ask-portfolio') {
+      const sessionCheck = await validatePortfolioSession(db, asString(opts.sessionToken || ''));
+      if (!sessionCheck.ok) {
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code:    sessionCheck.code || 'session_error',
+          message: sessionCheck.message,
+        }, sessionCheck.status || 403);
+      }
+    }
+
     const rateLimit = checkServerRateLimit(effectiveUserId, featureName);
     if (!rateLimit.ok) {
       await flushDD();
@@ -1795,6 +1931,22 @@ module.exports = async ({ req, res, log, error }) => {
         message: 'Too many AI requests. Please wait and try again.',
         retryAfterSeconds: rateLimit.retryAfterSeconds,
       }, 429);
+    }
+
+    // Persistent per-plan per-minute rate limit — cross-instance, cold-start-safe.
+    // Queries ai_request_logs for recent rows; degrades gracefully when unavailable.
+    // Requires indexes on ai_request_logs.user_id and ai_request_logs.created_at.
+    if (!isAdminTest) {
+      const persistentLimit = await checkPersistentRateLimit(db, effectiveUserId, plan);
+      if (!persistentLimit.ok) {
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'rate_limited',
+          message: 'Too many AI requests. Please wait a minute and try again.',
+          retryAfterSeconds: persistentLimit.retryAfterSeconds,
+        }, 429);
+      }
     }
 
     // Sanitize opts early — needed for both idempotency key and message building.
@@ -1847,10 +1999,31 @@ module.exports = async ({ req, res, log, error }) => {
     }
     // ───────────────────────────────────────────────────────────────────────────
 
+    // ── CONCURRENCY GUARD ─────────────────────────────────────────────────────
+    // Prevent a user from running more than MAX_CONCURRENT_JOBS_PER_USER expensive
+    // AI operations simultaneously.  Uses existing idempotency_cache pending docs
+    // as the in-flight counter — no new collection needed.
+    // Only applied to features with credit cost >= 2 to avoid blocking cheap calls.
+    if (!isAdminTest && getFeatureCreditCost(featureName) >= 2) {
+      const pendingCount = await countPendingJobs(db, effectiveUserId);
+      // pendingCount includes the doc we just created via createIdempotencyPending.
+      if (pendingCount > MAX_CONCURRENT_JOBS_PER_USER) {
+        await deleteIdempotencyDoc(db, idempotencyDocId);
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code:    'too_many_concurrent_jobs',
+          message: 'You already have AI operations running. Please wait for one to complete.',
+        }, 429);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Admin tests skip credit checks entirely — nonce validity is the gate.
+    // Pass the pre-fetched plan to avoid a second subscription DB lookup.
     const creditState = isAdminTest
       ? { cost: 0, chargeable: false, blocked: false }
-      : await loadCreditState(db, effectiveUserId, featureName);
+      : await loadCreditState(db, effectiveUserId, featureName, plan);
     if (creditState.blocked) {
       // Release the in-flight lock so the user can try again (e.g. after topping up credits).
       await deleteIdempotencyDoc(db, idempotencyDocId);

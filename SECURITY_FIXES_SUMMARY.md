@@ -259,3 +259,126 @@ node scripts/deploy_hubs.cjs --only=ai-gateway
 - **`ask-portfolio` question counter**: Server-side cap deferred pending Appwrite Console schema addition.
 - **Idempotency cache TTL cleanup**: Expired records are filtered at read time but never actively purged. A cleanup function (Phase 3) or Appwrite TTL attribute would keep the collection compact.
 - Idempotency keys for double-click protection on expensive AI calls
+
+---
+
+# Phase 3: Persistent Rate Limits, Session Enforcement & Concurrency Control (2026-06-05)
+
+Full change log entry: `Project Atlas/CHANGELOG.md` (entry: 2026-06-05 Phase 3)
+
+---
+
+## What Was Fixed
+
+### 1 — Persistent cross-instance rate limiting (`ai-gateway`)
+
+**Risk:** In-memory `_serverRateLimits` Map resets on cold start. Any new function instance starts with a clean slate, allowing burst abuse across instances.
+
+**Fix:**
+- Added `PLAN_PER_MINUTE_LIMITS = { free: 3, pro: 10, premium: 20 }` — per-plan per-minute caps.
+- Added `checkPersistentRateLimit(db, userId, plan)` that counts `ai_request_logs` rows for the user in the last 60 seconds.
+- Both the in-memory (warm-instance fast path) AND persistent (cross-instance) checks now run in sequence.
+- Degrades gracefully: if `ai_request_logs` is unavailable or the query fails, the request is allowed through (in-memory check still active).
+
+### 2 — `ask-portfolio` server-side session enforcement (`ai-gateway`)
+
+**Risk:** Client could call `ask-portfolio` unlimited times by refreshing or using multiple tabs regardless of the 10-question UI cap.
+
+**Fix:**
+- Added `validatePortfolioSession(db, sessionToken)` that fetches the `chat_sessions` document by `$id`, checks `question_count < PORTFOLIO_MAX_QUESTIONS` (10), and increments atomically.
+- Implemented before credit check and AI call, immediately after auth.
+- Degrades gracefully when `chat_sessions.question_count` attribute is absent — logs a one-time `[warn]` and falls through to client-side guard.
+- Returns `429 session_limit_reached` when limit is reached; `403 session_not_found` when session is expired/missing.
+
+**Action required:** Add `question_count` (Integer, default 0) attribute to `chat_sessions` collection in Appwrite Console.
+
+### 3 — Concurrent expensive job protection (`ai-gateway`)
+
+**Risk:** A user could open multiple tabs and fire expensive AI operations simultaneously (cost ≥ 2), potentially exhausting daily credits in seconds.
+
+**Fix:**
+- Added `countPendingJobs(db, userId)` that counts `pending` idempotency docs for this user.
+- After creating the idempotency pending doc, if pending count > `MAX_CONCURRENT_JOBS_PER_USER` (2) and feature cost ≥ 2, the request is rejected with `429 too_many_concurrent_jobs`.
+- Cleans up the just-created pending doc before returning the error.
+- Degrades gracefully: returns 0 when `idempotency_cache` collection is unavailable.
+
+### 4 — Plan pre-fetch de-duplication (`ai-gateway`)
+
+**Fix:** The plan is now fetched once per request (after auth) and passed to both `checkPersistentRateLimit` and `loadCreditState`, eliminating the previous double DB lookup on every AI request.
+
+---
+
+## New Appwrite Console Steps Required
+
+| Step | Collection | Action |
+|------|-----------|--------|
+| 1 | `chat_sessions` | Add `question_count` attribute: Integer, default 0 |
+| 2 | `ai_request_logs` | Add index on `user_id` (asc) if not present |
+| 3 | `ai_request_logs` | Add index on `created_at` (desc) if not present |
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | ~100 lines: Phase-3 constants, 3 new helpers, main handler wiring |
+| `src/hooks/__tests__/useAIAction-D1.test.ts` | +40 lines: 3 new Phase 3 test scenarios |
+
+## Tests Added (Phase 3)
+
+| Test scenario | Covered |
+|---------------|---------|
+| `too_many_concurrent_jobs` (429) → null, no cache invalidation | ✅ |
+| `session_not_found` (403) → null, no cache invalidation | ✅ |
+| `session_limit_reached` (429) → null, no cache invalidation | ✅ |
+
+---
+
+# Phase 4: Admin Visibility, Startup Validation & Alert-Ready Instrumentation (2026-06-05)
+
+Full change log entry: `Project Atlas/CHANGELOG.md` (entry: 2026-06-05 Phase 4)
+
+---
+
+## What Was Added
+
+### 1 — `ai-request-analytics` admin action (`admin-devkit-data`)
+
+**New admin endpoint** available via DevKit action `ai-request-analytics`.
+
+Returns:
+- `logs`: recent `ai_request_logs` documents (configurable `limit`, up to 200)
+- `stats_by_feature`: per-feature request count, credits charged, idempotency hits
+- `stats_by_provider`: per-provider request count and credits
+- `total_credits_charged`: sum of all credits in the query window
+- `idempotency_hit_rate_pct`: percentage of requests served from the Phase 2 cache
+- `missing_collection`: boolean flag when `ai_request_logs` hasn't been created yet
+
+Optional filters: `user_id`, `feature`, `provider`, `since` (ISO timestamp), `limit`.
+
+### 2 — Cold-start startup validation (`ai-gateway`, `admin-devkit-data`)
+
+Both functions now run an IIFE at module load time that checks for required env vars and logs `[ALERT]`-prefixed messages:
+
+- **ai-gateway:** alerts when `APPWRITE_API_KEY`, `ADMIN_EMAIL`, `RESEND_API_KEY` are absent, or when no AI provider keys are configured.
+- **admin-devkit-data:** alerts when `APPWRITE_API_KEY` or `ADMIN_EMAIL` are absent.
+
+These appear in Appwrite Function logs on every cold start, making misconfigured deployments immediately visible without requiring a live request to fail.
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | +25 lines: cold-start startup IIFE |
+| `appwrite-hubs/admin-devkit-data/src/main.js` | +70 lines: `handleAIRequestAnalytics`, dispatch entry, startup IIFE |
+
+## Remaining (Phase 5+)
+
+- **Non-atomic credit deduction** — requires Appwrite atomic increment support or per-user DB mutex
+- **Idempotency cache TTL cleanup** — expired records never actively purged; Phase 5 should add a scheduled cleanup or Appwrite TTL attribute
+- **`ask-portfolio` session hopping** — users can create multiple `chat_sessions` documents to bypass the 10-question cap; a server-signed session nonce or IP-based rate limiting on session creation would close this gap
+- **DB-backed rate limiter for email** — `_emailRateLimits` still in-memory; Phase 5 can persist using `rate_limits` collection
+- **Collection-level Appwrite permissions audit** — belt-and-suspenders check that `subscriptions`, `ai_credits` have no collection-level user UPDATE permission
