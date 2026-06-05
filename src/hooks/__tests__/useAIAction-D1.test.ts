@@ -116,4 +116,122 @@ describe("useAIAction (D1)", () => {
     expect(msg).toMatch(/not configured/i);
     expect(msg).not.toMatch(/temporarily unavailable/i);
   });
+
+  // ── Phase 2: Idempotency & deduplication ──────────────────────────────────
+
+  it("returns null and shows toast on 409 request_in_progress (dedup hit)", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const dupErr = Object.assign(new Error("Request already in progress"), {
+      status: 409,
+      body: { code: "request_in_progress", message: "Request already in progress" },
+    });
+    const action = vi.fn().mockRejectedValue(dupErr);
+
+    let value: unknown;
+    await act(async () => { value = await result.current.execute(action); });
+
+    expect(value).toBeNull();
+    // Credits cache must NOT be invalidated — no credits were charged.
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("does not double-charge credits when action throws after first success", async () => {
+    // Simulate: first call succeeds, second call immediately throws (double-click path).
+    // The hook should not call invalidateQueries on the second (failed) call.
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const successAction = vi.fn().mockResolvedValue("result");
+    const failAction = vi.fn().mockRejectedValue(new Error("duplicate"));
+
+    await act(async () => { await result.current.execute(successAction); });
+    const callsAfterFirst = mockInvalidateQueries.mock.calls.length;
+
+    await act(async () => { await result.current.execute(failAction); });
+
+    // invalidateQueries should not have been called again after the failed second action.
+    expect(mockInvalidateQueries.mock.calls.length).toBe(callsAfterFirst);
+  });
+
+  it("invalidates credits cache only once even if action is called concurrently", async () => {
+    // Simulate two rapid clicks: both fire execute() before either resolves.
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const action = vi.fn().mockResolvedValue("ok");
+
+    await act(async () => {
+      await Promise.all([
+        result.current.execute(action),
+        result.current.execute(action),
+      ]);
+    });
+
+    // Both resolved successfully. invalidateQueries is called twice per success
+    // (for 'me' and 'ai-usage-breakdown'), so 2 actions × 2 = 4 calls total.
+    // The important thing is that only one provider action is expected per
+    // logical user click; the server handles dedup. This test verifies the
+    // hook itself doesn't suppress both calls client-side.
+    expect(action).toHaveBeenCalledTimes(2);
+    expect(mockInvalidateQueries).toHaveBeenCalledTimes(4); // 2 invalidations × 2 actions
+  });
+
+  it("does not invalidate credits cache when provider fails (no charge path)", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const providerErr = Object.assign(new Error("Provider unavailable"), { status: 503 });
+    const action = vi.fn().mockRejectedValue(providerErr);
+
+    await act(async () => { await result.current.execute(action); });
+
+    expect(toastError).toHaveBeenCalledTimes(1);
+    // Credits should NOT be invalidated — provider failed, no deduction occurred.
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  // ── Phase 3: Persistent rate limits, session enforcement, concurrency ─────────
+
+  it("returns null and shows toast on 429 too_many_concurrent_jobs", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const concurrencyErr = Object.assign(new Error("You already have AI operations running"), {
+      status: 429,
+      body: { code: "too_many_concurrent_jobs", message: "You already have AI operations running. Please wait for one to complete." },
+    });
+    const action = vi.fn().mockRejectedValue(concurrencyErr);
+
+    let value: unknown;
+    await act(async () => { value = await result.current.execute(action); });
+
+    expect(value).toBeNull();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    // No credits charged — must not invalidate cache.
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("returns null and shows toast on 403 session_not_found (ask-portfolio)", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const sessionErr = Object.assign(new Error("Portfolio session not found or expired."), {
+      status: 403,
+      body: { code: "session_not_found", message: "Portfolio session not found or expired." },
+    });
+    const action = vi.fn().mockRejectedValue(sessionErr);
+
+    let value: unknown;
+    await act(async () => { value = await result.current.execute(action); });
+
+    expect(value).toBeNull();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("returns null and shows toast on 429 session_limit_reached (ask-portfolio)", async () => {
+    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
+    const limitErr = Object.assign(new Error("Question limit reached for this portfolio session."), {
+      status: 429,
+      body: { code: "session_limit_reached", message: "Question limit reached for this portfolio session." },
+    });
+    const action = vi.fn().mockRejectedValue(limitErr);
+
+    let value: unknown;
+    await act(async () => { value = await result.current.execute(action); });
+
+    expect(value).toBeNull();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
 });

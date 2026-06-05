@@ -11,6 +11,151 @@
 
 ---
 
+## 2026-06-05 - Phase 2 AI Security Hardening: Idempotency, Dedup & Credit Resilience
+
+### Root Causes (from AI-SECURITY-AUDIT-2026-06-05.md, Phase 2 scope)
+- No idempotency layer: double-click / refresh / back-nav could trigger duplicate provider calls and double credit charges.
+- `recordSuccessUsage` had no retry logic — a single Appwrite DB blip silently lost credit recording.
+- `ai_credits` get-or-create had no race handling — concurrent first-requests could hit a duplicate-document error.
+- `daily_limit` was written back to `ai_credits` on every deduction, allowing stale limits to persist after plan changes.
+- `safeLogAiRequest` silently swallowed all errors — missing collection produced zero operational signal.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `IDEMPOTENCY_CACHE_COLLECTION_ID`, `IDEMPOTENCY_TTL_MS`, `RECORD_USAGE_BACKOFFS` constants; `computeContentKey()` SHA256 content key; `checkIdempotencyCache()`, `createIdempotencyPending()`, `updateIdempotencySuccess()`, `deleteIdempotencyDoc()` helpers; idempotency check before credit deduction in main handler; `updateIdempotencySuccess` on all 6 success paths; `deleteIdempotencyDoc` on all failure/error paths; retry-aware `recordSuccessUsage` with 3 attempts and exponential backoff; `loadCreditState` get-or-create race fix (catch 409, retry read); remove `daily_limit` write-back from `recordAiUsage`; derive `effectiveLimit` from `PLAN_DAILY_LIMITS` not stored value; `safeLogAiRequest` warns once on missing collection, logs `credits_charged`, `idempotency_key`, `is_idempotency_hit` |
+| `src/lib/appwrite-functions.ts` | Generate `X-Idempotency-Key` UUID header for every AI gateway call; add 409 classification message |
+| `src/hooks/__tests__/useAIAction-D1.test.ts` | 4 new Phase 2 test scenarios: 409 dedup hit, double-click no charge, concurrent actions, provider failure no charge |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `npx tsc --noEmit` — zero errors.
+- `npx vitest run src/hooks/__tests__/useAIAction-D1.test.ts` — 8/8 pass.
+
+### New Collections / Indexes Required (Appwrite Console)
+- Create `idempotency_cache` collection in DB `main` with attributes: `key` (str 64, unique), `user_id` (str 36), `feature` (str 64), `status` (str 16), `has_result` (bool), `cached_result` (str 65536, nullable), `created_at` (str 32), `expires_at` (str 32). Server-only permissions.
+- Add unique index on `idempotency_cache.key`.
+- Add `credits_charged` (int), `idempotency_key` (str 64, nullable), `is_idempotency_hit` (bool) to existing `ai_request_logs` collection.
+- Add unique index on `ai_credits.user_id` (belt-and-suspenders for code-side get-or-create fix).
+
+### Deployment Required
+- Redeploy `ai-gateway`: `node scripts/deploy_hubs.cjs --only=ai-gateway`
+- Frontend changes go live on next Vercel deploy.
+
+### Known Limitations Deferred to Phase 3
+- Non-atomic credit deduction race (different inputs from two browser tabs can still race on separate function instances).
+- In-memory rate limiter resets on cold start.
+- `ask-portfolio` server-side question counter.
+- Idempotency cache expired-record cleanup.
+
+---
+
+## 2026-06-05 - Phase 4 AI Security Hardening: Admin Visibility & Startup Validation
+
+### Root Causes (from AI-SECURITY-AUDIT-2026-06-05.md, Phase 4 scope)
+- No admin-accessible view of `ai_request_logs` (Phase 2 collection) — credit and idempotency data invisible to ops.
+- Misconfigured env vars (missing `ADMIN_EMAIL`, `APPWRITE_API_KEY`, AI provider keys) produced silent failures on first request rather than immediate cold-start alerts.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/admin-devkit-data/src/main.js` | New `handleAIRequestAnalytics(body, log)` handler: queries `ai_request_logs`, returns per-feature/provider aggregates, credit totals, idempotency hit rate, graceful `missing_collection` flag; registered as DevKit action `ai-request-analytics`; cold-start startup validation IIFE |
+| `appwrite-hubs/ai-gateway/src/main.js` | Cold-start startup validation IIFE: logs `[ALERT]` for missing `APPWRITE_API_KEY`, `ADMIN_EMAIL`, `RESEND_API_KEY`, no AI provider keys |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js` — clean.
+- `npx tsc --noEmit` — zero errors.
+
+### New Collections / Indexes Required (Appwrite Console)
+- Add index on `ai_request_logs.created_at` (desc) for efficient `ai-request-analytics` queries.
+- Add index on `ai_request_logs.user_id` (asc) if not already present.
+
+### Deployment Required
+- Redeploy both functions:
+  - `node scripts/deploy_hubs.cjs --only=ai-gateway`
+  - `node scripts/deploy_hubs.cjs --only=admin-devkit-data`
+
+---
+
+## 2026-06-05 - Phase 3 AI Security Hardening: Persistent Rate Limits & Concurrency
+
+### Root Causes (from AI-SECURITY-AUDIT-2026-06-05.md, Phase 3 scope)
+- In-memory rate limiter reset on cold start — cross-instance burst abuse possible.
+- `ask-portfolio` 10-question cap enforced only client-side — easily bypassed by multi-tab or direct API calls.
+- Expensive AI operations (cost ≥ 2) could be launched concurrently from multiple tabs, potentially exhausting daily credits in seconds.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Phase-3 constants: `CHAT_SESSIONS_COLLECTION_ID`, `PORTFOLIO_MAX_QUESTIONS`, `MAX_CONCURRENT_JOBS_PER_USER`, `PLAN_PER_MINUTE_LIMITS`; 3 new helpers: `checkPersistentRateLimit()`, `countPendingJobs()`, `validatePortfolioSession()`; `loadCreditState` now accepts pre-fetched plan; main handler: plan fetched once, ask-portfolio session check, persistent rate limit check, concurrency guard |
+| `src/hooks/__tests__/useAIAction-D1.test.ts` | 3 new Phase 3 test scenarios: concurrent jobs rejected, session not found, session limit reached |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `npx tsc --noEmit` — zero errors.
+- `npx vitest run src/hooks/__tests__/useAIAction-D1.test.ts` — 11/11 pass.
+
+### New Collections / Indexes Required (Appwrite Console)
+- Add `question_count` attribute to `chat_sessions`: Integer, default 0 (enables server-side portfolio cap).
+- Add index on `ai_request_logs.user_id` and `ai_request_logs.created_at` (required for `checkPersistentRateLimit` queries).
+
+### Deployment Required
+- Redeploy `ai-gateway`: `node scripts/deploy_hubs.cjs --only=ai-gateway`
+
+### Known Limitations Deferred to Phase 5
+- Non-atomic credit deduction remains (idempotency lock covers the common same-input case).
+- Email rate limiter still in-memory.
+- Idempotency cache expired-record cleanup still deferred.
+- Session hopping (user creates multiple `chat_sessions` docs) not yet blocked.
+
+---
+
+## 2026-06-05 - Phase 1 AI Security Hardening (9 fixes)
+
+### Root Causes (Identified in AI-SECURITY-AUDIT-2026-06-05.md)
+- Clients could override `model`, `maxTokens`, and `temperature` on every AI call, enabling cost-abuse through inflated token budgets and model substitution.
+- `agentic-chat` accepted unbounded `conversationHistory` with no shape validation, enabling token flooding.
+- `send-contact-email` interpolated raw user strings into HTML without escaping, creating stored-XSS risk in the admin inbox; rate limit was 5/hr per IP.
+- `x-smoke-test` path bypassed authentication entirely, exposing provider availability to unauthenticated callers.
+- `wise-ai-chat` dumped the entire `opts` object (up to 60 KB) into the AI prompt, allowing clients to inject arbitrary keys and content.
+- `agentic-chat` function-response error strings were injected verbatim into the user content slot, enabling prompt injection via crafted `functionResponse.result.error`.
+- `ADMIN_EMAIL` had hard-coded fallback `'magdy.saber@outlook.com'` in both `ai-gateway` and `admin-devkit-data`; if the env var was unset, the fallback could be exploited.
+- Subscription documents granted users `Permission.update` via Appwrite client, allowing direct field manipulation.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `FEATURE_MAX_TOKENS` and `FEATURE_TEMPERATURE` server-side constant maps; remove all client `aiOpts.model / maxTokens / temperature` overrides; `callCandidate` uses `candidate.model` exclusively |
+| `appwrite-hubs/ai-gateway/src/main.js` | `agentic-chat` history: cap to last 10 messages, validate `role` ∈ {user, assistant}, sanitize content to 2000 chars per item |
+| `appwrite-hubs/ai-gateway/src/main.js` | `agentic-chat` function-response: escape `fr.name` to 64 chars; never expose raw error string in SYSTEM NOTE |
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `escapeHtml()` helper; apply to all user fields in `send-contact-email` HTML builder; add 200/254/100/5000 char content limits; escape subject line |
+| `appwrite-hubs/ai-gateway/src/main.js` | Tighten `EMAIL_RATE_LIMIT_MAX` from 5 to 3 per IP per hour |
+| `appwrite-hubs/ai-gateway/src/main.js` | `x-smoke-test`: require valid JWT before returning provider availability |
+| `appwrite-hubs/ai-gateway/src/main.js` | Add `WISE_AI_CHAT_ALLOWED_FIELDS` whitelist map + `buildWiseAiChatPayload()` function; replace raw `opts` dump with whitelisted, length-capped payload (8 KB cap down from 60 KB) |
+| `appwrite-hubs/ai-gateway/src/main.js` | Add prompt-injection defense instruction to `wise-ai-chat` and `agentic-chat` system prompts |
+| `appwrite-hubs/ai-gateway/src/main.js` | Remove hard-coded `ADMIN_EMAIL` fallback; impersonation fails closed when env var absent |
+| `appwrite-hubs/admin-devkit-data/src/main.js` | Remove hard-coded `ADMIN_EMAIL` fallback (same pattern); remove `Permission.update` from subscription docs at all three write sites (set-plan, grant-trial, revoke-trial) |
+| `appwrite-hubs/coupons/src/main.js` | Remove `Permission.update` from subscription document permissions |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js` — clean.
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js` — clean.
+- `node --check appwrite-hubs/coupons/src/main.js` — clean.
+
+### Deployment Required
+- Redeploy `ai-gateway`: `node scripts/deploy_hubs.cjs --only=ai-gateway`
+- Redeploy `coupons`: `node scripts/deploy_hubs.cjs --only=coupons`
+- Redeploy `admin-devkit-data`: `node scripts/deploy_hubs.cjs --only=admin-devkit-data`
+- Set `ADMIN_EMAIL` env variable in Appwrite Console for both `ai-gateway` and `admin-devkit-data` functions (hard-coded fallback removed).
+
+### Not Fixed (Requires Appwrite Console — out of scope for code-only phase)
+- Remove `UPDATE` from Appwrite collection-level rules for `subscriptions` (belt-and-suspenders alongside function-level permission change).
+- `ask-portfolio` server-side question counter requires a `question_count` attribute on the `chat_sessions` collection.
+- Atomic credit deduction (read-write race condition) — documented as Phase 2 work.
+
+---
+
 ## 2026-06-03 - Admin Panel / DevKit Audit Fixes (7 code + 2 ops items)
 
 ### Root Causes (Verified via codebase audit)

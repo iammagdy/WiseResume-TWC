@@ -114,6 +114,7 @@ function classifyHttpError(fnName: string, statusCode: number, parsed: unknown):
   const payloadMessage = messageFromPayload(parsed);
   if (payloadMessage) return payloadMessage;
 
+  if (statusCode === 409) return 'Request already in progress — please wait a moment and try again.';
   if (statusCode === 429) return 'Too many requests - please wait a moment and try again.';
   if (statusCode === 402) return 'AI credits exhausted. Please check your account.';
   if (statusCode === 401 || statusCode === 403) {
@@ -173,6 +174,15 @@ export const appwriteFunctions = {
       if (isImpersonating()) {
         const impState = getImpersonationState();
         if (impState.userId) headers['X-Impersonating-User-Id'] = impState.userId;
+      }
+      // Per-click idempotency key for AI gateway calls.
+      // The server uses a content-hash key for dedup, but this UUID lets the server
+      // log client-side request identity for tracing across retries.
+      if (shouldRouteToAppwrite(fnName)) {
+        headers['X-Idempotency-Key'] =
+          typeof crypto !== 'undefined' && typeof (crypto as Crypto).randomUUID === 'function'
+            ? (crypto as Crypto).randomUUID()
+            : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
       }
       const finalPayload = {
         ...bodyPayload,

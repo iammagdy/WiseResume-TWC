@@ -2,6 +2,128 @@
 
 ---
 
+## Session Log - 2026-06-05 (AI Security Audit & Hardening — Phases 1–4)
+
+### Overview
+
+Full AI security audit followed by four phases of hardening on `appwrite-hubs/ai-gateway`, `appwrite-hubs/admin-devkit-data`, `appwrite-hubs/coupons`, and the frontend `src/lib/appwrite-functions.ts`.  All changes are on branch `claude/atlas-onboarding-K3wJ2` (PR #81 merged to `main`).
+
+**Audit report saved at:** `Project Atlas/AI-SECURITY-AUDIT-2026-06-05.md`  
+**Per-phase change details:** `SECURITY_FIXES_SUMMARY.md` (repo root)  
+**Changelog entry:** `Project Atlas/CHANGELOG.md` (2026-06-05 entries — Phases 1–4)
+
+---
+
+### Phase 1 — Critical server-side protection (9 fixes)
+
+| Fix | What changed |
+|-----|-------------|
+| **A — Model/token lockdown** | `FEATURE_MAX_TOKENS` + `FEATURE_TEMPERATURE` maps added. Client `model`/`maxTokens`/`temperature` values are now fully ignored. |
+| **B — agentic-chat history cap** | Last 10 turns; role validated ∈ `{user, assistant}`; each content item capped at 2000 chars. |
+| **C — Contact email hardening** | `escapeHtml()` on all user fields; content length limits; rate limit tightened 5→3/IP/hr; `metadata` blob removed from HTML. |
+| **E — Subscription permission lockdown** | `Permission.update` removed from subscription docs in `coupons` and `admin-devkit-data`. Admin API key owns all writes. |
+| **F — ADMIN_EMAIL hardened** | Both functions fail closed when `ADMIN_EMAIL` env var is absent. `x-smoke-test` now requires a valid Appwrite JWT. |
+| **G — wise-ai-chat field whitelisting** | `WISE_AI_CHAT_ALLOWED_FIELDS` map; only declared fields pass; payload capped from 60 KB → 8 KB. |
+| **H — Prompt-injection defence** | `SECURITY:` instruction in `wise-ai-chat` and `agentic-chat` system prompts. `agentic-chat` function-response error string no longer injected verbatim. |
+
+Files changed: `ai-gateway/src/main.js` (~80 lines), `admin-devkit-data/src/main.js` (~10 lines), `coupons/src/main.js` (~3 lines).
+
+---
+
+### Phase 2 — Idempotency, dedup & credit resilience
+
+| Fix | What changed |
+|-----|-------------|
+| **End-to-end idempotency** | SHA256 content key (`userId:feature:payloadHash:5-min-bucket`) + `idempotency_cache` collection. Double-click / refresh / back-nav → cached result at zero cost. |
+| **Client idempotency key** | `X-Idempotency-Key` UUID header generated per AI gateway call for tracing. 409 `request_in_progress` returned to client. |
+| **Credit recording retry** | `recordSuccessUsage` retries 3× with 100ms / 500ms / 2s backoff. Logs `[CRITICAL]` if all retries fail. |
+| **Get-or-create race fix** | `ai_credits` create now catches 409 and retries the read to get the winning concurrent doc. |
+| **Plan limit source-of-truth** | `daily_limit` no longer written back to `ai_credits`; `effectiveLimit` always derived from `PLAN_DAILY_LIMITS` at read time. |
+| **Improved request logging** | `safeLogAiRequest` warns once on missing collection; new fields: `credits_charged`, `idempotency_key`, `is_idempotency_hit`. |
+
+New collection required: **`idempotency_cache`** in DB `main`. See `SECURITY_FIXES_SUMMARY.md` Phase 2 for full schema.
+
+Files changed: `ai-gateway/src/main.js` (~170 lines), `src/lib/appwrite-functions.ts` (+15 lines), `src/hooks/__tests__/useAIAction-D1.test.ts` (+50 lines, 4 new tests).
+
+---
+
+### Phase 3 — Persistent rate limits, session enforcement & concurrency
+
+| Fix | What changed |
+|-----|-------------|
+| **Persistent rate limit** | `checkPersistentRateLimit(db, userId, plan)` counts `ai_request_logs` rows in the last 60s. Per-plan caps: free=3/min, pro=10/min, premium=20/min. Survives cold starts; degrades gracefully when collection unavailable. |
+| **ask-portfolio session cap** | `validatePortfolioSession(db, sessionToken)` checks + atomically increments `chat_sessions.question_count`. Enforces 10-question server-side cap. Degrades gracefully when attribute absent (one-time warn logged). |
+| **Concurrent job guard** | `countPendingJobs(db, userId)` blocks >2 simultaneous expensive AI operations (cost≥2) per user, using `idempotency_cache` pending docs as the counter. Returns `429 too_many_concurrent_jobs`. |
+| **Plan pre-fetch** | Plan fetched once per request (after auth) and passed to both rate limiter and `loadCreditState`, eliminating the double DB subscription lookup. |
+
+**Appwrite Console action required:**
+- Add `question_count` (Integer, default 0) to `chat_sessions` collection.
+- Add indexes on `ai_request_logs.user_id` (asc) and `ai_request_logs.created_at` (desc).
+
+Files changed: `ai-gateway/src/main.js` (~100 lines), `src/hooks/__tests__/useAIAction-D1.test.ts` (+40 lines, 3 new tests, 11/11 passing).
+
+---
+
+### Phase 4 — Admin visibility & startup validation
+
+| Fix | What changed |
+|-----|-------------|
+| **`ai-request-analytics` DevKit action** | `handleAIRequestAnalytics()` in `admin-devkit-data`: queries `ai_request_logs`, returns per-feature/provider aggregates, credit totals, idempotency hit rate. Action: `ai-request-analytics`. |
+| **Cold-start validation** | Both `ai-gateway` and `admin-devkit-data` run an IIFE at module load that logs `[ALERT]` for: missing `APPWRITE_API_KEY`, `ADMIN_EMAIL`, `RESEND_API_KEY`, or no AI provider keys configured. |
+
+Files changed: `ai-gateway/src/main.js` (+25 lines), `admin-devkit-data/src/main.js` (+70 lines).
+
+---
+
+### Validation state at session close
+
+```bash
+node --check appwrite-hubs/ai-gateway/src/main.js          # clean
+node --check appwrite-hubs/admin-devkit-data/src/main.js   # clean
+node --check appwrite-hubs/coupons/src/main.js             # clean
+npx tsc --noEmit                                           # zero errors
+npx vitest run src/hooks/__tests__/useAIAction-D1.test.ts  # 11/11 pass
+```
+
+**Branch:** `claude/atlas-onboarding-K3wJ2` (PR #81 merged to `main`)  
+**Commits on branch:**
+- `a0193a9` — Phase 3 & 4: persistent rate limits, session enforcement, concurrency, admin analytics
+- `c347bc6` — Phase 2: idempotency, dedup, credit resilience
+- `1a0f4fe` — Phase 1: AI gateway hardening, subscription permission lockdown
+
+---
+
+### What still needs doing (deferred to Phase 5+)
+
+| Item | Risk level | Notes |
+|------|-----------|-------|
+| Non-atomic credit deduction | LOW | Read-then-write race. Idempotency covers same-fingerprint case. Requires Appwrite atomic increment or per-user DB lock. |
+| Email rate limiter in-memory | LOW | `_emailRateLimits` resets on cold start. Phase 5: persist using `rate_limits` collection. |
+| Idempotency cache TTL cleanup | MAINTENANCE | Expired docs filtered at read time but never purged. Needs scheduled cleanup function or Appwrite TTL attribute. |
+| ask-portfolio session hopping | LOW | Users can create multiple `chat_sessions` docs to bypass the 10-question cap. Fix: server-signed session nonce. |
+| Collection-level permissions audit | MEDIUM | Belt-and-suspenders check that `subscriptions` and `ai_credits` have no collection-level user UPDATE permissions. |
+| `ai_request_logs` indexes | REQUIRED | Indexes on `user_id` and `created_at` needed for efficient `checkPersistentRateLimit` queries. Manual Appwrite Console step. |
+
+---
+
+### Required Appwrite Console steps before Phase 5
+
+1. **`idempotency_cache` collection** (DB: `main`) — attributes: `key` (str 64, unique index), `user_id` (str 36), `feature` (str 64), `status` (str 16), `has_result` (bool), `cached_result` (str 65536, nullable), `created_at` (str 32), `expires_at` (str 32). Server-only permissions.
+2. **`ai_request_logs` collection** — add `credits_charged` (int), `idempotency_key` (str 64, nullable), `is_idempotency_hit` (bool) attributes. Add indexes on `user_id` and `created_at`.
+3. **`chat_sessions` collection** — add `question_count` (Integer, default 0).
+4. **`ai_credits` collection** — add unique index on `user_id`.
+5. **Set `ADMIN_EMAIL`** env var in Appwrite Console for both `ai-gateway` and `admin-devkit-data`.
+
+### Deployment after merge
+
+```bash
+node scripts/deploy_hubs.cjs --only=ai-gateway
+node scripts/deploy_hubs.cjs --only=admin-devkit-data
+node scripts/deploy_hubs.cjs --only=coupons
+```
+
+---
+
 ## Session Log - 2026-06-03 (Admin Panel / DevKit Refactor - Phases 1-4)
 
 ### Overview

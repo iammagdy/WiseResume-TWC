@@ -9,8 +9,20 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
-// Authoritative admin identity — set ADMIN_EMAIL in Appwrite function variables to override.
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'magdy.saber@outlook.com').toLowerCase().trim();
+// Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
+// No hard-coded fallback: when absent, admin-only paths fail closed.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+
+// ─── Phase-4: Cold-start startup validation ───────────────────────────────────
+(function performStartupValidation() {
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!apiKey) {
+    console.error('[ALERT] admin-devkit-data: APPWRITE_API_KEY not configured — all DB operations will fail');
+  }
+  if (!ADMIN_EMAIL) {
+    console.error('[ALERT] admin-devkit-data: ADMIN_EMAIL not set — all DevKit actions will be inaccessible');
+  }
+})();
 
 function requestId() {
   return `dk_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
@@ -1341,7 +1353,7 @@ async function handleSetPlan(body, log) {
   const patch = { plan, effective_plan: plan, status: 'active', trial_plan: null, trial_expires_at: null };
   const subPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
-    sdk.Permission.update(sdk.Role.user(target_user_id)),
+    // UPDATE intentionally omitted: written exclusively by server-side admin client.
   ];
   // Always repair document permissions so the user's client session can read their subscription.
   // Use a fallback without effective_plan for schemas that don't have that attribute yet.
@@ -1384,7 +1396,7 @@ async function handleGrantTrial(body, log) {
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
   const trialPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
-    sdk.Permission.update(sdk.Role.user(target_user_id)),
+    // UPDATE intentionally omitted: written exclusively by server-side admin client.
   ];
   if (subDoc) {
     const trialPatch = { trial_plan: plan, effective_plan: plan, trial_expires_at: expiresAt, status: 'active' };
@@ -1421,7 +1433,7 @@ async function handleRevokeTrial(body, log) {
   if (subDoc) {
     const revokePerms = [
       sdk.Permission.read(sdk.Role.user(target_user_id)),
-      sdk.Permission.update(sdk.Role.user(target_user_id)),
+      // UPDATE intentionally omitted: written exclusively by server-side admin client.
     ];
     const revokePatches = [
       { trial_plan: null, trial_expires_at: null, effective_plan: basePlan },
@@ -1928,6 +1940,72 @@ async function handleDismissWisehireWaitlist(body, log) {
   return { dismissed: true, email };
 }
 
+/**
+ * Phase 4 — Admin AI request analytics.
+ * Queries the ai_request_logs collection written by the ai-gateway on every
+ * real (non-cached) AI call.  Returns recent logs, per-feature and per-provider
+ * aggregates, credit totals, and idempotency hit rate.
+ *
+ * Appwrite Console prerequisites (DB: main, Collection: ai_request_logs):
+ *   Indexes: user_id (asc), created_at (desc), is_idempotency_hit (asc)
+ */
+async function handleAIRequestAnalytics(body, log) {
+  const limit = Math.min(Math.max(1, Number(body.limit) || 50), 200);
+  const queries = [sdk.Query.orderDesc('created_at'), sdk.Query.limit(limit)];
+  if (body.user_id)  queries.push(sdk.Query.equal('user_id', body.user_id));
+  if (body.feature)  queries.push(sdk.Query.equal('feature_id', body.feature));
+  if (body.provider) queries.push(sdk.Query.equal('provider', body.provider));
+  if (body.since) {
+    try { queries.push(sdk.Query.greaterThanEqual('created_at', body.since)); } catch (_) {}
+  }
+
+  const res = await safeList(null, 'ai_request_logs', queries);
+  const missingCollection = !!res.error &&
+    /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error);
+
+  const docs = res.documents || [];
+  let totalCredits = 0;
+  let idempotencyHits = 0;
+  const byFeature = {};
+  const byProvider = {};
+
+  for (const d of docs) {
+    const feat = d.feature_id || 'unknown';
+    const prov = d.provider    || 'unknown';
+    const cred = typeof d.credits_charged === 'number' ? d.credits_charged : 0;
+    const isHit = d.is_idempotency_hit === true;
+
+    totalCredits += cred;
+    if (isHit) idempotencyHits++;
+
+    if (!byFeature[feat]) byFeature[feat] = { count: 0, credits: 0, idempotencyHits: 0 };
+    byFeature[feat].count++;
+    byFeature[feat].credits += cred;
+    if (isHit) byFeature[feat].idempotencyHits++;
+
+    if (!byProvider[prov]) byProvider[prov] = { count: 0, credits: 0 };
+    byProvider[prov].count++;
+    byProvider[prov].credits += cred;
+  }
+
+  const idempotencyHitRate = docs.length > 0
+    ? Math.round((idempotencyHits / docs.length) * 10000) / 100
+    : 0;
+
+  log(`ai-request-analytics: ${docs.length} logs, ${totalCredits} credits, ${idempotencyHitRate}% cache hit rate`);
+  return {
+    logs: docs,
+    total_in_window: res.total || docs.length,
+    total_credits_charged: totalCredits,
+    idempotency_hit_count: idempotencyHits,
+    idempotency_hit_rate_pct: idempotencyHitRate,
+    stats_by_feature: byFeature,
+    stats_by_provider: byProvider,
+    missing_collection: missingCollection,
+    fetch_error: (!missingCollection && res.error) ? res.error : null,
+  };
+}
+
 async function handleListAiGatewayActivity(body, log) {
   const { functions } = getClients();
   const limit = Math.min(Math.max(1, Number(body.limit) || 10), 25);
@@ -2321,6 +2399,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'dismiss-wisehire-waitlist') data = await handleDismissWisehireWaitlist(body, log);
     else if (action === 'send-wisehire-invite') data = await handleSendWisehireInvite(body, log);
     else if (action === 'list-ai-gateway-activity') data = await handleListAiGatewayActivity(body, log);
+    else if (action === 'ai-request-analytics') data = await handleAIRequestAnalytics(body, log);
     else if (action === 'list-routing-config') data = await handleListRoutingConfig();
     else if (action === 'update-routing-config') data = await handleUpdateRoutingConfig(body, log);
     else if (action === 'create-routing-config') data = await handleCreateRoutingConfig(body, log);
