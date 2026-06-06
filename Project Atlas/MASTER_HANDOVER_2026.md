@@ -4843,3 +4843,98 @@ All required live smoke tests returned HTTP 200:
 - GitHub Actions deploy is manual-only and no longer runs on push.
 - Managed live functions are `ready`, use `src/main.js`, and are not Git-linked.
 - Appwrite deployment state is considered clean and trustworthy from the handover standpoint.
+
+## Session Log - 2026-06-04 (DevKit Stability and Email Studio Repair)
+
+### Summary
+
+Fixed two live DevKit regressions after the Appwrite deployment repair:
+
+- `AI Tools Map` on `/devkit` crashed with React error `#310`.
+- `Email -> Studio` could not send test renders and surfaced `Failed to send test email: [object Object]`.
+
+Both fixes were pushed to `main`. Tracked repo state is synced with `origin/main` at commit `79dc31a6`.
+
+### 1. AI Tools Map crash (`/devkit`)
+
+Root cause:
+
+- `src/components/dev-kit/AIRoutingSwitcher.tsx` declared `useCallback` for `testRoute` after early `loading` / `loadError` returns.
+- That changed hook order between renders and triggered React invariant `#310` in production.
+
+Fix:
+
+- Moved the `testRoute` hook above the early returns so hook order is stable on every render.
+
+Validation:
+
+- `npx tsc --noEmit` passed.
+
+### 2. Email Studio test renders were broken
+
+Root cause:
+
+- `src/components/dev-kit/EmailTransactionalStudioPanel.tsx` used the wrong invocation pattern for Appwrite function responses and collapsed backend error payloads into `[object Object]`.
+- The Studio panel was routing preview sends through `email-service`, whose `send-test` path rejected the DevKit session in production with `401 Unauthorized`.
+- Live `email-service` did not have a matching `DEVKIT_PASSWORD`, so signed DevKit requests were not accepted there.
+
+Fix:
+
+- Updated `EmailTransactionalStudioPanel.tsx` to use the standard DevKit call path instead of raw tuple-style parsing.
+- Routed Studio test renders through `admin-email` instead of `email-service`.
+- Added `module: 'email-actions'`, `action: 'send_test_template'` to `appwrite-hubs/admin-email/src/main.js`.
+- Added preview-safe HTML generation for:
+  - welcome email
+  - email verification
+  - password reset
+- Extended `admin-email` sender handling to allow explicit `fromEmail` / `fromName` during Studio previews.
+- Hardened `appwrite-hubs/email-service/src/main.js` token verification so HMAC-signed DevKit tokens can validate against:
+  - `APPWRITE_API_KEY`
+  - `APPWRITE_FUNCTION_API_KEY`
+  - `DEVKIT_PASSWORD`
+
+### Appwrite deployment / live verification
+
+- Redeployed `email-service` for token verification parity.
+- Redeployed `admin-email` with the new Studio preview action.
+- Confirmed the new `admin-email` live execution path returns HTTP `200` and a real Resend `message_id` for verification template previews.
+
+### Files changed
+
+- `src/components/dev-kit/AIRoutingSwitcher.tsx`
+- `src/components/dev-kit/EmailTransactionalStudioPanel.tsx`
+- `appwrite-hubs/admin-email/src/main.js`
+- `appwrite-hubs/email-service/src/main.js`
+
+### Validation
+
+Local:
+
+- `npx tsc --noEmit`
+- `node --check appwrite-hubs/admin-email/src/main.js`
+- `node --check appwrite-hubs/email-service/src/main.js`
+
+Live:
+
+- `admin-email` `module=email-actions`, `action=send_test_template` -> HTTP `200`
+- Returned a valid Resend `message_id` for a real test render send
+
+### Current state
+
+- DevKit `AI Tools Map` hook-order crash is fixed in source.
+- Email Studio test sends are now wired through `admin-email`, not `email-service`.
+- The `[object Object]` error path in Studio is removed.
+- The Appwrite deployment model from earlier in the day remains unchanged:
+  - Appwrite Git auto-deploy is not the source of truth
+  - GitHub Actions workflow is manual-only
+  - local fallback remains `node scripts/deploy_hubs.cjs`
+
+### Where we stopped
+
+- Latest pushed commit: `79dc31a6` `fix(devkit): repair email studio test sends`
+- Local `main` and `origin/main` are aligned at that commit.
+- Remaining local differences are unrelated untracked artifacts only:
+  - `.playwright-mcp/`
+  - `Loader/`
+  - `reports/*.json`
+- If Email Studio still shows the old toast on production, the next step is to verify the frontend deploy cache has refreshed, not to reopen the Appwrite function logic by default.

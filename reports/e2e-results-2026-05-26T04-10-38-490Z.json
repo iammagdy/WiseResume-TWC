@@ -1,0 +1,273 @@
+{
+  "config": {
+    "configFile": "Y:\\WiseResume-TWC\\playwright.config.ts",
+    "rootDir": "Y:/WiseResume-TWC/tests/e2e/specs",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "Y:\\WiseResume-TWC\\tests\\e2e\\fixtures\\global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "Y:/WiseResume-TWC/tests/e2e/.artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "Y:/WiseResume-TWC/tests/e2e/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/e2e-results-2026-05-26T04-10-38-490Z.json"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/e2e-results.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "reports/e2e-html",
+          "open": "never"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "24-auth-email-production.spec.ts",
+      "file": "24-auth-email-production.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Auth & email-service (production)",
+          "file": "24-auth-email-production.spec.ts",
+          "line": 81,
+          "column": 6,
+          "specs": [
+            {
+              "title": "auth page hides Import Job FAB",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3149,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:10:40.175Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-29d58cf8ead77e2272b2",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 82,
+              "column": 3
+            },
+            {
+              "title": "forgot password invokes email-service and shows success toast",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "email-service-exec",
+                      "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c87ad9aeb220ef1\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:35.769+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:35.769+00:00\\\",\\\"$permissions\\\":[],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.54\\\"}],\\\"responseStatusCode\\\":200,\\\"responseBody\\\":\"}"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2746,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:10:43.504Z",
+                      "annotations": [
+                        {
+                          "type": "email-service-exec",
+                          "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c87ad9aeb220ef1\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:35.769+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:35.769+00:00\\\",\\\"$permissions\\\":[],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.54\\\"}],\\\"responseStatusCode\\\":200,\\\"responseBody\\\":\"}"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-77abeffa59e1d498d433",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 88,
+              "column": 3
+            },
+            {
+              "title": "sign up creates account, lands on verify-email, resend succeeds",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "signup-email",
+                      "description": "{\"email\":\"wr-e2e-1779768646412-eiaj1y@delivered.resend.dev\",\"signupExec\":\"{\\\"$id\\\":\\\"6a151c8b43a928ffd097\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:40.270+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:40.270+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d480011433488f8\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                    },
+                    {
+                      "type": "resend-email",
+                      "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c8d4a5b5d80a188\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:41.920+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:41.920+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d480011433488f8\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                    },
+                    {
+                      "type": "credentials",
+                      "description": "Demo account (save to verify inbox): wr-e2e-1779768646412-eiaj1y@delivered.resend.dev / E2eTest!mpm4asjwAa"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6080,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:10:46.278Z",
+                      "annotations": [
+                        {
+                          "type": "signup-email",
+                          "description": "{\"email\":\"wr-e2e-1779768646412-eiaj1y@delivered.resend.dev\",\"signupExec\":\"{\\\"$id\\\":\\\"6a151c8b43a928ffd097\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:40.270+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:40.270+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d480011433488f8\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                        },
+                        {
+                          "type": "resend-email",
+                          "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c8d4a5b5d80a188\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:41.920+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:41.920+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d480011433488f8\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                        },
+                        {
+                          "type": "credentials",
+                          "description": "Demo account (save to verify inbox): wr-e2e-1779768646412-eiaj1y@delivered.resend.dev / E2eTest!mpm4asjwAa"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-2f0057db2ae6b6d1cada",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 110,
+              "column": 3
+            },
+            {
+              "title": "verify-email page has no Import Job FAB",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1313,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:10:52.378Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-4add53d92fb0d238dc7f",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 155,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-26T04:10:38.502Z",
+    "duration": 15392.025999999998,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

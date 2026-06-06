@@ -105,6 +105,7 @@ tests/e2e/.auth/
 tests/e2e/.artifacts/
 reports/e2e-html/
 reports/e2e-results.json
+.playwright-mcp/
 
 # Capacitor native platform scaffolds — regenerated on demand via
 # `npx cap add ios && npx cap add android`. Treating them as derivative

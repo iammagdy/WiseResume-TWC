@@ -1,0 +1,310 @@
+{
+  "config": {
+    "configFile": "Y:\\WiseResume-TWC\\playwright.config.ts",
+    "rootDir": "Y:/WiseResume-TWC/tests/e2e/specs",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "Y:\\WiseResume-TWC\\tests\\e2e\\fixtures\\global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "Y:/WiseResume-TWC/tests/e2e/.artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "Y:/WiseResume-TWC/tests/e2e/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/e2e-results-2026-05-26T04-09-58-261Z.json"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/e2e-results.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "reports/e2e-html",
+          "open": "never"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "24-auth-email-production.spec.ts",
+      "file": "24-auth-email-production.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Auth & email-service (production)",
+          "file": "24-auth-email-production.spec.ts",
+          "line": 63,
+          "column": 6,
+          "specs": [
+            {
+              "title": "auth page hides Import Job FAB",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4435,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:09:59.801Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-29d58cf8ead77e2272b2",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 64,
+              "column": 3
+            },
+            {
+              "title": "forgot password invokes email-service and shows success toast",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "email-service-exec",
+                      "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c61137f34f250f9\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:03.706+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:03.706+00:00\\\",\\\"$permissions\\\":[],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.31\\\"}],\\\"responseStatusCode\\\":200,\\\"responseBody\\\":\"}"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9548,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:10:04.766Z",
+                      "annotations": [
+                        {
+                          "type": "email-service-exec",
+                          "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c61137f34f250f9\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:03.706+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:03.706+00:00\\\",\\\"$permissions\\\":[],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.31\\\"}],\\\"responseStatusCode\\\":200,\\\"responseBody\\\":\"}"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-77abeffa59e1d498d433",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 70,
+              "column": 3
+            },
+            {
+              "title": "sign up creates account, lands on verify-email, resend succeeds",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "signup-email",
+                      "description": "{\"email\":\"wr-e2e-1779768614458-1maigg@delivered.resend.dev\",\"signupExec\":\"{\\\"$id\\\":\\\"6a151c6c5e2a1eb7f768\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:08.756+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:08.756+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d2900090d5e106e\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                    },
+                    {
+                      "type": "resend-email",
+                      "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c6dd2ec63c958cc\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:10.135+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:10.135+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d2900090d5e106e\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 6612,
+                      "error": {
+                        "message": "Error: resend failed: {\"$id\":\"6a151c6dd2ec63c958cc\",\"$createdAt\":\"2026-05-26T04:07:10.135+00:00\",\"$updatedAt\":\"2026-05-26T04:07:10.135+00:00\",\"$permissions\":[\"read(\\\"user:6a151d2900090d5e106e\\\")\"],\"functionId\":\"email-service\",\"deploymentId\":\"6a1516cd249d2b749492\",\"trigger\":\"http\",\"status\":\"completed\",\"requestMethod\":\"POS\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: resend failed: {\"$id\":\"6a151c6dd2ec63c958cc\",\"$createdAt\":\"2026-05-26T04:07:10.135+00:00\",\"$updatedAt\":\"2026-05-26T04:07:10.135+00:00\",\"$permissions\":[\"read(\\\"user:6a151d2900090d5e106e\\\")\"],\"functionId\":\"email-service\",\"deploymentId\":\"6a1516cd249d2b749492\",\"trigger\":\"http\",\"status\":\"completed\",\"requestMethod\":\"POS\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at Y:\\WiseResume-TWC\\tests\\e2e\\specs\\24-auth-email-production.spec.ts:128:82",
+                        "location": {
+                          "file": "Y:\\WiseResume-TWC\\tests\\e2e\\specs\\24-auth-email-production.spec.ts",
+                          "column": 82,
+                          "line": 128
+                        },
+                        "snippet": "  126 |       description: JSON.stringify({ status: resendExec.status, snippet: resendExec.bodyText.slice(0, 400) }),\n  127 |     });\n> 128 |     expect(resendExec.ok, `resend failed: ${resendExec.bodyText.slice(0, 300)}`).toBe(true);\n      |                                                                                  ^\n  129 |     await expect(page.getByText(/Verification email sent/i)).toBeVisible({ timeout: 20_000 });\n  130 |\n  131 |     test.info().annotations.push({"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "Y:\\WiseResume-TWC\\tests\\e2e\\specs\\24-auth-email-production.spec.ts",
+                            "column": 82,
+                            "line": 128
+                          },
+                          "message": "Error: resend failed: {\"$id\":\"6a151c6dd2ec63c958cc\",\"$createdAt\":\"2026-05-26T04:07:10.135+00:00\",\"$updatedAt\":\"2026-05-26T04:07:10.135+00:00\",\"$permissions\":[\"read(\\\"user:6a151d2900090d5e106e\\\")\"],\"functionId\":\"email-service\",\"deploymentId\":\"6a1516cd249d2b749492\",\"trigger\":\"http\",\"status\":\"completed\",\"requestMethod\":\"POS\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  126 |       description: JSON.stringify({ status: resendExec.status, snippet: resendExec.bodyText.slice(0, 400) }),\n  127 |     });\n> 128 |     expect(resendExec.ok, `resend failed: ${resendExec.bodyText.slice(0, 300)}`).toBe(true);\n      |                                                                                  ^\n  129 |     await expect(page.getByText(/Verification email sent/i)).toBeVisible({ timeout: 20_000 });\n  130 |\n  131 |     test.info().annotations.push({\n    at Y:\\WiseResume-TWC\\tests\\e2e\\specs\\24-auth-email-production.spec.ts:128:82"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:10:14.345Z",
+                      "annotations": [
+                        {
+                          "type": "signup-email",
+                          "description": "{\"email\":\"wr-e2e-1779768614458-1maigg@delivered.resend.dev\",\"signupExec\":\"{\\\"$id\\\":\\\"6a151c6c5e2a1eb7f768\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:08.756+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:08.756+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d2900090d5e106e\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                        },
+                        {
+                          "type": "resend-email",
+                          "description": "{\"status\":201,\"snippet\":\"{\\\"$id\\\":\\\"6a151c6dd2ec63c958cc\\\",\\\"$createdAt\\\":\\\"2026-05-26T04:07:10.135+00:00\\\",\\\"$updatedAt\\\":\\\"2026-05-26T04:07:10.135+00:00\\\",\\\"$permissions\\\":[\\\"read(\\\\\\\"user:6a151d2900090d5e106e\\\\\\\")\\\"],\\\"functionId\\\":\\\"email-service\\\",\\\"deploymentId\\\":\\\"6a1516cd249d2b749492\\\",\\\"trigger\\\":\\\"http\\\",\\\"status\\\":\\\"completed\\\",\\\"requestMethod\\\":\\\"POST\\\",\\\"requestPath\\\":\\\"\\\\/\\\",\\\"requestHeaders\\\":[{\\\"name\\\":\\\"x-appwrite-client-ip\\\",\\\"value\\\":\\\"104.156.93.88\\\"}],\\\"re\"}"
+                        }
+                      ],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\24-auth-email-production-A-6145b-erify-email-resend-succeeds-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\24-auth-email-production-A-6145b-erify-email-resend-succeeds-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\24-auth-email-production-A-6145b-erify-email-resend-succeeds-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "Y:\\WiseResume-TWC\\tests\\e2e\\.artifacts\\24-auth-email-production-A-6145b-erify-email-resend-succeeds-chromium\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "Y:\\WiseResume-TWC\\tests\\e2e\\specs\\24-auth-email-production.spec.ts",
+                        "column": 82,
+                        "line": 128
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-2f0057db2ae6b6d1cada",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 92,
+              "column": 3
+            },
+            {
+              "title": "verify-email page has no Import Job FAB",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-26T04:10:21.255Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8e5fe745237b113cfde5-4add53d92fb0d238dc7f",
+              "file": "24-auth-email-production.spec.ts",
+              "line": 137,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-26T04:09:58.277Z",
+    "duration": 23053.661000000004,
+    "expected": 2,
+    "skipped": 1,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}
