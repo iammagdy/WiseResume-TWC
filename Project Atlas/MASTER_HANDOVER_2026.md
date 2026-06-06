@@ -2,6 +2,188 @@
 
 ---
 
+## Session Log - 2026-06-06 (Appwrite Phase 2/3 Activation + Public Portfolio Chat Fix)
+
+### Overview
+
+Completed the post-merge Appwrite Phase 2/3 Console activation, audited the frontend-to-Appwrite integration, fixed the public portfolio chat blocker without relaxing `chat_sessions` permissions, standardized immediate AI credit refresh for direct charged frontend calls, redeployed the required Appwrite functions, and pushed the final validated state to `main`.
+
+---
+
+### Appwrite Phase 2/3 Console setup completed
+
+- Created `idempotency_cache` collection in DB `main`.
+- Added required attributes and unique `key_unique` index.
+- Added `chat_sessions.question_count`.
+- Added `ai_request_logs.credits_charged`, `idempotency_key`, and `is_idempotency_hit`.
+- Added `ai_request_logs` indexes:
+  - `user_id_idx`
+  - `created_at_idx`
+- Added `ai_credits.user_id_unique`.
+- Set `ADMIN_EMAIL` on:
+  - `ai-gateway`
+  - `admin-devkit-data`
+- Confirmed `idempotency_cache` is server-only:
+  - `permissions: []`
+  - `documentSecurity: false`
+
+---
+
+### Appwrite deployment state
+
+- Initial Phase 2/3 deployment IDs:
+  - `ai-gateway`: `6a23939ea82b08549e1a`, ready, active
+  - `admin-devkit-data`: `6a2393c910509d50f87c`, ready, active
+  - `coupons`: `6a2393f113a9d24a8f2e`, ready, active
+- Later public-chat fix deployment IDs:
+  - `public-share`: `6a23a4a2046316181547`, ready, active
+  - `ai-gateway`: `6a23a4c735c97e30126e`, ready, active
+- Latest deployed commit:
+  - `b4c48a0c01f0d267e4fa92c0982538609c9ddbbc`
+- GitHub status for latest commit:
+  - Vercel: success
+  - AI Gateway Hub: success
+
+---
+
+### Smoke check issue and fix
+
+- Root cause: `ai-gateway` smoke check originally returned anonymous `401` because `x-smoke-test` now required `validateUserSession(...)`, while `scripts/deploy_hubs.cjs` still sent the smoke probe with `auth: none`.
+- Fix: updated the smoke contract to use a narrow signed internal token.
+- Result: `ai-gateway` post-deploy smoke now returns HTTP `200`.
+
+---
+
+### Public portfolio chat blocker
+
+- Root cause 1: `ChatWidget.tsx` created `chat_sessions` directly from the browser.
+- Root cause 2: live `chat_sessions` collection is server-only, so browser creation failed.
+- Root cause 3: `ask-portfolio` previously routed through `ai-gateway` and required normal Appwrite user JWT, which public visitors do not have.
+- Fix:
+  - Moved public chat session creation to `public-share`.
+  - `ChatWidget` now calls `create-portfolio-chat-session` through `public-share`.
+  - `public-share` creates `chat_sessions` server-side.
+  - `public-share` proxies public portfolio chat to `ai-gateway` using a narrow internal HMAC token.
+  - `ai-gateway` accepts the internal token only for public portfolio chat and smoke, not for normal authenticated AI features.
+- Safety:
+  - `chat_sessions` remains server-only.
+  - Public chat requires a valid server-created signed session token.
+  - Username/session validation remains server-side.
+  - Question/history sizes are capped.
+  - Normal authenticated AI features still require Appwrite JWT.
+
+---
+
+### AI credit refresh consistency
+
+- Added shared helper:
+  - `src/lib/invalidate-ai-credit-queries.ts`
+- Patched direct charged AI call sites so the UI refreshes credits after success.
+- Affected files:
+  - `CoverLetterNewPage.tsx`
+  - `PortfolioEditorPage.tsx`
+  - `QuestionBankSheet.tsx`
+  - `ResignationLetterNewPage.tsx`
+  - `ResignationLetterEditPage.tsx`
+  - `OnboardingPage.tsx`
+  - `CreateResumeDialog.tsx`
+  - `ProfileImportSheet.tsx`
+  - `AddApplicationSheet.tsx`
+  - `TailorPage.tsx`
+
+---
+
+### Source hash tracking
+
+- `src/lib/devkit/sourceHashes.generated.json` was regenerated.
+- New relevant hashes:
+  - `ai-gateway`: `c672943069458d83`
+  - `public-share`: `de5ec771a7217239`
+
+---
+
+### Changed files
+
+Core public-chat fix:
+
+- `appwrite-hubs/public-share/src/main.js`
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `src/components/portfolio/public/ChatWidget.tsx`
+- `src/lib/appwrite-bridge.ts`
+- `src/lib/appwrite-functions.ts`
+- `scripts/deploy_hubs.cjs`
+
+Credit-refresh consistency:
+
+- `src/lib/invalidate-ai-credit-queries.ts`
+- `src/pages/CoverLetterNewPage.tsx`
+- `src/pages/PortfolioEditorPage.tsx`
+- `src/components/interview/QuestionBankSheet.tsx`
+- `src/pages/ResignationLetterNewPage.tsx`
+- `src/pages/ResignationLetterEditPage.tsx`
+- `src/pages/OnboardingPage.tsx`
+- `src/components/dashboard/CreateResumeDialog.tsx`
+- `src/components/settings/ProfileImportSheet.tsx`
+- `src/components/applications/AddApplicationSheet.tsx`
+- `src/pages/TailorPage.tsx`
+
+Source hash:
+
+- `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Validation
+
+Passed:
+
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node --check appwrite-hubs/public-share/src/main.js`
+- `node --check scripts/deploy_hubs.cjs`
+- `npx tsc --noEmit`
+- `npm run build`
+- `npx vitest run src/hooks/__tests__/useAIAction-D1.test.ts src/lib/__tests__/aiTailor-D1.test.ts src/hooks/__tests__/useAICredits.test.tsx`
+
+Result:
+
+- Syntax checks passed.
+- Typecheck passed.
+- Production build passed.
+- Focused tests passed: 22/22.
+- Appwrite deployments ready and active.
+- GitHub status checks for commit `b4c48a0c` show Vercel success and AI Gateway Hub success.
+
+---
+
+### Where We Stopped
+
+Current state:
+
+- Latest commit on `main`: `b4c48a0c01f0d267e4fa92c0982538609c9ddbbc`.
+- Frontend deploy status: Vercel success from GitHub commit status.
+- Appwrite active deployments:
+  - `public-share`: `6a23a4a2046316181547`
+  - `ai-gateway`: `6a23a4c735c97e30126e`
+- `admin-devkit-data` and `coupons` remain ready/active from earlier Phase 2/3 deployment.
+- No redeploy currently required.
+
+Remaining manual QA:
+
+- Create or confirm a real public portfolio username.
+- Visit `/p/:username`.
+- Open the public chat widget.
+- Send one question.
+- Refresh and send another question.
+- Confirm there is no `401`, no `session error`, and no infinite loading.
+- Run one authenticated AI action from a real logged-in account and confirm credits refresh after success.
+
+Known follow-ups:
+
+- Add broader anonymous abuse quota for public portfolio chat across multiple fresh sessions.
+- Consider server-verifiable password-gated portfolio chat access.
+- Keep non-atomic credit deduction on backlog for later hardening.
+- Keep Vercel connector token refresh as an operational cleanup item, although GitHub status already confirms Vercel success.
+
 ## Session Log - 2026-06-05 (AI Security Audit & Hardening — Phases 1–4)
 
 ### Overview
@@ -106,7 +288,9 @@ npx vitest run src/hooks/__tests__/useAIAction-D1.test.ts  # 11/11 pass
 
 ---
 
-### Required Appwrite Console steps before Phase 5
+### Appwrite Console status update
+
+The Phase 2/3 Appwrite Console steps documented in this 2026-06-05 entry were completed on 2026-06-06. The list below is retained only as historical context; it is no longer pending. See `Session Log - 2026-06-06 (Appwrite Phase 2/3 Activation + Public Portfolio Chat Fix)` above for the final live state.
 
 1. **`idempotency_cache` collection** (DB: `main`) — attributes: `key` (str 64, unique index), `user_id` (str 36), `feature` (str 64), `status` (str 16), `has_result` (bool), `cached_result` (str 65536, nullable), `created_at` (str 32), `expires_at` (str 32). Server-only permissions.
 2. **`ai_request_logs` collection** — add `credits_charged` (int), `idempotency_key` (str 64, nullable), `is_idempotency_hit` (bool) attributes. Add indexes on `user_id` and `created_at`.
