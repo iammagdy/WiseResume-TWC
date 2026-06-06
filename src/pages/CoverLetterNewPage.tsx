@@ -20,6 +20,7 @@ import { COVER_LETTER_TEMPLATE_OPTIONS } from '@/components/cover-letter/templat
 import { CoverLetterPreview } from '@/components/cover-letter/CoverLetterPreview';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 
 import { cn } from '@/lib/utils';
 
@@ -116,6 +117,7 @@ export default function CoverLetterNewPage() {
       setResult(letter);
       setSavedId(data.id || null);
       if (data.id) queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
+      invalidateAiCreditQueries(queryClient);
       setIsEditing(false);
       haptics.success();
     } catch (err: unknown) {

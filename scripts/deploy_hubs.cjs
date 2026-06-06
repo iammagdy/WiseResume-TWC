@@ -69,7 +69,7 @@ const SAFE_SMOKE_CHECKS = new Map([
     ['admin-onboarding-funnel', { auth: 'devkit', body: { days: 7, granularity: 'day' } }],
     ['inspect-ai-keys', { auth: 'devkit', body: { action: 'inspect', includeModels: true } }],
     ['admin-deploy-hubs', { auth: 'devkit', body: { action: 'health' } }],
-    ['ai-gateway', { auth: 'none', body: { featureName: 'smoke-check', 'x-smoke-test': 'true' } }],
+    ['ai-gateway', { auth: 'gateway-internal', body: { featureName: 'smoke-check', 'x-smoke-test': 'true' } }],
     ['ai-health', { auth: 'none', body: {} }],
 ]);
 
@@ -295,6 +295,16 @@ function devKitToken() {
     return `${encoded}.${sig}`;
 }
 
+function gatewayInternalToken(purpose) {
+    const secret = process.env.APPWRITE_API_KEY;
+    if (!secret) throw new Error('APPWRITE_API_KEY is required for signed ai-gateway smoke tests');
+    const now = Date.now();
+    const payload = { purpose, iat: now, exp: now + (5 * 60 * 1000), source: 'deploy-script' };
+    const encoded = base64url(JSON.stringify(payload));
+    const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+    return `${encoded}.${sig}`;
+}
+
 async function smokeFunction(hubId, smoke) {
     const hub = HUBS.find(entry => entry.id === hubId);
     if (!hub) throw new Error(`Unknown hub for smoke test: ${hubId}`);
@@ -302,6 +312,11 @@ async function smokeFunction(hubId, smoke) {
     const body = { ...(smoke.body || {}) };
     if (smoke.auth === 'devkit') {
         body.__headers = { Authorization: `Bearer ${devKitToken()}` };
+    } else if (smoke.auth === 'gateway-internal') {
+        body.__headers = {
+            ...(body.__headers || {}),
+            'X-Internal-Gateway-Token': gatewayInternalToken('gateway-smoke'),
+        };
     }
     const execution = await functions.createExecution({
         functionId,

@@ -40,6 +40,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { cn } from '@/lib/utils';
 
 export interface ProfileData {
@@ -211,6 +213,7 @@ export function ProfileImportSheet({
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [editingExpIdx, setEditingExpIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   // Auto-jump to a specific method when the sheet opens with `initialMethod`.
   // Fires only on the open transition so the user can navigate freely afterwards.
@@ -239,8 +242,9 @@ export function ProfileImportSheet({
     if (fnError) throw fnError;
     if (data?.error === 'URL_ONLY_REJECTED') throw new Error(data.message);
     if (data?.error) throw new Error(data.message || data.error);
+    invalidateAiCreditQueries(queryClient);
     return data as Partial<ProfileData>;
-  }, [platform]);
+  }, [platform, queryClient]);
 
   const handleQuickAnalyze = async () => {
     if (!quickPasteText.trim()) {

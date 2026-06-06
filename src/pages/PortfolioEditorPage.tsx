@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { useNavigate } from 'react-router-dom';
@@ -578,6 +579,7 @@ export default function PortfolioEditorPage() {
     });
     if (error) throw new Error(error.message || 'AI request failed');
     if (data?.error) throw new Error(data.error || 'AI request failed');
+    invalidateAiCreditQueries(queryClient);
     return data;
   };
 
@@ -655,6 +657,7 @@ export default function PortfolioEditorPage() {
       });
       if (error) throw new Error(error.message || 'Translation failed');
       if (data?.error) throw new Error(data.error || 'Translation failed');
+      invalidateAiCreditQueries(queryClient);
       const translations = data?.translations;
       if (translations) {
         setPortfolioTranslations(prev => ({ ...prev, [targetLanguage]: translations }));

@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 
 interface Question {
   question: string;
@@ -49,6 +51,7 @@ export function QuestionBankSheet({
   const [categories, setCategories] = useState<QuestionCategory[]>([]);
   const [activeTab, setActiveTab] = useState<string>('company');
   const [expandedQ, setExpandedQ] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const handleGenerate = async () => {
     if (!jobTitle) {
@@ -68,6 +71,7 @@ export function QuestionBankSheet({
         },
       });
       if (error) throw new Error(error.message || 'Failed to generate questions');
+      invalidateAiCreditQueries(queryClient);
       setCategories(result?.categories || []);
       if (result?.categories && result.categories.length > 0) {
         setActiveTab(result.categories[0].id);

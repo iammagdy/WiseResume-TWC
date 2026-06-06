@@ -42,7 +42,11 @@ const WISEHIRE_FUNCTIONS = new Set([
   'wisehire-talent-view',
   'wisehire-access',
 ]);
-const PUBLIC_SHARE_FUNCTIONS = new Set(['verify-share-password']);
+const PUBLIC_SHARE_FUNCTIONS = new Set([
+  'verify-share-password',
+  'create-portfolio-chat-session',
+  'ask-portfolio',
+]);
 
 function isCouponFunction(fnName: string): boolean {
   return COUPON_FUNCTIONS.has(fnName);

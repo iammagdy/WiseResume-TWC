@@ -27,6 +27,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { useAuth } from '@/hooks/useAuth';
 import { logWorkspaceActivity } from '@/store/workspaceActivityStore';
 import { useProfile } from '@/hooks/useProfile';
@@ -369,6 +370,7 @@ export function CreateResumeDialog({
           (data as Record<string, unknown>).error as string
         );
       }
+      invalidateAiCreditQueries(queryClient);
 
       const parsed = data as Partial<ProfileData> & { summary?: string };
       const mapped = mapProfileDataToResumeFields(parsed);

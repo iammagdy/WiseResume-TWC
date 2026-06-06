@@ -4,8 +4,6 @@ import { MessageSquare, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
@@ -15,6 +13,7 @@ interface PersistedChatState {
   messages: ChatMessage[];
   questionCount: number;
   isFallback: boolean;
+  sessionToken?: string | null;
 }
 
 function loadChatState(username: string): PersistedChatState | null {
@@ -35,7 +34,7 @@ function saveChatState(username: string, state: PersistedChatState) {
   }
 }
 
-export function ChatWidget({ profile, resume, accentColor, pStyle }: {
+export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
   profile: PublicProfile; resume: PublicResume; accentColor: string; pStyle: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -54,7 +53,10 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     if (!profile.username) return 0;
     return loadChatState(profile.username)?.questionCount ?? 0;
   });
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(() => {
+    if (!profile.username) return null;
+    return loadChatState(profile.username)?.sessionToken ?? null;
+  });
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -69,13 +71,15 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
 
     setSessionLoading(true);
     setSessionError(false);
-    databases
-      .createDocument(DATABASE_ID, COLLECTIONS.chat_sessions, ID.unique(), {
-        portfolio_username: profile.username,
-        created_at: new Date().toISOString(),
+    appwriteFunctions
+      .invoke<{ sessionToken?: string }>('create-portfolio-chat-session', {
+        body: { username: profile.username },
       })
-      .then((doc) => {
-        setSessionToken(doc.$id);
+      .then(({ data, error }) => {
+        if (error || !data?.sessionToken) {
+          throw new Error(error?.message || 'Session unavailable');
+        }
+        setSessionToken(data.sessionToken);
       })
       .catch(() => {
         setSessionError(true);
@@ -92,9 +96,10 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   // Persist conversation state to sessionStorage so history survives page refreshes
   // within the same browser tab session (single-visit memory).
   useEffect(() => {
-    if (!profile.username || messages.length === 0) return;
-    saveChatState(profile.username, { messages, questionCount, isFallback });
-  }, [messages, questionCount, isFallback, profile.username]);
+    if (!profile.username) return;
+    if (messages.length === 0 && questionCount === 0 && !isFallback && !sessionToken) return;
+    saveChatState(profile.username, { messages, questionCount, isFallback, sessionToken });
+  }, [messages, questionCount, isFallback, sessionToken, profile.username]);
 
   useEffect(() => {
     if (open && scrollRef.current) {
@@ -108,6 +113,10 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   const send = async (questionOverride?: string) => {
     const q = (questionOverride ?? input).trim();
     if (!q || loading) return;
+    if (sessionLoading || !sessionToken) {
+      toast.error('Chat is still getting ready. Please try again in a moment.');
+      return;
+    }
     const maxAllowed = isFallback ? 5 : MAX_QUESTIONS;
     
     if (questionCount >= maxAllowed) {
@@ -122,11 +131,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
-
     try {
-      const recentRole = Array.isArray(resume.experience) && resume.experience.length > 0
-        ? `${(resume.experience[0] as Record<string, string>).position || ''} at ${(resume.experience[0] as Record<string, string>).company || ''}`.trim()
-        : undefined;
       const { data, error } = await appwriteFunctions.invoke<{
         answer?: string;
         isFallback?: boolean;
@@ -138,16 +143,6 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
           question: q,
           conversationHistory: messages.slice(-6),
           sessionToken,
-          profileContext: {
-            fullName: profile.fullName,
-            title: (profile as Record<string, unknown>).title as string | undefined,
-            location: (profile as Record<string, unknown>).location as string | undefined,
-            bio: typeof (profile as Record<string, unknown>).bio === 'string'
-              ? ((profile as Record<string, unknown>).bio as string).slice(0, 300)
-              : undefined,
-            skills: Array.isArray(resume.skills) ? (resume.skills as string[]).slice(0, 20) : [],
-            recentRole: recentRole || undefined,
-          },
         },
       });
 
@@ -157,11 +152,15 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
 
       // If the owner has explicitly disabled chat or a permanent error occurs
       if (data?.chatDisabled) {
+        setChatDisabled(true);
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: "I'm sorry, but chat is currently disabled for this portfolio. You can still reach out via the contact buttons!" 
         }]);
         return;
+      }
+      if (error?.status === 403) {
+        setSessionToken(null);
       }
       if (error) throw new Error(error.message || 'Request failed');
       if (data?.error) throw new Error(data.error);
@@ -262,6 +261,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
                     <button
                       key={q}
                       onClick={() => send(q)}
+                      disabled={loading || sessionLoading || !sessionToken || chatDisabled}
                       className="block w-full text-left text-xs px-3 py-1.5 rounded-xl transition-all hover:opacity-80"
                       style={{ background: `color-mix(in srgb, ${accentColor} 10%, transparent)`, color: accentColor, border: `1px solid color-mix(in srgb, ${accentColor} 20%, transparent)` }}
                     >
@@ -308,9 +308,10 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKey}
-                    placeholder="Ask a question…"
+                    placeholder={sessionLoading ? 'Preparing chat...' : 'Ask a question...'}
                     rows={1}
                     className="flex-1 resize-none rounded-xl px-3 py-2 text-xs outline-none transition-all"
+                    disabled={sessionLoading || !sessionToken || chatDisabled}
                     style={{
                       background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.06)',
                       border: `1px solid ${borderColor}`,
@@ -320,7 +321,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
                   />
                   <button
                     onClick={() => send()}
-                    disabled={!input.trim() || loading}
+                    disabled={!input.trim() || loading || sessionLoading || !sessionToken || chatDisabled}
                     className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-40 hover:scale-105 active:scale-95"
                     style={{ background: accentColor, color: '#fff' }}
                   >

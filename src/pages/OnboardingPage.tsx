@@ -12,6 +12,7 @@ import { useMe } from '@/hooks/useMe';
 import { toast } from 'sonner';
 import { parseResumePDF, parseResumePDFWithOCR, parseTextWithAI } from '@/lib/pdfParser';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import {
@@ -353,6 +354,7 @@ export default function OnboardingPage() {
           });
           if (fnError) throw fnError;
           if (data?.error) throw new Error(data.message || data.error);
+          invalidateAiCreditQueries(queryClient);
           extracted = fromProfileData(data as Partial<ProfileData>, {
             fullName: probe.derivedName ?? undefined,
             linkedinUrl: linkedinUrlNormalized,

@@ -13,6 +13,8 @@ import { ResignationChecklist } from '@/components/resignation/ResignationCheckl
 import { useAuth } from '@/hooks/useAuth';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { haptics } from '@/lib/haptics';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 
 import { toast } from 'sonner';
 
@@ -33,6 +35,7 @@ export default function ResignationLetterEditPage() {
   const { user, loading: authLoading } = useAuth();
   const { data: letter, isLoading } = useResignationLetter(id || null);
   const { updateLetter, deleteLetter } = useResignationLetterMutations();
+  const queryClient = useQueryClient();
 
   const [content, setContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -144,6 +147,7 @@ export default function ResignationLetterEditPage() {
 
       if (error) throw new Error(error.message || 'Failed to regenerate');
       if (data?.error) throw new Error(data.error || 'Failed to regenerate');
+      invalidateAiCreditQueries(queryClient);
       setContent(data.letter);
       setHasUnsavedChanges(true);
       haptics.success();

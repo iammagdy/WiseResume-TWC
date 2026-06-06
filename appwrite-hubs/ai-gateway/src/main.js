@@ -299,6 +299,35 @@ function getAppwriteProjectId() {
   return process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 }
 
+function verifySignedInternalToken(token, expectedPurpose) {
+  const secret = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+  if (!secret || !token || typeof token !== 'string' || !token.includes('.')) return null;
+  const dotIdx = token.lastIndexOf('.');
+  const encoded = token.slice(0, dotIdx);
+  const sig = token.slice(dotIdx + 1);
+  if (!encoded || !sig) return null;
+  try {
+    const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+    const actualBuf = Buffer.from(sig, 'base64url');
+    const expectedBuf = Buffer.from(expected, 'base64url');
+    if (actualBuf.length !== expectedBuf.length) return null;
+    if (!crypto.timingSafeEqual(actualBuf, expectedBuf)) return null;
+  } catch {
+    return null;
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+
+  if (payload?.purpose !== expectedPurpose) return null;
+  if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
+  return payload;
+}
+
 /**
  * Verify a short-lived admin test nonce issued by admin-devkit-data.
  * Returns the decoded payload on success, or null if invalid/expired.
@@ -306,23 +335,24 @@ function getAppwriteProjectId() {
  * No API keys are exposed in the gateway response — only preview content.
  */
 function verifyAdminTestNonce(nonce) {
-  const secret = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
-  if (!secret || !nonce || typeof nonce !== 'string' || !nonce.includes('.')) return null;
-  const dotIdx = nonce.lastIndexOf('.');
-  const encoded = nonce.slice(0, dotIdx);
-  const sig = nonce.slice(dotIdx + 1);
-  if (!encoded || !sig) return null;
-  try {
-    const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
-    const actualBuf   = Buffer.from(sig, 'base64url');
-    const expectedBuf = Buffer.from(expected, 'base64url');
-    if (actualBuf.length !== expectedBuf.length) return null;
-    if (!crypto.timingSafeEqual(actualBuf, expectedBuf)) return null;
-  } catch { return null; }
-  let payload;
-  try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return null; }
-  if (payload?.purpose !== 'gateway-admin-test') return null;
-  if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
+  return verifySignedInternalToken(nonce, 'gateway-admin-test');
+}
+
+function getInternalGatewayToken(body, req) {
+  const embeddedHeaders = isRecord(body.__headers) ? body.__headers : {};
+  return getHeader(embeddedHeaders, 'X-Internal-Gateway-Token') || getHeader(req.headers, 'X-Internal-Gateway-Token');
+}
+
+function validateGatewaySmokeToken(body, req) {
+  return verifySignedInternalToken(getInternalGatewayToken(body, req), 'gateway-smoke');
+}
+
+function validatePublicPortfolioGatewayAuth(body, req) {
+  const payload = verifySignedInternalToken(getInternalGatewayToken(body, req), 'public-portfolio-chat');
+  if (!payload) return null;
+  if (typeof payload.sid !== 'string' || typeof payload.username !== 'string' || typeof payload.ownerUserId !== 'string') {
+    return null;
+  }
   return payload;
 }
 
@@ -1810,7 +1840,8 @@ module.exports = async ({ req, res, log, error }) => {
 
     // ── 0. SMOKE-TEST SHORT-CIRCUIT ──────────────────────────────────────────
     if (opts['x-smoke-test'] === 'true' || req.headers?.['x-smoke-test'] === 'true') {
-      const smokeAuth = await validateUserSession(opts, req);
+      const smokeToken = validateGatewaySmokeToken(opts, req);
+      const smokeAuth = smokeToken ? { ok: true } : await validateUserSession(opts, req);
       if (!smokeAuth.ok) {
         await flushDD();
         return res.json({ status: 'error', code: 'unauthorized', message: smokeAuth.message }, smokeAuth.status);
@@ -1879,9 +1910,14 @@ module.exports = async ({ req, res, log, error }) => {
     const adminTestNonceRaw = asString(opts.__admin_test_nonce || '');
     const adminTestPayload = adminTestNonceRaw ? verifyAdminTestNonce(adminTestNonceRaw) : null;
     const isAdminTest = !!adminTestPayload;
+    const publicPortfolioAuth = featureName === 'ask-portfolio'
+      ? validatePublicPortfolioGatewayAuth(opts, req)
+      : null;
 
     // ── 2. AI ROUTE ─────────────────────────────────────────────────────────
-    const auth = await validateUserSession(opts, req);
+    const auth = publicPortfolioAuth
+      ? { ok: true, user: { $id: publicPortfolioAuth.ownerUserId, email: '' } }
+      : await validateUserSession(opts, req);
     if (!auth.ok) {
       await flushDD();
       return res.json({ status: 'error', code: 'unauthorized', message: auth.message }, auth.status);
@@ -1896,12 +1932,14 @@ module.exports = async ({ req, res, log, error }) => {
     // fails closed when the env var is absent.
     const ADMIN_EMAIL_ENV = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
     const impersonatingUserId = asString(opts?.__headers?.['X-Impersonating-User-Id'] || '').trim();
-    const effectiveUserId = (
-      impersonatingUserId &&
-      ADMIN_EMAIL_ENV &&
-      typeof auth.user.email === 'string' &&
-      auth.user.email.toLowerCase() === ADMIN_EMAIL_ENV
-    ) ? impersonatingUserId : auth.user.$id;
+    const effectiveUserId = publicPortfolioAuth
+      ? publicPortfolioAuth.ownerUserId
+      : (
+        impersonatingUserId &&
+        ADMIN_EMAIL_ENV &&
+        typeof auth.user.email === 'string' &&
+        auth.user.email.toLowerCase() === ADMIN_EMAIL_ENV
+      ) ? impersonatingUserId : auth.user.$id;
 
     // Fetch plan once here — reused by persistent rate limit and credit state.
     // Admin tests skip plan lookup (nonce already gates them).
@@ -1911,7 +1949,21 @@ module.exports = async ({ req, res, log, error }) => {
     // Server-side per-session question cap.  Degrades gracefully when the
     // chat_sessions.question_count attribute has not yet been added in Appwrite Console.
     if (featureName === 'ask-portfolio') {
-      const sessionCheck = await validatePortfolioSession(db, asString(opts.sessionToken || ''));
+      if (
+        publicPortfolioAuth &&
+        asString(opts.username || '').toLowerCase() !== publicPortfolioAuth.username
+      ) {
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'session_not_found',
+          message: 'Portfolio session not found or expired.',
+        }, 403);
+      }
+      const sessionCheck = await validatePortfolioSession(
+        db,
+        publicPortfolioAuth ? publicPortfolioAuth.sid : asString(opts.sessionToken || ''),
+      );
       if (!sessionCheck.ok) {
         await flushDD();
         return res.json({

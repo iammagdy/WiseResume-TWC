@@ -17,6 +17,7 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
 import { haptics } from '@/lib/haptics';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -133,6 +134,7 @@ export default function ResignationLetterNewPage() {
 
       if (error) throw new Error(error.message || 'Failed to generate letter');
       if (data?.error) throw new Error(data.error || 'AI service error');
+      invalidateAiCreditQueries(queryClient);
       setResult(data.letter || data.content);
       setSavedId(data.id || null);
       if (data.id) queryClient.invalidateQueries({ queryKey: ['resignation-letters'] });

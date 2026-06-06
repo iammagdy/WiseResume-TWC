@@ -30,6 +30,8 @@ import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import {
   SuperTailorResult,
   TailorProgress,
@@ -243,6 +245,7 @@ export default function TailorPage() {
   const copiedTextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumeIdRef = useRef<string | null>(currentResumeId);
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
+  const queryClient = useQueryClient();
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
   useEffect(() => {
@@ -493,6 +496,7 @@ export default function TailorPage() {
             });
             // Only apply result if this is still the current pre-validate request and same resume
             if (!vError && vResult && preValidateAbortRef.current === thisAbort) {
+              invalidateAiCreditQueries(queryClient);
               if (resumeIdRef.current !== capturedResumeId) return;
               setPreValidatorResult(vResult);
             }
@@ -567,6 +571,7 @@ export default function TailorPage() {
         if (fixGenerateAbortRef.current !== thisAbort) return;
         if (resumeIdRef.current !== capturedResumeId) return;
         if (!fixError && fixes) {
+          invalidateAiCreditQueries(queryClient);
           setFixSuggestions(fixes.slice(0, 5));
         } else {
           setFixSuggestions([]);
@@ -635,6 +640,7 @@ export default function TailorPage() {
           },
         });
         if (!vError && vResult) {
+          invalidateAiCreditQueries(queryClient);
           validatorResult = vResult;
         }
       } catch {

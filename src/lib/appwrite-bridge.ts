@@ -16,7 +16,7 @@ export const AI_HUB_FUNCTIONS = new Set([
   'smart-fit-rewrite', 'optimize-for-linkedin', 'validate-tailor',
 
   // Career & Portfolio
-  'career-assessment', 'ask-portfolio', 'company-briefing', 'detect-and-humanize',
+  'career-assessment', 'company-briefing', 'detect-and-humanize',
 
   // Ops routed through ai-gateway
   'send-contact-email',

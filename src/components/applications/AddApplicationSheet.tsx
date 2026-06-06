@@ -6,13 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { databases, DATABASE_ID } from '@/lib/appwrite';
 import { Query } from 'appwrite';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 
 interface AddApplicationSheetProps {
   open: boolean;
@@ -27,6 +28,7 @@ interface AddApplicationSheetProps {
 export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddApplicationSheetProps) {
   const { user } = useAuth();
   const { createApplication } = useJobApplicationMutations();
+  const queryClient = useQueryClient();
   const [jobTitle, setJobTitle] = useState(defaultValues?.job_title || '');
   const [company, setCompany] = useState(defaultValues?.company || '');
   const [status, setStatus] = useState<ApplicationStatus>('applied');
@@ -85,6 +87,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
         body: { action: 'url', url: trimmed },
       });
       if (!error && parsed) {
+        invalidateAiCreditQueries(queryClient);
         if (parsed.title && !jobTitle) setJobTitle(parsed.title);
         if (parsed.company && !company) setCompany(parsed.company);
         if (parsed.deadline) setDeadline(parsed.deadline.split('T')[0]);
