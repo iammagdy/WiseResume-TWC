@@ -125,7 +125,7 @@ const toolCategories: { title: string; description: string; tools: ToolEntry[] }
       { id: 'enhance', icon: Sparkles, label: 'Enhance', desc: 'Improve writing', color: 'text-cyan-500', cost: 'enhance' },
       { id: 'onepage', icon: FileText, label: '1-Page Wizard', desc: 'Condense resume', color: 'text-amber-500', cost: 'one-page' },
       { id: 'humanizer', icon: Shield, label: 'Humanize', desc: 'AI detection fix', color: 'text-violet-500', cost: 'detect-humanize' },
-      { id: 'job-match', icon: Target, label: 'Job Match', desc: 'ATS compatibility score', color: 'text-green-500', cost: 'score' },
+      { id: 'job-match', icon: Target, label: 'Tailoring Hub', desc: 'All-in-one tailoring workspace', color: 'text-green-500', cost: 'tailor', navigate: '/tailoring-hub' }, // id kept as 'job-match' for analytics/flag stability — public label is 'Tailoring Hub'
       { id: 'ab-compare', icon: GitCompareArrows, label: 'A/B Compare', desc: 'Score two resumes', color: 'text-rose-500', cost: 'score' },
       { id: 'recruiter', icon: UserCheck, label: 'Recruiter Sim', desc: 'Simulate review', color: 'text-rose-500', cost: 'recruiter-sim' },
       { id: 'skills-gap', icon: TrendingUp, label: 'Skills Gap', desc: 'Identify missing skills', color: 'text-cyan-500', cost: 'skills-gap' },
@@ -259,7 +259,7 @@ export default function AIStudioPage() {
   const openToolById = useCallback((tool: string) => {
     const toolMap: Record<string, () => void> = {
       'tailor': () => setShowTailor(true),
-      'job-match': () => setShowJobSheet(true),
+      'job-match': () => navigate('/tailoring-hub'),
       'ab-compare': () => setShowABCompare(true),
       'enhance': () => setShowEnhance(true),
       'humanizer': () => setShowAIDetector(true),

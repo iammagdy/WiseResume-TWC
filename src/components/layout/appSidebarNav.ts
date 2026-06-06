@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   FileText,
   Wand2,
+  Target,
   Globe,
   BarChart3,
   Settings,
@@ -41,6 +42,12 @@ export const APP_SIDEBAR_LINKS: AppSidebarNavItem[] = [
       '/resignation-letter',
       '/interview',
     ],
+  },
+  {
+    path: '/tailoring-hub',
+    label: 'Tailoring Hub',
+    icon: Target,
+    match: ['/tailoring-hub'],
   },
   {
     path: '/applications',

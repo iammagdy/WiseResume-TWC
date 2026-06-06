@@ -56,6 +56,7 @@ const TAB_ROUTES = [
   '/achievements',
   '/help',
   '/search',
+  '/tailoring-hub',
 ];
 
 /**

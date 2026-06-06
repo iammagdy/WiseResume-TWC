@@ -185,7 +185,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
       haptics.success();
       window.setTimeout(() => {
         onOpenChange(false);
-        navigate(`/job/${result.id}`);
+        navigate(`/tailoring-hub?jobId=${result.id}`);
       }, 1600);
     } catch (err: unknown) {
       haptics.warning();

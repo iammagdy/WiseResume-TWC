@@ -314,6 +314,8 @@ export interface TailorHistory {
   company: string;
   jobDescription: string;
   jobUrl?: string | null;
+  /** ID of the newly created tailored resume document in Appwrite. */
+  tailoredResumeId?: string | null;
   tailorResult: EnhancedTailorResult;
   scoreBeforeAfter: { before: number; after: number };
   /** Verified match score from validate-tailor (or generator fallback). Stored when the resume is saved. */

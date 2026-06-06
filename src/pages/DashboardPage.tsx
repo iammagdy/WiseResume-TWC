@@ -50,6 +50,7 @@ import { usePlan } from '@/hooks/usePlan';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { useAppwriteTailoredIds } from '@/hooks/useTailorHistory';
 import { OnboardingChecklist, ChecklistStep } from '@/components/dashboard/OnboardingChecklist';
 
 // Lazy-loaded dialogs
@@ -95,7 +96,14 @@ function DashboardPageContent() {
   } = useResumes();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
 
-  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const { setCurrentResume, setCurrentResumeId, tailorHistory } = useResumeStore();
+  const { data: appwriteTailoredIds } = useAppwriteTailoredIds();
+  const tailoredResumeIds = useMemo(() => {
+    const ids = new Set<string>();
+    tailorHistory.forEach((h) => { if (h.tailoredResumeId) ids.add(h.tailoredResumeId); });
+    appwriteTailoredIds?.forEach((id) => ids.add(id));
+    return ids;
+  }, [tailorHistory, appwriteTailoredIds]);
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id);
   const { plan } = usePlan();
@@ -193,7 +201,7 @@ function DashboardPageContent() {
       setCurrentResumeId(latest.$id);
       setCurrentResume(dbToResumeData(latest));
     }
-    navigate('/tailor');
+    navigate('/tailoring-hub');
   }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
 
   const handleContinueEditing = useCallback(() => {
@@ -262,7 +270,7 @@ function DashboardPageContent() {
       if (!target) return;
       setCurrentResumeId(target.$id);
       setCurrentResume(dbToResumeData(target));
-      navigate('/tailor');
+      navigate('/tailoring-hub');
     },
     [resumes, setCurrentResumeId, setCurrentResume, navigate],
   );
@@ -486,9 +494,24 @@ function DashboardPageContent() {
     if (resume) {
       setCurrentResumeId(resumeId);
       setCurrentResume(dbToResumeData(resume));
-      navigate('/editor');
+      if (resume.parent_resume_id || tailoredResumeIds.has(resumeId)) {
+        const histEntry = tailorHistory.find((h) => h.tailoredResumeId === resumeId);
+        navigate(`/tailoring-hub/result/${resumeId}`, {
+          state: histEntry
+            ? {
+                jobTitle: histEntry.jobTitle,
+                company: histEntry.company,
+                jobUrl: histEntry.jobUrl ?? null,
+                scoreBeforeAfter: histEntry.scoreBeforeAfter,
+                appliedSections: histEntry.appliedSections,
+              }
+            : undefined,
+        });
+      } else {
+        navigate('/editor');
+      }
     }
-  }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
+  }, [resumes, setCurrentResumeId, setCurrentResume, navigate, tailoredResumeIds, tailorHistory]);
 
   const handleDuplicate = useCallback((resumeId: string) => {
     setDuplicateResumeId(resumeId);
@@ -590,8 +613,8 @@ function DashboardPageContent() {
   }, [resumes, deferredSearch]);
 
   const tailoredResumes = useMemo(
-    () => filteredResumes?.filter((r) => r.parent_resume_id) ?? [],
-    [filteredResumes],
+    () => filteredResumes?.filter((r) => r.parent_resume_id || tailoredResumeIds.has(r.$id)) ?? [],
+    [filteredResumes, tailoredResumeIds],
   );
 
   const displayedResumes = useMemo(() => {
@@ -1048,7 +1071,7 @@ function DashboardPageContent() {
                                 showMasterBadge={
                                   isMaster && !!resumeHierarchy?.tailoredByParent[resume.$id]?.length
                                 }
-                                showTailoredBadge={!isMaster}
+                                showTailoredBadge={!isMaster || tailoredResumeIds.has(resume.$id)}
                                 healthScore={healthScores[resume.$id]}
                                 isScoring={scoringId === resume.$id}
                                 selectionMode={selectionMode}

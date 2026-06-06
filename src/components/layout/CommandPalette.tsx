@@ -95,9 +95,9 @@ export function CommandPalette() {
             <GitCompareArrows className="mr-2 h-4 w-4" />
             A/B Compare
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/job-match')}>
+          <CommandItem onSelect={() => go('/tailoring-hub')}>
             <Target className="mr-2 h-4 w-4" />
-            Job Match Analysis
+            Tailoring Hub
           </CommandItem>
           <CommandItem onSelect={() => go('/ai-studio/enhance')}>
             <Sparkles className="mr-2 h-4 w-4" />

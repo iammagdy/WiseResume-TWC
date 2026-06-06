@@ -156,9 +156,10 @@ export default function PreviewPage() {
     return () => clearTimeout(timer);
   }, [user]);
 
-  // Auto-download detection: when arriving with ?action=download
+  // Auto-download detection: when arriving with ?action=download|ats-pdf|docx (E-2)
   useEffect(() => {
-    if (searchParams.get('action') !== 'download' || downloadTriggered.current) return;
+    const action = searchParams.get('action');
+    if (!['download', 'ats-pdf', 'docx'].includes(action ?? '') || downloadTriggered.current) return;
     downloadTriggered.current = true;
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('action');
@@ -170,8 +171,9 @@ export default function PreviewPage() {
         return;
       }
 
-      // Auto download immediately
-      handleExport('resume', true);
+      if (action === 'ats-pdf') handleExport('ats-pdf', false);
+      else if (action === 'docx') handleExport('docx', true);
+      else handleExport('resume', true);
     }, 800);
 
     return () => clearTimeout(timer);
