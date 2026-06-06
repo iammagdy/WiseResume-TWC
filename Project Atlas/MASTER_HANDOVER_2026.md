@@ -2,6 +2,155 @@
 
 ---
 
+## Session Log - 2026-06-06 (Tailoring Hub Full Re-audit & Fixes)
+
+### Overview
+
+Full end-to-end re-audit and fix pass on the Tailoring Hub flow. Every gap from the previous audit plus newly discovered issues during live testing were addressed. No Appwrite Functions changed. No deployment performed. All changes are uncommitted local working-tree changes on top of `main` at `22379152`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — Appwrite schema error on tailoring (`parent_resume_id`)
+
+- **Root cause**: `createDocument` for `COLLECTIONS.resumes` included `parent_resume_id: currentResumeId` but this attribute was never provisioned in the Appwrite `resumes` collection (legacy Supabase-only field). Every tailor attempt threw `Invalid document structure: Unknown attribute: "parent_resume_id"`.
+- **Fix**: Removed `parent_resume_id` from the `createDocument` payload. Tailored-CV identity is now tracked via `tailor_history` (Zustand + Appwrite).
+- **File**: `src/pages/TailoringHubPage.tsx`
+
+#### F2 — Tailored tab on dashboard always showed 0
+
+- **Root cause A**: `tailoredResumeIds` was derived only from Zustand `tailorHistory` (localStorage, capped at last 10 entries). Cleared storage or >10 tailoring sessions silently broke the filter.
+- **Root cause B**: No Appwrite query was made from the dashboard against `tailor_history`.
+- **Fix**: Created `src/hooks/useTailorHistory.ts` — `useAppwriteTailoredIds()` queries all `tailor_history` documents for the current user and returns a `Set<string>` of `tailored_resume_id` values. `DashboardPage` merges Zustand + Appwrite sources into `tailoredResumeIds`. All downstream consumers (`tailoredResumes` filter, badge, `handleEdit` routing) use the combined set.
+- **Files**: `src/hooks/useTailorHistory.ts` (new), `src/pages/DashboardPage.tsx`
+
+#### F3 — Result page showed no job context when accessed from dashboard
+
+- **Root cause**: `handleEdit` navigated to `/tailoring-hub/result/:id` with no `location.state`. If the fire-and-forget Appwrite `tailor_history` write had failed (or the user was on a new device), all three fallbacks (state → Zustand → Appwrite) produced empty `{}`, so no job title, scores, or sections were shown.
+- **Fix**: `handleEdit` reads the matching Zustand `tailorHistory` entry and passes it as `location.state` to the navigate call. Appwrite fallback retained as last resort.
+- **File**: `src/pages/DashboardPage.tsx`
+
+#### F4 — Workspace auto-selected the tailored copy instead of a master resume
+
+- **Root cause**: `navigateWithTemplate` in the result page called `setCurrentResumeId(tailoredCV)` even when opening exports in a new tab (PDF, ATS, DOCX, Preview Sheet). New tabs use `?id=` URL params and do not need Zustand state. On returning to the workspace, `currentResumeId` pointed to the tailored CV; the auto-selection effect bailed out because the resume existed.
+- **Fix A**: `navigateWithTemplate` now skips `setCurrentResumeId` / `setCurrentResume` when `newTab = true`. Same-tab navigation (e.g., "Open Full Editor") still updates Zustand.
+- **Fix B**: Workspace auto-selection effect now checks `useResumeStore.getState().tailorHistory` to detect if `currentResumeId` is a tailored CV, and switches to the most-recent master resume if so.
+- **Files**: `src/pages/TailoringHubResultPage.tsx`, `src/pages/TailoringHubPage.tsx`
+
+#### F5 — Scores showed 0/0 on result page
+
+- **Root cause**: The `tailor-resume` Appwrite Function returns `overallScore: null`. The workspace fell back to `resultScore?.before ?? 0` / `?? 0`, producing `{before: 0, after: 0}` stored in history and displayed.
+- **Fix**: `handleTailor` now computes keyword-overlap scores on the frontend via `computeMatch` (exported from `MatchAnalysisSummary.tsx`) — `scoreBefore` against original resume text, `scoreAfter` against merged resume text. These are used as fallback when `tailorResult.overallScore` is null. AI scores take priority if the function ever starts returning them.
+- **Files**: `src/pages/TailoringHubPage.tsx`, `src/components/job-match/MatchAnalysisSummary.tsx`
+
+#### F6 — Dashboard tailor buttons routed to old `/tailor` page
+
+- **Root cause**: `handleHeroTailor` and `handleTailorResume` both called `navigate('/tailor')`.
+- **Fix**: Both now call `navigate('/tailoring-hub')` and set `currentResumeId` / `currentResume` to the selected master resume before navigating.
+- **File**: `src/pages/DashboardPage.tsx`
+
+#### F7 — Clicking tailored CV on dashboard opened editor instead of result page
+
+- **Root cause**: `handleEdit` unconditionally navigated to `/editor`.
+- **Fix**: `handleEdit` checks `resume.parent_resume_id || tailoredResumeIds.has(resumeId)` and routes tailored CVs to `/tailoring-hub/result/:id`.
+- **File**: `src/pages/DashboardPage.tsx`
+
+#### F8 — TDZ crash on dashboard (`tailoredResumeIds before initialization`)
+
+- **Root cause**: `tailoredResumeIds` `useMemo` was declared after the `handleEdit` `useCallback` that referenced it in its dep array. JavaScript temporal dead zone caused a `ReferenceError` on every render.
+- **Fix**: Moved `tailoredResumeIds` declaration to immediately after `tailorHistory` is destructured from the store, before any hook or callback that uses it.
+- **File**: `src/pages/DashboardPage.tsx`
+
+---
+
+### File renames
+
+| Old name | New name |
+|----------|----------|
+| `src/pages/JobMatchWorkspacePage.tsx` | `src/pages/TailoringHubPage.tsx` |
+| `src/pages/JobMatchResultPage.tsx` | `src/pages/TailoringHubResultPage.tsx` |
+
+`AppInterior.tsx` lazy import variables and route `element` props updated to match. `src/components/job-match/` directory **not** renamed — internal only, no functional benefit, large churn risk.
+
+---
+
+### New files
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useTailorHistory.ts` | `useAppwriteTailoredIds()` — queries Appwrite `tailor_history`, returns `Set<string>` of tailored resume IDs |
+
+---
+
+### Changed files (this session)
+
+- `src/pages/TailoringHubPage.tsx` — renamed + removed `parent_resume_id`, `computeMatch` fallback scores, auto-selection fix, `handleFetchUrl` auth guard
+- `src/pages/TailoringHubResultPage.tsx` — renamed + `navigateWithTemplate` skips Zustand update on new-tab nav
+- `src/pages/DashboardPage.tsx` — `useAppwriteTailoredIds`, merged `tailoredResumeIds`, TDZ fix, `handleEdit` routing + state passing, tailor buttons → `/tailoring-hub`
+- `src/hooks/useTailorHistory.ts` — new
+- `src/AppInterior.tsx` — lazy import names + route elements
+- `src/components/job-match/MatchAnalysisSummary.tsx` — `export function computeMatch`
+
+---
+
+### Validation
+
+- `npx tsc --noEmit` — exit code 0 (run multiple times throughout session after each fix cluster).
+- `npm run build` — passed at session start.
+- Dev server run and manually tested by user.
+
+---
+
+### Commits created
+
+None. All changes are uncommitted. HEAD remains `22379152`.
+
+---
+
+### Deployments performed
+
+None.
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Still at `22379152` / `b4c48a0c`. Tailoring Hub fixes are **not yet deployed**.
+- **Appwrite Functions**: Unchanged.
+- **Appwrite schema**: `resumes` collection does not have `parent_resume_id` — correct, it was never added and was removed from the payload this session.
+
+---
+
+### Where We Stopped
+
+All Tailoring Hub flow fixes are implemented and `tsc`-clean. Changes are **uncommitted**.
+
+Next agent must:
+
+1. Confirm `npx tsc --noEmit` is still exit code 0.
+2. Commit all working-tree changes:
+   ```
+   fix(tailoring-hub): full re-audit — schema error, dashboard tab, result page context, scores, routing, naming
+   ```
+3. Push to `main` and confirm Vercel deploy succeeds.
+4. Manual QA checklist:
+   - Dashboard "Tailor" button → lands on `/tailoring-hub` with master resume selected (not a tailored copy).
+   - Paste job description → Tailor → result page shows real Before/After scores (not 0/0) and job title.
+   - Return to dashboard → tailored CV appears in **Tailored** tab with badge.
+   - Click tailored CV card → opens `/tailoring-hub/result/:id` with job context (not the editor).
+   - From result page, "Open Preview Sheet" → new tab opens; returning to workspace shows the **master** resume selected.
+   - From result page, "Open Full Editor" → opens `/editor` with tailored CV loaded.
+5. If `tailor_history` Appwrite write failures are still observed, check Appwrite console for missing collection attributes (`job_description`, `applied_sections`, etc.).
+
+Remaining known follow-ups:
+
+- `src/components/job-match/` → `src/components/tailoring-hub/` rename — deferred (large churn, no functional impact).
+- `tailor-resume` Appwrite Function returning `overallScore: null` — investigate whether it can be updated to return real scores, removing the frontend fallback.
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to this session, pre-existing.
+
+---
+
 ## Session Log - 2026-06-06 (Appwrite Phase 2/3 Activation + Public Portfolio Chat Fix)
 
 ### Overview
