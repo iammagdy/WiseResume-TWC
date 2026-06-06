@@ -3,7 +3,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import editorLogger from '@/lib/editorLogger';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { Wand2, CheckCircle, ArrowRight, Undo2, GitCompare, History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3, Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, Settings, ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download, Eye } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -884,6 +884,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               AI Resume Tailor
               <AICostBadge operation="tailor" />
             </SheetTitle>
+            <SheetDescription className="sr-only">AI-powered resume tailoring to match a specific job description</SheetDescription>
             <AIProviderVia className="mt-0.5" />
             <div className="flex items-center gap-1 mr-8">
               <Button

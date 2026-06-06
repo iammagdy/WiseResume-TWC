@@ -4,7 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { motion } from 'framer-motion';
 import { Target, Sparkles, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
@@ -112,6 +112,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
             <Target className="w-5 h-5 text-primary" />
             Job Match Analysis
           </SheetTitle>
+          <SheetDescription className="sr-only">Paste a job description to analyze how well your resume matches</SheetDescription>
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 

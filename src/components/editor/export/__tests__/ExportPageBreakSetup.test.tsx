@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { mockResumeStore } from '@/test/mocks/zustandStores';
 import { ExportPageBreakSetup } from '../ExportPageBreakSetup';
@@ -48,7 +48,9 @@ describe('ExportPageBreakSetup', () => {
       expect(templateElement.scrollHeight).toBe(600);
     });
 
-    await new Promise((r) => setTimeout(r, 150));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 450));
+    });
 
     expect(mockResumeStore.updateResume).not.toHaveBeenCalled();
   });
