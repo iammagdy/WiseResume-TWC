@@ -25,15 +25,6 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), warning: vi.fn() }
 }));
 
-vi.mock('@/integrations/supabase/safeClient', () => ({
-  supabase: { from: vi.fn(), rpc: vi.fn() }
-}));
-
-vi.mock('@/lib/supabaseBridge', () => ({
-  getToken: vi.fn(() => 'mock-token'),
-  getUserId: vi.fn(() => 'uuid-123'),
-}));
-
 describe('useAICredits', () => {
   let queryClient: QueryClient;
 
