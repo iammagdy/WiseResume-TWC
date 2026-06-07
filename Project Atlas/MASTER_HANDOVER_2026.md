@@ -117,6 +117,49 @@ All passed locally.
 
 ---
 
+## Session Log - 2026-06-07 (Workflow Failure Follow-up: Source Hash Manifest Drift)
+
+### Overview
+
+Investigated the failed `Deploy Appwrite Hubs` GitHub Actions run after the latest `main` push. The workflow did not fail on Appwrite deploy, secrets, or the `resume-section-ai` target. It failed early at the source-hash guard step because the committed manifest no longer matched the changed hub sources.
+
+---
+
+### Root cause identified
+
+#### F1 - `sourceHashes.generated.json` was stale relative to changed hub files
+
+- **Root cause**: The latest pushed code changed:
+  - `appwrite-hubs/ai-gateway/src/main.js`
+  - `appwrite-hubs/admin-devkit-data/src/main.js`
+  - `appwrite-hubs/wisehire-gateway/src/main.js`
+  but `src/lib/devkit/sourceHashes.generated.json` was not regenerated before push.
+- **Evidence**: GitHub Actions run `27098541686` failed at `Ensure source hash manifest is committed` after recomputing hashes in CI.
+- **Fix**: Ran `node scripts/compute-source-hashes.mjs` locally to refresh the committed manifest.
+- **File**: `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Verification
+
+- `node scripts/compute-source-hashes.mjs`
+
+Updated hash values now include:
+- `ai-gateway: c4206a033df33a59`
+- `admin-devkit-data: 0470c45425c9ab4a`
+- `wisehire-gateway: cd99c96473afd639`
+
+---
+
+### Where We Stopped
+
+- The workflow failure cause is verified: stale hash manifest, not Appwrite deployment logic.
+- Next step is to push the manifest-sync commit, then rerun `Deploy Appwrite Hubs` with target `resume-section-ai`.
+
+---
+
+---
+
 ## Session Log - 2026-06-06 (Tailoring Hub Full Re-audit & Fixes)
 
 ### Overview

@@ -93,6 +93,33 @@ All passed locally.
 
 ---
 
+## 2026-06-07 - Source hash manifest sync after Appwrite hub workflow failure
+
+### Root Cause
+- The `Deploy Appwrite Hubs` GitHub Actions workflow failed before deployment at `Ensure source hash manifest is committed`.
+- The latest commit changed Appwrite hub source files, but `src/lib/devkit/sourceHashes.generated.json` had not been regenerated before push.
+- CI recomputed hashes and detected drift for:
+  - `ai-gateway`
+  - `admin-devkit-data`
+  - `wisehire-gateway`
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated via `node scripts/compute-source-hashes.mjs` so the committed manifest matches current hub sources. |
+
+### Verification
+- `node scripts/compute-source-hashes.mjs`
+- Verified the manifest now reflects:
+  - `ai-gateway: c4206a033df33a59`
+  - `admin-devkit-data: 0470c45425c9ab4a`
+  - `wisehire-gateway: cd99c96473afd639`
+
+### Follow-up
+- After this manifest-sync commit is pushed, rerun `Deploy Appwrite Hubs` with target `resume-section-ai`.
+
+---
+
 ## 2026-06-05 - Phase 2 AI Security Hardening: Idempotency, Dedup & Credit Resilience
 
 ### Root Causes (from AI-SECURITY-AUDIT-2026-06-05.md, Phase 2 scope)
