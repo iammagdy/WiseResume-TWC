@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { usePublicPortfolio } from "../usePublicPortfolio";
+import { usePortfolioGate, usePublicPortfolio, usePublicPortfolioByDomain } from "../usePublicPortfolio";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -8,30 +8,7 @@ vi.mock("react-router-dom", () => ({
   useParams: () => ({ username: "johndoe" }),
 }));
 
-// Mock Appwrite databases used by usePublicPortfolio
-const mockListDocuments = vi.fn();
-vi.mock("@/lib/appwrite", () => ({
-  databases: { listDocuments: (...args: unknown[]) => mockListDocuments(...args) },
-  DATABASE_ID: "test-db",
-  Query: {
-    equal: (field: string, value: unknown) => `${field}=${value}`,
-    limit: (n: number) => `limit=${n}`,
-  },
-}));
-
-const makeProfileDoc = (overrides: Record<string, unknown> = {}) => ({
-  $id: "profile-1",
-  user_id: "user-123",
-  username: "johndoe",
-  portfolioEnabled: true,
-  portfolioExtras: {},
-  ...overrides,
-});
-
-const makeResumeDoc = (overrides: Record<string, unknown> = {}) => ({
-  $id: "resume-1",
-  ...overrides,
-});
+const fetchSpy = vi.fn();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -45,12 +22,42 @@ describe("usePublicPortfolio", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
+    vi.stubGlobal("fetch", fetchSpy);
+  });
+
+  it("fetches gate data through the same-origin public portfolio API", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+      passwordEnabled: true,
+      accentColor: "#123456",
+      exists: true,
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+
+    const { result } = renderHook(() => usePortfolioGate("johndoe"), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/public-portfolio?mode=gate&username=johndoe"),
+      undefined,
+    );
+    expect(result.current.data).toEqual({
+      passwordEnabled: true,
+      accentColor: "#123456",
+      exists: true,
+    });
   });
 
   it("should fetch and return profile data for a given username", async () => {
-    mockListDocuments
-      .mockResolvedValueOnce({ total: 1, documents: [makeProfileDoc()] })
-      .mockResolvedValueOnce({ total: 1, documents: [makeResumeDoc({ $id: "res-1" })] });
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+      profile: { username: "johndoe", portfolioStyle: "minimal" },
+      resume: { $id: "res-1", experience: [], education: [], skills: [], projects: [], certifications: [] },
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
 
     const { result } = renderHook(() => usePublicPortfolio("johndoe"), { wrapper });
 
@@ -61,8 +68,7 @@ describe("usePublicPortfolio", () => {
   });
 
   it("should handle fetch errors gracefully", async () => {
-    // The hook retries up to 2 times — reject all calls
-    mockListDocuments.mockRejectedValue(new Error("Not found"));
+    fetchSpy.mockRejectedValue(new Error("Not found"));
 
     const { result } = renderHook(() => usePublicPortfolio("johndoe"), { wrapper });
 
@@ -75,11 +81,11 @@ describe("usePublicPortfolio", () => {
 
     expect(result.current.fetchStatus).toBe("idle");
     expect(result.current.isPending).toBe(true);
-    expect(mockListDocuments).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("should return null when profile not found", async () => {
-    mockListDocuments.mockResolvedValueOnce({ total: 0, documents: [] });
+    fetchSpy.mockResolvedValueOnce(new Response("{}", { status: 404 }));
 
     const { result } = renderHook(() => usePublicPortfolio("unknown"), { wrapper });
 
@@ -90,12 +96,13 @@ describe("usePublicPortfolio", () => {
   });
 
   it("should handle missing resume fields by providing empty array fallbacks", async () => {
-    mockListDocuments
-      .mockResolvedValueOnce({
-        total: 1,
-        documents: [makeProfileDoc({ username: "janedoe" })],
-      })
-      .mockResolvedValueOnce({ total: 0, documents: [] });
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+      profile: { username: "janedoe" },
+      resume: { $id: "resume-1" },
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
 
     const { result } = renderHook(() => usePublicPortfolio("janedoe"), { wrapper });
 
@@ -108,5 +115,25 @@ describe("usePublicPortfolio", () => {
     expect(data?.resume.skills).toEqual([]);
     expect(data?.resume.projects).toEqual([]);
     expect(data?.resume.certifications).toEqual([]);
+  });
+
+  it("resolves custom domains through the same-origin public portfolio API", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+      profile: { username: "janedoe" },
+      resume: { $id: "resume-1" },
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+
+    const { result } = renderHook(() => usePublicPortfolioByDomain("portfolio.example.com"), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/public-portfolio?mode=domain&domain=portfolio.example.com"),
+      undefined,
+    );
+    expect(result.current.data?.profile.username).toBe("janedoe");
   });
 });

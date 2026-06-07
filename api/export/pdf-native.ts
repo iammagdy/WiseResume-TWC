@@ -673,7 +673,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
   }
   const appwriteEndpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-  const appwriteProjectId = process.env.APPWRITE_PROJECT_ID || '';
+  const appwriteProjectId =
+    process.env.APPWRITE_PROJECT_ID ||
+    process.env.VITE_APPWRITE_PROJECT_ID ||
+    process.env.APPWRITE_FUNCTION_PROJECT_ID ||
+    '';
   if (!appwriteProjectId) {
     console.error('[pdf] APPWRITE_PROJECT_ID env var not configured');
     return res.status(500).json({ error: 'config_error', message: 'Server configuration error' });

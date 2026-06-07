@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-05-27
+**Last verified:** 2026-06-07
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,88 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-07 - Public portfolio access, custom-domain, OG image, and PDF export hardening
+
+### Root Causes
+- Public portfolio pages depended on direct browser-side Appwrite reads from `profiles` and `resumes`, so anonymous visitors could fail on permissions or session state while authenticated premium users appeared to work.
+- Portfolio password verification was being performed client-side against a hash in `portfolioExtras`, which made the real gate behavior diverge from the server truth in `portfolio_settings`.
+- `usePublicPortfolioByDomain()` returned `null`, so custom-domain portfolio resolution was effectively broken in code.
+- OG image generation and native PDF export depended too directly on `VITE_API_URL`, so deployed same-origin requests could break or point at the wrong host when that variable was missing or stale.
+- Native PDF export required `APPWRITE_PROJECT_ID` only, making auth brittle when the runtime exposed the project ID through alternate env names already used elsewhere in the project.
+- Deployment documentation drift remained: the live frontend is on Vercel with security headers active, while parts of the Atlas deployment guide still describe Hostinger/FTP as the primary production path.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `api/public-portfolio.ts` | Added a server-side public portfolio endpoint using `node-appwrite`; supports password-gate checks, password-verified portfolio fetches, and custom-domain resolution without relying on browser Appwrite permissions. |
+| `src/lib/publicApiBase.ts` | Added same-origin API base helpers so frontend calls prefer the current host when `VITE_API_URL` is absent or points at localhost in production. |
+| `src/hooks/usePublicPortfolio.ts` | Replaced direct browser Appwrite reads and client-side password hash verification with calls to `/api/public-portfolio`; restored working custom-domain lookup flow. |
+| `src/hooks/usePortfolioSEO.ts` | Switched OG/Twitter image URL generation to the shared absolute public API base helper so production metadata no longer depends on a separate API origin env. |
+| `src/lib/nativePdfGenerator.ts` | Switched PDF export fetches to the shared API base helper to avoid wrong-host export requests. |
+| `api/export/pdf-native.ts` | Added project ID fallback chain: `APPWRITE_PROJECT_ID` -> `VITE_APPWRITE_PROJECT_ID` -> `APPWRITE_FUNCTION_PROJECT_ID`. |
+| `src/hooks/__tests__/usePublicPortfolio.test.tsx` | Updated tests for the server-side public portfolio API flow, gate checks, and custom-domain resolution. |
+| `src/hooks/usePortfolioSEO.test.tsx` | Added focused test coverage for same-origin OG/Twitter image URL generation. |
+
+### Verification
+- `npm test -- src/hooks/__tests__/usePublicPortfolio.test.tsx src/hooks/usePortfolioSEO.test.tsx` - passed.
+- `npx tsc --noEmit` - passed.
+- `npm run build` - passed.
+- Verified live `https://resume.thewise.cloud` response headers include `Content-Security-Policy` and `Strict-Transport-Security` on the main site response.
+
+### Deployment / Follow-up Notes
+- These fixes are local only until the frontend is redeployed.
+- Appwrite hub failures reported by the owner still require deployment-state verification against the live functions because the latest Atlas stop-point already recorded a GitHub/main vs Appwrite deployment mismatch.
+- `Project Atlas/DEPLOYMENT_GUIDE.md` still needs a cleanup pass so it matches the current Vercel-first frontend deployment reality.
+
+---
+
+## 2026-06-07 - Live AI audit: resume-section-ai credential drift and stale NVIDIA default routes
+
+### Root Causes
+- The owner-reported AI outage was not a blanket provider outage. Live provider pings showed OpenRouter, Groq, DeepSeek, and NVIDIA all configured and reachable from the deployed Appwrite environment.
+- The standalone `resume-section-ai` function was deployed without the Appwrite environment variables it needs for `validateUserSession()` and `loadCreditState()`. Smoke tests passed because they bypass credit checks, but real authenticated requests failed with `503 ai_credit_check_failed`.
+- The deploy script itself explained that drift: `ensureResumeSectionVariables()` only synced a partial AI-key set and omitted `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, and `APPWRITE_PROJECT_ID`.
+- The default NVIDIA routing model was stale: live authenticated tests against `ai-gateway` showed `tailor-resume` and `generate-cover-letter` first trying NVIDIA and receiving `404`, then succeeding only via Groq fallback.
+- OpenRouter was also degraded in production: live authenticated `parse-resume` tests showed all OpenRouter attempts returning `429`, then succeeding via Groq fallback.
+
+### Evidence Gathered
+- Live `admin-devkit-data -> ping-providers` returned `ok: true` for all 4 providers.
+- Live authenticated `ai-gateway` tests succeeded for:
+  - `company-briefing`
+  - `tailor-resume` (after NVIDIA fallback)
+  - `parse-resume` (after OpenRouter fallback)
+- Live authenticated `resume-section-ai` test failed with:
+  - `503`
+  - code `ai_credit_check_failed`
+  - message `AI credit tracking is not available.`
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `scripts/deploy_hubs.cjs` | Expanded `ensureResumeSectionVariables()` to sync the full provider set used by the function plus `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, and `APPWRITE_PROJECT_ID`. |
+| `appwrite-hubs/ai-gateway/src/main.js` | Updated stale NVIDIA default model and pinned NVIDIA feature routes from `nvidia/llama-3.1-nemotron-70b-instruct` to `meta/llama-4-maverick-17b-128e-instruct`. |
+| `appwrite-hubs/admin-devkit-data/src/main.js` | Updated DevKit routing defaults to match the new NVIDIA route target. |
+| `appwrite-hubs/wisehire-gateway/src/main.js` | Updated the stale NVIDIA default model used in its provider pool. |
+| `src/components/dev-kit/AIRoutingSwitcher.tsx` | Updated the displayed NVIDIA default model so the DevKit no longer advertises the stale route target. |
+| `src/lib/devkit/aiToolsCatalogue.ts` | Updated the canonical tool catalogue defaults for NVIDIA-routed features. |
+
+### Verification
+- `node --check scripts/deploy_hubs.cjs`
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js`
+- `node --check appwrite-hubs/wisehire-gateway/src/main.js`
+- `npx tsc --noEmit`
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
+
+All passed locally.
+
+### Deployment / Follow-up Notes
+- These fixes are local only until the Appwrite hubs are redeployed.
+- After deployment, re-run a real authenticated `resume-section-ai` request first; that is the clearest validation of the missing-Appwrite-vars fix.
+- OpenRouter `429` behavior was observed live and is not fixed by this code patch. If parse-heavy routes still feel unstable after redeploy, key-level quota/rate-limit investigation is needed outside the repo.
 
 ---
 

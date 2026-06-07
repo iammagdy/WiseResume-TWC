@@ -54,9 +54,9 @@ export const TOOL_CREDIT_COSTS: Record<string, number> = {
 
 /** Mirrors FEATURE_ROUTES in appwrite-hubs/ai-gateway/src/main.js */
 export const TOOL_GATEWAY_DEFAULTS: Record<string, { provider: ToolProvider; model: string }> = {
-  'generate-cover-letter':        { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
-  'tailor-resume':                { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
-  'recruiter-simulation':         { provider: 'nvidia',     model: 'nvidia/llama-3.1-nemotron-70b-instruct' },
+  'generate-cover-letter':        { provider: 'nvidia',     model: 'meta/llama-4-maverick-17b-128e-instruct' },
+  'tailor-resume':                { provider: 'nvidia',     model: 'meta/llama-4-maverick-17b-128e-instruct' },
+  'recruiter-simulation':         { provider: 'nvidia',     model: 'meta/llama-4-maverick-17b-128e-instruct' },
   'agentic-chat':                 { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
   'wise-ai-chat':                 { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
   'resume-section-ai':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },

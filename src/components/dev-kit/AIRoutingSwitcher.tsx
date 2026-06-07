@@ -61,7 +61,7 @@ const CATEGORY_ORDER: FeatureCategory[] = ['resume-editor', 'tailoring', 'chat',
 // ─── Provider toggle config ────────────────────────────────────────────────────
 
 const PROVIDERS: { id: ProviderId; label: string; defaultModel: string }[] = [
-  { id: 'nvidia',     label: 'NVIDIA',     defaultModel: 'nvidia/llama-3.1-nemotron-70b-instruct' },
+  { id: 'nvidia',     label: 'NVIDIA',     defaultModel: 'meta/llama-4-maverick-17b-128e-instruct' },
   { id: 'groq',       label: 'Groq',       defaultModel: 'llama-3.3-70b-versatile' },
   { id: 'deepseek',   label: 'DeepSeek',   defaultModel: 'deepseek-chat' },
   { id: 'openrouter', label: 'OpenRouter', defaultModel: 'meta-llama/llama-3.3-70b-instruct:free' },

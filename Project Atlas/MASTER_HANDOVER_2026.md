@@ -2,6 +2,121 @@
 
 ---
 
+## Session Log - 2026-06-07 (Public Portfolio Access Audit, Fixes, and Deployment Drift Check)
+
+### Overview
+
+Full audit and fix pass for the broken public-portfolio/manual-QA reports affecting premium-account testing, shared-password behavior, custom domains, OG images, and native PDF export. The main frontend/security-header posture was re-checked against production. No deployment was performed. All changes remain uncommitted local working-tree changes on top of `main` at `cc6dee7c`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 - Public portfolio access depended on browser Appwrite permissions/session state
+
+- **Root cause**: `usePublicPortfolio` queried `profiles` and `resumes` directly from the browser. Public visitors could fail on collection permissions or session state, while authenticated premium sessions masked the problem.
+- **Fix**: Added `api/public-portfolio.ts` as a server-side public portfolio endpoint using `node-appwrite`, then rewired the frontend hook to fetch through that endpoint.
+- **Files**: `api/public-portfolio.ts` (new), `src/hooks/usePublicPortfolio.ts`
+
+#### F2 - Shared password flow was implemented against the wrong source of truth
+
+- **Root cause**: The browser validated the password client-side against `portfolioExtras.passwordHash`, but the real server-side portfolio configuration lives in `portfolio_settings`. This made the gate logic fragile and confusing.
+- **Fix**: Moved password-gate checks and password verification to `api/public-portfolio.ts`, reading from `portfolio_settings` server-side and returning only the public portfolio payload after successful verification.
+- **Files**: `api/public-portfolio.ts` (new), `src/hooks/usePublicPortfolio.ts`
+
+#### F3 - Custom-domain public portfolios were hard-broken in code
+
+- **Root cause**: `usePublicPortfolioByDomain()` returned `null`, so custom-domain portfolio resolution never actually loaded a portfolio.
+- **Fix**: Implemented domain lookup through the new server-side endpoint by scanning profile `portfolio_extras.customDomain` and resolving the portfolio by username.
+- **Files**: `api/public-portfolio.ts` (new), `src/hooks/usePublicPortfolio.ts`
+
+#### F4 - OG image generation depended on `VITE_API_URL`
+
+- **Root cause**: `usePortfolioSEO` only emitted `og:image` / `twitter:image` when `VITE_API_URL` was defined, which is unsafe for same-origin Vercel production.
+- **Fix**: Added shared API-base helpers and switched SEO image generation to an absolute same-origin-safe base.
+- **Files**: `src/lib/publicApiBase.ts` (new), `src/hooks/usePortfolioSEO.ts`, `src/hooks/usePortfolioSEO.test.tsx` (new)
+
+#### F5 - Native PDF export used brittle API/project-ID resolution
+
+- **Root cause A**: `nativePdfGenerator` depended too directly on `VITE_API_URL`, risking export calls to the wrong host.
+- **Root cause B**: `api/export/pdf-native.ts` required `APPWRITE_PROJECT_ID` only, even though other project-ID env names already exist in this codebase and deployment footprint.
+- **Fix**: Switched frontend export calls to the shared API-base helper and broadened the server-side project-ID fallback chain.
+- **Files**: `src/lib/publicApiBase.ts` (new), `src/lib/nativePdfGenerator.ts`, `api/export/pdf-native.ts`
+
+#### F6 - Deployment/documentation drift was contributing to diagnosis confusion
+
+- **Root cause**: The Atlas still contains Hostinger/FTP language in `DEPLOYMENT_GUIDE.md`, while the live frontend is being served by Vercel and already returns CSP/HSTS headers from production.
+- **Fix**: Re-verified live headers on `https://resume.thewise.cloud` and documented the drift here for cleanup in a follow-up doc pass.
+- **Files**: documentation follow-up pending
+
+---
+
+### Production facts re-checked during this session
+
+- `https://resume.thewise.cloud` currently returns `Content-Security-Policy` and `Strict-Transport-Security` headers on the main response.
+- The latest Atlas deployment drift still matters: frontend code on GitHub/main is ahead of the last known Appwrite hub deployment, so hub-specific failures can still be caused by live backend drift even when frontend code is corrected locally.
+- The startup validation message in `ai-gateway` still references generic provider env names (`OPENROUTER_API_KEY`, etc.) while the actual pool loader uses indexed keys (`OPENROUTER_KEY_1`, etc.). This looks misleading, but it was not the strongest verified root cause for the reported public-portfolio/PDF failures.
+- Live AI provider ping from `admin-devkit-data` confirmed all 4 providers are configured and reachable from production.
+- Live authenticated `ai-gateway` tests confirmed `company-briefing`, `tailor-resume`, and `parse-resume` still succeed in production, but `tailor-resume` is falling back from NVIDIA after `404` responses and `parse-resume` is falling back from OpenRouter after `429` responses.
+- Live authenticated `resume-section-ai` failed with `503 ai_credit_check_failed`, proving that this function is missing the Appwrite credentials it needs for session/credit checks.
+
+---
+
+### Files changed
+
+- `api/export/pdf-native.ts`
+- `api/public-portfolio.ts` (new)
+- `appwrite-hubs/admin-devkit-data/src/main.js`
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `appwrite-hubs/wisehire-gateway/src/main.js`
+- `scripts/deploy_hubs.cjs`
+- `src/components/dev-kit/AIRoutingSwitcher.tsx`
+- `src/hooks/__tests__/usePublicPortfolio.test.tsx`
+- `src/hooks/usePortfolioSEO.test.tsx` (new)
+- `src/hooks/usePortfolioSEO.ts`
+- `src/hooks/usePublicPortfolio.ts`
+- `src/lib/devkit/aiToolsCatalogue.ts`
+- `src/lib/nativePdfGenerator.ts`
+- `src/lib/publicApiBase.ts` (new)
+
+---
+
+### Verification
+
+- `npm test -- src/hooks/__tests__/usePublicPortfolio.test.tsx src/hooks/usePortfolioSEO.test.tsx`
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+- `node --check scripts/deploy_hubs.cjs`
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js`
+- `node --check appwrite-hubs/wisehire-gateway/src/main.js`
+
+All passed locally.
+
+---
+
+### Where We Stopped
+
+- `main` is at `cc6dee7c`. Working tree is dirty with the local fixes above and Atlas documentation updates from this session.
+- No branch was created. No commit, push, or deployment was performed.
+- The public portfolio access path, custom-domain lookup path, OG image generation path, and native PDF export path are fixed locally but not yet live.
+- The Appwrite deploy script is now patched locally so `resume-section-ai` will receive the Appwrite credentials it needs on the next hub deploy.
+- The NVIDIA default route target is updated locally to a current model string; live production is still on the old routing until the next hub deploy.
+- Production header state on the main site was re-checked: CSP and HSTS are present on the homepage response.
+- The known deployment drift from the previous session still needs resolution: Appwrite hubs may still be running older code until the hub deploy workflow is executed and verified.
+- `Project Atlas/DEPLOYMENT_GUIDE.md` is stale relative to the current Vercel-first frontend deployment model and should be cleaned up in a separate documentation pass.
+
+**Next recommended step**
+
+1. Redeploy the frontend so the public-portfolio / OG / PDF fixes reach production.
+2. Redeploy the Appwrite hubs so `resume-section-ai` receives `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, and `APPWRITE_PROJECT_ID`, and so the updated NVIDIA route target reaches production.
+3. Verify a real authenticated `resume-section-ai` request immediately after hub deploy; this is the clearest regression check for the AI editor path.
+4. Verify the live public portfolio flow anonymously and through a password-gated portfolio.
+5. Re-check parse-heavy routes if needed: OpenRouter `429` fallback was observed live, so provider-level quota pressure may still require operational follow-up even after deploy.
+
+---
+
 ## Session Log - 2026-06-06 (Tailoring Hub Full Re-audit & Fixes)
 
 ### Overview

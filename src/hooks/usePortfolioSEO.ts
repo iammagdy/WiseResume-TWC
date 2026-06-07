@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { PublicProfile } from '@/hooks/usePublicPortfolio';
+import { resolveAbsolutePublicApiBase } from '@/lib/publicApiBase';
 
 export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
   useEffect(() => {
@@ -46,10 +47,10 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);
       setMeta('og:type', 'profile');
-      const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
-      if (apiUrl && profile.username) {
-        setMeta('og:image', `${apiUrl}/og-image/${encodeURIComponent(profile.username)}`);
-        setMeta('twitter:image', `${apiUrl}/og-image/${encodeURIComponent(profile.username)}`, 'name');
+      const apiBase = resolveAbsolutePublicApiBase();
+      if (apiBase && profile.username) {
+        setMeta('og:image', `${apiBase}/og-image/${encodeURIComponent(profile.username)}`);
+        setMeta('twitter:image', `${apiBase}/og-image/${encodeURIComponent(profile.username)}`, 'name');
       }
       setMeta('twitter:card', 'summary_large_image', 'name');
       setMeta('twitter:title', ogTitle, 'name');

@@ -4,6 +4,7 @@ import { PDFDocument } from 'pdf-lib';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
 import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
+import { resolvePublicApiBase } from '@/lib/publicApiBase';
 
 const BRANDING_URL = 'https://resume.thewise.cloud';
 
@@ -167,7 +168,7 @@ async function callPdfServer(
   onProgress?: OnProgressCallback,
   attempt = 0,
 ): Promise<Blob> {
-  const apiBase = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+  const apiBase = resolvePublicApiBase();
   const url = `${apiBase}/api/export/pdf-native`;
 
   onProgress?.('finalizing', 70);
