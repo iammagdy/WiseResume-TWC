@@ -635,6 +635,10 @@ async function syncVariablesForHubs(hubIds) {
     if (selectedAdminTargets.length) await ensureSharedAdminVariables(selectedAdminTargets);
     if (selected.has('admin-sentry')) await ensureAdminSentryVariables();
 
+    if (selected.has('admin-impersonate')) {
+        await ensureVariable('admin-impersonate', 'IMPERSONATION_HMAC_SECRET', process.env.IMPERSONATION_HMAC_SECRET);
+    }
+
     const emailTargets = ['admin-email', 'admin-testmail', 'admin-devkit-data'].filter(id => selected.has(id));
     if (emailTargets.length) await ensureEmailHubVariables(emailTargets);
 

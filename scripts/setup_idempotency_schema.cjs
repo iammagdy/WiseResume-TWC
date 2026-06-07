@@ -1,20 +1,30 @@
 'use strict';
 
 /**
- * Sets up the Appwrite schema required for persistent AI request logs:
- *  1. Creates `ai_request_logs` collection with required attributes.
+ * Sets up the Appwrite schema required for ai-gateway idempotency protection:
+ *   Creates `idempotency_cache` collection with required attributes and indexes.
  *
  * Run once with:
- *   APPWRITE_API_KEY=<key> node scripts/setup_ai_logs_schema.cjs
+ *   APPWRITE_API_KEY=<key> node scripts/setup_idempotency_schema.cjs
+ *
+ * Fields written by createIdempotencyPending():
+ *   key (str 64)          — SHA-256 content key (userId:feature:payloadHash:timeBucket)
+ *   user_id (str 36)      — Appwrite user ID
+ *   feature (str 64)      — feature name
+ *   status (str 16)       — 'pending' | 'success' | 'failed'
+ *   has_result (bool)     — whether cached_result is populated
+ *   cached_result (str)   — serialised result payload (up to 60 KB)
+ *   created_at (str 32)   — ISO 8601 timestamp
+ *   expires_at (str 32)   — ISO 8601 expiry (5-minute TTL)
  */
 
 const sdk = require('node-appwrite');
 
-const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+const ENDPOINT   = process.env.APPWRITE_ENDPOINT   || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
-const API_KEY = process.env.APPWRITE_API_KEY;
-const DB_ID = 'main';
-const COLLECTION_ID = 'ai_request_logs';
+const API_KEY    = process.env.APPWRITE_API_KEY;
+const DB_ID      = 'main';
+const COLLECTION_ID = 'idempotency_cache';
 
 if (!API_KEY) {
   console.error('✗ APPWRITE_API_KEY is required');
@@ -47,6 +57,15 @@ async function attributeExists(collId, key) {
   }
 }
 
+async function indexExists(collId, key) {
+  try {
+    const indexes = await databases.listIndexes(DB_ID, collId);
+    return indexes.indexes.some(idx => idx.key === key);
+  } catch {
+    return false;
+  }
+}
+
 async function ensureStringAttr(collId, key, size, required, defaultValue) {
   if (await attributeExists(collId, key)) {
     console.log(`✓ attribute "${key}" already exists`);
@@ -56,15 +75,6 @@ async function ensureStringAttr(collId, key, size, required, defaultValue) {
   console.log(`✓ created string attribute "${key}"`);
 }
 
-async function ensureIntAttr(collId, key, required, min, max, defaultValue) {
-  if (await attributeExists(collId, key)) {
-    console.log(`✓ attribute "${key}" already exists`);
-    return;
-  }
-  await databases.createIntegerAttribute(DB_ID, collId, key, required, min ?? undefined, max ?? undefined, defaultValue ?? undefined);
-  console.log(`✓ created integer attribute "${key}"`);
-}
-
 async function ensureBoolAttr(collId, key, required, defaultValue) {
   if (await attributeExists(collId, key)) {
     console.log(`✓ attribute "${key}" already exists`);
@@ -72,15 +82,6 @@ async function ensureBoolAttr(collId, key, required, defaultValue) {
   }
   await databases.createBooleanAttribute(DB_ID, collId, key, required, defaultValue ?? undefined);
   console.log(`✓ created boolean attribute "${key}"`);
-}
-
-async function indexExists(collId, key) {
-  try {
-    const indexes = await databases.listIndexes(DB_ID, collId);
-    return indexes.indexes.some(idx => idx.key === key);
-  } catch {
-    return false;
-  }
 }
 
 async function ensureIndex(collId, key, type, attributes, orders) {
@@ -97,7 +98,7 @@ async function sleep(ms) {
 }
 
 async function run() {
-  console.log('\n=== AI Request Logs Schema Setup ===\n');
+  console.log('\n=== Idempotency Cache Schema Setup ===\n');
   console.log(`1. ${COLLECTION_ID}`);
 
   if (await collectionExists(COLLECTION_ID)) {
@@ -108,34 +109,25 @@ async function run() {
     await sleep(500);
   }
 
-  await ensureStringAttr(COLLECTION_ID, 'feature_id', 64, false);
-  await sleep(200);
-  await ensureStringAttr(COLLECTION_ID, 'provider', 32, false);
-  await sleep(200);
-  await ensureStringAttr(COLLECTION_ID, 'model', 128, false);
-  await sleep(200);
-  await ensureIntAttr(COLLECTION_ID, 'latency_ms', false, 0, 999999);
-  await sleep(200);
-  await ensureBoolAttr(COLLECTION_ID, 'is_fallback', false, false);
-  await sleep(200);
-  await ensureBoolAttr(COLLECTION_ID, 'is_admin_test', false, false);
+  await ensureStringAttr(COLLECTION_ID, 'key', 64, true);
   await sleep(200);
   await ensureStringAttr(COLLECTION_ID, 'user_id', 36, false);
   await sleep(200);
+  await ensureStringAttr(COLLECTION_ID, 'feature', 64, false);
+  await sleep(200);
+  await ensureStringAttr(COLLECTION_ID, 'status', 16, false);
+  await sleep(200);
+  await ensureBoolAttr(COLLECTION_ID, 'has_result', false, false);
+  await sleep(200);
+  await ensureStringAttr(COLLECTION_ID, 'cached_result', 65535, false);
+  await sleep(200);
   await ensureStringAttr(COLLECTION_ID, 'created_at', 32, false);
   await sleep(200);
-  await ensureBoolAttr(COLLECTION_ID, 'is_idempotency_hit', false, false);
-  await sleep(200);
-  await ensureIntAttr(COLLECTION_ID, 'credits_charged', false, 0, 999999, 0);
-  await sleep(200);
-  await ensureStringAttr(COLLECTION_ID, 'idempotency_key', 64, false);
+  await ensureStringAttr(COLLECTION_ID, 'expires_at', 32, false);
   await sleep(500);
 
-  // Indexes required by checkPersistentRateLimit:
-  //   Query.equal('user_id', userId) + Query.greaterThanEqual('created_at', since)
-  await ensureIndex(COLLECTION_ID, 'user_id_idx', 'key', ['user_id'], ['ASC']);
-  await sleep(500);
-  await ensureIndex(COLLECTION_ID, 'created_at_idx', 'key', ['created_at'], ['ASC']);
+  // Index required by checkIdempotencyCache: Query.equal('key', idempotencyKey)
+  await ensureIndex(COLLECTION_ID, 'key_idx', 'key', ['key'], ['ASC']);
   await sleep(200);
 
   console.log(`\n✓ ${COLLECTION_ID} schema ready\n`);
