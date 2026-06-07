@@ -2,6 +2,139 @@
 
 ---
 
+## Session Log - 2026-06-07 (AI Gateway Stabilization Pass - DeepSeek First + Structured Output Hardening)
+
+### Overview
+
+Focused stabilization pass on the remaining production AI failures after `resume-section-ai` was fixed. No work was done on `resume-section-ai` in this session. The goal was to make `ai-gateway` prefer the currently verified DeepSeek route first, keep fallback behavior intact, and harden the two product-level failure points that were still returning unusable output: LinkedIn Optimizer and Question Bank.
+
+No deployment was performed. All changes remain local working-tree changes on top of `main`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 - `ai-gateway` still preferred providers already proven flaky in production
+
+- **Root cause**: Several production tools still routed first to providers that had already failed in live testing:
+  - NVIDIA-first: `tailor-resume`, `generate-cover-letter`, `recruiter-simulation`
+  - OpenRouter-first: `parse-resume`, `parse-job`, `optimize-for-linkedin`, `generate-question-bank`
+  - Groq-first: multiple chat/editor/content tools even though the owner requested a DeepSeek-first stabilization pass
+- **Fix**: Updated `FEATURE_ROUTES` in `appwrite-hubs/ai-gateway/src/main.js` so the requested main tools now prefer `deepseek-chat` first while preserving the existing fallback pool logic.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `src/lib/devkit/aiToolsCatalogue.ts`, `appwrite-hubs/admin-devkit-data/src/main.js`
+
+#### F2 - LinkedIn Optimizer could succeed with unusable structured payloads
+
+- **Root cause**: The existing structured parser accepted any object-shaped JSON for `optimize-for-linkedin`, even when headline/about/skills/tips sections were effectively empty or useless.
+- **Fix**: Added feature-specific normalization and validation that now requires usable LinkedIn content, plus stronger structured-output instructions and a one-time JSON repair retry if the first response is malformed.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
+
+#### F3 - Question Bank could return HTTP 200 with empty/malformed category data
+
+- **Root cause**: The existing structured parser accepted weak `generate-question-bank` payloads without ensuring there were usable categories and questions.
+- **Fix**: Added feature-specific normalization that requires real categories/questions, expanded the schema prompt and instructions, and added the same one-time JSON repair retry path used for LinkedIn Optimizer.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
+
+#### F4 - DevKit/admin route mirrors drifted from the new production route map
+
+- **Root cause**: `src/lib/devkit/aiToolsCatalogue.ts` and `appwrite-hubs/admin-devkit-data/src/main.js` still mirrored the previous NVIDIA/Groq/OpenRouter-first defaults, which would make tests and DevKit route displays disagree with `ai-gateway`.
+- **Fix**: Updated both mirrors to reflect the new DeepSeek-first defaults for the same production tool set.
+- **Files**: `src/lib/devkit/aiToolsCatalogue.ts`, `src/lib/devkit/aiToolsCatalogue.test.ts`, `appwrite-hubs/admin-devkit-data/src/main.js`
+
+#### F5 - Hub source hash manifest needed refresh after gateway/admin changes
+
+- **Root cause**: Any Appwrite hub source edit requires `src/lib/devkit/sourceHashes.generated.json` to be recomputed, or the deploy workflow will fail at the source-hash guard.
+- **Fix**: Ran `node scripts/compute-source-hashes.mjs` after finishing the hub edits.
+- **Files**: `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Exact route changes
+
+The following `ai-gateway` features now prefer:
+
+- **Provider**: `deepseek`
+- **Model**: `deepseek-chat`
+
+Affected features:
+- `tailor-resume`
+- `generate-cover-letter`
+- `recruiter-simulation`
+- `agentic-chat`
+- `wise-ai-chat`
+- `editor-ai`
+- `detect-and-humanize`
+- `smart-fit-rewrite`
+- `career-assessment`
+- `generate-portfolio-bio`
+- `generate-resignation-letter`
+- `validate-tailor`
+- `suggest-template`
+- `analyze-resume`
+- `generate-fix-suggestions`
+- `parse-resume`
+- `parse-job`
+- `optimize-for-linkedin`
+- `generate-question-bank`
+- `company-briefing`
+- `ask-portfolio`
+
+Unchanged by design:
+- `resume-section-ai` remains on its existing standalone function path and was not edited in this session.
+
+Fallback behavior remains intact through the existing pool/candidate logic:
+- DeepSeek primary
+- Groq fallback
+- OpenRouter fallback
+- NVIDIA fallback/standby when available in the pool
+
+---
+
+### Files changed
+
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `appwrite-hubs/admin-devkit-data/src/main.js`
+- `src/lib/devkit/aiToolsCatalogue.ts`
+- `src/lib/devkit/aiToolsCatalogue.test.ts`
+- `src/lib/devkit/sourceHashes.generated.json`
+- `tests/hubs/ai-gateway-routing.test.cjs` (new)
+
+---
+
+### Verification
+
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node tests/hubs/ai-gateway-routing.test.cjs`
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
+- `npx tsc --noEmit`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally.
+
+Updated source hashes now include:
+- `ai-gateway: bc67549bd0524177`
+- `admin-devkit-data: 50aa4dfd898f12ca`
+
+---
+
+### Where We Stopped
+
+- The route/default changes are complete locally and validated.
+- No deploy, push, or commit was performed in this session.
+- `resume-section-ai` remains fixed separately and was not touched.
+- The remaining production step for this work is an Appwrite deployment targeting `ai-gateway`.
+- After that deployment, the highest-priority live re-tests are:
+  1. `tailor-resume`
+  2. `generate-cover-letter`
+  3. `parse-job`
+  4. `parse-resume`
+  5. `optimize-for-linkedin`
+  6. `generate-question-bank`
+  7. `company-briefing`
+  8. `ask-portfolio`
+
+---
+
 ## Session Log - 2026-06-07 (Public Portfolio Access Audit, Fixes, and Deployment Drift Check)
 
 ### Overview

@@ -11,6 +11,53 @@
 
 ---
 
+## 2026-06-07 - AI gateway stabilization: DeepSeek-first routing with structured-output repair
+
+### Root Causes
+- Production verification showed the remaining AI instability was concentrated in `ai-gateway`, not `resume-section-ai`.
+- Several high-traffic tools were still preferring NVIDIA or OpenRouter first, which matched the live failures already observed:
+  - NVIDIA-first routes (`tailor-resume`, `generate-cover-letter`) were hitting `404` before Groq fallback saved them.
+  - OpenRouter-first routes (`parse-job`, `parse-resume`, `optimize-for-linkedin`, `generate-question-bank`) were hitting `429` before fallback.
+- Two structured-output tools had weak success validation:
+  - `optimize-for-linkedin` could accept technically valid but unusable sparse payloads.
+  - `generate-question-bank` could accept empty or malformed category structures and still return HTTP `200`.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Switched the main production tool routes to prefer `deepseek-chat` first while preserving provider fallback. Added stricter structured-output instructions and normalization for LinkedIn Optimizer and Question Bank. Added a single structured repair retry for those two tools when the first model response is malformed or unusable JSON. Added narrow `__test` exports for route/structured parser coverage. |
+| `src/lib/devkit/aiToolsCatalogue.ts` | Updated the canonical DevKit tool-route defaults to match the new DeepSeek-first production routing for the affected tools. |
+| `src/lib/devkit/aiToolsCatalogue.test.ts` | Updated route expectations so the catalogue test suite enforces the new DeepSeek-first defaults. |
+| `appwrite-hubs/admin-devkit-data/src/main.js` | Updated the static route-default mirror used by DevKit/admin surfaces so it no longer advertises the stale NVIDIA/Groq/OpenRouter-first map. |
+| `tests/hubs/ai-gateway-routing.test.cjs` | Added targeted gateway tests for DeepSeek-first route coverage plus structured-output validation for LinkedIn Optimizer and Question Bank. |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated after the hub-source edits so workflow source-hash checks remain in sync. |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node tests/hubs/ai-gateway-routing.test.cjs`
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
+- `npx tsc --noEmit`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally.
+
+### Deployment / Follow-up Notes
+- No deployment was performed in this pass.
+- `resume-section-ai` was intentionally left unchanged.
+- The next production deployment target should be `ai-gateway`.
+- After deployment, re-run live smoke tests specifically for:
+  - `tailor-resume`
+  - `generate-cover-letter`
+  - `parse-job`
+  - `parse-resume`
+  - `optimize-for-linkedin`
+  - `generate-question-bank`
+  - `company-briefing`
+  - `ask-portfolio`
+- `deepseek-chat` remains the safest verified DeepSeek model alias for this stabilization pass. A later provider probe can decide whether to move to a newer DeepSeek alias.
+
+---
+
 ## 2026-06-07 - Public portfolio access, custom-domain, OG image, and PDF export hardening
 
 ### Root Causes

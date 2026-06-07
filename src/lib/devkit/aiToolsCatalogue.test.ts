@@ -46,10 +46,43 @@ describe('aiToolsCatalogue', () => {
     expect(TOOL_GATEWAY_DEFAULTS['score-resume']).toBeUndefined();
   });
 
-  it('ask-portfolio has a dedicated groq route', () => {
+  it('ask-portfolio now prefers the DeepSeek route', () => {
     const portfolio = AI_TOOLS_CATALOGUE.find(t => t.id === 'ask-portfolio');
     expect(portfolio?.gatewayDefault).not.toBeNull();
-    expect(portfolio?.gatewayDefault?.provider).toBe('groq');
+    expect(portfolio?.gatewayDefault?.provider).toBe('deepseek');
+  });
+
+  it('all production-routed AI tools now prefer DeepSeek for stabilization', () => {
+    const deepseekFirst = [
+      'tailor-resume',
+      'generate-cover-letter',
+      'recruiter-simulation',
+      'agentic-chat',
+      'wise-ai-chat',
+      'editor-ai',
+      'detect-and-humanize',
+      'smart-fit-rewrite',
+      'career-assessment',
+      'generate-portfolio-bio',
+      'generate-resignation-letter',
+      'validate-tailor',
+      'suggest-template',
+      'analyze-resume',
+      'generate-fix-suggestions',
+      'parse-resume',
+      'parse-job',
+      'optimize-for-linkedin',
+      'generate-question-bank',
+      'company-briefing',
+      'ask-portfolio',
+    ];
+
+    for (const featureId of deepseekFirst) {
+      expect(TOOL_GATEWAY_DEFAULTS[featureId]).toEqual({
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+      });
+    }
   });
 
   it('no duplicate tool IDs', () => {
