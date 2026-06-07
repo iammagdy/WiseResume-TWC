@@ -108,8 +108,8 @@ export function toDevKitError(input: unknown, context: { functionId?: string; ac
 
 /**
  * Authenticates the current Appwrite session as DevKit admin.
- * The backend verifies the caller's Appwrite JWT and checks that their email
- * matches the configured ADMIN_EMAIL — no password is required.
+ * The backend verifies the caller's Appwrite JWT and checks that their account
+ * has the 'admin' Appwrite label — no password is required.
  */
 export async function devKitLogin(): Promise<DevKitAuthResponse> {
   const result = await withDevKitTimeout(

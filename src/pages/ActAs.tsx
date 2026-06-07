@@ -1,68 +1,60 @@
 /**
- * /act-as#<base64(JSON({t,u,e,x}))>
+ * /act-as#<encoded>.<sig>
  *
- * Receives the impersonation credentials directly in the URL hash fragment
- * (never sent to any server). Parses them, stores in sessionStorage, then
- * navigates to the dashboard. No server claim round-trip needed, so this
- * works in both dev (Express proxy) and production (Supabase Edge Functions).
+ * Receives a signed impersonation token in the URL hash fragment (never sent to
+ * any server by the browser). Verifies the HMAC signature and expiry server-side
+ * before activating any impersonation state, then navigates to the dashboard.
  *
- * Hash schema:  btoa(JSON.stringify({ t: access_token, u: user_id, e: email, x: expires_at }))
- *
- * IMPORTANT: impersonation state is initialized synchronously at module-evaluation
- * time (before any React render) so route guards (AdminRoute, ProtectedRoute) already
- * see the impersonated context on their first evaluation, eliminating the
- * "access denied" flash that would occur if we only called startImpersonation()
- * inside a useEffect.
+ * Hash schema:  base64url(JSON({ t, u, e, x, iat })).<hmac-sha256-sig>
  */
 import { useEffect, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { UserX, AlertCircle } from 'lucide-react';
 import { startImpersonation } from '@/lib/impersonationStore';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
-interface ActAsPayload {
-  t: string;   // access_token
-  u: string;   // user_id
-  e: string;   // email
-  x: number;   // expires_at (ms)
-}
-
-function parseHashPayload(): ActAsPayload {
-  const raw = window.location.hash.slice(1);
-  if (!raw) throw new Error('No session payload in URL.');
-  const decoded = atob(raw);
-  const parsed = JSON.parse(decoded) as unknown;
-  if (
-    typeof parsed !== 'object' || parsed === null ||
-    !('t' in parsed) || !('u' in parsed) || !('e' in parsed) || !('x' in parsed)
-  ) throw new Error('Malformed session payload.');
-  return parsed as ActAsPayload;
-}
-
-// ── Synchronous module-level initialization ───────────────────────────────────
-// Called once when this module is first imported (before any React renders).
-// Route guards evaluate impersonation state synchronously during their first
-// render, so setting the state here ensures they see the correct context
-// immediately — no flash of an "access denied" redirect.
-let _initError: string | null = null;
-try {
-  const payload = parseHashPayload();
-  startImpersonation(payload.t, payload.u, payload.e, payload.x, true);
-  // Remove the hash from history so the token doesn't persist in the URL bar.
-  history.replaceState(null, '', '/act-as');
-} catch (err) {
-  _initError = err instanceof Error ? err.message : String(err);
+interface VerifyResponse {
+  success: boolean;
+  nonce?: string;
+  userId?: string;
+  email?: string;
+  expiresAt?: number;
+  error?: string;
 }
 
 export default function ActAs() {
   const navigate = useNavigate();
-  const [error] = useState<string | null>(_initError);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Navigate after React mounts; impersonation state is already set above.
-    if (!error) {
-      navigate('/dashboard', { replace: true });
+    const raw = window.location.hash.slice(1);
+    if (!raw) {
+      setError('No session payload in URL.');
+      return;
     }
+
+    (async () => {
+      const result = await appwriteFunctions.invoke<VerifyResponse>('admin-impersonate', {
+        body: { action: 'verify', token: raw },
+      });
+
+      if (result.error || !result.data?.success) {
+        setError(result.data?.error || result.error?.message || 'Invalid or expired session token.');
+        return;
+      }
+
+      const { nonce, userId, email, expiresAt } = result.data;
+      if (!nonce || !userId || !email || !expiresAt) {
+        setError('Malformed session response from server.');
+        return;
+      }
+
+      // Remove the token from the URL bar before activating the session.
+      history.replaceState(null, '', '/act-as');
+      startImpersonation(nonce, userId, email, expiresAt, true);
+      navigate('/dashboard', { replace: true });
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

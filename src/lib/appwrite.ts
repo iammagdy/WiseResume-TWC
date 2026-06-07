@@ -2,7 +2,7 @@ import { Client, Account, Databases, Functions, Storage, ID, Query } from 'appwr
 
 // 1. Environment Config
 const APPWRITE_ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-const APPWRITE_PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+const APPWRITE_PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID || '';
 
 // 2. Initialize Client
 export const client = new Client()

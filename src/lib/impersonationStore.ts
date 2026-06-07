@@ -9,6 +9,14 @@
  *
  * isNewTabSession() returns true when the current page was bootstrapped via
  * the /act-as claim flow, so ActingAsBanner can show "close this tab to end".
+ *
+ * Security note (H-11 residual): sessionStorage is XSS-accessible. The value
+ * stored is { token: nonce, userId, email, expiresAt } where `token` is a
+ * one-time nonce that has already been HMAC-verified server-side. It is NOT a
+ * replayable auth credential — no server endpoint accepts this nonce as auth
+ * material. XSS can read { userId, email } (PII), but cannot escalate privileges
+ * using the stored nonce. Full mitigation requires memory-only state with a
+ * mandatory page-reload after /act-as, deferred as a future UX/security trade-off.
  */
 
 const SESSION_KEY = 'wr_imp_session';

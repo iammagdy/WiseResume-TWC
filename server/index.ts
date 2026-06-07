@@ -60,18 +60,33 @@ app.use('/api/export/pdf-native', express.urlencoded({ extended: true, limit: '5
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Production origins are an explicit allowlist — no wildcards.
+// Additional origins can be injected via ALLOWED_ORIGINS (comma-separated)
+// for preview deployments or staging environments.
+const PRODUCTION_ORIGINS = new Set([
+  'https://resume.thewise.cloud',
+  'https://thewise.cloud',
+  'https://www.thewise.cloud',
+]);
+
+function buildExtraOriginSet(): Set<string> {
+  const raw = process.env.ALLOWED_ORIGINS || '';
+  return new Set(raw.split(',').map(s => s.trim()).filter(Boolean));
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowed =
-        !origin ||
-        origin.startsWith('http://localhost') ||
-        origin.startsWith('https://localhost') ||
-        /\.replit\.dev$/.test(origin) ||
-        /\.replit\.app$/.test(origin) ||
-        origin === 'https://resume.thewise.cloud' ||
-        origin === 'https://thewise.cloud';
-      callback(null, allowed);
+      if (!origin) return callback(null, true); // same-origin / server-to-server
+      if (PRODUCTION_ORIGINS.has(origin)) return callback(null, true);
+      // Localhost allowed only outside production to support local dev.
+      if (process.env.NODE_ENV !== 'production' &&
+          (origin.startsWith('http://localhost') || origin.startsWith('https://localhost'))) {
+        return callback(null, true);
+      }
+      // Operator-configured extra origins (e.g. staging / preview URLs).
+      if (buildExtraOriginSet().has(origin)) return callback(null, true);
+      callback(null, false);
     },
     credentials: true,
   }),
@@ -290,7 +305,68 @@ async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
   return merged.save();
 }
 
+// ── Appwrite JWT auth middleware ──────────────────────────────────────────────
+async function requireAppwriteJWT(req: Request, res: Response): Promise<boolean> {
+  const jwtToken = req.headers['x-appwrite-jwt'];
+  if (!jwtToken || typeof jwtToken !== 'string') {
+    res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
+    return false;
+  }
+  const endpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+  const projectId = process.env.APPWRITE_PROJECT_ID || '';
+  if (!projectId) {
+    console.error('[server] APPWRITE_PROJECT_ID not configured');
+    res.status(500).json({ error: 'config_error', message: 'Server configuration error' });
+    return false;
+  }
+  try {
+    const authRes = await fetch(`${endpoint}/account`, {
+      headers: { 'X-Appwrite-Project': projectId, 'X-Appwrite-JWT': jwtToken },
+    });
+    if (!authRes.ok) {
+      res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' });
+      return false;
+    }
+  } catch {
+    res.status(401).json({ error: 'unauthorized', message: 'Authentication check failed' });
+    return false;
+  }
+  return true;
+}
+
+// ── Trusted IP extraction (M-4) ──────────────────────────────────────────────
+// Trust order: cf-connecting-ip (Cloudflare) → x-real-ip (trusted reverse
+// proxy) → req.ip (Express trust-proxy-resolved) → socket address.
+// x-forwarded-for is NOT read directly — any client can set arbitrary values.
+function getServerClientIp(req: Request): string {
+  const h = req.headers;
+  const cf = typeof h['cf-connecting-ip'] === 'string' ? h['cf-connecting-ip'].trim() : null;
+  if (cf) return cf;
+  const ri = typeof h['x-real-ip'] === 'string' ? h['x-real-ip'].trim() : null;
+  if (ri) return ri;
+  return String(req.ip || req.socket?.remoteAddress || 'unknown');
+}
+
+// ── OG image rate limiter (in-memory, per-IP) ─────────────────────────────────
+const _ogRateLimits = new Map<string, { count: number; resetAt: number }>();
+const OG_RATE_LIMIT = 5;
+const OG_RATE_WINDOW_MS = 60_000;
+const USERNAME_RE = /^[a-zA-Z0-9_-]{3,50}$/;
+
+function checkOgRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = _ogRateLimits.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    _ogRateLimits.set(ip, { count: 1, resetAt: now + OG_RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= OG_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
+  if (!await requireAppwriteJWT(req, res)) return;
   const {
     html,
     pageFormat = 'letter',
@@ -316,6 +392,10 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     return;
   }
 
+  // --no-sandbox is required in containerised/serverless environments where
+  // the host kernel does not support the Chromium sandbox. The SSRF guard
+  // (isPuppeteerUrlAllowed) and auth check above are the primary mitigations.
+  // This is accepted practice for cloud-native Puppeteer deployments (L-3).
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -442,7 +522,7 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     res.send(Buffer.from(pdfBuffer));
   } catch (err) {
     console.error('[pdf] Puppeteer error:', err);
-    res.status(500).json({ error: 'pdf_failed', message: String(err) });
+    res.status(500).json({ error: 'pdf_failed', message: 'PDF generation failed. Please try again.' });
   } finally {
     await browser?.close();
   }
@@ -498,13 +578,96 @@ function isBlockedHost(hostname: string): boolean {
 // Receives the portfolio visit payload from navigator.sendBeacon and writes it
 // to the Appwrite database using the server-side API key — guaranteed delivery
 // even on page unload since sendBeacon always completes.
+//
+// Note: the active frontend path (usePortfolioTracking.ts) writes directly to
+// Appwrite via the browser SDK; this route is retained for beacon compatibility
+// and is hardened against abuse.
+const _trackRateLimits = new Map<string, { count: number; resetAt: number }>();
+const TRACK_RATE_LIMIT = 10;
+const TRACK_RATE_WINDOW_MS = 60_000;
+const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
+const VALID_DEVICES = new Set(['desktop', 'mobile', 'tablet']);
+const VALID_AB_VARIANTS = new Set(['a', 'b', null]);
+const VALID_SECTION_NAMES = new Set([
+  'experience', 'education', 'skills', 'projects', 'github',
+  'certifications', 'awards', 'publications', 'volunteering',
+  'case-studies', 'services',
+]);
+
+function checkTrackRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = _trackRateLimits.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    _trackRateLimits.set(ip, { count: 1, resetAt: now + TRACK_RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= TRACK_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 app.post('/api/track-portfolio-view', async (req: Request, res: Response) => {
   const apiKey = process.env.APPWRITE_API_KEY;
-  if (!apiKey) {
-    // Non-critical analytics endpoint — return 204 so the browser doesn't retry.
+  const appwriteProjectId = process.env.APPWRITE_PROJECT_ID || process.env.VITE_APPWRITE_PROJECT_ID || '';
+  if (!apiKey || !appwriteProjectId) {
     res.status(204).end();
     return;
   }
+
+  const ip = getServerClientIp(req);
+  if (!checkTrackRateLimit(ip)) {
+    res.status(204).end();
+    return;
+  }
+
+  const body = req.body as Record<string, unknown>;
+
+  // Allowlist: accept only the fields the frontend actually sends.
+  const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
+  if (!username || !USERNAME_PATTERN.test(username)) {
+    res.status(204).end();
+    return;
+  }
+
+  const ref = typeof body.ref === 'string' ? body.ref.slice(0, 200) : null;
+  const timeSpentSeconds = typeof body.time_spent_seconds === 'number'
+    ? Math.max(0, Math.min(Math.round(body.time_spent_seconds), 86400))
+    : 0;
+  const device = VALID_DEVICES.has(String(body.device)) ? String(body.device) : 'desktop';
+  const abVariant = VALID_AB_VARIANTS.has(body.ab_variant as string | null)
+    ? (body.ab_variant as string | null)
+    : null;
+
+  const rawSections = Array.isArray(body.sections_viewed) ? body.sections_viewed : [];
+  const sectionsViewed = rawSections
+    .filter((s): s is string => typeof s === 'string' && VALID_SECTION_NAMES.has(s))
+    .slice(0, 20);
+
+  // sections_timing is a JSON-encoded object {sectionName: durationSeconds}.
+  let sectionsTiming: string | null = null;
+  if (typeof body.sections_timing === 'string') {
+    try {
+      const parsed = JSON.parse(body.sections_timing) as Record<string, unknown>;
+      const safe: Record<string, number> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (VALID_SECTION_NAMES.has(k) && typeof v === 'number') {
+          safe[k] = Math.max(0, Math.min(Math.round(v), 86400));
+        }
+      }
+      sectionsTiming = JSON.stringify(safe);
+    } catch { /* ignore malformed timing */ }
+  }
+
+  const data = {
+    username,
+    ref,
+    sections_viewed: sectionsViewed,
+    sections_timing: sectionsTiming,
+    time_spent_seconds: timeSpentSeconds,
+    device,
+    ab_variant: abVariant,
+  };
+
   try {
     await fetch(
       'https://fra.cloud.appwrite.io/v1/databases/main/collections/portfolio_visits/documents',
@@ -512,10 +675,10 @@ app.post('/api/track-portfolio-view', async (req: Request, res: Response) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Appwrite-Project': '69fd362b001eb325a192',
+          'X-Appwrite-Project': appwriteProjectId,
           'X-Appwrite-Key': apiKey,
         },
-        body: JSON.stringify({ documentId: 'unique()', data: req.body }),
+        body: JSON.stringify({ documentId: 'unique()', data }),
       },
     );
   } catch { /* best-effort — analytics should never block */ }
@@ -584,14 +747,25 @@ app.post('/api/fetch-url', async (req: Request, res: Response) => {
     const html = await response.text();
     res.json({ html });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed to fetch URL.';
-    res.status(502).json({ error: msg });
+    console.error('[fetch-url] error:', err);
+    res.status(502).json({ error: 'fetch_failed', message: 'Failed to fetch the requested URL.' });
   }
 });
 
 // ── OG Image generation ───────────────────────────────────────────────────────
 app.get('/og-image/:username', async (req: Request, res: Response) => {
   const { username } = req.params;
+
+  if (!USERNAME_RE.test(username)) {
+    res.status(400).json({ error: 'invalid_username' });
+    return;
+  }
+
+  const clientIp = getServerClientIp(req);
+  if (!checkOgRateLimit(clientIp)) {
+    res.status(429).json({ error: 'rate_limited', message: 'Too many requests. Please try again later.' });
+    return;
+  }
   // Fetch profile data from Appwrite REST API
   let name = username;
   let jobTitle = '';
@@ -633,6 +807,8 @@ h1{font-size:64px;font-weight:700;color:#f1f5f9;line-height:1.1;max-width:800px}
 <div class="brand"><div class="dot"></div>WiseResume</div>
 </body></html>`;
 
+  // --no-sandbox: accepted containerised limitation (L-3). OG image HTML is
+  // server-generated, not user-navigated, so SSRF surface is minimal here.
   let browser;
   try {
     browser = await puppeteer.launch({

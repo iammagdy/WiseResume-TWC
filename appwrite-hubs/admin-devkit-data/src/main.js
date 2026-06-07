@@ -6,21 +6,14 @@ const crypto = require('crypto');
 
 const DB_ID = 'main';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
-// Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
-// No hard-coded fallback: when absent, admin-only paths fail closed.
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
-
 // ─── Phase-4: Cold-start startup validation ───────────────────────────────────
 (function performStartupValidation() {
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
   if (!apiKey) {
     console.error('[ALERT] admin-devkit-data: APPWRITE_API_KEY not configured — all DB operations will fail');
-  }
-  if (!ADMIN_EMAIL) {
-    console.error('[ALERT] admin-devkit-data: ADMIN_EMAIL not set — all DevKit actions will be inaccessible');
   }
 })();
 
@@ -34,6 +27,19 @@ function json(res, requestIdValue, payload, status = 200) {
 
 function base64url(input) {
   return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function getImpersonationSecret() {
+  return process.env.IMPERSONATION_HMAC_SECRET
+    || process.env.APPWRITE_API_KEY
+    || process.env.APPWRITE_FUNCTION_API_KEY
+    || '';
+}
+
+function signImpersonationPayload(encoded) {
+  const secret = getImpersonationSecret();
+  if (!secret) return null;
+  return crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
 }
 
 function getSigningSecret() {
@@ -235,14 +241,14 @@ function worstStatus(items) {
 }
 
 async function verifyDevKitSession(body) {
-  // Verify the caller's Appwrite JWT and confirm the account email matches ADMIN_EMAIL.
+  // Verify the caller's Appwrite JWT and confirm the account has the 'admin' label.
   const jwt = body?.__headers?.['X-Appwrite-JWT'];
   if (!jwt) {
     return { success: false, code: 'UNAUTHORIZED', error: 'No Appwrite session found. Please sign in first.' };
   }
   try {
     const user      = await getAccountFromJwt(jwt);
-    if (!user.email || user.email.toLowerCase().trim() !== ADMIN_EMAIL) {
+    if (!Array.isArray(user.labels) || !user.labels.includes('admin')) {
       return { success: false, code: 'UNAUTHORIZED', error: 'Access denied.' };
     }
     const now         = Date.now();
@@ -443,22 +449,24 @@ function parseDeepseekModels(data) {
 async function handleMissionControl(log, error) {
   const { databases } = getClients();
   const now = isoNow();
+  // GITHUB_REPO env var: either 'owner/repo' or 'https://github.com/owner/repo'.
+  const rawGhRepo = (process.env.GITHUB_REPO || '').replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
   const deploy = {
     ok: false,
     lastCommitAt: null,
     sha: null,
     branch: 'main',
-    repoConfigured: !!process.env.GITHUB_TOKEN,
-    repoUrl: 'https://github.com/iammagdy/WiseResume-TWC',
+    repoConfigured: !!process.env.GITHUB_TOKEN && !!rawGhRepo,
+    repoUrl: rawGhRepo ? `https://github.com/${rawGhRepo}` : '',
     productionUrl: PRODUCTION_URL,
     siteUp: false,
     sitePingedAt: now,
     siteHttpStatus: 0,
   };
 
-  if (process.env.GITHUB_TOKEN) {
+  if (process.env.GITHUB_TOKEN && rawGhRepo) {
     try {
-      const ghRes = await axios.get('https://api.github.com/repos/iammagdy/WiseResume-TWC/commits/main', {
+      const ghRes = await axios.get(`https://api.github.com/repos/${rawGhRepo}/commits/main`, {
         headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, 'User-Agent': 'WiseCloud-DevKit/1.0' },
         timeout: 6000,
       });
@@ -1704,12 +1712,13 @@ async function handleImpersonate(body, log) {
   if (!target_user_id) throw new Error('Missing target_user_id');
   const targetUser = await getUser(target_user_id);
   const expiresAt = Date.now() + 15 * 60 * 1000;
-  const payload = Buffer.from(JSON.stringify({
-    u: target_user_id, e: targetUser.email, x: expiresAt,
-    t: 'admin-token-' + Math.random().toString(36).substring(7),
-  })).toString('base64');
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const payloadObj = { t: nonce, u: target_user_id, e: targetUser.email, x: expiresAt, iat: Date.now() };
+  const encoded = base64url(JSON.stringify(payloadObj));
+  const sig = signImpersonationPayload(encoded);
+  if (!sig) throw new Error('Server misconfiguration: signing key unavailable.');
   log(`impersonate: ${target_user_id}`);
-  return { url: `/act-as#${payload}`, email: targetUser.email, userId: target_user_id, expiresAt };
+  return { url: `/act-as#${encoded}.${sig}`, email: targetUser.email, userId: target_user_id, expiresAt };
 }
 
 async function handleListAppSettings(log) {

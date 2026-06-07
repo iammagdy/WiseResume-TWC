@@ -56,11 +56,18 @@ function bearerToken(req, body) {
   return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 }
 
+function timingSafeStringEqual(a, b) {
+  const nonce = crypto.randomBytes(32);
+  const h1 = crypto.createHmac('sha256', nonce).update(String(a)).digest();
+  const h2 = crypto.createHmac('sha256', nonce).update(String(b)).digest();
+  return crypto.timingSafeEqual(h1, h2);
+}
+
 function checkAuth(req, body) {
   const token = bearerToken(req, body);
   const password = process.env.DEVKIT_PASSWORD;
   if (!token) return false;
-  if (password && token === password) return true;
+  if (password && timingSafeStringEqual(token, password)) return true;
   return verifySignedToken(token);
 }
 
@@ -167,7 +174,7 @@ async function handleTestmailInbox(tag) {
   }
 
   const emails = (json.emails || []).map(e => ({
-    id:         e.id    || e.envelope_from || `${Date.now()}-${Math.random()}`,
+    id:         e.id    || e.envelope_from || `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
     subject:    typeof e.subject === 'string' ? e.subject : '(no subject)',
     from:       coerceAddress(e.from),
     to:         coerceAddress(e.to),

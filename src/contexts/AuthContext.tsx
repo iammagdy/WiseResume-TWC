@@ -18,6 +18,8 @@ export interface AppUser {
   email: string;
   name?: string;
   emailVerification: boolean;
+  /** Appwrite user labels — used for role checks (e.g. 'admin'). */
+  labels?: string[];
 }
 
 export interface AuthContextType {
@@ -133,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: appwriteUser.email,
         name: appwriteUser.name,
         emailVerification: appwriteUser.emailVerification === true,
+        labels: Array.isArray(appwriteUser.labels) ? appwriteUser.labels : [],
       };
     }
     return null;

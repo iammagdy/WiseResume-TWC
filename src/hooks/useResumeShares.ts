@@ -21,6 +21,15 @@ function generateToken(): string {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 }
 
+// Hash a share password with SHA-256 before storage so plaintext is never
+// persisted to Appwrite. Prefixed with "sha256:" to distinguish from legacy
+// plaintext passwords that may already exist in the collection.
+async function hashSharePassword(pw: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `sha256:${hex}`;
+}
+
 function docToShare(doc: Record<string, unknown>): ResumeShare {
   return {
     id: doc.$id as string,
@@ -199,7 +208,7 @@ export function useResumeShareMutations() {
           resume_id: input.resumeId,
           token,
           is_active: true,
-          password: input.password ?? null,
+          password: input.password ? await hashSharePassword(input.password) : null,
           has_password: !!input.password,
           expires_at: input.expires_at ?? null,
           view_count: 0,
@@ -220,7 +229,7 @@ export function useResumeShareMutations() {
       const payload: Record<string, unknown> = {};
       if (updates.is_active !== undefined) payload.is_active = updates.is_active;
       if (updates.password !== undefined) {
-        payload.password = updates.password;
+        payload.password = updates.password ? await hashSharePassword(updates.password) : null;
         payload.has_password = !!updates.password;
       }
       if (updates.expires_at !== undefined) payload.expires_at = updates.expires_at;

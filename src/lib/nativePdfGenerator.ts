@@ -3,6 +3,7 @@ import type { OnProgressCallback } from '@/hooks/useExportProgress';
 import { PDFDocument } from 'pdf-lib';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
 import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
+import { getAppwriteJWT } from '@/lib/appwriteJWT';
 
 const BRANDING_URL = 'https://resume.thewise.cloud';
 
@@ -174,11 +175,15 @@ async function callPdfServer(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45_000);
 
+  const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  const jwt = await getAppwriteJWT();
+  if (jwt) reqHeaders['X-Appwrite-JWT'] = jwt;
+
   let response: Response;
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: reqHeaders,
       body: JSON.stringify(payload),
       signal: controller.signal,
     });

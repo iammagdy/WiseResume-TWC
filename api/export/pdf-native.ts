@@ -599,19 +599,11 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
-    // Interception remains enabled only to preserve the existing request hook;
-    // every resource is continued so fonts/images match the approved layout.
     await page.setRequestInterception(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     page.on('request', (req: any) => {
       const url: string = req.url() as string;
-      const type: string = req.resourceType() as string;
-      const shouldBlockResource = false;
-      if (shouldBlockResource && (
-        type === 'font' ||
-        url.includes('fonts.gstatic.com') ||
-        url.includes('fonts.googleapis.com')
-      )) {
+      if (!isPuppeteerUrlAllowed(url)) {
         req.abort().catch(() => undefined);
       } else {
         req.continue().catch(() => undefined);
@@ -649,9 +641,55 @@ async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
+// ── SSRF guard ────────────────────────────────────────────────────────────────
+function isPuppeteerUrlAllowed(rawUrl: string): boolean {
+  if (rawUrl.startsWith('data:')) return true;
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { return false; }
+  if (parsed.protocol !== 'https:') return false;
+  const h = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h === '0.0.0.0' || h.endsWith('.local')) return false;
+  if (h === '::1' || h === '::' || /^(fc|fd)[0-9a-f]{0,2}:/i.test(h)) return false;
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [parseInt(m[1], 10), parseInt(m[2], 10)];
+    if (a === 0 || a === 10 || a === 127 || a === 255) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+  }
+  return true;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'method_not_allowed', message: 'Only POST is supported' });
+  }
+
+  // ── Auth: verify Appwrite JWT ─────────────────────────────────────────────
+  const jwtToken = req.headers['x-appwrite-jwt'];
+  if (!jwtToken || typeof jwtToken !== 'string') {
+    return res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
+  }
+  const appwriteEndpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+  const appwriteProjectId = process.env.APPWRITE_PROJECT_ID || '';
+  if (!appwriteProjectId) {
+    console.error('[pdf] APPWRITE_PROJECT_ID env var not configured');
+    return res.status(500).json({ error: 'config_error', message: 'Server configuration error' });
+  }
+  try {
+    const authRes = await fetch(`${appwriteEndpoint}/account`, {
+      headers: {
+        'X-Appwrite-Project': appwriteProjectId,
+        'X-Appwrite-JWT': jwtToken,
+      },
+    });
+    if (!authRes.ok) {
+      return res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' });
+    }
+  } catch {
+    return res.status(401).json({ error: 'unauthorized', message: 'Authentication check failed' });
   }
 
   const {
@@ -879,12 +917,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? (err.stack ?? '') : '';
-    // Use a unique prefix so Vercel log queries can find this exact line
-    // without it being shadowed by the earlier "[pdf] loading modules" line.
     console.error('[pdf-err]', message.slice(0, 300));
     const firstStackLine = stack.split('\n').slice(1, 3).join(' | ');
     if (firstStackLine) console.error('[pdf-trace]', firstStackLine);
-    res.status(500).json({ error: 'pdf_failed', message });
+    res.status(500).json({ error: 'pdf_failed', message: 'PDF generation failed. Please try again.' });
   } finally {
     await browser?.close();
   }
