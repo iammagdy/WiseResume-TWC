@@ -14,8 +14,9 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Neon uses a publicly trusted CA — rejectUnauthorized: true is safe and required.
   ssl: process.env.DATABASE_URL.includes('sslmode=require') || process.env.DATABASE_URL.includes('neon.tech')
-    ? { rejectUnauthorized: false }
+    ? { rejectUnauthorized: true }
     : false,
   max: 10,
   idleTimeoutMillis: 30000,

@@ -62,7 +62,7 @@ const crypto = require('crypto');
 const sdk = require('node-appwrite');
 
 const ENDPOINT    = (process.env.APPWRITE_ENDPOINT    || process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
-const PROJECT_ID  = process.env.APPWRITE_PROJECT_ID   || process.env.APPWRITE_FUNCTION_PROJECT_ID  || '69fd362b001eb325a192';
+const PROJECT_ID  = process.env.APPWRITE_PROJECT_ID   || process.env.APPWRITE_FUNCTION_PROJECT_ID ;
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://resume.thewise.cloud').replace(/\/$/, '');
 const RESEND_BASE  = 'https://api.resend.com';
 

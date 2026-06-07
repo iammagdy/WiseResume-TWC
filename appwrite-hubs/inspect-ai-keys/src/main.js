@@ -32,7 +32,7 @@ const PROVIDER_SLOTS = {
 
 function getDb() {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
   const client = new sdk.Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey || '');
   return new sdk.Databases(client);
@@ -59,12 +59,19 @@ function verifySignedToken(token) {
   return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
 }
 
+function timingSafeStringEqual(a, b) {
+  const nonce = crypto.randomBytes(32);
+  const h1 = crypto.createHmac('sha256', nonce).update(String(a)).digest();
+  const h2 = crypto.createHmac('sha256', nonce).update(String(b)).digest();
+  return crypto.timingSafeEqual(h1, h2);
+}
+
 function checkAuth(req, body) {
   const password = process.env.DEVKIT_PASSWORD;
   const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
   if (!token) return false;
-  return (password && token === password) || verifySignedToken(token);
+  return (password && timingSafeStringEqual(token, password)) || verifySignedToken(token);
 }
 
 function maskKey(key) {

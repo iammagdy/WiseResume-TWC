@@ -78,11 +78,18 @@ function bearerToken(req, body) {
   return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 }
 
+function timingSafeStringEqual(a, b) {
+  const nonce = crypto.randomBytes(32);
+  const h1 = crypto.createHmac('sha256', nonce).update(String(a)).digest();
+  const h2 = crypto.createHmac('sha256', nonce).update(String(b)).digest();
+  return crypto.timingSafeEqual(h1, h2);
+}
+
 function checkAuth(req, body) {
   const token = bearerToken(req, body);
   const password = process.env.DEVKIT_PASSWORD;
   if (!token) return false;
-  if (password && token === password) return true;
+  if (password && timingSafeStringEqual(token, password)) return true;
   return verifySignedToken(token);
 }
 
@@ -92,7 +99,7 @@ function getClients() {
   const client = new sdk.Client();
   client
     .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-    .setProject(process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192')
+    .setProject(process.env.APPWRITE_PROJECT_ID)
     .setKey(process.env.APPWRITE_API_KEY || '');
   return { databases: new sdk.Databases(client) };
 }
@@ -558,8 +565,13 @@ function magicLinkEmailHtml(email) {
   `);
 }
 
+function generateSecureOtp() {
+  const buf = crypto.randomBytes(4);
+  return (buf.readUInt32BE(0) % 900000 + 100000).toString();
+}
+
 function otpEmailHtml() {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = generateSecureOtp();
   return baseTemplate(`
     <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Your verification code</h2>
     <p style="color:#374151;line-height:1.6;">Use the code below to verify your identity. It expires in 10 minutes.</p>

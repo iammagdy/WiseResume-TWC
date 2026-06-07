@@ -76,7 +76,7 @@ function getClients() {
   const client = new sdk.Client();
   client
     .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-    .setProject(process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192')
+    .setProject(process.env.APPWRITE_PROJECT_ID)
     .setKey(process.env.APPWRITE_API_KEY || '');
   return { databases: new sdk.Databases(client) };
 }

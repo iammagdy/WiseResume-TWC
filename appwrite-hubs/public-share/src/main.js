@@ -5,7 +5,7 @@ const sdk = require('node-appwrite');
 
 const DB_ID = 'main';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '';
 const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 
 const PROFILES_COLLECTION_ID = 'profiles';
@@ -51,6 +51,18 @@ function asRecord(value) {
 
 function base64url(input) {
   return Buffer.from(input).toString('base64url');
+}
+
+function sha256Hex(text) {
+  return crypto.createHash('sha256').update(String(text)).digest('hex');
+}
+
+// Timing-safe string equality via HMAC to prevent oracle leakage.
+function timingSafeStringEqual(a, b) {
+  const nonce = crypto.randomBytes(32);
+  const h1 = crypto.createHmac('sha256', nonce).update(String(a)).digest();
+  const h2 = crypto.createHmac('sha256', nonce).update(String(b)).digest();
+  return crypto.timingSafeEqual(h1, h2);
 }
 
 function signToken(payload) {
@@ -199,7 +211,29 @@ async function handleVerifySharePassword(db, body, res) {
   ]);
   const share = shareRes.documents?.[0];
   const active = !!share?.is_active && (!share.expires_at || new Date(share.expires_at).getTime() > Date.now());
-  const authenticated = active && String(share?.password || '') === password;
+
+  if (!active || !share?.password) {
+    return res.json({ status: 'success', data: { authenticated: false } });
+  }
+
+  const stored = String(share.password);
+  let authenticated;
+
+  if (stored.startsWith('sha256:')) {
+    // Hashed password (new format): compare sha256:hex(provided) vs stored.
+    const providedHash = `sha256:${sha256Hex(password)}`;
+    authenticated = timingSafeStringEqual(providedHash, stored);
+  } else {
+    // Legacy plaintext: compare timing-safe, then upgrade to hashed on success.
+    authenticated = timingSafeStringEqual(stored, password);
+    if (authenticated) {
+      try {
+        await db.updateDocument(DB_ID, RESUME_SHARES_COLLECTION_ID, share.$id, {
+          password: `sha256:${sha256Hex(password)}`,
+        });
+      } catch { /* best-effort upgrade — do not fail verification if upgrade fails */ }
+    }
+  }
 
   return res.json({ status: 'success', data: { authenticated } });
 }
