@@ -5271,3 +5271,250 @@ Live:
   - `Loader/`
   - `reports/*.json`
 - If Email Studio still shows the old toast on production, the next step is to verify the frontend deploy cache has refreshed, not to reopen the Appwrite function logic by default.
+
+---
+
+## Session Log - 2026-06-07 (Full Security Audit — 4 Batches + Deploy Readiness)
+
+### Overview
+
+Implemented, reviewed, and merged a 26-issue security audit covering the full WiseResume-TWC codebase. Work proceeded in five sub-phases: 4 fix batches, a post-fix audit, a cleanup pass, a final pre-commit audit, then merge + post-merge deploy readiness fixes. All changes are on `main` at `484791a`.
+
+---
+
+### Security Fixes — 26 Issues Across 4 Batches
+
+#### Batch 1 — Public runtime blockers (C-1, C-3, H-5, H-8, H-9, H-10, M-6/M-7, L-3)
+
+| Issue | Root cause | Fix | File(s) |
+|---|---|---|---|
+| C-1 | Puppeteer PDF endpoint had no auth gate | Added `requireAppwriteJWT` middleware | `api/export/pdf-native.ts` |
+| C-3 | Puppeteer allowed any URL (SSRF risk) | `isPuppeteerUrlAllowed()` blocks file://, RFC1918, loopback, .local | `api/export/pdf-native.ts` |
+| H-5 | TLS `rejectUnauthorized: false` in `server/db.ts` | Set to `true` | `server/db.ts` |
+| H-8 | No HSTS header | Added `Strict-Transport-Security: max-age=31536000; includeSubDomains` | `vercel.json` |
+| H-9 | Vulnerable transitive deps (`serialize-javascript`, `esbuild`, `path-to-regexp`) | Added `overrides` in `package.json` | `package.json` |
+| H-10 | `x-forwarded-for` used directly for IP (spoofable) | `requireAppwriteJWT` uses `req.ip` | `api/export/pdf-native.ts` |
+| M-6/M-7 | Express server had no CORS enforcement | `PRODUCTION_ORIGINS` Set + `buildExtraOriginSet()` from `ALLOWED_ORIGINS` env var | `server/index.ts` |
+| L-3 | Puppeteer `--no-sandbox` undocumented | Added accepted-risk comment at both launch sites | `server/index.ts`, `api/export/pdf-native.ts` |
+
+#### Batch 2 — Admin identity and impersonation (C-2, H-2, H-3, H-11, M-9, L-2)
+
+| Issue | Root cause | Fix | File(s) |
+|---|---|---|---|
+| C-2 | Admin check used email string comparison (spoofable) | Switched to `user.labels.includes('admin')` | `src/hooks/useIsAdmin.ts`, `src/contexts/AuthContext.tsx` |
+| H-2 | Impersonation token was unverified URL hash, activated client-side only | HMAC-SHA256 signed tokens; `ActAs.tsx` calls `admin-impersonate verify` action server-side before activating | `src/pages/ActAs.tsx`, `appwrite-hubs/admin-impersonate/src/main.js` |
+| H-3 | DevKit password compared with `===` (timing attack) | `timingSafeStringEqual()` via HMAC-nonce pattern in all 9 admin hubs | All admin hub `src/main.js` files |
+| H-11 | Impersonation nonce stored in sessionStorage with no risk note | Added security note to JSDoc | `src/lib/impersonationStore.ts` |
+| M-9 | Hardcoded Appwrite project ID fallback `|| '69fd362b...'` in executable code | Removed from all hubs and `src/lib/appwrite.ts` | 11 hub files + `src/lib/appwrite.ts` |
+| L-2 | `Math.random()` used for ID generation in `admin-testmail` | Replaced with `crypto.randomBytes(4).toString('hex')` | `appwrite-hubs/admin-testmail/src/main.js` |
+
+#### Batch 3 — Data protection, CORS, config hygiene (H-1, H-4, H-6, H-7, M-5, M-8)
+
+| Issue | Root cause | Fix | File(s) |
+|---|---|---|---|
+| H-1 | Share passwords stored and compared in plaintext | Frontend hashes with `SHA-256` prefixed `sha256:`; server verifies hash; legacy plaintext auto-upgrades on first use | `src/hooks/useResumeShares.ts`, `appwrite-hubs/public-share/src/main.js` |
+| H-4 | Public share password returned in API response | `Query.select` excludes `password` field from public share queries | `src/hooks/useResumeShares.ts` |
+| H-6 | Replit domains in portfolio allowlists | Removed `replit.dev`, `repl.co`, `replit.app` from all allowlists | `src/hooks/usePublicPortfolio.ts` |
+| H-7 | DevKit client token sent as plain query param | Switched to `Authorization: Bearer` header | `src/lib/devkit/devKitClient.ts` |
+| M-5 | `requireAppwriteJWT` middleware missing from OG image and track-portfolio routes | Added middleware to both routes | `server/index.ts` |
+| M-8 | Hardcoded project ID in `src/lib/appwrite.ts` | Fallback removed; `VITE_APPWRITE_PROJECT_ID` required | `src/lib/appwrite.ts` |
+
+#### Batch 4 — AI credits, rate limits, CSP, prompt injection (M-1, M-2, M-3, M-4, L-1)
+
+| Issue | Root cause | Fix | File(s) |
+|---|---|---|---|
+| M-1 | CSP missing `frame-ancestors`, `upgrade-insecure-requests`; `connect-src` too broad | Tightened CSP in `public/_headers` (connect-src Appwrite-only, added both directives) | `public/_headers` |
+| M-2 | AI credit write had no concurrency protection | Optimistic locking: re-read doc before write, compare `$updatedAt`, apply delta to fresh base if changed | `appwrite-hubs/ai-gateway/src/main.js` |
+| M-3 | Rate limits in-memory only (cold-start unsafe) | Persistent rate limiting via `ai_request_logs` collection (cross-instance, 60-second window) | `appwrite-hubs/ai-gateway/src/main.js` |
+| M-4 | IP extraction trusted `x-forwarded-for` directly | `getClientIp()` helper: `cf-connecting-ip` → `x-real-ip` → `req.ip` fallback (same pattern added to `server/index.ts` as `getServerClientIp()`) | `appwrite-hubs/ai-gateway/src/main.js`, `server/index.ts` |
+| L-1 | User-supplied content in AI system prompts (prompt injection) | Added `[USER INPUT]` / `[END USER INPUT]` delimiters; moved profile data and job description to `user` role in all 7 feature paths | `appwrite-hubs/ai-gateway/src/main.js` |
+
+#### Cleanup pass (post-audit gaps)
+
+- `server/index.ts` OG image + track-portfolio routes still used `x-forwarded-for` directly → added `getServerClientIp()` helper, applied to both routes.
+- `smol-toml` DoS vulnerability via `@vercel/node` transitive dep → added `"smol-toml": ">=1.6.1"` to `package.json` overrides.
+- Residual risk documentation added to JSDoc for H-11 (`impersonationStore.ts`), M-1 (`public/_headers`), L-3 (Puppeteer launch sites).
+
+---
+
+### Residual / accepted risks (documented, not fixed)
+
+| ID | What | Why deferred |
+|---|---|---|
+| H-11 | sessionStorage XSS exposes `{ userId, email }` | Nonce not replayable; full fix requires memory-only state + mandatory reload — UX trade-off |
+| M-1 | CSP `unsafe-inline` remains | Vite SPA; nonce/hash injection requires HTML-serving layer changes |
+| M-2 | Optimistic lock narrows but doesn't eliminate credit race | Appwrite has no atomic increment operator |
+| L-3 | Puppeteer `--no-sandbox` | Required in containerised/serverless environments; SSRF guard + auth are primary mitigations |
+
+---
+
+### Validation before commit
+
+- `npx tsc --noEmit` — CLEAN
+- `npm run build` — EXIT 0, no source maps
+- `node --check` on all 11 modified hub JS files — ALL PASS
+- 10/10 security-relevant unit tests pass (`Auth-D3.test.tsx`, `ProtectedRoute.test.tsx`)
+- `npm audit` — 7 vulns, all pre-existing `@vercel/node` transitives (undici, minimatch); fix requires semver-major `@vercel/node@3.0.1` upgrade, deferred
+
+---
+
+### Commits created (this session)
+
+| SHA | Message |
+|---|---|
+| `e41cf61` | `security: fix 26 audit issues across 4 batches + cleanup pass` |
+| `09480b7` | `Merge branch 'claude/inspiring-mayer-6PTJP': security fixes (26 issues, 4 batches)` |
+| `8ea5f9c` | `chore(security): fix post-merge deploy readiness gaps` |
+| `484791a` | `chore(deploy): regenerate hub source hash manifest after security fixes` |
+
+---
+
+### Post-merge verification findings
+
+After merging to `main` and Vercel deploying, a read-only verification pass found:
+
+1. **Vercel deployment READY** — `dpl_DnXpM7NwfGFtxg3CrWsabB7ixsKA`, production URL `https://resume.thewise.cloud`.
+2. **CSP not live as HTTP header** — `public/_headers` CSP was never served under the Vercel rewrite config (`vercel.json` catch-all rewrites prevent `_headers` processing). The only active CSP was the meta tag injected by Vite's `cspPlugin()` in `vite.config.ts`, which has a wider `connect-src`.
+3. **IMPERSONATION_HMAC_SECRET** — not in the deploy workflow env block. Deploy script falls back to `APPWRITE_API_KEY` via `getImpersonationSecret()`, so impersonation is functional but without a dedicated secret.
+4. **`ai_request_logs`** — setup script was missing 3 attributes (`is_idempotency_hit`, `credits_charged`, `idempotency_key`) and 2 indexes (`user_id_idx`, `created_at_idx`) required by `checkPersistentRateLimit`.
+5. **`idempotency_cache`** — no setup script existed; collection would have been created only by hand.
+6. **Deploy workflow source hash check failed** — `compute-source-hashes.mjs` was never re-run after the 17 hub files changed in `e41cf61`, causing step 6 (`Ensure source hash manifest is committed`) to fail on the first deploy attempt.
+
+---
+
+### Deploy readiness fixes (commit `8ea5f9c`)
+
+#### Fix 1 — CSP in `vercel.json`
+
+**Root cause**: `vercel.json` has a catch-all rewrite `/((?!api/).*) → /index.html`. Vercel does not process `_headers` files when rewrite rules are active. The CSP in `public/_headers` was committed but never served.
+
+**Fix**: Added `Content-Security-Policy` HTTP header directly to the `vercel.json` headers block, matching the `vite.config.ts` meta CSP value exactly plus `upgrade-insecure-requests`. The meta CSP (from Vite's `cspPlugin`) and the HTTP CSP are now identical — no regression risk.
+
+**File**: `vercel.json`
+
+#### Fix 2 — IMPERSONATION_HMAC_SECRET deploy propagation
+
+**Root cause**: `deploy_hubs.cjs` handles `admin-impersonate` via `ensureSharedAdminVariables`, which sets the shared vars (`DEVKIT_PASSWORD`, `APPWRITE_API_KEY`, etc.) but not the new secret. The GitHub Actions workflow also did not pass it.
+
+**Fix**: Added `IMPERSONATION_HMAC_SECRET: ${{ secrets.IMPERSONATION_HMAC_SECRET }}` to the workflow env block; added `ensureVariable('admin-impersonate', 'IMPERSONATION_HMAC_SECRET', ...)` in `syncVariablesForHubs`. Fallback to `APPWRITE_API_KEY` remains in `admin-impersonate/src/main.js` but is no longer the expected production path.
+
+**Note**: The `IMPERSONATION_HMAC_SECRET` GitHub Secret must be created in the repository before the next hub deploy. Without it, deploy continues (uses `APPWRITE_API_KEY` fallback) but impersonation uses a weaker shared secret.
+
+**Files**: `.github/workflows/deploy-appwrite-hubs.yml`, `scripts/deploy_hubs.cjs`
+
+#### Fix 3 — `ai_request_logs` missing attributes and indexes
+
+**Root cause**: `setup_ai_logs_schema.cjs` was written before the idempotency and credit tracking fields were added to `safeLogAiRequest()` in the ai-gateway. Three attributes written by the function were absent from the schema: `is_idempotency_hit` (bool), `credits_charged` (int), `idempotency_key` (str 64). Two indexes required by `checkPersistentRateLimit`'s `Query.equal('user_id')` + `Query.greaterThanEqual('created_at')` were also missing.
+
+**Fix**: Added the 3 missing attributes and `user_id_idx` / `created_at_idx` indexes to the setup script.
+
+**File**: `scripts/setup_ai_logs_schema.cjs`
+
+#### Fix 4 — `idempotency_cache` had no setup script
+
+**Root cause**: No `setup_idempotency_schema.cjs` existed. The ai-gateway degrades gracefully when the collection is absent (logs a one-time warning), but dedup protection is inactive until the collection exists.
+
+**Fix**: Created `scripts/setup_idempotency_schema.cjs` with full schema (8 attributes + `key_idx` index). Added `Ensure idempotency cache schema` step to the deploy workflow, running before the hub deploy step.
+
+**Files**: `scripts/setup_idempotency_schema.cjs` (new), `.github/workflows/deploy-appwrite-hubs.yml`
+
+---
+
+### Deploy workflow fix (commit `484791a`)
+
+**Root cause**: `compute-source-hashes.mjs` hashes each hub's `src/main.js`. The security commit `e41cf61` modified 17 hub files, but the hash manifest `src/lib/devkit/sourceHashes.generated.json` was not regenerated. The deploy workflow recomputes hashes in CI and then runs `git diff --exit-code` to enforce that the committed manifest matches. This check failed, aborting the workflow.
+
+**Fix**: Ran `node scripts/compute-source-hashes.mjs` locally; committed the updated manifest. 17 hub hashes updated.
+
+**File**: `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Files changed (full session)
+
+**Security fixes (`e41cf61`)** — 32 files:
+
+- `api/export/pdf-native.ts`
+- `appwrite-hubs/admin-deploy-hubs/src/main.js`
+- `appwrite-hubs/admin-devkit-data/src/main.js`
+- `appwrite-hubs/admin-email/src/main.js`
+- `appwrite-hubs/admin-feature-flags/src/main.js`
+- `appwrite-hubs/admin-impersonate/src/main.js`
+- `appwrite-hubs/admin-moderation/src/main.js`
+- `appwrite-hubs/admin-onboarding-funnel/src/main.js`
+- `appwrite-hubs/admin-portfolio-usernames/src/main.js`
+- `appwrite-hubs/admin-testmail/src/main.js`
+- `appwrite-hubs/admin-visitor-analytics/src/main.js`
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `appwrite-hubs/coupons/src/main.js`
+- `appwrite-hubs/email-service/src/main.js`
+- `appwrite-hubs/inspect-ai-keys/src/main.js`
+- `appwrite-hubs/public-share/src/main.js`
+- `appwrite-hubs/wisehire-gateway/src/main.js`
+- `package-lock.json`, `package.json`
+- `public/_headers`
+- `server/db.ts`, `server/index.ts`
+- `src/contexts/AuthContext.tsx`
+- `src/hooks/useIsAdmin.ts`, `src/hooks/usePublicPortfolio.ts`, `src/hooks/useResumeShares.ts`
+- `src/lib/appwrite.ts`, `src/lib/devkit/devKitClient.ts`, `src/lib/impersonationStore.ts`, `src/lib/nativePdfGenerator.ts`
+- `src/pages/ActAs.tsx`
+- `vercel.json`
+
+**Deploy readiness (`8ea5f9c`)** — 5 files:
+
+- `.github/workflows/deploy-appwrite-hubs.yml`
+- `scripts/deploy_hubs.cjs`
+- `scripts/setup_ai_logs_schema.cjs`
+- `scripts/setup_idempotency_schema.cjs` (new)
+- `vercel.json`
+
+**Source hash manifest (`484791a`)** — 1 file:
+
+- `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Deployments performed
+
+| What | State | Notes |
+|---|---|---|
+| Vercel frontend | READY | Auto-triggered by each push to `main`. CSP HTTP header live from `8ea5f9c`. |
+| Appwrite Functions | **NOT deployed** | `deploy-appwrite-hubs.yml` is `workflow_dispatch` only. First attempt failed (source hash check). Hash manifest fixed in `484791a`. Ready to deploy. |
+
+---
+
+### Where We Stopped
+
+- `main` is at `484791a`. Local and `origin/main` are aligned.
+- Vercel production (`https://resume.thewise.cloud`) is live at `484791a`.
+- Appwrite Functions are still running the **pre-security-fix code** (last deployed `2026-06-03` at `3c70bce3`). All 17 changed hubs are queued for deploy.
+- `sourceHashes.generated.json` is up to date; the deploy workflow hash check will now pass.
+
+**Next step — trigger the Appwrite hub deploy:**
+
+1. Create the `IMPERSONATION_HMAC_SECRET` GitHub Secret in the repository (if not already set). Value should be a random 32-byte secret, distinct from `APPWRITE_API_KEY`.
+2. Go to GitHub → Actions → `Deploy Appwrite Hubs` → `Run workflow` → branch `main` → target `all`.
+3. The workflow will:
+   - Run `setup_ai_logs_schema.cjs` (adds missing attributes + indexes to `ai_request_logs`)
+   - Run `setup_idempotency_schema.cjs` (creates `idempotency_cache`)
+   - Deploy all 17 changed hubs
+   - Set `IMPERSONATION_HMAC_SECRET` on `admin-impersonate`
+   - Run smoke checks on deployed functions
+4. After deploy: verify in Appwrite Console that `admin-impersonate` has `IMPERSONATION_HMAC_SECRET` set.
+5. Run manual QA:
+   - PDF export (SSRF guard + JWT auth)
+   - OG image generation
+   - Share password (test legacy plaintext → SHA-256 upgrade path)
+   - AI credits + idempotency (submit same request twice within 5-min window)
+   - Public portfolio chat
+   - Admin DevKit (all panels)
+   - Act As impersonation (new-tab flow with HMAC token verification)
+   - CORS / HSTS / CSP headers (DevTools → Network → response headers on `resume.thewise.cloud`)
+
+**Pending manual Vercel env var verification** (cannot be done programmatically):
+
+- `VITE_APPWRITE_PROJECT_ID`
+- `APPWRITE_PROJECT_ID`
+- `APPWRITE_ENDPOINT`
+
+Confirm these exist in the Vercel dashboard before signing off QA.
