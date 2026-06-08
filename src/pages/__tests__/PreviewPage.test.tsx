@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 const mockResumeState = vi.hoisted(() => ({
   currentResume: null as any,
@@ -25,6 +25,8 @@ const mockResumeQuery = vi.hoisted(() => ({
 }));
 
 const generateAndDownloadDOCX = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+const generateNativePDFMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Blob(['pdf'])));
+const downloadFileMock = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, method: 'download' }));
 
 vi.mock('@/store/resumeStore', () => ({
   useResumeStore: () => mockResumeState,
@@ -94,6 +96,32 @@ vi.mock('sonner', () => ({
   }),
 }));
 
+vi.mock('@/lib/appwrite', () => ({
+  storage: { createFile: vi.fn(), getFileView: vi.fn(() => ({ href: '' })) },
+  ID: { unique: vi.fn(() => 'unique-id') },
+}));
+
+vi.mock('@/lib/appwrite-collections', () => ({
+  BUCKETS: { avatars: 'avatars' },
+}));
+
+vi.mock('@/lib/nativePdfGenerator', () => ({
+  generateNativePDF: generateNativePDFMock,
+  generateCoverLetterNativePDF: vi.fn().mockResolvedValue(new Blob(['pdf'])),
+  mergePDFBlobs: vi.fn().mockResolvedValue(new Blob(['pdf'])),
+  PDFServerUnavailableError: class PDFServerUnavailableError extends Error {},
+}));
+
+vi.mock('@/lib/downloadUtils', () => ({
+  downloadFile: downloadFileMock,
+}));
+
+vi.mock('@/components/editor/PreviewScaledWrapper', () => ({
+  PreviewScaledWrapper: ({ children, resumeRef }: { children: React.ReactNode; resumeRef: React.RefObject<HTMLDivElement> }) => (
+    <div ref={resumeRef as any}>{children}</div>
+  ),
+}));
+
 let PreviewPage: typeof import('@/pages/PreviewPage').default;
 
 function renderPreview(initialPath: string) {
@@ -159,10 +187,16 @@ describe('PreviewPage URL bootstrap', () => {
     mockResumeQuery.isLoading = false;
     mockResumeQuery.isFetching = false;
     generateAndDownloadDOCX.mockClear();
+    generateNativePDFMock.mockClear();
+    downloadFileMock.mockClear();
     (globalThis as any).ResizeObserver = class {
       observe() {}
       disconnect() {}
     };
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('loads a resume from ?id in a fresh tab and hydrates the store', async () => {
@@ -237,6 +271,198 @@ describe('PreviewPage URL bootstrap', () => {
       vi.advanceTimersByTime(900);
     });
 
+    expect(mockResumeState.currentResume?.id).toBe('resume-1');
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
+
+  // --- E-2 fix: auto-export action fires AFTER bootstrap, not before ---
+
+  function makeQueryClient() {
+    return new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  }
+
+  function makeTree(path: string) {
+    return (
+      <QueryClientProvider client={makeQueryClient()}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/preview" element={<PreviewPage />} />
+            <Route path="/dashboard" element={<div>Dashboard</div>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+  }
+
+  it('action=docx does not export before bootstrap and calls generateAndDownloadDOCX after', async () => {
+    vi.useFakeTimers();
+    mockResumeQuery.isLoading = true;
+
+    const view = render(makeTree('/preview?id=resume-1&action=docx'));
+
+    // Bootstrap pending — timer should not have fired even after advancing time
+    await act(async () => { vi.advanceTimersByTime(1200); });
+    expect(generateAndDownloadDOCX).not.toHaveBeenCalled();
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+
+    // Complete bootstrap
+    mockResumeQuery.data = makeResumeDoc();
+    mockResumeQuery.isLoading = false;
+
+    await act(async () => {
+      view.rerender(makeTree('/preview?id=resume-1&action=docx'));
+      await Promise.resolve();
+    });
+
+    expect(mockResumeState.setCurrentResume).toHaveBeenCalled();
+
+    view.rerender(makeTree('/preview?id=resume-1&action=docx'));
+
+    // Advance past the 800ms export timer
+    await act(async () => { vi.advanceTimersByTime(900); });
+    // Flush async chain inside handleExport (dynamic import + mockResolvedValue)
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(generateAndDownloadDOCX).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('action=download does not export before bootstrap and triggers PDF export after', async () => {
+    vi.useFakeTimers();
+    mockResumeQuery.isLoading = true;
+
+    const view = render(makeTree('/preview?id=resume-1&action=download'));
+
+    await act(async () => { vi.advanceTimersByTime(1200); });
+    expect(generateNativePDFMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+
+    mockResumeQuery.data = makeResumeDoc();
+    mockResumeQuery.isLoading = false;
+
+    await act(async () => {
+      view.rerender(makeTree('/preview?id=resume-1&action=download'));
+      await Promise.resolve();
+    });
+
+    expect(mockResumeState.setCurrentResume).toHaveBeenCalled();
+
+    view.rerender(makeTree('/preview?id=resume-1&action=download'));
+
+    await act(async () => { vi.advanceTimersByTime(900); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // PDF export should have been triggered (resumeRef is attached via PreviewScaledWrapper mock)
+    expect(generateNativePDFMock).toHaveBeenCalledTimes(1);
+    expect(downloadFileMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('action=ats-pdf does not export before bootstrap and triggers ATS PDF export after', async () => {
+    vi.useFakeTimers();
+    mockResumeQuery.isLoading = true;
+
+    const view = render(makeTree('/preview?id=resume-1&action=ats-pdf'));
+
+    await act(async () => { vi.advanceTimersByTime(1200); });
+    expect(generateNativePDFMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+
+    mockResumeQuery.data = makeResumeDoc();
+    mockResumeQuery.isLoading = false;
+
+    await act(async () => {
+      view.rerender(makeTree('/preview?id=resume-1&action=ats-pdf'));
+      await Promise.resolve();
+    });
+
+    expect(mockResumeState.setCurrentResume).toHaveBeenCalled();
+
+    view.rerender(makeTree('/preview?id=resume-1&action=ats-pdf'));
+
+    await act(async () => { vi.advanceTimersByTime(900); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(generateNativePDFMock).toHaveBeenCalledTimes(1);
+    // ATS mode passes atsMode: true
+    expect(generateNativePDFMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ atsMode: true }),
+    );
+    expect(downloadFileMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('action is not executed before the 800ms timer fires (not cleared early)', async () => {
+    vi.useFakeTimers();
+    // Bootstrap completes immediately (data already available)
+    mockResumeQuery.data = makeResumeDoc();
+    mockResumeQuery.isLoading = false;
+
+    const view = render(makeTree('/preview?id=resume-1&action=docx'));
+
+    // Allow bootstrap effects to run
+    await act(async () => { await Promise.resolve(); });
+
+    view.rerender(makeTree('/preview?id=resume-1&action=docx'));
+
+    // At 400ms (before 800ms timer) — export must NOT have fired yet
+    await act(async () => { vi.advanceTimersByTime(400); });
+    expect(generateAndDownloadDOCX).not.toHaveBeenCalled();
+
+    // At 900ms — timer fires, export must have happened
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(generateAndDownloadDOCX).toHaveBeenCalledTimes(1);
+  });
+
+  it('normal /preview without action does not trigger auto-export', async () => {
+    vi.useFakeTimers();
+    mockResumeQuery.data = makeResumeDoc();
+    mockResumeQuery.isLoading = false;
+
+    render(makeTree('/preview?id=resume-1'));
+
+    await act(async () => { vi.advanceTimersByTime(1200); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(generateAndDownloadDOCX).not.toHaveBeenCalled();
+    expect(generateNativePDFMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('stale Zustand currentResume is replaced by URL-id resume after bootstrap', async () => {
+    const staleResume = {
+      id: 'stale-resume',
+      contactInfo: { fullName: 'Stale User' },
+      experience: [],
+      education: [],
+      skills: [],
+    };
+    mockResumeState.currentResume = staleResume as any;
+    mockResumeQuery.data = makeResumeDoc(); // resume-1
+    mockResumeQuery.isLoading = false;
+
+    render(makeTree('/preview?id=resume-1'));
+
+    await waitFor(() => {
+      expect(mockResumeState.setCurrentResume).toHaveBeenCalled();
+    });
+
+    // After bootstrap, the store should hold resume-1, not the stale resume
     expect(mockResumeState.currentResume?.id).toBe('resume-1');
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
   });

@@ -11,6 +11,43 @@
 
 ---
 
+## 2026-06-08 - Fix PreviewPage auto-export action path (Tailoring Hub export blocker)
+
+### Root cause fixed
+`PreviewPage` was calling `setSearchParams` immediately when the auto-export effect fired (to clean `?action` from the URL). Because `searchParams` was in the effect's dependency array, this triggered effect cleanup (`clearTimeout`), cancelling the 800ms export timer before it could fire. The export never started.
+
+### Fix applied
+- `src/pages/PreviewPage.tsx`
+  - Action value captured in `initialAutoExportAction` ref at mount time (not read from `searchParams` on each effect run).
+  - Export timer stored in `autoExportTimerRef` ref (not returned as effect cleanup), so React cannot cancel it when dependencies change.
+  - `setSearchParams` moved inside the timer callback, after the export is triggered.
+  - Fallback CTA banner added: if the browser cannot auto-trigger (e.g., `resumeRef` not yet attached), a visible "Download PDF / Download ATS PDF / Download DOCX" button appears.
+  - Separate unmount-only `useEffect` cancels the timer if the component unmounts before it fires.
+
+### Tests
+- `src/pages/__tests__/PreviewPage.test.tsx`
+  - Added 5 new tests covering:
+    - `action=docx` does not export before bootstrap, calls `generateAndDownloadDOCX` after.
+    - `action=download` does not export before bootstrap, calls `generateNativePDF` and `downloadFile` after.
+    - `action=ats-pdf` does not export before bootstrap, calls `generateNativePDF` with `atsMode: true` and `downloadFile` after.
+    - Action not executed before the 800ms timer fires.
+    - Normal `/preview?id=<id>` without `action` does not trigger auto-export.
+    - Stale Zustand `currentResume` replaced by URL-id resume after bootstrap (existing test).
+  - Added mocks for `@/lib/nativePdfGenerator`, `@/lib/downloadUtils`, `@/components/editor/PreviewScaledWrapper`.
+  - All 8 tests pass.
+
+### Validation
+- `npx vitest run src/pages/__tests__/PreviewPage.test.tsx` — 8/8 passed.
+- `npx tsc --noEmit` — clean.
+- `npm run build` — succeeded.
+
+### Deployment required
+- Frontend (Vercel) deployment required — `src/pages/PreviewPage.tsx` changed.
+- Appwrite deployment NOT required — no Appwrite function files changed.
+- No manual Appwrite schema changes required for this fix.
+
+---
+
 ## 2026-06-08 - Session closeout after AI Gateway deploys and Tailoring Hub / Company Briefing production QA
 
 ### What was verified live
