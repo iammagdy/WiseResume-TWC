@@ -124,7 +124,7 @@ let _chatSessionsMissing = false;        // warn once when question_count attr i
     console.warn('[ALERT] ai-gateway: RESEND_API_KEY not set — contact-email feature unavailable');
   }
   const hasAnyAiKey = [
-    'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'DEEPSEEK_API_KEY', 'NVIDIA_API_KEY',
+    'GROQ_KEY_1', 'OPENROUTER_KEY_1', 'DEEPSEEK_KEY', 'NVIDIA_KEY_1',
   ].some(k => !!process.env[k]);
   if (!hasAnyAiKey) {
     console.error('[ALERT] ai-gateway: No AI provider API keys found — all AI requests will fail');

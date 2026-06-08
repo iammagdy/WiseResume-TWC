@@ -6849,3 +6849,153 @@ After merging to `main` and Vercel deploying, a read-only verification pass foun
 - `APPWRITE_ENDPOINT`
 
 Confirm these exist in the Vercel dashboard before signing off QA.
+
+---
+
+## SESSION LOG — 2026-06-08 AI Routing & DevKit Audit
+
+### Branch
+`claude/atlas-handover-review-pv67uk`
+
+### Objective
+Full Phase 0–9 AI routing and DevKit audit: verify DeepSeek-primary routing end-to-end, structured output normalizers, credits/auth/idempotency, env var pool, and all DevKit panels. Implement minimal safe fixes for verified issues only.
+
+---
+
+### Audit Results
+
+#### Phase 1 — DeepSeek-primary routing ✅ PASS
+
+| Check | Status |
+|---|---|
+| `FEATURE_ROUTES` in ai-gateway — all 21 tools DeepSeek-first (except resume-section-ai Groq) | ✅ |
+| `TOOL_GATEWAY_DEFAULTS` in aiToolsCatalogue.ts — exact match | ✅ |
+| `STATIC_DEFAULTS` in admin-devkit-data handleListRoutes — exact match | ✅ |
+| `score-resume` has no dedicated route (pool fallback) | ✅ |
+| Fallback providers (Groq, OpenRouter, NVIDIA) remain in pool | ✅ |
+| Dynamic DB override via `ai_routing_config` collection (1-min TTL cache) | ✅ |
+
+#### Phase 2 — Structured output normalizers ✅ PASS
+
+| Normalizer | Validation enforced |
+|---|---|
+| `normalizeLinkedInPayload` | Rejects empty `experienceRewrites` when resume has experience; rejects empty headlines/about |
+| `normalizeQuestionBankPayload` | Requires all 4 categories: company, technical, behavioral, curveball |
+| `normalizeCompanyBriefingPayload` | Requires `companySnapshot.name` |
+| `normalizeTailorResumeCollections` | Preserves original IDs via company+position match, index fallback |
+
+All normalizer tests pass: `node tests/hubs/ai-gateway-routing.test.cjs` → ALL TESTS PASSED.
+
+#### Phase 3 — Credits, auth, idempotency ✅ PASS (code-level)
+
+- `validateUserSession()` gates all user-facing tools ✅
+- `publicPortfolioAuth` gates ask-portfolio ✅
+- Admin test nonce bypasses credit deduction ✅
+- Idempotency cache: 5-min TTL window, Appwrite `idempotency_cache` collection ✅
+- Credit recording with 3-tier retry backoffs (100ms → 500ms → 2000ms) ✅
+- `invalidate-ai-credit-queries.ts` wired at call sites ✅
+
+#### Phase 4 — Env var / key pool ✅ PASS (after Fix #1)
+
+- `buildPool()` reads correct names: `GROQ_KEY_1-3`, `OPENROUTER_KEY_1-3`, `DEEPSEEK_KEY`, `NVIDIA_KEY_1-3` ✅
+- `inspect-ai-keys` reads correct names ✅
+- `AI_KEY_SLOT_MAP` correctly shows `deepseek:[1]` only ✅
+- **BUG FIXED**: `performStartupValidation()` was checking old names (see fixes below)
+
+#### Phase 5 — DevKit panels ✅ PASS (after Fix #2)
+
+| Panel | Status |
+|---|---|
+| MissionControlPanel — ping-providers, mission-control, fn-drift | ✅ Wired |
+| DeployHubsPanel — listing, drift detection, redeploy, logs | ✅ Wired |
+| AIKeysPanel — inspect-ai-keys slot display | ✅ Wired |
+| AIRadarPanel — list-ai-gateway-activity | ✅ Wired |
+| AICommandCenterPanel — 3-tab (overview/keys/routing) | ✅ Wired |
+| AIRoutingSwitcher — Probe Routes, test call, DB overrides | ✅ Wired; **Smart Defaults** now aligned |
+
+---
+
+### Fixes Implemented
+
+#### Fix #1 — ai-gateway startup validation used wrong env var names
+
+**File**: `appwrite-hubs/ai-gateway/src/main.js` lines 126-128
+
+**Before**:
+```js
+const hasAnyAiKey = [
+  'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'DEEPSEEK_API_KEY', 'NVIDIA_API_KEY',
+].some(k => !!process.env[k]);
+```
+
+**After**:
+```js
+const hasAnyAiKey = [
+  'GROQ_KEY_1', 'OPENROUTER_KEY_1', 'DEEPSEEK_KEY', 'NVIDIA_KEY_1',
+].some(k => !!process.env[k]);
+```
+
+**Impact of bug**: False-positive `[ALERT] No AI provider API keys found` logged every cold-start even when `DEEPSEEK_KEY` was configured. Pool routing was unaffected (pool logic correct). Fix eliminates the false-positive.
+
+**Impact of fix**: After Appwrite re-deploy, cold-start logs will only show the alert if `GROQ_KEY_1`, `OPENROUTER_KEY_1`, `DEEPSEEK_KEY`, and `NVIDIA_KEY_1` are ALL absent.
+
+#### Fix #2 — AIRoutingSwitcher "Smart Defaults" recommended stale/dangerous providers
+
+**File**: `src/components/dev-kit/AIRoutingSwitcher.tsx` — `FEATURE_METADATA` object
+
+**Before**: `recommendedProvider` pointed to:
+- NVIDIA for `tailor-resume`, `generate-cover-letter`, `generate-portfolio-bio`, `optimize-for-linkedin` (NVIDIA documented 404 failures)
+- OpenRouter for `parse-resume`, `parse-job`, `generate-question-bank` (OpenRouter documented 429 failures)
+- Groq for most tools currently routing DeepSeek-first
+
+**After**: All 21 non-`resume-section-ai` features set to `deepseek/deepseek-chat`. `resume-section-ai` stays `groq/llama-3.3-70b-versatile` (intentional — routes via the separate `resume-section-ai` Appwrite Function, not ai-gateway).
+
+**Impact of bug**: Admin clicking "Apply Smart Defaults" would have overridden stable DeepSeek-first routing with unreliable providers.
+
+**Impact of fix**: "Apply Smart Defaults" now writes DB overrides that match the existing stable FEATURE_ROUTES. Functionally a no-op (current routing already matches), but safe instead of dangerous.
+
+#### Source hash update
+
+`sourceHashes.generated.json`: `ai-gateway` hash: `b156e066754d6ed6` → `b53aadc3bf84d1be`
+
+---
+
+### Validation
+
+```
+node --check appwrite-hubs/ai-gateway/src/main.js         → OK
+node --check appwrite-hubs/admin-devkit-data/src/main.js  → OK
+node tests/hubs/ai-gateway-routing.test.cjs               → ALL TESTS PASSED
+npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts    → 9/9 passed
+npx tsc --noEmit                                           → clean (no errors)
+```
+
+---
+
+### Live State After This Session
+
+| Item | State |
+|---|---|
+| Vercel frontend | READY — no frontend changes this session |
+| ai-gateway (Appwrite) | **NEEDS DEPLOY** — Fix #1 is in code, not yet deployed |
+| `ai-gateway` source hash | `b53aadc3bf84d1be` (manifest updated) |
+| AIRoutingSwitcher.tsx | Fixed in frontend — deployed on next Vercel push |
+| All other hubs | Unchanged from previous session |
+
+### Next Steps
+
+1. **Appwrite deploy**: The fix to `performStartupValidation()` requires deploying `ai-gateway` to Appwrite. Trigger the `Deploy Appwrite Hubs` workflow (or use DevKit DeployHubsPanel) targeting `ai-gateway` only.
+2. **Frontend deploy**: AIRoutingSwitcher.tsx fix ships automatically on next Vercel push to `main`.
+3. **Post-deploy verification**: After ai-gateway is deployed, confirm `[ALERT] No AI provider API keys found` no longer appears in Appwrite Function logs (assuming `DEEPSEEK_KEY` is configured).
+
+### Post-Deploy Smoke Checklist (Phase 8)
+
+| Check | How |
+|---|---|
+| ai-gateway cold-start logs clean | Appwrite Console → Functions → ai-gateway → Executions → check for false-positive ALERT |
+| DeepSeek routing live | DevKit → AI Command Center → Probe Routes — verify DeepSeek is primary for all tools |
+| Smart Defaults safe | DevKit → AI Routing → Apply Smart Defaults → verify it writes `deepseek/deepseek-chat` overrides |
+| Tailor resume works end-to-end | Submit a tailor request, verify structured output returned |
+| Question bank generates all 4 categories | Run generate-question-bank, verify company/technical/behavioral/curveball present |
+| Company briefing normalizer | Run company-briefing, verify `companySnapshot.name` is populated |
+| LinkedIn optimizer | Run optimize-for-linkedin with resume that has experience, verify experienceRewrites non-empty |
