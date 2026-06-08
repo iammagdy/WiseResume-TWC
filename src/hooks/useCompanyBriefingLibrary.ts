@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { databases, DATABASE_ID, Query, ID, Permission, Role } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -16,17 +16,25 @@ export interface SavedCompanyBriefing {
 const COMPANY_BRIEFING_REQUIRED_FIELDS = ['user_id', 'company_name', 'briefing'] as const;
 
 export function getCompanyBriefingSchemaHelpMessage() {
-  return 'Company Briefing library is not fully set up yet. Appwrite must add `company_name` and `briefing` attributes to `company_briefings` before Save can work.';
+  return 'Company Briefing library is not fully set up yet. Appwrite must add the `company_name` and `briefing` attributes to `company_briefings` and grant create permission to authenticated users before Save can work.';
 }
 
 export function toCompanyBriefingSaveErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || '');
   const normalized = message.toLowerCase();
+  // Schema gaps (missing attributes) and permission gaps (collection lacks a
+  // create permission for authenticated users) both surface as "setup not done
+  // yet". The live blocker is `No permissions provided for action 'create'`,
+  // which is a collection-permission issue, not a code bug.
   if (
     normalized.includes('unknown attribute') ||
     normalized.includes('invalid document structure') ||
     normalized.includes('attribute not found') ||
     normalized.includes('attribute is not available') ||
+    normalized.includes('no permissions provided') ||
+    normalized.includes('not authorized') ||
+    normalized.includes('missing scope') ||
+    normalized.includes('permission') ||
     COMPANY_BRIEFING_REQUIRED_FIELDS.some((field) => normalized.includes(field))
   ) {
     return getCompanyBriefingSchemaHelpMessage();
@@ -81,6 +89,14 @@ export function useSaveCompanyBriefing() {
           company_name: input.company_name,
           briefing: JSON.stringify(input.briefing),
         },
+        // The collection uses document-level security (see
+        // scripts/setup_company_briefings_schema.cjs), so each briefing must
+        // carry explicit owner permissions for the user to read/update/delete it.
+        [
+          Permission.read(Role.user(user.id)),
+          Permission.update(Role.user(user.id)),
+          Permission.delete(Role.user(user.id)),
+        ],
       );
       return docToBriefing(doc as unknown as Record<string, unknown>);
     },

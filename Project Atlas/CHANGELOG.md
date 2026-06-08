@@ -11,6 +11,78 @@
 
 ---
 
+## 2026-06-08 - Prepare Company Briefing save + Tailoring lineage Appwrite schema (scripts + docs)
+
+### Context
+- PR #83 (PreviewPage auto-export fix) merged to `main`.
+- Production commit: `d28b81781542af2b817b8edb36f89969f7e00f50`.
+- Vercel production deployed; Appwrite unchanged for PR #83.
+- This pass prepares the two remaining Appwrite schema blockers. **No schema was
+  applied** in this session — `APPWRITE_API_KEY` is not available in the working
+  environment, so the scripts are prepared and wired, not executed.
+
+### What was prepared (NOT yet applied)
+- `scripts/setup_company_briefings_schema.cjs` (new) — idempotent. Adds
+  `user_id`, `company_name`, `briefing` attributes (all **optional** at schema
+  level for migration safety; the app always writes them), a `user_id_idx`
+  index, and ensures document-level security + a create-for-`users` permission
+  (preserving existing permissions).
+- `scripts/setup_tailoring_lineage_schema.cjs` (new) — idempotent. Adds
+  `tailor_history.tailored_resume_id` (optional) + `tailored_resume_id_idx`
+  index, and optional `resumes` lineage fields (`parent_resume_id`, `is_master`,
+  `target_job_title`, `target_company`, `job_url`, `job_match_score`).
+- `.github/workflows/deploy-appwrite-hubs.yml` — both scripts wired as
+  `Ensure ...` steps before the hub deploy step. The workflow is
+  `workflow_dispatch`-only, so this runs only on the next **manual** dispatch.
+
+### Frontend fix applied
+- `src/lib/appwrite.ts` — export `Permission` and `Role`.
+- `src/hooks/useCompanyBriefingLibrary.ts` —
+  - `useSaveCompanyBriefing` now passes explicit per-document owner permissions
+    (read/update/delete for the current user) on create, matching the
+    document-level security the setup script enables.
+  - `toCompanyBriefingSaveErrorMessage` now also detects permission errors
+    (`No permissions provided`, `not authorized`, `missing scope`, `permission`)
+    so the live `No permissions provided for action 'create'` error shows the
+    clear setup message instead of a generic one.
+  - `getCompanyBriefingSchemaHelpMessage` text updated to mention permissions.
+- `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts` — added coverage for
+  the create-permission / not-authorized error mapping.
+
+### Status — schema applied?
+- **Company Briefing schema/permissions: PREPARED ONLY, not applied/verified.**
+  Save will keep failing live until the script is run (or the equivalent manual
+  Appwrite Console action is taken). Do not treat the save bug as
+  production-fixed yet.
+- **Tailoring lineage schema: PREPARED ONLY, not applied.** Tailoring Hub already
+  works without it (graceful fallback), so this is additive.
+
+### How to apply (needs API key)
+```
+APPWRITE_API_KEY=<key> node scripts/setup_company_briefings_schema.cjs
+APPWRITE_API_KEY=<key> node scripts/setup_tailoring_lineage_schema.cjs
+```
+Or trigger the manual `Deploy Appwrite Hubs` workflow, which now runs both.
+
+### Validation
+- `node --check` both scripts — pass.
+- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts` — 3/3 pass.
+- `npx tsc --noEmit` — clean.
+- `npm run build` — succeeded.
+
+### Deployment
+- Appwrite Functions deployment: NOT required and NOT performed.
+- Appwrite Hubs workflow: NOT run.
+- Vercel: frontend (hook/lib) changed, so a production deploy triggers on merge.
+
+### Future / manual QA
+- Apply both schema scripts (needs API key) and verify in Appwrite Console.
+- Company Briefing generate + save end-to-end after schema applied.
+- Tailoring Hub export QA (Designed PDF / ATS PDF / Word DOCX; fresh-tab
+  `/preview?id=<id>&action=download|ats-pdf|docx`).
+- Tailoring result refresh/history with lineage schema applied.
+- Regression: AI Gateway unchanged.
+
 ## 2026-06-08 - Fix PreviewPage auto-export action path (Tailoring Hub export blocker)
 
 ### Root cause fixed
