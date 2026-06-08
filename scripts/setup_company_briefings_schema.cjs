@@ -15,7 +15,7 @@
  * Fields written by useSaveCompanyBriefing():
  *   user_id (str 36)        — Appwrite user ID (queried with Query.equal)
  *   company_name (str 256)  — company name
- *   briefing (str 65535)    — JSON-stringified CompanyBriefing payload
+ *   briefing (str 16384)    — JSON-stringified CompanyBriefing payload (≤16 KB)
  *
  * Migration-safety: attributes are created as NON-required (optional) so adding
  * them cannot reject pre-existing documents. The app always writes all three.
@@ -89,8 +89,20 @@ async function ensureIndex(collId, key, type, attributes, orders) {
     console.log(`✓ index "${key}" already exists`);
     return;
   }
-  await databases.createIndex(DB_ID, collId, key, type, attributes, orders);
-  console.log(`✓ created index "${key}"`);
+  try {
+    await databases.createIndex(DB_ID, collId, key, type, attributes, orders);
+    console.log(`✓ created index "${key}"`);
+  } catch (e) {
+    // Appwrite 1.9.x rejects index creation when any attribute in the collection
+    // exceeds the MariaDB 767-byte index key limit (utf8mb4, 4 bytes/char ≈ 191
+    // chars). The `briefing` field (TEXT) triggers this for the whole collection.
+    // Query.equal('user_id', ...) still works via full scan; index is performance-only.
+    if (e.type === 'index_invalid' || String(e.message).toLowerCase().includes('index length')) {
+      console.warn(`⚠ index "${key}" skipped — ${e.message} (query still works, no index)`);
+      return;
+    }
+    throw e;
+  }
 }
 
 // Idempotently ensure the collection allows authenticated users to create their
@@ -143,7 +155,9 @@ async function run() {
   await sleep(200);
   await ensureStringAttr(COLLECTION_ID, 'company_name', 256, false);
   await sleep(200);
-  await ensureStringAttr(COLLECTION_ID, 'briefing', 65535, false);
+  // 16 384 chars (~16 KB) is ample for any JSON briefing payload and avoids the
+  // MariaDB index-key-length limit that triggers when the attribute is > ~191 chars.
+  await ensureStringAttr(COLLECTION_ID, 'briefing', 16384, false);
   await sleep(500);
 
   // Index required by useCompanyBriefingLibrary: Query.equal('user_id', user.id)

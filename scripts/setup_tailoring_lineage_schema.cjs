@@ -110,8 +110,19 @@ async function ensureIndex(collId, key, type, attributes, orders) {
     console.log(`✓ ${collId} index "${key}" already exists`);
     return;
   }
-  await databases.createIndex(DB_ID, collId, key, type, attributes, orders);
-  console.log(`✓ created ${collId} index "${key}"`);
+  try {
+    await databases.createIndex(DB_ID, collId, key, type, attributes, orders);
+    console.log(`✓ created ${collId} index "${key}"`);
+  } catch (e) {
+    // Appwrite 1.9.x rejects index creation when any attribute in the collection
+    // exceeds the MariaDB 767-byte index key limit. If the collection has large
+    // string fields, skip the index — queries still work via full scan.
+    if (e.type === 'index_invalid' || String(e.message).toLowerCase().includes('index length')) {
+      console.warn(`⚠ ${collId} index "${key}" skipped — ${e.message} (query still works, no index)`);
+      return;
+    }
+    throw e;
+  }
 }
 
 async function sleep(ms) {
