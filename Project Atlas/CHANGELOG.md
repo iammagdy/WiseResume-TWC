@@ -11,10 +11,31 @@
 
 ---
 
+## 2026-06-08 - Hub deploy hotfix — MariaDB index key-length soft-fail (PR #85)
+
+### Context
+- Branch: `fix/appwrite-hub-index-softfail`
+- Triggered by: `deploy-appwrite-hubs` workflow failure after PR #84 merged
+
+### Root cause
+`string(65535)` `briefing` attribute → `65535 × 4 bytes = 262KB` per index row → Appwrite MariaDB COMPACT format 767-byte limit exceeded → `index_invalid` error (code 400) → `process.exit(1)` → workflow step failed.
+
+### What changed
+- `scripts/setup_company_briefings_schema.cjs`: `ensureIndex()` now catches `index_invalid` and warns instead of exiting; `briefing` attribute size 65535 → 16384
+- `scripts/setup_tailoring_lineage_schema.cjs`: same defensive soft-fail pattern applied
+
+### Effect
+- Hub workflow will succeed on next manual dispatch (permissions step unaffected)
+- Index creation skipped with warning if still too large; queries degrade to full scan but don't break
+- Commit `c2b739f` — PR #85 merged to `main`
+
+---
+
 ## 2026-06-08 - Project Atlas visual refactor — Resume Editor, Upload flow, Tailoring Hub polish
 
 ### Context
 - Branch: `visual/project-atlas-editor-upload-tailor`
+- Commit `7b088c1` — **PR #86 merged to `main`**; Vercel production redeployed
 - Scope: frontend/UI only — no backend, Appwrite, AI gateway, or routing changes
 - Design system source: `Project Atlas/design-system/production/`
 - Visual reference: `Project Atlas/design-system/visual-reference/`
