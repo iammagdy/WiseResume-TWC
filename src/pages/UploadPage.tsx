@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, AlertTriangle, Link as LinkIcon } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -336,11 +336,13 @@ export default function UploadPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
+      {/* Mobile header */}
       <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <BackButton />
-          <Upload className="w-5 h-5 text-primary" />
+          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Upload className="w-3.5 h-3.5 text-primary" aria-hidden />
+          </div>
           <h1 className="text-page-title truncate">Upload Resume</h1>
         </div>
       </header>
@@ -384,7 +386,7 @@ export default function UploadPage() {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col px-4 py-6 overflow-y-auto">
+      <div className="flex-1 flex flex-col px-4 py-6 lg:py-10 overflow-y-auto">
         <AnimatePresence mode="wait">
           {showErrorRecovery ? (
             <motion.div
@@ -407,11 +409,25 @@ export default function UploadPage() {
           ) : (
             <motion.div
               key="upload-zone"
-              className="flex-1 flex flex-col"
+              className="flex-1 flex flex-col lg:max-w-lg lg:mx-auto lg:w-full"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
+              {/* Desktop context hero — only shown when idle (not processing, no error) */}
+              <div className="hidden lg:flex flex-col items-center text-center mb-7 pt-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-primary mb-3 px-3 py-1 rounded-full bg-primary/8 border border-primary/12">
+                  <Upload className="w-3 h-3" aria-hidden />
+                  Resume Import
+                </span>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">
+                  Bring your resume into the workspace
+                </h1>
+                <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+                  Upload any format — we'll parse, structure, and score it automatically
+                </p>
+              </div>
+
               {/* Upload Zone */}
               <UploadZone
                 isDragging={isDragging}
@@ -426,31 +442,40 @@ export default function UploadPage() {
                 ) : (
                   <div className="flex flex-col items-center w-full max-w-sm px-2 sm:px-4 py-2">
                     <motion.div
-                      className="w-20 h-20 rounded-full bg-primary shadow-soft-md flex items-center justify-center mb-5"
-                      animate={isDragging ? { scale: 1.06 } : { scale: 1 }}
-                      transition={{ duration: 0.2 }}
+                      className="relative w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mb-5"
+                      style={{ boxShadow: '0 8px 24px -4px hsl(var(--primary)/0.4)' }}
+                      animate={isDragging ? { scale: 1.07, rotate: -4 } : { scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
                       {isDragging ? (
-                        <FileText className="w-10 h-10 text-primary-foreground" aria-hidden />
+                        <FileText className="w-9 h-9 text-primary-foreground" aria-hidden />
                       ) : (
-                        <Upload className="w-10 h-10 text-primary-foreground" aria-hidden />
+                        <Upload className="w-9 h-9 text-primary-foreground" aria-hidden />
                       )}
                     </motion.div>
-                    <h2 className="text-h2 text-foreground mb-2 text-center">
+                    <h2 className="text-lg font-bold tracking-tight text-foreground mb-1.5 text-center">
                       {isDragging ? 'Drop to upload' : 'Upload your resume'}
                     </h2>
-                    <p className="text-muted-foreground text-center text-sm mb-4 max-w-[280px] leading-relaxed">
+                    <p className="text-muted-foreground text-center text-sm mb-5 max-w-[260px] leading-relaxed">
                       {isDragging
                         ? 'Release to start importing'
-                        : 'Tap to browse or drag a file here — we detect the format automatically'}
+                        : "Drag & drop or browse — we'll parse and score it automatically"}
                     </p>
-                    <span className="inline-flex items-center justify-center mb-4 w-full sm:w-auto min-w-[200px] min-h-[44px] rounded-md bg-primary text-primary-foreground text-sm font-semibold px-4 shadow-soft-sm pointer-events-none">
+                    <span className="inline-flex items-center justify-center mb-5 w-full sm:w-auto min-w-[200px] min-h-[44px] rounded-xl bg-primary text-primary-foreground text-sm font-semibold px-5 pointer-events-none"
+                      style={{ boxShadow: '0 4px 14px -2px hsl(var(--primary)/0.35)' }}>
                       Browse files
                     </span>
-                    <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground text-center">
-                      <FileText className="w-4 h-4 shrink-0" aria-hidden />
-                      <span>PDF, Word, image, JSON, HTML · max 10MB</span>
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                      {['PDF', 'Word', 'Image', 'JSON', 'HTML'].map((fmt) => (
+                        <span
+                          key={fmt}
+                          className="text-xs font-medium text-muted-foreground bg-muted/40 border border-border/60 rounded-md px-2 py-0.5"
+                        >
+                          {fmt}
+                        </span>
+                      ))}
+                      <span className="text-xs text-muted-foreground/70">· max 10 MB</span>
+                    </div>
                   </div>
                 )}
               </UploadZone>
@@ -458,7 +483,7 @@ export default function UploadPage() {
               {/* URL import */}
               {!isProcessing && (
                 <motion.form
-                  className="mt-5 p-4 rounded-xl bg-card border border-border shadow-soft-sm"
+                  className="mt-5 p-4 rounded-2xl bg-card border border-border shadow-soft-sm"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
@@ -467,10 +492,14 @@ export default function UploadPage() {
                     handleUrlImport(urlInput);
                   }}
                 >
-                  <label htmlFor="resume-url-input" className="flex items-center gap-2 text-label text-foreground mb-2">
-                    <LinkIcon className="w-4 h-4 text-primary shrink-0" aria-hidden />
-                    Or paste a resume URL
-                  </label>
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <LinkIcon className="w-3.5 h-3.5 text-primary" aria-hidden />
+                    </div>
+                    <label htmlFor="resume-url-input" className="text-sm font-semibold text-foreground">
+                      Import from a URL
+                    </label>
+                  </div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       id="resume-url-input"
@@ -478,7 +507,7 @@ export default function UploadPage() {
                       inputMode="url"
                       value={urlInput}
                       onChange={(e) => { setUrlInput(e.target.value); if (urlError) setUrlError(null); }}
-                      placeholder="https://example.com/my-resume"
+                      placeholder="https://example.com/my-resume.pdf"
                       className="flex-1 min-w-0"
                       aria-label="Resume URL"
                       disabled={isProcessing}
@@ -494,8 +523,8 @@ export default function UploadPage() {
                   {urlError && (
                     <p className="mt-2 text-xs text-destructive">{urlError}</p>
                   )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    We'll fetch the page text and run it through the same parser. Public pages only.
+                  <p className="mt-2.5 text-xs text-muted-foreground">
+                    LinkedIn PDFs, portfolio pages, or any public resume link — same parser applies.
                   </p>
                 </motion.form>
               )}
@@ -503,28 +532,31 @@ export default function UploadPage() {
               {/* Tips */}
               {!isProcessing && (
                 <motion.section
-                  className="mt-5 p-4 rounded-xl bg-card border border-border shadow-soft-sm"
+                  className="mt-5 p-4 rounded-2xl bg-card border border-border shadow-soft-sm"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                   aria-labelledby="upload-tips-heading"
                 >
-                  <h3 id="upload-tips-heading" className="text-label text-foreground mb-3">
-                    Tips for best results
-                  </h3>
-                  <ul className="text-sm text-muted-foreground space-y-3">
-                    <li className="flex items-start gap-3">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                      Text-based PDFs and Word docs parse fastest
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                      Simple formatting improves field detection
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                      Photos and scans are supported via OCR
-                    </li>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-3 h-3 text-primary" aria-hidden />
+                    </div>
+                    <h3 id="upload-tips-heading" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Tips for best results
+                    </h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-2.5">
+                    {[
+                      'Text-based PDFs and Word docs parse fastest',
+                      'Simple formatting improves field detection accuracy',
+                      'Photos and scans are supported via OCR',
+                    ].map((tip) => (
+                      <li key={tip} className="flex items-start gap-3">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0 flex-none" aria-hidden />
+                        {tip}
+                      </li>
+                    ))}
                   </ul>
                 </motion.section>
               )}

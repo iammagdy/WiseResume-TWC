@@ -2,6 +2,107 @@
 
 ---
 
+## Session Log - 2026-06-08 (Project Atlas Visual Refactor — Editor, Upload, Tailoring Hub)
+
+### Overview
+
+Controlled visual refactor across three product surfaces, executed in one focused PR on branch `visual/project-atlas-editor-upload-tailor`. No backend, Appwrite, AI gateway, routing, or state management changes.
+
+Design system sources: `Project Atlas/design-system/production/` (tokens, component library, implementation guide). Visual reference: `Project Atlas/design-system/visual-reference/screens/` (upload.html, editor.html, tailor-results.html).
+
+---
+
+### What Changed
+
+#### Resume Editor — `editor-workspace.css`
+
+| Element | Change |
+|---|---|
+| Section cards | Added `transition` for smooth hover; hover → deeper shadow + slightly stronger border |
+| Section card headers | Hover background shift for perceived depth |
+| Active nav rail indicator | Width 2px → 3px; added `box-shadow` glow on the primary left accent bar |
+| Preview paper | Layered 4-stop shadow for stronger document canvas depth |
+| Scroll container | Top padding 1.25→1.5rem; section gap 1rem→0.875rem (tighter, more document-like) |
+
+#### Upload Flow — `UploadPage.tsx`
+
+| Element | Change |
+|---|---|
+| Desktop hero | Added eyebrow pill + h1 + sub-copy above upload zone (hidden on mobile via `lg:flex`) |
+| Upload zone icon | Circle → `rounded-2xl` with crimson glow shadow; spring rotation on drag |
+| Format chips | `PDF / Word / Image / JSON / HTML` chips replace plain text list |
+| Headline copy | "Upload your resume" → "Upload your resume" (kept) with `text-lg font-bold tracking-tight` |
+| URL import card | Icon-labeled header (`div.w-7.h-7.rounded-lg.bg-primary/10`), improved helper copy |
+| Tips section | Sparkles icon header; list uses `array.map` instead of duplicate JSX |
+| Desktop layout | `lg:py-10` page container; content column `lg:max-w-lg lg:mx-auto` |
+
+#### Tailoring Hub — `job-match-workspace.css`
+
+| Element | Change |
+|---|---|
+| Result page background | Stronger two-stop radial gradient for success atmosphere |
+| Download format buttons | `rounded-1rem`, `translateY(-1px)` lift on hover, press scale, richer active ring |
+| History items | `rounded-1rem`; `::before` left accent bar animates in on hover |
+| Progress overlay card | `rounded-1.5rem`; deeper 4-stop shadow; inset top highlight |
+| Download studio header | Stronger inset border + layered shadow |
+
+---
+
+### Validation
+
+- `npx tsc --noEmit` — clean (no errors)
+- `npm run build` — succeeded (49s, same pre-existing chunk size warnings)
+- `npx vitest run ...useCompanyBriefingLibrary.test.ts` — 3/3 passed
+- No new lint errors introduced
+
+---
+
+### Files Changed
+
+| File | Type |
+|---|---|
+| `src/components/editor/editor-workspace.css` | CSS only |
+| `src/components/job-match/job-match-workspace.css` | CSS only |
+| `src/pages/UploadPage.tsx` | JSX visual changes only (no logic/state/handler changes) |
+| `Project Atlas/CHANGELOG.md` | Docs |
+| `Project Atlas/MASTER_HANDOVER_2026.md` | Docs |
+
+---
+
+### Deployment
+
+- **Vercel**: auto-deploys on merge (frontend-only change; preview URL available on PR)
+- **Appwrite**: NOT deployed, NOT triggered
+- **AI Gateway**: unchanged
+- **Backend/auth/routing**: unchanged
+
+---
+
+### Manual Visual QA Needed (after PR merge)
+
+1. **Resume Editor**: Review section card hover states, nav rail active indicator, preview paper depth on both light and dark themes
+2. **Upload Page**: Check desktop hero layout on ≥1024px; confirm upload zone icon looks good on both light/dark; confirm format chips render correctly
+3. **Tailoring Hub**: Check history item left accent bar; check download format button hover/active states; check result page atmosphere
+4. **Mobile**: All three screens — ensure no layout regressions on small viewports
+
+---
+
+### Future QA Still Pending (from prior sessions)
+
+- Company Briefing Save — blocked until `setup_company_briefings_schema.cjs` is run with API key
+- Tailoring Hub exports (PDF/ATS/DOCX) — fixed in PR #83, needs manual end-to-end QA
+- Tailoring lineage/history — needs `setup_tailoring_lineage_schema.cjs` applied
+
+---
+
+### Where We Stopped
+
+- All changes committed and pushed to `visual/project-atlas-editor-upload-tailor`
+- PR opened as draft — **do not merge until visual review approved**
+- Next step: review Vercel preview, approve, then merge
+
+---
+
 ## Session Log - 2026-06-08 (Post-Tailoring-Hub cleanup — Company Briefing save + Tailoring lineage schema)
 
 ### Overview
