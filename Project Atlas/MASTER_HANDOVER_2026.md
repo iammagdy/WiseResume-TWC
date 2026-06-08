@@ -2,6 +2,86 @@
 
 ---
 
+## Session Log - 2026-06-08 (AI Gateway Targeted Hardening - LinkedIn Contract + Longer Structured DeepSeek Paths)
+
+### Overview
+
+Follow-up stabilization pass after the live `ai-gateway` DeepSeek-first rollout. This session focused only on the three remaining weak spots from production verification:
+
+- `optimize-for-linkedin`
+- `company-briefing`
+- `generate-question-bank`
+
+No deployment was performed. No changes were made to `resume-section-ai`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 - LinkedIn Optimizer still accepted incomplete output
+
+- **Root cause**: `normalizeLinkedInPayload()` only required "some usable content" somewhere in the payload. That allowed a response with headlines/about/tips but empty `experienceRewrites` to pass even when the input resume had real experience entries.
+- **Fix**: Tightened the LinkedIn contract so resumes with experience must return non-empty `experienceRewrites`. The structured repair path now also receives the original resume input so a repair attempt can fill missing rewrites without fabricating facts.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
+
+#### F2 - Question Bank still accepted incomplete category sets
+
+- **Root cause**: `normalizeQuestionBankPayload()` treated any non-empty category list as success, even if the output was missing required categories.
+- **Fix**: Tightened the normalizer so the final payload must contain all required categories: `company`, `technical`, `behavioral`, and `curveball`. The repair path now also receives the original job input context.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
+
+#### F3 - Company Briefing and Question Bank were too close to the primary timeout budget
+
+- **Root cause**: Both are longer structured outputs, but the generic first-attempt timeout was only `10s`. Production evidence already showed DeepSeek could succeed for Question Bank at roughly the edge of that budget, which made aborts/fallbacks more likely than necessary.
+- **Fix**: Added a narrow feature-specific first-attempt timeout lift for `company-briefing` and `generate-question-bank`, plus a same-provider retry for the first DeepSeek attempt when it aborts or times out. Cross-provider fallback remains unchanged.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
+
+#### F4 - Company Briefing normalization was too light
+
+- **Root cause**: The company-briefing parser only required `companySnapshot` to exist. Thin but parseable payloads could still pass without a fully normalized response shape.
+- **Fix**: Added explicit company-briefing normalization for `companySnapshot`, the list sections, and array fields so the returned structure is stable before it reaches the frontend.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`
+
+#### F5 - Source hash manifest required refresh
+
+- **Root cause**: `ai-gateway` changed again in this pass, so the source hash manifest had to be recomputed to keep GitHub Actions deploy guards happy.
+- **Fix**: Ran `node scripts/compute-source-hashes.mjs`.
+- **Files**: `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Files changed
+
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `tests/hubs/ai-gateway-routing.test.cjs`
+- `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Verification
+
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node tests/hubs/ai-gateway-routing.test.cjs`
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
+- `npx tsc --noEmit`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally.
+
+Updated source hash:
+- `ai-gateway: 6057ca5dc51e8daa`
+
+---
+
+### Where We Stopped
+
+- The targeted fixes are implemented locally and validated.
+- No deploy, push, or commit was performed in this pass.
+- `resume-section-ai` remains unchanged.
+- If approved, the next deployment target should be `ai-gateway` only.
+
+---
+
 ## Session Log - 2026-06-07 (AI Gateway Stabilization Pass - DeepSeek First + Structured Output Hardening)
 
 ### Overview

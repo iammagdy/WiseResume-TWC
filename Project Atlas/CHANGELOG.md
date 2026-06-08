@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-07
+**Last verified:** 2026-06-08
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,36 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-08 - AI gateway targeted hardening for LinkedIn, Company Briefing, and Question Bank
+
+### Root Causes
+- `optimize-for-linkedin` still had a contract gap after the DeepSeek-first rollout: the normalizer accepted payloads with useful headlines/about content but empty `experienceRewrites`, even when the input resume clearly had experience entries.
+- `generate-question-bank` still accepted any non-empty category list, so incomplete multi-category payloads could be treated as success instead of triggering repair/fallback.
+- `company-briefing` and `generate-question-bank` were the two longer structured DeepSeek paths most likely to hit the very aggressive first-attempt timeout (`10s`) and abort before fallback. A focused production retest showed DeepSeek could succeed for Question Bank, but only very close to the timeout budget.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Tightened LinkedIn normalization so resumes with experience must return non-empty `experienceRewrites`. Tightened Question Bank normalization so all required categories must be present. Added company-briefing normalization to preserve a stable response shape. Expanded structured repair prompts to include the original input context for LinkedIn, Question Bank, and Company Briefing. Added a narrow feature-specific first-attempt timeout lift and same-provider retry for DeepSeek aborts/timeouts on `company-briefing` and `generate-question-bank`. |
+| `tests/hubs/ai-gateway-routing.test.cjs` | Added focused assertions for the LinkedIn experience-rewrite requirement, the full Question Bank category contract, Company Briefing shape normalization, and the new targeted timeout/retry behavior. |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated after the `ai-gateway` changes so workflow source-hash checks stay in sync. |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node tests/hubs/ai-gateway-routing.test.cjs`
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
+- `npx tsc --noEmit`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally.
+
+### Deployment / Follow-up Notes
+- No deployment was performed in this pass.
+- Only `ai-gateway` changed; `resume-section-ai` was intentionally untouched.
+- If approved, the next deployment target should be `ai-gateway` only.
 
 ---
 

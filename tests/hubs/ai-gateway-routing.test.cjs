@@ -49,6 +49,33 @@ function main() {
 
   assert.throws(
     () => aiGateway.__test.normalizeStructuredFeatureData(
+      'optimize-for-linkedin',
+      JSON.stringify({
+        headlines: ['Senior Frontend Engineer | SaaS'],
+        aboutSections: {
+          short: 'Short about section',
+          medium: 'Medium about section',
+          long: 'Long about section',
+        },
+        experienceRewrites: [],
+        suggestedSkills: ['React'],
+        keywords: ['TypeScript'],
+        tips: ['Quantify your impact.'],
+      }),
+      {
+        resume: {
+          experience: [
+            { company: 'Acme', position: 'Engineer' },
+          ],
+        },
+      },
+    ),
+    /experience rewrites/i,
+    'LinkedIn optimizer should reject payloads with empty experience rewrites when resume experience exists',
+  );
+
+  assert.throws(
+    () => aiGateway.__test.normalizeStructuredFeatureData(
       'generate-question-bank',
       '{"categories":[]}',
       {},
@@ -78,10 +105,41 @@ function main() {
       keywords: ['SaaS'],
       tips: ['Keep the headline keyword-rich.'],
     }),
-    {},
+    {
+      resume: {
+        experience: [
+          { company: 'Acme', position: 'Product Manager' },
+        ],
+      },
+    },
   );
   assert.equal(linkedin.success, true);
   assert.equal(linkedin.headlines.length, 1);
+  assert.equal(linkedin.experienceRewrites.length, 1);
+
+  assert.throws(
+    () => aiGateway.__test.normalizeStructuredFeatureData(
+      'generate-question-bank',
+      JSON.stringify({
+        categories: [
+          {
+            id: 'company',
+            label: 'Company',
+            questions: [
+              {
+                question: 'Why this company?',
+                context: 'Tests motivation.',
+                answerTip: 'Tie the mission to your past work.',
+              },
+            ],
+          },
+        ],
+      }),
+      {},
+    ),
+    /required categories/i,
+    'Question bank should reject payloads that do not contain all required categories',
+  );
 
   const questionBank = aiGateway.__test.normalizeStructuredFeatureData(
     'generate-question-bank',
@@ -98,11 +156,124 @@ function main() {
             },
           ],
         },
+        {
+          id: 'technical',
+          label: 'Technical',
+          questions: [
+            {
+              question: 'How would you scale a queue worker?',
+              context: 'Tests systems thinking.',
+              answerTip: 'Discuss throughput, retries, and observability.',
+            },
+          ],
+        },
+        {
+          id: 'behavioral',
+          label: 'Behavioral',
+          questions: [
+            {
+              question: 'Tell me about a time you unblocked a team.',
+              context: 'Tests collaboration.',
+              answerTip: 'Use STAR and quantify the result.',
+            },
+          ],
+        },
+        {
+          id: 'curveball',
+          label: 'Curveball',
+          questions: [
+            {
+              question: 'What assumption would you challenge first?',
+              context: 'Tests judgment under ambiguity.',
+              answerTip: 'Name a concrete assumption and how you would validate it.',
+            },
+          ],
+        },
       ],
     }),
     {},
   );
-  assert.equal(questionBank.categories.length, 1);
+  assert.equal(questionBank.categories.length, 4);
+
+  const companyBriefing = aiGateway.__test.normalizeStructuredFeatureData(
+    'company-briefing',
+    JSON.stringify({
+      briefing: {
+        companySnapshot: {
+          name: 'Anthropic',
+          industry: 'AI',
+        },
+        recentHighlights: [
+          { title: 'New model release', summary: 'Released a safer reasoning model.', relevance: 'Good interview context.' },
+        ],
+        cultureSignals: [
+          { signal: 'Research-driven', detail: 'Strong emphasis on safety and iteration.' },
+        ],
+        keyPeople: [
+          { role: 'CEO', context: 'Focuses on long-term AI safety.' },
+        ],
+        talkingPoints: [
+          { point: 'Safety-first product culture', connection: 'Align it with your reliability mindset.' },
+        ],
+        questionsToAsk: [
+          { question: 'How do teams balance speed and safety?', why: 'Shows thoughtful alignment.' },
+        ],
+        competitors: ['OpenAI'],
+        productsOrServices: ['Claude'],
+        techStack: ['Python'],
+      },
+    }),
+    { companyName: 'Anthropic' },
+  );
+  assert.equal(companyBriefing.briefing.companySnapshot.name, 'Anthropic');
+  assert.equal(companyBriefing.briefing.talkingPoints.length, 1);
+
+  assert.equal(
+    aiGateway.__test.candidateTimeoutForFeature('company-briefing', 0, 3),
+    18_000,
+    'Company briefing should get a longer first-attempt timeout on DeepSeek',
+  );
+  assert.equal(
+    aiGateway.__test.candidateTimeoutForFeature('generate-question-bank', 0, 3),
+    18_000,
+    'Question bank should get a longer first-attempt timeout on DeepSeek',
+  );
+  assert.equal(
+    aiGateway.__test.candidateTimeoutForFeature('parse-job', 0, 3),
+    10_000,
+    'Unrelated tools should keep the default primary timeout',
+  );
+
+  assert.equal(
+    aiGateway.__test.shouldRetryPreferredStructuredProvider(
+      'company-briefing',
+      { provider: 'deepseek' },
+      { message: 'aborted', response: { status: 200 } },
+      0,
+    ),
+    true,
+    'Company briefing should retry the first DeepSeek attempt when it aborts',
+  );
+  assert.equal(
+    aiGateway.__test.shouldRetryPreferredStructuredProvider(
+      'generate-question-bank',
+      { provider: 'deepseek' },
+      { code: 'ECONNABORTED', message: 'timeout of 10000ms exceeded' },
+      0,
+    ),
+    true,
+    'Question bank should retry the first DeepSeek attempt when it times out',
+  );
+  assert.equal(
+    aiGateway.__test.shouldRetryPreferredStructuredProvider(
+      'parse-job',
+      { provider: 'deepseek' },
+      { message: 'aborted', response: { status: 200 } },
+      0,
+    ),
+    false,
+    'Unrelated tools should not gain the extra same-provider retry',
+  );
 }
 
 main();
