@@ -182,10 +182,11 @@
   left: -0.25rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 2px;
-  height: 1.125rem;
-  border-radius: 0 2px 2px 0;
+  width: 3px;
+  height: 1.25rem;
+  border-radius: 0 3px 3px 0;
   background: hsl(var(--primary));
+  box-shadow: 0 0 6px hsl(var(--primary) / 0.5);
 }
 
 .editor-nav-rail__icon-complete {
@@ -328,14 +329,14 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 1.25rem 1.5rem 2rem;
+  padding: 1.5rem 1.5rem 2.5rem;
   scroll-behavior: smooth;
 }
 
 .editor-scroll-container .editor-section-stack {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.875rem;
   max-width: 42rem;
 }
 
@@ -344,8 +345,20 @@
   border: 1px solid hsl(var(--editor-border) / 0.7);
   border-radius: 1rem;
   background: hsl(var(--card) / 0.65);
-  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.03);
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.03),
+    0 0 0 0 hsl(var(--primary) / 0);
   overflow: hidden;
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.editor-workspace-root .editor-section-card:hover {
+  border-color: hsl(var(--editor-border));
+  box-shadow:
+    0 3px 10px hsl(var(--foreground) / 0.07),
+    0 1px 3px hsl(var(--foreground) / 0.04);
 }
 
 .editor-workspace-root .editor-section-card::before {
@@ -355,6 +368,11 @@
 .editor-workspace-root .editor-section-card [data-section-header] {
   border-bottom: 1px solid hsl(var(--editor-border) / 0.5);
   background: hsl(var(--editor-surface-3) / 0.35);
+  transition: background 0.15s ease;
+}
+
+.editor-workspace-root .editor-section-card:hover [data-section-header] {
+  background: hsl(var(--editor-surface-3) / 0.5);
 }
 
 /* ── AI suggestions popup (FAB + sheet) ── */
@@ -425,8 +443,9 @@
   border-radius: 2px;
   box-shadow:
     0 0 0 1px hsl(var(--foreground) / 0.06),
-    0 8px 24px -8px hsl(var(--foreground) / 0.12),
-    0 32px 64px -24px hsl(var(--foreground) / 0.18);
+    0 4px 12px -4px hsl(var(--foreground) / 0.1),
+    0 12px 28px -8px hsl(var(--foreground) / 0.14),
+    0 32px 64px -24px hsl(var(--foreground) / 0.22);
 }
 
 /* Hide per-section suggestion blocks when the dedicated rail is visible */

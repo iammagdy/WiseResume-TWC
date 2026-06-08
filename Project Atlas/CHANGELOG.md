@@ -11,6 +11,57 @@
 
 ---
 
+## 2026-06-08 - Project Atlas visual refactor — Resume Editor, Upload flow, Tailoring Hub polish
+
+### Context
+- Branch: `visual/project-atlas-editor-upload-tailor`
+- Scope: frontend/UI only — no backend, Appwrite, AI gateway, or routing changes
+- Design system source: `Project Atlas/design-system/production/`
+- Visual reference: `Project Atlas/design-system/visual-reference/`
+
+### What changed
+
+#### Resume Editor (`editor-workspace.css`)
+- Section cards: added hover transitions, deeper shadow on hover, header background shift on hover
+- Active nav rail indicator: wider (3px), glow shadow on the left accent bar
+- Preview paper: added layered shadow for stronger document canvas depth
+- Scroll container: increased padding (1.25→1.5rem) and tightened section gap (1rem→0.875rem)
+
+#### Upload flow (`UploadPage.tsx`)
+- Added desktop-only hero section above upload zone: eyebrow pill, h1, sub-copy (hidden on mobile)
+- Upload zone icon: changed from circle to rounded-2xl with richer shadow; added spring rotate on drag
+- Upload zone content: format chips (PDF / Word / Image / JSON / HTML) replace plain text list
+- URL import card: icon-labeled header, improved helper copy
+- Tips section: Sparkles icon header, better list rhythm
+- Page container: `lg:py-10` breathing room; content column `lg:max-w-lg lg:mx-auto` for centered desktop layout
+
+#### Tailoring Hub (`job-match-workspace.css`)
+- Result page: stronger atmospheric gradient
+- Download format buttons: `rounded-1rem`, hover `translateY(-1px)`, active press scale, richer active ring
+- History items: `rounded-1rem`, left accent bar on hover via `::before` pseudo-element
+- Progress overlay card: `rounded-1.5rem`, deeper layered shadow, inset top highlight
+- Download studio header card: stronger inset border + layered shadow
+
+### Validation
+- `npx tsc --noEmit` — clean
+- `npm run build` — succeeded
+- `npx vitest run ...useCompanyBriefingLibrary.test.ts` — 3/3 passed
+
+### No backend changes
+- Appwrite deployment: NOT required
+- Appwrite workflow: NOT triggered
+- AI Gateway: unchanged
+- Auth / routing / state management: unchanged
+- Schema scripts: unchanged
+- PR #85 (index soft-fail hotfix): already merged separately
+
+### Future QA still pending (unchanged from prior sessions)
+- Company Briefing Save (requires schema scripts applied with API key)
+- Tailoring Hub export buttons (PDF/ATS PDF/DOCX) — fixed in PR #83, needs manual QA
+- Tailoring lineage/history after schema applied
+
+---
+
 ## 2026-06-08 - Prepare Company Briefing save + Tailoring lineage Appwrite schema (scripts + docs)
 
 ### Context
