@@ -105,6 +105,17 @@ export default function PreviewPage() {
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   const guestPreviewHintShown = useRef(false);
   const downloadTriggered = useRef(false);
+  // Capture the auto-export action once at mount from the URL before setSearchParams can clear it.
+  // If we read it from searchParams inside the effect, calling setSearchParams causes a dep-change
+  // re-render that cancels the export timer via effect cleanup (the root cause of the export bug).
+  const autoExportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialAutoExportAction = useRef<string | null>(
+    (() => {
+      const a = searchParams.get('action');
+      return ['download', 'ats-pdf', 'docx'].includes(a ?? '') ? a : null;
+    })()
+  );
+  const [autoExportFallback, setAutoExportFallback] = useState<string | null>(null);
   const resumeIdFromUrl = searchParams.get('id');
 
   const needsResumeBootstrap =
@@ -197,29 +208,55 @@ export default function PreviewPage() {
     return () => clearTimeout(timer);
   }, [user]);
 
-  // Auto-download detection: when arriving with ?action=download|ats-pdf|docx (E-2)
+  // Auto-download: when arriving with ?action=download|ats-pdf|docx from a fresh tab.
+  //
+  // Root-cause fix: previously, setSearchParams was called immediately (before the 800ms
+  // timer), changing searchParams, which triggered the effect cleanup (clearTimeout),
+  // cancelling the export timer before it could fire.
+  //
+  // Fix: action is read once at mount via initialAutoExportAction ref (not from searchParams
+  // on each effect run). The timer is stored in autoExportTimerRef — NOT returned as effect
+  // cleanup — so React cannot cancel it when deps change. setSearchParams runs inside the
+  // timer callback, after the export is triggered. The timer is cancelled only on unmount.
   useEffect(() => {
-    const action = searchParams.get('action');
-    if (!['download', 'ats-pdf', 'docx'].includes(action ?? '') || downloadTriggered.current) return;
+    const action = initialAutoExportAction.current;
+    if (!action || downloadTriggered.current) return;
     if (!isPreviewReady || isBootstrapPending) return;
+
     downloadTriggered.current = true;
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('action');
-    setSearchParams(newParams, { replace: true });
+    initialAutoExportAction.current = null;
 
-    const timer = setTimeout(() => {
-      if (!resumeRef.current || !currentResume) {
-        setShowExportSheet(true);
-        return;
-      }
+    autoExportTimerRef.current = setTimeout(() => {
+      autoExportTimerRef.current = null;
+      // Clean URL only after export is triggered to avoid the dep-change → cleanup → cancel cycle
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('action');
+        return next;
+      }, { replace: true });
 
+      if (!currentResume) { setAutoExportFallback(action); return; }
+      // DOCX export does not need the rendered template element
+      if (action === 'docx') { handleExport('docx', true); return; }
+      // PDF exports need the template DOM node; show fallback CTA if not available
+      if (!resumeRef.current) { setAutoExportFallback(action); return; }
       if (action === 'ats-pdf') handleExport('ats-pdf', false);
-      else if (action === 'docx') handleExport('docx', true);
       else handleExport('resume', true);
     }, 800);
+    // No cleanup returned — timer lives in autoExportTimerRef and is cancelled on unmount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreviewReady, isBootstrapPending, currentResume, setSearchParams]);
+  // handleExport excluded: recreated each render but correctly captured in the timer closure
+  // at the moment it fires. searchParams excluded: action is read once via initialAutoExportAction.
 
-    return () => clearTimeout(timer);
-  }, [currentResume, isBootstrapPending, isPreviewReady, searchParams, setSearchParams]);
+  // Cancel the auto-export timer if the component unmounts before it fires
+  useEffect(() => {
+    return () => {
+      if (autoExportTimerRef.current !== null) {
+        clearTimeout(autoExportTimerRef.current);
+      }
+    };
+  }, []);
 
   // Resume guard — show a brief skeleton while the Zustand store hydrates on rapid
   // navigation, then redirect if the resume is still absent after settling.
@@ -661,6 +698,28 @@ export default function PreviewPage() {
         <div className="hidden sm:block">
           <NextStepBanner variant="tailor" onAction={() => navigate('/editor?openTailor=1')} />
         </div>
+
+        {/* Auto-export fallback: shown when the browser blocks a programmatic download in a
+            fresh tab (e.g. resumeRef not yet attached). User clicks to trigger the same export. */}
+        {autoExportFallback && (
+          <div className="shrink-0 px-4 py-2 bg-primary/10 border-b border-primary/20 flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-foreground">Your file is ready to download.</span>
+            <Button
+              size="sm"
+              className="shrink-0 h-8 text-xs"
+              onClick={() => {
+                const a = autoExportFallback;
+                setAutoExportFallback(null);
+                if (a === 'ats-pdf') handleExport('ats-pdf', false);
+                else if (a === 'docx') handleExport('docx', true);
+                else handleExport('resume', true);
+              }}
+            >
+              {autoExportFallback === 'ats-pdf' ? 'Download ATS PDF' :
+               autoExportFallback === 'docx' ? 'Download DOCX' : 'Download PDF'}
+            </Button>
+          </div>
+        )}
 
         {/* Preview area */}
         <div ref={scrollContainerRef} className="flex-1 overflow-auto p-1 sm:p-4 bg-muted/30">

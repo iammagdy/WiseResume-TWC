@@ -2,6 +2,116 @@
 
 ---
 
+## Session Log - 2026-06-08 (PreviewPage Auto-Export Fix - Tailoring Hub Export Blocker)
+
+### Overview
+
+Focused fix for the Tailoring Hub export blocker. No AI gateway changes. No Appwrite deployments. Frontend-only change.
+
+---
+
+### Root Cause
+
+`PreviewPage` was calling `setSearchParams` **immediately** after the auto-export effect fired (to remove `?action` from the URL). Because `searchParams` was in the effect's dependency array, React detected the change, ran the effect cleanup (`clearTimeout`), and cancelled the 800ms export timer before it could fire. The export never started.
+
+This was the root cause of:
+- Designed PDF button (result page) → no download
+- ATS PDF button (result page) → no download
+- Word DOCX button (result page) → no download
+- Fresh-tab `/preview?id=<tailoredResumeId>&action=download` → no download
+- Fresh-tab `/preview?id=<tailoredResumeId>&action=ats-pdf` → no download
+- Fresh-tab `/preview?id=<tailoredResumeId>&action=docx` → no download
+
+---
+
+### Fix Applied
+
+#### Files changed
+
+- `src/pages/PreviewPage.tsx`
+- `src/pages/__tests__/PreviewPage.test.tsx`
+
+#### What changed in `PreviewPage.tsx`
+
+1. **`initialAutoExportAction` ref**: action value is captured once at mount time from `searchParams` (via IIFE in `useRef` initializer). Subsequent calls to `setSearchParams` do not affect this captured value.
+
+2. **`autoExportTimerRef` ref**: the export timer is stored in a ref instead of being returned from the effect cleanup. React's effect lifecycle cannot cancel it when deps change. It is cancelled only in a separate unmount-only effect.
+
+3. **`setSearchParams` moved inside the timer callback**: URL cleanup happens after the export is triggered (not before). This eliminates the premature re-render that was causing the cleanup cancellation.
+
+4. **Fallback CTA banner**: if the browser cannot auto-trigger the download (e.g., `resumeRef` not yet attached to the DOM when the timer fires), a visible banner appears with an action-specific button:
+   - "Download PDF"
+   - "Download ATS PDF"
+   - "Download DOCX"
+
+5. **Unmount cleanup**: a separate `useEffect(() => { return cleanup; }, [])` cancels the timer if the component unmounts before it fires.
+
+#### What changed in `PreviewPage.test.tsx`
+
+Added 5 new tests (total: 8 tests, all pass):
+- `action=docx` does not export before bootstrap, calls `generateAndDownloadDOCX` after.
+- `action=download` does not export before bootstrap, calls `generateNativePDF` and `downloadFile` after.
+- `action=ats-pdf` does not export before bootstrap, calls `generateNativePDF` with `atsMode: true` and `downloadFile` after.
+- Action is not executed before the 800ms timer fires.
+- Normal `/preview?id=<id>` without `action` does not trigger auto-export.
+
+Added mocks: `@/lib/nativePdfGenerator`, `@/lib/downloadUtils`, `@/components/editor/PreviewScaledWrapper`.
+
+---
+
+### Validation
+
+- `npx vitest run src/pages/__tests__/PreviewPage.test.tsx` — 8/8 passed.
+- `npx tsc --noEmit` — clean.
+- `npm run build` — succeeded.
+
+---
+
+### Behavior After Fix
+
+- `/preview?id=<tailoredResumeId>&action=download` → bootstrap completes → 800ms timer fires → PDF export triggered → download starts.
+- `/preview?id=<tailoredResumeId>&action=ats-pdf` → same, ATS PDF.
+- `/preview?id=<tailoredResumeId>&action=docx` → same, DOCX.
+- If browser blocks auto-download (rare, fresh tab restriction): fallback CTA banner shows with specific download button.
+- `/preview?id=<tailoredResumeId>` without action → preview loads normally, no auto-export.
+- `/preview` without id → existing Zustand-based behavior preserved.
+
+---
+
+### Deployment Required
+
+- **Frontend (Vercel) deployment required** — `src/pages/PreviewPage.tsx` changed.
+- **Appwrite deployment NOT required** — no Appwrite function files changed.
+- **No manual Appwrite schema changes** required for this fix.
+
+---
+
+### Current Production / Deployment State
+
+- Production still reflects commit `55265550` (this fix is not yet deployed).
+- Appwrite `ai-gateway` is live with hash `b156e066754d6ed6` — unchanged.
+- Company Briefing Save is still blocked (Appwrite schema/permissions not yet added).
+
+---
+
+### Remaining Blockers After This Fix
+
+- Company Briefing Save is still blocked until Appwrite schema/permissions are added:
+  - `company_briefings`: add `company_name`, `briefing`, create permission, `user_id` ASC index
+  - `tailor_history`: add `tailored_resume_id` + ASC key index
+  - `resumes`: optional lineage fields (code is guarded, not blocking)
+
+---
+
+### Where We Stopped
+
+- Fix implemented and tested locally.
+- Not yet committed, pushed, or deployed.
+- Awaiting owner approval to commit and push.
+- Once pushed to `main`, Vercel will auto-deploy. Appwrite does not need a new deploy.
+
+---
+
 ## Session Log - 2026-06-08 (Session Closeout - AI Gateway Stabilization, Tailoring Hub QA, Company Briefing Save, Remaining Export Blocker)
 
 ### Overview
