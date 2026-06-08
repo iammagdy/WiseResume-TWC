@@ -95,11 +95,26 @@ Design system sources: `Project Atlas/design-system/production/` (tokens, compon
 
 ---
 
+### Commits / PRs
+
+- Commit `7b088c1` — `refactor(ui): apply Project Atlas editor upload and tailoring polish`
+- Branch: `visual/project-atlas-editor-upload-tailor`
+- **PR #86 merged to `main`** after visual review approval
+- Vercel production redeployed automatically on merge
+
+### CI Results (PR #86)
+
+| Check | Status |
+|---|---|
+| Vercel | ✅ Ready |
+| Appwrite | ✅ Ready (AI Gateway Hub built) |
+| Supabase | ✅ Skipped (no DB changes) |
+
 ### Where We Stopped
 
-- All changes committed and pushed to `visual/project-atlas-editor-upload-tailor`
-- PR opened as draft — **do not merge until visual review approved**
-- Next step: review Vercel preview, approve, then merge
+- **PR #86 merged to `main`**.  Visual refactor is live in production.
+- No further action needed on this change.
+- Next priority: apply Appwrite schema scripts (see post-tailoring-hub session below).
 
 ---
 
@@ -202,12 +217,77 @@ Added two steps before "Deploy Appwrite hubs" that run the above scripts. Workfl
 
 ---
 
+### Commits / PRs
+
+- Commit `cdad933` — `fix(appwrite): prepare Company Briefing save + Tailoring lineage schema (#84)`
+- Branch: `fix/company-briefing-lineage-schema`
+- **PR #84 merged to `main`**
+
 ### Where We Stopped
 
-- All code changes committed and pushed to `fix/company-briefing-lineage-schema`.
-- PR opened; merged to `main` after CI passed.
-- Appwrite schema NOT applied (no API key in session).
-- Next session should apply both scripts and run the QA list above.
+- PR #84 merged. Schema scripts prepared but **not yet applied** (no API key in session).
+- Immediately after merge, a separate hotfix was required (see PR #85 below).
+- Schema application and post-schema QA remain as the top priority for the next session.
+
+---
+
+## Session Log - 2026-06-08 (Hub Deploy Hotfix — MariaDB Index Key-Length Soft-Fail)
+
+### Overview
+
+After PR #84 merged, the `deploy-appwrite-hubs` workflow was triggered manually and failed. Root cause diagnosed and fixed as a separate hotfix PR (#85) on branch `fix/appwrite-hub-index-softfail`.
+
+---
+
+### Root Cause
+
+Appwrite 1.9.x uses MariaDB InnoDB COMPACT row format which has a **767-byte index key limit**. The `briefing` attribute was set to `string(65535)`, meaning `65535 × 4 bytes/char (utf8mb4) = 262 KB`, which exceeds the limit by an extreme margin. When the hub workflow ran `setup_company_briefings_schema.cjs`, Appwrite returned error type `index_invalid` (code 400) and the script called `process.exit(1)`, failing the entire deploy step.
+
+---
+
+### What Changed
+
+| File | Change |
+|---|---|
+| `scripts/setup_company_briefings_schema.cjs` | `ensureIndex()` now catches `index_invalid` errors and warns instead of exiting; `briefing` attribute size reduced 65535 → 16384 |
+| `scripts/setup_tailoring_lineage_schema.cjs` | Same defensive `ensureIndex()` soft-fail pattern applied |
+
+**Key code pattern added to both scripts:**
+
+```js
+} catch (e) {
+  if (e.type === 'index_invalid' || String(e.message).toLowerCase().includes('index length')) {
+    console.warn(`⚠ index "${key}" skipped — ${e.message} (query still works, no index)`);
+    return;
+  }
+  throw e;
+}
+```
+
+- The permission update step (adding `create` for `users`) is unaffected — it does not create indexes.
+- Existing queries that rely on the index (`Query.equal('user_id', ...)`) degrade to a full collection scan but continue to function correctly until the index can be created via a future, smaller attribute.
+
+---
+
+### Validation
+
+- `node --check scripts/setup_company_briefings_schema.cjs` — OK
+- `node --check scripts/setup_tailoring_lineage_schema.cjs` — OK
+- `npx tsc --noEmit` — clean
+- `npm run build` — succeeded
+
+---
+
+### Commits / PRs
+
+- Commit `c2b739f` — `fix(appwrite): soft-fail index creation on MariaDB key-length limit (#85)`
+- Branch: `fix/appwrite-hub-index-softfail`
+- **PR #85 merged to `main`**
+
+### Where We Stopped
+
+- PR #85 merged. Hub deploy scripts are now safe to run on next manual `deploy-appwrite-hubs` dispatch.
+- Schema still NOT applied (no API key in session); will auto-run on next dispatch.
 
 ---
 
