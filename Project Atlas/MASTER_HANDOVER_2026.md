@@ -2,6 +2,114 @@
 
 ---
 
+## Session Log - 2026-06-08 (Post-Tailoring-Hub cleanup — Company Briefing save + Tailoring lineage schema)
+
+### Overview
+
+Post-merge cleanup after PR #83 (PreviewPage auto-export fix, merged to `main` at commit `d28b81781542af2b817b8edb36f89969f7e00f50`). This session prepared the two remaining Appwrite schema blockers as idempotent scripts, wired them into the deploy workflow, fixed frontend error detection for the live permission error, and updated project documentation.
+
+**No Appwrite schema was applied in this session** (no `APPWRITE_API_KEY` available in this environment). The schema scripts are ready; they auto-run on the next manual `deploy-appwrite-hubs` workflow dispatch.
+
+---
+
+### What was fixed (production impact)
+
+#### Frontend error detection — Company Briefing Save
+
+- **File**: `src/hooks/useCompanyBriefingLibrary.ts`
+- **Problem**: The live error `No permissions provided for action 'create'` was not matched by the existing keyword list, so users saw a generic "Failed to save briefing" toast with no actionable guidance.
+- **Fix**: Extended `toCompanyBriefingSaveErrorMessage` to detect permission-class errors (`no permissions provided`, `not authorized`, `missing scope`, `permission`). Now maps to the schema help message with instructions to apply the setup script.
+- **Also**: Added explicit per-document owner permissions (`Permission.read/update/delete(Role.user(userId))`) to the `createDocument` call so each saved briefing is immediately readable and deletable by the owner after the collection-level create permission is granted.
+- **Also**: `Permission` and `Role` are now exported from `src/lib/appwrite.ts`.
+
+#### Test coverage
+
+- **File**: `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
+- Added test: `maps the live create-permission error to the schema action message` (2 cases: `No permissions provided for action 'create'` and `The current user is not authorized...`).
+- Total: 3 tests, all passing.
+
+---
+
+### What was only prepared (not applied — schema NOT yet in Appwrite)
+
+#### 1. `scripts/setup_company_briefings_schema.cjs`
+
+Idempotent script for the `company_briefings` collection (collection already exists, do not recreate):
+
+- Attributes (all non-required for migration safety): `user_id` (string 36), `company_name` (string 256), `briefing` (string 65535)
+- Index: `user_id_idx` key on `['user_id']` ASC — required by `Query.equal('user_id', ...)` in `useCompanyBriefingLibrary`
+- Permission update: adds `Permission.create(Role.users())` + `documentSecurity: true` if absent, preserving existing permissions
+
+**To apply**: `APPWRITE_API_KEY=<key> node scripts/setup_company_briefings_schema.cjs`
+
+#### 2. `scripts/setup_tailoring_lineage_schema.cjs`
+
+Idempotent script for `tailor_history` and `resumes` collections (both already exist):
+
+- `tailor_history`: `tailored_resume_id` (string 36, not required) + `tailored_resume_id_idx` index — actively queried in `TailoringHubResultPage.tsx`
+- `resumes`: optional lineage fields — `parent_resume_id` (str 36), `is_master` (bool), `target_job_title` (str 256), `target_company` (str 256), `job_url` (str 2048), `job_match_score` (int) — all non-required, not written by current write path, can be added safely
+
+**To apply**: `APPWRITE_API_KEY=<key> node scripts/setup_tailoring_lineage_schema.cjs`
+
+#### 3. `.github/workflows/deploy-appwrite-hubs.yml`
+
+Added two steps before "Deploy Appwrite hubs" that run the above scripts. Workflow stays `workflow_dispatch`-only — these steps did NOT run and will NOT run on PR merge. They auto-run on the next manual dispatch.
+
+---
+
+### Validation performed
+
+- `node --check scripts/setup_company_briefings_schema.cjs` — OK
+- `node --check scripts/setup_tailoring_lineage_schema.cjs` — OK
+- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts` — 3/3 passed
+- `npx tsc --noEmit` — clean
+- `npm run build` — succeeded
+- `git diff` — only the 7 files listed below; no secrets present
+
+---
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `scripts/setup_company_briefings_schema.cjs` | NEW — idempotent schema script |
+| `scripts/setup_tailoring_lineage_schema.cjs` | NEW — idempotent schema script |
+| `.github/workflows/deploy-appwrite-hubs.yml` | Wire both scripts into dispatch workflow |
+| `src/lib/appwrite.ts` | Export `Permission`, `Role` |
+| `src/hooks/useCompanyBriefingLibrary.ts` | Extend error detection; add document permissions |
+| `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts` | Add permission-error test |
+| `Project Atlas/CHANGELOG.md` | Add dated entry |
+
+---
+
+### Deployment state after this session
+
+- **Vercel (frontend)**: auto-deploys on merge. The frontend error-handling improvement is the only runtime change; no export or AI behavior change.
+- **Appwrite Functions**: NOT deployed. Schema scripts not applied. Will auto-run on next manual `deploy-appwrite-hubs` dispatch.
+- **Hubs workflow**: NOT triggered. Stays `workflow_dispatch`-only.
+
+---
+
+### Future testing (after schema is applied)
+
+1. Apply `setup_company_briefings_schema.cjs` with valid API key; verify attributes/index/permissions in Appwrite Console.
+2. Apply `setup_tailoring_lineage_schema.cjs`; verify in Console.
+3. Company Briefing: generate briefing → save → confirm appears in library → delete.
+4. Tailoring Hub: submit tailoring job → result page → Designed PDF / ATS PDF / Word DOCX buttons (fresh tab + modal).
+5. Confirm `tailor_history` doc has `tailored_resume_id` populated for new jobs.
+6. Regression: AI Gateway unchanged; resume CRUD unchanged.
+
+---
+
+### Where We Stopped
+
+- All code changes committed and pushed to `fix/company-briefing-lineage-schema`.
+- PR opened; merged to `main` after CI passed.
+- Appwrite schema NOT applied (no API key in session).
+- Next session should apply both scripts and run the QA list above.
+
+---
+
 ## Session Log - 2026-06-08 (PreviewPage Auto-Export Fix - Tailoring Hub Export Blocker)
 
 ### Overview

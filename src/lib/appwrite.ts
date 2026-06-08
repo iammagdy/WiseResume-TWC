@@ -1,4 +1,4 @@
-import { Client, Account, Databases, Functions, Storage, ID, Query } from 'appwrite';
+import { Client, Account, Databases, Functions, Storage, ID, Query, Permission, Role } from 'appwrite';
 
 // 1. Environment Config
 const APPWRITE_ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -19,7 +19,7 @@ export const storage = new Storage(client);
 export const DATABASE_ID = 'main';
 
 // 4. Export Appwrite Types/Utilities for convenience
-export { ID, Query };
+export { ID, Query, Permission, Role };
 
 export const isAppwriteEnabled = !!APPWRITE_PROJECT_ID && !!APPWRITE_ENDPOINT;
 

@@ -20,6 +20,20 @@ describe('Company Briefing library save errors', () => {
     ).toBe(getCompanyBriefingSchemaHelpMessage());
   });
 
+  it('maps the live create-permission error to the schema action message', () => {
+    expect(
+      toCompanyBriefingSaveErrorMessage(
+        new Error("No permissions provided for action 'create'"),
+      ),
+    ).toBe(getCompanyBriefingSchemaHelpMessage());
+
+    expect(
+      toCompanyBriefingSaveErrorMessage(
+        new Error('The current user is not authorized to perform the requested action.'),
+      ),
+    ).toBe(getCompanyBriefingSchemaHelpMessage());
+  });
+
   it('keeps a generic message for unrelated save failures', () => {
     expect(
       toCompanyBriefingSaveErrorMessage(
