@@ -11,6 +11,47 @@
 
 ---
 
+## 2026-06-08 - AI routing & DevKit audit — startup validation fix + Smart Defaults alignment
+
+### Context
+- Branch: `claude/atlas-handover-review-pv67uk`
+- Triggered by: full Phase 0-9 AI routing audit
+
+### Changes
+
+**Bug #1 fixed — ai-gateway startup validation used wrong env var names**
+- File: `appwrite-hubs/ai-gateway/src/main.js` (lines 126-128)
+- Root cause: `performStartupValidation()` checked `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, `NVIDIA_API_KEY` — the old naming convention. `buildPool()` actually reads `GROQ_KEY_1`, `OPENROUTER_KEY_1`, `DEEPSEEK_KEY`, `NVIDIA_KEY_1`.
+- Impact: False-positive `[ALERT] No AI provider API keys found` fired in production logs even when `DEEPSEEK_KEY` was configured. No AI requests were blocked (pool logic was correct), but the log alert was misleading.
+- Fix: Replaced the 4 wrong names with the 4 correct names.
+
+**Bug #2 fixed — AIRoutingSwitcher "Smart Defaults" recommended stale/dangerous providers**
+- File: `src/components/dev-kit/AIRoutingSwitcher.tsx` (`FEATURE_METADATA`)
+- Root cause: `recommendedProvider`/`recommendedModel` entries were written when NVIDIA and OpenRouter were primary candidates. They now recommend NVIDIA (documented 404 failures) for `tailor-resume`, `generate-cover-letter`, `generate-portfolio-bio`, `optimize-for-linkedin`; OpenRouter (documented 429 failures) for `parse-resume`, `parse-job`, `generate-question-bank`; and Groq for the majority of tools currently routing DeepSeek.
+- Impact: Clicking "Apply Smart Defaults" in the DevKit would have overridden stable DeepSeek-first production routing with unreliable providers, potentially causing widespread AI failures.
+- Fix: All 21 non-resume-section-ai features set to `deepseek/deepseek-chat`. `resume-section-ai` stays `groq/llama-3.3-70b-versatile` (intentional — routes via separate `resume-section-ai` Appwrite Function, not ai-gateway).
+
+**Source hash updated**
+- `sourceHashes.generated.json`: `ai-gateway` hash updated from `b156e066754d6ed6` → `b53aadc3bf84d1be`
+
+### Audit findings summary (no additional fixes required)
+
+| Phase | Result |
+|---|---|
+| Phase 1 — DeepSeek-primary routing | ✅ PASS — all FEATURE_ROUTES, TOOL_GATEWAY_DEFAULTS, STATIC_DEFAULTS aligned |
+| Phase 2 — Structured output normalizers | ✅ PASS — LinkedIn, Question Bank, Company Briefing, Tailor Resume all correct |
+| Phase 3 — Credits, auth, idempotency | ✅ PASS (code-level) |
+| Phase 4 — Env var / key pool | ✅ PASS after Bug #1 fix |
+| Phase 5 — DevKit panels | ✅ PASS after Bug #2 fix; all other panels correct |
+
+### Validation
+- `node --check appwrite-hubs/ai-gateway/src/main.js` → OK
+- `node tests/hubs/ai-gateway-routing.test.cjs` → ALL TESTS PASSED
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts` → 9/9 passed
+- `npx tsc --noEmit` → no errors
+
+---
+
 ## 2026-06-08 - Hub deploy hotfix — MariaDB index key-length soft-fail (PR #85)
 
 ### Context
