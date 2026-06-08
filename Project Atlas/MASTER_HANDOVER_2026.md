@@ -2,6 +2,416 @@
 
 ---
 
+## Session Log - 2026-06-08 (Session Closeout - AI Gateway Stabilization, Tailoring Hub QA, Company Briefing Save, Remaining Export Blocker)
+
+### Overview
+
+This session covered:
+
+- `ai-gateway` DeepSeek-first stabilization and post-deploy live verification
+- targeted `ai-gateway` structured-output hardening for:
+  - `optimize-for-linkedin`
+  - `generate-question-bank`
+  - `company-briefing`
+- Tailoring Hub reliability fixes
+- Company Briefing save failure investigation
+- production deployment verification for both Vercel and Appwrite
+- post-deploy production QA
+
+The session was closed due to Codex limit. No further implementation was performed after the final production QA pass.
+
+---
+
+### Commits created in this session
+
+- `f48c000a` - `Fix appwrite source hash manifest drift`
+- `736a6e57` - `fix(ai): make gateway DeepSeek-first and harden structured tools`
+- `b9debefa` - `fix(ai): harden gateway structured output contracts`
+- `55265550` - `fix(tailoring): support fresh-tab exports and clarify briefing save schema`
+
+---
+
+### AI Gateway reliability
+
+#### What changed
+
+- `ai-gateway` was moved to DeepSeek-first routing while preserving fallback behavior.
+- Structured-output hardening was added for:
+  - `optimize-for-linkedin`
+  - `generate-question-bank`
+  - `company-briefing`
+- Targeted retries / normalization were added so thin or malformed responses no longer pass as superficially successful output for the affected tools.
+
+#### Why it changed
+
+Production verification showed the remaining AI instability was concentrated in `ai-gateway`, not `resume-section-ai`.
+
+#### Root causes fixed
+
+- `optimize-for-linkedin` accepted weak payloads, including empty `experienceRewrites`, even when resume experience existed.
+- `generate-question-bank` accepted incomplete category sets.
+- `company-briefing` and `generate-question-bank` were too close to the DeepSeek primary timeout budget, making aborts/fallbacks more likely than necessary.
+
+#### Files changed
+
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `appwrite-hubs/admin-devkit-data/src/main.js`
+- `src/lib/devkit/aiToolsCatalogue.ts`
+- `src/lib/devkit/aiToolsCatalogue.test.ts`
+- `tests/hubs/ai-gateway-routing.test.cjs`
+- `src/lib/devkit/sourceHashes.generated.json`
+
+#### Validation
+
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js`
+- `node tests/hubs/ai-gateway-routing.test.cjs`
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
+- `npx tsc --noEmit`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally before push.
+
+#### Deployments performed
+
+- Commit `736a6e57` was pushed to `main`
+- GitHub Actions deployed `ai-gateway`
+- Commit `b9debefa` was then pushed for the follow-up hardening pass
+- GitHub Actions deployed `ai-gateway` again
+
+#### Verified live production state
+
+- DeepSeek-first `ai-gateway` rollout was deployed and verified.
+- Deployment verified live:
+  - deployment ID: `6a26594a4dde0db83eca`
+  - status: `ready`
+  - active: `true`
+  - created: `2026-06-08T05:55:22.571Z`
+  - source hash: `ai-gateway: 6057ca5dc51e8daa`
+- `optimize-for-linkedin` is fixed live:
+  - `experienceRewrites` is now non-empty when resume experience exists
+- `generate-question-bank` improved live:
+  - final output includes required categories:
+    - `company`
+    - `technical`
+    - `behavioral`
+    - `curveball`
+  - DeepSeek can still intermittently return malformed JSON, but fallback produced usable output
+- `company-briefing` improved live:
+  - usable structured output confirmed
+  - some provider variability remains, but user-facing output was usable
+- regression checks passed live:
+  - `tailor-resume`
+  - `parse-job`
+  - `wise-ai-chat`
+- credit deductions were verified:
+  - no double charging observed
+
+#### Decision
+
+- `ai-gateway` reliability is no longer the main production blocker
+- backlog item remains: improve DeepSeek-only stability for longer structured outputs
+
+---
+
+### Tailoring Hub + Company Briefing save pass
+
+#### What changed
+
+- Added `PreviewPage` resume bootstrap from `/preview?id=<resumeId>`
+- hardened Tailoring Hub result/history fallback when `tailor_history` is missing or delayed
+- hardened tailored merge behavior when AI output omits item ids
+- added clearer Company Briefing save schema/setup messaging
+
+#### Why it changed
+
+Production behavior showed:
+
+- fresh-tab Tailoring Hub preview/export paths were broken
+- tailored experience merges could fail silently when AI output omitted ids
+- result/history behavior leaned too heavily on `tailor_history`
+- Company Briefing Save failed because Appwrite persistence was incomplete
+
+#### Root causes fixed or partially fixed
+
+- Fresh-tab Tailoring Hub preview/export was broken because `PreviewPage.tsx` only trusted Zustand state, while `TailoringHubResultPage.tsx` opened `/preview?id=...` in a new tab without priming Zustand.
+- Tailored experience merges could silently fail because `tailorMerge.ts` matched by `id` only, while AI output did not always preserve original IDs.
+- `tailor_history` persistence was best-effort, but result/history fallback previously relied too much on it.
+- Company Briefing Save failed because `company_briefings` existed but only had `user_id`; it was missing `company_name`, `briefing`, create permissions, and a useful `user_id` index.
+
+#### Files changed in commit `55265550`
+
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `src/hooks/useCompanyBriefingLibrary.ts`
+- `src/lib/tailorMerge.ts`
+- `src/pages/PreviewPage.tsx`
+- `src/pages/TailoringHubPage.tsx`
+- `src/pages/TailoringHubResultPage.tsx`
+- `tests/hubs/ai-gateway-routing.test.cjs`
+- `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
+- `src/lib/__tests__/tailorMerge.test.ts`
+- `src/pages/__tests__/PreviewPage.test.tsx`
+- `src/pages/__tests__/TailoringHubResultPage.test.ts`
+- `src/lib/devkit/sourceHashes.generated.json`
+- `Project Atlas/CHANGELOG.md`
+- `Project Atlas/MASTER_HANDOVER_2026.md`
+
+#### Validation performed before commit `55265550`
+
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `npx vitest run tests/hubs/ai-gateway-routing.test.cjs src/lib/__tests__/tailorMerge.test.ts src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts`
+- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts tests/hubs/ai-gateway-routing.test.cjs src/lib/__tests__/tailorMerge.test.ts src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally before push.
+
+#### Deployments performed
+
+- commit `55265550` was pushed to `main`
+- Vercel/frontend deployment completed successfully for `55265550`
+- Appwrite `ai-gateway` was redeployed after `55265550`
+
+Verified live Appwrite deployment after `55265550`:
+
+- deployment ID: `6a2668371ca7426f76f1`
+- status: `ready`
+- created: `2026-06-08T06:59:03Z`
+- live deployed hash:
+  - `ai-gateway: b156e066754d6ed6`
+
+Tailor Resume id-preservation normalization is live:
+
+- live authenticated `tailor-resume` execution preserved non-empty experience IDs
+- sample execution: `6a266fe10461bfb97522`
+- result: `nonEmptyExpIds: 11/11`
+
+---
+
+### Production QA after commit `55265550`
+
+#### Tailoring Hub
+
+- existing Tailoring Hub result page opens: `PASS`
+- result page refresh with no `tailor_history`: `PASS`
+- direct `/preview?id=<tailoredResumeId>` loads tailored resume: `PASS`
+- no redirect to dashboard: `PASS`
+- no fallback to source/master resume by mistake: `PASS`
+- Designed PDF button: `FAIL`
+- ATS PDF button: `FAIL`
+- Word DOCX button: `FAIL`
+- fresh-tab `/preview?id=<tailoredResumeId>&action=download`: `FAIL`
+- fresh-tab `/preview?id=<tailoredResumeId>&action=ats-pdf`: `FAIL`
+- fresh-tab `/preview?id=<tailoredResumeId>&action=docx`: `FAIL`
+
+#### Tailor merge / generation findings
+
+- direct authenticated `tailor-resume` execution still routes through `ai-gateway`
+- no browser/provider direct AI call path was reintroduced
+- no BYOK/localStorage provider behavior was reintroduced
+- direct authenticated `tailor-resume` charged exactly once per execution
+- result-page / preview bootstrap fix is live
+- the already-existing tailored resume `6a264d0800289a9b5a62` loads correctly in result and preview flows
+- however, the actual export action path is still broken
+
+Focused live Tailor finding:
+
+- the tailored resume bootstrap works
+- the page loads the correct tailored resume from `?id`
+- the `action` query parameter is stripped, cleared, or ignored before the actual export action fires
+- this is now a focused `PreviewPage` auto-export trigger bug
+
+#### Company Briefing
+
+- generation works
+- save is still blocked by Appwrite schema and permissions
+- exact user-side Appwrite error from live authenticated create attempt:
+  - `No permissions provided for action 'create'`
+- additional missing schema:
+  - `company_briefings.company_name`
+  - `company_briefings.briefing`
+- current code now fails gracefully with a clearer schema/setup message, but save will not work until Appwrite schema/permissions are fixed
+
+#### AI regressions rechecked
+
+- `optimize-for-linkedin`: usable output confirmed
+- `parse-job`: usable output confirmed
+- `wise-ai-chat`: usable output confirmed
+
+---
+
+### Current production / deployment state
+
+- production reflects commit `55265550`
+- Vercel/frontend is live
+- Appwrite `ai-gateway` is live with source hash `b156e066754d6ed6`
+- Tailor Resume id-preservation normalization is live
+- Tailoring Hub result refresh and direct preview bootstrap work
+- Tailoring Hub export/download actions are still broken
+- Company Briefing Save is still blocked until Appwrite schema/permissions are added
+
+---
+
+### Manual Appwrite schema actions still required
+
+- `company_briefings`
+  - add attribute `company_name`
+  - add attribute `briefing`
+  - add create permission for authenticated users / users according to the current app security model
+  - add `user_id` ASC index
+- `tailor_history`
+  - add attribute `tailored_resume_id`
+  - add `tailored_resume_id` ASC key index
+- `resumes`
+  - optional but recommended lineage fields:
+    - `parent_resume_id`
+    - `is_master`
+    - `target_job_title`
+    - `target_company`
+    - `job_url`
+    - `job_match_score`
+  - code is guarded and does not write unsupported `resumes` fields
+
+---
+
+### Remaining blockers
+
+- Tailoring Hub export action path is still broken
+- result page buttons open the tailored preview popup, but no download starts
+- fresh-tab URLs load preview correctly but no export starts:
+  - `/preview?id=<tailoredResumeId>&action=download`
+  - `/preview?id=<tailoredResumeId>&action=ats-pdf`
+  - `/preview?id=<tailoredResumeId>&action=docx`
+- Company Briefing save is still blocked by Appwrite permissions + schema
+
+---
+
+### Where We Stopped
+
+- production reflects commit `55265550`
+- Vercel/frontend is live
+- Appwrite `ai-gateway` is live and active
+- deployed hash includes:
+  - `ai-gateway: b156e066754d6ed6`
+- Tailor Resume id-preservation normalization is live and working
+- direct authenticated `tailor-resume` execution preserved non-empty experience IDs
+- Tailoring Hub result refresh now works even when `tailor_history` is missing
+- direct `/preview?id=<tailoredResumeId>` now loads the tailored resume correctly
+- it does not redirect to dashboard
+- it does not fall back to the source/master resume
+- remaining production blocker:
+  - export actions still do not fire
+  - result page buttons open the tailored preview popup, but no download starts
+  - fresh-tab URLs load preview correctly but no export starts:
+    - `/preview?id=<tailoredResumeId>&action=download`
+    - `/preview?id=<tailoredResumeId>&action=ats-pdf`
+    - `/preview?id=<tailoredResumeId>&action=docx`
+  - the page appears to load the tailored resume and then strip/clear the `action` param before triggering the export
+- Company Briefing Save is still blocked until Appwrite schema/permissions are added
+- Codex limit was reached, so no further implementation was performed
+
+---
+
+### Exact next prompt for the next agent
+
+```txt
+We are continuing the WiseResume Tailoring Hub production QA follow-up.
+
+Current production status after commit `55265550`:
+- Frontend/Vercel is live.
+- Appwrite `ai-gateway` is live and active.
+- `ai-gateway` deployed hash includes:
+  - `ai-gateway: b156e066754d6ed6`
+- Tailor Resume id-preservation normalization is live and working.
+- Direct authenticated `tailor-resume` execution preserved non-empty experience IDs.
+- Tailoring Hub result refresh now works even when `tailor_history` is missing.
+- Direct `/preview?id=<tailoredResumeId>` now loads the tailored resume correctly.
+- It does not redirect to dashboard.
+- It does not fall back to the source/master resume.
+
+Remaining production blocker:
+- Export actions still do not fire.
+- Result page buttons open the tailored preview popup, but no download starts.
+- Fresh-tab URLs load preview correctly but no export starts:
+  - `/preview?id=<tailoredResumeId>&action=download`
+  - `/preview?id=<tailoredResumeId>&action=ats-pdf`
+  - `/preview?id=<tailoredResumeId>&action=docx`
+- The page appears to load the tailored resume and then strip/clear the `action` param before triggering the export.
+
+Task:
+Fix only the `/preview?id=...&action=...` auto-export path.
+
+Strict constraints:
+- Do not change AI provider routing.
+- Do not change `tailor-resume` gateway behavior unless absolutely required.
+- Do not touch Company Briefing generation/routing.
+- Do not rewrite PreviewPage architecture broadly.
+- Do not reintroduce BYOK/localStorage provider keys.
+- Do not call AI providers directly from browser.
+- Do not deploy, push, or commit until approved.
+
+Required inspect:
+1. Inspect `src/pages/PreviewPage.tsx`.
+2. Inspect the export/download handlers used by:
+   - Designed PDF
+   - ATS PDF
+   - DOCX
+3. Inspect how `action` query param is read, consumed, and removed.
+4. Inspect why the action is stripped before the export starts.
+5. Inspect whether the export effect depends on `currentResume`, URL-loaded resume state, loading state, template state, or popup/new-tab behavior.
+
+Required fix:
+- Ensure `PreviewPage` waits until the URL-id resume bootstrap is fully complete before running any auto-export action.
+- Ensure action runs exactly once after:
+  - resume loaded
+  - currentResume is set
+  - selected template is set
+  - preview/export handlers are ready
+- Do not clear or strip the `action` query param until after the export action has been triggered successfully or intentionally failed with a visible error.
+- Support all actions:
+  - `download`
+  - `ats-pdf`
+  - `docx`
+- If browser restrictions prevent automatic download in a fresh tab, show a clear fallback CTA on the preview page:
+  - “Download PDF”
+  - “Download ATS PDF”
+  - “Download DOCX”
+  and explain in code/comments why this fallback exists.
+- Preserve existing `/preview` behavior when there is no `?id` and no `action`.
+- Preserve the new behavior where `/preview?id=<resumeId>` loads the resume from Appwrite/Zustand bootstrap.
+
+Tests required:
+Add or update focused tests for:
+1. `/preview?id=<resumeId>&action=download` waits for resume load before triggering export.
+2. `/preview?id=<resumeId>&action=ats-pdf` waits for resume load before triggering export.
+3. `/preview?id=<resumeId>&action=docx` waits for resume load before triggering export.
+4. `action` is not cleared before export trigger.
+5. `/preview?id=<resumeId>` without action still loads preview normally.
+6. `/preview` without id preserves existing Zustand-based behavior.
+
+Validation:
+Run:
+- `npx vitest run src/pages/__tests__/PreviewPage.test.tsx`
+- `npx tsc --noEmit`
+- `npm run build`
+
+Also rerun any existing targeted tests touched by the previous pass if necessary.
+
+Return:
+- root cause summary
+- exact files changed
+- tests added/updated
+- validation output
+- whether frontend deployment is required
+- whether Appwrite deployment is required
+- whether manual Appwrite schema action is still required
+
+Do not deploy, push, or commit until I approve.
+```
+
+---
+
 ## Session Log - 2026-06-08 (Tailoring Hub Bug Fix Pass - Preview Bootstrap, Tailor Merge IDs, History Reliability)
 
 ### Overview

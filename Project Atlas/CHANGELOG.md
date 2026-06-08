@@ -11,6 +11,61 @@
 
 ---
 
+## 2026-06-08 - Session closeout after AI Gateway deploys and Tailoring Hub / Company Briefing production QA
+
+### What was verified live
+- Commit `55265550` is live on Vercel/frontend.
+- Appwrite `ai-gateway` is live after the Tailoring Hub pass:
+  - deployment ID: `6a2668371ca7426f76f1`
+  - status: `ready`
+  - created: `2026-06-08T06:59:03Z`
+  - deployed hash includes `ai-gateway: b156e066754d6ed6`
+- Tailor Resume id-preservation normalization is live:
+  - authenticated execution preserved non-empty experience IDs
+  - sample execution: `6a266fe10461bfb97522`
+  - result: `nonEmptyExpIds: 11/11`
+
+### Production conclusions
+- `ai-gateway` reliability is no longer the main blocker.
+- `optimize-for-linkedin` is fixed live.
+- `generate-question-bank` and `company-briefing` now return usable output live, though some provider variability remains for longer structured outputs.
+- Tailoring Hub result-page refresh now works even when `tailor_history` is missing.
+- Direct `/preview?id=<tailoredResumeId>` now loads the tailored resume correctly and does not redirect to dashboard or fall back to the source resume.
+
+### Remaining blockers
+- Tailoring Hub export actions are still broken in production:
+  - result page buttons open the tailored preview popup, but no download starts
+  - fresh-tab action URLs also load preview correctly but do not trigger download:
+    - `/preview?id=<tailoredResumeId>&action=download`
+    - `/preview?id=<tailoredResumeId>&action=ats-pdf`
+    - `/preview?id=<tailoredResumeId>&action=docx`
+- Company Briefing Save is still blocked in live Appwrite:
+  - exact authenticated error: `No permissions provided for action 'create'`
+  - collection still also lacks `company_name` and `briefing`
+
+### Manual Appwrite work still required
+- `company_briefings`
+  - add `company_name`
+  - add `briefing`
+  - add create permission for authenticated users / users according to the current app security model
+  - add `user_id` ASC index
+- `tailor_history`
+  - add `tailored_resume_id`
+  - add `tailored_resume_id` ASC key index
+- `resumes`
+  - optional lineage fields still recommended:
+    - `parent_resume_id`
+    - `is_master`
+    - `target_job_title`
+    - `target_company`
+    - `job_url`
+    - `job_match_score`
+
+### Next implementation target
+- Fix only the `/preview?id=...&action=...` auto-export path in `PreviewPage`.
+
+---
+
 ## 2026-06-08 - Tailoring Hub reliability fix pass
 
 ### Root Causes
