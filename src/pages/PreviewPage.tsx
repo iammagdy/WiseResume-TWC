@@ -10,6 +10,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 import { migrateTemplateId } from '@/lib/templateMigration';
+import { dbToResumeData, useResume } from '@/hooks/useResumes';
 
 // Lazy-loaded templates (only the selected one loads)
 const templateComponentMap: Record<string, ReturnType<typeof lazy>> = {
@@ -80,6 +81,8 @@ export default function PreviewPage() {
     currentResume,
     selectedTemplate,
     setSelectedTemplate,
+    setCurrentResume,
+    setCurrentResumeId,
     generatedCoverLetter,
     coverLetterJobContext,
     updateResume
@@ -102,6 +105,25 @@ export default function PreviewPage() {
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   const guestPreviewHintShown = useRef(false);
   const downloadTriggered = useRef(false);
+  const resumeIdFromUrl = searchParams.get('id');
+
+  const needsResumeBootstrap =
+    !!resumeIdFromUrl && (!currentResume || currentResume.id !== resumeIdFromUrl);
+  const {
+    data: bootstrapResumeDoc,
+    isLoading: isBootstrapResumeLoading,
+    isFetching: isBootstrapResumeFetching,
+  } = useResume(needsResumeBootstrap ? resumeIdFromUrl : null);
+
+  const isBootstrapPending =
+    !!resumeIdFromUrl &&
+    (!currentResume || currentResume.id !== resumeIdFromUrl) &&
+    (isBootstrapResumeLoading || isBootstrapResumeFetching || !!bootstrapResumeDoc);
+  const hasBootstrapResolved =
+    !needsResumeBootstrap || !!bootstrapResumeDoc || (!isBootstrapResumeLoading && !isBootstrapResumeFetching);
+
+  const isPreviewReady =
+    !!currentResume && (!resumeIdFromUrl || currentResume.id === resumeIdFromUrl);
 
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
@@ -109,6 +131,25 @@ export default function PreviewPage() {
   const pageFormat = currentResume?.customization?.pageFormat ?? 'letter';
   const previewDims = useMemo(() => getPageDimensionsForFormat(pageFormat), [pageFormat]);
   const customBreakPositions = currentResume?.customization?.customBreakPositions;
+
+  useEffect(() => {
+    if (!resumeIdFromUrl || !bootstrapResumeDoc) return;
+    const loadedResume = dbToResumeData(bootstrapResumeDoc);
+    setCurrentResume(loadedResume);
+    setCurrentResumeId(loadedResume.id ?? resumeIdFromUrl);
+    setSelectedTemplate(
+      migrateTemplateId(
+        (bootstrapResumeDoc.template || loadedResume.templateId || selectedTemplate) as string,
+      ) as TemplateId,
+    );
+  }, [
+    bootstrapResumeDoc,
+    resumeIdFromUrl,
+    selectedTemplate,
+    setCurrentResume,
+    setCurrentResumeId,
+    setSelectedTemplate,
+  ]);
 
   useEffect(() => {
     const el = resumeRef.current;
@@ -160,6 +201,7 @@ export default function PreviewPage() {
   useEffect(() => {
     const action = searchParams.get('action');
     if (!['download', 'ats-pdf', 'docx'].includes(action ?? '') || downloadTriggered.current) return;
+    if (!isPreviewReady || isBootstrapPending) return;
     downloadTriggered.current = true;
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('action');
@@ -177,17 +219,19 @@ export default function PreviewPage() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [searchParams]);
+  }, [currentResume, isBootstrapPending, isPreviewReady, searchParams, setSearchParams]);
 
   // Resume guard — show a brief skeleton while the Zustand store hydrates on rapid
   // navigation, then redirect if the resume is still absent after settling.
   useEffect(() => {
     if (currentResume) return;
+    if (isBootstrapPending) return;
+    if (resumeIdFromUrl && !hasBootstrapResolved) return;
     const timer = setTimeout(() => {
       navigate(user ? '/dashboard' : '/');
     }, 150);
     return () => clearTimeout(timer);
-  }, [currentResume, navigate, user]);
+  }, [currentResume, hasBootstrapResolved, isBootstrapPending, navigate, resumeIdFromUrl, user]);
 
   if (!currentResume) {
     return <TemplateSkeleton />;

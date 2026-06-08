@@ -195,6 +195,102 @@ function main() {
   );
   assert.equal(questionBank.categories.length, 4);
 
+  const tailoredByIndex = aiGateway.__test.normalizeStructuredFeatureData(
+    'tailor-resume',
+    JSON.stringify({
+      summary: 'Tailored summary',
+      skills: ['React'],
+      experience: [
+        {
+          company: 'Acme',
+          position: 'Engineer',
+          description: 'Raised activation by 18%',
+          achievements: ['Raised activation by 18%'],
+        },
+      ],
+      education: [],
+      projects: [],
+      certifications: [],
+      awards: [],
+      keyChanges: [],
+    }),
+    {
+      resume: {
+        summary: 'Original summary',
+        skills: ['React'],
+        experience: [
+          {
+            id: 'exp-1',
+            company: 'Acme',
+            position: 'Engineer',
+            description: 'Built features',
+            achievements: ['Built features'],
+          },
+        ],
+        education: [],
+        projects: [],
+        certifications: [],
+        awards: [],
+      },
+    },
+  );
+  assert.equal(tailoredByIndex.experience[0].id, 'exp-1');
+
+  const tailoredByMatch = aiGateway.__test.normalizeStructuredFeatureData(
+    'tailor-resume',
+    JSON.stringify({
+      summary: 'Tailored summary',
+      skills: ['React'],
+      experience: [
+        {
+          company: 'Globex',
+          position: 'Senior Engineer',
+          description: 'Reduced bundle size by 22%',
+          achievements: ['Reduced bundle size by 22%'],
+        },
+        {
+          company: 'Acme',
+          position: 'Engineer',
+          description: 'Raised activation by 18%',
+          achievements: ['Raised activation by 18%'],
+        },
+      ],
+      education: [],
+      projects: [],
+      certifications: [],
+      awards: [],
+      keyChanges: [],
+    }),
+    {
+      resume: {
+        summary: 'Original summary',
+        skills: ['React'],
+        experience: [
+          {
+            id: 'exp-1',
+            company: 'Acme',
+            position: 'Engineer',
+            description: 'Built features',
+            achievements: ['Built features'],
+          },
+          {
+            id: 'exp-2',
+            company: 'Globex',
+            position: 'Senior Engineer',
+            description: 'Led migrations',
+            achievements: ['Led migrations'],
+          },
+        ],
+        education: [],
+        projects: [],
+        certifications: [],
+        awards: [],
+      },
+    },
+  );
+  assert.equal(tailoredByMatch.experience[0].id, 'exp-2');
+  assert.equal(tailoredByMatch.experience[1].id, 'exp-1');
+
   const companyBriefing = aiGateway.__test.normalizeStructuredFeatureData(
     'company-briefing',
     JSON.stringify({

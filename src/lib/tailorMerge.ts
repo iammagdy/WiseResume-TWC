@@ -1,5 +1,57 @@
 import { ResumeData, SuperTailorResult, TailorSectionId, FixSuggestion } from '@/types/resume';
 
+function normalizeMatchValue(value: string | undefined): string {
+  return (value || '').trim().toLowerCase();
+}
+
+function findExperienceMatch(
+  original: ResumeData['experience'][number],
+  tailoredExperience: ResumeData['experience'],
+  index: number,
+  originalLength: number,
+): ResumeData['experience'][number] | undefined {
+  const byId = tailoredExperience.find((item) => item.id === original.id);
+  if (byId) return byId;
+
+  const company = normalizeMatchValue(original.company);
+  const position = normalizeMatchValue(original.position);
+  const byRole = tailoredExperience.find((item) =>
+    normalizeMatchValue(item.company) === company &&
+    normalizeMatchValue(item.position) === position,
+  );
+  if (byRole) return byRole;
+
+  if (tailoredExperience.length === originalLength) {
+    return tailoredExperience[index];
+  }
+
+  return undefined;
+}
+
+function findEducationMatch(
+  original: ResumeData['education'][number],
+  tailoredEducation: ResumeData['education'],
+  index: number,
+  originalLength: number,
+): ResumeData['education'][number] | undefined {
+  const byId = tailoredEducation.find((item) => item.id === original.id);
+  if (byId) return byId;
+
+  const institution = normalizeMatchValue(original.institution);
+  const degree = normalizeMatchValue(original.degree);
+  const bySchool = tailoredEducation.find((item) =>
+    normalizeMatchValue(item.institution) === institution &&
+    normalizeMatchValue(item.degree) === degree,
+  );
+  if (bySchool) return bySchool;
+
+  if (tailoredEducation.length === originalLength) {
+    return tailoredEducation[index];
+  }
+
+  return undefined;
+}
+
 /**
  * Build a merged resume snapshot by overlaying the AI-tailored result onto the
  * original resume, respecting the user's enabled-section toggles and per-bullet
@@ -21,10 +73,10 @@ export function buildMergedResume(
     mergedResume.skills = tailorResult.skills;
   }
   if (enabledSections.includes('experience')) {
-    mergedResume.experience = currentResume.experience.map(orig => {
-      const tailored = tailorResult.experience.find(e => e.id === orig.id);
+    mergedResume.experience = currentResume.experience.map((orig, index, originalList) => {
+      const tailored = findExperienceMatch(orig, tailorResult.experience, index, originalList.length);
       if (!tailored) return orig;
-      const merged = { ...orig, ...tailored };
+      const merged = { ...orig, ...tailored, id: tailored.id || orig.id };
       if (tailorResult.bulletTransformations && orig.achievements) {
         const mergedAchievements = [...(tailored.achievements ?? orig.achievements)];
         tailorResult.bulletTransformations
@@ -38,9 +90,9 @@ export function buildMergedResume(
     });
   }
   if (enabledSections.includes('education')) {
-    mergedResume.education = currentResume.education.map(orig => {
-      const tailored = tailorResult.education.find(e => e.id === orig.id);
-      return tailored ? { ...orig, ...tailored } : orig;
+    mergedResume.education = currentResume.education.map((orig, index, originalList) => {
+      const tailored = findEducationMatch(orig, tailorResult.education, index, originalList.length);
+      return tailored ? { ...orig, ...tailored, id: tailored.id || orig.id } : orig;
     });
   }
   if (enabledSections.includes('projects') && tailorResult.projects) {

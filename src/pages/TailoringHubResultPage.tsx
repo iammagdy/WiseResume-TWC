@@ -45,6 +45,68 @@ interface ResultState {
   intensity?: string;
 }
 
+export function resolveTailoringResultState(params: {
+  locationState?: ResultState | null;
+  tailorHistory: Array<{
+    tailoredResumeId?: string | null;
+    jobTitle: string;
+    company: string;
+    jobUrl?: string | null;
+    scoreBeforeAfter?: { before: number; after: number };
+    appliedSections?: string[];
+  }>;
+  resumeId?: string;
+  appwriteEntry?: Record<string, unknown> | null;
+}): ResultState {
+  const { locationState, tailorHistory, resumeId, appwriteEntry } = params;
+  if (
+    locationState &&
+    (
+      !!locationState.jobTitle ||
+      !!locationState.company ||
+      !!locationState.jobUrl ||
+      !!locationState.scoreBeforeAfter ||
+      (locationState.appliedSections?.length ?? 0) > 0
+    )
+  ) {
+    return locationState;
+  }
+
+  const entry = tailorHistory.find((item) => item.tailoredResumeId === resumeId);
+  if (entry) {
+    return {
+      jobTitle: entry.jobTitle,
+      company: entry.company,
+      jobUrl: entry.jobUrl,
+      scoreBeforeAfter: entry.scoreBeforeAfter,
+      appliedSections: entry.appliedSections,
+    };
+  }
+
+  if (appwriteEntry) {
+    return {
+      jobTitle: appwriteEntry.job_title as string | undefined,
+      company: appwriteEntry.company as string | undefined,
+      jobUrl: appwriteEntry.job_url as string | undefined,
+      scoreBeforeAfter: (appwriteEntry.score_before != null && appwriteEntry.score_after != null)
+        ? { before: appwriteEntry.score_before as number, after: appwriteEntry.score_after as number }
+        : undefined,
+      appliedSections: (() => {
+        try {
+          return appwriteEntry.applied_sections
+            ? (JSON.parse(appwriteEntry.applied_sections as string) as string[])
+            : undefined;
+        } catch {
+          console.warn('[TailoringHub] applied_sections parse failed');
+          return undefined;
+        }
+      })(),
+    };
+  }
+
+  return {};
+}
+
 export default function JobMatchResultPage() {
   const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
@@ -104,20 +166,11 @@ export default function JobMatchResultPage() {
   }, [dbResume?.template]);
 
   // E-7: Result enrichment — nav state → Zustand fallback → Appwrite fallback
-  const resultState: ResultState = useMemo(() => {
-    if (location.state?.jobTitle) return location.state as ResultState;
-    const entry = tailorHistory.find((h) => h.tailoredResumeId === resumeId);
-    if (entry) {
-      return {
-        jobTitle: entry.jobTitle,
-        company: entry.company,
-        jobUrl: entry.jobUrl,
-        scoreBeforeAfter: entry.scoreBeforeAfter,
-        appliedSections: entry.appliedSections,
-      };
-    }
-    return {};
-  }, [location.state, tailorHistory, resumeId]);
+  const resultState: ResultState = useMemo(() => resolveTailoringResultState({
+    locationState: location.state as ResultState | null,
+    tailorHistory,
+    resumeId,
+  }), [location.state, tailorHistory, resumeId]);
 
   const needsAppwriteLookup = !resultState.jobTitle && !!resumeId;
 
@@ -125,41 +178,27 @@ export default function JobMatchResultPage() {
   const { data: appwriteEntry } = useQuery({
     queryKey: ['tailor-history-by-resume', resumeId],
     queryFn: async () => {
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
-        Query.equal('tailored_resume_id', [resumeId!]),
-        Query.limit(1),
-      ]);
-      return res.documents[0] ?? null;
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
+          Query.equal('tailored_resume_id', [resumeId!]),
+          Query.limit(1),
+        ]);
+        return res.documents[0] ?? null;
+      } catch {
+        return null;
+      }
     },
     enabled: needsAppwriteLookup,
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
 
-  const effectiveState: ResultState = useMemo(() => {
-    if (resultState.jobTitle) return resultState;
-    if (appwriteEntry) {
-      return {
-        jobTitle: appwriteEntry.job_title as string | undefined,
-        company: appwriteEntry.company as string | undefined,
-        jobUrl: appwriteEntry.job_url as string | undefined,
-        scoreBeforeAfter: (appwriteEntry.score_before != null && appwriteEntry.score_after != null)
-          ? { before: appwriteEntry.score_before as number, after: appwriteEntry.score_after as number }
-          : undefined,
-        appliedSections: (() => {
-          try {
-            return appwriteEntry.applied_sections
-              ? (JSON.parse(appwriteEntry.applied_sections as string) as string[])
-              : undefined;
-          } catch {
-            console.warn('[TailoringHub] applied_sections parse failed');
-            return undefined;
-          }
-        })(),
-      };
-    }
-    return resultState;
-  }, [resultState, appwriteEntry]);
+  const effectiveState: ResultState = useMemo(() => resolveTailoringResultState({
+    locationState: Object.keys(resultState).length ? resultState : null,
+    tailorHistory: [],
+    resumeId,
+    appwriteEntry: appwriteEntry as Record<string, unknown> | null,
+  }), [appwriteEntry, resultState, resumeId]);
 
   // E-3: Save selected template to Appwrite resume doc (best-effort) + Zustand, then navigate or open new tab
   const navigateWithTemplate = (path: string, newTab = false) => {

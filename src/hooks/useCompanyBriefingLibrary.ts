@@ -13,6 +13,27 @@ export interface SavedCompanyBriefing {
   created_at: string;
 }
 
+const COMPANY_BRIEFING_REQUIRED_FIELDS = ['user_id', 'company_name', 'briefing'] as const;
+
+export function getCompanyBriefingSchemaHelpMessage() {
+  return 'Company Briefing library is not fully set up yet. Appwrite must add `company_name` and `briefing` attributes to `company_briefings` before Save can work.';
+}
+
+export function toCompanyBriefingSaveErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '');
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes('unknown attribute') ||
+    normalized.includes('invalid document structure') ||
+    normalized.includes('attribute not found') ||
+    normalized.includes('attribute is not available') ||
+    COMPANY_BRIEFING_REQUIRED_FIELDS.some((field) => normalized.includes(field))
+  ) {
+    return getCompanyBriefingSchemaHelpMessage();
+  }
+  return 'Failed to save briefing';
+}
+
 function docToBriefing(doc: Record<string, unknown>): SavedCompanyBriefing {
   const raw = doc.briefing;
   const briefing: CompanyBriefing =
@@ -67,7 +88,7 @@ export function useSaveCompanyBriefing() {
       queryClient.invalidateQueries({ queryKey: ['company-briefings'] });
       toast.success('Briefing saved!');
     },
-    onError: () => toast.error('Failed to save briefing'),
+    onError: (error: unknown) => toast.error(toCompanyBriefingSaveErrorMessage(error)),
   });
 }
 

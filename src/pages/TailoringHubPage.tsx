@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useImportJob } from '@/hooks/useImportJob';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
+import { useAppwriteTailoredIds } from '@/hooks/useTailorHistory';
 import { useQueryClient } from '@tanstack/react-query';
 import { tailorResumeWithProgress, type TailorIntensity } from '@/lib/aiTailor';
 import { buildMergedResume } from '@/lib/tailorMerge';
@@ -70,6 +71,13 @@ export default function JobMatchWorkspacePage() {
   );
 
   const { data: allResumes, isLoading: resumesLoading } = useResumes();
+  const { data: persistedTailoredIds = new Set<string>() } = useAppwriteTailoredIds();
+
+  const isLikelyTailoredResume = useCallback((resume: DatabaseResume, tailoredIds: Set<string>) => (
+    tailoredIds.has(resume.$id) ||
+    !!resume.parent_resume_id ||
+    /\(Tailored\)\s*$/i.test(resume.title ?? '')
+  ), []);
 
   const currentResume = useMemo(() => {
     const found = allResumes?.find((r: DatabaseResume) => r.$id === currentResumeId);
@@ -105,7 +113,8 @@ export default function JobMatchWorkspacePage() {
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
   // Auto-select a MASTER resume on load.
-  // "Tailored" is detected via Zustand tailorHistory (Appwrite schema has no parent_resume_id).
+  // Tailored copies are detected via persisted tailor_history, schema-backed metadata
+  // when present, and a title suffix heuristic as a last resort.
   // If the current selection is already a known master resume, leave it alone.
   // Otherwise (unset or is a tailored copy), find the source resume or most-recent master.
   useEffect(() => {
@@ -116,19 +125,22 @@ export default function JobMatchWorkspacePage() {
           new Date(b.$updatedAt ?? b.$createdAt ?? 0).getTime() -
           new Date(a.$updatedAt ?? a.$createdAt ?? 0).getTime(),
       );
-    const tailoredIds = new Set(
-      useResumeStore.getState().tailorHistory
-        .map((h) => h.tailoredResumeId)
-        .filter(Boolean) as string[],
-    );
+    const tailoredIds = new Set<string>([
+      ...(
+        useResumeStore.getState().tailorHistory
+          .map((h) => h.tailoredResumeId)
+          .filter(Boolean) as string[]
+      ),
+      ...persistedTailoredIds,
+    ]);
     const currentDb = allResumes.find((r: DatabaseResume) => r.$id === currentResumeId);
-    const isTailored = tailoredIds.has(currentDb?.$id ?? '') || !!currentDb?.parent_resume_id;
+    const isTailored = currentDb ? isLikelyTailoredResume(currentDb, tailoredIds) : false;
     if (currentDb && !isTailored) return; // already a master — done
-    const masters = allResumes.filter((r: DatabaseResume) => !tailoredIds.has(r.$id) && !r.parent_resume_id);
+    const masters = allResumes.filter((r: DatabaseResume) => !isLikelyTailoredResume(r, tailoredIds));
     const target = sortByRecent(masters)[0] ?? sortByRecent(allResumes)[0];
     if (target) setCurrentResumeId(target.$id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allResumes]);
+  }, [allResumes, currentResumeId, isLikelyTailoredResume, persistedTailoredIds, setCurrentResumeId]);
 
   // Pre-fill job description/info from query params
   useEffect(() => {
@@ -345,6 +357,7 @@ export default function JobMatchWorkspacePage() {
         },
       ).catch((err: unknown) => {
         console.warn('[TailoringHub] tailor_history write failed (non-blocking):', err);
+        toast.warning('Your tailored resume was saved, but it may not show in Tailoring history until history storage is fixed.');
       });
     } catch (err: unknown) {
       if (abort.signal.aborted) return;

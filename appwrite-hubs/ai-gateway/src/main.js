@@ -1168,6 +1168,96 @@ function hasResumeExperienceInput(opts) {
   });
 }
 
+function normalizeIdentityValue(value) {
+  return asString(value).trim().toLowerCase();
+}
+
+function preserveStructuredIds(parsedItems, originalItems, matcher) {
+  const parsedList = Array.isArray(parsedItems) ? parsedItems.filter(isRecord).map((item) => ({ ...item })) : [];
+  const originals = Array.isArray(originalItems) ? originalItems.filter(isRecord) : [];
+  const canFallbackByIndex = parsedList.length > 0 && parsedList.length === originals.length;
+  const usedOriginalIndexes = new Set();
+
+  return parsedList.map((item, index) => {
+    const existingId = asString(item.id);
+    if (existingId) {
+      const matchedIndex = originals.findIndex((original) => asString(original.id) === existingId);
+      if (matchedIndex >= 0) usedOriginalIndexes.add(matchedIndex);
+      return item;
+    }
+
+    let matchedIndex = originals.findIndex((original, originalIndex) => (
+      !usedOriginalIndexes.has(originalIndex) && matcher(original, item)
+    ));
+
+    if (matchedIndex === -1 && canFallbackByIndex && isRecord(originals[index])) {
+      matchedIndex = index;
+    }
+
+    if (matchedIndex === -1) return item;
+
+    usedOriginalIndexes.add(matchedIndex);
+    const originalId = asString(originals[matchedIndex].id);
+    return originalId ? { ...item, id: originalId } : item;
+  });
+}
+
+function normalizeTailorResumeCollections(parsed, opts = {}) {
+  const resume = isRecord(opts.resume) ? opts.resume : {};
+  return {
+    experience: preserveStructuredIds(
+      parsed.experience,
+      resume.experience,
+      (original, item) => (
+        normalizeIdentityValue(original.company) !== '' &&
+        normalizeIdentityValue(original.position || original.title) !== '' &&
+        normalizeIdentityValue(original.company) === normalizeIdentityValue(item.company) &&
+        normalizeIdentityValue(original.position || original.title) === normalizeIdentityValue(item.position || item.title)
+      ),
+    ),
+    education: preserveStructuredIds(
+      parsed.education,
+      resume.education,
+      (original, item) => (
+        normalizeIdentityValue(original.institution) !== '' &&
+        normalizeIdentityValue(original.degree) !== '' &&
+        normalizeIdentityValue(original.institution) === normalizeIdentityValue(item.institution) &&
+        normalizeIdentityValue(original.degree) === normalizeIdentityValue(item.degree)
+      ),
+    ),
+    projects: preserveStructuredIds(
+      parsed.projects,
+      resume.projects,
+      (original, item) => (
+        normalizeIdentityValue(original.name) !== '' &&
+        normalizeIdentityValue(original.role) !== '' &&
+        normalizeIdentityValue(original.name) === normalizeIdentityValue(item.name) &&
+        normalizeIdentityValue(original.role) === normalizeIdentityValue(item.role)
+      ),
+    ),
+    certifications: preserveStructuredIds(
+      parsed.certifications,
+      resume.certifications,
+      (original, item) => (
+        normalizeIdentityValue(original.name) !== '' &&
+        normalizeIdentityValue(original.issuer) !== '' &&
+        normalizeIdentityValue(original.name) === normalizeIdentityValue(item.name) &&
+        normalizeIdentityValue(original.issuer) === normalizeIdentityValue(item.issuer)
+      ),
+    ),
+    awards: preserveStructuredIds(
+      parsed.awards,
+      resume.awards,
+      (original, item) => (
+        normalizeIdentityValue(original.title) !== '' &&
+        normalizeIdentityValue(original.issuer) !== '' &&
+        normalizeIdentityValue(original.title) === normalizeIdentityValue(item.title) &&
+        normalizeIdentityValue(original.issuer) === normalizeIdentityValue(item.issuer)
+      ),
+    ),
+  };
+}
+
 function normalizeLinkedInPayload(parsed, opts = {}) {
   const about = isRecord(parsed.aboutSections) ? parsed.aboutSections : {};
   const experienceRewrites = Array.isArray(parsed.experienceRewrites)
@@ -1375,14 +1465,15 @@ function normalizeStructuredFeatureData(featureName, raw, opts) {
 
   if (featureName === 'tailor-resume') {
     const resume = isRecord(opts.resume) ? opts.resume : {};
+    const normalizedCollections = normalizeTailorResumeCollections(parsed, opts);
     return {
       summary: asString(parsed.summary) || asString(resume.summary),
       skills: toStringArray(parsed.skills).length ? toStringArray(parsed.skills) : toStringArray(resume.skills),
-      experience: Array.isArray(parsed.experience) ? parsed.experience : (Array.isArray(resume.experience) ? resume.experience : []),
-      education: Array.isArray(parsed.education) ? parsed.education : (Array.isArray(resume.education) ? resume.education : []),
-      projects: Array.isArray(parsed.projects) ? parsed.projects : (Array.isArray(resume.projects) ? resume.projects : []),
-      certifications: Array.isArray(parsed.certifications) ? parsed.certifications : (Array.isArray(resume.certifications) ? resume.certifications : []),
-      awards: Array.isArray(parsed.awards) ? parsed.awards : (Array.isArray(resume.awards) ? resume.awards : []),
+      experience: normalizedCollections.experience.length ? normalizedCollections.experience : (Array.isArray(resume.experience) ? resume.experience : []),
+      education: normalizedCollections.education.length ? normalizedCollections.education : (Array.isArray(resume.education) ? resume.education : []),
+      projects: normalizedCollections.projects.length ? normalizedCollections.projects : (Array.isArray(resume.projects) ? resume.projects : []),
+      certifications: normalizedCollections.certifications.length ? normalizedCollections.certifications : (Array.isArray(resume.certifications) ? resume.certifications : []),
+      awards: normalizedCollections.awards.length ? normalizedCollections.awards : (Array.isArray(resume.awards) ? resume.awards : []),
       keyChanges: Array.isArray(parsed.keyChanges) ? parsed.keyChanges : toStringArray(parsed.keyChanges),
       sectionScores: parsed.sectionScores || null,
       overallScore: parsed.overallScore || { before: clampScore(parsed.beforeScore, 55), after: clampScore(parsed.afterScore, 78) },
@@ -1427,6 +1518,15 @@ function normalizeStructuredFeatureData(featureName, raw, opts) {
 }
 
 function structuredFeatureInstructions(featureName) {
+  if (featureName === 'tailor-resume') {
+    return (
+      'ADDITIONAL RULES FOR tailor-resume:\n' +
+      '- Preserve the ORIGINAL `id` values exactly for every returned `experience`, `education`, `projects`, `certifications`, and `awards` item.\n' +
+      '- Never invent replacement ids, never rename ids, and never drop ids when the source resume already has them.\n' +
+      '- If a section item is unchanged, still return it with its original id.\n' +
+      '- Keep returned list order aligned to the source resume whenever possible.\n'
+    );
+  }
   if (featureName === 'optimize-for-linkedin') {
     return (
       'ADDITIONAL RULES FOR optimize-for-linkedin:\n' +
@@ -1461,7 +1561,7 @@ function schemaPrompt(featureName, opts) {
   const schemas = {
     'score-resume': '{"overallScore":0,"skillsMatch":0,"experienceRelevance":0,"keywordAlignment":0,"atsCompatibility":0,"strengths":[],"improvements":[]}',
     'analyze-resume': '{"score":{"overallScore":0,"overall":0,"skillsMatch":0,"skills":0,"experienceRelevance":0,"experience":0,"keywordAlignment":0,"keywords":0,"atsCompatibility":0,"strengths":[],"improvements":[]},"gaps":{"missingKeywords":[],"missingSkills":[],"suggestedSections":[],"recommendedPhrases":[],"priorityImprovements":[]}}',
-    'tailor-resume': '{"summary":"","skills":[],"experience":[],"education":[],"projects":[],"certifications":[],"awards":[],"keyChanges":[],"sectionScores":null,"overallScore":{"before":0,"after":0},"missingSkills":[],"boostableSkills":[],"jobParsed":{"title":"","company":"","keywords":[]},"atsAnalysis":{"criticalKeywords":[],"stuffingWarnings":[],"originalKeywordDensity":0,"optimizedKeywordDensity":0},"interviewTalkingPoints":[],"bulletTransformations":[],"strengthsAnalysis":[]}',
+    'tailor-resume': '{"summary":"","skills":[],"experience":[{"id":"","company":"","position":"","startDate":"","endDate":"","current":false,"description":"","achievements":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","gpa":""}],"projects":[{"id":"","name":"","role":"","startDate":"","endDate":"","technologies":[],"description":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}],"awards":[{"id":"","title":"","issuer":"","date":"","description":""}],"keyChanges":[],"sectionScores":null,"overallScore":{"before":0,"after":0},"missingSkills":[],"boostableSkills":[],"jobParsed":{"title":"","company":"","keywords":[]},"atsAnalysis":{"criticalKeywords":[],"stuffingWarnings":[],"originalKeywordDensity":0,"optimizedKeywordDensity":0},"interviewTalkingPoints":[],"bulletTransformations":[],"strengthsAnalysis":[]}',
     'generate-cover-letter': '{"coverLetter":""}',
     'recruiter-simulation': '{"analysis":{"hireabilityScore":0,"scoreExplanation":"","firstImpression":"","redFlags":[],"questionsIdAsk":[],"callMeFactors":[],"overallVerdict":"maybe_call","verdictReasoning":"","topPriorityFix":""}}',
     'detect-and-humanize': opts.action === 'humanize' ? '{"humanized":{"original":"","humanized":"","changes":[]}}' : '{"detection":{"aiScore":0,"humanScore":0,"confidence":"medium","flags":[],"verdict":""}}',

@@ -2,6 +2,157 @@
 
 ---
 
+## Session Log - 2026-06-08 (Tailoring Hub Bug Fix Pass - Preview Bootstrap, Tailor Merge IDs, History Reliability)
+
+### Overview
+
+Focused bug-fix pass on the Tailoring Hub flow after confirming the current architecture is:
+
+- `TailoringHubPage` -> `tailorResumeWithProgress`
+- `aiTailor.ts` -> `appwriteFunctions.invoke('tailor-resume')`
+- Appwrite bridge -> `ai-gateway`
+- `ai-gateway` DeepSeek-first route for `tailor-resume`
+
+No deployment, push, or commit was performed in this pass.
+
+---
+
+### Root causes identified
+
+#### F1 - Fresh-tab preview/export was broken
+
+- **Root cause**: `TailoringHubResultPage` opens `/preview?id=...&action=...` in a new tab without priming Zustand on purpose, but `PreviewPage` only trusted `currentResume` from Zustand and redirected after `150ms` when it was empty.
+- **Fix**: `PreviewPage` now supports `?id=<resumeId>` as a real bootstrap path. It loads the resume through the existing Appwrite resume data path, hydrates Zustand with `dbToResumeData()`, sets the template, and blocks redirect/export until the URL-based load settles.
+- **Files**: `src/pages/PreviewPage.tsx`, `src/pages/__tests__/PreviewPage.test.tsx`
+
+#### F2 - Tailored experience could silently fail to merge
+
+- **Root cause**: `buildMergedResume()` matched tailored experience by `id` only, while `ai-gateway` did not strongly preserve ids for tailored list items.
+- **Fix**:
+  - `ai-gateway` `tailor-resume` prompt/schema now explicitly requires preserving original ids for `experience`, `education`, `projects`, `certifications`, and `awards`.
+  - `ai-gateway` normalization now restores missing ids from the original resume by content match and index fallback.
+  - `buildMergedResume()` now matches experience by id first, then `company + position`, then same index when lengths match. Education got the same defensive pattern.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `src/lib/tailorMerge.ts`, `tests/hubs/ai-gateway-routing.test.cjs`, `src/lib/__tests__/tailorMerge.test.ts`
+
+#### F3 - Result/history behavior depended too much on delayed history persistence
+
+- **Root cause**: `TailoringHubPage` navigated before writing `tailor_history`, and the save was fire-and-forget. The result page also attempted an Appwrite history lookup that could fail when history storage is missing or delayed.
+- **Fix**:
+  - `TailoringHubResultPage` now safely swallows Appwrite history lookup failures so the page remains usable from the resume document alone.
+  - Extracted a deterministic result-state resolver and added focused test coverage for the missing/delayed-history case.
+  - `TailoringHubPage` now shows a non-blocking warning toast if history persistence fails, without affecting the successful tailored-resume result/export flow.
+- **Files**: `src/pages/TailoringHubPage.tsx`, `src/pages/TailoringHubResultPage.tsx`, `src/pages/__tests__/TailoringHubResultPage.test.ts`
+
+#### F4 - Live Appwrite schema still lacks the metadata/history fields this flow wanted to rely on
+
+- **Verified live schema finding**:
+  - `resumes` does **not** currently expose:
+    - `parent_resume_id`
+    - `is_master`
+    - `target_job_title`
+    - `target_company`
+    - `job_url`
+    - `job_match_score`
+  - `tailor_history` does **not** currently expose:
+    - `tailored_resume_id`
+    - matching `tailored_resume_id` key index
+- **Fix / adaptation**:
+  - Did **not** force unsupported metadata fields into resume creation.
+  - Hardened Tailoring Hub master-resume auto-select to use persisted `tailor_history` ids when available, plus a `(Tailored)` title heuristic as a last resort, so tailored copies are less likely to be treated as masters after refresh while the schema is incomplete.
+- **Files**: `src/pages/TailoringHubPage.tsx`
+
+#### F5 - Company Briefing "Save" fails because the live save schema is incomplete
+
+- **Root cause**: The save flow in `CompanyBriefingSheet` uses `useSaveCompanyBriefing()` which writes to the `company_briefings` collection with:
+  - `user_id`
+  - `company_name`
+  - `briefing`
+- **Verified live schema finding**:
+  - `company_briefings` exists
+  - but it currently exposes only `user_id`
+  - `company_name` and `briefing` are missing, so Appwrite rejects the save with an invalid document structure / unknown attribute error
+- **Fix**:
+  - did not force unsupported writes into a different storage path
+  - added a graceful, explicit schema/setup error message for this exact save failure so the user gets a clear manual-action explanation instead of a vague generic failure toast
+  - added focused test coverage for the error mapping
+- **Files**: `src/hooks/useCompanyBriefingLibrary.ts`, `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
+
+---
+
+### Files changed
+
+- `appwrite-hubs/ai-gateway/src/main.js`
+- `src/hooks/useCompanyBriefingLibrary.ts`
+- `src/lib/tailorMerge.ts`
+- `src/pages/PreviewPage.tsx`
+- `src/pages/TailoringHubPage.tsx`
+- `src/pages/TailoringHubResultPage.tsx`
+- `tests/hubs/ai-gateway-routing.test.cjs`
+- `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
+- `src/lib/__tests__/tailorMerge.test.ts`
+- `src/pages/__tests__/PreviewPage.test.tsx`
+- `src/pages/__tests__/TailoringHubResultPage.test.ts`
+- `src/lib/devkit/sourceHashes.generated.json`
+
+---
+
+### Verification
+
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts tests/hubs/ai-gateway-routing.test.cjs src/lib/__tests__/tailorMerge.test.ts src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally.
+
+Updated source hash:
+- `ai-gateway: b156e066754d6ed6`
+
+---
+
+### Manual Appwrite action needed
+
+This pass confirmed the code can be made more defensive, but the live Appwrite schema still needs manual provisioning if the product is expected to persist tailored lineage and query history server-side:
+
+- `resumes` collection attributes:
+  - `parent_resume_id`
+  - `is_master`
+  - `target_job_title`
+  - `target_company`
+  - `job_url`
+  - `job_match_score`
+- `tailor_history` collection attribute:
+  - `tailored_resume_id`
+- `tailor_history` index:
+  - key: `tailored_resume_id`
+  - order: `ASC`
+
+This pass also confirmed the Company Briefing save library still needs manual schema provisioning:
+
+- `company_briefings` collection attributes:
+  - `company_name`
+  - `briefing`
+
+Recommended supporting index for library reads:
+- `company_briefings` key index:
+  - `user_id`
+  - order: `ASC`
+
+---
+
+### Where We Stopped
+
+- Tailoring Hub code fixes are implemented locally and validated.
+- Company Briefing save now fails gracefully with a clear schema/setup message instead of a vague generic error.
+- No deploy, push, or commit was performed in this pass.
+- Deployment is required for the `PreviewPage` / Tailoring Hub frontend changes, the Company Briefing save UX fix, and the `ai-gateway` tailored-id preservation changes to affect production.
+- Recommended deployment targets, if approved later:
+  - frontend/Vercel for the page changes and Company Briefing save UX fix
+  - `ai-gateway` for the Tailor Resume normalization change
+
+---
+
 ## Session Log - 2026-06-08 (AI Gateway Targeted Hardening - LinkedIn Contract + Longer Structured DeepSeek Paths)
 
 ### Overview

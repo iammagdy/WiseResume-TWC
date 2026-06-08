@@ -11,6 +11,59 @@
 
 ---
 
+## 2026-06-08 - Tailoring Hub reliability fix pass
+
+### Root Causes
+- Fresh-tab Tailoring Hub preview/export was broken because `TailoringHubResultPage` intentionally opened `/preview?id=...` without priming Zustand, while `PreviewPage` only trusted `currentResume` from Zustand and redirected away almost immediately when it was missing.
+- `buildMergedResume()` matched tailored experience by `id` only, so AI output that dropped ids could quietly fail to apply the rewritten experience content.
+- Tailoring Hub result/history behavior was too optimistic about `tailor_history` persistence even though history writes were fire-and-forget.
+- Live Appwrite schema verification showed the persistence model is still incomplete for tailored lineage:
+  - `resumes` is missing `parent_resume_id`, `is_master`, `target_job_title`, `target_company`, `job_url`, and `job_match_score`
+  - `tailor_history` is missing `tailored_resume_id` and its key index
+- Company Briefing save was failing for a separate but related persistence reason:
+  - `company_briefings` exists live
+  - but it currently exposes only `user_id`
+  - the save flow writes `company_name` and `briefing`, so Appwrite rejects the write as an invalid document structure / unknown attribute error
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `src/pages/PreviewPage.tsx` | Added real `?id=<resumeId>` bootstrap support using the existing Appwrite resume load path. Preview now hydrates Zustand with the loaded resume, sets the current template, blocks redirect while the URL load is pending, and waits for resume bootstrap before export actions run. |
+| `src/pages/TailoringHubPage.tsx` | Hardened master-resume auto-select to use persisted `tailor_history` ids when available and a `(Tailored)` title heuristic as a last resort. Added a non-blocking warning toast if `tailor_history` persistence fails after a successful tailored-resume save. |
+| `src/pages/TailoringHubResultPage.tsx` | Made Appwrite `tailor_history` lookup failure-safe so the result page remains usable from the resume document alone. Extracted `resolveTailoringResultState()` for deterministic fallback behavior. |
+| `src/hooks/useCompanyBriefingLibrary.ts` | Added a specific, graceful schema/setup error message when saving to `company_briefings` fails because `company_name` or `briefing` is missing from the live Appwrite schema. |
+| `src/lib/tailorMerge.ts` | Hardened merge behavior: experience now matches by `id`, then `company + position`, then same index when lengths match; education now has the same defensive merge pattern. |
+| `appwrite-hubs/ai-gateway/src/main.js` | Strengthened `tailor-resume` schema/instructions to preserve original ids for `experience`, `education`, `projects`, `certifications`, and `awards`. Added normalization that restores missing ids from the original resume by content match or index fallback. |
+| `tests/hubs/ai-gateway-routing.test.cjs` | Added Tailor Resume coverage for missing-id recovery and preserved-id behavior. |
+| `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts` | Added focused coverage for the new Company Briefing save schema error mapping. |
+| `src/lib/__tests__/tailorMerge.test.ts` | Added merge tests for preserved ids and missing-id fallback matching. |
+| `src/pages/__tests__/PreviewPage.test.tsx` | Added focused preview bootstrap/export-wait tests for fresh-tab `/preview?id=...` behavior. |
+| `src/pages/__tests__/TailoringHubResultPage.test.ts` | Added focused tests for result-state fallback when `tailor_history` is missing or delayed. |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated after the `ai-gateway` change so deploy guards stay in sync. |
+
+### Verification
+- `node --check appwrite-hubs/ai-gateway/src/main.js`
+- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts tests/hubs/ai-gateway-routing.test.cjs src/lib/__tests__/tailorMerge.test.ts src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts`
+- `npx tsc --noEmit`
+- `npm run build`
+- `node scripts/compute-source-hashes.mjs`
+
+All passed locally.
+
+### Deployment / Follow-up Notes
+- No deployment was performed in this pass.
+- Frontend deployment is required for the `PreviewPage` and Tailoring Hub page fixes to affect production.
+- Frontend deployment is also required for the clearer Company Briefing save failure handling to reach production.
+- `ai-gateway` deployment is required for the Tailor Resume id-preservation normalization to affect production.
+- Manual Appwrite schema work is still recommended for durable tailored lineage/history:
+  - `resumes`: `parent_resume_id`, `is_master`, `target_job_title`, `target_company`, `job_url`, `job_match_score`
+  - `tailor_history`: `tailored_resume_id` + `tailored_resume_id` ASC index
+- Manual Appwrite schema work is also required for Company Briefing library save support:
+  - `company_briefings`: `company_name`, `briefing`
+  - recommended key index on `user_id`
+
+---
+
 ## 2026-06-08 - AI gateway targeted hardening for LinkedIn, Company Briefing, and Question Bank
 
 ### Root Causes
