@@ -209,7 +209,7 @@ export default function PortfolioEditorPage() {
   const reducedMotion = useMemo(() => getSafeMatchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
   const handleTabChange = useCallback((tab: PortfolioEditorTab) => {
-    directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current]  1 : -1;
+    directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
     prevTabRef.current = tab;
     haptics.light();
     setActiveTab(tab);
