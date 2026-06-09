@@ -710,6 +710,32 @@ async function loadCreditState(db, userId, featureName, prefetchedPlan = null) {
   };
 }
 
+const CREDIT_LOCKS_COLLECTION_ID = 'credit_locks';
+const CREDIT_LOCK_TTL_MS = 30_000;
+
+async function acquireCreditLock(db, userId) {
+  const expiry = new Date(Date.now() + CREDIT_LOCK_TTL_MS).toISOString();
+  try {
+    await db.createDocument(DB_ID, CREDIT_LOCKS_COLLECTION_ID, userId, { locked_at: new Date().toISOString(), lock_expires_at: expiry });
+    return true;
+  } catch (err) {
+    if (err.code !== 409 && !/already exists/i.test(err.message || '')) return false;
+    try {
+      const existing = await db.getDocument(DB_ID, CREDIT_LOCKS_COLLECTION_ID, userId);
+      if (new Date(existing.lock_expires_at).getTime() < Date.now()) {
+        await db.deleteDocument(DB_ID, CREDIT_LOCKS_COLLECTION_ID, userId);
+        await db.createDocument(DB_ID, CREDIT_LOCKS_COLLECTION_ID, userId, { locked_at: new Date().toISOString(), lock_expires_at: expiry });
+        return true;
+      }
+    } catch { }
+    return false;
+  }
+}
+
+async function releaseCreditLock(db, userId) {
+  try { await db.deleteDocument(DB_ID, CREDIT_LOCKS_COLLECTION_ID, userId); } catch { }
+}
+
 const AI_REQUEST_LOGS_COLLECTION_ID = 'ai_request_logs';
 
 /**
@@ -2615,10 +2641,12 @@ module.exports = async ({ req, res, log, error }) => {
 
     // Admin tests skip credit checks entirely — nonce validity is the gate.
     // Pass the pre-fetched plan to avoid a second subscription DB lookup.
+    const creditLockAcquired = isAdminTest ? false : await acquireCreditLock(db, effectiveUserId);
     const creditState = isAdminTest
       ? { cost: 0, chargeable: false, blocked: false }
       : await loadCreditState(db, effectiveUserId, featureName, plan);
     if (creditState.blocked) {
+      if (creditLockAcquired) await releaseCreditLock(db, effectiveUserId);
       // Release the in-flight lock so the user can try again (e.g. after topping up credits).
       await deleteIdempotencyDoc(db, idempotencyDocId);
       await flushDD();
@@ -2663,12 +2691,14 @@ module.exports = async ({ req, res, log, error }) => {
       for (let attempt = 0; attempt <= RECORD_USAGE_BACKOFFS.length; attempt++) {
         try {
           await recordAiUsage(db, creditState);
+          if (creditLockAcquired) await releaseCreditLock(db, effectiveUserId);
           return; // success
         } catch (err) {
           lastErr = err;
           if (attempt < RECORD_USAGE_BACKOFFS.length) await sleep(RECORD_USAGE_BACKOFFS[attempt]);
         }
       }
+      if (creditLockAcquired) await releaseCreditLock(db, effectiveUserId);
       error(
         `[CRITICAL] Credit recording failed after ${RECORD_USAGE_BACKOFFS.length + 1} attempts ` +
         `for user=${effectiveUserId} feature=${featureName}: ${lastErr?.message}`

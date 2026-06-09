@@ -14,6 +14,30 @@ const PLAN_DAILY_LIMITS = {
   premium: -1,
 };
 const _serverRateLimits = new Map();
+const _idempotencyCache = new Map();
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000;
+const IDEMPOTENCY_RESULT_MAX_BYTES = 60_000;
+const crypto = require('crypto');
+
+function computeRsaContentKey(userId, aiAction, section, action, currentContent) {
+  const payload = JSON.stringify({ userId, aiAction, section: section || '', action: action || '', content: currentContent });
+  return crypto.createHash('sha256').update(payload).digest('hex').slice(0, 32);
+}
+
+function checkIdempotencyMemory(key) {
+  const entry = _idempotencyCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { _idempotencyCache.delete(key); return null; }
+  return entry.result;
+}
+
+function storeIdempotencyMemory(key, result) {
+  try {
+    const str = JSON.stringify(result);
+    if (str.length > IDEMPOTENCY_RESULT_MAX_BYTES) return;
+    _idempotencyCache.set(key, { result, expiresAt: Date.now() + IDEMPOTENCY_TTL_MS });
+  } catch { }
+}
 
 // ─── Provider helpers ──────────────────────────────────────────────────────────
 
@@ -691,6 +715,13 @@ module.exports = async ({ req, res, log, error }) => {
       }, 429);
     }
 
+    const idemKey = computeRsaContentKey(auth.user.$id, aiAction, section, action, currentContent);
+    const cached = checkIdempotencyMemory(idemKey);
+    if (cached) {
+      log(`resume-section-ai: idempotency cache hit key=${idemKey}`);
+      return res.json({ ...cached, _cached: true });
+    }
+
     log(`resume-section-ai: user=${auth.user.$id}, action=${aiAction}, section=${section}, enhance_action=${action}`);
 
     const db = getDbClient();
@@ -714,6 +745,7 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildSuggestTechMessages(currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
+        storeIdempotencyMemory(idemKey, result);
         return res.json(result);
       }
 
@@ -721,6 +753,7 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildSuggestTechWithAnswersMessages(currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
+        storeIdempotencyMemory(idemKey, result);
         return res.json(result);
       }
 
@@ -757,6 +790,7 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildEnhanceMessages(section, baseAction, currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
+        storeIdempotencyMemory(idemKey, result);
         return res.json(result);
       }
 
@@ -764,12 +798,14 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildEnhanceMessages(section, 'add_metrics', currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
+        storeIdempotencyMemory(idemKey, result);
         return res.json(result);
       }
 
       const messages = buildEnhanceMessages(section, action, currentContent, context);
       const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
+      storeIdempotencyMemory(idemKey, result);
       return res.json(result);
     }
 
@@ -778,6 +814,7 @@ module.exports = async ({ req, res, log, error }) => {
       const messages = buildEnhanceMessages(section, 'tailor', currentContent, context);
       const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
+      storeIdempotencyMemory(idemKey, result);
       return res.json(result);
     }
 
@@ -791,7 +828,9 @@ module.exports = async ({ req, res, log, error }) => {
       } catch (_) {
         suggestions = [];
       }
-      return res.json({ suggestions, improved: null, changes: [] });
+      const fillResult = { suggestions, improved: null, changes: [] };
+      storeIdempotencyMemory(idemKey, fillResult);
+      return res.json(fillResult);
     }
 
     if (aiAction === 'explain-gap') {
@@ -804,7 +843,9 @@ module.exports = async ({ req, res, log, error }) => {
       } catch (_) {
         result = { explanation: rawContent, talking_points: [] };
       }
-      return res.json({ ...result, improved: null, changes: [] });
+      const explainResult = { ...result, improved: null, changes: [] };
+      storeIdempotencyMemory(idemKey, explainResult);
+      return res.json(explainResult);
     }
 
     // Unknown action
