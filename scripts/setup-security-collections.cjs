@@ -32,41 +32,52 @@ if (!PROJECT_ID || !API_KEY) {
 const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
 const db = new Databases(client);
 
+function isDuplicate(e) {
+  return e.code === 409 || /already exists/i.test(e.message || '');
+}
+
+function isNotFound(e) {
+  return e.code === 404 || /could not be found/i.test(e.message || '');
+}
+
 async function ensureCollection(collectionId, name, attributes, indexes = []) {
-  let exists = false;
   try {
     await db.getCollection(DB_ID, collectionId);
-    exists = true;
+    console.log(`[setup] Collection “${collectionId}” already exists — checking attributes`);
   } catch (e) {
-    if (e.code !== 404 && !/could not be found/i.test(e.message || '')) throw e;
+    if (!isNotFound(e)) throw e;
+    await db.createCollection(DB_ID, collectionId, name, []);
+    console.log(`[setup] Created collection “${collectionId}”`);
   }
-
-  if (exists) {
-    console.log(`[setup] Collection "${collectionId}" already exists â€” skipping`);
-    return;
-  }
-
-  await db.createCollection(DB_ID, collectionId, name, []);
-  console.log(`[setup] Created collection "${collectionId}"`);
 
   for (const attr of attributes) {
-    const { type, key, required = false, defaultVal = null, size, min, max } = attr;
-    if (type === 'string') {
-      await db.createStringAttribute(DB_ID, collectionId, key, size || 256, required, defaultVal);
-    } else if (type === 'integer') {
-      await db.createIntegerAttribute(DB_ID, collectionId, key, required, min, max, defaultVal);
-    } else if (type === 'boolean') {
-      await db.createBooleanAttribute(DB_ID, collectionId, key, required, defaultVal);
-    } else if (type === 'datetime') {
-      await db.createDatetimeAttribute(DB_ID, collectionId, key, required, defaultVal);
+    const { type, key, required = false, defaultVal = undefined, size, min, max } = attr;
+    try {
+      if (type === 'string') {
+        await db.createStringAttribute(DB_ID, collectionId, key, size || 256, required, defaultVal);
+      } else if (type === 'integer') {
+        await db.createIntegerAttribute(DB_ID, collectionId, key, required, min, max, defaultVal);
+      } else if (type === 'boolean') {
+        await db.createBooleanAttribute(DB_ID, collectionId, key, required, defaultVal);
+      } else if (type === 'datetime') {
+        await db.createDatetimeAttribute(DB_ID, collectionId, key, required, defaultVal);
+      }
+      console.log(`  [setup] Added attribute “${key}” (${type})`);
+    } catch (e) {
+      if (!isDuplicate(e)) throw e;
+      console.log(`  [setup] Attribute “${key}” already exists — skipping`);
     }
-    console.log(`  [setup] Added attribute "${key}" (${type})`);
     await new Promise(r => setTimeout(r, 300));
   }
 
   for (const idx of indexes) {
-    await db.createIndex(DB_ID, collectionId, idx.key, idx.type || IndexType.Key, idx.attributes, idx.orders);
-    console.log(`  [setup] Added index "${idx.key}"`);
+    try {
+      await db.createIndex(DB_ID, collectionId, idx.key, idx.type || IndexType.Key, idx.attributes, idx.orders);
+      console.log(`  [setup] Added index “${idx.key}”`);
+    } catch (e) {
+      if (!isDuplicate(e)) throw e;
+      console.log(`  [setup] Index “${idx.key}” already exists — skipping`);
+    }
     await new Promise(r => setTimeout(r, 300));
   }
 }
