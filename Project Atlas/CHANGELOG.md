@@ -11,6 +11,47 @@
 
 ---
 
+## 2026-06-09 - Wise AI workspace simplification + Atlas documentation sync
+
+### Context
+- Branch: `main`
+- Triggered by: AI Studio information architecture simplification and visual QA follow-up
+
+### Product changes
+- Reframed `/ai-studio` from a flat AI tools directory into a workflow-led Wise AI workspace.
+- Kept Wise AI Chat as the hero entry point, but removed duplicated hero and welcome messaging from the page body.
+- Reduced primary workflow card size so the page feels denser and less like a sparse marketing grid.
+- Removed the duplicated `Company Briefing` CTA from the Interview workflow card because Company Briefing already has its own primary card.
+- Renamed the sidebar label from `AI Tools` to `Wise AI`.
+
+### Visible workspace IA
+- Primary workflows: Tailor for a Job, Improve My Resume, Prepare for Interview, Company Briefing, Cover Letter, LinkedIn / Personal Brand
+- Secondary workflows: Career Plan, Write Documents
+
+### Hidden or excluded tools
+- Hidden but still link-compatible: `tailor`, `enhance`, `onepage`, `humanizer`, `ab-compare`, `recruiter`, `skills-gap`, `salary-negotiation`, `cold-email`, `job-rejection`, `personal-branding`, `portfolio-bio`, `reference-letter`, `resignation-letters`
+- Excluded from AI Studio IA but still routed normally: `qr-code`, `qr-batch`, `qr-scan`
+
+### Atlas updates
+- Updated `Project Atlas/01-Currently Implemented/pages/aistudio.md`
+- Updated `Project Atlas/01-Currently Implemented/critical-systems/10-ai-studio-and-agentic-chat.md`
+- Updated owner-facing wording in:
+  - `Project Atlas/04-For You (Plain Language)/current-features.md`
+  - `Project Atlas/04-For You (Plain Language)/glossary.md`
+- Added durable implementation report:
+  - `Project Atlas/03-Implemented/wise-ai-workspace-simplification-2026-06-09.md`
+
+### Validation
+- `npx tsc --noEmit` -> passed
+- `npx vitest run src/pages/__tests__/AIStudioPage.test.tsx` -> passed
+- `npm run build` -> passed
+
+### No backend changes
+- No Appwrite Function changes
+- No `ai-gateway` changes
+- No credits/auth/schema/provider-routing changes
+
+
 ## 2026-06-08 - AI routing & DevKit audit — startup validation fix + Smart Defaults alignment
 
 ### Context

@@ -44,13 +44,6 @@ const ResumeABCompareSheet = lazy(() => import("@/components/ai-studio/ResumeABC
 const RECENT_TOOLS_KEY = "wr-recent-ai-tools";
 const TIP_DISMISSED_KEY = "wr-ai-tip-dismissed";
 
-const WORKSPACE_PROMPTS = [
-  "What should I improve before I apply?",
-  "Tailor this resume for a product manager role",
-  "Help me prepare for tomorrow's interview",
-  "Research this company before I speak with them",
-];
-
 const PLACEHOLDER_EXAMPLES = [
   "Ask Wise AI to improve your resume for a specific role...",
   'Try: "Tailor my resume for a growth marketing job"',
@@ -324,25 +317,55 @@ export default function AIStudioPage() {
       <div
         key={workflow.id}
         className={cn(
-          "rounded-3xl border border-border bg-card shadow-soft-sm",
-          compact ? "p-4" : "p-5"
+          "group relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(32,32,39,0.98),rgba(21,21,27,0.98))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] transition-all duration-200 hover:border-primary/25 hover:shadow-[0_30px_90px_rgba(0,0,0,0.36)]",
+          compact ? "p-4" : "p-4"
         )}
       >
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-            <Icon className={cn("h-5 w-5", workflow.color)} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className={cn("font-semibold", compact ? "text-base" : "text-lg")}>{workflow.title}</h2>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">{workflow.description}</p>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(circle_at_top_left,rgba(190,24,93,0.12),transparent_56%)] opacity-80" />
+        <div className="relative flex h-full flex-col">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/6 bg-white/[0.04] shadow-inner shadow-black/20">
+                <Icon className={cn("h-4.5 w-4.5", workflow.color)} />
               </div>
-              {primaryTool ? <AICostBadge operation={primaryTool.cost} className="shrink-0" /> : null}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/90">
+                    {compact ? "Support flow" : "Core workflow"}
+                  </span>
+                </div>
+                <h2 className={cn("mt-2.5 font-semibold tracking-tight text-foreground", compact ? "text-[1.08rem]" : "text-[1.18rem]")}>
+                  {workflow.title}
+                </h2>
+              </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+            {primaryTool ? <AICostBadge operation={primaryTool.cost} className="shrink-0 bg-white/[0.03]" /> : null}
+          </div>
+          <p className={cn("mt-3.5 max-w-[42ch] text-pretty text-muted-foreground", compact ? "text-[13px] leading-6" : "text-sm leading-6")}>
+            {workflow.description}
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {workflow.backingTools
+              .map((toolId) => getAiStudioToolById(toolId))
+              .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool && tool.visibility !== "hidden" && tool.visibility !== "excluded"))
+              .slice(0, compact ? 2 : 3)
+              .map((tool) => {
+              return (
+                <span
+                  key={`${workflow.id}-${tool.id}`}
+                  className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                >
+                  {tool.label}
+                </span>
+              );
+            })}
+          </div>
+
+          <div className="mt-auto pt-4">
+            <div className="flex flex-wrap gap-2">
               <Button
-                className="gradient-primary"
+                className="min-h-[40px] rounded-2xl px-4 gradient-primary shadow-[0_18px_40px_rgba(190,24,93,0.24)]"
                 onClick={() => handleWorkflowAction(workflow.primaryAction.toolId)}
               >
                 {workflow.primaryAction.label}
@@ -352,6 +375,7 @@ export default function AIStudioPage() {
                 <Button
                   key={`${workflow.id}-${action.toolId}`}
                   variant="outline"
+                  className="min-h-[40px] rounded-2xl border-white/12 bg-white/[0.02] px-4 hover:bg-white/[0.05]"
                   onClick={() => handleWorkflowAction(action.toolId)}
                 >
                   {action.label}
@@ -365,7 +389,7 @@ export default function AIStudioPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 sm:pb-20 lg:pb-6">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(190,24,93,0.12),transparent_28%),linear-gradient(180deg,rgba(12,12,15,1),rgba(11,11,14,1))] pb-28 sm:pb-20 lg:pb-8">
       <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -375,177 +399,116 @@ export default function AIStudioPage() {
         </div>
       </header>
 
-      <div className="px-4 py-2">
-        {currentResumeId && resumeData ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border">
-            <FileSearch className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-sm flex-1 break-words leading-snug" title={resumeData.title}>
-              Working on: <span className="font-medium">{resumeData.title}</span>
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0 min-h-[44px] text-xs text-primary"
-              onClick={() => {
-                if (allResumes && allResumes.length > 0) {
-                  pendingActionRef.current = null;
-                  setShowResumePicker(true);
-                } else {
-                  navigate("/dashboard");
-                }
-              }}
-            >
-              Change
-            </Button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 justify-start gap-2"
-              onClick={() => {
-                if (allResumes && allResumes.length > 0) {
-                  pendingActionRef.current = null;
-                  setShowResumePicker(true);
-                } else {
-                  navigate("/dashboard");
-                }
-              }}
-            >
-              <FileSearch className="w-4 h-4" />
-              Select a resume
-            </Button>
-            <Button className="shrink-0 gradient-primary" onClick={() => navigate("/dashboard?action=create")}>
-              Create
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {isFirstVisit && (
-        <div className="px-4 pb-3">
-          <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-soft">
-            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <p className="min-w-0 flex-1 text-sm leading-5 text-foreground">
-              Welcome to <span className="font-semibold">Wise AI</span>. Start with a workflow and keep your resume, job prep, and outreach in one place.
-            </p>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 shrink-0"
-              aria-label="Dismiss Wise AI welcome"
-              onClick={() => setHasSeenAIStudioTour?.(true)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <div className="px-4 pb-4">
-        <div
-          onClick={() => {
-            haptics.light();
-            if (!user) {
-              setShowChat(true);
-              return;
-            }
-            if (!currentResumeId) {
-              toast.info("Select a resume first to chat with Wise AI");
-              return;
-            }
-            setShowChat(true);
-          }}
-          className={cn(
-            "w-full rounded-3xl border border-primary/20 bg-card p-5 shadow-soft transition-all cursor-pointer hover:border-primary/40 active:scale-[0.98]",
-            isFirstVisit && "ring-2 ring-primary/40 animate-[pulse_1.5s_ease-in-out_3]"
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full gradient-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Wise AI Chat</p>
-              <h2 className="text-lg font-semibold leading-tight">Your resume and job search workspace</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {WORKSPACE_PROMPTS.slice(0, 3).map((prompt) => (
-              <button
-                key={prompt}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openChatWithMessage(prompt);
+      <div className="mx-auto flex w-full max-w-[1380px] flex-1 flex-col px-4 py-2 sm:px-5 lg:px-8">
+        <div className="pb-6">
+          {currentResumeId && resumeData ? (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+              <FileSearch className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm flex-1 break-words leading-snug" title={resumeData.title}>
+                Working on: <span className="font-medium">{resumeData.title}</span>
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 min-h-[44px] text-xs text-primary"
+                onClick={() => {
+                  if (allResumes && allResumes.length > 0) {
+                    pendingActionRef.current = null;
+                    setShowResumePicker(true);
+                  } else {
+                    navigate("/dashboard");
+                  }
                 }}
-                className="rounded-full border border-primary/10 bg-primary/5 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-primary/10"
               >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {recentTools.length > 0 && (
-        <div className="px-4 pb-4">
-          <div className="mb-2 px-1 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <h2 className="text-sm font-medium text-muted-foreground">Recent</h2>
-          </div>
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
-            {recentTools.map((tool) => (
-              <button
-                key={tool.id}
-                onClick={() => handleToolAction(tool)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0"
+                Change
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 justify-start gap-2"
+                onClick={() => {
+                  if (allResumes && allResumes.length > 0) {
+                    pendingActionRef.current = null;
+                    setShowResumePicker(true);
+                  } else {
+                    navigate("/dashboard");
+                  }
+                }}
               >
-                <tool.icon className={cn("w-4 h-4", tool.color)} />
-                <span className="text-sm font-medium whitespace-nowrap">{tool.label}</span>
-              </button>
-            ))}
+                <FileSearch className="w-4 h-4" />
+                Select a resume
+              </Button>
+              <Button className="shrink-0 gradient-primary" onClick={() => navigate("/dashboard?action=create")}>
+                Create
+              </Button>
+            </div>
+          )}
+
+          {recentTools.length > 0 && (
+            <div className="pb-5">
+              <div className="mb-2 px-1 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                <h2 className="text-sm font-medium text-muted-foreground">Recent</h2>
+              </div>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                {recentTools.map((tool) => (
+                  <button
+                    key={tool.id}
+                    onClick={() => handleToolAction(tool)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0"
+                  >
+                    <tool.icon className={cn("w-4 h-4", tool.color)} />
+                    <span className="text-sm font-medium whitespace-nowrap">{tool.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="pb-4 pt-1">
+            <div className="px-1 lg:flex lg:items-end lg:justify-between">
+              <div>
+                <h2 className="text-[1.5rem] font-semibold tracking-tight text-foreground">Primary workflows</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Start with the main outcomes most people need from Wise AI.</p>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground lg:mt-0">Built to feel like one workspace, not a long list of isolated tools.</p>
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="px-4 pb-3">
-        <div className="px-1">
-          <h2 className="text-lg font-semibold">Primary workflows</h2>
-          <p className="text-sm text-muted-foreground">Start with the main outcomes most people need from Wise AI.</p>
-        </div>
-      </div>
-      <div className="grid gap-4 px-4 pb-5 lg:grid-cols-2">
-        {aiStudioPrimaryWorkflows.map((workflow) => renderWorkflowCard(workflow))}
-      </div>
-
-      <div className="px-4 pb-3">
-        <div className="px-1">
-          <h2 className="text-base font-semibold">Secondary tools</h2>
-          <p className="text-sm text-muted-foreground">Useful supporting workflows that stay available without crowding the main workspace.</p>
-        </div>
-      </div>
-      <div className="grid gap-4 px-4 pb-6 md:grid-cols-2">
-        {aiStudioSecondaryWorkflows.map((workflow) => renderWorkflowCard(workflow, true))}
-      </div>
-
-      {!tipDismissed && (
-        <div className="px-4 pb-6">
-          <div className="relative flex items-start gap-2 rounded-xl border border-primary/10 bg-primary/5 p-3">
-            <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <p className="pr-6 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Workspace tip:</span> {PRO_TIPS[tipIdx]}
-            </p>
-            <button
-              onClick={dismissTip}
-              className="absolute right-2 top-2 rounded-full p-1 transition-colors hover:bg-muted/50"
-              aria-label="Dismiss tip"
-            >
-              <X className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
+          <div className="grid gap-5 pb-8 lg:grid-cols-2">
+            {aiStudioPrimaryWorkflows.map((workflow) => renderWorkflowCard(workflow))}
           </div>
+
+          <div className="pb-4">
+            <div className="px-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">Secondary tools</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Useful supporting workflows that stay available without crowding the main workspace.</p>
+            </div>
+          </div>
+          <div className="grid gap-5 pb-8 md:grid-cols-2">
+            {aiStudioSecondaryWorkflows.map((workflow) => renderWorkflowCard(workflow, true))}
+          </div>
+
+          {!tipDismissed && (
+            <div className="pb-8">
+              <div className="relative flex items-start gap-2 rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <p className="pr-6 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Workspace tip:</span> {PRO_TIPS[tipIdx]}
+                </p>
+                <button
+                  onClick={dismissTip}
+                  className="absolute right-2 top-2 rounded-full p-1 transition-colors hover:bg-muted/50"
+                  aria-label="Dismiss tip"
+                >
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <ResumePickerSheet
         open={showResumePicker}

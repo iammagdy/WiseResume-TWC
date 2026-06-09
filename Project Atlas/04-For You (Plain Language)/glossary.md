@@ -16,7 +16,7 @@ If you ever read a card in this Atlas and don't know a word, look it up here fir
 
 **AI credit.** A unit that gets consumed every time the platform calls an AI on behalf of a user. Free users get 5 per day, Pro users get 100, Premium users get unlimited (shown as ∞). Credits reset daily. Some AI tools cost 2 credits (cover letters, tailoring); the resume scorer costs 0 (it doesn't use AI).
 
-**AI Studio.** The page that holds 16 AI-powered writing tools in one place — cold emails, salary negotiation scripts, personal branding, etc.
+**AI Studio / Wise AI.** The job-seeker AI workspace. It now focuses on a smaller set of main workflows — tailoring, resume improvement, interview prep, company briefing, cover letters, LinkedIn/personal brand, career planning, and supporting documents — while still keeping older specialist tools available behind the scenes.
 
 **Atlas.** This folder — the engineering reference for the whole platform.
 

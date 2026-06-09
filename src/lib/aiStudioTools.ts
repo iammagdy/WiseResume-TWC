@@ -109,9 +109,7 @@ export const aiStudioWorkflows: AiStudioWorkflowEntry[] = [
     color: "text-orange-500",
     visibility: "primary",
     primaryAction: { label: "Start Interview Prep", toolId: "interview" },
-    secondaryActions: [
-      { label: "Company Briefing", toolId: "company-briefing" },
-    ],
+    secondaryActions: [],
     backingTools: ["interview", "company-briefing"],
   },
   {

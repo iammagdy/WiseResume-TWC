@@ -236,7 +236,7 @@ A user picks which side they belong to when they sign up. **They cannot switch l
 
 **Build a public portfolio.** Pick a username, get a public link. Recruiters can chat with an AI version of you on that page. Each portfolio can opt out of search engine indexing.
 
-**AI Studio.** Sixteen AI-powered writing tools in one place — cold emails, salary negotiation scripts, personal branding, skills gap analysis, and more.
+**Wise AI.** A workspace for the main AI outcomes people usually need: tailoring a resume for a job, improving the resume itself, interview prep, company research, cover letters, LinkedIn/profile polish, plus a few secondary document tools. Some older specialist tools still exist, but they now sit behind direct links or inside the surrounding workflows instead of crowding the main page.
 
 **Bring Your Own Key (BYOK).** If you have your own AI provider account (OpenAI, Anthropic, Gemini, Groq, Mistral, xAI, Cohere, OpenRouter, or a self-hosted Ollama), plug in the key. We use your key, and we don't deduct credits from your account.
 
