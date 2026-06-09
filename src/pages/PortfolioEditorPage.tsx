@@ -75,10 +75,10 @@ export default function PortfolioEditorPage() {
   const { user } = useAuth();
   const { isPro, isPremium } = usePlan();
   const isPaidUser = isPro || isPremium;
-  const { profile, loading, updateProfile } = useProfile(user.id);
+  const { profile, loading, updateProfile } = useProfile(user?.id);
   const { data: resumes = [] } = useResumes();
-  const usernameRules = usePortfolioUsernameRules(user.id);
-  const { saveSnapshot } = usePortfolioHistory(user.id);
+  const usernameRules = usePortfolioUsernameRules(user?.id);
+  const { saveSnapshot } = usePortfolioHistory(user?.id);
   const queryClient = useQueryClient();
 
   // Collapsible sections state - all collapsed by default
@@ -97,7 +97,7 @@ export default function PortfolioEditorPage() {
   const [username, setUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [usernameCheckStatus, setUsernameCheckStatus] = useState<{ status: string; reason: string } | null>(null);
+  const [usernameCheckStatus, setUsernameCheckStatus] = useState<{ status: string; reason?: string } | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [premiumHandles, setPremiumHandles] = useState<PremiumHandle[]>([]);
@@ -146,14 +146,14 @@ export default function PortfolioEditorPage() {
   const [portfolioPrimaryLanguage, setPortfolioPrimaryLanguage] = useState('English');
   const [portfolioSecondaryLanguage, setPortfolioSecondaryLanguage] = useState('');
   const [portfolioTranslations, setPortfolioTranslations] = useState<Record<string, {
-    bio: string;
-    portfolioSummary: string;
-    pinnedProjectDescription: string;
-    highlights: Array<{ id: string; value: string; label: string }>;
-    services: Array<{ id: string; title: string; description: string }>;
-    testimonials: Array<{ id: string; quote: string }>;
-    caseStudies: Array<{ id: string; title: string; challenge: string; outcome: string }>;
-    portfolioCertifications: Array<{ id: string; name: string; issuer: string }>;
+    bio?: string;
+    portfolioSummary?: string;
+    pinnedProjectDescription?: string;
+    highlights?: Array<{ id: string; value: string; label: string }>;
+    services?: Array<{ id: string; title: string; description?: string }>;
+    testimonials?: Array<{ id: string; quote: string }>;
+    caseStudies?: Array<{ id: string; title: string; challenge: string; outcome: string }>;
+    portfolioCertifications?: Array<{ id: string; name: string; issuer: string }>;
   }>>({});
   const [translating, setTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState<PortfolioEditorTab>('setup');
@@ -215,7 +215,7 @@ export default function PortfolioEditorPage() {
     setActiveTab(tab);
     requestAnimationFrame(() => {
       const tabEl = document.getElementById(`portfolio-tab-${tab}`);
-      tabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      tabEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
   }, [tabIndexMap]);
 
@@ -241,7 +241,7 @@ export default function PortfolioEditorPage() {
       setPortfolioAccentColor(profile.portfolioAccentColor || '#e84545');
       setPortfolioFont((profile.portfolioFont || 'inter') as PortfolioFont);
       setOpenToWork(profile.openToWork || false);
-      setAvailabilityStatus((profile.portfolioExtras.availabilityStatus as 'actively-looking' | 'open-to-offers' | 'not-looking') || (profile.openToWork  'actively-looking' : 'not-looking'));
+      setAvailabilityStatus((profile.portfolioExtras?.availabilityStatus as 'actively-looking' | 'open-to-offers' | 'not-looking') || (profile.openToWork ? 'actively-looking' : 'not-looking'));
       setAvailabilityHeadline(profile.availabilityHeadline || '');
       setSyncMode(profile.portfolioSyncMode as 'auto' | 'locked' || 'auto');
       const extras = profile.portfolioExtras || {};
@@ -259,53 +259,53 @@ export default function PortfolioEditorPage() {
       setPortfolioCertifications(extras.portfolioCertifications as Array<{id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string}> || []);
       setPortfolioPrimaryLanguage(extras.portfolioPrimaryLanguage as string || 'English');
       setPortfolioSecondaryLanguage(extras.portfolioSecondaryLanguage as string || '');
-      setPortfolioTranslations(extras.portfolioTranslations as Record<string, { bio: string; portfolioSummary: string; pinnedProjectDescription: string; highlights: Array<{ id: string; value: string; label: string }>; services: Array<{ id: string; title: string; description: string }>; testimonials: Array<{ id: string; quote: string }> }> || {});
+      setPortfolioTranslations(extras.portfolioTranslations as Record<string, { bio?: string; portfolioSummary?: string; pinnedProjectDescription?: string; highlights?: Array<{ id: string; value: string; label: string }>; services?: Array<{ id: string; title: string; description?: string }>; testimonials?: Array<{ id: string; quote: string }> }> || {});
       setPasswordEnabled((extras.passwordEnabled as boolean) || false);
       setPasswordHash((extras.passwordHash as string) || '');
       setCustomDomain((extras.customDomain as string) || '');
-      setContactFormEnabled(typeof extras.contactFormEnabled === 'boolean'  extras.contactFormEnabled : true);
+      setContactFormEnabled(typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true);
 
       // If a persisted draft exists, overlay it on top of the live-column values.
       // The draft uses the same key names as getCurrentSnapshot().
       const d = profile.portfolioDraft;
       if (d) {
-        if ('username' in d) setUsername(String(d.username  ''));
-        if ('bio' in d) setBio(String(d.bio  ''));
+        if ('username' in d) setUsername(String(d.username ?? ''));
+        if ('bio' in d) setBio(String(d.bio ?? ''));
         if ('portfolioEnabled' in d) setPortfolioEnabled(Boolean(d.portfolioEnabled));
-        if ('githubUrl' in d) setGithubUrl(String(d.githubUrl  ''));
-        if ('websiteUrl' in d) setWebsiteUrl(String(d.websiteUrl  ''));
-        if ('twitterUrl' in d) setTwitterUrl(String(d.twitterUrl  ''));
-        if ('linkedinUrl' in d) setLinkedinUrl(String(d.linkedinUrl  ''));
-        if ('contactEmail' in d) setContactEmail(String(d.contactEmail  ''));
-        if ('selectedTheme' in d) setSelectedTheme(String(d.selectedTheme  'system'));
+        if ('githubUrl' in d) setGithubUrl(String(d.githubUrl ?? ''));
+        if ('websiteUrl' in d) setWebsiteUrl(String(d.websiteUrl ?? ''));
+        if ('twitterUrl' in d) setTwitterUrl(String(d.twitterUrl ?? ''));
+        if ('linkedinUrl' in d) setLinkedinUrl(String(d.linkedinUrl ?? ''));
+        if ('contactEmail' in d) setContactEmail(String(d.contactEmail ?? ''));
+        if ('selectedTheme' in d) setSelectedTheme(String(d.selectedTheme ?? 'system'));
         if ('sections' in d) setSections(d.sections as PortfolioSections);
-        if ('metaTitle' in d) setMetaTitle(String(d.metaTitle  ''));
-        if ('metaDescription' in d) setMetaDescription(String(d.metaDescription  ''));
+        if ('metaTitle' in d) setMetaTitle(String(d.metaTitle ?? ''));
+        if ('metaDescription' in d) setMetaDescription(String(d.metaDescription ?? ''));
         if ('portfolioStyle' in d) setPortfolioStyle(d.portfolioStyle as PortfolioStyle);
         if ('portfolioLayout' in d) setPortfolioLayout(d.portfolioLayout as PortfolioLayout);
-        if ('portfolioAccentColor' in d) setPortfolioAccentColor(String(d.portfolioAccentColor  '#e84545'));
+        if ('portfolioAccentColor' in d) setPortfolioAccentColor(String(d.portfolioAccentColor ?? '#e84545'));
         if ('portfolioFont' in d) setPortfolioFont(d.portfolioFont as PortfolioFont);
         if ('availabilityStatus' in d) setAvailabilityStatus(d.availabilityStatus as 'actively-looking' | 'open-to-offers' | 'not-looking');
-        if ('availabilityHeadline' in d) setAvailabilityHeadline(String(d.availabilityHeadline  ''));
+        if ('availabilityHeadline' in d) setAvailabilityHeadline(String(d.availabilityHeadline ?? ''));
         if ('syncMode' in d) setSyncMode(d.syncMode as 'auto' | 'locked');
         if ('caseStudies' in d) setCaseStudies(d.caseStudies as typeof caseStudies);
         if ('services' in d) setServices(d.services as typeof services);
         if ('testimonials' in d) setTestimonials(d.testimonials as typeof testimonials);
         if ('highlights' in d) setHighlights(d.highlights as typeof highlights);
-        if ('portfolioSummary' in d) setPortfolioSummary(String(d.portfolioSummary  ''));
-        if ('selectedResumeId' in d) setSelectedResumeId(String(d.selectedResumeId  ''));
+        if ('portfolioSummary' in d) setPortfolioSummary(String(d.portfolioSummary ?? ''));
+        if ('selectedResumeId' in d) setSelectedResumeId(String(d.selectedResumeId ?? ''));
         if ('sectionOrder' in d) setSectionOrder(d.sectionOrder as string[]);
         if ('pinnedProject' in d) setPinnedProject(d.pinnedProject as typeof pinnedProject);
         if ('scrollEffect' in d) setScrollEffect(d.scrollEffect as ScrollEffect);
-        if ('videoIntroUrl' in d) setVideoIntroUrl(String(d.videoIntroUrl  ''));
-        if ('schedulingUrl' in d) setSchedulingUrl(String(d.schedulingUrl  ''));
-        if ('abChallengerTheme' in d) setAbChallengerTheme(String(d.abChallengerTheme  ''));
+        if ('videoIntroUrl' in d) setVideoIntroUrl(String(d.videoIntroUrl ?? ''));
+        if ('schedulingUrl' in d) setSchedulingUrl(String(d.schedulingUrl ?? ''));
+        if ('abChallengerTheme' in d) setAbChallengerTheme(String(d.abChallengerTheme ?? ''));
         if ('portfolioCertifications' in d) setPortfolioCertifications(d.portfolioCertifications as typeof portfolioCertifications);
-        if ('portfolioPrimaryLanguage' in d) setPortfolioPrimaryLanguage(String(d.portfolioPrimaryLanguage  'English'));
-        if ('portfolioSecondaryLanguage' in d) setPortfolioSecondaryLanguage(String(d.portfolioSecondaryLanguage  ''));
+        if ('portfolioPrimaryLanguage' in d) setPortfolioPrimaryLanguage(String(d.portfolioPrimaryLanguage ?? 'English'));
+        if ('portfolioSecondaryLanguage' in d) setPortfolioSecondaryLanguage(String(d.portfolioSecondaryLanguage ?? ''));
         if ('passwordEnabled' in d) setPasswordEnabled(Boolean(d.passwordEnabled));
-        if ('passwordHash' in d) setPasswordHash(String(d.passwordHash  ''));
-        if ('customDomain' in d) setCustomDomain(String(d.customDomain  ''));
+        if ('passwordHash' in d) setPasswordHash(String(d.passwordHash ?? ''));
+        if ('customDomain' in d) setCustomDomain(String(d.customDomain ?? ''));
         if ('contactFormEnabled' in d) setContactFormEnabled(Boolean(d.contactFormEnabled));
       }
     }
@@ -345,7 +345,7 @@ export default function PortfolioEditorPage() {
     databases
       .createDocument(DATABASE_ID, COLLECTIONS.usage_events, ID.unique(), {
         event_name: 'handle_interest',
-        user_id: user.id  null,
+        user_id: user?.id ?? null,
       })
       .catch(() => { /* fire-and-forget - ignore errors */ });
   }, [premiumHandles]);
@@ -384,7 +384,7 @@ export default function PortfolioEditorPage() {
     if (snapshot === lastDraftPersistedSnapshotRef.current) return;
     const timer = setTimeout(async () => {
       try {
-        if (!user.id) return;
+        if (!user?.id) return;
         const currentSnapshot = getCurrentSnapshot();
         // Re-check dedup inside the async callback (snapshot may have changed)
         if (currentSnapshot === lastDraftPersistedSnapshotRef.current) return;
@@ -436,7 +436,7 @@ export default function PortfolioEditorPage() {
           await persistPortfolioDraftToProfile(profileDoc.$id as string, user.id, existingExtras, parsed, now);
           lastDraftPersistedSnapshotRef.current = currentSnapshot;
           queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
-            old  { ...old, portfolioDraft: parsed, portfolioDraftSavedAt: now } : old
+            old ? { ...old, portfolioDraft: parsed, portfolioDraftSavedAt: now } : old
           );
         }
       } catch {
@@ -472,15 +472,15 @@ export default function PortfolioEditorPage() {
   useEffect(() => {
     if (resumes.length > 0 && !selectedResumeId) {
       const hasData = (r: typeof resumes[0]) => !!(r.summary || r.experience && (r.experience as unknown[]).length > 0);
-      if (profile.portfolioResumeId && resumes.some((r) => r.id === profile.portfolioResumeId)) {
+      if (profile?.portfolioResumeId && resumes.some((r) => r.id === profile.portfolioResumeId)) {
         setSelectedResumeId(profile.portfolioResumeId);
       } else {
         const withData = resumes.find(hasData);
         const primary = resumes.find((r) => r.is_primary);
-        setSelectedResumeId(withData.id || primary.id || resumes[0].id);
+        setSelectedResumeId(withData?.id || primary?.id || resumes[0].id);
       }
     }
-  }, [resumes, selectedResumeId, profile.portfolioResumeId]);
+  }, [resumes, selectedResumeId, profile?.portfolioResumeId]);
 
   // Debounced username availability check
   useEffect(() => {
@@ -490,7 +490,7 @@ export default function PortfolioEditorPage() {
       setCheckingUsername(false);
       return;
     }
-    if (profile.username === username) {
+    if (profile?.username === username) {
       setUsernameAvailable(true);
       setCheckingUsername(false);
       return;
@@ -506,7 +506,7 @@ export default function PortfolioEditorPage() {
         const takenByOther =
           result.total > 0 &&
           (result.documents[0] as unknown as { user_id: string }).user_id !== user!.id;
-        const status = takenByOther  'taken' : 'available';
+        const status = takenByOther ? 'taken' : 'available';
         setUsernameAvailable(!takenByOther);
         setUsernameCheckStatus({ status });
       } catch {
@@ -517,7 +517,7 @@ export default function PortfolioEditorPage() {
       }
     }, 500);
     return () => {if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);};
-  }, [username, usernameError, user, profile.username]);
+  }, [username, usernameError, user, profile?.username]);
 
 
 
@@ -530,12 +530,12 @@ export default function PortfolioEditorPage() {
     if (value.length < usernameRules.min_length) {setUsernameError(`At least ${usernameRules.min_length} characters`);return;}
     if (value.length > usernameRules.max_length) {setUsernameError(`Max ${usernameRules.max_length} characters`);return;}
     const charsOk = usernameRules.allow_hyphens
-       /^[a-z0-9-]+$/.test(value)
+      ? /^[a-z0-9-]+$/.test(value)
       : /^[a-z0-9]+$/.test(value);
     if (!charsOk) {
       setUsernameError(
         usernameRules.allow_hyphens
-           'Only lowercase letters, numbers, hyphens'
+          ? 'Only lowercase letters, numbers, hyphens'
           : 'Only lowercase letters and numbers',
       );
       return;
@@ -548,17 +548,17 @@ export default function PortfolioEditorPage() {
   };
 
   const handleUsernameChange = (val: string) => {
-    const cleanRegex = usernameRules.allow_hyphens  /[^a-z0-9-]/g : /[^a-z0-9]/g;
+    const cleanRegex = usernameRules.allow_hyphens ? /[^a-z0-9-]/g : /[^a-z0-9]/g;
     const clean = val.toLowerCase().replace(cleanRegex, '');
     setUsername(clean);
     validateUsername(clean);
   };
 
-  const callPortfolioAI = async (action: string, resumeIdOverride: string, extraBody: Record<string, unknown>) => {
+  const callPortfolioAI = async (action: string, resumeIdOverride?: string, extraBody?: Record<string, unknown>) => {
     // Priority: 1. Explicit override (captured at call time), 2. State selectedResumeId, 3. Profile linked resume, 4. Primary resume, 5. Any resume
-    const linkedResumeId = profile.portfolioResumeId;
-    const primaryResumeId = resumes.find(r => r.is_primary).id;
-    const targetId = resumeIdOverride || selectedResumeId || linkedResumeId || primaryResumeId || resumes[0].id;
+    const linkedResumeId = profile?.portfolioResumeId;
+    const primaryResumeId = resumes.find(r => r.is_primary)?.id;
+    const targetId = resumeIdOverride || selectedResumeId || linkedResumeId || primaryResumeId || resumes[0]?.id;
     
     const selectedResume = resumes.find((r) => r.id === targetId);
 
@@ -569,17 +569,17 @@ export default function PortfolioEditorPage() {
     const { data, error } = await appwriteFunctions.invoke('generate-portfolio-bio', {
       body: {
         action,
-        summary: selectedResume.summary || '',
-        fullName: profile.fullName || '',
-        jobTitle: profile.jobTitle || '',
-        experience: selectedResume.experience || [],
-        skills: selectedResume.skills || [],
-        careerLevel: profile.careerLevel || 'mid',
+        summary: selectedResume?.summary || '',
+        fullName: profile?.fullName || '',
+        jobTitle: profile?.jobTitle || '',
+        experience: selectedResume?.experience || [],
+        skills: selectedResume?.skills || [],
+        careerLevel: profile?.careerLevel || 'mid',
         ...extraBody
       },
     });
     if (error) throw new Error(error.message || 'AI request failed');
-    if (data.error) throw new Error(data.error || 'AI request failed');
+    if (data?.error) throw new Error(data.error || 'AI request failed');
     invalidateAiCreditQueries(queryClient);
     return data;
   };
@@ -597,8 +597,8 @@ export default function PortfolioEditorPage() {
       return;
     }
     const hasUsableSignal =
-      !!currentResume.summary.trim() ||
-      !!profile.jobTitle.trim() ||
+      !!currentResume.summary?.trim() ||
+      !!profile?.jobTitle?.trim() ||
       (Array.isArray(currentResume.experience) && (currentResume.experience as unknown[]).length > 0);
     if (!hasUsableSignal) {
       toast.error('Selected resume is empty - add a summary, job title, or work history before generating a bio.');
@@ -612,7 +612,7 @@ export default function PortfolioEditorPage() {
       toast.success('Bio generated!');
     } catch (err) {
       const msg = err instanceof Error && err.message.startsWith('Resume data not available')
-         err.message
+        ? err.message
         : 'Failed to generate bio. Please try again later.';
       toast.error(msg);
     } finally {
@@ -630,7 +630,7 @@ export default function PortfolioEditorPage() {
       toast.success('SEO meta generated!');
     } catch (err) {
       const msg = err instanceof Error && err.message.startsWith('Resume data not available')
-         err.message
+        ? err.message
         : 'Failed to generate SEO meta. Please try again later.';
       toast.error(msg);
     } finally {
@@ -648,18 +648,18 @@ export default function PortfolioEditorPage() {
           targetLanguage,
           bio,
           portfolioSummary,
-          highlights: highlights.length > 0  highlights : undefined,
-          services: services.length > 0  services.map((s: { id: string; title: string; description: string }) => ({ id: s.id, title: s.title, description: s.description })) : undefined,
-          testimonials: testimonials.length > 0  testimonials.map((t: { id: string; quote: string }) => ({ id: t.id, quote: t.quote })) : undefined,
-          pinnedProjectDescription: pinnedProject.description || undefined,
-          caseStudies: caseStudies.length > 0  caseStudies.map((cs: { id: string; title: string; challenge: string; outcome: string }) => ({ id: cs.id, title: cs.title, challenge: cs.challenge, outcome: cs.outcome })) : undefined,
-          portfolioCertifications: portfolioCertifications.length > 0  portfolioCertifications.map((c: { id: string; name: string; issuer: string }) => ({ id: c.id, name: c.name, issuer: c.issuer })) : undefined,
+          highlights: highlights.length > 0 ? highlights : undefined,
+          services: services.length > 0 ? services.map((s: { id: string; title: string; description?: string }) => ({ id: s.id, title: s.title, description: s.description })) : undefined,
+          testimonials: testimonials.length > 0 ? testimonials.map((t: { id: string; quote: string }) => ({ id: t.id, quote: t.quote })) : undefined,
+          pinnedProjectDescription: pinnedProject?.description || undefined,
+          caseStudies: caseStudies.length > 0 ? caseStudies.map((cs: { id: string; title: string; challenge: string; outcome: string }) => ({ id: cs.id, title: cs.title, challenge: cs.challenge, outcome: cs.outcome })) : undefined,
+          portfolioCertifications: portfolioCertifications.length > 0 ? portfolioCertifications.map((c: { id: string; name: string; issuer: string }) => ({ id: c.id, name: c.name, issuer: c.issuer })) : undefined,
         },
       });
       if (error) throw new Error(error.message || 'Translation failed');
-      if (data.error) throw new Error(data.error || 'Translation failed');
+      if (data?.error) throw new Error(data.error || 'Translation failed');
       invalidateAiCreditQueries(queryClient);
-      const translations = data.translations;
+      const translations = data?.translations;
       if (translations) {
         setPortfolioTranslations(prev => ({ ...prev, [targetLanguage]: translations }));
         if (!silent) toast.success(`Translated to ${targetLanguage}! Save to publish.`);
@@ -688,7 +688,7 @@ export default function PortfolioEditorPage() {
       toast.success('Availability headline generated!');
     } catch (err) {
       const msg = err instanceof Error && err.message.startsWith('Resume data not available')
-         err.message
+        ? err.message
         : 'Failed to generate headline. Please try again later.';
       toast.error(msg);
     } finally {
@@ -724,7 +724,7 @@ export default function PortfolioEditorPage() {
       toast.success('Portfolio content generated! Review and publish when ready.', { id: toastId });
     } catch (err) {
       const msg = err instanceof Error && err.message.startsWith('Resume data not available')
-         err.message
+        ? err.message
         : `Generated ${completed}/3 sections. Some failed - try again individually.`;
       toast.error(msg, { id: toastId });
     } finally {
@@ -746,11 +746,11 @@ export default function PortfolioEditorPage() {
         highlights,
         pinnedProject,
       });
-      setCritiqueItems(Array.isArray(suggestions)  suggestions : []);
+      setCritiqueItems(Array.isArray(suggestions) ? suggestions : []);
       setCritiqueHasRun(true);
     } catch (err) {
       const msg = err instanceof Error && err.message.startsWith('Resume data not available')
-         err.message
+        ? err.message
         : 'Failed to run critique. Please try again.';
       toast.error(msg);
       setCritiqueHasRun(true);
@@ -773,7 +773,7 @@ export default function PortfolioEditorPage() {
     haptics.light();
     setSavingDraft(true);
     try {
-      if (!user.id) throw new Error('Not authenticated');
+      if (!user?.id) throw new Error('Not authenticated');
       const currentSnapshot = getCurrentSnapshot();
       if (currentSnapshot.length > PORTFOLIO_EXTRAS_MAX_BYTES) {
         toast.error(
@@ -807,22 +807,22 @@ export default function PortfolioEditorPage() {
       );
       lastDraftPersistedSnapshotRef.current = currentSnapshot;
       queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
-        old  { ...old, portfolioDraft: snapshot, portfolioDraftSavedAt: now } : old
+        old ? { ...old, portfolioDraft: snapshot, portfolioDraftSavedAt: now } : old
       );
       setLastSavedSnapshot(currentSnapshot);
       toast.success('Draft saved. Turn on Live or use Save & Publish when you\'re ready to go public.');
     } catch (err) {
       console.error('portfolio draft save failed', err);
-      const msg = err instanceof Error  err.message : 'Failed to save draft. Please try again.';
-      toast.error(msg.length > 120  'Failed to save draft. Please try again.' : msg);
+      const msg = err instanceof Error ? err.message : 'Failed to save draft. Please try again.';
+      toast.error(msg.length > 120 ? 'Failed to save draft. Please try again.' : msg);
     } finally {
       setSavingDraft(false);
     }
   };
 
-  const handleSave = async (overrides: {portfolioEnabled: boolean; portfolioStyleOverride: string; abChallengerThemeOverride: string}) => {
-    const isEnabling = overrides.portfolioEnabled === true ||
-    overrides.portfolioEnabled === undefined && portfolioEnabled;
+  const handleSave = async (overrides?: {portfolioEnabled?: boolean; portfolioStyleOverride?: string; abChallengerThemeOverride?: string}) => {
+    const isEnabling = overrides?.portfolioEnabled === true ||
+    overrides?.portfolioEnabled === undefined && portfolioEnabled;
     if (isEnabling && !username) {
       toast.error('Set a username before publishing your portfolio.');
       setSavingPortfolio(false);
@@ -837,11 +837,11 @@ export default function PortfolioEditorPage() {
     // read happens below before we compose the payload, so a stale cache
     // cannot cause us to write `passwordHash: null` over a real hash that
     // exists in the DB.
-    const cachedPasswordEnabled = !!profile.portfolioExtras.passwordEnabled;
-    const cachedPasswordHash = (profile.portfolioExtras.passwordHash as string | undefined) || '';
+    const cachedPasswordEnabled = !!profile?.portfolioExtras?.passwordEnabled;
+    const cachedPasswordHash = (profile?.portfolioExtras?.passwordHash as string | undefined) || '';
     const hasNewPassword = portfolioPassword.length > 0;
     const isEnablingPassword =
-      overrides.portfolioEnabled !== false && passwordEnabled;
+      overrides?.portfolioEnabled !== false && passwordEnabled;
 
     // Only enforce the 8-char rule when the user is actually trying to set
     // a password.  If protection is disabled, any leftover characters in
@@ -894,16 +894,16 @@ export default function PortfolioEditorPage() {
       // and requires two tabs actively editing the password simultaneously.
       let dbPasswordEnabled = cachedPasswordEnabled;
       let dbPasswordHash = cachedPasswordHash;
-      if (user.id) {
+      if (user?.id) {
         try {
           const settingsDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
             Query.equal('user_id', user.id),
             Query.limit(1),
           ]);
           if (settingsDocs.total > 0) {
-            const doc = settingsDocs.documents[0] as unknown as { password_enabled: boolean; password_hash: string };
+            const doc = settingsDocs.documents[0] as unknown as { password_enabled?: boolean; password_hash?: string };
             dbPasswordEnabled = !!doc.password_enabled;
-            dbPasswordHash = doc.password_hash  '';
+            dbPasswordHash = doc.password_hash ?? '';
           }
         } catch {
           // Fall back to cached values on error
@@ -919,7 +919,7 @@ export default function PortfolioEditorPage() {
         return;
       }
 
-      if (username && username.length >= usernameRules.min_length && profile.username !== username) {
+      if (username && username.length >= usernameRules.min_length && profile?.username !== username) {
         const usernameResult = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
           Query.equal('username', username.toLowerCase()),
           Query.limit(1),
@@ -938,18 +938,18 @@ export default function PortfolioEditorPage() {
       const updates: Record<string, unknown> = {
         username: username || null,
         portfolioBio: bio || null,
-        portfolioEnabled: overrides.portfolioEnabled !== undefined  overrides.portfolioEnabled : portfolioEnabled,
+        portfolioEnabled: overrides?.portfolioEnabled !== undefined ? overrides.portfolioEnabled : portfolioEnabled,
         portfolioResumeId: selectedResumeId || null,
         githubUrl: ensureGithubUrl(githubUrl) || null,
         websiteUrl: normalizeUrl(websiteUrl) || null,
         twitterUrl: normalizeUrl(twitterUrl) || null,
         linkedinUrl: ensureLinkedinUrl(linkedinUrl) || null,
-        contactEmail: contactEmail.trim().toLowerCase() || null,
+        contactEmail: contactEmail?.trim().toLowerCase() || null,
         theme: selectedTheme,
         portfolioSections: sections,
         portfolioMetaTitle: metaTitle || null,
         portfolioMetaDescription: metaDescription || null,
-        portfolioStyle: overrides.portfolioStyleOverride !== undefined  overrides.portfolioStyleOverride : portfolioStyle,
+        portfolioStyle: overrides?.portfolioStyleOverride !== undefined ? overrides.portfolioStyleOverride : portfolioStyle,
         portfolioLayout,
         portfolioAccentColor: portfolioAccentColor || null,
         portfolioFont,
@@ -964,13 +964,13 @@ export default function PortfolioEditorPage() {
           scrollEffect,
           videoIntroUrl: videoIntroUrl || null,
           schedulingUrl: normalizeUrl(schedulingUrl) || null,
-          abChallengerTheme: overrides.abChallengerThemeOverride !== undefined  (overrides.abChallengerThemeOverride || null) : (abChallengerTheme || null),
+          abChallengerTheme: overrides?.abChallengerThemeOverride !== undefined ? (overrides.abChallengerThemeOverride || null) : (abChallengerTheme || null),
           portfolioCertifications,
           portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
           portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
-          portfolioTranslations: Object.keys(portfolioTranslations).length > 0  portfolioTranslations : null,
-          lastSyncedFromResumeAt: syncMode === 'auto'  new Date().toISOString() : (
-            profile.portfolioExtras.lastSyncedFromResumeAt  null
+          portfolioTranslations: Object.keys(portfolioTranslations).length > 0 ? portfolioTranslations : null,
+          lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
+            profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
           ),
           // Preserve existing password fields untouched - the portfolio_settings
           // upsert (called after updateProfile below) is the SOLE writer of these
@@ -978,7 +978,7 @@ export default function PortfolioEditorPage() {
           // so a stale snapshot can never overwrite a real hash with null.
           passwordEnabled: dbPasswordEnabled,
           passwordHash: dbPasswordHash || null,
-          customDomain: isPaidUser  (customDomain.trim() || null) : null,
+          customDomain: isPaidUser ? (customDomain.trim() || null) : null,
           contactFormEnabled,
         }
       };
@@ -992,7 +992,7 @@ export default function PortfolioEditorPage() {
       // module-scope PORTFOLIO_EXTRAS_MAX_BYTES so the publish-side limit and
       // the autosave-side limit (in the autosave useEffect above) can never
       // drift apart.
-      const extrasBytes = JSON.stringify(updates.portfolioExtras  {}).length;
+      const extrasBytes = JSON.stringify(updates.portfolioExtras ?? {}).length;
       if (extrasBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
         toast.error(
           `Portfolio content is too large (${Math.round(extrasBytes / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Remove some services, case studies, testimonials, or translations.`
@@ -1007,7 +1007,7 @@ export default function PortfolioEditorPage() {
       (updates as Record<string, unknown>).portfolioDraftSavedAt = null;
 
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
-      clearLocalPortfolioDraft(user.id);
+      clearLocalPortfolioDraft(user?.id);
 
       // -- Apply password changes via Appwrite portfolio_settings upsert --
       // The raw password is hashed client-side with SHA-256 before being
@@ -1060,7 +1060,7 @@ export default function PortfolioEditorPage() {
       }
 
       // Save history snapshot (fire and forget to not block UI)
-      if (overrides.portfolioEnabled === undefined) {
+      if (overrides?.portfolioEnabled === undefined) {
         saveSnapshot(updates as Record<string, unknown>).catch(() => {});
       }
 
@@ -1075,7 +1075,7 @@ export default function PortfolioEditorPage() {
       // Invalidate public portfolio cache to reflect changes immediately
       queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
       queryClient.invalidateQueries({ queryKey: ['portfolio-gate'] });
-      if (overrides.portfolioEnabled !== undefined) {
+      if (overrides?.portfolioEnabled !== undefined) {
         setPortfolioEnabled(overrides.portfolioEnabled);
       }
       // Suppress the generic success toast when the password update failed -
@@ -1120,24 +1120,24 @@ export default function PortfolioEditorPage() {
       }
     } catch (err: unknown) {
       console.error('portfolio save failed', err);
-      const pgError = err as { code: string; message: string };
-      if (pgError.code === '23505') {
+      const pgError = err as { code?: string; message?: string };
+      if (pgError?.code === '23505') {
         setUsernameAvailable(false);
         toast.error('This username was just taken. Please choose another.');
       } else {
-        const detail = pgError.message  (err instanceof Error  err.message : '');
+        const detail = pgError?.message ?? (err instanceof Error ? err.message : '');
         const friendly =
           detail.includes('portfolio_theme') || detail.includes('Unknown attribute')
-             'Could not save - a portfolio field is misconfigured. Please refresh and try again.'
+            ? 'Could not save - a portfolio field is misconfigured. Please refresh and try again.'
             : detail.includes('portfolio_extras') || detail.includes('too large')
-               `Portfolio content is too large. Trim some sections and try again.`
+              ? `Portfolio content is too large. Trim some sections and try again.`
               : detail.length > 0 && detail.length <= 160
-                 detail
+                ? detail
                 : 'Failed to save portfolio. Your changes might not be published.';
         toast.error(friendly);
       }
       // Revert local state toggles if it failed to save the override
-      if (overrides.portfolioEnabled !== undefined && profile) {
+      if (overrides?.portfolioEnabled !== undefined && profile) {
         setPortfolioEnabled(!!profile.portfolioEnabled);
       }
     } finally {
@@ -1161,12 +1161,12 @@ export default function PortfolioEditorPage() {
   };
 
   // Display URL - always show resume.thewise.cloud (never thewise.cloud)
-  const portfolioDisplayUrl = username  getPortfolioDisplayUrl(username) : '';
+  const portfolioDisplayUrl = username ? getPortfolioDisplayUrl(username) : '';
   // Canonical URL for copy/share/QR - always uses resume.thewise.cloud so shared links
   // always point to the primary domain regardless of which domain the editor is loaded on.
-  const portfolioCanonicalUrl = username  `https://resume.thewise.cloud/p/${username}` : '';
+  const portfolioCanonicalUrl = username ? `https://resume.thewise.cloud/p/${username}` : '';
   // Navigation URL - uses the current domain so it works in any environment
-  const actualPortfolioUrl = username  getPortfolioUrl(username) : '';
+  const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {
     if (!portfolioCanonicalUrl) return;
@@ -1182,7 +1182,7 @@ export default function PortfolioEditorPage() {
     haptics.light();
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${profile.fullName || 'My'} Portfolio`, url: portfolioCanonicalUrl });
+        await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url: portfolioCanonicalUrl });
         // Match the clipboard fallback's UX: confirm to the user that the
         // share sheet's chosen target accepted the URL (the Web Share API
         // resolves on success, rejects on cancel/abort).
@@ -1196,7 +1196,7 @@ export default function PortfolioEditorPage() {
         const isAbort =
           !!err &&
           typeof err === 'object' &&
-          (err as { name: unknown }).name === 'AbortError';
+          (err as { name?: unknown }).name === 'AbortError';
         if (isAbort) {
           toast('Share cancelled.');
         } else {
@@ -1226,7 +1226,7 @@ export default function PortfolioEditorPage() {
     haptics.light();
     try {
       await updateProfile(historyData as Parameters<typeof updateProfile>[0]);
-      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
 
       toast.success('Portfolio restored successfully!');
@@ -1243,24 +1243,24 @@ export default function PortfolioEditorPage() {
   // Live skill count (capped at the threshold for messaging clarity).  Driving
   // the tip text from this lets the strength card show "1 more skill needed"
   // immediately as the user edits, instead of only after they save.
-  const skillsCount = Array.isArray(selectedResume.skills)
-     (selectedResume.skills as unknown[]).length
+  const skillsCount = Array.isArray(selectedResume?.skills)
+    ? (selectedResume?.skills as unknown[]).length
     : 0;
   const SKILL_THRESHOLD = 3;
   const skillsRemaining = Math.max(0, SKILL_THRESHOLD - skillsCount);
   const skillsTip =
     skillsRemaining > 0
-       `${skillsRemaining} more skill${skillsRemaining === 1  '' : 's'} needed for full strength (${skillsCount}/${SKILL_THRESHOLD})`
+      ? `${skillsRemaining} more skill${skillsRemaining === 1 ? '' : 's'} needed for full strength (${skillsCount}/${SKILL_THRESHOLD})`
       : `Add at least ${SKILL_THRESHOLD} skills to your resume`;
   const strengthChecks = [
-    { ok: !!profile.avatarUrl, tip: 'Add a profile photo in Settings -> Profile' },
+    { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings -> Profile' },
     { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
     { ok: username.length >= usernameRules.min_length, tip: 'Set a portfolio username' },
     { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
     { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
     { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
     { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
-    { ok: Array.isArray(selectedResume.experience) && (selectedResume.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
+    { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
     { ok: skillsCount >= SKILL_THRESHOLD, tip: skillsTip },
     { ok: services.length > 0, tip: 'Add services to showcase what you offer' },
     { ok: testimonials.length > 0, tip: 'Add testimonials to build credibility' },
@@ -1268,9 +1268,9 @@ export default function PortfolioEditorPage() {
 
   const completionItems = buildCompletionItems({
     bio,
-    avatarUrl: profile.avatarUrl,
-    hasExperience: Array.isArray(selectedResume.experience) && (selectedResume.experience as unknown[]).length >= 1,
-    hasSkills: Array.isArray(selectedResume.skills) && (selectedResume.skills as unknown[]).length >= 3,
+    avatarUrl: profile?.avatarUrl,
+    hasExperience: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1,
+    hasSkills: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3,
     hasSocialLink: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail),
     hasProjects: caseStudies.length > 0 || services.length > 0,
     hasTestimonials: testimonials.length > 0,
@@ -1278,7 +1278,7 @@ export default function PortfolioEditorPage() {
     availabilityStatus,
     accentColor: portfolioAccentColor || null,
   });
-  const weightedScore = completionItems.reduce((sum, item) => sum + (item.ok  item.weight : 0), 0);
+  const weightedScore = completionItems.reduce((sum, item) => sum + (item.ok ? item.weight : 0), 0);
 
   const strengthScore = Math.round(strengthChecks.filter((c) => c.ok).length / strengthChecks.length * 100);
   const strengthMissing = strengthChecks.filter((c) => !c.ok).slice(0, 3);
@@ -1287,15 +1287,15 @@ export default function PortfolioEditorPage() {
   // conflated ("Publish to go live" appeared even when score was 100), which
   // confused users into thinking they still had unfinished work.
   const strengthLabel = portfolioEnabled
-     'Live'
+    ? 'Live'
     : strengthScore === 100
-     'Ready to publish'
+    ? 'Ready to publish'
     : strengthScore >= 70
-     'Almost ready'
+    ? 'Almost ready'
     : strengthScore < 40
-     'Needs work'
+    ? 'Needs work'
     : strengthScore < 70
-     'Good'
+    ? 'Good'
     : 'Strong';
 
 
@@ -1324,21 +1324,21 @@ export default function PortfolioEditorPage() {
           strengthScore={strengthScore}
           strengthLabel={strengthLabel}
           strengthMissing={strengthMissing}
-          hasUnpublishedChanges={!!(profile.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))}
+          hasUnpublishedChanges={!!(profile?.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))}
         />
 
         <PortfolioPreviewPanel
           previewMode={previewMode}
           onPreviewModeChange={setPreviewMode}
         >
-          {previewMode === 'mobile'  (
+          {previewMode === 'mobile' ? (
             <div className="flex justify-center py-2">
               <div
                 className="relative rounded-[2.5rem] border-[8px] border-foreground/15 overflow-hidden bg-background shadow-xl"
                 style={{ width: 220, height: 396 }}
               >
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-foreground/20 z-20 pointer-events-none" />
-                {portfolioEnabled && portfolioCanonicalUrl  (
+                {portfolioEnabled && portfolioCanonicalUrl ? (
                   <iframe
                     src={portfolioCanonicalUrl}
                     title="Mobile portfolio preview"
@@ -1357,7 +1357,7 @@ export default function PortfolioEditorPage() {
                     <Smartphone className="w-8 h-8 text-muted-foreground/50" aria-hidden />
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {!username
-                         'Set a username to see a mobile preview'
+                        ? 'Set a username to see a mobile preview'
                         : 'Publish your portfolio to preview on mobile'}
                     </p>
                   </div>
@@ -1366,16 +1366,16 @@ export default function PortfolioEditorPage() {
             </div>
           ) : (
             <LivePreviewCard
-              avatarUrl={profile.avatarUrl}
-              fullName={profile.fullName}
-              jobTitle={profile.jobTitle}
+              avatarUrl={profile?.avatarUrl}
+              fullName={profile?.fullName}
+              jobTitle={profile?.jobTitle}
               portfolioStyle={portfolioStyle}
               accentColor={portfolioAccentColor}
               portfolioFont={portfolioFont}
               bio={bio}
               openToWork={availabilityStatus !== 'not-looking'}
               availabilityStatus={availabilityStatus}
-              views={profile.views || 0}
+              views={profile?.views || 0}
               scrollEffect={scrollEffect}
             />
           )}
@@ -1401,10 +1401,10 @@ export default function PortfolioEditorPage() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={activeTab}
-            initial={reducedMotion  false : { x: directionRef.current * 20, opacity: 0 }}
+            initial={reducedMotion ? false : { x: directionRef.current * 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={reducedMotion  undefined : { x: directionRef.current * -20, opacity: 0 }}
-            transition={{ duration: reducedMotion  0 : 0.2, ease: 'easeInOut' }}>
+            exit={reducedMotion ? undefined : { x: directionRef.current * -20, opacity: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeInOut' }}>
             
             {activeTab === 'setup' &&
             <SetupTab
@@ -1448,8 +1448,8 @@ export default function PortfolioEditorPage() {
               toggleSection={toggleSection}
               syncMode={syncMode}
               onSyncModeChange={setSyncMode}
-              resumeUpdatedAt={selectedResume.updated_at  null}
-              portfolioLastSyncedAt={profile.portfolioExtras.lastSyncedFromResumeAt  null}
+              resumeUpdatedAt={selectedResume?.updated_at ?? null}
+              portfolioLastSyncedAt={profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null}
               portfolioSummary={portfolioSummary}
               onPortfolioSummaryChange={setPortfolioSummary}
               bio={bio}
@@ -1487,8 +1487,8 @@ export default function PortfolioEditorPage() {
               onScrollEffectChange={setScrollEffect}
               abChallengerTheme={abChallengerTheme}
               onAbChallengerThemeChange={setAbChallengerTheme}
-              userName={profile.fullName || undefined}
-              userAvatarUrl={profile.avatarUrl || undefined} />
+              userName={profile?.fullName || undefined}
+              userAvatarUrl={profile?.avatarUrl || undefined} />
 
             }
 
@@ -1499,7 +1499,7 @@ export default function PortfolioEditorPage() {
               onShare={handleShareQR}
               portfolioStyle={portfolioStyle}
               abChallengerTheme={abChallengerTheme || undefined}
-              userId={user.id}
+              userId={user?.id}
               onPickWinner={(winnerId) => {
                 setPortfolioStyle(winnerId as import('@/components/portfolio/editor/AppearanceSection').PortfolioStyle);
                 setAbChallengerTheme('');
@@ -1518,8 +1518,8 @@ export default function PortfolioEditorPage() {
               onMetaDescriptionChange={setMetaDescription}
               onGenerateSEO={handleGenerateSEO}
               generatingSEO={generatingSEO}
-              seoPlaceholderName={profile.fullName || 'Name'}
-              seoPlaceholderTitle={profile.jobTitle || 'Job Title'}
+              seoPlaceholderName={profile?.fullName || 'Name'}
+              seoPlaceholderTitle={profile?.jobTitle || 'Job Title'}
               onOpenCareerCard={() => setShowCareerCard(true)}
               hasLivePortfolio={portfolioEnabled && !!username}
               linkedinUrl={linkedinUrl}
@@ -1545,7 +1545,7 @@ export default function PortfolioEditorPage() {
               passwordEnabled={passwordEnabled}
               onPasswordEnabledChange={(checked) => {
                 setPasswordEnabled(checked);
-                // Disabling protection Drop any password the user had typed
+                // Disabling protection? Drop any password the user had typed
                 // but not yet saved.  Otherwise that stale value would still
                 // be tracked as an "unsaved change" and could leak into the
                 // next enable cycle.
@@ -1555,7 +1555,7 @@ export default function PortfolioEditorPage() {
               onPortfolioPasswordChange={setPortfolioPassword}
               customDomain={customDomain}
               onCustomDomainChange={setCustomDomain}
-              customDomainError={isPaidUser  validateCustomDomain(customDomain) : null}
+              customDomainError={isPaidUser ? validateCustomDomain(customDomain) : null}
               isPaidUser={isPaidUser}
               contactFormEnabled={contactFormEnabled}
               onContactFormEnabledChange={setContactFormEnabled} />
@@ -1573,7 +1573,7 @@ export default function PortfolioEditorPage() {
         portfolioEnabled={portfolioEnabled}
         onPortfolioEnabledChange={setPortfolioEnabled}
         portfolioUrl={portfolioCanonicalUrl || undefined}
-        hasUnpublishedChanges={!!(profile.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))}
+        hasUnpublishedChanges={!!(profile?.portfolioDraft || (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot))}
         onSaveDraft={handleSaveDraft}
         savingDraft={savingDraft} />
       
@@ -1596,7 +1596,7 @@ export default function PortfolioEditorPage() {
       <PortfolioHistorySheet
         open={showHistory}
         onOpenChange={setShowHistory}
-        userId={user.id}
+        userId={user?.id}
         onRestore={handleRestoreHistory}
         isRestoring={isRestoringHistory}
       />
@@ -1615,7 +1615,7 @@ export default function PortfolioEditorPage() {
         open={requestDialogOpen}
         onOpenChange={setRequestDialogOpen}
         requestedUsername={username}
-        checkReason={usernameCheckStatus.reason}
+        checkReason={usernameCheckStatus?.reason}
       />
 
       <UnsavedChangesDialog
