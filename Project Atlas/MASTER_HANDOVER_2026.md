@@ -6972,30 +6972,51 @@ npx tsc --noEmit                                           → clean (no errors)
 
 ---
 
+### Commits and PR
+
+| Item | Value |
+|---|---|
+| Feature branch commit | `b8583b91` (`claude/atlas-handover-review-pv67uk`) |
+| PR | [#88](https://github.com/iammagdy/WiseResume-TWC/pull/88) — merged |
+| Merge commit | `7afbab59c922d3c949a071c47296910e117001c2` → `main` |
+
+### Deployment
+
+| Item | Value |
+|---|---|
+| GitHub Actions run | `27169666319` — `completed / success` (2026-06-08T21:59–22:01Z) |
+| Run URL | https://github.com/iammagdy/WiseResume-TWC/actions/runs/27169666319 |
+| Target | `ai-gateway` only (`--only="ai-gateway"`) |
+| Schema steps | All 6 passed (observability, app-settings, ai-logs, idempotency, company-briefings, tailoring-lineage) |
+| Source hash check | "Ensure source hash manifest is committed" → `git diff --exit-code` clean → hash `b53aadc3bf84d1be` confirmed ✅ |
+| Appwrite deployment ID | UNKNOWN — GHA log URL blocked by network policy; confirm in Appwrite Console |
+
 ### Live State After This Session
 
 | Item | State |
 |---|---|
-| Vercel frontend | READY — no frontend changes this session |
-| ai-gateway (Appwrite) | **NEEDS DEPLOY** — Fix #1 is in code, not yet deployed |
-| `ai-gateway` source hash | `b53aadc3bf84d1be` (manifest updated) |
-| AIRoutingSwitcher.tsx | Fixed in frontend — deployed on next Vercel push |
-| All other hubs | Unchanged from previous session |
+| Vercel frontend | READY — `AIRoutingSwitcher.tsx` fix shipped with PR #88 merge → Vercel auto-deploy |
+| ai-gateway (Appwrite) | **DEPLOYED** — GHA run `27169666319` succeeded; hash `b53aadc3bf84d1be` live |
+| `ai-gateway` source hash | `b53aadc3bf84d1be` ✅ matches committed manifest |
+| All other hubs | Unchanged |
+| `main` | At merge commit `7afbab59` |
 
-### Next Steps
+### Where We Stopped
 
-1. **Appwrite deploy**: The fix to `performStartupValidation()` requires deploying `ai-gateway` to Appwrite. Trigger the `Deploy Appwrite Hubs` workflow (or use DevKit DeployHubsPanel) targeting `ai-gateway` only.
-2. **Frontend deploy**: AIRoutingSwitcher.tsx fix ships automatically on next Vercel push to `main`.
-3. **Post-deploy verification**: After ai-gateway is deployed, confirm `[ALERT] No AI provider API keys found` no longer appears in Appwrite Function logs (assuming `DEEPSEEK_KEY` is configured).
+- All code changes from this session are merged to `main` and deployed.
+- No pending commits or open PRs.
+- Vercel auto-deployed on merge (AIRoutingSwitcher.tsx fix is live in the frontend).
+- ai-gateway Appwrite deployment completed via GHA workflow `27169666319`.
 
-### Post-Deploy Smoke Checklist (Phase 8)
+### Remaining Manual QA (requires Appwrite Console / browser — not automatable)
 
-| Check | How |
-|---|---|
-| ai-gateway cold-start logs clean | Appwrite Console → Functions → ai-gateway → Executions → check for false-positive ALERT |
-| DeepSeek routing live | DevKit → AI Command Center → Probe Routes — verify DeepSeek is primary for all tools |
-| Smart Defaults safe | DevKit → AI Routing → Apply Smart Defaults → verify it writes `deepseek/deepseek-chat` overrides |
-| Tailor resume works end-to-end | Submit a tailor request, verify structured output returned |
-| Question bank generates all 4 categories | Run generate-question-bank, verify company/technical/behavioral/curveball present |
-| Company briefing normalizer | Run company-briefing, verify `companySnapshot.name` is populated |
-| LinkedIn optimizer | Run optimize-for-linkedin with resume that has experience, verify experienceRewrites non-empty |
+| Check | How | Priority |
+|---|---|---|
+| Cold-start ALERT gone | Appwrite Console → Functions → ai-gateway → Executions → trigger a test execution → confirm no `[ALERT] No AI provider API keys found` | High — confirms Bug #1 fix is live |
+| Appwrite deployment ID + active status | Appwrite Console → Functions → ai-gateway → Deployments → confirm new deployment is Active | Medium |
+| Probe Routes shows DeepSeek primary | DevKit → AI Command Center → Probe Routes | Medium |
+| Smart Defaults safe to click | DevKit → AI Routing → Apply Smart Defaults → confirm writes `deepseek/deepseek-chat` | Medium |
+| Tailor resume end-to-end | Submit a tailor request; verify structured JSON output returned | Low (normalizer tests already pass) |
+| Question bank 4 categories | Run generate-question-bank; verify company/technical/behavioral/curveball all present | Low |
+| Company briefing | Run company-briefing; verify `companySnapshot.name` populated | Low |
+| LinkedIn optimizer | Run optimize-for-linkedin with a resume that has experience; verify experienceRewrites non-empty | Low |

@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-08
+**Last verified:** 2026-06-09
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -49,6 +49,13 @@
 - `node tests/hubs/ai-gateway-routing.test.cjs` → ALL TESTS PASSED
 - `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts` → 9/9 passed
 - `npx tsc --noEmit` → no errors
+
+### Commits and deployment
+- Feature commit: `b8583b91` on `claude/atlas-handover-review-pv67uk`
+- PR [#88](https://github.com/iammagdy/WiseResume-TWC/pull/88) merged → merge commit `7afbab59` on `main`
+- GHA workflow run `27169666319` — `Deploy Appwrite Hubs` target `ai-gateway` — `completed / success` (2026-06-08T22:01Z)
+- Source hash check passed in CI (`git diff --exit-code` clean → `b53aadc3bf84d1be` confirmed)
+- Remaining manual QA: cold-start log check in Appwrite Console; Probe Routes + Smart Defaults via DevKit
 
 ---
 
