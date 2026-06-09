@@ -99,11 +99,7 @@ function DevToolsInner() {
         return;
       }
       const email = result.session.email ?? user?.email ?? 'admin@thewise.cloud';
-      unlock(result.session.token, {
-        rememberMe: true,
-        expiresAt: new Date(result.session.expiresAt).getTime(),
-        email,
-      });
+      unlock(result.session.token);
       toast.success(`Admin session issued for ${email}.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'DevKit login failed.';

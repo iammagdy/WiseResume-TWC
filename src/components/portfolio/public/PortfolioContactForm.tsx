@@ -1,8 +1,19 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, params: Record<string, unknown>) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+    };
+    onTurnstileLoad?: () => void;
+  }
+}
 
 interface PortfolioContactFormProps {
   username: string;
@@ -13,6 +24,7 @@ interface PortfolioContactFormProps {
 type FormStatus = 'idle' | 'sending' | 'success' | 'error';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 export function PortfolioContactForm({ username, accentColor, ownerName }: PortfolioContactFormProps) {
   const [name, setName] = useState('');
@@ -24,12 +36,49 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
   const [website, setWebsite] = useState('');
   const [status, setStatus] = useState<FormStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetIdRef = useRef<string | null>(null);
 
   const isValid = name.trim().length > 0 && EMAIL_RE.test(email.trim()) && message.trim().length >= 10;
+  const isTurnstileReady = !TURNSTILE_SITE_KEY || !!turnstileToken;
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    const renderWidget = () => {
+      if (!window.turnstile || !turnstileContainerRef.current) return;
+      if (turnstileWidgetIdRef.current) return;
+      turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: 'dark',
+        callback: (token: string) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(null),
+        'error-callback': () => setTurnstileToken(null),
+      });
+    };
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      window.onTurnstileLoad = renderWidget;
+      if (!document.querySelector('script[src*="turnstile"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+    }
+    return () => {
+      if (window.turnstile && turnstileWidgetIdRef.current) {
+        window.turnstile.remove(turnstileWidgetIdRef.current);
+        turnstileWidgetIdRef.current = null;
+      }
+    };
+  }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid || status === 'sending') return;
+    if (!isValid || !isTurnstileReady || status === 'sending') return;
 
     setStatus('sending');
     setErrorMsg('');
@@ -46,6 +95,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           visitor_name: name.trim(),
         },
       };
+      if (turnstileToken) body.turnstileToken = turnstileToken;
       const { error } = await appwriteFunctions.invoke('send-contact-email', { body });
 
       if (!error) {
@@ -54,17 +104,25 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       } else {
         const msg = error.message || 'Something went wrong. Please try again.';
         const friendlyMsg = msg.includes('Too many') ? 'Too many messages sent. Please wait a few minutes.' : msg;
+        if (TURNSTILE_SITE_KEY && window.turnstile && turnstileWidgetIdRef.current) {
+          window.turnstile.reset(turnstileWidgetIdRef.current);
+          setTurnstileToken(null);
+        }
         setErrorMsg(friendlyMsg);
         setStatus('error');
         toast.error(friendlyMsg);
       }
     } catch {
       const netMsg = 'Network error — please check your connection and try again.';
+      if (TURNSTILE_SITE_KEY && window.turnstile && turnstileWidgetIdRef.current) {
+        window.turnstile.reset(turnstileWidgetIdRef.current);
+        setTurnstileToken(null);
+      }
       setErrorMsg(netMsg);
       setStatus('error');
       toast.error(netMsg);
     }
-  }, [isValid, status, email, name, message, username, website]);
+  }, [isValid, isTurnstileReady, status, email, name, message, username, website, turnstileToken]);
 
   if (status === 'success') {
     return (
@@ -210,9 +268,13 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           </div>
         )}
 
+        {TURNSTILE_SITE_KEY && (
+          <div ref={turnstileContainerRef} className="flex justify-center" />
+        )}
+
         <button
           type="submit"
-          disabled={!isValid || status === 'sending'}
+          disabled={!isValid || !isTurnstileReady || status === 'sending'}
           className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           style={{ background: accentColor }}
         >

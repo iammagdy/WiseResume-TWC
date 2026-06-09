@@ -191,6 +191,28 @@ function checkEmailRateLimit(ip) {
   return { ok: true };
 }
 
+async function verifyTurnstileToken(token, req) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) {
+    log('[turnstile] TURNSTILE_SECRET_KEY not set — rejecting request');
+    return { ok: false };
+  }
+  try {
+    const ip = getClientIp(req);
+    const params = new URLSearchParams({ secret, response: token });
+    if (ip && ip !== 'unknown') params.set('remoteip', ip);
+    const result = await axios.post(
+      'https://challenges.cloudflare.com/turnstile/v1/siteverify',
+      params.toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 },
+    );
+    return { ok: result.data?.success === true };
+  } catch (err) {
+    log('[turnstile] verification error:', err?.message);
+    return { ok: false };
+  }
+}
+
 function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -2304,6 +2326,20 @@ module.exports = async ({ req, res, log, error }) => {
 
     // ── 1. EMAIL ROUTE (never traced as LLM span) ───────────────────────────
     if (featureName === 'send-email' || featureName === 'send-contact-email') {
+      const turnstileToken = asString(opts.turnstileToken || '');
+      if (turnstileToken) {
+        const turnstileResult = await verifyTurnstileToken(turnstileToken, req);
+        if (!turnstileResult.ok) {
+          await flushDD();
+          return res.json({ status: 'error', code: 'captcha_required', message: 'Security check failed. Please try again.' }, 403);
+        }
+      } else {
+        const sessionAuth = await validateUserSession(opts, req);
+        if (!sessionAuth.ok) {
+          await flushDD();
+          return res.json({ status: 'error', code: 'captcha_required', message: 'Security check required.' }, 403);
+        }
+      }
       const clientIp = getClientIp(req);
       const ipLimit = checkEmailRateLimit(clientIp);
       if (!ipLimit.ok) {

@@ -30,33 +30,6 @@ function notifyLockListeners() {
   }
 }
 
-export function loadRememberedToken(): { token: string; email: string } | null {
-  try {
-    const token  = localStorage.getItem(LS_TOKEN_KEY);
-    const expiry = localStorage.getItem(LS_EXPIRY_KEY);
-    const email  = localStorage.getItem(LS_EMAIL_KEY);
-    if (!token || !expiry || !email) return null;
-    const expiryMs = parseInt(expiry, 10);
-    if (isNaN(expiryMs) || Date.now() >= expiryMs) {
-      localStorage.removeItem(LS_TOKEN_KEY);
-      localStorage.removeItem(LS_EXPIRY_KEY);
-      localStorage.removeItem(LS_EMAIL_KEY);
-      return null;
-    }
-    return { token, email };
-  } catch {
-    return null;
-  }
-}
-
-export function saveRememberedToken(token: string, expiresAt: number, email: string) {
-  try {
-    localStorage.setItem(LS_TOKEN_KEY,  token);
-    localStorage.setItem(LS_EXPIRY_KEY, String(expiresAt));
-    localStorage.setItem(LS_EMAIL_KEY,  email);
-  } catch { }
-}
-
 export function clearRememberedToken() {
   try {
     localStorage.removeItem(LS_TOKEN_KEY);
@@ -171,11 +144,9 @@ export async function verifyBiometricCredential(): Promise<boolean> {
 
 interface DevKitSessionContextValue {
   isUnlocked: boolean;
-  unlock: (sessionToken: string, opts?: { rememberMe?: boolean; expiresAt?: number; email?: string }) => void;
+  unlock: (sessionToken: string) => void;
   lock: () => void;
   secondsUntilLock: number | null;
-  rememberedEmail: string | null;
-  hasRememberedSession: boolean;
 }
 
 const DevKitSessionContext = createContext<DevKitSessionContextValue | null>(null);
@@ -183,8 +154,6 @@ const DevKitSessionContext = createContext<DevKitSessionContextValue | null>(nul
 export function DevKitSessionProvider({ children }: { children: React.ReactNode }) {
   const [isUnlocked, setIsUnlocked]               = useState(false);
   const [secondsUntilLock, setSecondsUntilLock]   = useState<number | null>(null);
-  const [rememberedEmail, setRememberedEmail]      = useState<string | null>(null);
-  const [hasRememberedSession, setHasRememberedSession] = useState(false);
 
   const lockTimeoutRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -203,8 +172,6 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     setIsUnlocked(false);
     setSecondsUntilLock(null);
     clearTimers();
-    // Intentionally keeps localStorage — remembered session survives inactivity
-    // so the user can re-unlock via biometric instead of retyping the password.
   }, [clearTimers]);
 
   const lock = useCallback(() => {
@@ -214,8 +181,6 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     setSecondsUntilLock(null);
     clearRememberedToken();
     clearBiometricCredential();
-    setHasRememberedSession(false);
-    setRememberedEmail(null);
     clearTimers();
   }, [clearTimers]);
 
@@ -239,31 +204,11 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     startInactivityTimer();
   }, [clearTimers, startInactivityTimer]);
 
-  const unlock = useCallback((
-    sessionToken: string,
-    opts?: { rememberMe?: boolean; expiresAt?: number; email?: string },
-  ) => {
+  const unlock = useCallback((sessionToken: string) => {
     setDevKitToken(sessionToken);
     setIsUnlocked(true);
     startInactivityTimer();
-    if (opts?.rememberMe && opts.expiresAt && opts.email) {
-      saveRememberedToken(sessionToken, opts.expiresAt, opts.email);
-      setRememberedEmail(opts.email);
-      setHasRememberedSession(true);
-    }
   }, [startInactivityTimer]);
-
-  // On mount: check for a valid remembered session so the lock screen can
-  // offer the biometric shortcut — but NEVER auto-unlock.
-  useEffect(() => {
-    const remembered = loadRememberedToken();
-    if (remembered) {
-      setRememberedEmail(remembered.email);
-      setHasRememberedSession(true);
-    } else {
-      setHasRememberedSession(false);
-    }
-  }, []);
 
   useEffect(() => {
     if (!isUnlocked) return;
@@ -290,7 +235,7 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
   }, [clearTimers]);
 
   return (
-    <DevKitSessionContext.Provider value={{ isUnlocked, unlock, lock, secondsUntilLock, rememberedEmail, hasRememberedSession }}>
+    <DevKitSessionContext.Provider value={{ isUnlocked, unlock, lock, secondsUntilLock }}>
       {children}
     </DevKitSessionContext.Provider>
   );
