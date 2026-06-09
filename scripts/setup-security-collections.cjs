@@ -88,19 +88,19 @@ async function main() {
   ]);
 
   await ensureCollection('email_rate_limits', 'Email Rate Limits', [
-    { type: 'integer',  key: 'count',    required: true, defaultVal: 0, min: 0, max: 1000 },
+    { type: 'integer',  key: 'count',    required: true, min: 0, max: 1000 },
     { type: 'string',   key: 'reset_at', required: true, size: 32 },
   ]);
 
   await ensureCollection('portfolio_session_rate_limits', 'Portfolio Session Rate Limits', [
-    { type: 'integer',  key: 'count',    required: true, defaultVal: 0, min: 0, max: 1000 },
+    { type: 'integer',  key: 'count',    required: true, min: 0, max: 1000 },
     { type: 'string',   key: 'reset_at', required: true, size: 32 },
   ]);
 
   await ensureCollection('portfolio_daily_usage', 'Portfolio Daily Usage', [
     { type: 'string',   key: 'owner_user_id',  required: true,  size: 36 },
     { type: 'string',   key: 'date',           required: true,  size: 10 },
-    { type: 'integer',  key: 'question_count', required: true, defaultVal: 0, min: 0, max: 100000 },
+    { type: 'integer',  key: 'question_count', required: true, min: 0, max: 100000 },
   ], [
     { key: 'idx_pdu_owner', type: IndexType.Key, attributes: ['owner_user_id'], orders: ['ASC'] },
     { key: 'idx_pdu_date',  type: IndexType.Key, attributes: ['date'],          orders: ['DESC'] },
