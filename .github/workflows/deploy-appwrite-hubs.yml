@@ -79,6 +79,13 @@ jobs:
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/setup_tailoring_lineage_schema.cjs
 
+      - name: Ensure security collections schema (FIX-16)
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup-security-collections.cjs
+
       - name: Deploy Appwrite hubs
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
@@ -100,6 +107,10 @@ jobs:
           DD_SITE: ${{ secrets.DD_SITE }}
           DEVKIT_PASSWORD: ${{ secrets.DEVKIT_PASSWORD }}
           IMPERSONATION_HMAC_SECRET: ${{ secrets.IMPERSONATION_HMAC_SECRET }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          PUBLIC_SHARE_TOKEN_SECRET: ${{ secrets.PUBLIC_SHARE_TOKEN_SECRET }}
+          GATEWAY_SMOKE_SECRET: ${{ secrets.GATEWAY_SMOKE_SECRET }}
+          ADMIN_TEST_HMAC_SECRET: ${{ secrets.ADMIN_TEST_HMAC_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
           RESEND_FROM_NAME: ${{ secrets.RESEND_FROM_NAME }}

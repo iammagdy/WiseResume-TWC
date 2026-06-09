@@ -8,6 +8,13 @@ const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWR
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '';
 const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 
+// FIX-14: Purpose-specific HMAC secret for public-share tokens (WR-2026-023)
+// This MUST be set and must be distinct from APPWRITE_API_KEY.
+const PUBLIC_SHARE_TOKEN_SECRET = process.env.PUBLIC_SHARE_TOKEN_SECRET;
+if (!PUBLIC_SHARE_TOKEN_SECRET) {
+  console.error('[FATAL] PUBLIC_SHARE_TOKEN_SECRET is not set. Token signing will fail closed.');
+}
+
 const PROFILES_COLLECTION_ID = 'profiles';
 const RESUMES_COLLECTION_ID = 'resumes';
 const RESUME_SHARES_COLLECTION_ID = 'resume_shares';
@@ -69,20 +76,23 @@ function timingSafeStringEqual(a, b) {
 }
 
 function signToken(payload) {
+  if (!PUBLIC_SHARE_TOKEN_SECRET) {
+    throw new Error('PUBLIC_SHARE_TOKEN_SECRET not configured — cannot sign tokens.');
+  }
   const encoded = base64url(JSON.stringify(payload));
-  const sig = crypto.createHmac('sha256', API_KEY).update(encoded).digest('base64url');
+  const sig = crypto.createHmac('sha256', PUBLIC_SHARE_TOKEN_SECRET).update(encoded).digest('base64url');
   return `${encoded}.${sig}`;
 }
 
 function verifyToken(token, expectedPurpose) {
-  if (!API_KEY || typeof token !== 'string' || !token.includes('.')) return null;
+  if (!PUBLIC_SHARE_TOKEN_SECRET || typeof token !== 'string' || !token.includes('.')) return null;
   const dotIndex = token.lastIndexOf('.');
   const encoded = token.slice(0, dotIndex);
   const sig = token.slice(dotIndex + 1);
   if (!encoded || !sig) return null;
 
   try {
-    const expected = crypto.createHmac('sha256', API_KEY).update(encoded).digest('base64url');
+    const expected = crypto.createHmac('sha256', PUBLIC_SHARE_TOKEN_SECRET).update(encoded).digest('base64url');
     const sigBuf = Buffer.from(sig, 'base64url');
     const expectedBuf = Buffer.from(expected, 'base64url');
     if (sigBuf.length !== expectedBuf.length) return null;

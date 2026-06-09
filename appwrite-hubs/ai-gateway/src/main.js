@@ -399,8 +399,23 @@ function getAppwriteProjectId() {
   return process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 }
 
-function verifySignedInternalToken(token, expectedPurpose) {
-  const secret = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+// FIX-14: Purpose-specific HMAC secrets (WR-2026-023)
+// Each purpose uses a distinct secret; none fall back to APPWRITE_API_KEY.
+const GATEWAY_SMOKE_SECRET = process.env.GATEWAY_SMOKE_SECRET;
+const ADMIN_TEST_HMAC_SECRET = process.env.ADMIN_TEST_HMAC_SECRET;
+const PUBLIC_SHARE_TOKEN_SECRET = process.env.PUBLIC_SHARE_TOKEN_SECRET; // shared with public-share hub
+
+if (!GATEWAY_SMOKE_SECRET) {
+  console.error('[FATAL] GATEWAY_SMOKE_SECRET is not set. Smoke test validation will fail closed.');
+}
+if (!ADMIN_TEST_HMAC_SECRET) {
+  console.error('[FATAL] ADMIN_TEST_HMAC_SECRET is not set. Admin test validation will fail closed.');
+}
+if (!PUBLIC_SHARE_TOKEN_SECRET) {
+  console.error('[FATAL] PUBLIC_SHARE_TOKEN_SECRET is not set. Public portfolio auth will fail closed.');
+}
+
+function verifyTokenWithSecret(token, expectedPurpose, secret) {
   if (!secret || !token || typeof token !== 'string' || !token.includes('.')) return null;
   const dotIdx = token.lastIndexOf('.');
   const encoded = token.slice(0, dotIdx);
@@ -431,11 +446,10 @@ function verifySignedInternalToken(token, expectedPurpose) {
 /**
  * Verify a short-lived admin test nonce issued by admin-devkit-data.
  * Returns the decoded payload on success, or null if invalid/expired.
- * Uses the same HMAC-SHA256 scheme as admin-devkit-data signToken().
- * No API keys are exposed in the gateway response — only preview content.
+ * Uses ADMIN_TEST_HMAC_SECRET — distinct from APPWRITE_API_KEY.
  */
 function verifyAdminTestNonce(nonce) {
-  return verifySignedInternalToken(nonce, 'gateway-admin-test');
+  return verifyTokenWithSecret(nonce, 'gateway-admin-test', ADMIN_TEST_HMAC_SECRET);
 }
 
 function getInternalGatewayToken(body, req) {
@@ -444,11 +458,11 @@ function getInternalGatewayToken(body, req) {
 }
 
 function validateGatewaySmokeToken(body, req) {
-  return verifySignedInternalToken(getInternalGatewayToken(body, req), 'gateway-smoke');
+  return verifyTokenWithSecret(getInternalGatewayToken(body, req), 'gateway-smoke', GATEWAY_SMOKE_SECRET);
 }
 
 function validatePublicPortfolioGatewayAuth(body, req) {
-  const payload = verifySignedInternalToken(getInternalGatewayToken(body, req), 'public-portfolio-chat');
+  const payload = verifyTokenWithSecret(getInternalGatewayToken(body, req), 'public-portfolio-chat', PUBLIC_SHARE_TOKEN_SECRET);
   if (!payload) return null;
   if (typeof payload.sid !== 'string' || typeof payload.username !== 'string' || typeof payload.ownerUserId !== 'string') {
     return null;

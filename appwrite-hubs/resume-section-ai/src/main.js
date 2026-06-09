@@ -14,29 +14,72 @@ const PLAN_DAILY_LIMITS = {
   premium: -1,
 };
 const _serverRateLimits = new Map();
-const _idempotencyCache = new Map();
+const IDEMPOTENCY_CACHE_COLLECTION_ID = 'idempotency_cache';
 const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000;
 const IDEMPOTENCY_RESULT_MAX_BYTES = 60_000;
 const crypto = require('crypto');
+let _idempotencyCollectionMissing = false;
 
 function computeRsaContentKey(userId, aiAction, section, action, currentContent) {
   const payload = JSON.stringify({ userId, aiAction, section: section || '', action: action || '', content: currentContent });
-  return crypto.createHash('sha256').update(payload).digest('hex').slice(0, 32);
+  return crypto.createHash('sha256').update(payload).digest('hex');
 }
 
-function checkIdempotencyMemory(key) {
-  const entry = _idempotencyCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { _idempotencyCache.delete(key); return null; }
-  return entry.result;
-}
-
-function storeIdempotencyMemory(key, result) {
+async function checkIdempotencyCache(db, key) {
   try {
-    const str = JSON.stringify(result);
-    if (str.length > IDEMPOTENCY_RESULT_MAX_BYTES) return;
-    _idempotencyCache.set(key, { result, expiresAt: Date.now() + IDEMPOTENCY_TTL_MS });
-  } catch { }
+    const res = await db.listDocuments(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, [
+      sdk.Query.equal('key', [key]),
+      sdk.Query.limit(1),
+    ]);
+    const doc = res.documents?.[0];
+    if (!doc) return { hit: false };
+    const expiresAt = new Date(doc.expires_at).getTime();
+    if (Date.now() > expiresAt) {
+      try { await db.deleteDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, doc.$id); } catch {}
+      return { hit: false };
+    }
+    if (doc.status === 'success' && doc.has_result && doc.cached_result) {
+      return { hit: true, status: 'success', result: JSON.parse(doc.cached_result), docId: doc.$id };
+    }
+    if (doc.status === 'pending') {
+      return { hit: true, status: 'pending', docId: doc.$id };
+    }
+    return { hit: false };
+  } catch (err) {
+    if (!_idempotencyCollectionMissing) {
+      _idempotencyCollectionMissing = true;
+      console.warn(`[resume-section-ai][warn] idempotency_cache unavailable: ${err.message}`);
+    }
+    return { hit: false };
+  }
+}
+
+async function createIdempotencyPending(db, key, userId) {
+  try {
+    const expiresAt = new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString();
+    const doc = await db.createDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, sdk.ID.unique(), {
+      key,
+      user_id: userId,
+      status: 'pending',
+      expires_at: expiresAt,
+      has_result: false,
+      cached_result: null,
+    });
+    return doc.$id;
+  } catch { return null; }
+}
+
+async function updateIdempotencySuccess(db, docId, resultPayload) {
+  if (!docId) return;
+  try {
+    const resultStr = JSON.stringify(resultPayload);
+    const hasResult = resultStr.length <= IDEMPOTENCY_RESULT_MAX_BYTES;
+    await db.updateDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+      status: 'success',
+      has_result: hasResult,
+      cached_result: hasResult ? resultStr : null,
+    });
+  } catch {}
 }
 
 // ─── Provider helpers ──────────────────────────────────────────────────────────
@@ -715,16 +758,27 @@ module.exports = async ({ req, res, log, error }) => {
       }, 429);
     }
 
+    const db = getDbClient();
+
+    // ── Idempotency cache (Appwrite collection — cross-instance, cold-start-safe) ──
     const idemKey = computeRsaContentKey(auth.user.$id, aiAction, section, action, currentContent);
-    const cached = checkIdempotencyMemory(idemKey);
-    if (cached) {
-      log(`resume-section-ai: idempotency cache hit key=${idemKey}`);
-      return res.json({ ...cached, _cached: true });
+    const idemCheck = await checkIdempotencyCache(db, idemKey);
+    if (idemCheck.hit) {
+      if (idemCheck.status === 'success' && idemCheck.result) {
+        log(`resume-section-ai: idempotency cache hit key=${idemKey}`);
+        return res.json({ ...idemCheck.result, _cached: true });
+      }
+      if (idemCheck.status === 'pending') {
+        return res.json({
+          error: true,
+          code: 'concurrent_request',
+          message: 'An identical request is already being processed. Please wait a moment and retry.',
+        }, 409);
+      }
     }
+    const idemDocId = await createIdempotencyPending(db, idemKey, auth.user.$id);
 
     log(`resume-section-ai: user=${auth.user.$id}, action=${aiAction}, section=${section}, enhance_action=${action}`);
-
-    const db = getDbClient();
     const pool = buildPool();
     if (pool.length === 0) {
       error('No AI provider keys found');
@@ -745,7 +799,7 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildSuggestTechMessages(currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
-        storeIdempotencyMemory(idemKey, result);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
@@ -753,7 +807,7 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildSuggestTechWithAnswersMessages(currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
-        storeIdempotencyMemory(idemKey, result);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
@@ -790,7 +844,7 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildEnhanceMessages(section, baseAction, currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
-        storeIdempotencyMemory(idemKey, result);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
@@ -798,14 +852,14 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildEnhanceMessages(section, 'add_metrics', currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
-        storeIdempotencyMemory(idemKey, result);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
       const messages = buildEnhanceMessages(section, action, currentContent, context);
       const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
-      storeIdempotencyMemory(idemKey, result);
+      await updateIdempotencySuccess(db, idemDocId, result);
       return res.json(result);
     }
 
@@ -814,7 +868,7 @@ module.exports = async ({ req, res, log, error }) => {
       const messages = buildEnhanceMessages(section, 'tailor', currentContent, context);
       const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
-      storeIdempotencyMemory(idemKey, result);
+      await updateIdempotencySuccess(db, idemDocId, result);
       return res.json(result);
     }
 
@@ -829,7 +883,7 @@ module.exports = async ({ req, res, log, error }) => {
         suggestions = [];
       }
       const fillResult = { suggestions, improved: null, changes: [] };
-      storeIdempotencyMemory(idemKey, fillResult);
+      await updateIdempotencySuccess(db, idemDocId, fillResult);
       return res.json(fillResult);
     }
 
@@ -844,7 +898,7 @@ module.exports = async ({ req, res, log, error }) => {
         result = { explanation: rawContent, talking_points: [] };
       }
       const explainResult = { ...result, improved: null, changes: [] };
-      storeIdempotencyMemory(idemKey, explainResult);
+      await updateIdempotencySuccess(db, idemDocId, explainResult);
       return res.json(explainResult);
     }
 

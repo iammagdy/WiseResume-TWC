@@ -136,42 +136,99 @@ Run `APPWRITE_API_KEY=<key> APPWRITE_PROJECT_ID=<id> node scripts/setup-security
 
 ---
 
-## FIX-20 — appwrite.json Function ID Verification (WR-2026-020)
+## FIX-20 — appwrite.json Function ID Verification (WR-2026-020) — MANUAL / UNRESOLVED
+
+**Status:** ⚠️ MANUAL ONLY — Console access required
+**Date verified:** ___________
+**Verified by:** ___________
+
+**Problem:** Most functions in `appwrite.json` use human-readable slug IDs (e.g., `ai-gateway`), but the actual
+Function IDs in Appwrite Console may differ. Mismatches cause deployment failures or duplicate function creation.
+
+**Cannot be automated:** Function IDs can only be retrieved from the Appwrite Console UI or API with project access.
+They cannot be predicted or generated without Console access.
+
+**Action required:**
+1. Log in to Appwrite Console → project `69fd362b001eb325a192` → Functions
+2. For each function in the table below, click Settings → copy the Function ID
+3. Update `appwrite.json` — replace the slug with the real Function ID
+
+| # | appwrite.json current | Console Function ID | Status |
+|---|----------------------|---------------------|--------|
+| 1 | `ai-gateway` | | ⬜ |
+| 2 | `admin-deploy-hubs` | | ⬜ |
+| 3 | `admin-devkit-data` | | ⬜ |
+| 4 | `admin-email` | | ⬜ |
+| 5 | `admin-feature-flags` | | ⬜ |
+| 6 | `admin-impersonate` | | ⬜ |
+| 7 | `admin-moderation` | | ⬜ |
+| 8 | `admin-onboarding-funnel` | | ⬜ |
+| 9 | `admin-portfolio-usernames` | | ⬜ |
+| 10 | `admin-testmail` | | ⬜ |
+| 11 | `admin-visitor-analytics` | | ⬜ |
+| 12 | `ai-health` | | ⬜ |
+| 13 | `coupons` | | ⬜ |
+| 14 | `email-service` | | ⬜ |
+| 15 | `inspect-ai-keys` | | ⬜ |
+| 16 | `job-import` | | ⬜ |
+| 17 | `public-share` | | ⬜ |
+| 18 | `resume-section-ai` | | ⬜ |
+| 19 | `wisehire-gateway` | | ⬜ |
+| 20 | `6a0760710000ff231048` (admin-sentry) | `6a0760710000ff231048` | ✅ PRE-CONFIRMED |
+
+**Blocking:** YES — Deployment will fail if IDs don't match. Complete before merging to main.
+
+**Outcome:** ⬜ UNRESOLVED / ⬜ IN PROGRESS / ✅ COMPLETE — ___________
+
+---
+
+## FIX-05 — Turnstile Environment Variables (WR-2026-002)
 
 **Date verified:** ___________
 **Verified by:** ___________
 
-Navigate to: Appwrite Console → Functions → [each function] → Settings → Function ID
+Navigate to: Appwrite Console → Functions → AI Gateway Hub → Settings → Environment Variables
 
-Most functions use human-readable slug IDs (e.g. `ai-gateway`). Verify that each slug in `appwrite.json`
-matches the actual Function ID shown in the Console. Update `appwrite.json` for any that differ.
+- [ ] `TURNSTILE_SECRET_KEY` is set (Cloudflare Turnstile secret key)
 
-Note: `admin-sentry` already has a real 20-char hex ID (`6a0760710000ff231048`).
+Navigate to: GitHub → Settings → Secrets and Variables → Actions
 
-| appwrite.json functionId | Console Function ID | Match? |
-|---|---|---|
-| `ai-gateway` | | |
-| `admin-deploy-hubs` | | |
-| `admin-devkit-data` | | |
-| `admin-email` | | |
-| `admin-feature-flags` | | |
-| `admin-impersonate` | | |
-| `admin-moderation` | | |
-| `admin-onboarding-funnel` | | |
-| `admin-portfolio-usernames` | | |
-| `admin-testmail` | | |
-| `admin-visitor-analytics` | | |
-| `ai-health` | | |
-| `coupons` | | |
-| `email-service` | | |
-| `inspect-ai-keys` | | |
-| `job-import` | | |
-| `public-share` | | |
-| `resume-section-ai` | | |
-| `wisehire-gateway` | | |
-| `6a0760710000ff231048` (admin-sentry) | 6a0760710000ff231048 | PRE-CONFIRMED |
+- [ ] `TURNSTILE_SECRET_KEY` secret exists
+- [ ] `VITE_TURNSTILE_SITE_KEY` repository variable exists (public site key for frontend)
 
-**Outcome:** PASS / FAIL / PARTIAL — ___________
+Navigate to: Vercel/Cloudflare Pages → Project Settings → Environment Variables
+
+- [ ] `VITE_TURNSTILE_SITE_KEY` is set for Production environment
+
+**Outcome:** PASS / FAIL — ___________
+
+---
+
+## FIX-14 — Purpose-Specific HMAC Secrets (WR-2026-023)
+
+**Date verified:** ___________
+**Verified by:** ___________
+
+These secrets must be set in BOTH GitHub Actions secrets AND Appwrite Console function env vars.
+They must be cryptographically random (32+ bytes) and distinct from each other and from `APPWRITE_API_KEY`.
+
+### GitHub Actions Secrets
+- [ ] `PUBLIC_SHARE_TOKEN_SECRET` — for signing/verifying cross-function portfolio chat tokens
+- [ ] `GATEWAY_SMOKE_SECRET` — for smoke test token validation
+- [ ] `ADMIN_TEST_HMAC_SECRET` — for admin test nonce validation
+
+### Appwrite Console Function Environment Variables
+
+**AI Gateway Hub:**
+- [ ] `TURNSTILE_SECRET_KEY`
+- [ ] `PUBLIC_SHARE_TOKEN_SECRET`
+- [ ] `GATEWAY_SMOKE_SECRET`
+- [ ] `ADMIN_TEST_HMAC_SECRET`
+
+**Public Share Hub:**
+- [ ] `PUBLIC_SHARE_TOKEN_SECRET` (same value as in ai-gateway)
+
+**Outcome:** PASS / FAIL — ___________
 
 ---
 
@@ -183,6 +240,8 @@ All checks above must be PASS before the corresponding batch is deployed to prod
 - [ ] FIX-02 complete
 - [ ] FIX-03 complete
 - [ ] FIX-04 complete
+- [ ] FIX-05 complete (Turnstile keys configured)
+- [ ] FIX-14 complete (HMAC secrets configured)
 - [ ] FIX-16 complete (run setup-security-collections.cjs)
-- [ ] FIX-20 complete (verify appwrite.json function IDs)
-- [ ] Ready to proceed with Batch 1A / 2 deployment
+- [ ] FIX-20 complete (verify appwrite.json function IDs — MANUAL ONLY)
+- [ ] Ready to proceed with deployment
