@@ -32,7 +32,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
   const [message, setMessage] = useState('');
   // Honeypot trap — visually hidden, never focused/seen by sighted users or
   // assistive tech.  Bots that fill every text input will populate this and
-  // their submission will be silently discarded server-side.
+  // the server will silently succeed without sending the email.
   const [website, setWebsite] = useState('');
   const [status, setStatus] = useState<FormStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');

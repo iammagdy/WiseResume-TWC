@@ -126,6 +126,9 @@ const PORTFOLIO_DAILY_CAPS = { free: 50, pro: 200, premium: -1 };
   if (!process.env.RESEND_API_KEY) {
     console.warn('[ALERT] ai-gateway: RESEND_API_KEY not set - contact-email feature unavailable');
   }
+  if (!process.env.TURNSTILE_SECRET_KEY) {
+    console.warn('[ALERT] ai-gateway: TURNSTILE_SECRET_KEY not set - Turnstile tokens on the contact form will be rejected');
+  }
   const hasAnyAiKey = [
     'GROQ_KEY_1', 'OPENROUTER_KEY_1', 'DEEPSEEK_KEY', 'NVIDIA_KEY_1',
   ].some(k => !!process.env[k]);
@@ -2442,6 +2445,12 @@ module.exports = async ({ req, res, log, error }) => {
         }, 429);
       }
 
+      // Honeypot — bots fill the hidden "website" field; silently succeed without sending.
+      if (asString(opts.website)) {
+        await flushDD();
+        return res.json({ status: 'success', data: { id: null, success: true } });
+      }
+
       const resendKey = process.env.RESEND_API_KEY;
       if (!resendKey) {
         await flushDD();
@@ -2545,7 +2554,7 @@ module.exports = async ({ req, res, log, error }) => {
         }, sessionCheck.status || 403);
       }
       if (publicPortfolioAuth?.ownerUserId) {
-        const dailyCap = await checkPortfolioDailyCap(db, publicPortfolioAuth.ownerUserId, 'free');
+        const dailyCap = await checkPortfolioDailyCap(db, publicPortfolioAuth.ownerUserId, plan);
         if (!dailyCap.ok) {
           await flushDD();
           return res.json({

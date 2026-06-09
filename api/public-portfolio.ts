@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Databases, Query } from 'node-appwrite';
-import { createHash } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcryptjs';
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -107,7 +107,9 @@ async function verifyAndMaybeUpgradePassword(
     return bcrypt.compare(submittedPassword, storedHash);
   }
   const sha256 = await sha256Hex(submittedPassword);
-  if (sha256 !== storedHash) return false;
+  const a = Buffer.from(sha256);
+  const b = Buffer.from(storedHash);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return false;
   try {
     const upgraded = await bcrypt.hash(submittedPassword, 12);
     await db.updateDocument(DATABASE_ID, PORTFOLIO_SETTINGS_COLLECTION, settingsDocId, { password_hash: upgraded });
