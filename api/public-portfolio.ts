@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Databases, Query } from 'node-appwrite';
 import { createHash } from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID =
@@ -89,9 +90,29 @@ async function getPortfolioSettings(db: Databases, userId: string) {
   ]);
   const doc = res.documents?.[0] as Record<string, unknown> | undefined;
   return {
+    $id: asString(doc?.$id),
     passwordEnabled: Boolean(doc?.password_enabled),
     passwordHash: asString(doc?.password_hash),
   };
+}
+
+async function verifyAndMaybeUpgradePassword(
+  db: Databases,
+  settingsDocId: string,
+  submittedPassword: string,
+  storedHash: string,
+): Promise<boolean> {
+  if (!submittedPassword || !storedHash) return false;
+  if (storedHash.startsWith('$2')) {
+    return bcrypt.compare(submittedPassword, storedHash);
+  }
+  const sha256 = await sha256Hex(submittedPassword);
+  if (sha256 !== storedHash) return false;
+  try {
+    const upgraded = await bcrypt.hash(submittedPassword, 12);
+    await db.updateDocument(DATABASE_ID, PORTFOLIO_SETTINGS_COLLECTION, settingsDocId, { password_hash: upgraded });
+  } catch { }
+  return true;
 }
 
 function mapProfile(doc: Record<string, unknown>) {
@@ -245,8 +266,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!submittedPassword) {
           return res.status(401).json({ error: 'invalid_password' });
         }
-        const submittedHash = await sha256Hex(submittedPassword);
-        if (!settings.passwordHash || submittedHash !== settings.passwordHash) {
+        const ok = await verifyAndMaybeUpgradePassword(db, settings.$id, submittedPassword, settings.passwordHash);
+        if (!ok) {
           return res.status(401).json({ error: 'invalid_password' });
         }
       }

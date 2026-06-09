@@ -110,6 +110,9 @@ const MAX_CONCURRENT_JOBS_PER_USER = 2;  // max simultaneous expensive AI jobs p
 // Per-plan per-minute request caps — cross-instance, cold-start-safe.
 const PLAN_PER_MINUTE_LIMITS = { free: 3, pro: 10, premium: 20 };
 let _chatSessionsMissing = false;        // warn once when question_count attr is absent
+const EMAIL_RATE_LIMITS_COLLECTION_ID = 'email_rate_limits';
+const PORTFOLIO_DAILY_USAGE_COLLECTION_ID = 'portfolio_daily_usage';
+const PORTFOLIO_DAILY_CAPS = { free: 50, pro: 200, premium: -1 };
 
 // ─── Phase-4: Cold-start startup validation ───────────────────────────────────
 // Runs once per function instance.  Logs ALERT for missing critical env vars so
@@ -189,6 +192,46 @@ function checkEmailRateLimit(ip) {
   }
   current.count += 1;
   return { ok: true };
+}
+
+async function checkPersistentEmailRateLimit(db, ip) {
+  if (!ip || ip === 'unknown') return { ok: true };
+  const ipHash = crypto.createHash('sha256').update(ip).digest('hex');
+  try {
+    let doc;
+    try { doc = await db.getDocument(DB_ID, EMAIL_RATE_LIMITS_COLLECTION_ID, ipHash); }
+    catch (e) { if (e.code === 404 || /could not be found/i.test(e.message || '')) doc = null; else throw e; }
+    const now = Date.now();
+    if (!doc || now > new Date(doc.reset_at).getTime()) {
+      const resetAt = new Date(now + EMAIL_RATE_LIMIT_WINDOW_MS).toISOString();
+      if (!doc) await db.createDocument(DB_ID, EMAIL_RATE_LIMITS_COLLECTION_ID, ipHash, { count: 1, reset_at: resetAt });
+      else await db.updateDocument(DB_ID, EMAIL_RATE_LIMITS_COLLECTION_ID, ipHash, { count: 1, reset_at: resetAt });
+      return { ok: true };
+    }
+    const count = Number(doc.count || 0);
+    if (count >= EMAIL_RATE_LIMIT_MAX) {
+      return { ok: false, retryAfterSeconds: Math.ceil((new Date(doc.reset_at).getTime() - now) / 1000) };
+    }
+    await db.updateDocument(DB_ID, EMAIL_RATE_LIMITS_COLLECTION_ID, ipHash, { count: count + 1 });
+    return { ok: true };
+  } catch { return { ok: true }; }
+}
+
+async function checkPortfolioDailyCap(db, ownerUserId, plan) {
+  const cap = PORTFOLIO_DAILY_CAPS[plan] ?? PORTFOLIO_DAILY_CAPS.free;
+  if (cap === -1) return { ok: true };
+  const today = new Date().toISOString().slice(0, 10);
+  const docId = `${ownerUserId}:${today}`;
+  try {
+    let doc;
+    try { doc = await db.getDocument(DB_ID, PORTFOLIO_DAILY_USAGE_COLLECTION_ID, docId); }
+    catch (e) { if (e.code === 404 || /could not be found/i.test(e.message || '')) doc = null; else throw e; }
+    const count = doc && doc.date === today ? Number(doc.question_count || 0) : 0;
+    if (count >= cap) return { ok: false };
+    if (!doc) await db.createDocument(DB_ID, PORTFOLIO_DAILY_USAGE_COLLECTION_ID, docId, { owner_user_id: ownerUserId, date: today, question_count: 1 });
+    else await db.updateDocument(DB_ID, PORTFOLIO_DAILY_USAGE_COLLECTION_ID, docId, { question_count: count + 1 });
+    return { ok: true };
+  } catch { return { ok: true }; }
 }
 
 async function verifyTurnstileToken(token, req) {
@@ -2349,6 +2392,14 @@ module.exports = async ({ req, res, log, error }) => {
           message: `Too many messages sent from your address. Please wait ${Math.ceil(ipLimit.retryAfterSeconds / 60)} minute(s) before trying again.`,
         }, 429);
       }
+      const persistentEmailLimit = await checkPersistentEmailRateLimit(db, clientIp);
+      if (!persistentEmailLimit.ok) {
+        await flushDD();
+        return res.json({
+          status: 'error',
+          message: `Too many messages sent from your address. Please wait ${Math.ceil(persistentEmailLimit.retryAfterSeconds / 60)} minute(s) before trying again.`,
+        }, 429);
+      }
 
       const resendKey = process.env.RESEND_API_KEY;
       if (!resendKey) {
@@ -2451,6 +2502,17 @@ module.exports = async ({ req, res, log, error }) => {
           code:    sessionCheck.code || 'session_error',
           message: sessionCheck.message,
         }, sessionCheck.status || 403);
+      }
+      if (publicPortfolioAuth?.ownerUserId) {
+        const dailyCap = await checkPortfolioDailyCap(db, publicPortfolioAuth.ownerUserId, 'free');
+        if (!dailyCap.ok) {
+          await flushDD();
+          return res.json({
+            status: 'error',
+            code: 'portfolio_daily_cap',
+            message: 'This portfolio has reached its daily AI question limit. Please try again tomorrow.',
+          }, 429);
+        }
       }
     }
 

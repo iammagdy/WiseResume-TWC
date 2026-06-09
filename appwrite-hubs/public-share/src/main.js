@@ -18,6 +18,9 @@ const INTERNAL_GATEWAY_TOKEN_TTL_MS = 2 * 60 * 1000;
 const MAX_QUESTION_LENGTH = 500;
 const MAX_HISTORY_ITEMS = 6;
 const MAX_HISTORY_CONTENT_LENGTH = 500;
+const SESSION_RATE_LIMIT_COLLECTION_ID = 'portfolio_session_rate_limits';
+const SESSION_RATE_LIMIT_MAX = 5;
+const SESSION_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 function getClient() {
   return new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
@@ -98,6 +101,52 @@ function verifyToken(token, expectedPurpose) {
   if (payload?.purpose !== expectedPurpose) return null;
   if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
   return payload;
+}
+
+function getClientIpFromReq(req) {
+  const h = req.headers || {};
+  const cfIp = typeof h['cf-connecting-ip'] === 'string' ? h['cf-connecting-ip'].trim() : null;
+  if (cfIp) return cfIp;
+  const realIp = typeof h['x-real-ip'] === 'string' ? h['x-real-ip'].trim() : null;
+  if (realIp) return realIp;
+  const xff = h['x-forwarded-for'];
+  if (typeof xff === 'string') {
+    const first = xff.split(',')[0].trim();
+    if (first) return first;
+  }
+  return 'unknown';
+}
+
+async function checkPortfolioSessionRateLimit(db, ip) {
+  if (!ip || ip === 'unknown') return { ok: true };
+  const ipHash = sha256Hex(ip);
+  try {
+    let doc;
+    try {
+      doc = await db.getDocument(DB_ID, SESSION_RATE_LIMIT_COLLECTION_ID, ipHash);
+    } catch (e) {
+      if (e.code === 404 || /could not be found/i.test(e.message || '')) doc = null;
+      else throw e;
+    }
+    const now = Date.now();
+    if (!doc || now > new Date(doc.reset_at).getTime()) {
+      const resetAt = new Date(now + SESSION_RATE_LIMIT_WINDOW_MS).toISOString();
+      if (!doc) {
+        await db.createDocument(DB_ID, SESSION_RATE_LIMIT_COLLECTION_ID, ipHash, { count: 1, reset_at: resetAt });
+      } else {
+        await db.updateDocument(DB_ID, SESSION_RATE_LIMIT_COLLECTION_ID, ipHash, { count: 1, reset_at: resetAt });
+      }
+      return { ok: true };
+    }
+    const count = Number(doc.count || 0);
+    if (count >= SESSION_RATE_LIMIT_MAX) {
+      return { ok: false, retryAfterSeconds: Math.ceil((new Date(doc.reset_at).getTime() - now) / 1000) };
+    }
+    await db.updateDocument(DB_ID, SESSION_RATE_LIMIT_COLLECTION_ID, ipHash, { count: count + 1 });
+    return { ok: true };
+  } catch {
+    return { ok: true };
+  }
 }
 
 function normalizeUsername(value) {
@@ -238,10 +287,20 @@ async function handleVerifySharePassword(db, body, res) {
   return res.json({ status: 'success', data: { authenticated } });
 }
 
-async function handleCreatePortfolioChatSession(db, body, res) {
+async function handleCreatePortfolioChatSession(db, body, req, res) {
   const username = normalizeUsername(body.username);
   if (!username) {
     return res.json({ status: 'error', message: 'Invalid portfolio username.' }, 400);
+  }
+
+  const ip = getClientIpFromReq(req);
+  const rateLimit = await checkPortfolioSessionRateLimit(db, ip);
+  if (!rateLimit.ok) {
+    return res.json({
+      status: 'error',
+      code: 'rate_limited',
+      message: `Too many sessions from your network. Please wait ${Math.ceil(rateLimit.retryAfterSeconds / 60)} minute(s).`,
+    }, 429);
   }
 
   const profile = await getPortfolioProfile(db, username);
@@ -340,7 +399,7 @@ module.exports = async ({ req, res, error }) => {
       return await handleVerifySharePassword(databases, body, res);
     }
     if (action === 'create-portfolio-chat-session') {
-      return await handleCreatePortfolioChatSession(databases, body, res);
+      return await handleCreatePortfolioChatSession(databases, body, req, res);
     }
     if (action === 'ask-portfolio') {
       return await handleAskPortfolio(databases, body, res);
