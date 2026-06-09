@@ -17,7 +17,7 @@
  *   credit_locks              â€” mutex documents for credit check-and-deduct (FIX-12)
  */
 
-const { Client, Databases, IndexType } = require('node-appwrite');
+const { Client, Databases, DatabasesIndexType: IndexType } = require('node-appwrite');
 
 const ENDPOINT   = process.env.APPWRITE_ENDPOINT   || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_FUNCTION_PROJECT_ID || '';
