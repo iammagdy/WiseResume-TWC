@@ -7,17 +7,17 @@
  *   APPWRITE_API_KEY=<key> APPWRITE_PROJECT_ID=<id> node scripts/setup-security-collections.cjs
  *
  * All collections are created in the "main" database.
- * The script is idempotent — it skips creation if the collection already exists.
+ * The script is idempotent â€” it skips creation if the collection already exists.
  *
  * Collections created:
- *   admin_audit_log           — append-only log for admin impersonation events (FIX-08)
- *   email_rate_limits         — persistent email rate limit counters per hashed IP (FIX-10)
- *   portfolio_session_rate_limits — per-IP portfolio chat session creation caps (FIX-09)
- *   portfolio_daily_usage     — per-portfolio daily AI question counters (FIX-09)
- *   credit_locks              — mutex documents for credit check-and-deduct (FIX-12)
+ *   admin_audit_log           â€” append-only log for admin impersonation events (FIX-08)
+ *   email_rate_limits         â€” persistent email rate limit counters per hashed IP (FIX-10)
+ *   portfolio_session_rate_limits â€” per-IP portfolio chat session creation caps (FIX-09)
+ *   portfolio_daily_usage     â€” per-portfolio daily AI question counters (FIX-09)
+ *   credit_locks              â€” mutex documents for credit check-and-deduct (FIX-12)
  */
 
-const { Client, Databases, Permission, Role, IndexType } = require('node-appwrite');
+const { Client, Databases, IndexType } = require('node-appwrite');
 
 const ENDPOINT   = process.env.APPWRITE_ENDPOINT   || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_FUNCTION_PROJECT_ID || '';
@@ -42,14 +42,11 @@ async function ensureCollection(collectionId, name, attributes, indexes = []) {
   }
 
   if (exists) {
-    console.log(`[setup] Collection "${collectionId}" already exists — skipping`);
+    console.log(`[setup] Collection "${collectionId}" already exists â€” skipping`);
     return;
   }
 
-  await db.createCollection(DB_ID, collectionId, name, [
-    Permission.read(Role.any()),
-    Permission.write(Role.any()),
-  ]);
+  await db.createCollection(DB_ID, collectionId, name, []);
   console.log(`[setup] Created collection "${collectionId}"`);
 
   for (const attr of attributes) {

@@ -9,11 +9,11 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
-// ─── Phase-4: Cold-start startup validation ───────────────────────────────────
+// â”€â”€â”€ Phase-4: Cold-start startup validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 (function performStartupValidation() {
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
   if (!apiKey) {
-    console.error('[ALERT] admin-devkit-data: APPWRITE_API_KEY not configured — all DB operations will fail');
+    console.error('[ALERT] admin-devkit-data: APPWRITE_API_KEY not configured â€” all DB operations will fail');
   }
 })();
 
@@ -51,6 +51,14 @@ function getSigningSecret() {
 
 function signToken(payload) {
   const secret = getSigningSecret();
+  const encoded = base64url(JSON.stringify(payload));
+  const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+
+function signAdminTestNonce(payload) {
+  const secret = process.env.ADMIN_TEST_HMAC_SECRET;
+  if (!secret) throw new Error('ADMIN_TEST_HMAC_SECRET is not configured');
   const encoded = base64url(JSON.stringify(payload));
   const sig = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
   return `${encoded}.${sig}`;
@@ -328,7 +336,7 @@ async function handleDiagnostics(log, error) {
   return { checkedAt: isoNow(), overallStatus: worstStatus(items), items };
 }
 
-// ─── Provider pings (shared by mission-control and ping-providers) ─────────────
+// â”€â”€â”€ Provider pings (shared by mission-control and ping-providers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PROVIDER_PING_CONFIGS = [
   { key: 'OPENROUTER_KEY_1', provider: 'openrouter', url: 'https://openrouter.ai/api/v1/models' },
@@ -770,7 +778,7 @@ async function handleListUsersPage(body, log) {
         is_suspended: doc.is_suspended ?? false,
         suspension_reason: doc.suspension_reason ?? null,
         // Use the ai_credits document limit when present; fall back to plan default
-        // so free/pro users without a credits doc show their actual cap (not ∞).
+        // so free/pro users without a credits doc show their actual cap (not âˆž).
         daily_limit: c.daily_limit != null ? c.daily_limit : (PLAN_CREDIT_DEFAULTS[plan_name] ?? 5),
         credits_used_today: c.daily_usage ?? 0,
         trial_plan: s.trial_plan ?? null,
@@ -945,19 +953,19 @@ async function handleDeleteRoutingConfig(body, log) {
   return { deleted: true };
 }
 
-// ─── issue-test-nonce: short-lived signed nonce for gateway admin tests ───────
+// â”€â”€â”€ issue-test-nonce: short-lived signed nonce for gateway admin tests â”€â”€â”€â”€â”€â”€â”€
 
 async function handleIssueTestNonce(body, log) {
   const featureId = String(body.featureId || '').trim();
   if (!featureId) throw new Error('Missing featureId');
   const now = Date.now();
-  const exp = now + 60_000; // 60-second TTL — single-use window
-  const nonce = signToken({ purpose: 'gateway-admin-test', featureId, iat: now, exp });
+  const exp = now + 60_000; // 60-second TTL â€” single-use window
+  const nonce = signAdminTestNonce({ purpose: 'gateway-admin-test', featureId, iat: now, exp });
   log(`issue-test-nonce: featureId=${featureId} exp=${new Date(exp).toISOString()}`);
   return { nonce, expiresAt: new Date(exp).toISOString() };
 }
 
-// ─── list-routes: merged static defaults + DB overrides, no API keys ─────────
+// â”€â”€â”€ list-routes: merged static defaults + DB overrides, no API keys â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function handleListRoutes(log) {
   // Mirrors FEATURE_ROUTES in appwrite-hubs/ai-gateway/src/main.js
@@ -1025,7 +1033,7 @@ async function handleListRoutes(log) {
   return { routes, overrideCount: Object.keys(overrideMap).length, checkedAt: isoNow() };
 }
 
-// ─── Phase 9: deployed source hash storage ────────────────────────────────────
+// â”€â”€â”€ Phase 9: deployed source hash storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Stores { hubId: hash } in app_settings key 'fn_deployed_hashes'.
 // Set by the deploy pipeline (or manually) when a hub is deployed.
 // DevKit compares against sourceHashes.generated.json to detect drift.
@@ -1095,16 +1103,16 @@ async function handleListErrors(body) {
   return { errors: res.documents, total: res.total, missing: !!res.error, error: res.error || null };
 }
 
-// ─── Helper: find profile doc by user_id ────────────────────────────────────
+// â”€â”€â”€ Helper: find profile doc by user_id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function getProfileDoc(databases, userId) {
   const res = await safeList(databases, 'profiles', [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
   return res.documents[0] || null;
 }
 
-// ─── Admin mutation handlers ─────────────────────────────────────────────────
+// â”€â”€â”€ Admin mutation handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ─── Plan change helpers: notification + email ────────────────────────────────
+// â”€â”€â”€ Plan change helpers: notification + email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PLAN_LABELS = { free: 'Free', pro: 'Pro', premium: 'Premium' };
 const PLAN_RANK = { free: 0, pro: 1, premium: 2 };
@@ -1129,7 +1137,7 @@ function planUpgradeEmailHtml(userEmail, planLabel, durationLabel) {
     ? `Your ${planLabel} trial has started`
     : `You've been upgraded to ${planLabel}`;
   const body = durationLabel
-    ? `<p style="margin:0 0 16px">Your account has been granted a <strong>${planLabel} trial</strong> for <strong>${durationLabel}</strong>. All ${planLabel} features are now unlocked — enjoy!</p>`
+    ? `<p style="margin:0 0 16px">Your account has been granted a <strong>${planLabel} trial</strong> for <strong>${durationLabel}</strong>. All ${planLabel} features are now unlocked â€” enjoy!</p>`
     : `<p style="margin:0 0 16px">Your WiseResume plan has been set to <strong>${planLabel}</strong>. All ${planLabel} features are now active on your account.</p>`;
   const content = `
     <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">${heading}</h2>
@@ -1144,7 +1152,7 @@ function planUpgradeEmailHtml(userEmail, planLabel, durationLabel) {
   </div>
   <div style="padding:32px;">${content}</div>
   <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">
-    WiseResume · The Wise Cloud · thewise.cloud
+    WiseResume Â· The Wise Cloud Â· thewise.cloud
   </div>
 </div>
 </body></html>`;
@@ -1177,17 +1185,17 @@ async function createPlanNotification(databases, userId, planLabel, durationLabe
 async function sendPlanUpgradeEmail(userId, planLabel, durationLabel, log) {
   try {
     if (!process.env.RESEND_API_KEY) {
-      log('[warn] sendPlanUpgradeEmail: RESEND_API_KEY not set — skipping email');
+      log('[warn] sendPlanUpgradeEmail: RESEND_API_KEY not set â€” skipping email');
       return;
     }
     const user = await getUser(userId);
     const email = user.email;
-    if (!email) { log('[warn] sendPlanUpgradeEmail: user has no email — skipping'); return; }
+    if (!email) { log('[warn] sendPlanUpgradeEmail: user has no email â€” skipping'); return; }
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
     const fromName  = process.env.RESEND_FROM_NAME  || 'WiseResume';
     const subject = durationLabel
-      ? `Your ${planLabel} trial has started — WiseResume`
-      : `You've been upgraded to ${planLabel} — WiseResume`;
+      ? `Your ${planLabel} trial has started â€” WiseResume`
+      : `You've been upgraded to ${planLabel} â€” WiseResume`;
     await resendRequest('POST', '/emails', {
       from: `${fromName} <${fromEmail}>`,
       to:   email,
@@ -1224,7 +1232,7 @@ function buildBrandedEmail({
     ${ctaHtml ? `<div style="margin:24px 0;">${ctaHtml}</div>` : ''}
   </div>
   <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;">
-    ${footerNote || 'WiseResume · The Wise Cloud · thewise.cloud'}
+    ${footerNote || 'WiseResume Â· The Wise Cloud Â· thewise.cloud'}
   </div>
 </div>
 </body></html>`;
@@ -1336,7 +1344,7 @@ async function sendPlanChangeEmail({ userId, previousPlan, newPlan, changeType, 
   }
 }
 
-// ─── Handlers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function handleSetPlan(body, log) {
   const { databases } = getClients();
@@ -1749,7 +1757,7 @@ async function handleToggleAppSetting(body, log) {
   }
 }
 
-// ─── get-key-modes / set-key-mode: slot pinning config ───────────────────────
+// â”€â”€â”€ get-key-modes / set-key-mode: slot pinning config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const VALID_KEY_MODES = new Set(['active', 'pinned', 'standby', 'disabled']);
 
@@ -1819,7 +1827,7 @@ async function handleApproveWisehireWaitlist(body, log) {
   const name = entry.name || 'there';
 
   // Step 1: Look up existing Appwrite Auth user by email.
-  // Fails closed — any lookup error aborts before we modify anything.
+  // Fails closed â€” any lookup error aborts before we modify anything.
   let existingUserId = null;
   const userSearch = await listUsers([sdk.Query.equal('email', email), sdk.Query.limit(1)]);
   const foundUser = (userSearch.users || [])[0] || null;
@@ -1831,7 +1839,7 @@ async function handleApproveWisehireWaitlist(body, log) {
   }
 
   // Step 2: Provision WiseHire access for an existing user.
-  // Errors here are fatal — the waitlist entry is preserved for admin retry.
+  // Errors here are fatal â€” the waitlist entry is preserved for admin retry.
   let approvalOutcome = 'fresh_invite_sent';
   if (existingUserId) {
     const profile = await getProfileDoc(databases, existingUserId);
@@ -1839,7 +1847,7 @@ async function handleApproveWisehireWaitlist(body, log) {
       await databases.updateDocument(DB_ID, 'profiles', profile.$id, { account_type: 'recruiter' });
       log(`approve-wisehire-waitlist: set account_type=recruiter on profile ${profile.$id}`);
     } else {
-      log(`approve-wisehire-waitlist: no profile found for ${existingUserId} — skipping account_type update`);
+      log(`approve-wisehire-waitlist: no profile found for ${existingUserId} â€” skipping account_type update`);
     }
 
     // Require approved_at to be present in the wisehire_accounts Appwrite collection schema.
@@ -1864,7 +1872,7 @@ async function handleApproveWisehireWaitlist(body, log) {
     approvalOutcome = 'existing_user_upgraded';
   }
 
-  // Step 3: Send approval email — sign-in link for existing users, sign-up link for new.
+  // Step 3: Send approval email â€” sign-in link for existing users, sign-up link for new.
   let emailSent = false;
   if (email && process.env.RESEND_API_KEY) {
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'hello@thewise.cloud';
@@ -1878,11 +1886,11 @@ async function handleApproveWisehireWaitlist(body, log) {
     if (existingUserId) {
       actionUrl   = `${PRODUCTION_URL}/auth/sign-in`;
       actionLabel = 'Sign in to WiseHire';
-      bodyText    = `Great news — your WiseHire waitlist application has been approved! Your existing account has been upgraded with recruiter access. Sign in now to start finding and screening top talent.`;
+      bodyText    = `Great news â€” your WiseHire waitlist application has been approved! Your existing account has been upgraded with recruiter access. Sign in now to start finding and screening top talent.`;
     } else {
       actionUrl   = `${PRODUCTION_URL}/auth/sign-up?email=${encodeURIComponent(email)}&product=wisehire`;
       actionLabel = 'Create your WiseHire account';
-      bodyText    = `Great news — your WiseHire waitlist application has been approved! Click the link below to create your account and start using WiseHire to find and screen top talent.`;
+      bodyText    = `Great news â€” your WiseHire waitlist application has been approved! Click the link below to create your account and start using WiseHire to find and screen top talent.`;
     }
 
     await resendRequest('POST', '/emails', {
@@ -1919,7 +1927,7 @@ async function handleApproveWisehireWaitlist(body, log) {
     outcome: approvalOutcome,
     existing_user_id: existingUserId,
   });
-  log(`approve-wisehire-waitlist: approved ${waitlist_id} (${email}) → ${approvalOutcome}`);
+  log(`approve-wisehire-waitlist: approved ${waitlist_id} (${email}) â†’ ${approvalOutcome}`);
   return { approved: true, email, emailSent, outcome: approvalOutcome, existingUserId };
 }
 
@@ -1950,7 +1958,7 @@ async function handleDismissWisehireWaitlist(body, log) {
 }
 
 /**
- * Phase 4 — Admin AI request analytics.
+ * Phase 4 â€” Admin AI request analytics.
  * Queries the ai_request_logs collection written by the ai-gateway on every
  * real (non-cached) AI call.  Returns recent logs, per-feature and per-provider
  * aggregates, credit totals, and idempotency hit rate.
@@ -2101,7 +2109,7 @@ async function handleSendVerificationEmail(body, log) {
       return { ok: true, email: targetUser.email, expires_at: expires };
     }
 
-    // Resend not configured — fall through to direct verification
+    // Resend not configured â€” fall through to direct verification
     log(`send-verification-email: RESEND_API_KEY not set, using direct admin verification for ${target_user_id}`);
   } catch (err) {
     log(`send-verification-email: REST token creation failed (${err.message}), falling back to direct verify`);
@@ -2114,7 +2122,7 @@ async function handleSendVerificationEmail(body, log) {
   return { ok: true, directly_verified: true, email: targetUser.email };
 }
 
-// ─── Analytics: aggregate visitor_events for AnalyticsPanel ─────────────────
+// â”€â”€â”€ Analytics: aggregate visitor_events for AnalyticsPanel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function analyticsRangeStart(range) {
   const map = {
