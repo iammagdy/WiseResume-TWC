@@ -117,12 +117,72 @@ Navigate to: Appwrite Console → Databases → main → Collections → [each] 
 
 ---
 
+## FIX-16 — New Security Collections (WR-2026-018)
+
+**Date verified:** ___________
+**Verified by:** ___________
+
+Run `APPWRITE_API_KEY=<key> APPWRITE_PROJECT_ID=<id> node scripts/setup-security-collections.cjs` once after deploying Batch 2.
+
+| Collection | Purpose | Status |
+|---|---|---|
+| `admin_audit_log` | Impersonation event log (FIX-08) | Created / Pre-existing |
+| `email_rate_limits` | Persistent email rate limit counters (FIX-10) | Created / Pre-existing |
+| `portfolio_session_rate_limits` | Per-IP portfolio session caps (FIX-09) | Created / Pre-existing |
+| `portfolio_daily_usage` | Per-portfolio daily question caps (FIX-09) | Created / Pre-existing |
+| `credit_locks` | Credit check-and-deduct mutex (FIX-12) | Created / Pre-existing |
+
+**Outcome:** PASS / FAIL — ___________
+
+---
+
+## FIX-20 — appwrite.json Function ID Verification (WR-2026-020)
+
+**Date verified:** ___________
+**Verified by:** ___________
+
+Navigate to: Appwrite Console → Functions → [each function] → Settings → Function ID
+
+Most functions use human-readable slug IDs (e.g. `ai-gateway`). Verify that each slug in `appwrite.json`
+matches the actual Function ID shown in the Console. Update `appwrite.json` for any that differ.
+
+Note: `admin-sentry` already has a real 20-char hex ID (`6a0760710000ff231048`).
+
+| appwrite.json functionId | Console Function ID | Match? |
+|---|---|---|
+| `ai-gateway` | | |
+| `admin-deploy-hubs` | | |
+| `admin-devkit-data` | | |
+| `admin-email` | | |
+| `admin-feature-flags` | | |
+| `admin-impersonate` | | |
+| `admin-moderation` | | |
+| `admin-onboarding-funnel` | | |
+| `admin-portfolio-usernames` | | |
+| `admin-testmail` | | |
+| `admin-visitor-analytics` | | |
+| `ai-health` | | |
+| `coupons` | | |
+| `email-service` | | |
+| `inspect-ai-keys` | | |
+| `job-import` | | |
+| `public-share` | | |
+| `resume-section-ai` | | |
+| `wisehire-gateway` | | |
+| `6a0760710000ff231048` (admin-sentry) | 6a0760710000ff231048 | PRE-CONFIRMED |
+
+**Outcome:** PASS / FAIL / PARTIAL — ___________
+
+---
+
 ## Post-Console Sign-Off
 
-All four checks above must be PASS before Batch 1A code changes are deployed to production.
+All checks above must be PASS before the corresponding batch is deployed to production.
 
-- [ ] FIX-01 complete
+- [ ] FIX-01 complete (update job-import to `users` now that FIX-11 is deployed)
 - [ ] FIX-02 complete
 - [ ] FIX-03 complete
 - [ ] FIX-04 complete
-- [ ] Ready to proceed with Batch 1A
+- [ ] FIX-16 complete (run setup-security-collections.cjs)
+- [ ] FIX-20 complete (verify appwrite.json function IDs)
+- [ ] Ready to proceed with Batch 1A / 2 deployment
