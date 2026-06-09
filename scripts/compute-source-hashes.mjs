@@ -46,7 +46,7 @@ for (const hub of HUBS) {
   const mainPath = join(ROOT, 'appwrite-hubs', hub, 'src', 'main.js');
   if (existsSync(mainPath)) {
     const content = readFileSync(mainPath, 'utf8').replace(/\r\n/g, '\n');
-    hashes[hub] = createHash('sha256').update(content).digest('hex').slice(0, 16);
+    hashes[hub] = createHash('sha256').update(content).digest('hex');
   } else {
     hashes[hub] = null;
   }

@@ -1,9 +1,11 @@
 'use strict';
 
 const axios = require('axios');
+const dns = require('dns');
 const { URL } = require('url');
+const { Client, Account } = require('node-appwrite');
 
-// ─── SSRF protection ───────────────────────────────────────────────────────────
+// â”€â”€â”€ SSRF protection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const BLOCKED_RANGES = [
   /^127\./,
@@ -12,22 +14,57 @@ const BLOCKED_RANGES = [
   /^172\.(1[6-9]|2\d|3[01])\./,
   /^169\.254\./,
   /^::1$/,
-  /^fd/,
+  /^fc[0-9a-f][0-9a-f]:/i,
+  /^fd/i,
   /^localhost$/i,
 ];
+
+function isBlockedIp(ip) {
+  return BLOCKED_RANGES.some(re => re.test(ip));
+}
 
 function isSafeUrl(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
     const host = parsed.hostname;
-    return !BLOCKED_RANGES.some(re => re.test(host));
+    return !isBlockedIp(host);
   } catch {
     return false;
   }
 }
 
-// ─── Provider pool ─────────────────────────────────────────────────────────────
+async function isSafeUrlDnsResolved(rawUrl) {
+  if (!isSafeUrl(rawUrl)) return false;
+  try {
+    const { hostname } = new URL(rawUrl);
+    const { address } = await dns.promises.lookup(hostname, { family: 4 });
+    return !isBlockedIp(address);
+  } catch {
+    return false;
+  }
+}
+
+async function authenticateRequest(body, req) {
+  const embeddedHeaders = (body && typeof body.__headers === 'object' && body.__headers) || {};
+  const authHeader =
+    (typeof embeddedHeaders.Authorization === 'string' ? embeddedHeaders.Authorization : '') ||
+    (typeof embeddedHeaders['X-Appwrite-JWT'] === 'string' ? `Bearer ${embeddedHeaders['X-Appwrite-JWT']}` : '') ||
+    (typeof req.headers?.authorization === 'string' ? req.headers.authorization : '');
+  const jwt = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!jwt) return { ok: false };
+  try {
+    const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+    const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '';
+    const client = new Client().setEndpoint(endpoint).setProject(projectId).setJWT(jwt);
+    const user = await new Account(client).get();
+    return { ok: true, userId: user.$id };
+  } catch {
+    return { ok: false };
+  }
+}
+
+// â”€â”€â”€ Provider pool â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
@@ -70,7 +107,7 @@ async function callLLM(messages, pool) {
   throw lastError;
 }
 
-// ─── HTML extraction ───────────────────────────────────────────────────────────
+// â”€â”€â”€ HTML extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function extractOpenGraph(html) {
   const get = (prop) => {
@@ -108,7 +145,7 @@ function extractBodyText(html, maxChars = 3000) {
     .slice(0, maxChars);
 }
 
-// ─── Appwrite document creation ────────────────────────────────────────────────
+// â”€â”€â”€ Appwrite document creation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function createJobDocument(userId, job, sourceUrl) {
   const endpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -161,7 +198,7 @@ async function createJobDocument(userId, job, sourceUrl) {
   }
 }
 
-// ─── Main handler ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 module.exports = async ({ req, res, log, error }) => {
   let body;
@@ -171,13 +208,20 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ ok: false, error: 'Invalid request body' }, 400);
   }
 
-  const { url, userId } = body || {};
+  const auth = await authenticateRequest(body, req);
+  if (!auth.ok) {
+    return res.json({ ok: false, error: 'Authentication required.' }, 401);
+  }
+
+  const { url } = body || {};
+  const userId = auth.userId;
 
   if (!url || typeof url !== 'string') {
     return res.json({ ok: false, error: 'url is required' }, 400);
   }
 
-  if (!isSafeUrl(url)) {
+  const urlSafe = await isSafeUrlDnsResolved(url);
+  if (!urlSafe) {
     return res.json({ ok: false, error: 'Invalid or blocked URL' }, 400);
   }
 
@@ -186,7 +230,7 @@ module.exports = async ({ req, res, log, error }) => {
   try {
     const response = await axios.get(url, {
       timeout: 8000,
-      maxRedirects: 5,
+      maxRedirects: 0,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; WiseResume/1.0; +https://thewise.cloud)',
         'Accept': 'text/html,application/xhtml+xml',
@@ -283,7 +327,7 @@ ${context}`,
     if (savedDoc) log(`Job document created: ${savedDoc.$id}`);
   } catch (err) {
     error(`DB write failed: ${err.message}`);
-    // Still return ok:true with the parsed data — frontend will attempt its own write
+    // Still return ok:true with the parsed data â€” frontend will attempt its own write
   }
 
   return res.json({

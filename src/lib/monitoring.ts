@@ -33,7 +33,7 @@ export function initMonitoring(): void {
     dsn: DSN,
     environment: ENV,
     release: __APP_VERSION__,
-    sendDefaultPii: true,
+    sendDefaultPii: false,
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.browserProfilingIntegration(),
@@ -55,9 +55,17 @@ export function initMonitoring(): void {
         if (firstFrame?.filename?.includes('node_modules') && ENV === 'production') {
           return null;
         }
+        event.exception.values?.forEach((v) => {
+          if (v.value && v.value.length > 200) {
+            v.value = v.value.slice(0, 200) + ' ...[truncated]';
+          }
+        });
       }
       if (event.request?.data) {
         delete event.request.data;
+      }
+      if (event.user) {
+        event.user = { id: event.user.id };
       }
       if (Array.isArray(event.breadcrumbs)) {
         event.breadcrumbs = event.breadcrumbs.filter((b) => {

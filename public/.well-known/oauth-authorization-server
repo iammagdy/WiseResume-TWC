@@ -1,15 +1,12 @@
 {
-  "issuer": "https://thewisecloud.kinde.com",
-  "authorization_endpoint": "https://thewisecloud.kinde.com/oauth2/auth",
-  "token_endpoint": "https://thewisecloud.kinde.com/oauth2/token",
-  "registration_endpoint": "https://thewisecloud.kinde.com/oauth2/register",
-  "introspection_endpoint": "https://thewisecloud.kinde.com/oauth2/introspect",
-  "revocation_endpoint": "https://thewisecloud.kinde.com/oauth2/revoke",
-  "jwks_uri": "https://thewisecloud.kinde.com/.well-known/jwks",
-  "response_types_supported": ["code", "token", "id_token"],
-  "grant_types_supported": ["authorization_code", "refresh_token", "client_credentials"],
-  "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic", "none"],
-  "scopes_supported": ["openid", "profile", "email", "offline"],
-  "code_challenge_methods_supported": ["S256", "plain"],
-  "service_documentation": "https://kinde.com/docs/"
+  "issuer": "https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192",
+  "authorization_endpoint": "https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/google",
+  "token_endpoint": "https://fra.cloud.appwrite.io/v1/account/sessions/token",
+  "jwks_uri": "https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192/.well-known/jwks.json",
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code"],
+  "token_endpoint_auth_methods_supported": ["client_secret_post"],
+  "scopes_supported": ["openid", "profile", "email"],
+  "code_challenge_methods_supported": ["S256"],
+  "service_documentation": "https://appwrite.io/docs"
 }

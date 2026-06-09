@@ -296,8 +296,8 @@ function devKitToken() {
 }
 
 function gatewayInternalToken(purpose) {
-    const secret = process.env.APPWRITE_API_KEY;
-    if (!secret) throw new Error('APPWRITE_API_KEY is required for signed ai-gateway smoke tests');
+    const secret = process.env.GATEWAY_SMOKE_SECRET;
+    if (!secret) throw new Error('GATEWAY_SMOKE_SECRET is required for signed ai-gateway smoke tests');
     const now = Date.now();
     const payload = { purpose, iat: now, exp: now + (5 * 60 * 1000), source: 'deploy-script' };
     const encoded = base64url(JSON.stringify(payload));
@@ -454,6 +454,10 @@ async function ensureAiGatewayVariables() {
         ['DD_SITE', process.env.DD_SITE],
         ['ADMIN_EMAIL', process.env.ADMIN_EMAIL],
         ['RESEND_API_KEY', process.env.RESEND_API_KEY],
+        ['TURNSTILE_SECRET_KEY', process.env.TURNSTILE_SECRET_KEY],
+        ['PUBLIC_SHARE_TOKEN_SECRET', process.env.PUBLIC_SHARE_TOKEN_SECRET],
+        ['GATEWAY_SMOKE_SECRET', process.env.GATEWAY_SMOKE_SECRET],
+        ['ADMIN_TEST_HMAC_SECRET', process.env.ADMIN_TEST_HMAC_SECRET],
     ];
     for (const [key, value] of vars) await ensureVariable('ai-gateway', key, value);
 }
@@ -512,6 +516,7 @@ async function ensureSharedAdminVariables(fnIds) {
             ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
             ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
             ['ADMIN_EMAIL', process.env.ADMIN_EMAIL],
+            ['ADMIN_TEST_HMAC_SECRET', process.env.ADMIN_TEST_HMAC_SECRET],
         ]) {
             await ensureVariable(fnId, key, value);
         }
@@ -563,6 +568,9 @@ async function ensureCouponsWiseHireVariables(fnIds) {
             ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME],
         ]) {
             await ensureVariable(fnId, key, value);
+        }
+        if (fnId === 'public-share') {
+            await ensureVariable(fnId, 'PUBLIC_SHARE_TOKEN_SECRET', process.env.PUBLIC_SHARE_TOKEN_SECRET);
         }
     }
 }
@@ -642,8 +650,8 @@ async function syncVariablesForHubs(hubIds) {
     if (selectedAdminTargets.length) await ensureSharedAdminVariables(selectedAdminTargets);
     if (selected.has('admin-sentry')) await ensureAdminSentryVariables();
 
-    if (selected.has('admin-impersonate')) {
-        await ensureVariable('admin-impersonate', 'IMPERSONATION_HMAC_SECRET', process.env.IMPERSONATION_HMAC_SECRET);
+    for (const fnId of ['admin-impersonate', 'admin-devkit-data'].filter(id => selected.has(id))) {
+        await ensureVariable(fnId, 'IMPERSONATION_HMAC_SECRET', process.env.IMPERSONATION_HMAC_SECRET);
     }
 
     const emailTargets = ['admin-email', 'admin-testmail', 'admin-devkit-data'].filter(id => selected.has(id));

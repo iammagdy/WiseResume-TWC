@@ -14,8 +14,84 @@ const PLAN_DAILY_LIMITS = {
   premium: -1,
 };
 const _serverRateLimits = new Map();
+const IDEMPOTENCY_CACHE_COLLECTION_ID = 'idempotency_cache';
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000;
+const IDEMPOTENCY_RESULT_MAX_BYTES = 60_000;
+const crypto = require('crypto');
+let _idempotencyCollectionMissing = false;
 
-// ─── Provider helpers ──────────────────────────────────────────────────────────
+function computeRsaContentKey(userId, aiAction, section, action, currentContent) {
+  const payload = JSON.stringify({ userId, aiAction, section: section || '', action: action || '', content: currentContent });
+  return crypto.createHash('sha256').update(payload).digest('hex');
+}
+
+async function checkIdempotencyCache(db, key) {
+  try {
+    const res = await db.listDocuments(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, [
+      sdk.Query.equal('key', [key]),
+      sdk.Query.limit(1),
+    ]);
+    const doc = res.documents?.[0];
+    if (!doc) return { hit: false };
+    const expiresAt = new Date(doc.expires_at).getTime();
+    if (Date.now() > expiresAt) {
+      try { await db.deleteDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, doc.$id); } catch {}
+      return { hit: false };
+    }
+    if (doc.status === 'success' && doc.has_result && doc.cached_result) {
+      return { hit: true, status: 'success', result: JSON.parse(doc.cached_result), docId: doc.$id };
+    }
+    if (doc.status === 'pending') {
+      return { hit: true, status: 'pending', docId: doc.$id };
+    }
+    return { hit: false };
+  } catch (err) {
+    if (!_idempotencyCollectionMissing) {
+      _idempotencyCollectionMissing = true;
+      console.warn(`[resume-section-ai][warn] idempotency_cache unavailable: ${err.message}`);
+    }
+    return { hit: false };
+  }
+}
+
+async function createIdempotencyPending(db, key, userId) {
+  const docId = `rsa_${key.slice(0, 32)}`;
+  try {
+    const expiresAt = new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString();
+    const doc = await db.createDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+      key,
+      user_id: userId,
+      status: 'pending',
+      expires_at: expiresAt,
+      has_result: false,
+      cached_result: null,
+    });
+    return { docId: doc.$id, conflict: false };
+  } catch (err) {
+    if (err.code === 409 || /already exists/i.test(err.message || '')) return { docId, conflict: true };
+    return { docId: null, conflict: false };
+  }
+}
+
+async function updateIdempotencySuccess(db, docId, resultPayload) {
+  if (!docId) return;
+  try {
+    const resultStr = JSON.stringify(resultPayload);
+    const hasResult = resultStr.length <= IDEMPOTENCY_RESULT_MAX_BYTES;
+    await db.updateDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+      status: 'success',
+      has_result: hasResult,
+      cached_result: hasResult ? resultStr : null,
+    });
+  } catch {}
+}
+
+async function deleteIdempotencyDoc(db, docId) {
+  if (!docId) return;
+  try { await db.deleteDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId); } catch {}
+}
+
+// --- Provider helpers ----------------------------------------------------------
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
@@ -273,7 +349,7 @@ async function callLLM(messages, pool) {
   throw lastError;
 }
 
-// ─── Action-specific prompt builders ─────────────────────────────────────────
+// --- Action-specific prompt builders -----------------------------------------
 
 const ACTION_INSTRUCTIONS = {
   improve:               'Improve this resume section to be more impactful, professional, and results-oriented.',
@@ -285,7 +361,7 @@ const ACTION_INSTRUCTIONS = {
   generate_bullets:      'Convert this resume content into strong, action-verb-led bullet points with measurable outcomes.',
   generate:              'Generate professional, ATS-optimized content for this resume section based on the context provided.',
   tailor:                'Rewrite this resume section to closely match the target job description, using its exact keywords and terminology.',
-  tailor_to_job:         'Rewrite this resume section to closely match the target job description, using its exact keywords and terminology. Preserve all facts — never fabricate experience, metrics, or skills.',
+  tailor_to_job:         'Rewrite this resume section to closely match the target job description, using its exact keywords and terminology. Preserve all facts - never fabricate experience, metrics, or skills.',
   find_skill_gaps:       'Analyse the job description and return ONLY the skills the candidate is missing that are strongly required for the role. Do not modify existing skills. CRITICAL: Return ONLY skills the candidate does NOT already have. Return an empty array if all required skills are present.',
   suggest_certifications:'Suggest the most relevant professional certifications for this candidate based on their background and the job description provided.',
   'fill-gap':            'Create a professional resume entry that honestly describes a career gap period. Make it positive and forward-looking.',
@@ -343,7 +419,7 @@ ${currentContentDisplay}`;
 // Shared system prompt for tech suggestions
 const SUGGEST_TECH_SYSTEM = `You are an expert software engineer. Suggest the most relevant, specific technologies for THIS exact project based on all context provided.
 
-Return ONLY a valid JSON array of strings — no markdown fences, no explanation, no extra text:
+Return ONLY a valid JSON array of strings - no markdown fences, no explanation, no extra text:
 ["Technology1", "Technology2", "Technology3"]
 
 Rules:
@@ -386,7 +462,7 @@ function extractKnownStack(resumeContext) {
 
 /**
  * Build a concise structured candidate profile from the resume object.
- * Replaces the old raw JSON.stringify().slice(0,1000) approach — gives the
+ * Replaces the old raw JSON.stringify().slice(0,1000) approach - gives the
  * LLM the key signal (name, title, recent role, skills, education) without
  * wasting tokens on low-value fields.
  */
@@ -409,7 +485,7 @@ function buildResumeContextBlock(resume) {
         resume.education[0].degree || '',
         resume.education[0].field  || '',
         resume.education[0].institution || resume.education[0].school || '',
-      ].filter(Boolean).join(' — ')
+      ].filter(Boolean).join(' - ')
     : '';
   return [
     name      && `Candidate: ${name}`,
@@ -420,15 +496,15 @@ function buildResumeContextBlock(resume) {
   ].filter(Boolean).join('\n');
 }
 
-// ─── Tier 2: Clarifying-question response builders ────────────────────────────
+// --- Tier 2: Clarifying-question response builders ----------------------------
 
 function buildSummaryQuestionsResponse() {
   return {
     type: 'questions',
     questions: [
       'What is your current job title or the role you are targeting?',
-      'What are your 2–3 most important professional strengths or achievements?',
-      'Who is the audience for this resume — a specific industry, company, or role level?',
+      'What are your 2-3 most important professional strengths or achievements?',
+      'Who is the audience for this resume - a specific industry, company, or role level?',
     ],
   };
 }
@@ -438,7 +514,7 @@ function buildSkillsQuestionsResponse() {
     type: 'questions',
     questions: [
       'What is your primary field or domain? (e.g. front-end engineering, data science, product management)',
-      'What level are you at — junior, mid, senior, or lead/director?',
+      'What level are you at - junior, mid, senior, or lead/director?',
       'Are there specific technologies or tools you want to highlight or avoid?',
     ],
   };
@@ -449,7 +525,7 @@ function buildAddMetricsQuestionsResponse() {
     type: 'questions',
     questions: [
       'What was the scale of the team, project, or budget you managed?',
-      'Did this work lead to measurable outcomes — faster delivery, cost savings, revenue, user growth?',
+      'Did this work lead to measurable outcomes - faster delivery, cost savings, revenue, user growth?',
       'Over what time period did these results occur?',
     ],
   };
@@ -512,7 +588,7 @@ function buildSuggestTechQuestionsResponse() {
     type: 'questions',
     questions: [
       'What domain or type is this project? (e.g. web app, mobile app, ML model, data pipeline, DevOps tool, CLI)',
-      'What is the main purpose or problem this project solves? (1–2 sentences)',
+      'What is the main purpose or problem this project solves? (1-2 sentences)',
       'What is the target platform or deployment environment? (e.g. browser, iOS/Android, cloud/server, embedded)',
     ],
   };
@@ -546,7 +622,7 @@ function parseSuggestTechResponse(rawContent) {
 
   // 3. Walk the string finding ALL bracket-balanced JSON arrays; pick the
   //    largest valid one. This handles LLMs that add prose before/after the
-  //    array or emit multiple small arrays — we want the richest result.
+  //    array or emit multiple small arrays - we want the richest result.
   let best = [];
   let startIdx = 0;
   while (startIdx < rawContent.length) {
@@ -590,7 +666,7 @@ Return ONLY valid JSON array of exactly 3 objects, no markdown:
   }
 ]`;
   const userPrompt = `Career gap details:
-Gap period: ${gap ? `${gap.start} – ${gap.end}` : 'unspecified'}
+Gap period: ${gap ? `${gap.start} - ${gap.end}` : 'unspecified'}
 Category: ${category || 'general'}
 User context: ${userDescription || 'none provided'}
 
@@ -622,7 +698,7 @@ Gap reason: ${reason || 'unspecified'}`;
   ];
 }
 
-// ─── Response parsers ─────────────────────────────────────────────────────────
+// --- Response parsers ---------------------------------------------------------
 
 function parseEnhanceResponse(rawContent, currentContent) {
   let parsed;
@@ -649,11 +725,13 @@ function parseEnhanceResponse(rawContent, currentContent) {
   };
 }
 
-// ─── Main handler ──────────────────────────────────────────────────────────────
+// --- Main handler --------------------------------------------------------------
 
 module.exports = async ({ req, res, log, error }) => {
+  let db = null;
+  let idemDocId = null;
 
-  // ── CORS pre-flight ──────────────────────────────────────────────────────────
+  // -- CORS pre-flight ----------------------------------------------------------
   if (req.method === 'OPTIONS') {
     return res.send('', 204, {
       'Access-Control-Allow-Origin':  '*',
@@ -663,12 +741,12 @@ module.exports = async ({ req, res, log, error }) => {
   }
 
   try {
-    // ── Parse body ───────────────────────────────────────────────────────────────
+    // -- Parse body ---------------------------------------------------------------
     const body = parseRequestBody(req);
 
     // Smoke-test short-circuit (used by DevKit health checks)
     if (req.headers?.['x-smoke-test'] === 'true' || body['x-smoke-test'] === 'true') {
-      log('Smoke test ping — returning OK');
+      log('Smoke test ping - returning OK');
       return res.json({ improved: body.currentContent || '', changes: [], suggestions: ['Smoke test OK'], _smokeTest: true, providers: getProviderAvailability() });
     }
 
@@ -691,29 +769,60 @@ module.exports = async ({ req, res, log, error }) => {
       }, 429);
     }
 
-    log(`resume-section-ai: user=${auth.user.$id}, action=${aiAction}, section=${section}, enhance_action=${action}`);
+    db = getDbClient();
 
-    const db = getDbClient();
+    // -- Idempotency cache (Appwrite collection - cross-instance, cold-start-safe) --
+    const idemKey = computeRsaContentKey(auth.user.$id, aiAction, section, action, currentContent);
+    const idemCheck = await checkIdempotencyCache(db, idemKey);
+    if (idemCheck.hit) {
+      if (idemCheck.status === 'success' && idemCheck.result) {
+        log(`resume-section-ai: idempotency cache hit key=${idemKey}`);
+        return res.json({ ...idemCheck.result, _cached: true });
+      }
+      if (idemCheck.status === 'pending') {
+        return res.json({
+          error: true,
+          code: 'concurrent_request',
+          message: 'An identical request is already being processed. Please wait a moment and retry.',
+        }, 409);
+      }
+    }
+    const idemPending = await createIdempotencyPending(db, idemKey, auth.user.$id);
+    if (idemPending.conflict) {
+      return res.json({
+        error: true,
+        code: 'concurrent_request',
+        message: 'An identical request is already being processed. Please wait a moment and retry.',
+      }, 409);
+    }
+    idemDocId = idemPending.docId;
+
+    log(`resume-section-ai: user=${auth.user.$id}, action=${aiAction}, section=${section}, enhance_action=${action}`);
     const pool = buildPool();
     if (pool.length === 0) {
       error('No AI provider keys found');
+      await deleteIdempotencyDoc(db, idemDocId);
+      idemDocId = null;
       return res.json({ error: true, code: 'no_keys', message: 'No AI provider keys configured on this function.' }, 503);
     }
 
-    // ── Route to action handler ────────────────────────────────────────────────
+    // -- Route to action handler ------------------------------------------------
     if (aiAction === 'enhance') {
       if (action === 'suggest_technologies') {
         // Ask clarifying questions when context is too sparse for good suggestions.
-        // "Rich" = description ≥ 80 chars, OR (description ≥ 30 chars AND role is set).
+        // "Rich" = description >= 80 chars, OR (description >= 30 chars AND role is set).
         const desc = (currentContent && currentContent.description) || '';
         const role = (currentContent && currentContent.role) || '';
         const hasRichContext = desc.length >= 80 || (desc.length >= 30 && role.length >= 5);
         if (!hasRichContext) {
+          await deleteIdempotencyDoc(db, idemDocId);
+          idemDocId = null;
           return res.json(buildSuggestTechQuestionsResponse());
         }
         const messages = buildSuggestTechMessages(currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
@@ -721,35 +830,42 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildSuggestTechWithAnswersMessages(currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseSuggestTechResponse(rawContent);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
-      // ── Tier 2: sparse-context question checks ─────────────────────────────
-      // summary → generate: ask questions if summary is very short
+      // -- Tier 2: sparse-context question checks -----------------------------
+      // summary -> generate: ask questions if summary is very short
       if (section === 'summary' && action === 'generate') {
         const summaryText = typeof currentContent === 'string' ? currentContent : '';
         if (summaryText.trim().length < 50) {
+          await deleteIdempotencyDoc(db, idemDocId);
+          idemDocId = null;
           return res.json(buildSummaryQuestionsResponse());
         }
       }
 
-      // skills → generate: ask questions if skill list has fewer than 3 items
+      // skills -> generate: ask questions if skill list has fewer than 3 items
       if (section === 'skills' && action === 'generate') {
         const skillCount = Array.isArray(currentContent) ? currentContent.length : 0;
         if (skillCount < 3) {
+          await deleteIdempotencyDoc(db, idemDocId);
+          idemDocId = null;
           return res.json(buildSkillsQuestionsResponse());
         }
       }
 
-      // experience → add_metrics: ask questions if description is short
+      // experience -> add_metrics: ask questions if description is short
       if (section === 'experience' && action === 'add_metrics') {
         const desc = (currentContent && currentContent.description) || '';
         if (desc.trim().length < 60) {
+          await deleteIdempotencyDoc(db, idemDocId);
+          idemDocId = null;
           return res.json(buildAddMetricsQuestionsResponse());
         }
       }
 
-      // ── Tier 2: *_with_answers variants ───────────────────────────────────
+      // -- Tier 2: *_with_answers variants -----------------------------------
       // answers are passed through the context.jobDescription slot (same
       // pattern as suggest_technologies_with_answers)
       if (action === 'generate_with_answers') {
@@ -757,6 +873,7 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildEnhanceMessages(section, baseAction, currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
@@ -764,12 +881,14 @@ module.exports = async ({ req, res, log, error }) => {
         const messages = buildEnhanceMessages(section, 'add_metrics', currentContent, context);
         const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
         const result = parseEnhanceResponse(rawContent, currentContent);
+        await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
       const messages = buildEnhanceMessages(section, action, currentContent, context);
       const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
+      await updateIdempotencySuccess(db, idemDocId, result);
       return res.json(result);
     }
 
@@ -778,6 +897,7 @@ module.exports = async ({ req, res, log, error }) => {
       const messages = buildEnhanceMessages(section, 'tailor', currentContent, context);
       const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
       const result = parseEnhanceResponse(rawContent, currentContent);
+      await updateIdempotencySuccess(db, idemDocId, result);
       return res.json(result);
     }
 
@@ -791,7 +911,9 @@ module.exports = async ({ req, res, log, error }) => {
       } catch (_) {
         suggestions = [];
       }
-      return res.json({ suggestions, improved: null, changes: [] });
+      const fillResult = { suggestions, improved: null, changes: [] };
+      await updateIdempotencySuccess(db, idemDocId, fillResult);
+      return res.json(fillResult);
     }
 
     if (aiAction === 'explain-gap') {
@@ -804,14 +926,19 @@ module.exports = async ({ req, res, log, error }) => {
       } catch (_) {
         result = { explanation: rawContent, talking_points: [] };
       }
-      return res.json({ ...result, improved: null, changes: [] });
+      const explainResult = { ...result, improved: null, changes: [] };
+      await updateIdempotencySuccess(db, idemDocId, explainResult);
+      return res.json(explainResult);
     }
 
     // Unknown action
     error(`Unknown action: ${aiAction}`);
+    await deleteIdempotencyDoc(db, idemDocId);
+    idemDocId = null;
     return res.json({ error: true, code: 'unknown_action', message: `Unknown action: ${aiAction}` }, 400);
 
   } catch (err) {
+    if (db && idemDocId) await deleteIdempotencyDoc(db, idemDocId);
     if (err.httpStatus) {
       return res.json({ error: true, code: err.code || 'request_failed', message: err.message }, err.httpStatus);
     }

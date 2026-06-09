@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { Client, Users } = require('node-appwrite');
+const { Client, Users, Databases, ID } = require('node-appwrite');
 
 const ENDPOINT = process.env.APPWRITE_FUNCTION_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID;
@@ -114,6 +114,19 @@ module.exports = async ({ req, res, log, error }) => {
       const encoded = base64url(JSON.stringify(payloadObj));
       const sig = signImpersonationPayload(encoded);
       if (!sig) return res.json({ success: false, error: 'Server misconfiguration: signing key unavailable.' }, 500);
+      const dbs = new Databases(client);
+      try {
+        await dbs.createDocument('main', 'admin_audit_log', ID.unique(), {
+          action: 'impersonation_claimed',
+          target_user_id,
+          target_email: targetUser.email,
+          nonce,
+          expires_at: new Date(expiresAt).toISOString(),
+          created_at: new Date().toISOString(),
+        });
+      } catch (auditErr) {
+        error('[audit] Failed to write impersonation audit log: ' + auditErr.message);
+      }
       return res.json({
         success: true,
         url: `/act-as#${encoded}.${sig}`,
