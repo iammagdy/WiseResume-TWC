@@ -7020,3 +7020,160 @@ npx tsc --noEmit                                           → clean (no errors)
 | Question bank 4 categories | Run generate-question-bank; verify company/technical/behavioral/curveball all present | Low |
 | Company briefing | Run company-briefing; verify `companySnapshot.name` populated | Low |
 | LinkedIn optimizer | Run optimize-for-linkedin with a resume that has experience; verify experienceRewrites non-empty | Low |
+
+---
+
+## Session Log — 2026-06-09 (Security Remediation Deploy + Deploy Script Repair)
+
+### Overview
+
+This session completed the deployment of the Antigravity security audit remediation (PR #91) and fixed a chain of failures in the GHA `Deploy Appwrite Hubs` workflow that prevented the remediation from reaching production.
+
+---
+
+### What Was Done
+
+#### 1. PR #91 — Security Remediation Merged to `main`
+
+PR `wr-security-remediation-review` → `main` merged as `95dc718f`.
+
+Included fixes:
+- **M-1**: `timingSafeEqual` in `api/public-portfolio.ts` for constant-time password comparison
+- **M-2**: Server-side honeypot enforcement in `ai-gateway/src/main.js`
+- **M-3**: Plan variable scope fix in `ai-gateway/src/main.js`
+- **L-1**: `TURNSTILE_SECRET_KEY` startup warning in `ai-gateway/src/main.js`
+- `IMPERSONATION_HMAC_SECRET` provisioned for `admin-devkit-data` in `scripts/deploy_hubs.cjs`
+- `scripts/setup-security-collections.cjs` — new script to create 5 Appwrite collections required by the remediation
+- `src/pages/PortfolioEditorPage.tsx` — restored from `cde4dfc` after full-file `?` character corruption from mojibake repair
+
+#### 2. `sourceHashes.generated.json` Stale — PR #92
+
+**Root cause**: PR #91 modified `ai-gateway/src/main.js` and `admin-devkit-data/src/main.js` without updating the hash manifest. GHA step 6 (`git diff --exit-code -- src/lib/devkit/sourceHashes.generated.json`) failed because the committed manifest was stale.
+
+**Fix**: Ran `node scripts/compute-source-hashes.mjs` locally, committed updated hashes, opened PR #92 from `fix/source-hashes-post-pr91`.
+
+| Hub | Old hash | New hash |
+|-----|----------|----------|
+| `ai-gateway` | `2bc26ba21049b5d2...` | `20e05909f31769ea...` |
+| `admin-devkit-data` | (already correct) | `7c6a71a1f4f555b2...` |
+
+Merged as `1adba431`.
+
+#### 3. `IndexType` Undefined — PR #93
+
+**Root cause**: `scripts/setup-security-collections.cjs` imported `IndexType` from `node-appwrite`, but the package exports it as `DatabasesIndexType`. `IndexType` was `undefined` at runtime; any call to `IndexType.Key` threw `Cannot read properties of undefined (reading 'Key')`.
+
+**Fix**: Changed import line:
+```js
+// Before
+const { Client, Databases, IndexType } = require('node-appwrite');
+// After
+const { Client, Databases, DatabasesIndexType: IndexType } = require('node-appwrite');
+```
+
+Merged as `b70f890`.
+
+#### 4. `defaultVal` on Required Attributes — PR #94
+
+**Root cause**: Three integer attributes (`email_rate_limits.count`, `portfolio_session_rate_limits.count`, `portfolio_daily_usage.question_count`) were declared `required: true` with `defaultVal: 0`. Appwrite rejects required attributes that also carry a default value.
+
+**Fix**: Removed `defaultVal: 0` from all three attribute definitions.
+
+Merged as `7a554ff`.
+
+#### 5. `null` Default Still Sent + Partial Collection Recovery — PR #95
+
+**Root cause 1**: After removing explicit `defaultVal: 0`, the destructuring default `defaultVal = null` remained. The Appwrite Node SDK includes `default` in the API payload only when the value is `!== undefined` — passing `null` still triggered the rejection.
+
+**Root cause 2**: `email_rate_limits` was created as an empty collection in run #3 (before the error). The old `ensureCollection` skipped the entire collection (including attribute creation) if it already existed, leaving a permanently broken empty collection.
+
+**Fix**: Rewrote `ensureCollection` to:
+- Changed `defaultVal = null` → `defaultVal = undefined` so the SDK omits `default` from the payload
+- Always attempts attribute/index creation regardless of whether the collection exists
+- Catches 409 duplicate errors per-item instead of skipping the whole collection
+- Fully idempotent: safe to run against any partial state
+
+Merged as `8f0f8d2`.
+
+---
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| `api/public-portfolio.ts` | M-1: timingSafeEqual for password comparison |
+| `appwrite-hubs/ai-gateway/src/main.js` | M-2 honeypot, M-3 plan var, L-1 Turnstile warning |
+| `scripts/deploy_hubs.cjs` | IMPERSONATION_HMAC_SECRET provisioned for admin-devkit-data |
+| `scripts/setup-security-collections.cjs` | New script (FIX-16); patched 3× for IndexType, defaultVal, idempotency |
+| `scripts/setup-security-collections.cjs` | `DatabasesIndexType` alias (PR #93) |
+| `scripts/setup-security-collections.cjs` | Remove `defaultVal` from required attrs (PR #94) |
+| `scripts/setup-security-collections.cjs` | Full idempotency rewrite (PR #95) |
+| `src/pages/PortfolioEditorPage.tsx` | Restored from `cde4dfc` + encoding substitutions re-applied |
+| `src/lib/devkit/sourceHashes.generated.json` | Updated hashes for `ai-gateway` and `admin-devkit-data` |
+| `.github/workflows/deploy-appwrite-hubs.yml` | Added `setup-security-collections.cjs` step + new secrets |
+
+---
+
+### Commits (chronological)
+
+| SHA | Message |
+|-----|---------|
+| `dfcff77` | fix(build): restore missing ternary ? deleted during mojibake repair |
+| `5a6e948` | fix(build): restore PortfolioEditorPage syntax after mojibake repair |
+| `e118573` | fix(deploy): propagate impersonation secret to admin devkit hub |
+| `95dc718` | Security remediation for Antigravity audit findings (#91) — merge commit |
+| `1adba43` | chore(deploy): update source hash manifest after PR #91 security remediation |
+| `b70f890` | fix(deploy): use DatabasesIndexType alias for node-appwrite compat |
+| `7a554ff` | fix(deploy): remove defaultVal from required integer attributes in security collections |
+| `8f0f8d2` | fix(deploy): make setup-security-collections fully idempotent |
+
+---
+
+### PRs
+
+| PR | Branch | Merged as | Purpose |
+|----|--------|-----------|---------|
+| #91 | `wr-security-remediation-review` | `95dc718` | Full security remediation |
+| #92 | `fix/source-hashes-post-pr91` | `1adba43` | Fix stale source hash manifest |
+| #93 | `fix/setup-security-collections-indextype` | `b70f890` | Fix `IndexType` undefined |
+| #94 | `fix/setup-security-collections-defaults` | `7a554ff` | Fix defaultVal on required attrs |
+| #95 | `fix/setup-security-collections-idempotent` | `8f0f8d2` | Full idempotency rewrite |
+
+---
+
+### Deployment State
+
+| Item | State |
+|---|---|
+| Vercel frontend | READY — `95dc718` deployed to production |
+| `main` | At `8f0f8d2` |
+| Appwrite hubs | **NOT YET DEPLOYED** — `Deploy Appwrite Hubs` workflow has been fixed and is ready to run |
+| Security collections | **NOT YET CREATED** — `setup-security-collections.cjs` is fixed; collections will be created on next successful workflow run |
+
+---
+
+### Where We Stopped
+
+- All deploy-script fixes are merged to `main` (`8f0f8d2`).
+- The `Deploy Appwrite Hubs` GHA workflow (`deploy-appwrite-hubs.yml`) has been run 3× this session and failed each time due to the script bugs above. All known bugs are now fixed.
+- **Next action required**: Trigger `Deploy Appwrite Hubs` workflow from `main` → `all`. This is the first run that should complete successfully end-to-end.
+- After a successful workflow run, manually verify in Appwrite Console:
+  1. Collections created: `admin_audit_log`, `email_rate_limits`, `portfolio_session_rate_limits`, `portfolio_daily_usage`, `credit_locks`
+  2. `email_rate_limits` has both `count` (integer) and `reset_at` (string) attributes — it was partially created in a failed run and the fixed script should recover it
+  3. Active deployment IDs updated for `ai-gateway` and `admin-devkit-data`
+  4. No `[ALERT]` in `ai-gateway` cold-start logs for missing secrets
+
+---
+
+### New Appwrite Collections (created by `setup-security-collections.cjs`)
+
+| Collection | Attributes | Purpose |
+|---|---|---|
+| `admin_audit_log` | `action`, `target_user_id`, `target_email`, `nonce`, `expires_at`, `created_at` | Admin impersonation audit trail (FIX-08) |
+| `email_rate_limits` | `count` (int), `reset_at` (string) | Per-IP email rate limiting (FIX-10) |
+| `portfolio_session_rate_limits` | `count` (int), `reset_at` (string) | Per-IP portfolio chat session caps (FIX-09) |
+| `portfolio_daily_usage` | `owner_user_id`, `date`, `question_count` (int) | Per-portfolio daily AI question counters (FIX-09) |
+| `credit_locks` | `locked_at`, `lock_expires_at` | Mutex for credit check-and-deduct (FIX-12) |
+
+Note: `admin_audit_log` was successfully created (with all attributes and indexes) in an earlier failed run and will be skipped on the next run.
+
