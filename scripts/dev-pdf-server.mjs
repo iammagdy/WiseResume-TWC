@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const port = process.env.API_PORT || '5003';
+const port = process.env.API_PORT || '5001';
 
 const child = spawn('node', ['dist/server.mjs'], {
   cwd: root,

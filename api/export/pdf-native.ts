@@ -752,9 +752,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[pdf] step: launch browser');
     browser = await puppeteer.launch({
       args: chromium.args,
-      defaultViewport: null,
+      defaultViewport: chromium.defaultViewport,
       executablePath: execPath,
-      headless: true,
+      headless: chromium.headless,
     });
     console.log('[pdf] step: browser launched');
 

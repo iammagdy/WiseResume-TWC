@@ -729,7 +729,7 @@
 
 @media (min-width: 1024px) {
   .jmw-progress-overlay__card {
-    max-width: 32rem;
+    max-width: 52rem;
     padding: 2rem 1.75rem;
   }
 }
