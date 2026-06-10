@@ -12,6 +12,7 @@ Addressed the silent tailoring failure where the AI returned unmodified resume c
 ### What Changed
 
 #### AI Gateway Hub — `appwrite-hubs/ai-gateway/src/main.js`
+- **Timeout Routing Hotfix**: Overrode `tailor-resume` to use Groq (`llama-3.3-70b-versatile`) rather than DeepSeek to circumvent the 30-second Appwrite execution limits since DeepSeek was too slow for the required massive JSON output.
 - **DeepSeek Base URL Correction**: Replaced `https://api.deepseek.com/v1/chat/completions` with the correct endpoint `https://api.deepseek.com/chat/completions` to resolve gateway execution timeouts.
 - **Output Schema Alignment**: Added missing expected fields (`jobParsed`, `atsAnalysis`, `interviewTalkingPoints`, `strengthsAnalysis`) to the tailoring output schema in `buildTailorResumeSystemPrompt`.
 - **Feature Extraction**: Routed `tailor-resume` through a custom prompt branch in `buildMessages` rather than using the generic `STRUCTURED_AI_FEATURES` template.
@@ -30,7 +31,7 @@ Addressed the silent tailoring failure where the AI returned unmodified resume c
 - Added comprehensive routing assertions for `tailor-resume` verifying system prompt structure, untrusted instructions containment, and retry timeout specifications.
 
 #### Frontend UI — `src/components/job-match/` & `src/components/editor/tailor/`
-- **Overlay Centering & Scroll**: Wrapped progress cards inside a `my-auto flex flex-col items-center gap-5 w-full max-w-[26rem]` container in `JobMatchProgressStage.tsx`, set `.jmw-progress-overlay` style to `justify-content: flex-start; overflow-y: auto;` in `job-match-workspace.css`, and reduced card padding to `1.5rem 1.25rem` to prevent viewport clipping.
+- **Overlay Centering & Scroll**: Replaced the `my-auto` centering class with `mt-10 mb-20 shrink-0` inside the `JobMatchProgressStage.tsx` container to prevent top-clipping of overflowing progress items inside the `flex-start` scrollable overlay container (`.jmw-progress-overlay`).
 - **Nested Card Removal**: Added a `noCard` boolean prop to `TailorProgress.tsx` to strip the card wrapper styling when true, and passed `noCard={true}` from `JobMatchProgressStage.tsx`.
 - **Contrast Fix**: Swapped `text-warning-foreground` for `text-warning` in `TailorProgress.tsx` so warning cards are highly legible on `bg-warning/10` in dark mode.
 - **Unified History List**: Implemented a TanStack query hook in `JobMatchHistoryList.tsx` to fetch `tailor_history` documents from Appwrite, merging them chronologically with the local Zustand store.

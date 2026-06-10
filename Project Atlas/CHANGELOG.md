@@ -18,9 +18,9 @@
 - Triggered by: Resume Tailoring silent failure, ID/scoring optimization requirements, progress loading overlay clipping/contrast, and missing Appwrite tailoring history.
 
 ### Product changes
+- **AI Gateway Timeout Hotfix**: Overrode `tailor-resume` routing in `ai-gateway/src/main.js` to forcefully use Groq (`llama-3.3-70b-versatile`) instead of DeepSeek. DeepSeek was exceeding the 30-second Appwrite synchronous function timeout limit due to the massive JSON schema, leading to 500 timeout errors and 409 conflict errors.
+- **UI Clipping Hotfix**: Replaced `my-auto` centering in `JobMatchProgressStage.tsx` with a safe `mt-10 mb-20 shrink-0` margin approach to resolve top-clipping issues where overflowing progress content would be pushed off-screen and become unreadable.
 - **AI Gateway Execution Fix**: Corrected the DeepSeek completions base URL endpoint by removing the incorrect `/v1` prefix (`https://api.deepseek.com/chat/completions`) to resolve request timeouts and execution hangs.
-- **Schema Alignment**: Expanded the custom prompt builder output schema in `buildTailorResumeSystemPrompt` to return expected fields (`jobParsed`, `atsAnalysis`, `interviewTalkingPoints`, `strengthsAnalysis`) to align with frontend state structure.
-- **Dedicated Prompt Pipeline**: Separated `tailor-resume` from the general structured AI routing pathway in the gateway and built custom system prompt builder `buildTailorResumeSystemPrompt` supporting LIGHT, MODERATE, and AGGRESSIVE tailoring intensities.
 - **Rules & Safety Enforcement**:
   - Implemented STAR method enforcement for experience bullet rewrites.
   - Enforced ID preservation for experience, education, projects, certifications, and awards.

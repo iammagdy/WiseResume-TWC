@@ -2596,6 +2596,15 @@ function getProviderAvailability() {
 function buildCandidates(featureName, pool, opts = {}) {
   if (pool.length === 0) return [];
 
+  // HOTFIX: tailor-resume generates massive JSON schemas and DeepSeek is too slow, causing 30s function timeouts.
+  // We force groq (llama-3.3-70b-versatile) which generates at ~800 tokens/sec, well within the 30s limit.
+  if (featureName === 'tailor-resume') {
+    const groqKeys = pool.filter(e => e.provider === 'groq' && getKeyMode(e.provider, e.slot) !== 'disabled');
+    if (groqKeys.length > 0) {
+      return [{ provider: 'groq', key: groqKeys[0].key, slot: groqKeys[0].slot, model: 'llama-3.3-70b-versatile', routed: true }];
+    }
+  }
+
   const { noFallback = false } = opts;
 
   // Filter out disabled slots; if all slots disabled, fall back to full pool as safety net.
