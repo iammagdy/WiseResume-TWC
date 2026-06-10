@@ -1841,7 +1841,8 @@ function buildTailorResumeSystemPrompt(opts) {
     '      "date": "<date>",\n' +
     '      "description": "<enhanced description highlighting job relevance>"\n' +
     '    }\n' +
-    '  ],\n' +     '  "keyChanges": ["<brief description of each key change made>"],\n' +
+    '  ],\n' +
+    '  "keyChanges": ["<brief description of each key change made>"],\n' +
     '  "overallScore": { "before": 0, "after": 0 },\n' +
     '  "bulletTransformations": [\n' +
     '    {\n' +

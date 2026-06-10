@@ -436,7 +436,6 @@ export const useResumeStore = create<ResumeState>()(
         tailorHistory: state.tailorHistory,
         tailorHistoryByResume: state.tailorHistoryByResume,
         coverLetterHistory: state.coverLetterHistory,
-        jobDescription: state.jobDescription,
       }),
       onRehydrateStorage: () => {
         return (state) => {

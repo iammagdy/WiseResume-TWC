@@ -446,102 +446,106 @@ export default function JobMatchWorkspacePage() {
       {/* Scrollable body */}
       <div className="jmw-body">
         <div className="jmw-content">
-          {/* Resume selector */}
-          {showResumePicker ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                Select resume
-              </p>
-              <Select
-                value={currentResumeId ?? ''}
-                onValueChange={(val) => {
-                  setCurrentResumeId(val);
-                  setShowResumePicker(false);
-                  haptics.selection();
-                }}
-              >
-                <SelectTrigger className="h-11 rounded-xl text-sm">
-                  <SelectValue placeholder="Choose a resume…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allResumes?.map((r: DatabaseResume) => (
-                    <SelectItem key={r.$id} value={r.$id}>
-                      {r.title || 'Untitled Resume'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="self-start text-xs"
-                onClick={() => setShowResumePicker(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <ResumeChip
-              title={selectedResumeTitle}
-              isLoading={resumesLoading}
-              onClick={() => setShowResumePicker(true)}
-            />
-          )}
-
-          {/* Job input */}
-          <JobInputArea
-            jobDescription={jobDescription}
-            jobUrl={jobUrl}
-            onJobDescriptionChange={setJobDescription}
-            onJobUrlChange={setJobUrl}
-            onFetchUrl={handleFetchUrl}
-            isFetchingUrl={importJob.isPending}
-            initialTab="paste"
-            activeTab={jobInputActiveTab}
-            onActiveTabChange={setJobInputActiveTab}
-          />
-
-          {/* Parsed job preview */}
-          {parsedJobInfo && (
-            <JobPreviewCard
-              title={parsedJobInfo.title}
-              company={parsedJobInfo.company}
-              jobUrl={jobUrl || undefined}
-              description={jobDescription || undefined}
-              skills={jobSkills.length > 0 ? jobSkills : undefined}
-            />
-          )}
-
-          {/* Match analysis */}
-          {jobDescription.trim().length > 50 && currentResume && (
-            <MatchAnalysisSummary
-              jobDescription={jobDescription}
-              resumeText={resumeText}
-            />
-          )}
-
-          {/* Advanced options */}
-          <JobMatchAdvancedOptions
-            intensity={intensity}
-            onIntensityChange={setIntensity}
-            enabledSections={enabledSections}
-            onSectionsChange={setEnabledSections}
-          />
-
-          {/* Error state */}
-          {tailorError && (
-            <div className={cn(
-              'flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3',
-            )}>
-              <div>
-                <p className="text-sm font-medium text-destructive">Tailoring failed</p>
-                <p className="text-xs text-destructive/80 mt-0.5 leading-relaxed">{tailorError}</p>
+          <div className="jmw-content__left">
+            {/* Resume selector */}
+            {showResumePicker ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                  Select resume
+                </p>
+                <Select
+                  value={currentResumeId ?? ''}
+                  onValueChange={(val) => {
+                    setCurrentResumeId(val);
+                    setShowResumePicker(false);
+                    haptics.selection();
+                  }}
+                >
+                  <SelectTrigger className="h-11 rounded-xl text-sm">
+                    <SelectValue placeholder="Choose a resume…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allResumes?.map((r: DatabaseResume) => (
+                      <SelectItem key={r.$id} value={r.$id}>
+                        {r.title || 'Untitled Resume'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="self-start text-xs"
+                  onClick={() => setShowResumePicker(false)}
+                >
+                  Cancel
+                </Button>
               </div>
-            </div>
-          )}
+            ) : (
+              <ResumeChip
+                title={selectedResumeTitle}
+                isLoading={resumesLoading}
+                onClick={() => setShowResumePicker(true)}
+              />
+            )}
 
-          {/* History list */}
-          <JobMatchHistoryList />
+            {/* Job input */}
+            <JobInputArea
+              jobDescription={jobDescription}
+              jobUrl={jobUrl}
+              onJobDescriptionChange={setJobDescription}
+              onJobUrlChange={setJobUrl}
+              onFetchUrl={handleFetchUrl}
+              isFetchingUrl={importJob.isPending}
+              initialTab="paste"
+              activeTab={jobInputActiveTab}
+              onActiveTabChange={setJobInputActiveTab}
+            />
+
+            {/* Parsed job preview */}
+            {parsedJobInfo && (
+              <JobPreviewCard
+                title={parsedJobInfo.title}
+                company={parsedJobInfo.company}
+                jobUrl={jobUrl || undefined}
+                description={jobDescription || undefined}
+                skills={jobSkills.length > 0 ? jobSkills : undefined}
+              />
+            )}
+
+            {/* Error state */}
+            {tailorError && (
+              <div className={cn(
+                'flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3',
+              )}>
+                <div>
+                  <p className="text-sm font-medium text-destructive">Tailoring failed</p>
+                  <p className="text-xs text-destructive/80 mt-0.5 leading-relaxed">{tailorError}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="jmw-content__right">
+            {/* Match analysis */}
+            {jobDescription.trim().length > 50 && currentResume && (
+              <MatchAnalysisSummary
+                jobDescription={jobDescription}
+                resumeText={resumeText}
+              />
+            )}
+
+            {/* Advanced options */}
+            <JobMatchAdvancedOptions
+              intensity={intensity}
+              onIntensityChange={setIntensity}
+              enabledSections={enabledSections}
+              onSectionsChange={setEnabledSections}
+            />
+
+            {/* History list */}
+            <JobMatchHistoryList />
+          </div>
 
           {/* Spacer for sticky footer */}
           <div className="h-2" aria-hidden />
