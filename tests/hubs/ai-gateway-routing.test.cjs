@@ -326,18 +326,18 @@ function main() {
 
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('company-briefing', 0, 3),
-    18_000,
+    22_000,
     'Company briefing should get a longer first-attempt timeout on DeepSeek',
   );
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('generate-question-bank', 0, 3),
-    18_000,
+    22_000,
     'Question bank should get a longer first-attempt timeout on DeepSeek',
   );
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('parse-job', 0, 3),
-    10_000,
-    'Unrelated tools should keep the default primary timeout',
+    20_000,
+    'All tools should use the extended DeepSeek primary timeout',
   );
 
   assert.equal(

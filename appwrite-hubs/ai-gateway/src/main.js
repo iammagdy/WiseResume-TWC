@@ -2454,15 +2454,15 @@ function pickKey(pool, provider) {
   return keys[idx];
 }
 
-/** Tiered per-attempt timeout: fail fast on first try, be patient on last resort. */
+/** Tiered per-attempt timeout: DeepSeek is primary and needs more time than fast fallbacks. */
 function candidateTimeoutForFeature(featureName, i, total) {
   if (featureName === 'tailor-resume') {
     return 28_000; // Tailoring is slow and complex, give it maximum possible time
   }
   if (i === 0 && (featureName === 'company-briefing' || featureName === 'generate-question-bank')) {
-    return 18_000;
+    return 22_000;
   }
-  if (i === 0)         return 10_000; // primary: 10s - bail quickly if provider is slow
+  if (i === 0)         return 20_000; // primary (DeepSeek): give it sufficient time before falling back
   if (i === total - 1) return 28_000; // last resort: give it as much time as possible
   return 15_000;                      // middle fallbacks: moderate
 }
