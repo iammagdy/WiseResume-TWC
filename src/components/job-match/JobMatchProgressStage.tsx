@@ -25,7 +25,7 @@ export function JobMatchProgressStage({
       aria-live="polite"
       aria-label="AI tailoring in progress"
     >
-      <div className="w-full max-w-[26rem] flex flex-col items-center gap-5 mt-10 mb-20 shrink-0">
+      <div className="w-full max-w-[26rem] lg:max-w-[32rem] flex flex-col items-center gap-5 mt-10 mb-20 shrink-0">
         {/* Title area */}
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/12 border border-primary/20">

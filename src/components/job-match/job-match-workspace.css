@@ -71,6 +71,13 @@
   }
 }
 
+@media (min-width: 1024px) {
+  .jmw-content {
+    max-width: 64rem;
+    padding: 2rem 2.5rem 2.5rem;
+  }
+}
+
 /* ── Resume chip ── */
 .jmw-resume-chip {
   display: flex;
@@ -667,6 +674,12 @@
   -webkit-overflow-scrolling: touch;
 }
 
+@media (min-width: 1024px) {
+  .jmw-progress-overlay {
+    padding: 3rem 2rem;
+  }
+}
+
 .jmw-progress-overlay__card {
   width: 100%;
   max-width: 26rem;
@@ -679,4 +692,11 @@
     0 8px 24px -8px hsl(var(--foreground) / 0.1),
     0 24px 48px -24px hsl(var(--foreground) / 0.16),
     inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+
+@media (min-width: 1024px) {
+  .jmw-progress-overlay__card {
+    max-width: 32rem;
+    padding: 2rem 1.75rem;
+  }
 }

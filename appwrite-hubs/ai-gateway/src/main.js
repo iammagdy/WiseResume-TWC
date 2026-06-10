@@ -65,9 +65,9 @@ const FEATURE_MAX_TOKENS = {
   'parse-resume':               4000,
   'agentic-chat':               1500,
   'generate-cover-letter':      1500,
-  // Capped at 6000 tokens to balance complete tailoring rewrite against provider credits.
-  // May need to be increased to 8000 if truncation appears on exceptionally long resumes.
-  'tailor-resume':              6000,
+  // Reduced from 6000 to 4000 after slimming the output schema (removed non-essential metadata).
+  // The normalizer provides safe fallback defaults for all removed fields.
+  'tailor-resume':              4000,
   'recruiter-simulation':       1200,
   'career-assessment':          1200,
   'analyze-resume':             1200,
@@ -1671,7 +1671,7 @@ function schemaPrompt(featureName, opts) {
   const schemas = {
     'score-resume': '{"overallScore":0,"skillsMatch":0,"experienceRelevance":0,"keywordAlignment":0,"atsCompatibility":0,"strengths":[],"improvements":[]}',
     'analyze-resume': '{"score":{"overallScore":0,"overall":0,"skillsMatch":0,"skills":0,"experienceRelevance":0,"experience":0,"keywordAlignment":0,"keywords":0,"atsCompatibility":0,"strengths":[],"improvements":[]},"gaps":{"missingKeywords":[],"missingSkills":[],"suggestedSections":[],"recommendedPhrases":[],"priorityImprovements":[]}}',
-    'tailor-resume': '{"summary":"","skills":[],"experience":[{"id":"","company":"","position":"","startDate":"","endDate":"","current":false,"description":"","achievements":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","gpa":""}],"projects":[{"id":"","name":"","role":"","startDate":"","endDate":"","technologies":[],"description":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}],"awards":[{"id":"","title":"","issuer":"","date":"","description":""}],"keyChanges":[],"sectionScores":null,"overallScore":{"before":0,"after":0},"missingSkills":[],"boostableSkills":[],"jobParsed":{"title":"","company":"","keywords":[]},"atsAnalysis":{"criticalKeywords":[],"stuffingWarnings":[],"originalKeywordDensity":0,"optimizedKeywordDensity":0},"interviewTalkingPoints":[],"bulletTransformations":[],"strengthsAnalysis":[]}',
+    'tailor-resume': '{"summary":"","skills":[],"experience":[{"id":"","company":"","position":"","startDate":"","endDate":"","current":false,"description":"","achievements":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","gpa":""}],"projects":[{"id":"","name":"","role":"","startDate":"","endDate":"","technologies":[],"description":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}],"awards":[{"id":"","title":"","issuer":"","date":"","description":""}],"keyChanges":[""],"overallScore":{"before":0,"after":0},"bulletTransformations":[{"experienceId":"","bulletIndex":0,"originalBullet":"","enhancedBullet":""}]}',
     'generate-cover-letter': '{"coverLetter":""}',
     'recruiter-simulation': '{"analysis":{"hireabilityScore":0,"scoreExplanation":"","firstImpression":"","redFlags":[],"questionsIdAsk":[],"callMeFactors":[],"overallVerdict":"maybe_call","verdictReasoning":"","topPriorityFix":""}}',
     'detect-and-humanize': opts.action === 'humanize' ? '{"humanized":{"original":"","humanized":"","changes":[]}}' : '{"detection":{"aiScore":0,"humanScore":0,"confidence":"medium","flags":[],"verdict":""}}',
@@ -1841,81 +1841,25 @@ function buildTailorResumeSystemPrompt(opts) {
     '      "date": "<date>",\n' +
     '      "description": "<enhanced description highlighting job relevance>"\n' +
     '    }\n' +
-    '  ],\n' +
-    '  "keyChanges": [\n' +
-    '    {\n' +
-    '      "section": "<summary | skills | experience | education | projects | certifications | awards>",\n' +
-    '      "description": "<specific improvement made>",\n' +
-    '      "type": "<keyword_added | bullet_transformed | metric_added | reordered>",\n' +
-    '      "impact": "<high | medium | low>"\n' +
-    '    }\n' +
-    '  ],\n' +
-    '  "sectionScores": {\n' +
-    '    "summary": { "before": 0, "after": 0 },\n' +
-    '    "skills": { "before": 0, "after": 0 },\n' +
-    '    "experience": { "before": 0, "after": 0 },\n' +
-    '    "education": { "before": 0, "after": 0 },\n' +
-    '    "projects": { "before": 0, "after": 0 },\n' +
-    '    "certifications": { "before": 0, "after": 0 },\n' +
-    '    "awards": { "before": 0, "after": 0 }\n' +
-    '  },\n' +
+    '  ],\n' +     '  "keyChanges": ["<brief description of each key change made>"],\n' +
     '  "overallScore": { "before": 0, "after": 0 },\n' +
-    '  "missingSkills": [\n' +
-    '    {\n' +
-    '      "skill": "<skill from job description NOT on resume>",\n' +
-    '      "reason": "<why this skill matters for the role>",\n' +
-    '      "frequency": 1,\n' +
-    '      "action": "add",\n' +
-    '      "type": "<hard | soft>"\n' +
-    '    }\n' +
-    '  ],\n' +
-    '  "boostableSkills": [\n' +
-    '    {\n' +
-    '      "skill": "<skill already on resume but underemphasized>",\n' +
-    '      "reason": "<how to better leverage this>",\n' +
-    '      "frequency": 1,\n' +
-    '      "action": "boost"\n' +
-    '    }\n' +
-    '  ],\n' +
     '  "bulletTransformations": [\n' +
     '    {\n' +
     '      "experienceId": "<experience id>",\n' +
     '      "bulletIndex": 0,\n' +
     '      "originalBullet": "<original text>",\n' +
-    '      "enhancedBullet": "<transformed text with metrics>",\n' +
-    '      "improvement": "<what was improved>",\n' +
-    '      "metricsAdded": true\n' +
+    '      "enhancedBullet": "<transformed text with metrics>"\n' +
     '    }\n' +
-    '  ],\n' +
-    '  "jobParsed": {\n' +
-    '    "title": "<extracted job title>",\n' +
-    '    "company": "<extracted company name>",\n' +
-    '    "keywords": ["<top keywords from the job description>"]\n' +
-    '  },\n' +
-    '  "atsAnalysis": {\n' +
-    '    "criticalKeywords": ["<critical job keywords to include>"],\n' +
-    '    "stuffingWarnings": ["<list of keyword stuffing warnings if density is too high>"],\n' +
-    '    "originalKeywordDensity": 0.0,\n' +
-    '    "optimizedKeywordDensity": 0.0\n' +
-    '  },\n' +
-    '  "interviewTalkingPoints": [\n' +
-    '    {\n' +
-    '      "question": "<potential interview question based on tailoring>",\n' +
-    '      "suggestedAnswer": "<suggested response highlighting candidate strengths>",\n' +
-    '      "relatedExperience": "<company or project name linked to this point>"\n' +
-    '    }\n' +
-    '  ],\n' +
-    '  "strengthsAnalysis": [\n' +
-    '    "<strengths aligned to this job requirement>"\n' +
     '  ]\n' +
     '}\n\n' +
     '## CRITICAL RULES\n' +
     '1. NEVER fabricate experience, companies, degrees, certifications, or metrics - only reframe existing content.\n' +
     '2. ID PRESERVATION: You MUST preserve the original `id` values exactly for every item in `experience`, `education`, `projects`, `certifications`, and `awards`. Never drop, rename, or invent replacement IDs.\n' +
-    '3. HONEST SCORING: Provide an honest assessment of the candidate\'s match score before and after tailoring. Do not inflate scores or force fake improvements. If the resume already closely matches the job description, the score difference may be small. If there are major gaps, score honestly and let the score reflect that.\n' +
-    '4. BULLET TRANSFORMATIONS LIMIT: Cap the `bulletTransformations` array to a maximum of 3-5 of the most important/impactful bullet transformations you performed. Do not list every single modified bullet point in this array.\n' +
+    '3. HONEST SCORING: Provide an honest assessment of the candidate\'s match score before and after tailoring. Do not inflate scores or force fake improvements.\n' +
+    '4. BULLET TRANSFORMATIONS LIMIT: Cap the `bulletTransformations` array to a maximum of 3-5 of the most impactful bullet transformations. Do not list every modified bullet.\n' +
     '5. Every rewritten bullet should follow the STAR method: Action Verb + What was done + Result/Impact.\n' +
-    '6. Weave critical job description keywords naturally throughout summary, skills, and experience - do not obvious stuff.'
+    '6. Weave critical job description keywords naturally throughout summary, skills, and experience - do not stuff.\n' +
+    '7. Do NOT include sectionScores, missingSkills, boostableSkills, jobParsed, atsAnalysis, interviewTalkingPoints, or strengthsAnalysis in your output - the system computes these separately.'
   );
 }
 
