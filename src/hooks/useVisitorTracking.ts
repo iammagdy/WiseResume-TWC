@@ -13,27 +13,32 @@ import { trackPageView, trackClick, trackSectionView, setVisitorUserId } from '@
 
 interface UseVisitorTrackingOptions {
   userId?: string | null;
+  /** When false, skips all listeners (e.g. public portfolio pages). */
+  enabled?: boolean;
 }
 
-export function useVisitorTracking({ userId }: UseVisitorTrackingOptions = {}): void {
+export function useVisitorTracking({ userId, enabled = true }: UseVisitorTrackingOptions = {}): void {
   const location = useLocation();
   const prevPathRef = useRef<string>('');
 
   // Sync user_id whenever auth state resolves
   useEffect(() => {
+    if (!enabled) return;
     setVisitorUserId(userId ?? null);
-  }, [userId]);
+  }, [enabled, userId]);
 
   // Page view on every navigation
   useEffect(() => {
+    if (!enabled) return;
     const path = location.pathname;
     if (path === prevPathRef.current) return;
     prevPathRef.current = path;
     trackPageView(path);
-  }, [location.pathname]);
+  }, [enabled, location.pathname]);
 
   // Click tracking — delegated listener reads data-track attribute
   useEffect(() => {
+    if (!enabled) return;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -44,10 +49,11 @@ export function useVisitorTracking({ userId }: UseVisitorTrackingOptions = {}): 
     };
     document.addEventListener('click', handleClick, { passive: true });
     return () => document.removeEventListener('click', handleClick);
-  }, []);
+  }, [enabled]);
 
   // Section scroll tracking — IntersectionObserver with 2-second dwell
   useEffect(() => {
+    if (!enabled) return;
     const dwellTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const firedSections = new Set<string>();
 
@@ -95,5 +101,5 @@ export function useVisitorTracking({ userId }: UseVisitorTrackingOptions = {}): 
       mutationObserver.disconnect();
       dwellTimers.forEach((t) => clearTimeout(t));
     };
-  }, [location.pathname]);
+  }, [enabled, location.pathname]);
 }

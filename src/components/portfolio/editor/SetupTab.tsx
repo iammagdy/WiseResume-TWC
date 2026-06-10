@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CollapsibleCard } from './shared';
+import { getResumeDocumentId } from '@/hooks/useResumes';
 import type { PortfolioSections } from './ContentVisibilitySection';
 import { SECTION_LABELS } from './ContentVisibilitySection';
 import { Switch } from '@/components/ui/switch';
@@ -29,7 +30,7 @@ export interface SetupTabProps {
   usernameMinLength?: number;
   usernameMaxLength?: number;
   premiumHandles?: PremiumHandle[];
-  resumes: Array<{ id: string; title: string; is_primary?: boolean }>;
+  resumes: Array<{ id?: string; $id?: string; title: string; is_primary?: boolean }>;
   selectedResumeId: string;
   onSelectedResumeIdChange: (id: string) => void;
   bio: string;
@@ -204,13 +205,18 @@ export function SetupTab(props: SetupTabProps) {
         <div className="space-y-1">
           <label className="text-xs font-medium text-foreground">Resume to display</label>
           <p className="text-[11px] text-muted-foreground">Choose which resume powers your portfolio content.</p>
-          <Select value={selectedResumeId} onValueChange={onSelectedResumeIdChange}>
+          <Select
+            value={resumes.some((r) => getResumeDocumentId(r) === selectedResumeId) ? selectedResumeId : undefined}
+            onValueChange={onSelectedResumeIdChange}
+          >
             <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
             <SelectContent>
-              {resumes.map((r, index) => {
+              {resumes.map((r) => {
+                const resumeId = getResumeDocumentId(r);
+                if (!resumeId) return null;
                 const label = `${r.title}${r.is_primary ? ' primary' : ''}`;
                 return (
-                  <SelectItem key={`${r.id}-${index}`} value={r.id}>
+                  <SelectItem key={resumeId} value={resumeId}>
                     {label}
                   </SelectItem>
                 );

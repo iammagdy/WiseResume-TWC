@@ -1,8 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { mockParams } from "@/test/mocks/router";
+import { mockNavigate, mockParams } from "@/test/mocks/router";
 
 vi.mock("@/hooks/usePlan", () => ({
   usePlan: vi.fn(() => ({ isPro: true, isPremium: false, isLoading: false, plan: "pro" })),
@@ -50,8 +50,21 @@ vi.mock("@/hooks/useResumes", () => ({
 }));
 
 vi.mock("@/components/editor/ai/AIDetectorSheet", () => ({
-  AIDetectorSheet: ({ open }: { open: boolean }) =>
-    open ? <div>mock-humanizer-sheet</div> : null,
+  AIDetectorSheet: ({
+    open,
+    onOpenChange,
+  }: {
+    open: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div>
+        mock-humanizer-sheet
+        <button type="button" onClick={() => onOpenChange?.(false)}>
+          close humanizer
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/components/editor/TailorSheet", () => ({
@@ -139,5 +152,16 @@ describe("AIStudioPage workspace IA", () => {
     renderWithProviders(<AIStudioPage />);
 
     expect(await screen.findByText("mock-humanizer-sheet")).toBeInTheDocument();
+  });
+
+  it("returns to /ai-studio when a deep-linked sheet is dismissed", async () => {
+    mockParams.tool = "humanizer";
+
+    renderWithProviders(<AIStudioPage />);
+
+    await screen.findByText("mock-humanizer-sheet");
+    fireEvent.click(screen.getByRole("button", { name: /close humanizer/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/ai-studio", { replace: true });
   });
 });

@@ -12,6 +12,7 @@ import { useAIAction } from '@/hooks/useAIAction';
 import { useImportJob } from '@/hooks/useImportJob';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import { useAppwriteTailoredIds } from '@/hooks/useTailorHistory';
+import { isTailoredResume } from '@/lib/resumeLineage';
 import { useQueryClient } from '@tanstack/react-query';
 import { tailorResumeWithProgress, type TailorIntensity } from '@/lib/aiTailor';
 import { buildMergedResume } from '@/lib/tailorMerge';
@@ -74,9 +75,7 @@ export default function JobMatchWorkspacePage() {
   const { data: persistedTailoredIds = new Set<string>() } = useAppwriteTailoredIds();
 
   const isLikelyTailoredResume = useCallback((resume: DatabaseResume, tailoredIds: Set<string>) => (
-    tailoredIds.has(resume.$id) ||
-    !!resume.parent_resume_id ||
-    /\(Tailored\)\s*$/i.test(resume.title ?? '')
+    isTailoredResume(resume, tailoredIds)
   ), []);
 
   const currentResume = useMemo(() => {
@@ -280,6 +279,7 @@ export default function JobMatchWorkspacePage() {
         {
           user_id: user.id,
           title: newTitle,
+          parent_resume_id: currentResumeId ?? undefined,
           contact_info: JSON.stringify(merged.contactInfo),
           summary: merged.summary,
           experience: JSON.stringify(merged.experience),
@@ -446,50 +446,68 @@ export default function JobMatchWorkspacePage() {
       {/* Scrollable body */}
       <div className="jmw-body">
         <div className="jmw-content">
-          <div className="jmw-content__left">
-            {/* Resume selector */}
-            {showResumePicker ? (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                  Select resume
-                </p>
-                <Select
-                  value={currentResumeId ?? ''}
-                  onValueChange={(val) => {
-                    setCurrentResumeId(val);
-                    setShowResumePicker(false);
-                    haptics.selection();
-                  }}
-                >
-                  <SelectTrigger className="h-11 rounded-xl text-sm">
-                    <SelectValue placeholder="Choose a resume…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allResumes?.map((r: DatabaseResume) => (
-                      <SelectItem key={r.$id} value={r.$id}>
-                        {r.title || 'Untitled Resume'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="self-start text-xs"
-                  onClick={() => setShowResumePicker(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <ResumeChip
-                title={selectedResumeTitle}
-                isLoading={resumesLoading}
-                onClick={() => setShowResumePicker(true)}
-              />
-            )}
+          <div className="jmw-workflow-steps" aria-label="Tailoring steps">
+            <div className="jmw-workflow-step" data-done={currentResumeId ? 'true' : 'false'}>
+              <span className="jmw-workflow-step__num">1</span>
+              <span className="jmw-workflow-step__label">Pick resume</span>
+            </div>
+            <div className="jmw-workflow-step" data-done={jobDescription.trim().length > 50 ? 'true' : 'false'}>
+              <span className="jmw-workflow-step__num">2</span>
+              <span className="jmw-workflow-step__label">Add job details</span>
+            </div>
+            <div className="jmw-workflow-step" data-done={canTailor ? 'true' : 'false'}>
+              <span className="jmw-workflow-step__num">3</span>
+              <span className="jmw-workflow-step__label">Tune & create</span>
+            </div>
+          </div>
 
-            {/* Job input */}
+          <div className="jmw-content__left">
+            <div className="jmw-panel shrink-0">
+              <div className="jmw-panel__head">
+                <p className="jmw-panel__title">Source resume</p>
+              </div>
+              <div className="p-3">
+                {showResumePicker ? (
+                  <div className="flex flex-col gap-2">
+                    <Select
+                      value={currentResumeId ?? ''}
+                      onValueChange={(val) => {
+                        setCurrentResumeId(val);
+                        setShowResumePicker(false);
+                        haptics.selection();
+                      }}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl text-sm">
+                        <SelectValue placeholder="Choose a resume…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allResumes?.map((r: DatabaseResume) => (
+                          <SelectItem key={r.$id} value={r.$id}>
+                            {r.title || 'Untitled Resume'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="self-start text-xs"
+                      onClick={() => setShowResumePicker(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <ResumeChip
+                    title={selectedResumeTitle}
+                    isLoading={resumesLoading}
+                    onClick={() => setShowResumePicker(true)}
+                    className="border-0 bg-transparent p-0 shadow-none hover:shadow-none min-h-0"
+                  />
+                )}
+              </div>
+            </div>
+
             <JobInputArea
               jobDescription={jobDescription}
               jobUrl={jobUrl}
@@ -500,9 +518,9 @@ export default function JobMatchWorkspacePage() {
               initialTab="paste"
               activeTab={jobInputActiveTab}
               onActiveTabChange={setJobInputActiveTab}
+              fillHeight
             />
 
-            {/* Parsed job preview */}
             {parsedJobInfo && (
               <JobPreviewCard
                 title={parsedJobInfo.title}
@@ -513,10 +531,9 @@ export default function JobMatchWorkspacePage() {
               />
             )}
 
-            {/* Error state */}
             {tailorError && (
               <div className={cn(
-                'flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3',
+                'flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3 shrink-0',
               )}>
                 <div>
                   <p className="text-sm font-medium text-destructive">Tailoring failed</p>
@@ -527,39 +544,35 @@ export default function JobMatchWorkspacePage() {
           </div>
 
           <div className="jmw-content__right">
-            {/* Match analysis */}
-            {jobDescription.trim().length > 50 && currentResume && (
-              <MatchAnalysisSummary
-                jobDescription={jobDescription}
-                resumeText={resumeText}
+            <div className="jmw-content__right-scroll">
+              {jobDescription.trim().length > 50 && currentResume && (
+                <MatchAnalysisSummary
+                  jobDescription={jobDescription}
+                  resumeText={resumeText}
+                />
+              )}
+
+              <JobMatchAdvancedOptions
+                intensity={intensity}
+                onIntensityChange={setIntensity}
+                enabledSections={enabledSections}
+                onSectionsChange={setEnabledSections}
               />
-            )}
 
-            {/* Advanced options */}
-            <JobMatchAdvancedOptions
-              intensity={intensity}
-              onIntensityChange={setIntensity}
-              enabledSections={enabledSections}
-              onSectionsChange={setEnabledSections}
-            />
-
-            {/* History list */}
-            <JobMatchHistoryList />
+              <JobMatchHistoryList />
+            </div>
           </div>
 
-          {/* Spacer for sticky footer */}
-          <div className="h-2" aria-hidden />
+          {!isTailoring && (
+            <JobMatchStickyFooter
+              className="jmw-content__footer"
+              canTailor={canTailor}
+              isTailoring={isTailoring}
+              onTailor={handleTailor}
+            />
+          )}
         </div>
       </div>
-
-      {/* Sticky footer */}
-      {!isTailoring && (
-        <JobMatchStickyFooter
-          canTailor={canTailor}
-          isTailoring={isTailoring}
-          onTailor={handleTailor}
-        />
-      )}
     </div>
   );
 }

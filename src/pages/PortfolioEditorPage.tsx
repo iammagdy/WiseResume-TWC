@@ -5,7 +5,7 @@ import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
-import { useResumes } from '@/hooks/useResumes';
+import { useResumes, type DatabaseResume } from '@/hooks/useResumes';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useProfile';
@@ -76,7 +76,15 @@ export default function PortfolioEditorPage() {
   const { isPro, isPremium } = usePlan();
   const isPaidUser = isPro || isPremium;
   const { profile, loading, updateProfile } = useProfile(user?.id);
-  const { data: resumes = [] } = useResumes();
+  const { data: resumeDocuments = [] } = useResumes();
+  const resumes = useMemo(
+    () =>
+      resumeDocuments.map((doc: DatabaseResume) => ({
+        ...doc,
+        id: doc.$id,
+      })),
+    [resumeDocuments],
+  );
   const usernameRules = usePortfolioUsernameRules(user?.id);
   const { saveSnapshot } = usePortfolioHistory(user?.id);
   const queryClient = useQueryClient();

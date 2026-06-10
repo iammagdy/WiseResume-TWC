@@ -16,6 +16,8 @@ interface JobInputAreaProps {
   activeTab?: InputTab;
   onActiveTabChange?: (tab: InputTab) => void;
   className?: string;
+  /** Stretch the paste tab textarea to fill remaining column height (desktop). */
+  fillHeight?: boolean;
 }
 
 const SUPPORTED_SITES = [
@@ -67,6 +69,7 @@ export function JobInputArea({
   activeTab: controlledTab,
   onActiveTabChange,
   className,
+  fillHeight = false,
 }: JobInputAreaProps) {
   const [internalTab, setInternalTab] = useState<InputTab>(initialTab);
   const activeTab = controlledTab ?? internalTab;
@@ -101,7 +104,7 @@ export function JobInputArea({
   }, [activeTab, onJobUrlChange, onJobDescriptionChange]);
 
   return (
-    <div className={cn('jmw-input-card', className)}>
+    <div className={cn('jmw-input-card', fillHeight && 'jmw-input-card--grow', className)}>
       {/* Tab switcher */}
       <div className="jmw-input-card__tabs" role="tablist" aria-label="Job input method">
         <button
@@ -166,11 +169,11 @@ export function JobInputArea({
             <textarea
               id="jmw-job-description"
               ref={textareaRef}
-              className="jmw-textarea"
+              className={cn('jmw-textarea', fillHeight && activeTab === 'paste' && 'jmw-textarea--grow')}
               placeholder="Paste the full job description here…"
               value={jobDescription}
               onChange={(e) => onJobDescriptionChange(e.target.value)}
-              rows={7}
+              rows={fillHeight ? 4 : 7}
               aria-label="Job description text"
             />
             {jobDescription.trim().length > 0 && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TailorSectionId } from '@/types/resume';
@@ -42,6 +42,14 @@ export function JobMatchAdvancedOptions({
     () => localStorage.getItem(CUSTOM_INSTRUCTIONS_KEY) || '',
   );
 
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => setOpen(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
   const handleCustomChange = (val: string) => {
     setCustomInstructions(val);
     if (val) localStorage.setItem(CUSTOM_INSTRUCTIONS_KEY, val);
@@ -68,13 +76,15 @@ export function JobMatchAdvancedOptions({
       >
         <span className="flex items-center gap-2">
           <Settings2 className="w-3.5 h-3.5" aria-hidden />
-          Advanced options
+          Tailoring settings
         </span>
-        {open ? (
-          <ChevronUp className="w-4 h-4" aria-hidden />
-        ) : (
-          <ChevronDown className="w-4 h-4" aria-hidden />
-        )}
+        <span className="jmw-advanced__chevron">
+          {open ? (
+            <ChevronUp className="w-4 h-4" aria-hidden />
+          ) : (
+            <ChevronDown className="w-4 h-4" aria-hidden />
+          )}
+        </span>
       </button>
 
       {open && (

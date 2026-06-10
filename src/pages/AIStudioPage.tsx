@@ -22,6 +22,7 @@ import { PersonalBrandingSheet } from "@/components/ai-studio/PersonalBrandingSh
 import { ColdEmailSheet } from "@/components/ai-studio/ColdEmailSheet";
 import { SkillsGapSheet } from "@/components/ai-studio/SkillsGapSheet";
 import { PortfolioBioSheet } from "@/components/ai-studio/PortfolioBioSheet";
+import { createRouteOverlayOpenChange } from "@/hooks/useRouteOverlaySync";
 import {
   aiStudioPrimaryWorkflows,
   aiStudioSecondaryWorkflows,
@@ -31,6 +32,8 @@ import {
   type AiStudioToolEntry,
   type AiStudioWorkflowEntry,
 } from "@/lib/aiStudioTools";
+
+const AI_STUDIO_BASE_PATH = "/ai-studio";
 
 const TailorSheet = lazy(() => import("@/components/editor/TailorSheet").then((m) => ({ default: m.TailorSheet })));
 const RecruiterSimSheet = lazy(() => import("@/components/editor/ai/RecruiterSimSheet").then((m) => ({ default: m.RecruiterSimSheet })));
@@ -152,6 +155,44 @@ export default function AIStudioPage() {
   const pendingActionRef = useRef<(() => void) | null>(null);
   const { data: allResumes } = useResumes({ select: (data) => data.slice(0, 5) });
 
+  const dismissToolRoute = useCallback(() => {
+    activatedToolRef.current = null;
+  }, []);
+
+  const closeAllToolSheets = useCallback(() => {
+    setShowChat(false);
+    setShowTailor(false);
+    setShowRecruiterSim(false);
+    setShowAIDetector(false);
+    setShowLinkedIn(false);
+    setShowOnePage(false);
+    setShowEnhance(false);
+    setShowABCompare(false);
+    setShowCompanyBriefing(false);
+    setShowSalaryNegotiation(false);
+    setShowJobRejection(false);
+    setShowReferenceLetter(false);
+    setShowPersonalBranding(false);
+    setShowColdEmail(false);
+    setShowSkillsGap(false);
+    setShowPortfolioBio(false);
+    setChatInitialMessage("");
+  }, []);
+
+  const bindToolSheetOpenChange = useCallback(
+    (toolId: string, setOpen: (open: boolean) => void, onClose?: () => void) =>
+      createRouteOverlayOpenChange(setOpen, navigate, {
+        activeRouteKey: toolParam,
+        overlayRouteKey: toolId,
+        basePath: AI_STUDIO_BASE_PATH,
+        onRouteDismiss: () => {
+          dismissToolRoute();
+          onClose?.();
+        },
+      }),
+    [dismissToolRoute, navigate, toolParam],
+  );
+
   const openToolById = useCallback((toolId: string) => {
     const toolMap: Record<string, () => void> = {
       tailor: () => setShowTailor(true),
@@ -205,20 +246,23 @@ export default function AIStudioPage() {
   }, [currentResumeId, navigate]);
 
   useEffect(() => {
-    if (toolParam) {
-      if (activatedToolRef.current === toolParam) return;
-      activatedToolRef.current = toolParam;
-      openToolById(toolParam);
+    if (!toolParam) {
+      activatedToolRef.current = null;
+      closeAllToolSheets();
+
+      const queryTool = searchParams.get("tool");
+      if (queryTool) {
+        navigate(`${AI_STUDIO_BASE_PATH}/${queryTool}`, { replace: true });
+      }
       return;
     }
 
-    activatedToolRef.current = null;
+    if (activatedToolRef.current === toolParam) return;
 
-    const queryTool = searchParams.get("tool");
-    if (queryTool) {
-      navigate(`/ai-studio/${queryTool}`, { replace: true });
-    }
-  }, [navigate, openToolById, searchParams, toolParam]);
+    closeAllToolSheets();
+    activatedToolRef.current = toolParam;
+    openToolById(toolParam);
+  }, [closeAllToolSheets, navigate, openToolById, searchParams, toolParam]);
 
   const openChatWithMessage = useCallback((message: string) => {
     haptics.light();
@@ -269,7 +313,7 @@ export default function AIStudioPage() {
 
     const action = () => {
       haptics.medium();
-      navigate(`/ai-studio/${tool.id}`);
+      navigate(`${AI_STUDIO_BASE_PATH}/${tool.id}`);
     };
 
     requireResume(action);
@@ -313,78 +357,85 @@ export default function AIStudioPage() {
   const renderWorkflowCard = (workflow: AiStudioWorkflowEntry, compact = false) => {
     const Icon = workflow.icon;
     const primaryTool = getAiStudioToolById(workflow.primaryAction.toolId);
+    const backingTools = workflow.backingTools
+      .map((toolId) => getAiStudioToolById(toolId))
+      .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool && tool.visibility !== "hidden" && tool.visibility !== "excluded"))
+      .slice(0, compact ? 1 : 2);
+
     return (
-      <div
+      <article
         key={workflow.id}
         className={cn(
-          "group relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(32,32,39,0.98),rgba(21,21,27,0.98))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] transition-all duration-200 hover:border-primary/25 hover:shadow-[0_30px_90px_rgba(0,0,0,0.36)]",
-          compact ? "p-4" : "p-4"
+          "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/85 backdrop-blur-sm",
+          "transition-colors duration-200 hover:border-primary/25 hover:bg-card",
+          compact ? "p-3" : "p-3.5 sm:p-4",
         )}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(circle_at_top_left,rgba(190,24,93,0.12),transparent_56%)] opacity-80" />
-        <div className="relative flex h-full flex-col">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/6 bg-white/[0.04] shadow-inner shadow-black/20">
-                <Icon className={cn("h-4.5 w-4.5", workflow.color)} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/90">
-                    {compact ? "Support flow" : "Core workflow"}
-                  </span>
-                </div>
-                <h2 className={cn("mt-2.5 font-semibold tracking-tight text-foreground", compact ? "text-[1.08rem]" : "text-[1.18rem]")}>
-                  {workflow.title}
-                </h2>
-              </div>
-            </div>
-            {primaryTool ? <AICostBadge operation={primaryTool.cost} className="shrink-0 bg-white/[0.03]" /> : null}
+        <div className="flex items-start gap-3">
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-center rounded-xl border border-border/50 bg-muted/25",
+              compact ? "h-9 w-9" : "h-10 w-10",
+            )}
+          >
+            <Icon className={cn(compact ? "h-4 w-4" : "h-[18px] w-[18px]", workflow.color)} />
           </div>
-          <p className={cn("mt-3.5 max-w-[42ch] text-pretty text-muted-foreground", compact ? "text-[13px] leading-6" : "text-sm leading-6")}>
-            {workflow.description}
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {workflow.backingTools
-              .map((toolId) => getAiStudioToolById(toolId))
-              .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool && tool.visibility !== "hidden" && tool.visibility !== "excluded"))
-              .slice(0, compact ? 2 : 3)
-              .map((tool) => {
-              return (
-                <span
-                  key={`${workflow.id}-${tool.id}`}
-                  className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                >
-                  {tool.label}
-                </span>
-              );
-            })}
-          </div>
-
-          <div className="mt-auto pt-4">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                className="min-h-[40px] rounded-2xl px-4 gradient-primary shadow-[0_18px_40px_rgba(190,24,93,0.24)]"
-                onClick={() => handleWorkflowAction(workflow.primaryAction.toolId)}
-              >
-                {workflow.primaryAction.label}
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-              {workflow.secondaryActions.map((action) => (
-                <Button
-                  key={`${workflow.id}-${action.toolId}`}
-                  variant="outline"
-                  className="min-h-[40px] rounded-2xl border-white/12 bg-white/[0.02] px-4 hover:bg-white/[0.05]"
-                  onClick={() => handleWorkflowAction(action.toolId)}
-                >
-                  {action.label}
-                </Button>
-              ))}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h2 className={cn("font-semibold leading-snug tracking-tight text-foreground", compact ? "text-sm" : "text-base")}>
+                {workflow.title}
+              </h2>
+              {primaryTool ? <AICostBadge operation={primaryTool.cost} className="shrink-0 scale-90 origin-top-right" /> : null}
             </div>
+            <p
+              className={cn(
+                "mt-1.5 line-clamp-2 text-pretty text-muted-foreground",
+                compact ? "text-xs leading-5" : "text-[13px] leading-5",
+              )}
+            >
+              {workflow.description}
+            </p>
           </div>
         </div>
-      </div>
+
+        {backingTools.length > 0 ? (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {backingTools.map((tool) => (
+              <span
+                key={`${workflow.id}-${tool.id}`}
+                className="rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+              >
+                {tool.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className={cn("mt-auto flex flex-wrap gap-2", compact ? "pt-3" : "pt-3.5")}>
+          <Button
+            size="sm"
+            className={cn(
+              "min-h-9 rounded-xl px-3 gradient-primary shadow-none",
+              workflow.secondaryActions.length === 0 ? "w-full" : "flex-1",
+            )}
+            onClick={() => handleWorkflowAction(workflow.primaryAction.toolId)}
+          >
+            <span className="truncate">{workflow.primaryAction.label}</span>
+            <ArrowRight className="ml-1 h-3.5 w-3.5 shrink-0" />
+          </Button>
+          {workflow.secondaryActions.map((action) => (
+            <Button
+              key={`${workflow.id}-${action.toolId}`}
+              variant="outline"
+              size="sm"
+              className="min-h-9 rounded-xl border-border/60 bg-transparent px-3 hover:bg-muted/30"
+              onClick={() => handleWorkflowAction(action.toolId)}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </div>
+      </article>
     );
   };
 
@@ -467,26 +518,26 @@ export default function AIStudioPage() {
             </div>
           )}
 
-          <div className="pb-4 pt-1">
+          <div className="pb-3 pt-1">
             <div className="px-1 lg:flex lg:items-end lg:justify-between">
               <div>
-                <h2 className="text-[1.5rem] font-semibold tracking-tight text-foreground">Primary workflows</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Primary workflows</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Start with the main outcomes most people need from Wise AI.</p>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground lg:mt-0">Built to feel like one workspace, not a long list of isolated tools.</p>
+              <p className="mt-2 text-xs text-muted-foreground lg:mt-0 lg:max-w-xs lg:text-right">Built to feel like one workspace, not a long list of isolated tools.</p>
             </div>
           </div>
-          <div className="grid gap-5 pb-8 lg:grid-cols-2">
+          <div className="grid gap-3 pb-6 sm:grid-cols-2 lg:grid-cols-3">
             {aiStudioPrimaryWorkflows.map((workflow) => renderWorkflowCard(workflow))}
           </div>
 
-          <div className="pb-4">
+          <div className="pb-3">
             <div className="px-1">
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">Secondary tools</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Useful supporting workflows that stay available without crowding the main workspace.</p>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Secondary tools</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Supporting workflows that stay available without crowding the main grid.</p>
             </div>
           </div>
-          <div className="grid gap-5 pb-8 md:grid-cols-2">
+          <div className="grid gap-3 pb-6 sm:grid-cols-2 lg:grid-cols-3">
             {aiStudioSecondaryWorkflows.map((workflow) => renderWorkflowCard(workflow, true))}
           </div>
 
@@ -549,24 +600,31 @@ export default function AIStudioPage() {
           {showChat && (
             <AgenticChatSheet
               open={showChat}
-              onOpenChange={(open) => {
-                setShowChat(open);
-                if (!open) setChatInitialMessage("");
-              }}
+              onOpenChange={bindToolSheetOpenChange("chat", setShowChat, () => setChatInitialMessage(""))}
               initialMessage={chatInitialMessage}
             />
           )}
-          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
-          {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
-          {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
-          {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
-          {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
-          {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
-          {showABCompare && <ResumeABCompareSheet open={showABCompare} onOpenChange={setShowABCompare} />}
+          {showTailor && <TailorSheet open={showTailor} onOpenChange={bindToolSheetOpenChange("tailor", setShowTailor)} />}
+          {showRecruiterSim && (
+            <RecruiterSimSheet open={showRecruiterSim} onOpenChange={bindToolSheetOpenChange("recruiter", setShowRecruiterSim)} />
+          )}
+          {showAIDetector && (
+            <AIDetectorSheet open={showAIDetector} onOpenChange={bindToolSheetOpenChange("humanizer", setShowAIDetector)} />
+          )}
+          {showLinkedIn && (
+            <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={bindToolSheetOpenChange("linkedin", setShowLinkedIn)} />
+          )}
+          {showOnePage && (
+            <OnePageWizardSheet open={showOnePage} onOpenChange={bindToolSheetOpenChange("onepage", setShowOnePage)} />
+          )}
+          {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={bindToolSheetOpenChange("enhance", setShowEnhance)} />}
+          {showABCompare && (
+            <ResumeABCompareSheet open={showABCompare} onOpenChange={bindToolSheetOpenChange("ab-compare", setShowABCompare)} />
+          )}
           {showCompanyBriefing && (
             <CompanyBriefingSheet
               open={showCompanyBriefing}
-              onOpenChange={setShowCompanyBriefing}
+              onOpenChange={bindToolSheetOpenChange("company-briefing", setShowCompanyBriefing)}
               jobDescription=""
               resumeData={
                 resumeData
@@ -582,13 +640,32 @@ export default function AIStudioPage() {
         </Suspense>
       </ErrorBoundary>
 
-      {showSalaryNegotiation && <SalaryNegotiationSheet open={showSalaryNegotiation} onOpenChange={setShowSalaryNegotiation} />}
-      {showJobRejection && <JobRejectionSheet open={showJobRejection} onOpenChange={setShowJobRejection} />}
-      {showReferenceLetter && <ReferenceLetterSheet open={showReferenceLetter} onOpenChange={setShowReferenceLetter} />}
-      {showPersonalBranding && <PersonalBrandingSheet open={showPersonalBranding} onOpenChange={setShowPersonalBranding} />}
-      {showColdEmail && <ColdEmailSheet open={showColdEmail} onOpenChange={setShowColdEmail} />}
-      {showSkillsGap && <SkillsGapSheet open={showSkillsGap} onOpenChange={setShowSkillsGap} />}
-      {showPortfolioBio && <PortfolioBioSheet open={showPortfolioBio} onOpenChange={setShowPortfolioBio} />}
+      {showSalaryNegotiation && (
+        <SalaryNegotiationSheet
+          open={showSalaryNegotiation}
+          onOpenChange={bindToolSheetOpenChange("salary-negotiation", setShowSalaryNegotiation)}
+        />
+      )}
+      {showJobRejection && (
+        <JobRejectionSheet open={showJobRejection} onOpenChange={bindToolSheetOpenChange("job-rejection", setShowJobRejection)} />
+      )}
+      {showReferenceLetter && (
+        <ReferenceLetterSheet
+          open={showReferenceLetter}
+          onOpenChange={bindToolSheetOpenChange("reference-letter", setShowReferenceLetter)}
+        />
+      )}
+      {showPersonalBranding && (
+        <PersonalBrandingSheet
+          open={showPersonalBranding}
+          onOpenChange={bindToolSheetOpenChange("personal-branding", setShowPersonalBranding)}
+        />
+      )}
+      {showColdEmail && <ColdEmailSheet open={showColdEmail} onOpenChange={bindToolSheetOpenChange("cold-email", setShowColdEmail)} />}
+      {showSkillsGap && <SkillsGapSheet open={showSkillsGap} onOpenChange={bindToolSheetOpenChange("skills-gap", setShowSkillsGap)} />}
+      {showPortfolioBio && (
+        <PortfolioBioSheet open={showPortfolioBio} onOpenChange={bindToolSheetOpenChange("portfolio-bio", setShowPortfolioBio)} />
+      )}
     </div>
   );
 }

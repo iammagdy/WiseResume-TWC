@@ -51,6 +51,7 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useAppwriteTailoredIds } from '@/hooks/useTailorHistory';
+import { isNormalResume, isTailoredResume } from '@/lib/resumeLineage';
 import { OnboardingChecklist, ChecklistStep } from '@/components/dashboard/OnboardingChecklist';
 
 // Lazy-loaded dialogs
@@ -127,9 +128,12 @@ function DashboardPageContent() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(
-    () => sessionStorage.getItem('wr-dash-search') || ''
-  );
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Drop legacy persisted list filter from the old dashboard search bar.
+  useEffect(() => {
+    sessionStorage.removeItem('wr-dash-search');
+  }, []);
   const [showTrustBanner, setShowTrustBanner] = useState(() => {
     const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
     if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
@@ -144,7 +148,7 @@ function DashboardPageContent() {
   const isOffline = !isOnline;
 
 
-  const [resumeListTab, setResumeListTab] = useState<'all' | 'tailored'>('all');
+  const [resumeListTab, setResumeListTab] = useState<'all' | 'normal' | 'tailored'>('all');
 
   // Track session count for progressive disclosure
   useEffect(() => { trackSession(); }, []);
@@ -166,13 +170,6 @@ function DashboardPageContent() {
     window.addEventListener('wr-export-completed', handleExportCompleted);
     return () => window.removeEventListener('wr-export-completed', handleExportCompleted);
   }, [user?.id]);
-
-
-  // Persist helpers for sessionStorage sync (D-3)
-  const handleSetSearchQuery = useCallback((q: string) => {
-    sessionStorage.setItem('wr-dash-search', q);
-    setSearchQuery(q);
-  }, []);
 
 
   // Reset loading state when dialog opens
@@ -494,7 +491,7 @@ function DashboardPageContent() {
     if (resume) {
       setCurrentResumeId(resumeId);
       setCurrentResume(dbToResumeData(resume));
-      if (resume.parent_resume_id || tailoredResumeIds.has(resumeId)) {
+      if (isTailoredResume(resume, tailoredResumeIds)) {
         const histEntry = tailorHistory.find((h) => h.tailoredResumeId === resumeId);
         navigate(`/tailoring-hub/result/${resumeId}`, {
           state: histEntry
@@ -613,18 +610,28 @@ function DashboardPageContent() {
   }, [resumes, deferredSearch]);
 
   const tailoredResumes = useMemo(
-    () => filteredResumes?.filter((r) => r.parent_resume_id || tailoredResumeIds.has(r.$id)) ?? [],
+    () => filteredResumes?.filter((r) => isTailoredResume(r, tailoredResumeIds)) ?? [],
+    [filteredResumes, tailoredResumeIds],
+  );
+
+  const normalResumes = useMemo(
+    () => filteredResumes?.filter((r) => isNormalResume(r, tailoredResumeIds)) ?? [],
     [filteredResumes, tailoredResumeIds],
   );
 
   const displayedResumes = useMemo(() => {
-    const pool = resumeListTab === 'tailored' ? tailoredResumes : filteredResumes ?? [];
+    const pool =
+      resumeListTab === 'tailored'
+        ? tailoredResumes
+        : resumeListTab === 'normal'
+          ? normalResumes
+          : filteredResumes ?? [];
     return [...pool].sort(
       (a, b) =>
         new Date(b.$updatedAt || b.$createdAt || 0).getTime() -
         new Date(a.$updatedAt || a.$createdAt || 0).getTime(),
     );
-  }, [resumeListTab, tailoredResumes, filteredResumes]);
+  }, [resumeListTab, tailoredResumes, normalResumes, filteredResumes]);
 
   // Organize resumes into hierarchy
   const resumeHierarchy = useMemo(() => {
@@ -692,8 +699,6 @@ function DashboardPageContent() {
       });
     }, 5000);
   }, [selectedIds, deleteMultipleResumes, exitSelectionMode]);
-
-  const hasResumes = filteredResumes && filteredResumes.length > 0;
 
   const checklistSteps = useMemo((): ChecklistStep[] => {
     const hasAnyScore = Object.values(healthScores).some(s => (s.overallScore ?? 0) > 0);
@@ -845,29 +850,10 @@ function DashboardPageContent() {
             <>
               <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => navigate('/onboarding')} onImportProfile={() => setShowLinkedInImport(true)} />
             </>
-          ) : !hasResumes ? (
-            <div className="flex items-center justify-center px-4 py-16">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center"
-              >
-                <p className="text-muted-foreground">No resumes match "{searchQuery}"</p>
-                <Button
-                  variant="link"
-                  onClick={() => setSearchQuery('')}
-                  className="mt-2"
-                >
-                  Clear search
-                </Button>
-              </motion.div>
-            </div>
           ) : (
             <DashboardWorkspaceLayout
               topBar={
                 <DashboardTopCommandBar
-                  searchQuery={searchQuery}
-                  onSearchChange={handleSetSearchQuery}
                   onImportJob={handleImportJob}
                   onOpenWiseAI={handleOpenWiseAI}
                 />
@@ -913,7 +899,7 @@ function DashboardPageContent() {
                       value={resumeListTab}
                       onValueChange={(v) => {
                         haptics.selection();
-                        setResumeListTab(v as 'all' | 'tailored');
+                        setResumeListTab(v as 'all' | 'normal' | 'tailored');
                       }}
                     >
                       <TabsList className="h-9 p-0.5 rounded-xl bg-muted/40 border border-border/40">
@@ -927,6 +913,18 @@ function DashboardPageContent() {
                             className="ml-1.5 text-[10px] h-4 px-1 min-w-[1.25rem] justify-center tabular-nums"
                           >
                             {filteredResumes?.length ?? 0}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="normal"
+                          className="h-8 px-3 text-xs rounded-lg data-[state=active]:shadow-none data-[state=active]:bg-card data-[state=active]:border data-[state=active]:border-border/50"
+                        >
+                          Normal
+                          <Badge
+                            variant="secondary"
+                            className="ml-1.5 text-[10px] h-4 px-1 min-w-[1.25rem] justify-center tabular-nums"
+                          >
+                            {normalResumes.length}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger
@@ -949,7 +947,7 @@ function DashboardPageContent() {
                       <Input
                         placeholder="Search resumes..."
                         value={searchQuery}
-                        onChange={(e) => handleSetSearchQuery(e.target.value)}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         className="h-8 pl-7 text-xs rounded-lg border-border/50 bg-card/50"
                         aria-label="Search recent resumes"
                       />
@@ -1034,21 +1032,39 @@ function DashboardPageContent() {
                         {displayedResumes.length === 0 && (
                           <div className="rounded-2xl border border-dashed border-border/50 bg-card/40 px-4 py-10 text-center">
                             <p className="text-sm font-medium text-foreground">
-                              {resumeListTab === 'tailored'
-                                ? 'No tailored resumes yet'
-                                : 'No resumes match your search'}
+                              {deferredSearch && resumeListTab === 'all'
+                                ? `No resumes match "${deferredSearch}"`
+                                : resumeListTab === 'tailored'
+                                  ? 'No tailored resumes yet'
+                                  : resumeListTab === 'normal'
+                                    ? 'No normal resumes yet'
+                                    : 'No resumes match your search'}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1.5 max-w-sm mx-auto leading-relaxed">
-                              {resumeListTab === 'tailored'
-                                ? 'Create a tailored copy from any master resume using Tailor to Job.'
-                                : 'Try clearing your search or create a new resume.'}
+                              {deferredSearch && resumeListTab === 'all'
+                                ? 'Try a different keyword or clear your search.'
+                                : resumeListTab === 'tailored'
+                                  ? 'Create a tailored copy from any master resume using Tailor to Job.'
+                                  : resumeListTab === 'normal'
+                                    ? 'Normal resumes are your original CVs — not job-specific tailored copies.'
+                                    : 'Try clearing your search or create a new resume.'}
                             </p>
-                            {resumeListTab === 'tailored' && filteredResumes?.some((r) => !r.parent_resume_id) && (
+                            {deferredSearch && resumeListTab === 'all' && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => setSearchQuery('')}
+                                className="mt-2 h-8"
+                              >
+                                Clear search
+                              </Button>
+                            )}
+                            {resumeListTab === 'tailored' && normalResumes.length > 0 && (
                               <Button
                                 size="sm"
                                 className="mt-4 h-9 rounded-xl text-xs"
                                 onClick={() => {
-                                  const master = filteredResumes.find((r) => !r.parent_resume_id);
+                                  const master = normalResumes[0];
                                   if (master) handleTailorResume(master.$id);
                                 }}
                               >
@@ -1058,7 +1074,8 @@ function DashboardPageContent() {
                           </div>
                         )}
                         {displayedResumes.map((resume) => {
-                          const isMaster = !resume.parent_resume_id;
+                          const tailored = isTailoredResume(resume, tailoredResumeIds);
+                          const isMaster = !tailored;
                           return (
                             <motion.div key={resume.$id} variants={itemVariants}>
                               <ResumeListCard
@@ -1071,7 +1088,7 @@ function DashboardPageContent() {
                                 showMasterBadge={
                                   isMaster && !!resumeHierarchy?.tailoredByParent[resume.$id]?.length
                                 }
-                                showTailoredBadge={!isMaster || tailoredResumeIds.has(resume.$id)}
+                                showTailoredBadge={tailored}
                                 healthScore={healthScores[resume.$id]}
                                 isScoring={scoringId === resume.$id}
                                 selectionMode={selectionMode}

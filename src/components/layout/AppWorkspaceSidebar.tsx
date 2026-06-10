@@ -5,6 +5,7 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeft,
+  ArrowUpRight,
 } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { DashboardWorkspaceProfileDialog } from '@/components/dashboard/DashboardWorkspaceProfileDialog';
@@ -223,30 +224,55 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
           {!effectiveCollapsed && (showUpgradeCta || isPaid || creditDisplay) && (
             <div
               className={cn(
-                'dashboard-workspace-sidebar__membership rounded-xl p-3.5',
+                'dashboard-workspace-sidebar__membership relative overflow-hidden rounded-xl p-3.5',
                 isPaid && 'dashboard-workspace-sidebar__membership--paid',
+                isPremium && 'dashboard-workspace-sidebar__membership--premium',
+                isPro && !isPremium && 'dashboard-workspace-sidebar__membership--pro',
                 showUpgradeCta && !isPaid && 'dashboard-workspace-sidebar__membership--upgrade',
               )}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="dashboard-workspace-sidebar__membership-glow" aria-hidden />
+              <div className="relative flex items-start gap-2.5 min-w-0">
                 <span
                   className={cn(
-                    'flex items-center justify-center w-8 h-8 rounded-lg shrink-0 border',
-                    isPaid
-                      ? 'bg-amber-500/15 border-amber-500/30'
-                      : 'bg-primary/12 border-primary/25',
+                    'flex items-center justify-center w-9 h-9 rounded-xl shrink-0 border shadow-sm',
+                    isPremium
+                      ? 'bg-gradient-to-br from-amber-400/30 via-amber-500/15 to-amber-600/10 border-amber-500/35'
+                      : isPaid
+                        ? 'bg-gradient-to-br from-primary/25 to-primary/8 border-primary/30'
+                        : 'bg-primary/12 border-primary/25',
                   )}
                 >
-                  <Crown className="w-4 h-4 text-amber-500" aria-hidden />
+                  <Crown
+                    className={cn(
+                      'w-4 h-4',
+                      isPremium ? 'text-amber-600 dark:text-amber-400' : isPaid ? 'text-primary' : 'text-amber-500',
+                    )}
+                    aria-hidden
+                  />
                 </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-foreground leading-tight">
-                    {isPaid
-                      ? isPremium
-                        ? 'Premium membership'
-                        : 'Pro membership'
-                      : 'Your membership'}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-semibold text-foreground leading-tight">
+                      {isPaid
+                        ? isPremium
+                          ? 'Premium membership'
+                          : 'Pro membership'
+                        : 'Your membership'}
+                    </p>
+                    {isPaid ? (
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] border',
+                          isPremium
+                            ? 'border-amber-500/30 bg-amber-500/12 text-amber-700 dark:text-amber-300'
+                            : 'border-primary/30 bg-primary/10 text-primary',
+                        )}
+                      >
+                        Active
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
                     {isPaid
                       ? isPremium
@@ -307,13 +333,19 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
               {isPaid && (
                 <button
                   type="button"
-                  className="mt-3 w-full text-left text-[10px] font-medium text-primary/90 hover:text-primary transition-colors"
+                  className={cn(
+                    'relative mt-2.5 flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-[11px] font-medium transition-colors',
+                    isPremium
+                      ? 'border-amber-500/25 bg-background/50 text-amber-900/80 hover:bg-background/80 hover:text-amber-950 dark:text-amber-100/90 dark:hover:text-amber-50'
+                      : 'border-border/50 bg-background/40 text-foreground/80 hover:bg-background/70 hover:text-foreground',
+                  )}
                   onClick={() => {
                     haptics.light();
                     onBilling();
                   }}
                 >
-                  Manage billing →
+                  Manage billing
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
                 </button>
               )}
             </div>

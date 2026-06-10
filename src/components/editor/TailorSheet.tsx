@@ -621,6 +621,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       const newDoc = await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
         user_id: user.id,
         title: newTitle,
+        parent_resume_id: currentResumeId ?? undefined,
         contact_info: JSON.stringify(mergedResume.contactInfo),
         summary: mergedResume.summary,
         experience: JSON.stringify(mergedResume.experience),
@@ -636,6 +637,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         jobTitle,
         company,
         jobDescription,
+        tailoredResumeId: newDoc.$id,
         tailorResult,
         scoreBeforeAfter: tailorResult.overallScore ?? { before: 0, after: 0 },
         appliedSections: enabledSections,

@@ -813,16 +813,53 @@ button,
   }
 
   .dashboard-workspace-sidebar__membership--paid {
-    border-color: hsl(45 93% 47% / 0.32);
+    border-color: hsl(43 74% 66% / 0.42);
     background: linear-gradient(
-      165deg,
-      hsl(45 55% 14% / 0.55) 0%,
-      hsl(var(--card) / 0.78) 42%,
-      hsl(240 6% 8% / 0.92) 100%
+      145deg,
+      hsl(43 100% 97%) 0%,
+      hsl(45 90% 93%) 42%,
+      hsl(var(--card)) 100%
     );
     box-shadow:
-      0 14px 32px -20px hsl(45 93% 47% / 0.28),
-      inset 0 1px 0 hsl(45 93% 47% / 0.12);
+      0 10px 24px -18px hsl(43 74% 49% / 0.28),
+      inset 0 1px 0 hsl(0 0% 100% / 0.9);
+  }
+
+  .dashboard-workspace-sidebar__membership--premium {
+    border-color: hsl(43 74% 58% / 0.48);
+    background: linear-gradient(
+      145deg,
+      hsl(43 100% 96%) 0%,
+      hsl(45 86% 90%) 38%,
+      hsl(40 40% 98%) 100%
+    );
+  }
+
+  .dashboard-workspace-sidebar__membership--pro {
+    border-color: hsl(var(--primary) / 0.32);
+    background: linear-gradient(
+      145deg,
+      hsl(var(--primary) / 0.1) 0%,
+      hsl(var(--primary) / 0.04) 45%,
+      hsl(var(--card)) 100%
+    );
+    box-shadow:
+      0 10px 24px -18px hsl(var(--primary) / 0.22),
+      inset 0 1px 0 hsl(0 0% 100% / 0.85);
+  }
+
+  .dashboard-workspace-sidebar__membership-glow {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 100% 0%, hsl(43 93% 67% / 0.22), transparent 52%),
+      radial-gradient(circle at 0% 100%, hsl(var(--primary) / 0.06), transparent 48%);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .dashboard-workspace-sidebar__membership--pro .dashboard-workspace-sidebar__membership-glow {
+    background: radial-gradient(circle at 100% 0%, hsl(var(--primary) / 0.16), transparent 55%);
   }
 
   .dashboard-workspace-sidebar__membership--upgrade {
@@ -841,12 +878,45 @@ button,
   }
 
   .dark .dashboard-workspace-sidebar__membership--paid {
+    border-color: hsl(45 93% 47% / 0.32);
     background: linear-gradient(
       165deg,
       hsl(45 45% 12% / 0.65) 0%,
       hsl(240 6% 9% / 0.95) 48%,
       hsl(240 5% 7% / 0.98) 100%
     );
+    box-shadow:
+      0 14px 32px -20px hsl(45 93% 47% / 0.28),
+      inset 0 1px 0 hsl(45 93% 47% / 0.12);
+  }
+
+  .dark .dashboard-workspace-sidebar__membership--premium {
+    background: linear-gradient(
+      165deg,
+      hsl(45 45% 12% / 0.65) 0%,
+      hsl(240 6% 9% / 0.95) 48%,
+      hsl(240 5% 7% / 0.98) 100%
+    );
+  }
+
+  .dark .dashboard-workspace-sidebar__membership--pro {
+    border-color: hsl(var(--primary) / 0.38);
+    background: linear-gradient(
+      165deg,
+      hsl(var(--primary) / 0.18) 0%,
+      hsl(240 6% 9% / 0.95) 52%,
+      hsl(240 5% 7% / 0.98) 100%
+    );
+    box-shadow:
+      0 14px 32px -20px hsl(var(--primary) / 0.25),
+      inset 0 1px 0 hsl(var(--primary) / 0.1);
+  }
+
+  .dark .dashboard-workspace-sidebar__membership-glow {
+    background:
+      radial-gradient(circle at 100% 0%, hsl(45 93% 47% / 0.14), transparent 52%),
+      radial-gradient(circle at 0% 100%, hsl(var(--primary) / 0.08), transparent 48%);
+    opacity: 0.75;
   }
 
   .dashboard-workspace-sidebar__credits-bar {

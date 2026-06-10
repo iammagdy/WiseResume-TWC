@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 import {
   CommandDialog,
   CommandEmpty,
@@ -8,152 +9,197 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+import { SearchHighlight } from '@/components/ui/SearchHighlight';
+import { useResumes } from '@/hooks/useResumes';
+import { useAppwriteTailoredIds } from '@/hooks/useTailorHistory';
 import {
-  FileText, Upload, Briefcase, Settings, Home, BookOpen, Palette, Mic, PenTool,
-  Wand2, Target, Sparkles, Shield, Linkedin, UserCheck, TrendingUp,
-  Lightbulb, GitCompareArrows, MessageSquare,
-} from 'lucide-react';
+  getWorkspaceGroupLabel,
+  searchResumes,
+  searchWorkspaceItems,
+  type WorkspaceSearchGroup,
+  type WorkspaceSearchItem,
+} from '@/lib/workspaceSearch';
+import {
+  SEARCH_OPEN_INTENT_KEY,
+  SEARCH_PREFILL_KEY,
+  type WorkspaceSearchOpenDetail,
+} from '@/lib/workspaceSearchEvents';
 import { haptics } from '@/lib/haptics';
 
-const SEARCH_PREFILL_KEY = 'wr-search-prefill';
-const SEARCH_OPEN_INTENT_KEY = 'wr-search-open';
+function WorkspaceResultItem({
+  item,
+  query,
+  onSelect,
+}: {
+  item: WorkspaceSearchItem;
+  query: string;
+  onSelect: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <CommandItem
+      value={`${item.id}-${item.label}`}
+      onSelect={onSelect}
+      className="items-start gap-3 py-2.5"
+    >
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          <SearchHighlight text={item.label} query={query} />
+        </p>
+        {item.description ? (
+          <p className="truncate text-xs text-muted-foreground">
+            <SearchHighlight text={item.description} query={query} />
+          </p>
+        ) : null}
+      </div>
+    </CommandItem>
+  );
+}
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const navigate = useNavigate();
+  const { data: resumes = [] } = useResumes();
+  const { data: tailoredIds = new Set<string>() } = useAppwriteTailoredIds();
 
-  const consumePrefillAndOpen = () => {
-    const prefill = sessionStorage.getItem(SEARCH_PREFILL_KEY);
-    if (prefill) {
-      sessionStorage.removeItem(SEARCH_PREFILL_KEY);
-      setInputValue(prefill);
-    }
+  const openWithPrefill = useCallback((prefill = '') => {
+    setInputValue(prefill);
+    sessionStorage.removeItem(SEARCH_PREFILL_KEY);
     sessionStorage.removeItem(SEARCH_OPEN_INTENT_KEY);
     setOpen(true);
-  };
+  }, []);
 
   useEffect(() => {
     if (sessionStorage.getItem(SEARCH_OPEN_INTENT_KEY)) {
-      consumePrefillAndOpen();
+      const prefill = sessionStorage.getItem(SEARCH_PREFILL_KEY) ?? '';
+      openWithPrefill(prefill);
     }
 
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setOpen(prev => !prev);
+        setOpen((prev) => {
+          if (prev) {
+            setInputValue('');
+            return false;
+          }
+          openWithPrefill('');
+          return true;
+        });
       }
     };
-    const openHandler = () => consumePrefillAndOpen();
+
+    const openHandler = (event: Event) => {
+      const detail = (event as CustomEvent<WorkspaceSearchOpenDetail>).detail;
+      openWithPrefill(detail?.prefill ?? sessionStorage.getItem(SEARCH_PREFILL_KEY) ?? '');
+    };
+
     window.addEventListener('keydown', handler);
     window.addEventListener('open-command-palette', openHandler);
     return () => {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('open-command-palette', openHandler);
     };
-  }, []);
+  }, [openWithPrefill]);
+
+  const resumeResults = useMemo(
+    () => searchResumes(resumes, inputValue, tailoredIds),
+    [resumes, inputValue, tailoredIds],
+  );
+
+  const workspaceResults = useMemo(
+    () => searchWorkspaceItems(inputValue),
+    [inputValue],
+  );
+
+  const groupedWorkspace = useMemo(() => {
+    const groups: Record<Exclude<WorkspaceSearchGroup, 'resumes'>, WorkspaceSearchItem[]> = {
+      actions: [],
+      ai: [],
+      navigation: [],
+    };
+    for (const item of workspaceResults) {
+      groups[item.group].push(item);
+    }
+    return groups;
+  }, [workspaceResults]);
+
+  const hasResults = resumeResults.length > 0 || workspaceResults.length > 0;
 
   const go = useCallback((path: string) => {
     haptics.light();
     setOpen(false);
+    setInputValue('');
     navigate(path);
   }, [navigate]);
 
+  const handleOpenChange = useCallback((next: boolean) => {
+    setOpen(next);
+    if (!next) setInputValue('');
+  }, []);
+
+  const renderWorkspaceGroup = (group: Exclude<WorkspaceSearchGroup, 'resumes'>) => {
+    const items = groupedWorkspace[group];
+    if (items.length === 0) return null;
+    return (
+      <CommandGroup key={group} heading={getWorkspaceGroupLabel(group)}>
+        {items.map((item) => (
+          <WorkspaceResultItem
+            key={item.id}
+            item={item}
+            query={inputValue}
+            onSelect={() => go(item.path)}
+          />
+        ))}
+      </CommandGroup>
+    );
+  };
+
   return (
-    <CommandDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setInputValue(''); }}>
-      <CommandInput placeholder="Search actions, pages..." value={inputValue} onValueChange={setInputValue} />
-      <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Quick Actions">
-          <CommandItem onSelect={() => go('/editor')}>
-            <FileText className="mr-2 h-4 w-4" />
-            Open Editor
-          </CommandItem>
-          <CommandItem onSelect={() => go('/upload')}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import Resume
-          </CommandItem>
-          <CommandItem onSelect={() => go('/cover-letter/new')}>
-            <PenTool className="mr-2 h-4 w-4" />
-            New Cover Letter
-          </CommandItem>
-          <CommandItem onSelect={() => go('/interview')}>
-            <Mic className="mr-2 h-4 w-4" />
-            Practice Interview
-          </CommandItem>
-        </CommandGroup>
-        <CommandGroup heading="AI Tools">
-          <CommandItem onSelect={() => go('/ai-studio/chat')}>
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Wise AI Chat
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/tailor')}>
-            <Wand2 className="mr-2 h-4 w-4" />
-            Smart Tailor
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/ab-compare')}>
-            <GitCompareArrows className="mr-2 h-4 w-4" />
-            A/B Compare
-          </CommandItem>
-          <CommandItem onSelect={() => go('/tailoring-hub')}>
-            <Target className="mr-2 h-4 w-4" />
-            Tailoring Hub
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/enhance')}>
-            <Sparkles className="mr-2 h-4 w-4" />
-            AI Enhance
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/humanizer')}>
-            <Shield className="mr-2 h-4 w-4" />
-            AI Detector / Humanize
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/linkedin')}>
-            <Linkedin className="mr-2 h-4 w-4" />
-            LinkedIn Optimizer
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/onepage')}>
-            <FileText className="mr-2 h-4 w-4" />
-            One-Page Wizard
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/recruiter')}>
-            <UserCheck className="mr-2 h-4 w-4" />
-            Recruiter Simulation
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/career')}>
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Career Path Advisor
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/ideas')}>
-            <Lightbulb className="mr-2 h-4 w-4" />
-            Content Ideas
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio/customize')}>
-            <Palette className="mr-2 h-4 w-4" />
-            Customize Design
-          </CommandItem>
-        </CommandGroup>
-        <CommandGroup heading="Navigation">
-          <CommandItem onSelect={() => go('/dashboard')}>
-            <Home className="mr-2 h-4 w-4" />
-            Dashboard
-          </CommandItem>
-          <CommandItem onSelect={() => go('/applications')}>
-            <Briefcase className="mr-2 h-4 w-4" />
-            Job Applications
-          </CommandItem>
-          <CommandItem onSelect={() => go('/templates')}>
-            <Palette className="mr-2 h-4 w-4" />
-            Templates
-          </CommandItem>
-          <CommandItem onSelect={() => go('/guides')}>
-            <BookOpen className="mr-2 h-4 w-4" />
-            Career Guides
-          </CommandItem>
-          <CommandItem onSelect={() => go('/settings')}>
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </CommandItem>
-        </CommandGroup>
+    <CommandDialog open={open} onOpenChange={handleOpenChange} shouldFilter={false}>
+      <CommandInput
+        placeholder="Search resumes, keywords, tools..."
+        value={inputValue}
+        onValueChange={setInputValue}
+      />
+      <CommandList className="max-h-[min(60vh,28rem)]">
+        {!hasResults ? <CommandEmpty>No results found.</CommandEmpty> : null}
+
+        {resumeResults.length > 0 ? (
+          <CommandGroup heading={getWorkspaceGroupLabel('resumes')}>
+            {resumeResults.map((result) => (
+              <CommandItem
+                key={result.id}
+                value={`resume-${result.id}-${result.label}`}
+                onSelect={() => go(result.path)}
+                className="items-start gap-3 py-2.5"
+              >
+                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      <SearchHighlight text={result.label} query={inputValue} />
+                    </p>
+                    {result.tailored ? (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                        Tailored
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    <SearchHighlight text={result.description} query={inputValue} />
+                  </p>
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+
+        {renderWorkspaceGroup('actions')}
+        {renderWorkspaceGroup('ai')}
+        {renderWorkspaceGroup('navigation')}
       </CommandList>
     </CommandDialog>
   );

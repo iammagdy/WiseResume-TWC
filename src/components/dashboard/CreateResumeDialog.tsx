@@ -279,6 +279,7 @@ export function CreateResumeDialog({
       const newDoc = await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
         user_id: user.id,
         title: title.trim(),
+        parent_resume_id: parentResumeId,
         // contact_info, experience, education, skills, certifications, awards,
         // projects are already JSON strings in the Appwrite DatabaseResume.
         contact_info: parentResume.contact_info,

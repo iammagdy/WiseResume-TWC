@@ -31,7 +31,7 @@ export const APP_SIDEBAR_LINKS: AppSidebarNavItem[] = [
   },
   {
     path: '/ai-studio',
-    label: 'Wise AI',
+    label: 'AI Tools',
     icon: Wand2,
     match: [
       '/ai-studio',

@@ -1,21 +1,46 @@
-import { Sparkles, Zap } from 'lucide-react';
+import { Sparkles, Zap, Infinity as InfinityIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAICost } from '@/lib/aiCostEstimates';
+import { useAICredits } from '@/hooks/useAICredits';
+import { usePlan } from '@/hooks/usePlan';
 
 interface JobMatchStickyFooterProps {
   canTailor: boolean;
   isTailoring: boolean;
   onTailor: () => void;
-  creditCost?: number;
+  /** AI_COST_MAP operation key — defaults to tailor (2 credits). */
+  operation?: string;
   className?: string;
+}
+
+function formatCreditLabel(cost: number): string {
+  if (cost <= 0) return 'no credits';
+  return cost === 1 ? '1 AI credit' : `${cost} AI credits`;
 }
 
 export function JobMatchStickyFooter({
   canTailor,
   isTailoring,
   onTailor,
-  creditCost = 1,
+  operation = 'tailor',
   className,
 }: JobMatchStickyFooterProps) {
+  const { data: credits, isActiveTrial, trialPlan } = useAICredits();
+  const { isPremium } = usePlan();
+  const creditCost = getAICost(operation);
+
+  const hasUnlimitedCredits =
+    isPremium ||
+    (isActiveTrial && trialPlan === 'premium') ||
+    !Number.isFinite(credits?.daily_limit) ||
+    credits?.daily_limit === -1;
+
+  const hintText = hasUnlimitedCredits
+    ? isActiveTrial && trialPlan === 'premium'
+      ? 'Premium trial · No credits used · Changes saved automatically'
+      : 'Premium · No credits used · Changes saved automatically'
+    : `Uses ${formatCreditLabel(creditCost)} · Changes saved automatically`;
+
   return (
     <div className={cn('jmw-sticky-footer', className)}>
       <button
@@ -39,8 +64,12 @@ export function JobMatchStickyFooter({
       </button>
       {!isTailoring && (
         <p className="jmw-cta-hint">
-          <Zap className="inline-block w-3 h-3 mr-0.5 -mt-0.5" aria-hidden />
-          Uses {creditCost} AI credit · Changes saved automatically
+          {hasUnlimitedCredits ? (
+            <InfinityIcon className="inline-block w-3 h-3 mr-0.5 -mt-0.5" aria-hidden />
+          ) : (
+            <Zap className="inline-block w-3 h-3 mr-0.5 -mt-0.5" aria-hidden />
+          )}
+          {hintText}
         </p>
       )}
     </div>

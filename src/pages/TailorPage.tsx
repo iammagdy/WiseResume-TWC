@@ -655,6 +655,7 @@ export default function TailorPage() {
       const newDoc = await databases.createDocument(DATABASE_ID, COLLECTIONS.resumes, ID.unique(), {
         user_id: user.id,
         title: newTitle,
+        parent_resume_id: currentResumeId ?? undefined,
         contact_info: JSON.stringify(mergedResume.contactInfo),
         summary: mergedResume.summary,
         experience: JSON.stringify(mergedResume.experience),
@@ -671,6 +672,7 @@ export default function TailorPage() {
         company,
         jobDescription,
         jobUrl: jobUrl || null,
+        tailoredResumeId: newDoc.$id,
         tailorResult,
         scoreBeforeAfter: tailorResult.overallScore ?? { before: 0, after: 0 },
         verifiedScore: finalMatchScore,

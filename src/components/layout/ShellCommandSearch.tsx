@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
+import { openWorkspaceSearch } from '@/lib/workspaceSearchEvents';
 import { cn } from '@/lib/utils';
 
 interface ShellCommandSearchProps {
@@ -11,7 +12,7 @@ interface ShellCommandSearchProps {
 export function ShellCommandSearch({ className, compact = false }: ShellCommandSearchProps) {
   const openPalette = () => {
     haptics.selection();
-    window.dispatchEvent(new Event('open-command-palette'));
+    openWorkspaceSearch();
   };
 
   if (compact) {

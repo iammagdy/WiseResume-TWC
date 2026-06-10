@@ -238,7 +238,16 @@ function AppRoutes() {
   const { signOut, user } = useAuth();
   const isAdmin = useIsAdmin();
   const navigate = useNavigate();
-  useVisitorTracking({ userId: user?.id ?? null });
+  const location = useLocation();
+  const isPublicStandalone = useIsPublicRoute();
+  const { isSuspended, suspensionReason } = useSuspensionCheck();
+  const appSettings = useAppSettings();
+  const customDomainHostname = !isAppHostname(window.location.hostname) ? window.location.hostname : null;
+
+  useVisitorTracking({
+    userId: user?.id ?? null,
+    enabled: !isPublicStandalone,
+  });
 
   // Cmd+Shift+A — admin quick-access shortcut (only fires when admin is signed in)
   useEffect(() => {
@@ -252,11 +261,6 @@ function AppRoutes() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [isAdmin, navigate]);
-  const location = useLocation();
-  const isPublicStandalone = useIsPublicRoute();
-  const { isSuspended, suspensionReason } = useSuspensionCheck();
-  const appSettings = useAppSettings();
-  const customDomainHostname = !isAppHostname(window.location.hostname) ? window.location.hostname : null;
 
   if (customDomainHostname) {
     return <CustomDomainPortfolioWrapper hostname={customDomainHostname} />;
@@ -283,7 +287,7 @@ function AppRoutes() {
 
   return (
     <>
-        {!isAuthRoute && <ConsentBanner />}
+        {!isAuthRoute && !isPublicStandalone && <ConsentBanner />}
         <AuroraLayer />
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />

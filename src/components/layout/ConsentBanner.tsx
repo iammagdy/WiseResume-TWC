@@ -4,10 +4,9 @@ import { grantConsent, rejectConsent, hasConsentDecision } from '@/lib/visitorTr
 import { X } from 'lucide-react';
 
 /**
- * GDPR-compliant consent banner.
- * Rendered at the root layout so it appears on every page for first-time
- * visitors. Once answered (accept or decline) it never re-appears.
- * No tracking fires until consent is granted.
+ * GDPR-compliant consent banner for WiseResume app usage.
+ * Shown only inside the product (dashboard, editor, etc.) — not on public
+ * portfolio, share, or short-link pages where visitors are not platform users.
  */
 export function ConsentBanner() {
   const [visible, setVisible] = useState(false);
