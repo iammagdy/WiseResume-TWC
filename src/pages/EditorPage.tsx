@@ -1430,7 +1430,7 @@ export default function EditorPage() {
             {mobileEditorTab === 'preview' && (
               <>
                 <div className="shrink-0 border-b border-border bg-card/95 px-3 py-2.5">
-                  <EditorResumeStrengthBar overallScore={overallScore} />
+                  <EditorResumeStrengthBar overallScore={overallScore} localHealthScore={localHealthScore} />
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <Suspense fallback={
@@ -1830,6 +1830,7 @@ export default function EditorPage() {
               resumeName={currentResume.contactInfo?.fullName || ''}
               templateName={selectedTemplate}
               resumeData={currentResume}
+              selectedTemplate={selectedTemplate}
               templateElement={document.querySelector('[data-resume-template]') as HTMLElement | null}
             />
           )}

@@ -11,6 +11,32 @@
 
 ---
 
+## 2026-06-10 - Resume Strength Bar Breakdown Popover & Export Preview Thumbnail
+
+### Context
+- Branch: `claude/gallant-darwin-6j9w9u`
+- Triggered by: QA report review — two genuine code gaps identified (strength bar shows no explanation, export sheet has no visual preview).
+
+### Product changes
+- **Resume Strength Bar** (`EditorResumeStrengthBar.tsx`): Bar is now clickable; opens a Popover showing a 5-category score breakdown (Contact Info, Content Quality, Keywords, Structure, Length & Density) with colour-coded icons and mini bars, plus top strength and top improvement hints. Data sourced from `localHealthScore` already computed in `useEditorSectionScores`. No new hooks or API calls.
+- **Export Preview Thumbnail** (`ExportPreviewThumbnail.tsx`, new): A live visual thumbnail of the user's resume renders inside the Export dialog below the format selector for PDF, DOCX, and image formats. Uses the active template via a new shared `templateComponentMap.ts` module; lazy-loaded with Suspense skeleton fallback.
+- **Template Map Refactor** (`src/lib/templateComponentMap.ts`, new): Extracted the 27-template lazy component map from `PreviewPage.tsx` into a shared module. Both `PreviewPage` and `ExportPreviewThumbnail` import from it.
+
+### Files changed
+- `src/components/editor/EditorResumeStrengthBar.tsx` — popover with score breakdown
+- `src/pages/EditorPage.tsx` — pass `localHealthScore` to strength bars; pass `selectedTemplate` to ExportOptionsSheet
+- `src/components/editor/ExportOptionsSheet.tsx` — add `selectedTemplate` prop; render `ExportPreviewThumbnail`
+- `src/components/editor/export/ExportPreviewThumbnail.tsx` — NEW
+- `src/lib/templateComponentMap.ts` — NEW (shared template map)
+- `src/pages/PreviewPage.tsx` — import from shared map; pass `selectedTemplate` to ExportOptionsSheet
+
+### Validation
+- `npx tsc --noEmit` — clean
+- `npm run build` — succeeded, no new chunk warnings
+- Unit tests — passed
+
+---
+
 ## 2026-06-10 - DeepSeek Routing, Prompt Slimming Timeout Fix, PDF Export, & Responsive Desktop Layout
 
 ### Context
