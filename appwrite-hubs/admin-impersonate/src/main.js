@@ -11,10 +11,9 @@ function base64url(input) {
 }
 
 function getImpersonationSecret() {
-  return process.env.IMPERSONATION_HMAC_SECRET
-    || process.env.APPWRITE_API_KEY
-    || process.env.APPWRITE_FUNCTION_API_KEY
-    || '';
+  const secret = process.env.IMPERSONATION_HMAC_SECRET;
+  if (!secret) throw new Error('IMPERSONATION_HMAC_SECRET is not configured. Set it in Appwrite Console → Functions → admin-impersonate → Variables.');
+  return secret;
 }
 
 function signImpersonationPayload(encoded) {

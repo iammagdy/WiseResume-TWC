@@ -52,9 +52,9 @@ function parseJson(text) {
 
 function providerPool() {
   const pool = [];
-  if (process.env.OPENROUTER_KEY_1) pool.push({ provider: 'openrouter', key: process.env.OPENROUTER_KEY_1, model: 'meta-llama/llama-3.3-70b-instruct:free' });
-  if (process.env.GROQ_KEY_1) pool.push({ provider: 'groq', key: process.env.GROQ_KEY_1, model: 'llama-3.3-70b-versatile' });
   if (process.env.DEEPSEEK_KEY) pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY, model: 'deepseek-chat' });
+  if (process.env.GROQ_KEY_1) pool.push({ provider: 'groq', key: process.env.GROQ_KEY_1, model: 'llama-3.3-70b-versatile' });
+  if (process.env.OPENROUTER_KEY_1) pool.push({ provider: 'openrouter', key: process.env.OPENROUTER_KEY_1, model: 'meta-llama/llama-3.3-70b-instruct:free' });
   if (process.env.NVIDIA_KEY_1) pool.push({ provider: 'nvidia', key: process.env.NVIDIA_KEY_1, model: 'meta/llama-4-maverick-17b-128e-instruct' });
   return pool;
 }
