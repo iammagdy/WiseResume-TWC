@@ -11,6 +11,7 @@ interface TailorProgressProps {
   projectedScore?: { before: number; after: number };
   matchingKeywords?: number;
   onCancel?: () => void;
+  noCard?: boolean;
 }
 
 const STEPS: { id: TailorStep | EnhancedTailorStep; label: string }[] = [
@@ -77,7 +78,7 @@ function useAnimatedNumber(target: number, speed = 0.08) {
   return display;
 }
 
-export function TailorProgressComponent({ progress, projectedScore, matchingKeywords, onCancel }: TailorProgressProps) {
+export function TailorProgressComponent({ progress, projectedScore, matchingKeywords, onCancel, noCard = false }: TailorProgressProps) {
   const isComplete = progress.step === 'complete';
   const visibleSteps = getVisibleSteps(progress.step);
   const currentIndex = visibleSteps.findIndex(s => s.id === progress.step);
@@ -121,7 +122,9 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
   return (
     <div
       className={cn(
-        'p-5 rounded-2xl bg-card border border-primary/25 shadow-soft transition-all duration-500',
+        noCard 
+          ? 'w-full transition-all duration-500' 
+          : 'p-5 rounded-2xl bg-card border border-primary/25 shadow-soft transition-all duration-500',
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
       )}
     >
@@ -195,7 +198,7 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
         <div className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/20 min-h-[44px] flex items-center">
           <p
             className={cn(
-              'text-xs text-warning-foreground transition-opacity duration-300',
+              'text-xs text-warning transition-opacity duration-300',
               funFactVisible ? 'opacity-100' : 'opacity-0'
             )}
           >

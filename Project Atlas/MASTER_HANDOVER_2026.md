@@ -5,13 +5,15 @@
 ## Session Log - 2026-06-10 (Dedicated Resume Tailoring Prompt Pipeline & Routing Fixes)
 
 ### Overview
-Addressed the silent tailoring failure where the AI returned unmodified resume content. Created a dedicated prompt building and message packaging pipeline for the `tailor-resume` feature, separated it from general structured AI routing, improved ID preservation, implemented honest scoring, and optimized token limits/timeouts.
+Addressed the silent tailoring failure where the AI returned unmodified resume content. Corrected the DeepSeek completions URL prefix error. Created a dedicated prompt building and message packaging pipeline for the `tailor-resume` feature, separated it from general structured AI routing, improved ID preservation, implemented honest scoring, and optimized token limits/timeouts. Redesigned the loading progress overlay to resolve vertical clipping/cutoff and text contrast. Integrated Appwrite databases query fetching in the tailoring history panel to load past tailored resumes.
 
 ---
 
 ### What Changed
 
 #### AI Gateway Hub — `appwrite-hubs/ai-gateway/src/main.js`
+- **DeepSeek Base URL Correction**: Replaced `https://api.deepseek.com/v1/chat/completions` with the correct endpoint `https://api.deepseek.com/chat/completions` to resolve gateway execution timeouts.
+- **Output Schema Alignment**: Added missing expected fields (`jobParsed`, `atsAnalysis`, `interviewTalkingPoints`, `strengthsAnalysis`) to the tailoring output schema in `buildTailorResumeSystemPrompt`.
 - **Feature Extraction**: Routed `tailor-resume` through a custom prompt branch in `buildMessages` rather than using the generic `STRUCTURED_AI_FEATURES` template.
 - **Custom System Prompt**: Implemented `buildTailorResumeSystemPrompt` which supplies distinct optimization guidelines for `light`, `moderate`, and `aggressive` tailoring intensities.
 - **Rules Enforcement**:
@@ -27,23 +29,30 @@ Addressed the silent tailoring failure where the AI returned unmodified resume c
 #### Unit Tests — `tests/hubs/ai-gateway-routing.test.cjs`
 - Added comprehensive routing assertions for `tailor-resume` verifying system prompt structure, untrusted instructions containment, and retry timeout specifications.
 
+#### Frontend UI — `src/components/job-match/` & `src/components/editor/tailor/`
+- **Overlay Centering & Scroll**: Wrapped progress cards inside a `my-auto flex flex-col items-center gap-5 w-full max-w-[26rem]` container in `JobMatchProgressStage.tsx`, set `.jmw-progress-overlay` style to `justify-content: flex-start; overflow-y: auto;` in `job-match-workspace.css`, and reduced card padding to `1.5rem 1.25rem` to prevent viewport clipping.
+- **Nested Card Removal**: Added a `noCard` boolean prop to `TailorProgress.tsx` to strip the card wrapper styling when true, and passed `noCard={true}` from `JobMatchProgressStage.tsx`.
+- **Contrast Fix**: Swapped `text-warning-foreground` for `text-warning` in `TailorProgress.tsx` so warning cards are highly legible on `bg-warning/10` in dark mode.
+- **Unified History List**: Implemented a TanStack query hook in `JobMatchHistoryList.tsx` to fetch `tailor_history` documents from Appwrite, merging them chronologically with the local Zustand store.
+
 ---
 
 ### Validation
 - Syntax check: `node --check appwrite-hubs/ai-gateway/src/main.js` -> OK
 - Routing unit tests: `node tests/hubs/ai-gateway-routing.test.cjs` -> ALL TESTS PASSED
 - TypeScript: `npx tsc --noEmit` -> OK
+- Build check: `npm run build` -> OK
 - Regenerated source hashes manifest to update `ai-gateway` hash representation.
 
 ---
 
 ### Commits / PRs
 - Branch: `main`
-- Commit: `9b0c96bb`
+- Commit: `62345723`
 
 ### Where We Stopped
-- Implementation completed and verified locally with unit tests.
-- Ready for manual hub deployment to Appwrite.
+- Implementation, UI redesign, and DB history integration completed and verified locally.
+- Ready for manual gateway deployment (manual trigger targeting `ai-gateway` in GitHub Actions) and end-to-end user verification.
 
 ---
 

@@ -15,24 +15,35 @@
 
 ### Context
 - Branch: `main`
-- Triggered by: Resume Tailoring silent failure and ID/scoring optimization requirements
+- Triggered by: Resume Tailoring silent failure, ID/scoring optimization requirements, progress loading overlay clipping/contrast, and missing Appwrite tailoring history.
 
 ### Product changes
-- Separated `tailor-resume` from the general structured AI routing pathway in the gateway.
-- Built custom system prompt builder `buildTailorResumeSystemPrompt` supporting LIGHT, MODERATE, and AGGRESSIVE tailoring intensities.
-- Implemented STAR method enforcement for experience bullet rewrites.
-- Enforced ID preservation for experience, education, projects, certifications, and awards to prevent frontend/backend mismatch issues.
-- Enforced honest score changes instead of forcing arbitrary improvements.
-- Capped bullet transformations output to 3-5 key changes to limit response size.
-- Secured user additional tailoring instructions inside the user role as untrusted input.
-- Extended token generation limits for tailoring to 6000 tokens (with code comments pointing to 8000 if needed for exceptionally long profiles).
-- Extended target timeout for the tailoring feature to 28 seconds (28,000ms) for all gateway attempts.
-- Added comprehensive unit testing covering prompt structure, intensity settings, ID preservation rule injection, and retry timeout specifications.
+- **AI Gateway Execution Fix**: Corrected the DeepSeek completions base URL endpoint by removing the incorrect `/v1` prefix (`https://api.deepseek.com/chat/completions`) to resolve request timeouts and execution hangs.
+- **Schema Alignment**: Expanded the custom prompt builder output schema in `buildTailorResumeSystemPrompt` to return expected fields (`jobParsed`, `atsAnalysis`, `interviewTalkingPoints`, `strengthsAnalysis`) to align with frontend state structure.
+- **Dedicated Prompt Pipeline**: Separated `tailor-resume` from the general structured AI routing pathway in the gateway and built custom system prompt builder `buildTailorResumeSystemPrompt` supporting LIGHT, MODERATE, and AGGRESSIVE tailoring intensities.
+- **Rules & Safety Enforcement**:
+  - Implemented STAR method enforcement for experience bullet rewrites.
+  - Enforced ID preservation for experience, education, projects, certifications, and awards.
+  - Enforced honest score changes instead of forcing arbitrary improvements.
+  - Capped bullet transformations output to 3-5 key changes.
+  - Secured user additional tailoring instructions inside the user role as untrusted input.
+- **Redesigned Progress Loading Overlay**:
+  - Removed nested card borders by adding a `noCard` boolean property to `TailorProgressComponent`.
+  - Added vertical flex centering via `my-auto` and enabled outer container scroll via `overflow-y: auto` in `.jmw-progress-overlay` to prevent layout cutoff on short viewports.
+  - Fixed warning text contrast in dark mode by replacing `text-warning-foreground` with `text-warning` on warning pills.
+- **Unified Tailoring History**:
+  - Implemented a TanStack query hook in `JobMatchHistoryList` to fetch the last 10 documents from the `tailor_history` Appwrite collection.
+  - Merged local Zustand store state with the remote database records chronologically and deduplicated entries.
+- **Limits & Timeouts**:
+  - Extended token generation limits for tailoring to 6000 tokens (with code comments pointing to 8000 if needed for exceptionally long profiles).
+  - Extended target timeout for the tailoring feature to 28 seconds (28,000ms) for all gateway attempts.
+- **Unit Testing**: Added comprehensive unit testing covering prompt structure, intensity settings, ID preservation rule injection, and retry timeout specifications.
 
 ### Validation
 - Syntax check: `node --check appwrite-hubs/ai-gateway/src/main.js` -> passed
 - Routing unit tests: `node tests/hubs/ai-gateway-routing.test.cjs` -> passed
 - Type check: `npx tsc --noEmit` -> passed
+- Build validation: `npm run build` -> passed
 - Source hash manifest recalculated and verified.
 
 

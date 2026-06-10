@@ -21,7 +21,7 @@ const NVIDIA_DEFAULT_MODEL   = 'meta/llama-4-maverick-17b-128e-instruct';
 const BASES = {
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
   groq:       'https://api.groq.com/openai/v1/chat/completions',
-  deepseek:   'https://api.deepseek.com/v1/chat/completions',
+  deepseek:   'https://api.deepseek.com/chat/completions',
   nvidia:     'https://integrate.api.nvidia.com/v1/chat/completions',
 };
 
@@ -1886,6 +1886,27 @@ function buildTailorResumeSystemPrompt(opts) {
     '      "improvement": "<what was improved>",\n' +
     '      "metricsAdded": true\n' +
     '    }\n' +
+    '  ],\n' +
+    '  "jobParsed": {\n' +
+    '    "title": "<extracted job title>",\n' +
+    '    "company": "<extracted company name>",\n' +
+    '    "keywords": ["<top keywords from the job description>"]\n' +
+    '  },\n' +
+    '  "atsAnalysis": {\n' +
+    '    "criticalKeywords": ["<critical job keywords to include>"],\n' +
+    '    "stuffingWarnings": ["<list of keyword stuffing warnings if density is too high>"],\n' +
+    '    "originalKeywordDensity": 0.0,\n' +
+    '    "optimizedKeywordDensity": 0.0\n' +
+    '  },\n' +
+    '  "interviewTalkingPoints": [\n' +
+    '    {\n' +
+    '      "question": "<potential interview question based on tailoring>",\n' +
+    '      "suggestedAnswer": "<suggested response highlighting candidate strengths>",\n' +
+    '      "relatedExperience": "<company or project name linked to this point>"\n' +
+    '    }\n' +
+    '  ],\n' +
+    '  "strengthsAnalysis": [\n' +
+    '    "<strengths aligned to this job requirement>"\n' +
     '  ]\n' +
     '}\n\n' +
     '## CRITICAL RULES\n' +
