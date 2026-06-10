@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-09
+**Last verified:** 2026-06-10
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,186 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-10 - Dashboard stale list search fix
+
+### Context
+- Triggered by: Returning to dashboard showed full-page "No resumes match 'w'" from old local filter.
+
+### Root cause
+- `wr-dash-search` in `sessionStorage` restored stale query; empty filter branch replaced entire dashboard layout.
+
+### Product changes
+- Removed sessionStorage persistence for list filter; one-time legacy key cleanup.
+- Filter-empty state shown inside resume list only; inline Clear search.
+
+### Files changed
+- `src/pages/DashboardPage.tsx`
+
+### Validation
+- `npx tsc --noEmit` — OK
+
+---
+
+## 2026-06-10 - Public portfolio — hide platform cookie consent banner
+
+### Context
+- Triggered by: Visitors on published `/p/{username}` saw WiseResume analytics cookie banner.
+
+### Root cause
+- `ConsentBanner` rendered on all non-auth routes including public standalone paths.
+
+### Product changes
+- Banner hidden on `/p/*`, `/share/*`, `/l/*`, auth callback.
+- Platform `useVisitorTracking` disabled on those routes.
+
+### Files changed
+- `src/AppInterior.tsx`, `src/components/layout/ConsentBanner.tsx`, `src/hooks/useVisitorTracking.ts`
+
+### Validation
+- `npx tsc --noEmit` — OK
+
+---
+
+## 2026-06-10 - Portfolio editor resume select — Appwrite `$id` vs `id`
+
+### Context
+- Triggered by: "Resume to display" select showed concatenated titles; selection broken.
+
+### Root cause
+- `useResumes()` returns `$id`; Select used `r.id` (undefined) → duplicate empty values → Radix rendered all labels in trigger.
+
+### Product changes
+- Normalize `id: doc.$id` in `PortfolioEditorPage`; `SetupTab` resolves ID via `getResumeDocumentId()`.
+
+### Files changed
+- `src/pages/PortfolioEditorPage.tsx`, `src/components/portfolio/editor/SetupTab.tsx`, `src/components/portfolio/editor/__tests__/SetupTab.test.tsx`
+
+### Validation
+- `npx vitest run src/components/portfolio/editor/__tests__/SetupTab.test.tsx` — OK
+
+---
+
+## 2026-06-10 - AI Studio route sync on overlay dismiss
+
+### Context
+- Triggered by: Dismissing AI tool sheet (e.g. Enhance) left URL at `/ai-studio/enhance`; UI unclickable.
+
+### Root cause
+- Sheet close did not navigate to `/ai-studio`; `activatedToolRef` blocked re-open on same URL.
+
+### Product changes
+- `useRouteOverlaySync` helper; all AI Studio tool sheets clear route on dismiss; browser back closes sheets.
+
+### Files changed
+- `src/hooks/useRouteOverlaySync.ts`, `src/hooks/__tests__/useRouteOverlaySync.test.ts`, `src/pages/AIStudioPage.tsx`, `src/pages/__tests__/AIStudioPage.test.tsx`
+
+### Validation
+- `npx vitest run src/hooks/__tests__/useRouteOverlaySync.test.ts src/pages/__tests__/AIStudioPage.test.tsx` — OK
+
+---
+
+## 2026-06-10 - Sidebar nav label — Wise AI → AI Tools
+
+### Files changed
+- `src/components/layout/appSidebarNav.ts`
+
+---
+
+## 2026-06-10 - Tailoring Hub footer credit hint — match real cost + Premium unlimited
+
+### Product changes
+- Footer hint now uses canonical `getAICost('tailor')` (**2 credits**), matching AI Studio badges and the ai-gateway.
+- Premium / unlimited users see **No credits used** instead of a misleading charge.
+
+### Files changed
+- `src/components/job-match/JobMatchStickyFooter.tsx`
+
+---
+
+## 2026-06-10 - Tailoring Hub layout — fill viewport, studio panels, inline CTA
+
+### Product changes
+- **Layout**: 3-step workflow strip, resume panel header, job description textarea grows to fill column height on desktop.
+- **Grid**: Footer CTA sits inline at the bottom of the workspace (no dead gap); tailoring settings stay expanded on large screens.
+- **Right column**: Match analysis, settings, and history scroll together within the column.
+
+### Files changed
+- `src/pages/TailoringHubPage.tsx`
+- `src/components/job-match/job-match-workspace.css`
+- `src/components/job-match/JobInputArea.tsx`
+- `src/components/job-match/JobMatchAdvancedOptions.tsx`
+
+---
+
+## 2026-06-10 - Sidebar premium membership card — light theme fix
+
+### Product changes
+- Premium/Pro membership card in the workspace sidebar now uses a warm light-gold gradient on light theme (was incorrectly using a dark gradient).
+- Added Active badge, subtle glow accent, and a clearer Manage billing button.
+
+### Files changed
+- `src/index.css`, `src/components/layout/AppWorkspaceSidebar.tsx`
+
+---
+
+## 2026-06-10 - AI Studio workflow cards — denser 3-column grid
+
+### Product changes
+- Primary and secondary workflow cards use a compact tile layout (smaller padding, no heavy shadows, line-clamped descriptions).
+- Grid changed from 2 columns to **3 columns on large screens** so all six primary workflows fit in two rows.
+
+### Files changed
+- `src/pages/AIStudioPage.tsx`
+
+---
+
+## 2026-06-10 - Global workspace search with highlighted results popup
+
+### Context
+- Branch: `main`
+- Triggered by: Dashboard top search bar did not open global search; user requested popup results with match highlights.
+
+### Product changes
+- **Workspace search dialog**: Cmd+K and the dashboard search bar now open a unified command palette that searches resumes (title, target job, company, summary, skills), quick actions, AI tools, and navigation.
+- **Highlighted matches**: Query terms are highlighted in result titles and descriptions.
+- **Dashboard search bar**: Top command bar is now a search trigger that opens the global dialog; the smaller resume-list search still filters the local list.
+
+### Files changed
+- `src/lib/workspaceSearch.ts`, `src/lib/workspaceSearchEvents.ts` — NEW search registry + open helper
+- `src/components/ui/SearchHighlight.tsx` — NEW match highlighting
+- `src/components/layout/CommandPalette.tsx` — resume + tool search with highlights
+- `src/components/dashboard/DashboardTopCommandBar.tsx` — opens global search
+- `src/components/layout/ShellCommandSearch.tsx`, `src/components/ui/command.tsx`, `src/pages/DashboardPage.tsx`
+
+### Validation
+- `npx vitest run src/lib/__tests__/workspaceSearch.test.ts` — OK
+- `npx tsc --noEmit` — OK
+
+---
+
+## 2026-06-10 - Dashboard resume tabs (All / Normal / Tailored) + tailored detection fix
+
+### Context
+- Branch: `main`
+- Triggered by: Tailored resumes missing from the dashboard Tailored tab; request for Normal / Tailored / All filtering.
+
+### Product changes
+- **Dashboard tabs**: Added **Normal**, **Tailored**, and **All** tabs with counts on the recent resumes list.
+- **Tailored detection**: New shared `resumeLineage` helper detects tailored resumes via `parent_resume_id`, tailor history IDs, and known title patterns (for legacy copies).
+- **Save flows**: Tailoring Hub, editor tailor sheet, legacy tailor page, and create-tailored dialog now persist `parent_resume_id` and pass `tailoredResumeId` into local tailor history.
+
+### Files changed
+- `src/lib/resumeLineage.ts` — NEW
+- `src/lib/__tests__/resumeLineage.test.ts` — NEW
+- `src/pages/DashboardPage.tsx` — three-tab filter UI
+- `src/pages/TailoringHubPage.tsx`, `src/components/editor/TailorSheet.tsx`, `src/pages/TailorPage.tsx`, `src/components/dashboard/CreateResumeDialog.tsx` — lineage on save
+
+### Validation
+- `npx vitest run src/lib/__tests__/resumeLineage.test.ts` — OK
+- `npx tsc --noEmit` — OK
 
 ---
 

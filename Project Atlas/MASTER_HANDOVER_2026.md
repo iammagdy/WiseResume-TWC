@@ -2,6 +2,130 @@
 
 ---
 
+## Session Log - 2026-06-10 (Dashboard UX, Workspace Search, AI Studio Route Sync, Portfolio & Public UX Fixes)
+
+### Overview
+
+Local `main` session (post–PR #97/#98 merge). Pulled remote; no new commits for product work yet — all changes below are **uncommitted** in the working tree. Focus: dashboard resume filtering, global workspace search, AI Studio UX polish, Tailoring Hub layout/credits, route-aware overlay dismiss, portfolio resume picker bug, public-portfolio cookie banner removal, dashboard stale search fix.
+
+---
+
+### What Changed
+
+#### 1. Dashboard resume tabs (All / Normal / Tailored)
+- **Why:** Tailored CVs did not appear in a dedicated tab; user requested All / Normal / Tailored filtering.
+- **Root cause:** No tab UI; tailored detection relied only on `parent_resume_id`, which legacy saves never set.
+- **Fix:** Three-tab filter with counts; shared `resumeLineage` helper (parent ID, tailor history IDs, title patterns); save flows now persist `parent_resume_id` and pass `tailoredResumeId` into local tailor history.
+
+#### 2. Global workspace search (Cmd+K + dashboard top bar)
+- **Why:** Dashboard top search did not open a global results popup with highlights.
+- **Root cause:** Top bar was decorative / local-only; no unified search registry.
+- **Fix:** `workspaceSearch` registry + `openWorkspaceSearch()`; CommandPalette searches resumes, tools, navigation with `SearchHighlight`; top command bar opens dialog; local list search remains separate.
+
+#### 3. Sidebar label — "Wise AI" → "AI Tools"
+- **Why:** User rename request for workspace sidebar clarity.
+- **Fix:** `appSidebarNav.ts` label update only.
+
+#### 4. AI Studio workflow cards — denser layout
+- **Why:** Cards too large; user wanted denser grid.
+- **Fix:** Compact 3-column grid on lg, reduced padding/shadows, line-clamped descriptions in `AIStudioPage.tsx`.
+
+#### 5. Sidebar premium membership card — light theme
+- **Why:** Premium card looked wrong on light theme (dark gradient on light shell).
+- **Root cause:** `--paid` / `--premium` tokens used dark-theme gold gradient globally.
+- **Fix:** Light gold gradient under `:root`; dark styles scoped under `.dark`; sidebar card Active badge + Manage billing polish.
+
+#### 6. Tailoring Hub layout
+- **Why:** Empty space below content; page felt basic.
+- **Fix:** 3-step strip, resume panel header, job textarea fills column, footer CTA inline in grid, settings expanded on lg, right column scroll unified.
+
+#### 7. Tailoring Hub footer credit hint
+- **Why:** Footer showed 1 credit; canonical tailor cost is 2; Premium should show unlimited.
+- **Root cause:** `JobMatchStickyFooter` hardcoded `creditCost = 1`.
+- **Fix:** `getAICost('tailor')` (2); Premium/unlimited → "No credits used".
+
+#### 8. AI Studio route sync on sheet dismiss
+- **Why:** Dismissing AI Enhance (click outside) left URL at `/ai-studio/enhance`; page became unclickable; same pattern needed app-wide for route-driven overlays.
+- **Root cause:** Sheets called `setShow*(false)` only; `activatedToolRef` blocked re-open; URL stayed on `:tool` segment.
+- **Fix:** `useRouteOverlaySync` + `createRouteOverlayOpenChange`; all AI Studio tool sheets navigate to `/ai-studio` on dismiss; `toolParam` clear closes all sheets and resets ref; tool switch closes previous sheet first.
+
+#### 9. Portfolio editor — "Resume to display" select broken
+- **Why:** Select showed concatenated titles ("Select a resumeJohn Duo…"); user could not pick a resume.
+- **Root cause:** `useResumes()` returns Appwrite docs with `$id`; UI used `r.id` (undefined) → all `SelectItem` values empty → Radix treated all items as selected.
+- **Fix:** Normalize `id: doc.$id` in `PortfolioEditorPage`; `SetupTab` uses `getResumeDocumentId()` defensively.
+
+#### 10. Cookie consent banner on public portfolios
+- **Why:** Published profile visitors (non-platform users) saw WiseResume analytics cookie banner.
+- **Root cause:** `ConsentBanner` rendered on all routes except `/auth`; public `/p/*`, `/share/*`, `/l/*` included.
+- **Fix:** Hide banner when `isPublicStandalone`; disable platform `useVisitorTracking` on those routes (portfolio uses separate analytics).
+
+#### 11. Dashboard stale list search on return
+- **Why:** Returning to dashboard showed full-page "No resumes match 'w'" from old search.
+- **Root cause:** `wr-dash-search` persisted in `sessionStorage`; empty filter replaced entire dashboard chrome.
+- **Fix:** Remove sessionStorage persistence; one-time key cleanup; show filter-empty state inside list area only; inline Clear search.
+
+---
+
+### Files Changed (product — uncommitted)
+
+| Area | Files |
+|---|---|
+| Dashboard tabs / search | `src/pages/DashboardPage.tsx`, `src/lib/resumeLineage.ts`, `src/lib/__tests__/resumeLineage.test.ts` |
+| Global search | `src/lib/workspaceSearch.ts`, `src/lib/workspaceSearchEvents.ts`, `src/lib/__tests__/workspaceSearch.test.ts`, `src/components/ui/SearchHighlight.tsx`, `src/components/layout/CommandPalette.tsx`, `src/components/dashboard/DashboardTopCommandBar.tsx`, `src/components/layout/ShellCommandSearch.tsx`, `src/components/ui/command.tsx` |
+| Sidebar | `src/components/layout/appSidebarNav.ts`, `src/components/layout/AppWorkspaceSidebar.tsx`, `src/index.css` |
+| AI Studio | `src/pages/AIStudioPage.tsx`, `src/pages/__tests__/AIStudioPage.test.tsx`, `src/hooks/useRouteOverlaySync.ts`, `src/hooks/__tests__/useRouteOverlaySync.test.ts` |
+| Tailoring Hub | `src/pages/TailoringHubPage.tsx`, `src/components/job-match/*`, `src/components/editor/TailorSheet.tsx`, `src/pages/TailorPage.tsx`, `src/components/dashboard/CreateResumeDialog.tsx` |
+| Portfolio | `src/pages/PortfolioEditorPage.tsx`, `src/components/portfolio/editor/SetupTab.tsx`, `src/components/portfolio/editor/__tests__/SetupTab.test.tsx` |
+| Public / consent | `src/AppInterior.tsx`, `src/components/layout/ConsentBanner.tsx`, `src/hooks/useVisitorTracking.ts` |
+
+---
+
+### Validation
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | OK (multiple runs during session) |
+| `npx vitest run src/lib/__tests__/resumeLineage.test.ts` | OK |
+| `npx vitest run src/lib/__tests__/workspaceSearch.test.ts` | OK |
+| `npx vitest run src/pages/__tests__/AIStudioPage.test.tsx src/hooks/__tests__/useRouteOverlaySync.test.ts` | OK |
+| `npx vitest run src/components/portfolio/editor/__tests__/SetupTab.test.tsx` | OK |
+| `npm run build` | Not re-run this session |
+| Appwrite deploy | Not triggered |
+| Vercel | No push — production unchanged |
+
+---
+
+### Commits / PRs (this session)
+
+| Item | State |
+|---|---|
+| Product changes above | **Uncommitted** on local `main` |
+| Last pushed commit | `4505b6b2` — `docs(atlas): session log — backend security audit + ai_credits schema fix (2026-06-10)` |
+| PRs | None opened this session |
+
+---
+
+### Deployment State
+
+| Layer | State |
+|---|---|
+| Vercel (frontend) | Production at last merge (`5804510c` / `4505b6b2` on `main`). Session UI fixes **not deployed** until committed and pushed. |
+| Appwrite Functions | **Unchanged from prior session.** `deploy-appwrite-hubs` still not manually triggered; `ai_credits` collection still missing in prod; AI tools still 503 until workflow runs. |
+| `VITE_TURNSTILE_SITE_KEY` | Still marked Sensitive in Vercel — CAPTCHA may not bake into bundle. Ops fix still pending. |
+
+---
+
+### Where We Stopped (authoritative)
+
+1. **Uncommitted product work** — Full list in "Files Changed" above sits in the working tree on `main`. Next agent should review diff, run tests, commit with conventional message(s), and push when user approves.
+2. **Ops blockers (unchanged from backend audit session):**
+   - Manually trigger **Deploy Appwrite Hubs** on `main` to create `ai_credits` and redeploy Node 20 + security fixes.
+   - Re-add **`VITE_TURNSTILE_SITE_KEY`** in Vercel without Sensitive flag; redeploy.
+3. **Manual QA suggested** before push: dashboard tabs/search, AI Studio dismiss from `/ai-studio/enhance`, portfolio resume select, public `/p/{username}` (no cookie banner), Tailoring Hub layout + footer credits.
+4. No Appwrite function or env changes in this session.
+
+---
+
 ## Session Log - 2026-06-10 (Backend Security Audit + AI Credits Schema — Root Cause Fix for All AI Tool Failures)
 
 ### Overview
