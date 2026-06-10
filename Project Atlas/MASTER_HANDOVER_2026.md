@@ -2,10 +2,10 @@
 
 ---
 
-## Session Log - 2026-06-10 (DeepSeek Routing, Prompt Slimming Timeout Fix, & Responsive Desktop Layout)
+## Session Log - 2026-06-10 (DeepSeek Routing, Prompt Slimming Timeout Fix, PDF Export, & Responsive Desktop Layout)
 
 ### Overview
-Addressed the silent tailoring failure and Appwrite function timeout issues. Slimmed down the tailoring prompt schema by removing ~56 lines of non-essential metadata (ATS analysis, missing skills, etc.) to keep DeepSeek execution comfortably under Appwrite's 30-second execution wall. Reverted the temporary Groq-only hotfix to ensure DeepSeek remains the primary provider for all features. Restructured the Tailoring Hub into a side-by-side two-column responsive grid on desktop to fix the mobile-only appearance. Fixed job description caching on reload by excluding it from localStorage store persistence.
+Addressed the silent tailoring failure, Appwrite function timeouts, PDF export crashes, and vertical stretching of the loading progress overlay on desktop. Slimmed down the tailoring prompt schema by removing ~56 lines of non-essential metadata (ATS analysis, missing skills, etc.) to keep DeepSeek execution comfortably under Appwrite's 30-second execution wall. Reverted the temporary Groq-only hotfix to ensure DeepSeek remains the primary provider for all features. Redesigned the loading progress overlay into a desktop-native responsive grid layout to resolve vertical top-clipping and stretch. Aligned the dev-pdf-server port locally and optimized the headless chromium launch configurations in production (Vercel) to resolve PDF generation errors. Fixed job description caching on reload by excluding it from localStorage store persistence.
 
 ---
 
@@ -23,7 +23,13 @@ Addressed the silent tailoring failure and Appwrite function timeout issues. Sli
   - Set tailoring token limit to 4000 to keep responses prompt and lightweight.
   - Extended tiered timeout logic to grant `tailor-resume` 28,000ms on all gateway attempts.
 
-#### Frontend UI — `src/components/job-match/` & `src/store/`
+#### PDF Export & Server — `api/export/pdf-native.ts` & `scripts/dev-pdf-server.mjs`
+- **Port Alignment**: Changed the default port in `dev-pdf-server.mjs` from `5003` to `5001` to align with the application's local API expectations (`VITE_API_URL`) and resolve local `PDFServerUnavailableError` failures.
+- **Chromium Launch Configurations**: Replaced hardcoded `headless: true` and `defaultViewport: null` in `pdf-native.ts` with helper properties `headless: chromium.headless` and `defaultViewport: chromium.defaultViewport` from `@sparticuz/chromium`. This prevents launcher crashes in newer Chromium packages deployed on Linux containers (Vercel).
+
+#### Frontend UI — `src/components/` & `src/store/`
+- **TailorProgress Grid Redesign**: Restructured `TailorProgress.tsx` to use a responsive grid: on desktop viewports (`min-width: 1024px`), the layout splits into two side-by-side columns (left: circular progress, message, estimated time, progress bar, rotating fun-fact box; right: progress checklist, stats preview, cancel button). This avoids the narrow single-column mobile layout stretching vertically on desktop.
+- **Progress Card Width Increase**: Updated `JobMatchProgressStage.tsx` and `job-match-workspace.css` to increase the progress card's maximum width from `32rem` to `52rem` on desktop screens.
 - **Responsive Desktop Layout**: Wrapped the Tailoring Hub workspace elements in left and right column divs, displaying them side-by-side in a responsive grid on desktop (`@media (min-width: 1024px)`) to resolve the narrow mobile-only appearance and make full use of screen real estate.
 - **Widened Result Page**: Increased `.jmw-result-content` max-width to `80rem` and adjusted column sizes to `minmax(0, 1fr) 24rem` on desktop for a cleaner and more readable layout.
 - **Centered Sticky CTA**: Centered the CTA primary button and capped its width to `32rem` on desktop to avoid stretching.
@@ -39,19 +45,34 @@ Addressed the silent tailoring failure and Appwrite function timeout issues. Sli
 ### Validation
 - Syntax check: `node --check appwrite-hubs/ai-gateway/src/main.js` -> OK
 - Routing unit tests: `node tests/hubs/ai-gateway-routing.test.cjs` -> ALL TESTS PASSED
-- TypeScript: `npx tsc --noEmit` -> OK
+- TypeScript: `npx tsc --noEmit` -> OK (No errors)
+- Unit tests: `npm run test` -> Checked and passed locally
 - Build check: `npm run build` -> OK
 - Regenerated source hashes manifest to update `ai-gateway` hash representation.
 
 ---
 
-### Commits / PRs
+### Commits
 - Branch: `main`
-- Commit: `62345723`
+- Commits created in this session:
+  - `e420146e` — `fix(tailor): fix PDF export failures and redesign progress overlay layout for desktop`
+  - `12d2928e` — `docs(atlas): Sync Project Atlas with latest DeepSeek routing and responsive grid desktop layout changes`
+  - `fcec9e8b` — `fix(tailor): Premium side-by-side desktop layout and fix JD caching`
+  - `47025e6a` — `fix(tailor): Slim prompt schema for 30s limit + desktop layout breakpoints`
+  - `ddec17f5` — `fix(routing): DeepSeek as primary provider for ALL features, remove Groq-only hotfix`
+  - `52a06a9d` — `fix(tailor): Force groq routing for tailor-resume and fix progress overlay clipping`
+  - `69fe9bba` — `fix(tailoring): resolve gateway timeouts, overlay clipping, and missing history`
+  - `30b5487a` — `feat(ai-gateway): implement dedicated prompt pipeline and timeout for resume tailoring`
+
+---
 
 ### Where We Stopped
-- Implementation, UI redesign, and DB history integration completed and verified locally.
-- Ready for manual gateway deployment (manual trigger targeting `ai-gateway` in GitHub Actions) and end-to-end user verification.
+- Implementation, UI redesign, PDF export fixes, and DB history integration completed and verified locally.
+- Verified that all unit tests pass and compilation contains zero errors.
+- **Next steps for validation**:
+  - Deploy frontend to Vercel/production and verify PDF export function resolves successfully end-to-end.
+  - Trigger manual deployment for `ai-gateway` in GitHub Actions to make the DeepSeek schema changes and token limits live in production.
+  - Verify Tailoring Hub and progress screen layout responsiveness across mobile and desktop.
 
 ---
 

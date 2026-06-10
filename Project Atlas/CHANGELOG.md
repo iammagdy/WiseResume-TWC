@@ -11,11 +11,11 @@
 
 ---
 
-## 2026-06-10 - DeepSeek Routing, Prompt Slimming Timeout Fix, & Responsive Desktop Layout
+## 2026-06-10 - DeepSeek Routing, Prompt Slimming Timeout Fix, PDF Export, & Responsive Desktop Layout
 
 ### Context
 - Branch: `main`
-- Triggered by: Resume Tailoring timeout failures, mobile-looking layout on desktop, and job description caching issues.
+- Triggered by: Resume Tailoring timeout failures, mobile-looking layout on desktop, job description caching issues, PDF export failure toast, and vertical progress overlay clipping/stretching.
 
 ### Product changes
 - **DeepSeek Primary Routing**: Reverted the temporary Groq-only hotfix to ensure DeepSeek is used as the primary provider for all features, including `tailor-resume` and `resume-section-ai`, with fallback providers.
@@ -24,6 +24,11 @@
   - Enforced STAR method achievement rewrites.
   - Enforced ID preservation for experience, education, projects, certifications, and awards to prevent database alignment errors.
   - Enforced honest pre/after match scores.
+- **PDF Export & Server**:
+  - Changed the default port in `dev-pdf-server.mjs` from `5003` to `5001` to align with local API expectations (`VITE_API_URL`) and resolve local `PDFServerUnavailableError` failures.
+  - Replaced hardcoded `headless: true` and `defaultViewport: null` in `pdf-native.ts` with helper properties `headless: chromium.headless` and `defaultViewport: chromium.defaultViewport` from `@sparticuz/chromium` to prevent Vercel deployment crashes.
+- **TailorProgress Grid Redesign**: Restructured `TailorProgress.tsx` to use a responsive grid: on desktop viewports (`min-width: 1024px`), the layout splits into two side-by-side columns to prevent narrow vertical stretching.
+- **Progress Card Width Increase**: Updated `JobMatchProgressStage.tsx` and `job-match-workspace.css` to increase the progress card's maximum width from `32rem` to `52rem` on desktop screens.
 - **Responsive Desktop Layout**: Wrapped the Tailoring Hub workspace elements in left and right column divs, displaying them side-by-side in a responsive grid on desktop (`@media (min-width: 1024px)`) to resolve the narrow mobile-only appearance and make full use of screen real estate.
 - **Widened Result Page**: Increased `.jmw-result-content` max-width to `80rem` and adjusted column sizes to `minmax(0, 1fr) 24rem` on desktop for a cleaner and more readable layout.
 - **Centered Sticky CTA**: Centered the CTA primary button and capped its width to `32rem` on desktop to avoid stretching.
@@ -38,6 +43,7 @@
 - Syntax check: `node --check appwrite-hubs/ai-gateway/src/main.js` -> passed
 - Routing unit tests: `node tests/hubs/ai-gateway-routing.test.cjs` -> passed
 - Type check: `npx tsc --noEmit` -> passed
+- Unit tests: `npm run test` -> Checked and passed locally
 - Build validation: `npm run build` -> passed
 - Source hash manifest recalculated and verified.
 
