@@ -2,6 +2,51 @@
 
 ---
 
+## Session Log - 2026-06-10 (Dedicated Resume Tailoring Prompt Pipeline & Routing Fixes)
+
+### Overview
+Addressed the silent tailoring failure where the AI returned unmodified resume content. Created a dedicated prompt building and message packaging pipeline for the `tailor-resume` feature, separated it from general structured AI routing, improved ID preservation, implemented honest scoring, and optimized token limits/timeouts.
+
+---
+
+### What Changed
+
+#### AI Gateway Hub — `appwrite-hubs/ai-gateway/src/main.js`
+- **Feature Extraction**: Routed `tailor-resume` through a custom prompt branch in `buildMessages` rather than using the generic `STRUCTURED_AI_FEATURES` template.
+- **Custom System Prompt**: Implemented `buildTailorResumeSystemPrompt` which supplies distinct optimization guidelines for `light`, `moderate`, and `aggressive` tailoring intensities.
+- **Rules Enforcement**:
+  - Enforced STAR method achievement rewrites.
+  - Enforced ID preservation for experience, education, projects, certifications, and awards to prevent database alignment errors.
+  - Enforced honest pre/after match scores (no forced/inflated improvement).
+  - Capped bullet transformation records to 3-5 key transformations.
+- **Untrusted Input Protection**: Moved `userInstructions` to the user message block to treat it strictly as untrusted input that cannot override formatting or safety constraints.
+- **Extended Token and Time Limits**:
+  - Set tailoring token limit to 6000 (with documented fallback to 8000).
+  - Extended tiered timeout logic to grant `tailor-resume` 28,000ms on all retry attempts.
+
+#### Unit Tests — `tests/hubs/ai-gateway-routing.test.cjs`
+- Added comprehensive routing assertions for `tailor-resume` verifying system prompt structure, untrusted instructions containment, and retry timeout specifications.
+
+---
+
+### Validation
+- Syntax check: `node --check appwrite-hubs/ai-gateway/src/main.js` -> OK
+- Routing unit tests: `node tests/hubs/ai-gateway-routing.test.cjs` -> ALL TESTS PASSED
+- TypeScript: `npx tsc --noEmit` -> OK
+- Regenerated source hashes manifest to update `ai-gateway` hash representation.
+
+---
+
+### Commits / PRs
+- Branch: `main`
+- Commit: `9b0c96bb`
+
+### Where We Stopped
+- Implementation completed and verified locally with unit tests.
+- Ready for manual hub deployment to Appwrite.
+
+---
+
 ## Session Log - 2026-06-08 (Project Atlas Visual Refactor — Editor, Upload, Tailoring Hub)
 
 ### Overview

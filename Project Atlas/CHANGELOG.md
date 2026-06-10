@@ -11,6 +11,31 @@
 
 ---
 
+## 2026-06-10 - Dedicated Resume Tailoring prompt pipeline and routing fixes
+
+### Context
+- Branch: `main`
+- Triggered by: Resume Tailoring silent failure and ID/scoring optimization requirements
+
+### Product changes
+- Separated `tailor-resume` from the general structured AI routing pathway in the gateway.
+- Built custom system prompt builder `buildTailorResumeSystemPrompt` supporting LIGHT, MODERATE, and AGGRESSIVE tailoring intensities.
+- Implemented STAR method enforcement for experience bullet rewrites.
+- Enforced ID preservation for experience, education, projects, certifications, and awards to prevent frontend/backend mismatch issues.
+- Enforced honest score changes instead of forcing arbitrary improvements.
+- Capped bullet transformations output to 3-5 key changes to limit response size.
+- Secured user additional tailoring instructions inside the user role as untrusted input.
+- Extended token generation limits for tailoring to 6000 tokens (with code comments pointing to 8000 if needed for exceptionally long profiles).
+- Extended target timeout for the tailoring feature to 28 seconds (28,000ms) for all gateway attempts.
+- Added comprehensive unit testing covering prompt structure, intensity settings, ID preservation rule injection, and retry timeout specifications.
+
+### Validation
+- Syntax check: `node --check appwrite-hubs/ai-gateway/src/main.js` -> passed
+- Routing unit tests: `node tests/hubs/ai-gateway-routing.test.cjs` -> passed
+- Type check: `npx tsc --noEmit` -> passed
+- Source hash manifest recalculated and verified.
+
+
 ## 2026-06-09 - Wise AI workspace simplification + Atlas documentation sync
 
 ### Context
