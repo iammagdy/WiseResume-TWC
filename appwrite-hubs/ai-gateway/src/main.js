@@ -2395,7 +2395,7 @@ let FEATURE_ROUTES = {
   'recruiter-simulation':       { provider: 'deepseek', model: DEEPSEEK_MODEL },
   'agentic-chat':               { provider: 'deepseek', model: DEEPSEEK_MODEL },
   'wise-ai-chat':               { provider: 'deepseek', model: DEEPSEEK_MODEL },
-  'resume-section-ai':          { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  'resume-section-ai':          { provider: 'deepseek', model: DEEPSEEK_MODEL },
   'editor-ai':                  { provider: 'deepseek', model: DEEPSEEK_MODEL },
   'detect-and-humanize':        { provider: 'deepseek', model: DEEPSEEK_MODEL },
   'smart-fit-rewrite':          { provider: 'deepseek', model: DEEPSEEK_MODEL },
@@ -2596,14 +2596,9 @@ function getProviderAvailability() {
 function buildCandidates(featureName, pool, opts = {}) {
   if (pool.length === 0) return [];
 
-  // HOTFIX: tailor-resume generates massive JSON schemas and DeepSeek is too slow, causing 30s function timeouts.
-  // We force groq (llama-3.3-70b-versatile) which generates at ~800 tokens/sec, well within the 30s limit.
-  if (featureName === 'tailor-resume') {
-    const groqKeys = pool.filter(e => e.provider === 'groq' && getKeyMode(e.provider, e.slot) !== 'disabled');
-    if (groqKeys.length > 0) {
-      return [{ provider: 'groq', key: groqKeys[0].key, slot: groqKeys[0].slot, model: 'llama-3.3-70b-versatile', routed: true }];
-    }
-  }
+  // DeepSeek is the primary provider for ALL features.
+  // The default FEATURE_ROUTES + cross-provider fallback logic below handles
+  // ordering: DeepSeek first → Groq/OpenRouter/NVIDIA as fallbacks.
 
   const { noFallback = false } = opts;
 
