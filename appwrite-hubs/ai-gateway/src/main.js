@@ -172,11 +172,12 @@ function getClientIp(req) {
   const realIp = typeof headers['x-real-ip'] === 'string'
     ? headers['x-real-ip'].trim() : null;
   if (realIp) return realIp;
-  // Untrusted fallback - log so ops can verify whether a trusted proxy header is available.
+  // Untrusted fallback - use the rightmost (proxy-appended) IP, not the leftmost
+  // (client-controlled). Still spoofable without a trusted proxy, but harder.
   const xff = headers['x-forwarded-for'];
   if (typeof xff === 'string') {
-    const first = xff.split(',')[0].trim();
-    if (first) return first;
+    const last = xff.split(',').at(-1)?.trim();
+    if (last) return last;
   }
   return 'unknown';
 }
