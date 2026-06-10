@@ -93,11 +93,24 @@ async function deleteIdempotencyDoc(db, docId) {
 
 // --- Provider helpers ----------------------------------------------------------
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
+const OPENROUTER_URL  = 'https://openrouter.ai/api/v1/chat/completions';
+const GROQ_URL        = 'https://api.groq.com/openai/v1/chat/completions';
+const DEEPSEEK_URL    = 'https://api.deepseek.com/v1/chat/completions';
+const DEEPSEEK_MODEL  = 'deepseek-chat';
 
+// Provider timeouts — DeepSeek needs more time than Groq/OpenRouter.
+const PROVIDER_TIMEOUT = {
+  deepseek:   25000,
+  groq:       10000,
+  openrouter: 12000,
+};
+
+// DeepSeek is the primary provider. Groq and OpenRouter are fallbacks only.
 function buildPool() {
   const pool = [];
+  if (process.env.DEEPSEEK_KEY) {
+    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY, url: DEEPSEEK_URL, model: DEEPSEEK_MODEL });
+  }
   for (let i = 1; i <= 3; i++) {
     const k = process.env[`GROQ_KEY_${i}`];
     if (k) pool.push({ provider: 'groq', key: k, url: GROQ_URL, model: 'llama-3.3-70b-versatile' });
@@ -105,9 +118,6 @@ function buildPool() {
   for (let i = 1; i <= 3; i++) {
     const k = process.env[`OPENROUTER_KEY_${i}`];
     if (k) pool.push({ provider: 'openrouter', key: k, url: OPENROUTER_URL, model: 'meta-llama/llama-3.3-70b-instruct:free' });
-  }
-  if (process.env.DEEPSEEK_KEY) {
-    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY, url: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-chat' });
   }
   return pool;
 }
@@ -332,6 +342,7 @@ async function callLLM(messages, pool) {
   let lastError;
   for (const entry of pool) {
     try {
+      const timeoutMs = PROVIDER_TIMEOUT[entry.provider] ?? 15000;
       const response = await axios.post(entry.url, {
         model:       entry.model,
         messages,
@@ -339,7 +350,7 @@ async function callLLM(messages, pool) {
         max_tokens:  1200,
       }, {
         headers: { 'Authorization': `Bearer ${entry.key}`, 'Content-Type': 'application/json' },
-        timeout: 10000,
+        timeout: timeoutMs,
       });
       return response.data.choices[0].message.content;
     } catch (err) {

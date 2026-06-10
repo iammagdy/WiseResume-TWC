@@ -13,6 +13,7 @@ import { AtsWarningAlert } from './export/AtsWarningAlert';
 import { PdfOptionsFooter } from './export/PdfOptionsFooter';
 import { ExportProgressBar } from './export/ExportProgressBar';
 import { LaTeXPreviewPanel } from './export/LaTeXPreviewPanel';
+import { ExportPreviewThumbnail } from './export/ExportPreviewThumbnail';
 import type { ExportOptionDef } from './export/ExportOptionCard';
 
 interface ExportOptionsSheetProps {
@@ -30,11 +31,12 @@ interface ExportOptionsSheetProps {
   templateName?: string;
   templateAtsScore?: 'high' | 'medium' | 'low';
   resumeData?: ResumeData | null;
+  selectedTemplate?: string;
 }
 
 export function ExportOptionsSheet({
   open, onOpenChange, hasCoverLetter, coverLetterContext, onExport, onCreateCoverLetter, onCreateGeneralCoverLetter,
-  isExporting, templateElement, exportProgress, resumeName, templateName, templateAtsScore, resumeData,
+  isExporting, templateElement, exportProgress, resumeName, templateName, templateAtsScore, resumeData, selectedTemplate,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults, lastExportType, setLastExportType } = useSettingsStore();
   const { isOnline } = useNetworkStatus();
@@ -196,6 +198,10 @@ export function ExportOptionsSheet({
 
           {selectedType === 'latex' && resumeData && (
             <LaTeXPreviewPanel resumeData={resumeData} />
+          )}
+
+          {resumeData && selectedTemplate && !['linkedin', 'plain-text', 'share-link', 'json', 'latex'].includes(selectedType) && (
+            <ExportPreviewThumbnail resumeData={resumeData} selectedTemplate={selectedTemplate} />
           )}
 
           <PdfOptionsFooter
