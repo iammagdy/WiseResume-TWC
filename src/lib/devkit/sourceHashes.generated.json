@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-10T11:24:59.717Z",
+  "generatedAt": "2026-06-10T11:47:12.776Z",
   "hashes": {
     "ai-gateway": "defcde2e0138a73a0a9b322dea1fc7f67c100128e70dd662a3afae4a128c2b06",
     "admin-devkit-data": "7c6a71a1f4f555b2c1ee30a328a2205fb27aad30255d879b7fae34dbe8a6263d",
@@ -21,6 +21,6 @@
     "job-import": "e786149b4027fba1b7850bc61322c622976126e8b9c4d17ebbdf3ab746aa3bed",
     "public-share": "a8b60063761df55ff3f16f5fd3fbe3c2d2f45020a66622519ba515800c9ebb44",
     "resume-section-ai": "a940b779e27c3a1ed756f656d510193c3183367a9ea5cb625eb4b27fee219fcc",
-    "wisehire-gateway": "cd99c96473afd63902f0d0c50c5d8a2e1b1b286a9cd25b59b6798f856fa4afaf"
+    "wisehire-gateway": "861f038b72e0f7fecdddc778d9fe7c7402bb2decb0156a07e0b7df653e66caf5"
   }
 }
