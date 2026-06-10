@@ -2,6 +2,115 @@
 
 ---
 
+## Session Log - 2026-06-10 (Backend Security Audit + AI Credits Schema — Root Cause Fix for All AI Tool Failures)
+
+### Overview
+
+Full backend health audit across all 20 Appwrite Functions. Found and fixed: Node 18 EOL across all functions, IP spoofing in rate limiter, impersonation token signing fallback, WiseHire provider ordering. Discovered and fixed the root cause of all AI tool failures — the `ai_credits` Appwrite collection never existed, blocking every AI call at the credit check layer. Removed stale FTP frontend deploy workflow. Two PRs merged to `main`. Deployment workflow must be triggered manually to apply the `ai_credits` collection fix in production.
+
+---
+
+### What Changed
+
+#### 1. Node.js Runtime Upgraded (All 20 Functions) — `appwrite.json`
+- **Root cause:** All 20 Appwrite Functions were configured with `"runtime": "node-18.0"`. Node 18 reached EOL April 2025; security patches stopped.
+- **Fix:** Changed `"runtime"` from `"node-18.0"` to `"node-20.0"` for all 20 functions in `appwrite.json`.
+
+#### 2. IP Spoofing in Rate Limiter — `appwrite-hubs/ai-gateway/src/main.js`
+- **Root cause:** `xff.split(',')[0].trim()` reads the leftmost `X-Forwarded-For` value, which is client-controlled. An attacker could send `X-Forwarded-For: 1.2.3.4` to rotate IPs and bypass rate limits.
+- **Fix:** Changed to read the rightmost value (`xff.split(',').at(-1)?.trim()`), which is appended by the trusted proxy and cannot be spoofed by the client.
+
+#### 3. Impersonation Token Signing Key Fallback — `appwrite-hubs/admin-impersonate/src/main.js`
+- **Root cause:** `getImpersonationSecret()` fell back to `process.env.APPWRITE_API_KEY` if `IMPERSONATION_HMAC_SECRET` was unset. This silently degrades security — tokens would be signed with the admin API key, which is a different secret with broader scope.
+- **Fix:** Removed the fallback entirely. Now throws a clear configuration error if `IMPERSONATION_HMAC_SECRET` is missing.
+- **Note:** `IMPERSONATION_HMAC_SECRET` is already configured in Appwrite Console; no breakage expected.
+
+#### 4. WiseHire AI Provider Pool Ordering — `appwrite-hubs/wisehire-gateway/src/main.js`
+- **Root cause:** DeepSeek (best quality/cost) was not first in the WiseHire provider pool.
+- **Fix:** Reordered `providerPool()` to: DeepSeek → Groq → OpenRouter → NVIDIA.
+
+#### 5. Stale Frontend Deploy Workflow — `.github/workflows/deploy-frontend.yml`
+- **Root cause:** An FTP-based GitHub Actions workflow for deploying the frontend was still committed. Vercel handles all frontend deploys automatically on push to main.
+- **Fix:** Deleted the file entirely.
+
+#### 6. Missing `ai_credits` Collection — Critical Root Cause of ALL AI Tool Failures
+- **Root cause:** Both `ai-gateway` and `resume-section-ai` call `loadCreditState()` before every single AI request. This function calls `db.listDocuments('main', 'ai_credits', ...)`. If the collection does not exist, the query throws, `loadCreditState()` returns `{ blocked: true }`, and the hub returns a 503 immediately — no LLM call is ever made. The `ai_credits` collection was never created by any setup script and did not exist in Appwrite. This caused 100% of AI tool calls to fail.
+- **Fix:**
+  - Created `scripts/setup_ai_credits_schema.cjs` — idempotent script that creates the `ai_credits` collection with all required attributes (`user_id` str-36 required, `daily_usage` int required default 0, `total_usage` int required default 0, `usage_date` str-10 required, `daily_limit` int optional) and a `user_id` ASC index.
+  - Added a new step to `.github/workflows/deploy-appwrite-hubs.yml` to run `setup_ai_credits_schema.cjs` before hub deployment, guaranteeing the collection exists.
+
+---
+
+### Files Changed
+
+| File | Change | PR |
+|---|---|---|
+| `appwrite.json` | All 20 functions: `node-18.0` → `node-20.0` | #97 |
+| `appwrite-hubs/ai-gateway/src/main.js` | XFF rightmost-value fix (rate limiter IP spoofing) | #97 |
+| `appwrite-hubs/admin-impersonate/src/main.js` | Remove HMAC secret fallback; require explicit config | #97 |
+| `appwrite-hubs/wisehire-gateway/src/main.js` | DeepSeek-first provider pool ordering | #97 |
+| `.github/workflows/deploy-frontend.yml` | **Deleted** — Vercel handles deploys | #97 |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated after hub code changes | #97 |
+| `scripts/setup_ai_credits_schema.cjs` | **New** — creates `ai_credits` Appwrite collection | #98 |
+| `.github/workflows/deploy-appwrite-hubs.yml` | Added `Ensure AI credits schema` step | #98 |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated again after PR #97 merge conflict resolved | #98 |
+
+---
+
+### Validation
+
+- `node --check appwrite-hubs/ai-gateway/src/main.js` → OK
+- `node --check appwrite-hubs/admin-impersonate/src/main.js` → OK
+- `node --check appwrite-hubs/wisehire-gateway/src/main.js` → OK
+- `node --check scripts/setup_ai_credits_schema.cjs` → OK
+- `node scripts/compute-source-hashes.mjs` → regenerated cleanly
+- `npx tsc --noEmit` → OK (no errors)
+- `npm run build` → OK
+- Vercel preview deploy: ✅ Ready on both PRs
+- Supabase: ✅ Skipped (no DB changes)
+
+---
+
+### Commits / PRs
+
+| PR | Branch | Commits | Status |
+|---|---|---|---|
+| #97 | `fix/backend-audit-june-2026` | Multiple (Node 20, XFF fix, HMAC fix, provider ordering, remove old workflow, sourceHashes) | Merged to `main` |
+| #98 | `fix/ai-credits-schema` | Squashed → `5804510c` — `fix: add missing ai_credits schema (root cause of all AI tool failures)` | Merged to `main` |
+
+---
+
+### Deployment State
+
+| Layer | State |
+|---|---|
+| Vercel (frontend) | Auto-deployed on merge of both PRs. Production is current. |
+| Appwrite Functions | **NOT yet redeployed with session changes.** Code is merged to `main` but the `deploy-appwrite-hubs` workflow has not been triggered. Production still runs pre-audit builds. |
+| `ai_credits` collection | **Does NOT exist yet in Appwrite.** Will be created when `deploy-appwrite-hubs` workflow runs. Until then, ALL AI tools continue to fail with 503. |
+
+---
+
+### Ops Actions Required Before AI Tools Work
+
+1. **Trigger `deploy-appwrite-hubs` GitHub Actions workflow** manually:
+   - GitHub → Actions → `Deploy Appwrite Hubs` → `Run workflow` → branch `main`
+   - This creates the `ai_credits` collection AND redeploys all 20 functions with Node 20, updated routing, and security fixes.
+   - Estimated time: ~5–10 minutes.
+
+2. **Fix `VITE_TURNSTILE_SITE_KEY` in Vercel** — currently marked as "Sensitive", which prevents Vite from baking it into the JS bundle at build time. The CAPTCHA widget will not render until this variable is re-added **without** the Sensitive flag, followed by a redeploy.
+
+---
+
+### Where We Stopped
+
+- PR #97 and PR #98 are both merged to `main`.
+- Appwrite deploy workflow has **not been triggered** — user must trigger it manually.
+- `ai_credits` collection does not exist in production yet — all AI tools remain broken until the workflow runs.
+- `VITE_TURNSTILE_SITE_KEY` is in Vercel but marked Sensitive — CAPTCHA not rendering. Needs re-add without Sensitive flag + redeploy.
+- No further code changes are needed. Both pending items are ops-only.
+
+---
+
 ## Session Log - 2026-06-10 (DeepSeek Routing, Prompt Slimming Timeout Fix, PDF Export, & Responsive Desktop Layout)
 
 ### Overview
