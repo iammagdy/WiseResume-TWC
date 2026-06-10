@@ -2,39 +2,37 @@
 
 ---
 
-## Session Log - 2026-06-10 (Dedicated Resume Tailoring Prompt Pipeline & Routing Fixes)
+## Session Log - 2026-06-10 (DeepSeek Routing, Prompt Slimming Timeout Fix, & Responsive Desktop Layout)
 
 ### Overview
-Addressed the silent tailoring failure where the AI returned unmodified resume content. Corrected the DeepSeek completions URL prefix error. Created a dedicated prompt building and message packaging pipeline for the `tailor-resume` feature, separated it from general structured AI routing, improved ID preservation, implemented honest scoring, and optimized token limits/timeouts. Redesigned the loading progress overlay to resolve vertical clipping/cutoff and text contrast. Integrated Appwrite databases query fetching in the tailoring history panel to load past tailored resumes.
+Addressed the silent tailoring failure and Appwrite function timeout issues. Slimmed down the tailoring prompt schema by removing ~56 lines of non-essential metadata (ATS analysis, missing skills, etc.) to keep DeepSeek execution comfortably under Appwrite's 30-second execution wall. Reverted the temporary Groq-only hotfix to ensure DeepSeek remains the primary provider for all features. Restructured the Tailoring Hub into a side-by-side two-column responsive grid on desktop to fix the mobile-only appearance. Fixed job description caching on reload by excluding it from localStorage store persistence.
 
 ---
 
 ### What Changed
 
 #### AI Gateway Hub — `appwrite-hubs/ai-gateway/src/main.js`
-- **Timeout Routing Hotfix**: Overrode `tailor-resume` to use Groq (`llama-3.3-70b-versatile`) rather than DeepSeek to circumvent the 30-second Appwrite execution limits since DeepSeek was too slow for the required massive JSON output.
-- **DeepSeek Base URL Correction**: Replaced `https://api.deepseek.com/v1/chat/completions` with the correct endpoint `https://api.deepseek.com/chat/completions` to resolve gateway execution timeouts.
-- **Output Schema Alignment**: Added missing expected fields (`jobParsed`, `atsAnalysis`, `interviewTalkingPoints`, `strengthsAnalysis`) to the tailoring output schema in `buildTailorResumeSystemPrompt`.
-- **Feature Extraction**: Routed `tailor-resume` through a custom prompt branch in `buildMessages` rather than using the generic `STRUCTURED_AI_FEATURES` template.
-- **Custom System Prompt**: Implemented `buildTailorResumeSystemPrompt` which supplies distinct optimization guidelines for `light`, `moderate`, and `aggressive` tailoring intensities.
+- **DeepSeek Primary Routing**: Reverted the temporary Groq-only hotfix to ensure DeepSeek is used as the primary provider for all features, including `tailor-resume` and `resume-section-ai`, with fallback providers.
+- **Output Schema Slimming**: Removed non-essential metadata fields (`sectionScores`, `missingSkills`, `boostableSkills`, `jobParsed`, `atsAnalysis`, `interviewTalkingPoints`, `strengthsAnalysis`) from the tailoring prompt to drastically reduce token output size and prevent 30-second Appwrite gateway timeouts.
 - **Rules Enforcement**:
   - Enforced STAR method achievement rewrites.
   - Enforced ID preservation for experience, education, projects, certifications, and awards to prevent database alignment errors.
-  - Enforced honest pre/after match scores (no forced/inflated improvement).
-  - Capped bullet transformation records to 3-5 key transformations.
-- **Untrusted Input Protection**: Moved `userInstructions` to the user message block to treat it strictly as untrusted input that cannot override formatting or safety constraints.
+  - Enforced honest pre/after match scores.
+- **Custom System Prompt**: Maintained distinct optimization guidelines for `light`, `moderate`, and `aggressive` tailoring intensities.
 - **Extended Token and Time Limits**:
-  - Set tailoring token limit to 6000 (with documented fallback to 8000).
-  - Extended tiered timeout logic to grant `tailor-resume` 28,000ms on all retry attempts.
+  - Set tailoring token limit to 4000 to keep responses prompt and lightweight.
+  - Extended tiered timeout logic to grant `tailor-resume` 28,000ms on all gateway attempts.
 
-#### Unit Tests — `tests/hubs/ai-gateway-routing.test.cjs`
-- Added comprehensive routing assertions for `tailor-resume` verifying system prompt structure, untrusted instructions containment, and retry timeout specifications.
-
-#### Frontend UI — `src/components/job-match/` & `src/components/editor/tailor/`
-- **Overlay Centering & Scroll**: Replaced the `my-auto` centering class with `mt-10 mb-20 shrink-0` inside the `JobMatchProgressStage.tsx` container to prevent top-clipping of overflowing progress items inside the `flex-start` scrollable overlay container (`.jmw-progress-overlay`).
-- **Nested Card Removal**: Added a `noCard` boolean prop to `TailorProgress.tsx` to strip the card wrapper styling when true, and passed `noCard={true}` from `JobMatchProgressStage.tsx`.
-- **Contrast Fix**: Swapped `text-warning-foreground` for `text-warning` in `TailorProgress.tsx` so warning cards are highly legible on `bg-warning/10` in dark mode.
-- **Unified History List**: Implemented a TanStack query hook in `JobMatchHistoryList.tsx` to fetch `tailor_history` documents from Appwrite, merging them chronologically with the local Zustand store.
+#### Frontend UI — `src/components/job-match/` & `src/store/`
+- **Responsive Desktop Layout**: Wrapped the Tailoring Hub workspace elements in left and right column divs, displaying them side-by-side in a responsive grid on desktop (`@media (min-width: 1024px)`) to resolve the narrow mobile-only appearance and make full use of screen real estate.
+- **Widened Result Page**: Increased `.jmw-result-content` max-width to `80rem` and adjusted column sizes to `minmax(0, 1fr) 24rem` on desktop for a cleaner and more readable layout.
+- **Centered Sticky CTA**: Centered the CTA primary button and capped its width to `32rem` on desktop to avoid stretching.
+- **Job Description Cache Fix**: Excluded `jobDescription` from `partialize` in `resumeStore.ts` to prevent the job description from being cached in localStorage across page refreshes and sessions.
+- **Progress Overlay Improvements**:
+  - Restructured `JobMatchProgressStage.tsx` to handle responsive sizing.
+  - Replaced the `my-auto` centering class with `mt-10 mb-20 shrink-0` to resolve vertical top-clipping issues.
+  - Swapped `text-warning-foreground` for `text-warning` in `TailorProgress.tsx` to fix contrast in dark mode.
+  - Unified history list in `JobMatchHistoryList.tsx` by merging Appwrite db logs with the local Zustand store.
 
 ---
 
