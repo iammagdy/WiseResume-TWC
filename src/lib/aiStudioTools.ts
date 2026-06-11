@@ -56,26 +56,16 @@ export const aiStudioToolEntries: AiStudioToolEntry[] = [
   { id: "tailor", icon: Wand2, label: "Smart Tailor", desc: "Adapt to job descriptions", color: "text-primary", cost: "tailor", visibility: "hidden", parentWorkflowId: "tailor-for-job" },
   { id: "enhance", icon: Sparkles, label: "Enhance", desc: "Improve writing", color: "text-cyan-500", cost: "enhance", visibility: "hidden", parentWorkflowId: "improve-resume" },
   { id: "onepage", icon: FileSignature, label: "1-Page Wizard", desc: "Condense resume", color: "text-amber-500", cost: "one-page", visibility: "hidden", parentWorkflowId: "improve-resume" },
-  { id: "humanizer", icon: Shield, label: "Humanize", desc: "AI detection fix", color: "text-violet-500", cost: "detect-humanize", visibility: "hidden", parentWorkflowId: "improve-resume" },
+  { id: "humanizer", icon: Shield, label: "Humanize", desc: "AI detection fix", color: "text-violet-500", cost: "detect-and-humanize", visibility: "hidden", parentWorkflowId: "improve-resume" },
   { id: "job-match", icon: Target, label: "Tailoring Hub", desc: "All-in-one tailoring workspace", color: "text-green-500", cost: "tailor", visibility: "primary", navigate: "/tailoring-hub", parentWorkflowId: "tailor-for-job" },
   { id: "ab-compare", icon: GitCompareArrows, label: "A/B Compare", desc: "Score two resumes", color: "text-rose-500", cost: "score", visibility: "hidden", parentWorkflowId: "improve-resume" },
   { id: "recruiter", icon: UserCheck, label: "Recruiter Sim", desc: "Simulate review", color: "text-rose-500", cost: "recruiter-sim", visibility: "hidden", parentWorkflowId: "improve-resume" },
   { id: "skills-gap", icon: TrendingUp, label: "Skills Gap", desc: "Identify missing skills", color: "text-cyan-500", cost: "skills-gap", visibility: "hidden", parentWorkflowId: "tailor-for-job" },
   { id: "career", icon: TrendingUp, label: "Career Plan", desc: "Path advisor", color: "text-emerald-500", cost: "career-assessment", visibility: "secondary", navigate: "/career", parentWorkflowId: "career-plan" },
   { id: "interview", icon: Mic, label: "Interview Prep", desc: "Practice Q&A", color: "text-orange-500", cost: "interview", visibility: "primary", navigate: "/interview", parentWorkflowId: "prepare-interview" },
-  { id: "company-briefing", icon: Building2, label: "Company Briefing", desc: "Company research", color: "text-teal-500", cost: "company_briefing", visibility: "primary", parentWorkflowId: "company-briefing" },
-  { id: "salary-negotiation", icon: DollarSign, label: "Salary Coach", desc: "Negotiation scripts", color: "text-green-500", cost: "salary-negotiation", visibility: "hidden" },
-  { id: "cold-email", icon: Mail, label: "Cold Email", desc: "Recruiter outreach", color: "text-rose-600", cost: "cold-email", visibility: "hidden", parentWorkflowId: "write-documents" },
-  { id: "job-rejection", icon: XCircle, label: "Rejection Analyzer", desc: "Learn from rejection", color: "text-rose-500", cost: "job-rejection", visibility: "hidden" },
+  { id: "company-briefing", icon: Building2, label: "Company Briefing", desc: "Company research", color: "text-teal-500", cost: "company-briefing", visibility: "primary", parentWorkflowId: "company-briefing" },
   { id: "linkedin", icon: Linkedin, label: "LinkedIn", desc: "Profile optimizer", color: "text-blue-500", cost: "linkedin", visibility: "primary", parentWorkflowId: "linkedin-brand" },
-  { id: "personal-branding", icon: Star, label: "Brand Statement", desc: "3 style variants", color: "text-amber-500", cost: "personal-branding", visibility: "hidden", parentWorkflowId: "linkedin-brand" },
-  { id: "portfolio-bio", icon: BookOpen, label: "Portfolio Bio", desc: "For your portfolio", color: "text-violet-500", cost: "portfolio-bio", visibility: "hidden", parentWorkflowId: "linkedin-brand" },
   { id: "cover-letters", icon: FileSignature, label: "Cover Letters", desc: "AI-generated letters", color: "text-sky-500", cost: "cover-letter", visibility: "primary", navigate: "/cover-letters", parentWorkflowId: "cover-letter" },
-  { id: "resignation-letters", icon: FileOutput, label: "Resignation Letter", desc: "Leave professionally", color: "text-pink-500", cost: "cover-letter", visibility: "hidden", navigate: "/resignation-letters", parentWorkflowId: "write-documents" },
-  { id: "reference-letter", icon: FileCheck, label: "Reference Letter", desc: "For your referee", color: "text-sky-500", cost: "reference-letter", visibility: "hidden", parentWorkflowId: "write-documents" },
-  { id: "qr-code", icon: FileCheck, label: "QR Generator", desc: "Custom QR codes", color: "text-primary", cost: "free", visibility: "excluded", navigate: "/qr-code" },
-  { id: "qr-batch", icon: FileCheck, label: "Batch QR", desc: "Bulk CSV to ZIP", color: "text-amber-500", cost: "free", visibility: "excluded", navigate: "/qr-batch" },
-  { id: "qr-scan", icon: FileCheck, label: "QR Scanner", desc: "Decode from image", color: "text-emerald-500", cost: "free", visibility: "excluded", navigate: "/qr-scan" },
 ];
 
 export const aiStudioWorkflows: AiStudioWorkflowEntry[] = [
@@ -143,7 +133,7 @@ export const aiStudioWorkflows: AiStudioWorkflowEntry[] = [
     visibility: "primary",
     primaryAction: { label: "Optimize LinkedIn", toolId: "linkedin" },
     secondaryActions: [],
-    backingTools: ["linkedin", "portfolio-bio", "personal-branding"],
+    backingTools: ["linkedin"],
   },
   {
     id: "career-plan",
@@ -155,20 +145,6 @@ export const aiStudioWorkflows: AiStudioWorkflowEntry[] = [
     primaryAction: { label: "Open Career Plan", toolId: "career" },
     secondaryActions: [],
     backingTools: ["career"],
-  },
-  {
-    id: "write-documents",
-    title: "Write Documents",
-    description: "Handle supporting career documents that matter, without crowding the main workspace.",
-    icon: FileOutput,
-    color: "text-pink-500",
-    visibility: "secondary",
-    primaryAction: { label: "Resignation Letter", toolId: "resignation-letters" },
-    secondaryActions: [
-      { label: "Reference Letter", toolId: "reference-letter" },
-      { label: "Cold Email", toolId: "cold-email" },
-    ],
-    backingTools: ["resignation-letters", "reference-letter", "cold-email"],
   },
 ];
 
