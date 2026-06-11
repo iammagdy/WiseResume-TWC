@@ -2,6 +2,66 @@
 
 ---
 
+## Session Log - 2026-06-10 (Tailoring Hub Compare, PDF Export Dialog, Local PDF Server, Cover Letter Route)
+
+### Overview
+
+Local `main` session — **uncommitted** product work. Tailoring **result compare** (projects/skills/experience fidelity, section-by-section mode), **in-page Download PDF** with streamlined page-break UI, **local PDF export** reliability (Appwrite config + dev scripts), **custom page break** export alignment, and **Create cover letter** 404 fix from tailor result. Detailed log: `Project Atlas/05-Migration to Appwrite/31-Session-Log-2026-06-10-Tailoring-Hub-Compare-Export-Cover-Letter.md`.
+
+---
+
+### What Changed (summary)
+
+| # | Area | Why | Root cause | Key fix |
+|---|------|-----|------------|---------|
+| 1 | Tailor compare/merge | Missing projects, bad highlights, duped bullets | Weak list merge + diff normalization | `tailorMerge`, `tailorSanitize`, `tailorCompareHighlights`, section compare UI, gateway prompts |
+| 2 | Download PDF on result | New tab instead of in-page flow | `window.open` to preview | `TailorQuickPdfExportDialog` + `TailorResultExportPanel` |
+| 3 | PDF dialog UX | Crowded page-break UI | Monolithic default layout | `ExportPageBreakSetup` `variant="streamlined"`, CSS shell |
+| 4 | PDF “temporarily unavailable” | Download failed locally | PDF API on `:5001` not running | `dev:pdf-server`, `dev:full`, `dev-with-api.mjs` |
+| 5 | PDF “Server configuration error” | Download failed locally | Server lacked `APPWRITE_PROJECT_ID`; `.env.local` not loaded | `resolveAppwriteServerConfig()` + `dev-pdf-server.mjs` env load |
+| 6 | 4-page PDF vs 2-page preview | Custom breaks ignored | Offscreen export vs dialog template mismatch | `resolveExportBreakPositions`, export from live template |
+| 7 | Cover letter 404 | Create cover letter broken | Route `/cover-letter` undefined | `/cover-letter/new` + prefill + legacy redirect |
+
+---
+
+### Files Changed (product — uncommitted)
+
+See session log for full table. Primary paths: `src/components/job-match/Tailor*.tsx`, `TailorQuickPdfExportDialog.tsx`, `ExportPageBreakSetup.tsx`, `src/lib/tailor*.ts`, `pdfUtils.ts`, `exportResumePdf.ts`, `server/index.ts`, `scripts/dev-pdf-server.mjs`, `TailoringHubResultPage.tsx`, `CoverLetterNewPage.tsx`, `AppInterior.tsx`.
+
+---
+
+### Validation
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | OK |
+| `npx vitest run src/lib/__tests__/pdfUtils.test.ts src/lib/exportResumePdf.test.ts` | OK (31 tests) |
+| `npm run build:server` | OK |
+| Local PDF health `:5001/api/health` | 200 when server running |
+| `npm run build` / full vitest | Not re-run end-of-session |
+
+---
+
+### Commits / Deployments
+
+| Item | State |
+|---|---|
+| Product commits | **None** — uncommitted on local `main` |
+| Last pushed | `f1bfc492` |
+| Vercel / Appwrite | **Not deployed** this session |
+
+---
+
+### Where We Stopped (authoritative)
+
+1. **Uncommitted product work** — Tailoring compare/export/cover-letter + prior 2026-06-10 dashboard/AI Studio changes in same tree. Review diff, test, commit, push when user approves.
+2. **Manual QA:** section compare + skills highlights; Download PDF 2-page break before Education; Create cover letter from tailor result; local PDF via `npm run dev:full`.
+3. **Local PDF:** Requires `dev:pdf-server` or `dev:full` when `VITE_API_URL=http://localhost:5001`.
+4. **Ops (unchanged):** Deploy Appwrite Hubs (`ai_credits`); Vercel `VITE_TURNSTILE_SITE_KEY` non-Sensitive.
+5. **Re-tailor** old results for project/skills merge fixes.
+
+---
+
 ## Session Log - 2026-06-10 (Dashboard UX, Workspace Search, AI Studio Route Sync, Portfolio & Public UX Fixes)
 
 ### Overview
@@ -115,14 +175,10 @@ Local `main` session (post–PR #97/#98 merge). Pulled remote; no new commits fo
 
 ---
 
-### Where We Stopped (authoritative)
+### Where We Stopped
 
-1. **Uncommitted product work** — Full list in "Files Changed" above sits in the working tree on `main`. Next agent should review diff, run tests, commit with conventional message(s), and push when user approves.
-2. **Ops blockers (unchanged from backend audit session):**
-   - Manually trigger **Deploy Appwrite Hubs** on `main` to create `ai_credits` and redeploy Node 20 + security fixes.
-   - Re-add **`VITE_TURNSTILE_SITE_KEY`** in Vercel without Sensitive flag; redeploy.
-3. **Manual QA suggested** before push: dashboard tabs/search, AI Studio dismiss from `/ai-studio/enhance`, portfolio resume select, public `/p/{username}` (no cookie banner), Tailoring Hub layout + footer credits.
-4. No Appwrite function or env changes in this session.
+1. **Superseded** by 2026-06-10 Tailoring Hub compare/export session above — see authoritative section there.
+2. Uncommitted dashboard/AI Studio/product changes remain in working tree alongside tailoring work.
 
 ---
 
