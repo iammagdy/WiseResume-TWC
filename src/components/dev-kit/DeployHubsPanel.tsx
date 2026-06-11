@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { AlertTriangle, CheckCircle2, ChevronRight, FileText, GitCommit, RefreshCw, Rocket, Search, TerminalSquare, Wrench, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse } from '@/lib/devkit/appwriteResponse';
@@ -57,7 +58,43 @@ function formatTimestamp(value: string | null) {
 
 const SOURCE_HASHES = sourceHashManifest.hashes as Record<string, string | null>;
 
+/** Hubs managed by admin-deploy-hubs (matches server HUBS list). */
+const ALL_MANAGED_HUBS = Object.keys(SOURCE_HASHES).filter(id => SOURCE_HASHES[id] !== null);
+
+const PER_HUB_TIMEOUT_MS = 180_000;
+
 type DriftStatus = 'in-sync' | 'needs-redeploy' | 'unknown';
+
+interface DeployProgressState {
+  active: boolean;
+  total: number;
+  completed: number;
+  currentHub: string | null;
+  label: string;
+  cancelled: boolean;
+}
+
+function withInvokeTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
+function mergeSummary(results: HubResult[]): DeployResponse['summary'] {
+  return {
+    deployed: results.filter(r => r.status === 'deployed').length,
+    failed: results.filter(r => r.status === 'failed').length,
+    skipped: results.filter(r => r.status === 'skipped').length,
+  };
+}
 
 export function DeployHubsPanel() {
   const [tab, setTab] = useState<TabId>('functions');
@@ -76,6 +113,8 @@ export function DeployHubsPanel() {
   const [executionDetail, setExecutionDetail] = useState<ExecutionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deployedHashes, setDeployedHashes] = useState<Record<string, string>>({});
+  const [deployProgress, setDeployProgress] = useState<DeployProgressState | null>(null);
+  const cancelDeployRef = useRef(false);
 
   const filteredFunctions = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -189,26 +228,98 @@ export function DeployHubsPanel() {
       setError('This function deploys all others. If it breaks, use Appwrite Console to redeploy manually.');
       return;
     }
-    if (!window.confirm(`Proceed with ${label}?`)) return;
+
+    const hubIds = (hubs ?? ALL_MANAGED_HUBS).filter(Boolean);
+    if (hubIds.length === 0) {
+      setError('No functions selected for deployment.');
+      return;
+    }
+
+    if (!window.confirm(`Proceed with ${label}? This runs ${hubIds.length} deployment(s) sequentially with live progress.`)) return;
+
+    cancelDeployRef.current = false;
     setDeploying(true);
     setError(null);
     setSummary(null);
     setResults([]);
+    setDeployProgress({
+      active: true,
+      total: hubIds.length,
+      completed: 0,
+      currentHub: hubIds[0] ?? null,
+      label,
+      cancelled: false,
+    });
+
+    const accumulated: HubResult[] = [];
+
     try {
-      const tuple = await appwriteFunctions.invoke('admin-deploy-hubs', devKitInvokeOptions(hubs ? { hubs } : {}));
-      const data = unwrapAdminResponse<DeployResponse>(tuple, 'admin-deploy-hubs');
-      setSummary(data.summary ?? null);
-      setResults(data.results ?? []);
-      // Record deployed hash for each successfully deployed hub
-      const deployedHubs = (data.results ?? []).filter(r => r.status === 'deployed').map(r => r.hub);
-      await Promise.allSettled(deployedHubs.map(hubId => recordDeployedHash(hubId)));
+      for (let index = 0; index < hubIds.length; index += 1) {
+        if (cancelDeployRef.current) {
+          setDeployProgress(prev => prev ? { ...prev, cancelled: true, currentHub: null } : prev);
+          break;
+        }
+
+        const hubId = hubIds[index];
+        setDeployProgress(prev => prev ? {
+          ...prev,
+          completed: index,
+          currentHub: hubId,
+        } : prev);
+
+        try {
+          const tuple = await withInvokeTimeout(
+            appwriteFunctions.invoke('admin-deploy-hubs', devKitInvokeOptions({ hubs: [hubId] })),
+            PER_HUB_TIMEOUT_MS,
+            `${hubId} deployment timed out after ${Math.round(PER_HUB_TIMEOUT_MS / 1000)}s. Check Appwrite logs for admin-deploy-hubs.`,
+          );
+          const data = unwrapAdminResponse<DeployResponse>(tuple, 'admin-deploy-hubs');
+          const hubResults = data.results ?? [];
+          if (hubResults.length === 0) {
+            accumulated.push({ hub: hubId, status: 'failed', error: 'No result returned from deploy function' });
+          } else {
+            accumulated.push(...hubResults);
+          }
+        } catch (err) {
+          accumulated.push({
+            hub: hubId,
+            status: 'failed',
+            error: err instanceof Error ? err.message : 'Deployment failed',
+          });
+        }
+
+        setResults([...accumulated]);
+        setSummary(mergeSummary(accumulated));
+
+        const deployedHubs = accumulated.filter(r => r.status === 'deployed').map(r => r.hub);
+        await Promise.allSettled(deployedHubs.map(id => recordDeployedHash(id)));
+
+        setDeployProgress(prev => prev ? {
+          ...prev,
+          completed: index + 1,
+          currentHub: hubIds[index + 1] ?? null,
+        } : prev);
+      }
+
       await loadFunctions(search);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Deployment failed');
     } finally {
       setDeploying(false);
+      setDeployProgress(prev => prev ? { ...prev, active: false, currentHub: null } : prev);
     }
   };
+
+  const cancelDeploy = () => {
+    cancelDeployRef.current = true;
+    setDeployProgress(prev => prev ? { ...prev, cancelled: true } : prev);
+  };
+
+  const progressPercent = deployProgress
+    ? deployProgress.total > 0
+      ? Math.round((deployProgress.completed / deployProgress.total) * 100)
+      : 0
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -252,6 +363,52 @@ export function DeployHubsPanel() {
       {error && (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
           {error}
+        </div>
+      )}
+
+      {deployProgress?.active && (
+        <div className="rounded-2xl border border-blue-500/25 bg-blue-500/10 p-5 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-white">Deployment in progress</p>
+              <p className="text-xs text-white/55">
+                {deployProgress.currentHub
+                  ? <>Deploying <span className="font-mono text-blue-200">{deployProgress.currentHub}</span></>
+                  : 'Finishing up…'}
+                {' · '}
+                {deployProgress.completed} of {deployProgress.total} complete
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={cancelDeploy} className="rounded-xl border-white/15">
+              Cancel remaining
+            </Button>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-white/55">
+              <span>{deployProgress.label}</span>
+              <span className="font-semibold tabular-nums text-white/75">{progressPercent}%</span>
+            </div>
+            <Progress value={progressPercent} className="h-2 bg-black/30" />
+          </div>
+          {results.length > 0 && (
+            <div className="max-h-40 overflow-y-auto rounded-xl border border-white/10 bg-black/20 divide-y divide-white/5">
+              {results.map(result => (
+                <div key={result.hub} className="flex items-center gap-2 px-3 py-2 text-xs">
+                  {result.status === 'deployed' && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />}
+                  {result.status === 'failed' && <XCircle className="h-3.5 w-3.5 shrink-0 text-red-400" />}
+                  {result.status === 'skipped' && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-white/35" />}
+                  <span className="font-mono text-white/85">{result.hub}</span>
+                  {result.error && <span className="truncate text-red-300">{result.error}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {deployProgress && !deployProgress.active && deployProgress.cancelled && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+          Deployment cancelled. Completed hubs were left deployed; remaining hubs were skipped.
         </div>
       )}
 

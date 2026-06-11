@@ -24,6 +24,25 @@ export class AppwriteFunctionError extends Error {
 
 export class EdgeFunctionError extends AppwriteFunctionError {}
 
+const ADMIN_ENVELOPE_KEYS = new Set(['success', 'requestId', 'code', 'error', 'message']);
+
+/** Strip `{ success, requestId, ... }` wrappers from admin function JSON bodies. */
+export function normalizeAdminPayload<T = Record<string, unknown>>(
+  obj: Record<string, unknown>,
+): T {
+  const payloadKeys = Object.keys(obj).filter((key) => !ADMIN_ENVELOPE_KEYS.has(key));
+
+  if (payloadKeys.length === 1 && payloadKeys[0] === 'data' && obj.data !== undefined) {
+    return obj.data as T;
+  }
+
+  const rest: Record<string, unknown> = {};
+  for (const key of payloadKeys) {
+    rest[key] = obj[key];
+  }
+  return rest as T;
+}
+
 function looksLikeNotDeployed(err: InvokeError): boolean {
   const msg = (err.message ?? '').toLowerCase().trim();
 
@@ -68,7 +87,11 @@ export function unwrapAdminResponse<T extends Record<string, unknown> = Record<s
     throw new AppwriteFunctionError(message, { raw: obj });
   }
 
-  return obj as T;
+  if (obj.ok === false && typeof obj.error === 'string' && !Array.isArray(obj.results)) {
+    throw new AppwriteFunctionError(obj.error, { raw: obj });
+  }
+
+  return normalizeAdminPayload<T>(obj);
 }
 
 export function tryUnwrapAdminResponse<T extends Record<string, unknown> = Record<string, unknown>>(

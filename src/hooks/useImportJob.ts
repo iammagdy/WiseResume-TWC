@@ -47,6 +47,7 @@ export function useImportJob() {
 
       if (jobId) {
         await queryClient.invalidateQueries({ queryKey: ['jobs', user.id] });
+        await queryClient.invalidateQueries({ queryKey: ['saved-job-postings', user.id] });
         return { id: jobId, job };
       }
 

@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
+import { useAuth } from './useAuth';
+import { useMe } from './useMe';
 import { usePlan } from './usePlan';
 import type { PlanName } from './usePlan';
 
@@ -14,44 +16,80 @@ const UPGRADE_MESSAGES: Record<string, string> = {
     "Upgraded to Premium! Unlimited AI credits and Analytics are now unlocked for you.",
 };
 
-const STORAGE_KEY = 'wr-last-known-plan';
-const SESSION_FIRED_KEY = 'wr-upgrade-toast-fired';
+function storageKey(userId: string) {
+  return `wr-last-known-plan:${userId}`;
+}
+
+function celebratedKey(userId: string, transition: string) {
+  return `wr-plan-upgrade-celebrated:${userId}:${transition}`;
+}
 
 export function usePlanUpgradeCelebration() {
+  const { user } = useAuth();
   const { plan, isLoading } = usePlan();
+  const { isFetching, isSuccess, data: meData } = useMe();
 
   useEffect(() => {
-    if (isLoading) return;
+    const userId = user?.id;
+    if (!userId || isLoading || isFetching || !isSuccess) return;
 
-    const storedValue = localStorage.getItem(STORAGE_KEY);
+    // Ignore transient "free" reads when subscription payload is missing (failed fetch).
+    if (plan === 'free' && !meData?.subscription) return;
+
+    const key = storageKey(userId);
+    let storedValue = localStorage.getItem(key);
+
+    // Migrate legacy global key (pre-user-scoping).
+    if (storedValue === null) {
+      const legacy = localStorage.getItem('wr-last-known-plan');
+      if (legacy) {
+        storedValue = legacy;
+        localStorage.setItem(key, legacy);
+        localStorage.removeItem('wr-last-known-plan');
+        // Heal corrupted "free" storage when the account is already on a paid plan.
+        if (legacy === 'free' && PLAN_TIER[plan] > PLAN_TIER.free) {
+          localStorage.setItem(key, plan);
+          localStorage.setItem(celebratedKey(userId, `free→${plan}`), '1');
+          return;
+        }
+      }
+    }
 
     if (storedValue === null) {
-      // First time we've ever run this hook for this user (or after storage clear).
-      // Establish baseline without firing a toast — there was no observed transition.
-      localStorage.setItem(STORAGE_KEY, plan);
+      localStorage.setItem(key, plan);
+      // Already subscribed — don't treat the first read as a fresh upgrade.
+      if (PLAN_TIER[plan] > PLAN_TIER.free) {
+        for (const from of ['free', 'pro'] as PlanName[]) {
+          if (PLAN_TIER[plan] > PLAN_TIER[from]) {
+            localStorage.setItem(celebratedKey(userId, `${from}→${plan}`), '1');
+          }
+        }
+      }
       return;
     }
 
     const lastKnown = storedValue as PlanName;
-
     if (plan === lastKnown) return;
 
-    // Update the stored plan so the next session treats this as the new baseline.
-    localStorage.setItem(STORAGE_KEY, plan);
+    const transition = `${lastKnown}→${plan}`;
+    const isUpgrade = PLAN_TIER[plan] > PLAN_TIER[lastKnown];
 
-    // Only celebrate actual upgrades (not downgrades or lateral moves).
-    if (PLAN_TIER[plan] > PLAN_TIER[lastKnown]) {
-      const key = `${lastKnown}→${plan}`;
-      const message = UPGRADE_MESSAGES[key];
-      if (!message) return;
-
-      // Use sessionStorage as a cross-mount dedup guard: only one surface fires per session.
-      if (sessionStorage.getItem(SESSION_FIRED_KEY)) return;
-      sessionStorage.setItem(SESSION_FIRED_KEY, '1');
-
-      setTimeout(() => {
-        toast.success(message, { duration: 6000, icon: '🎉' });
-      }, 800);
+    // Never persist a downgrade — subscription fetches can briefly default to free.
+    if (isUpgrade) {
+      localStorage.setItem(key, plan);
     }
-  }, [plan, isLoading]);
+
+    if (!isUpgrade) return;
+
+    const message = UPGRADE_MESSAGES[transition];
+    if (!message) return;
+
+    if (localStorage.getItem(celebratedKey(userId, transition))) return;
+
+    localStorage.setItem(celebratedKey(userId, transition), '1');
+
+    setTimeout(() => {
+      toast.success(message, { duration: 6000, icon: '🎉' });
+    }, 800);
+  }, [user?.id, plan, isLoading, isFetching, isSuccess, meData?.subscription]);
 }

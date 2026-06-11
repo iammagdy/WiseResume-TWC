@@ -288,8 +288,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     }).then((tuple) => {
       if (cancelled) return;
       try {
-        const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-devkit-data');
-        setActivityEvents(result.data ?? []);
+        const result = unwrapAdminResponse<UsageEvent[]>(tuple, 'admin-devkit-data');
+        setActivityEvents(Array.isArray(result) ? result : []);
       } catch (e) {
         setActivityError(formatEdgeError(e, 'Failed to load activity'));
         setActivityEvents([]);

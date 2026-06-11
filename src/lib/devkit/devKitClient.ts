@@ -1,5 +1,6 @@
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
+import { normalizeAdminPayload } from '@/lib/devkit/appwriteResponse';
 
 export type DevKitErrorCode =
   | 'APPWRITE_SESSION_EXPIRED'
@@ -30,6 +31,8 @@ export interface DevKitCallOptions {
   action: string;
   payload?: Record<string, unknown>;
   functionId?: string;
+  /** Client-side timeout in ms (default 90s). Use longer values for heavy analytics. */
+  timeoutMs?: number;
 }
 
 export interface DevKitSessionToken {
@@ -80,12 +83,36 @@ function classifyMessage(message: string, status?: number): DevKitErrorCode {
   return 'UNKNOWN';
 }
 
+function formatDevKitErrorMessage(value: unknown, fallback = 'Request failed'): string {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (value instanceof Error && value.message.trim()) return value.message.trim();
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.message === 'string' && obj.message.trim()) return obj.message.trim();
+    if (typeof obj.error === 'string' && obj.error.trim()) return obj.error.trim();
+    if (typeof obj.error === 'object' && obj.error !== null) {
+      const nested = formatDevKitErrorMessage(obj.error, '');
+      if (nested) return nested;
+    }
+    try {
+      const json = JSON.stringify(value);
+      if (json && json !== '{}') return json;
+    } catch {
+      // ignore
+    }
+  }
+  if (value === null || value === undefined || value === '') return fallback;
+  const coerced = String(value);
+  return coerced === '[object Object]' ? fallback : coerced;
+}
+
 export function toDevKitError(input: unknown, context: { functionId?: string; action?: string } = {}): DevKitError {
   if (typeof input === 'object' && input !== null && 'code' in input && 'message' in input) {
     const err = input as Partial<DevKitError>;
+    const message = formatDevKitErrorMessage(err.message, 'Unknown DevKit error');
     return {
-      code: (err.code as DevKitErrorCode) ?? classifyMessage(String(err.message ?? ''), err.status),
-      message: String(err.message ?? 'Unknown DevKit error'),
+      code: (err.code as DevKitErrorCode) ?? classifyMessage(message, err.status),
+      message,
       status: err.status,
       functionId: err.functionId ?? context.functionId,
       action: err.action ?? context.action,
@@ -94,7 +121,7 @@ export function toDevKitError(input: unknown, context: { functionId?: string; ac
     };
   }
 
-  const message = input instanceof Error ? input.message : String(input ?? 'Unknown DevKit error');
+  const message = formatDevKitErrorMessage(input, 'Unknown DevKit error');
   const status = input instanceof Error ? (input as Error & { status?: number }).status : undefined;
   return {
     code: classifyMessage(message, status),
@@ -130,8 +157,25 @@ export async function devKitLogin(): Promise<DevKitAuthResponse> {
   }
 
   const payload = result.data;
+  if (payload?.success === false) {
+    return {
+      success: false,
+      code: payload?.code === 'CONFIG_MISSING' ? 'CONFIG_MISSING' : 'INVALID_PASSWORD',
+      error: payload?.error || 'DevKit login failed.',
+      requestId: payload?.requestId,
+    };
+  }
+
   if (payload?.success && payload.session?.token && payload.session.expiresAt) {
     return { success: true, session: payload.session, requestId: payload.requestId };
+  }
+
+  if (!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) {
+    return {
+      success: false,
+      code: 'INVALID_PASSWORD',
+      error: 'admin-devkit-data returned an empty response. Check Appwrite function logs and redeploy admin-devkit-data.',
+    };
   }
 
   return {
@@ -146,13 +190,14 @@ export async function devKitCall<T = unknown>({
   action,
   payload,
   functionId = 'admin-devkit-data',
+  timeoutMs = 90000,
 }: DevKitCallOptions): Promise<DevKitResult<T>> {
   const body = { ...(payload ?? {}), action };
   let tuple: Awaited<ReturnType<typeof appwriteFunctions.invoke<AdminEnvelope<T>>>>;
   try {
     tuple = await withDevKitTimeout(
       appwriteFunctions.invoke<AdminEnvelope<T>>(functionId, devKitInvokeOptions(body)),
-      20000,
+      timeoutMs,
       `${functionId} timed out while running ${action}.`,
     );
   } catch (err) {
@@ -186,11 +231,15 @@ export async function devKitCall<T = unknown>({
   }
 
   if (response.success === false) {
+    const message = formatDevKitErrorMessage(
+      response.error ?? response.message,
+      `${functionId} reported failure.`,
+    );
     return {
       ok: false,
       error: {
-        code: classifyMessage(response.error || String(response.code || ''), tuple.error?.status),
-        message: response.error || `${functionId} reported failure.`,
+        code: classifyMessage(message, tuple.error?.status),
+        message,
         functionId,
         action,
         requestId: response.requestId,
@@ -201,7 +250,7 @@ export async function devKitCall<T = unknown>({
 
   return {
     ok: true,
-    data: (response.data ?? response) as T,
+    data: normalizeAdminPayload(response as Record<string, unknown>) as T,
     requestId: response.requestId,
   };
 }

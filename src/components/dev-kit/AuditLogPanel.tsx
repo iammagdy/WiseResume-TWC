@@ -69,12 +69,12 @@ export const AuditLogPanel = () => {
         headers: devKitAuthHeaders(),
         body: { action: 'list-audit-logs', limit: PAGE_SIZE, offset: currentOffset },
       });
-      const result = unwrapAdminResponse<{ data?: { documents?: AuditEntry[]; total?: number } }>(
+      const result = unwrapAdminResponse<{ documents?: AuditEntry[]; total?: number }>(
         tuple,
         'admin-devkit-data',
       );
-      const docs = result.data?.documents ?? [];
-      const tot = result.data?.total ?? 0;
+      const docs = result.documents ?? [];
+      const tot = result.total ?? 0;
       if (append) {
         setAllLogs(prev => [...prev, ...docs]);
       } else {

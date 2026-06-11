@@ -268,6 +268,7 @@ module.exports = async ({ req, res, log, error }) => {
   }
 
   return res.json({
+    success: failed === 0,
     ok: failed === 0,
     results,
     summary: { deployed, failed, skipped: results.filter(r => r.status === 'skipped').length },

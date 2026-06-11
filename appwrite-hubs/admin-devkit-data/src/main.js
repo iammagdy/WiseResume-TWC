@@ -249,24 +249,57 @@ function worstStatus(items) {
 }
 
 async function verifyDevKitSession(body) {
-  // Verify the caller's Appwrite JWT and confirm the account has the 'admin' label.
+  // Verify the caller's Appwrite JWT, then confirm admin access via Users API labels
+  // (labels are authoritative on /users/{id}, not always present on /account).
   const jwt = body?.__headers?.['X-Appwrite-JWT'];
   if (!jwt) {
     return { success: false, code: 'UNAUTHORIZED', error: 'No Appwrite session found. Please sign in first.' };
   }
+
+  const adminEmailAllowlist = String(process.env.ADMIN_EMAIL || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  function hasAdminAccess(user) {
+    if (Array.isArray(user?.labels) && user.labels.includes('admin')) return true;
+    const email = String(user?.email || '').trim().toLowerCase();
+    return !!email && adminEmailAllowlist.includes(email);
+  }
+
   try {
-    const user      = await getAccountFromJwt(jwt);
-    if (!Array.isArray(user.labels) || !user.labels.includes('admin')) {
-      return { success: false, code: 'UNAUTHORIZED', error: 'Access denied.' };
+    const account = await getAccountFromJwt(jwt);
+    const userId = account?.$id;
+    if (!userId) {
+      return { success: false, code: 'UNAUTHORIZED', error: 'Invalid Appwrite session.' };
     }
-    const now         = Date.now();
+
+    let user = account;
+    try {
+      user = await getUser(userId);
+    } catch (lookupErr) {
+      log(`verify-devkit-session: Users API lookup failed for ${userId}: ${lookupErr.message}`);
+    }
+
+    if (!hasAdminAccess(user)) {
+      return {
+        success: false,
+        code: 'UNAUTHORIZED',
+        error: adminEmailAllowlist.length
+          ? 'Access denied. Add the admin label to your Appwrite user or sign in with the configured ADMIN_EMAIL account.'
+          : 'Access denied. Your Appwrite user account needs the admin label.',
+      };
+    }
+
+    const now = Date.now();
     const expiresAtMs = now + SESSION_TTL_MS;
-    const token = signToken({ purpose: 'devkit', iat: now, exp: expiresAtMs, version: 2, uid: user.$id });
+    const token = signToken({ purpose: 'devkit', iat: now, exp: expiresAtMs, version: 2, uid: userId });
     return {
       success: true,
-      session: { token, expiresAt: new Date(expiresAtMs).toISOString(), email: user.email },
+      session: { token, expiresAt: new Date(expiresAtMs).toISOString(), email: user.email || account.email },
     };
-  } catch {
+  } catch (err) {
+    log(`verify-devkit-session failed: ${err.message}`);
     return { success: false, code: 'UNAUTHORIZED', error: 'Session verification failed. Please sign in again.' };
   }
 }
@@ -300,7 +333,7 @@ async function handleDiagnostics(log, error) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
 
-  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'bug_reports', 'blocklist', 'moderation_queue'];
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'moderation_bugs', 'blocklist', 'moderation_queue'];
   try {
     const collPage = await listCollections([sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
@@ -1692,10 +1725,31 @@ async function handleLiveActivity(body, log) {
   const { databases } = getClients();
   const { resource, user_id } = body;
   if (resource === 'usage_events') {
-    const res = await safeList(databases, 'usage_events', [
-      sdk.Query.equal('user_id', user_id || ''),
+    const queries = [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(50)];
+    if (typeof user_id === 'string' && user_id.trim()) {
+      queries.unshift(sdk.Query.equal('user_id', user_id.trim()));
+    }
+    const res = await safeList(databases, 'usage_events', queries);
+    return { data: res.documents };
+  }
+  if (resource === 'error_log') {
+    const res = await safeList(databases, 'error_log', [
       sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(50),
     ]);
+    if (res.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error)) {
+      return { missing: true, data: [] };
+    }
+    if (res.error) throw new Error(`error_log collection error: ${res.error}`);
+    return { missing: false, data: res.documents };
+  }
+  if (resource === 'contact_requests') {
+    const res = await safeList(databases, 'contact_requests', [
+      sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(50),
+    ]);
+    if (res.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(res.error)) {
+      return { data: [] };
+    }
+    if (res.error) throw new Error(`contact_requests collection error: ${res.error}`);
     return { data: res.documents };
   }
   if (resource === 'user_content_stats') {

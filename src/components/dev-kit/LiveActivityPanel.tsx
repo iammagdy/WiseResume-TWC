@@ -302,9 +302,9 @@ export function LiveActivityPanel() {
         headers: devKitAuthHeaders(),
         body: { action: 'live-activity', resource: 'usage_events' },
       });
-      const result = unwrapAdminResponse<{ data?: UsageEvent[] }>(tuple, 'admin-devkit-data (usage_events)');
+      const result = unwrapAdminResponse<UsageEvent[]>(tuple, 'admin-devkit-data (usage_events)');
       if (!isMounted()) return;
-      setEvents(result.data ?? []);
+      setEvents(Array.isArray(result) ? result : []);
       setFeedSecondsAgo(0);
     } catch (e) {
       if (!isMounted()) return;
@@ -341,9 +341,14 @@ export function LiveActivityPanel() {
         headers: devKitAuthHeaders(),
         body: { action: 'live-activity', resource: 'contact_requests' },
       });
-      const result = tryUnwrapAdminResponse<{ data?: ContactRequest[] }>(tuple, 'admin-devkit-data (contact_requests)');
+      const result = tryUnwrapAdminResponse<{ missing?: boolean; data?: ContactRequest[] } | ContactRequest[]>(
+        tuple,
+        'admin-devkit-data (contact_requests)',
+      );
       if (!isMounted()) return;
-      if (result) setContactRequests(result.data ?? []);
+      if (result) {
+        setContactRequests(Array.isArray(result) ? result : (result.data ?? []));
+      }
     } finally {
       if (isMounted()) setContactRequestsLoading(false);
     }

@@ -27,6 +27,7 @@ import { getChangelog } from '@/hooks/useChangelogBadge';
 import { getBuildVersionLabel } from '@/lib/appVersion';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsProfileHero } from '@/components/settings/SettingsProfileHero';
+import { withAvatarCacheBust } from '@/lib/avatarStorage';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import '@/components/settings/settings-workspace.css';
 
@@ -197,7 +198,7 @@ export default function SettingsPage() {
           {user && (
             <SettingsProfileHero
               plan={plan}
-              avatarUrl={profile?.avatarUrl}
+              avatarUrl={withAvatarCacheBust(profile?.avatarUrl, profile?.updatedAt)}
               initials={getInitials()}
               displayName={displayName}
               email={user.email}

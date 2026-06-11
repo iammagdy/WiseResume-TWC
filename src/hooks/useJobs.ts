@@ -3,6 +3,7 @@ import { databases, DATABASE_ID, Query, ID, Permission, Role } from '@/lib/appwr
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useSavedJobPostings } from './useSavedJobPostings';
 
 export interface Job {
   id: string;
@@ -43,10 +44,62 @@ function docToJob(doc: Record<string, unknown>): Job {
 }
 
 export function useJobs() {
-  const { user } = useAuth();
+  const saved = useSavedJobPostings();
+  return {
+    data: saved.jobs,
+    isLoading: saved.isLoading,
+    isFetching: saved.isFetching,
+    isFetched: saved.isFetched,
+    isError: saved.isError,
+    refetch: saved.refetch,
+  };
+}
+
+async function fetchJobDocument(id: string): Promise<Job | null> {
+  if (id.startsWith('history:') || id.startsWith('local:')) return null;
+  const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.jobs, id);
+  return docToJob(doc as unknown as Record<string, unknown>);
+}
+
+export function useJob(id: string | null) {
+  const { user, isAuthenticated } = useAuth();
 
   return useQuery({
-    queryKey: ['jobs', user?.id],
+    queryKey: ['jobs', id],
+    queryFn: async () => {
+      if (!id) return null;
+      if (id.startsWith('history:')) {
+        const historyId = id.slice('history:'.length);
+        const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.tailor_history, historyId);
+        return {
+          id,
+          user_id: (doc.user_id as string) ?? '',
+          title: (doc.job_title as string) ?? '',
+          company: (doc.company as string) ?? '',
+          company_logo: null,
+          description: (doc.job_description as string) ?? '',
+          requirements: '',
+          location: '',
+          salary_range: null,
+          job_type: 'full-time',
+          posted_date: doc.$createdAt as string,
+          source_url: (doc.job_url as string | null) ?? null,
+          is_saved: true,
+          created_at: doc.$createdAt as string,
+          updated_at: doc.$updatedAt as string,
+        } satisfies Job;
+      }
+      return fetchJobDocument(id);
+    },
+    enabled: !!user && isAuthenticated && !!id,
+  });
+}
+
+function useJobsCollectionOnly() {
+  const { user, isAuthenticated } = useAuth();
+
+  return useQuery({
+    queryKey: ['jobs-collection', user?.id],
     queryFn: async () => {
       if (!user) return [];
       const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.jobs, [
@@ -54,25 +107,14 @@ export function useJobs() {
         Query.orderDesc('$createdAt'),
         Query.limit(200),
       ]);
-      return res.documents.map(d => docToJob(d as unknown as Record<string, unknown>));
+      return res.documents.map((d) => docToJob(d as unknown as Record<string, unknown>));
     },
-    enabled: !!user,
+    enabled: !!user && isAuthenticated,
   });
 }
 
-export function useJob(id: string | null) {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ['jobs', id],
-    queryFn: async () => {
-      if (!id) return null;
-      const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.jobs, id);
-      return docToJob(doc as unknown as Record<string, unknown>);
-    },
-    enabled: !!user && !!id,
-  });
-}
+// Legacy export kept for mutations/tests — list queries use merged saved postings.
+export { useJobsCollectionOnly as useJobsRaw };
 
 export function useJobMutations() {
   const { user } = useAuth();
@@ -120,6 +162,7 @@ export function useJobMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-job-postings'] });
       toast.success('Job saved!');
     },
     onError: () => toast.error('Failed to save job'),
@@ -141,6 +184,7 @@ export function useJobMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-job-postings'] });
     },
     onError: () => toast.error('Failed to update job'),
   });
@@ -152,6 +196,7 @@ export function useJobMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-job-postings'] });
       toast.success('Job removed');
     },
     onError: () => toast.error('Failed to delete job'),

@@ -39,7 +39,7 @@ Authorization: Bearer <DEVKIT_PASSWORD>
 
 ## Database collections (Database ID: `main`)
 
-### `bug_reports`
+### `moderation_bugs` (replaces legacy `bug_reports`)
 | Attribute | Type | Required | Notes |
 |---|---|---|---|
 | `user_email` | string(320) | no | |
@@ -73,7 +73,7 @@ Indexes: `type` (key), `$createdAt` (key, desc)
 | `content_id` | string(100) | no | |
 | `snippet` | string(2000) | no | preview of flagged content |
 | `reporter_user_id` | string(100) | no | Appwrite user `$id` |
-| `status` | string(50) | yes | default: `pending` |
+| `status` | string(50) | yes | default: `pending` (Appwrite: use optional attribute + default, not required+default) |
 | `reviewed_by` | string(100) | no | |
 | `reviewed_at` | string(30) | no | ISO-8601 timestamp |
 

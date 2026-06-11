@@ -8,6 +8,8 @@ export interface MeData {
   userId: string;
   profile: Record<string, unknown> | null;
   subscription: MeSubscription | null;
+  /** True once subscription has been loaded from a live source (or confirmed absent). */
+  subscriptionVerified: boolean;
   ai_credits: {
     daily_usage: number;
     daily_limit: number;
@@ -28,19 +30,43 @@ export interface MeSubscription {
 
 const TODAY = () => new Date().toISOString().split('T')[0];
 
-const DEFAULT_SUBSCRIPTION = {
-  plan: 'free',
-  effective_plan: 'free',
-  trial_plan: null,
-  trial_expires_at: null,
-} as const;
-
 const DEFAULT_CREDITS = {
   daily_usage: 0,
   daily_limit: 5,
   total_usage: 0,
   usage_date: TODAY(),
 } as const;
+
+function mapSubscription(sub: Record<string, unknown>): MeSubscription {
+  const basePlan = (sub.plan as string | undefined) ?? 'free';
+  const trialPlan = (sub.trial_plan as string | null | undefined) ?? null;
+  const trialExpiresAt = (sub.trial_expires_at as string | null | undefined) ?? null;
+  const trialActive =
+    !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt).getTime() > Date.now();
+  const effectivePlan =
+    (sub.effective_plan as string | undefined) ?? (trialActive ? trialPlan : basePlan);
+
+  return {
+    plan: basePlan,
+    plan_name: (sub.plan_name as string | undefined) ?? basePlan,
+    effective_plan: effectivePlan,
+    status: (sub.status as string | null | undefined) ?? null,
+    trial_plan: trialPlan,
+    trial_expires_at: trialExpiresAt,
+    coupon_code: (sub.coupon_code as string | null | undefined) ?? null,
+  };
+}
+
+function mapCredits(doc: Record<string, unknown> | undefined) {
+  return doc
+    ? {
+        daily_usage: (doc.daily_usage as number) ?? 0,
+        daily_limit: (doc.daily_limit as number) ?? 5,
+        total_usage: (doc.total_usage as number) ?? 0,
+        usage_date: (doc.usage_date as string) ?? TODAY(),
+      }
+    : { ...DEFAULT_CREDITS, usage_date: TODAY() };
+}
 
 async function safeList(collectionId: string, queries: string[]) {
   try {
@@ -52,7 +78,7 @@ async function safeList(collectionId: string, queries: string[]) {
 }
 
 export function useMe() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authReady } = useAuth();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -74,6 +100,8 @@ export function useMe() {
     queryFn: async (): Promise<MeData> => {
       if (!user?.id) throw new Error('Not authenticated');
 
+      const previous = queryClient.getQueryData<MeData>(['me', user.id]);
+
       const [subResult, cRes] = await Promise.all([
         appwriteFunctions.invoke<{
           plan: string;
@@ -86,7 +114,8 @@ export function useMe() {
         safeList('ai_credits', [Query.equal('user_id', user.id)]),
       ]);
 
-      // Fall back to direct DB query if the function is unavailable (not deployed)
+      const creds = mapCredits(cRes.documents[0] as Record<string, unknown> | undefined);
+
       let sub: Record<string, unknown> | undefined;
       if (subResult.data) {
         sub = subResult.data as Record<string, unknown>;
@@ -95,38 +124,46 @@ export function useMe() {
         sub = sRes.documents[0] as Record<string, unknown> | undefined;
       }
 
-      const creds = cRes.documents[0] as Record<string, unknown> | undefined;
-      const basePlan = (sub?.plan as string | undefined) ?? 'free';
-      const trialPlan = (sub?.trial_plan as string | null | undefined) ?? null;
-      const trialExpiresAt = (sub?.trial_expires_at as string | null | undefined) ?? null;
-      const trialActive = !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt).getTime() > Date.now();
-      const effectivePlan = (sub?.effective_plan as string | undefined) ?? (trialActive ? trialPlan : basePlan);
+      if (!sub) {
+        if (previous?.subscriptionVerified && previous.subscription) {
+          return {
+            ...previous,
+            userId: user.id,
+            ai_credits: creds,
+          };
+        }
+
+        if (subResult.error) {
+          return {
+            userId: user.id,
+            profile: previous?.profile ?? null,
+            subscription: previous?.subscription ?? null,
+            subscriptionVerified: previous?.subscriptionVerified ?? false,
+            ai_credits: creds,
+          };
+        }
+
+        return {
+          userId: user.id,
+          profile: null,
+          subscription: null,
+          subscriptionVerified: true,
+          ai_credits: creds,
+        };
+      }
+
+      const mapped = mapSubscription(sub);
 
       return {
         userId: user.id,
-        profile: null, // Profile is handled by useProfile hook to avoid redundancy
-        subscription: sub
-          ? {
-              plan: basePlan,
-              plan_name: (sub?.plan_name as string | undefined) ?? basePlan,
-              effective_plan: effectivePlan,
-              status: (sub?.status as string | null | undefined) ?? null,
-              trial_plan: trialPlan,
-              trial_expires_at: trialExpiresAt,
-              coupon_code: (sub?.coupon_code as string | null | undefined) ?? null,
-            }
-          : DEFAULT_SUBSCRIPTION,
-        ai_credits: creds
-          ? {
-              daily_usage: (creds.daily_usage as number) ?? 0,
-              daily_limit: (creds.daily_limit as number) ?? 5,
-              total_usage: (creds.total_usage as number) ?? 0,
-              usage_date: (creds.usage_date as string) ?? TODAY(),
-            }
-          : { ...DEFAULT_CREDITS, usage_date: TODAY() },
+        profile: null,
+        subscription: mapped,
+        subscriptionVerified: true,
+        ai_credits: creds,
       };
     },
-    enabled: !!user && isAuthenticated,
+    enabled: authReady && !!user && isAuthenticated,
+    placeholderData: (previous) => previous,
     // Keep staleTime short so admin-driven plan changes (via DevKit) are
     // visible to the target user within ~1 minute instead of the previous
     // 5-minute window. refetchOnWindowFocus ensures that when a user returns

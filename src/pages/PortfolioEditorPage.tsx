@@ -123,6 +123,7 @@ export default function PortfolioEditorPage() {
   const [generatingAll, setGeneratingAll] = useState(false);
   const [copied, setCopied] = useState(false);
   const [savingPortfolio, setSavingPortfolio] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [sections, setSections] = useState<PortfolioSections>(DEFAULT_SECTIONS);
   const [metaTitle, setMetaTitle] = useState('');
@@ -774,8 +775,6 @@ export default function PortfolioEditorPage() {
     });
     return promptText || '';
   };
-
-  const [savingDraft, setSavingDraft] = useState(false);
 
   const handleSaveDraft = async () => {
     haptics.light();

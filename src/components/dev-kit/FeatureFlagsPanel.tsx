@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { RefreshCw, Flag, Plus, Trash2, ChevronDown, ChevronUp, Save, X, Zap, AlertTriangle, ShieldAlert, Rocket, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,7 @@ function Toggle({
 // ─── App-wide settings section ────────────────────────────────────────────────
 
 function AppWideSettingsSection() {
+  const queryClient = useQueryClient();
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +127,7 @@ function AppWideSettingsSection() {
     });
     if (result.ok) {
       setSettings(prev => ({ ...prev, [key]: newValue }));
+      void queryClient.invalidateQueries({ queryKey: ['app-settings'] });
       toast.success(`${key} updated`);
     } else {
       toast.error(result.error.message);

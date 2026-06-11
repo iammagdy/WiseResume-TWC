@@ -119,6 +119,81 @@ function cacheKey(resumeId: string, updatedAt: string) {
   return `${resumeId}:${updatedAt}`;
 }
 
+function resumeDocUpdatedAt(doc: {
+  $updatedAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+}): string {
+  return doc.$updatedAt ?? doc.updated_at ?? doc.updatedAt ?? '';
+}
+
+function findLatestCachedScoreForResume(resumeId: string): ResumeHealthScore | null {
+  const prefix = `${resumeId}:`;
+  let latest: ResumeHealthScore | null = null;
+  for (const [key, value] of scoreCache.entries()) {
+    if (!key.startsWith(prefix) || (value.overallScore ?? 0) <= 0) continue;
+    if (!latest || value.scoredAt > latest.scoredAt) latest = value;
+  }
+  return latest;
+}
+
+/** Exact cache hit for the current resume revision (no stale fallback). */
+export function getExactCachedScore(resumeId: string, updatedAt: string): ResumeHealthScore | null {
+  if (!updatedAt) return null;
+  return scoreCache.get(cacheKey(resumeId, updatedAt)) ?? null;
+}
+
+/** Exact hit, else most recent score for this resume (legacy key / timestamp drift). */
+export function resolveCachedScoreForResume(
+  resumeId: string,
+  updatedAt: string,
+): ResumeHealthScore | null {
+  const exact = updatedAt ? scoreCache.get(cacheKey(resumeId, updatedAt)) : null;
+  if (exact) return exact;
+  return findLatestCachedScoreForResume(resumeId);
+}
+
+/**
+ * Build a synchronous score map for dashboard first paint.
+ * Uses persisted cache when the resume is unchanged; otherwise scores locally
+ * (deterministic — no AI/network) and writes through to the cache.
+ */
+export function hydrateHealthScoresForResumes<T extends { $id: string; $updatedAt?: string; updated_at?: string; updatedAt?: string }>(
+  resumes: T[],
+  toResumeData: (doc: T) => ResumeData,
+): Record<string, ResumeHealthScore> {
+  const map: Record<string, ResumeHealthScore> = {};
+  for (const resume of resumes) {
+    const updatedAt = resumeDocUpdatedAt(resume);
+    const key = cacheKey(resume.$id, updatedAt);
+    let score = scoreCache.get(key) ?? null;
+
+    if (!score) {
+      score = buildLocalResumeScore(toResumeData(resume));
+      score = { ...score, scoredAt: new Date().toISOString() };
+      scoreCache.set(key, score);
+      rememberScoreCacheWrite(key);
+      useATSScoreHistoryStore.getState().addScore(resume.$id, score);
+    }
+
+    map[resume.$id] = score;
+  }
+  return map;
+}
+
+/** @deprecated Prefer hydrateHealthScoresForResumes for dashboard paint. */
+export function buildHealthScoresMapFromCache(
+  resumes: { $id: string; $updatedAt?: string; updated_at?: string; updatedAt?: string }[],
+): Record<string, ResumeHealthScore> {
+  const map: Record<string, ResumeHealthScore> = {};
+  for (const resume of resumes) {
+    const updatedAt = resumeDocUpdatedAt(resume);
+    const score = resolveCachedScoreForResume(resume.$id, updatedAt);
+    if (score && score.overallScore > 0) map[resume.$id] = score;
+  }
+  return map;
+}
+
 export function clearCachedScore(resumeId: string, updatedAt: string) {
   const key = cacheKey(resumeId, updatedAt);
   scoreCache.delete(key);
@@ -369,7 +444,7 @@ export function useResumeScore() {
   }, []);
 
   const getCachedScore = useCallback((resumeId: string, updatedAt: string): ResumeHealthScore | null => {
-    return scoreCache.get(cacheKey(resumeId, updatedAt)) ?? null;
+    return getExactCachedScore(resumeId, updatedAt);
   }, []);
 
   /** Find the most recent cached score for a resume regardless of updated_at */

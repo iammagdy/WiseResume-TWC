@@ -150,8 +150,11 @@ const _serverRateLimits = new Map();
 // Durable mitigation: fix M-4 (trusted IP) so bypassing via spoofed headers
 // is not possible, and the 3/hour limit becomes reliable per-IP.
 const _emailRateLimits  = new Map(); // ip -> { count, resetAt }
+const _crashEmailDedupe = new Map(); // fingerprint -> expiresAtMs
 const EMAIL_RATE_LIMIT_WINDOW_MS  = 60 * 60 * 1000; // 1 hour
 const EMAIL_RATE_LIMIT_MAX        = 3; // tightened: 3 emails per IP per hour
+const CRASH_EMAIL_DEDUPE_MS       = 30 * 60 * 1000; // 30 min per error fingerprint
+const AUTO_CRASH_EMAIL_MAX_PER_SENDER = 5; // per sender email per hour
 
 /**
  * Extract the real client IP from request headers.
@@ -183,14 +186,36 @@ function getClientIp(req) {
 }
 
 function checkEmailRateLimit(ip) {
-  if (!ip || ip === 'unknown') return { ok: true }; // no IP - allow but log
+  const key = ip && ip !== 'unknown' ? ip : null;
+  if (!key) return { ok: true, key: null };
   const now     = Date.now();
-  const current = _emailRateLimits.get(ip);
+  const current = _emailRateLimits.get(key);
   if (!current || now > current.resetAt) {
-    _emailRateLimits.set(ip, { count: 1, resetAt: now + EMAIL_RATE_LIMIT_WINDOW_MS });
-    return { ok: true };
+    _emailRateLimits.set(key, { count: 1, resetAt: now + EMAIL_RATE_LIMIT_WINDOW_MS });
+    return { ok: true, key };
   }
   if (current.count >= EMAIL_RATE_LIMIT_MAX) {
+    return {
+      ok: false,
+      key,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+    };
+  }
+  current.count += 1;
+  return { ok: true, key };
+}
+
+function checkSenderCrashEmailRateLimit(senderEmail) {
+  const email = asString(senderEmail).toLowerCase();
+  if (!email) return { ok: true };
+  const key = `crash:${email}`;
+  const now = Date.now();
+  const current = _emailRateLimits.get(key);
+  if (!current || now > current.resetAt) {
+    _emailRateLimits.set(key, { count: 1, resetAt: now + EMAIL_RATE_LIMIT_WINDOW_MS });
+    return { ok: true };
+  }
+  if (current.count >= AUTO_CRASH_EMAIL_MAX_PER_SENDER) {
     return {
       ok: false,
       retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
@@ -200,9 +225,30 @@ function checkEmailRateLimit(ip) {
   return { ok: true };
 }
 
-async function checkPersistentEmailRateLimit(db, ip) {
-  if (!ip || ip === 'unknown') return { ok: true };
-  const ipHash = crypto.createHash('sha256').update(ip).digest('hex');
+function buildCrashEmailFingerprint(msgType, senderEmail, msgBody, metadata) {
+  if (msgType !== 'auto-crash-report' && msgType !== 'bug') return null;
+  const meta = asMetadataRecord(metadata);
+  const route = asString(meta.route).slice(0, 200);
+  const err = asString(meta.error_message || msgBody).slice(0, 240);
+  const email = asString(senderEmail).toLowerCase().slice(0, 254);
+  return crypto.createHash('sha256').update(`${email}|${route}|${err}`).digest('hex');
+}
+
+function shouldSendCrashEmail(fingerprint) {
+  if (!fingerprint) return true;
+  const now = Date.now();
+  const until = _crashEmailDedupe.get(fingerprint);
+  if (until && until > now) return false;
+  _crashEmailDedupe.set(fingerprint, now + CRASH_EMAIL_DEDUPE_MS);
+  return true;
+}
+
+async function checkPersistentEmailRateLimit(db, ip, senderEmail) {
+  const rateKey = (ip && ip !== 'unknown')
+    ? ip
+    : (asString(senderEmail).toLowerCase() ? `email:${asString(senderEmail).toLowerCase()}` : null);
+  if (!rateKey) return { ok: true };
+  const ipHash = crypto.createHash('sha256').update(rateKey).digest('hex');
   try {
     let doc;
     try { doc = await db.getDocument(DB_ID, EMAIL_RATE_LIMITS_COLLECTION_ID, ipHash); }
@@ -277,6 +323,181 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+const COL_BUG_REPORTS = process.env.MODERATION_BUGS_COLLECTION || 'moderation_bugs';
+
+function asMetadataRecord(value) {
+  if (isRecord(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return isRecord(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function metaRow(label, value) {
+  if (value === null || value === undefined || value === '') return '';
+  return `<tr><td style="padding:4px 12px 4px 0;font-weight:600;color:#64748b;vertical-align:top;white-space:nowrap">${escapeHtml(label)}</td><td style="padding:4px 0;color:#0f172a;word-break:break-word">${escapeHtml(String(value))}</td></tr>`;
+}
+
+function metaPreBlock(label, value, maxLen = 8000) {
+  if (!value) return '';
+  const text = String(value).slice(0, maxLen);
+  return `<div style="margin-top:16px"><p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#64748b">${escapeHtml(label)}</p><pre style="margin:0;padding:12px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.45;color:#334155;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace">${escapeHtml(text)}</pre></div>`;
+}
+
+function buildContactEmailHtml({ senderName, senderEmail, msgType, msgBody, metadata }) {
+  const isCrash = msgType === 'auto-crash-report' || msgType === 'bug';
+  const meta = asMetadataRecord(metadata);
+  const priority = asString(meta.priority);
+  const isPremium = meta.is_premium === true;
+  const priorityColor = priority === 'high' || isPremium ? '#b45309' : '#64748b';
+  const priorityLabel = priority === 'high' || isPremium ? 'HIGH — Premium user' : 'Normal — Free tier';
+
+  if (!isCrash || Object.keys(meta).length === 0) {
+    if (isCrash) {
+      const screen = asString(meta.screen) || asString(meta.selected_screen) || 'Unknown screen';
+      const route = asString(meta.route) || '/';
+      const errorName = asString(meta.error_name) || 'Error';
+      const errorMessage = asString(meta.error_message) || msgBody || 'Unknown error';
+      const timestamp = asString(meta.timestamp) || new Date().toISOString();
+      const isPremium = meta.is_premium === true;
+      const priority = meta.priority === 'high' || isPremium ? 'high' : 'normal';
+      const priorityColor = priority === 'high' ? '#b45309' : '#64748b';
+      const priorityLabel = priority === 'high' ? 'HIGH — Premium user' : 'Normal — Free tier';
+      return `
+<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;color:#0f172a">
+  <div style="padding:16px 18px;border-radius:10px;background:${priority === 'high' ? '#fffbeb' : '#f8fafc'};border:1px solid ${priority === 'high' ? '#fcd34d' : '#e2e8f0'};margin-bottom:16px">
+    <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${priorityColor}">${escapeHtml(msgType === 'auto-crash-report' ? 'Auto crash report' : 'Bug report')} · ${escapeHtml(priorityLabel)}</p>
+    <h1 style="margin:0;font-size:18px;line-height:1.35">${escapeHtml(errorName)}: ${escapeHtml(errorMessage.slice(0, 200))}</h1>
+    <p style="margin:8px 0 0;font-size:13px;color:#64748b">${escapeHtml(screen)} · <code style="font-size:12px">${escapeHtml(route)}</code></p>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px">
+    ${metaRow('When (UTC)', timestamp)}
+    ${metaRow('User email', meta.user_email || senderEmail)}
+    ${metaRow('Plan', meta.plan_tier ? `${meta.plan_tier}${isPremium ? ' (Premium)' : ''}` : null)}
+    ${metaRow('Route', route)}
+    ${metaRow('Screen', screen)}
+  </table>
+  ${metaPreBlock('Stack trace', meta.error_stack || msgBody)}
+  ${metaPreBlock('Component stack', meta.component_stack)}
+  <p style="margin:12px 0 0;font-size:12px;color:#64748b">From: ${escapeHtml(senderName || senderEmail || 'unknown')}</p>
+</div>`.trim();
+    }
+    const lines = [];
+    if (senderName) lines.push(`<p><strong>From:</strong> ${escapeHtml(senderName)} &lt;${escapeHtml(senderEmail)}&gt;</p>`);
+    else if (senderEmail) lines.push(`<p><strong>From:</strong> ${escapeHtml(senderEmail)}</p>`);
+    if (msgType) lines.push(`<p><strong>Type:</strong> ${escapeHtml(msgType)}</p>`);
+    if (msgBody) lines.push(`<p><strong>Message:</strong></p><pre style="white-space:pre-wrap">${escapeHtml(msgBody)}</pre>`);
+    return lines.length ? lines.join('\n') : '<p>No message content provided.</p>';
+  }
+
+  const screen = asString(meta.screen) || asString(meta.selected_screen) || 'Unknown screen';
+  const route = asString(meta.route) || '/';
+  const errorName = asString(meta.error_name) || 'Error';
+  const errorMessage = asString(meta.error_message) || msgBody || 'Unknown error';
+  const timestamp = asString(meta.timestamp) || new Date().toISOString();
+
+  return `
+<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;color:#0f172a">
+  <div style="padding:16px 18px;border-radius:10px;background:${priority === 'high' || isPremium ? '#fffbeb' : '#f8fafc'};border:1px solid ${priority === 'high' || isPremium ? '#fcd34d' : '#e2e8f0'};margin-bottom:16px">
+    <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${priorityColor}">${escapeHtml(msgType === 'auto-crash-report' ? 'Auto crash report' : 'Bug report')} · ${escapeHtml(priorityLabel)}</p>
+    <h1 style="margin:0;font-size:18px;line-height:1.35">${escapeHtml(errorName)}: ${escapeHtml(errorMessage.slice(0, 200))}</h1>
+    <p style="margin:8px 0 0;font-size:13px;color:#64748b">${escapeHtml(screen)} · <code style="font-size:12px">${escapeHtml(route)}</code></p>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px">
+    ${metaRow('When (UTC)', timestamp)}
+    ${metaRow('User ID', meta.user_id)}
+    ${metaRow('User email', meta.user_email || senderEmail)}
+    ${metaRow('User name', meta.user_name || senderName)}
+    ${metaRow('Plan', meta.plan_tier ? `${meta.plan_tier}${isPremium ? ' (Premium)' : ''}` : null)}
+    ${metaRow('Screen', screen)}
+    ${metaRow('Route', route)}
+    ${metaRow('Active feature', meta.active_feature)}
+    ${metaRow('User action', meta.action)}
+    ${metaRow('Category', meta.error_category)}
+    ${metaRow('App version', meta.app_version)}
+    ${metaRow('Sentry event', meta.sentry_event_id)}
+    ${metaRow('Source', meta.source)}
+  </table>
+  ${meta.user_note ? `<div style="margin-top:12px;padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px"><p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;color:#1d4ed8">User note</p><p style="margin:0;font-size:13px;white-space:pre-wrap">${escapeHtml(asString(meta.user_note))}</p></div>` : ''}
+  ${metaPreBlock('Stack trace', meta.error_stack)}
+  ${metaPreBlock('React component stack', meta.component_stack)}
+  ${metaPreBlock('AI fix prompt (paste into coding agent)', meta.ai_fix_prompt, 12000)}
+  <p style="margin:20px 0 0;font-size:11px;color:#94a3b8">WiseResume observability · User agent: ${escapeHtml(asString(meta.user_agent).slice(0, 300))}</p>
+</div>`.trim();
+}
+
+async function saveBugReportToDb(db, { msgType, msgBody, senderEmail, metadata }) {
+  if (msgType !== 'auto-crash-report' && msgType !== 'bug') return null;
+  const meta = asMetadataRecord(metadata);
+  const errorMessage = asString(meta.error_message || msgBody).slice(0, 2000);
+  if (!errorMessage) return null;
+
+  const additionalContext = (() => {
+    const compact = {
+      user_id: meta.user_id ?? null,
+      user_name: meta.user_name ?? null,
+      plan_tier: meta.plan_tier ?? null,
+      is_premium: meta.is_premium === true,
+      priority: meta.priority ?? (meta.is_premium ? 'high' : 'normal'),
+      screen: meta.screen ?? meta.selected_screen ?? null,
+      active_feature: meta.active_feature ?? null,
+      action: meta.action ?? null,
+      error_category: meta.error_category ?? null,
+      error_name: meta.error_name ?? null,
+      sentry_event_id: meta.sentry_event_id ?? null,
+      source: meta.source ?? msgType,
+      auto_report: meta.auto_report === true,
+    };
+    const prompt = asString(meta.ai_fix_prompt).slice(0, 1500);
+    if (prompt) compact.ai_fix_prompt = prompt;
+    const json = JSON.stringify(compact);
+    if (json !== '{}' && json.length <= 1800) return json;
+    return null;
+  })();
+
+  const componentStackBase = asString(meta.component_stack).slice(0, 2500);
+  const componentStack = additionalContext
+    ? `${componentStackBase}\n\n--- context ---\n${additionalContext}`.slice(0, 4000)
+    : (componentStackBase || null);
+
+  const payload = {
+    user_email: asString(meta.user_email || senderEmail).slice(0, 320) || null,
+    error_message: errorMessage,
+    error_stack: asString(meta.error_stack).slice(0, 4000) || null,
+    component_stack: componentStack,
+    session_id: asString(meta.sentry_event_id).slice(0, 100) || null,
+    user_agent: asString(meta.user_agent).slice(0, 500) || null,
+    route: asString(meta.route).slice(0, 500) || null,
+    status: 'open',
+    app_version: asString(meta.app_version).slice(0, 50) || null,
+  };
+
+  try {
+    const doc = await db.createDocument(DB_ID, COL_BUG_REPORTS, sdk.ID.unique(), payload);
+    return doc.$id;
+  } catch (err) {
+    console.warn('[saveBugReportToDb] full payload failed:', err?.message || err);
+    try {
+      const doc = await db.createDocument(DB_ID, COL_BUG_REPORTS, sdk.ID.unique(), {
+        user_email: payload.user_email,
+        error_message: payload.error_message,
+        error_stack: payload.error_stack,
+        status: 'open',
+        route: payload.route,
+      });
+      return doc.$id;
+    } catch (retryErr) {
+      console.warn('[saveBugReportToDb] minimal payload failed:', retryErr?.message || retryErr);
+      return null;
+    }
+  }
 }
 
 function asOptionalString(value) {
@@ -2777,6 +2998,14 @@ module.exports = async ({ req, res, log, error }) => {
         }
       }
       const clientIp = getClientIp(req);
+      const senderName  = asString(opts.name).slice(0, 200);
+      const senderEmail = asString(opts.email).slice(0, 254);
+      const msgType     = asString(opts.type).slice(0, 100);
+      const msgBody     = asString(opts.message).slice(0, 5000);
+      const metadata    = opts.metadata;
+      const isCrashReport = msgType === 'auto-crash-report' || msgType === 'bug';
+      const db = getDbClient();
+
       const ipLimit = checkEmailRateLimit(clientIp);
       if (!ipLimit.ok) {
         await flushDD();
@@ -2785,13 +3014,23 @@ module.exports = async ({ req, res, log, error }) => {
           message: `Too many messages sent from your address. Please wait ${Math.ceil(ipLimit.retryAfterSeconds / 60)} minute(s) before trying again.`,
         }, 429);
       }
-      const persistentEmailLimit = await checkPersistentEmailRateLimit(db, clientIp);
+      const persistentEmailLimit = await checkPersistentEmailRateLimit(db, clientIp, senderEmail);
       if (!persistentEmailLimit.ok) {
         await flushDD();
         return res.json({
           status: 'error',
           message: `Too many messages sent from your address. Please wait ${Math.ceil(persistentEmailLimit.retryAfterSeconds / 60)} minute(s) before trying again.`,
         }, 429);
+      }
+      if (isCrashReport) {
+        const senderLimit = checkSenderCrashEmailRateLimit(senderEmail);
+        if (!senderLimit.ok) {
+          await flushDD();
+          return res.json({
+            status: 'error',
+            message: `Too many crash reports from this account. Please wait ${Math.ceil(senderLimit.retryAfterSeconds / 60)} minute(s) before trying again.`,
+          }, 429);
+        }
       }
 
       // Honeypot — bots fill the hidden "website" field; silently succeed without sending.
@@ -2806,25 +3045,52 @@ module.exports = async ({ req, res, log, error }) => {
         return res.json({ status: 'error', message: 'RESEND_API_KEY not found.' }, 500);
       }
 
-      // Validate content lengths to prevent abuse.
-      const senderName  = asString(opts.name).slice(0, 200);
-      const senderEmail = asString(opts.email).slice(0, 254);
-      const msgType     = asString(opts.type).slice(0, 100);
-      const msgBody     = asString(opts.message).slice(0, 5000);
+      const crashFingerprint = isCrashReport
+        ? buildCrashEmailFingerprint(msgType, senderEmail, msgBody, metadata)
+        : null;
+      const sendEmail = !isCrashReport || shouldSendCrashEmail(crashFingerprint);
 
-      // Build HTML body from opts.message when the caller doesn't supply pre-rendered HTML.
-      // All user-supplied strings are HTML-escaped before insertion.
-      const builtHtml = (() => {
-        const lines = [];
-        if (senderName)  lines.push(`<p><strong>From:</strong> ${escapeHtml(senderName)} &lt;${escapeHtml(senderEmail)}&gt;</p>`);
-        else if (senderEmail) lines.push(`<p><strong>From:</strong> ${escapeHtml(senderEmail)}</p>`);
-        if (msgType)     lines.push(`<p><strong>Type:</strong> ${escapeHtml(msgType)}</p>`);
-        if (msgBody)     lines.push(`<p><strong>Message:</strong></p><pre style="white-space:pre-wrap">${escapeHtml(msgBody)}</pre>`);
-        return lines.length ? lines.join('\n') : '<p>No message content provided.</p>';
-      })();
+      const bugReportId = sendEmail
+        ? await saveBugReportToDb(db, {
+            msgType,
+            msgBody,
+            senderEmail,
+            metadata,
+          })
+        : null;
 
-      // Lock destination - never forward to a caller-controlled address.
-      const safeSubject = asString(opts.subject).slice(0, 200) || `[${escapeHtml(msgType || 'contact')}] New message`;
+      if (isCrashReport && !sendEmail) {
+        log(`[send-contact-email] crash email deduped fingerprint=${crashFingerprint?.slice(0, 12)} bugReportId=${bugReportId || 'none'}`);
+        await flushDD();
+        return res.json({
+          status: 'success',
+          data: {
+            id: null,
+            success: true,
+            bug_report_id: bugReportId,
+            deduped: true,
+            email_skipped: true,
+          },
+        });
+      }
+
+      const builtHtml = buildContactEmailHtml({
+        senderName,
+        senderEmail,
+        msgType,
+        msgBody,
+        metadata,
+      });
+
+      const meta = asMetadataRecord(metadata);
+      const screen = asString(meta.screen) || asString(meta.selected_screen);
+      const priorityTag = meta.priority === 'high' || meta.is_premium === true ? '[Premium]' : '[Free]';
+      const defaultSubject = msgType === 'auto-crash-report'
+        ? `${priorityTag} Auto crash on ${screen || 'app'}: ${msgBody.slice(0, 60)}`
+        : msgType === 'bug'
+          ? `${priorityTag} Bug on ${screen || 'app'}: ${msgBody.slice(0, 60)}`
+          : `[${escapeHtml(msgType || 'contact')}] New message`;
+      const safeSubject = asString(opts.subject).slice(0, 200) || defaultSubject;
       const emailResponse = await axios.post('https://api.resend.com/emails', {
         from:    'WiseResume <notifications@thewise.cloud>',
         to:      ['contact@thewise.cloud'],
@@ -2835,7 +3101,7 @@ module.exports = async ({ req, res, log, error }) => {
       });
 
       await flushDD();
-      return res.json({ status: 'success', data: { id: emailResponse.data.id, success: true } });
+      return res.json({ status: 'success', data: { id: emailResponse.data.id, success: true, bug_report_id: bugReportId } });
     }
 
     // -- 1b. ADMIN TEST NONCE CHECK --------------------------------------------

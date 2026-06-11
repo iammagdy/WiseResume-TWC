@@ -10,6 +10,7 @@ import {
 import { AppIcon } from '@/components/brand/AppIcon';
 import { DashboardWorkspaceProfileDialog } from '@/components/dashboard/DashboardWorkspaceProfileDialog';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan, type PlanName } from '@/hooks/usePlan';
 import { useAppSidebarStore } from '@/store/appSidebarStore';
@@ -63,13 +64,33 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   const toggleCollapsed = useAppSidebarStore((s) => s.toggleCollapsed);
   const setMobileOpen = useAppSidebarStore((s) => s.setMobileOpen);
   const { data: credits, isLoading: creditsLoading, isActiveTrial, trialPlan } = useAICredits();
-  const { plan: planFromHook, isPremium, isPro, isLoading: planLoading } = usePlan();
+  const { plan: planFromHook, isLoading: planLoading, subscriptionVerified } = usePlan();
   const plan = planProp ?? planFromHook;
+
+  const isPremium = plan === 'premium';
+  const isPro = plan === 'pro' || plan === 'premium';
+  const isPaid = isPro;
+  const membershipResolved = subscriptionVerified;
+  const showUpgradeCta = membershipResolved && plan === 'free';
 
   const planLabel =
     plan === 'premium' ? 'Premium plan' : plan === 'pro' ? 'Pro plan' : 'Free plan';
-  const isPaid = isPremium || isPro;
-  const showUpgradeCta = !planLoading && !isPaid;
+  const membershipTitle =
+    plan === 'premium'
+      ? 'Premium membership'
+      : plan === 'pro'
+        ? 'Pro membership'
+        : planLoading || !membershipResolved
+          ? 'Your membership'
+          : 'Free plan';
+  const membershipSubtitle =
+    plan === 'premium'
+      ? 'Full workspace access'
+      : plan === 'pro'
+        ? 'Advanced AI tools included'
+        : planLoading || !membershipResolved
+          ? 'Checking your plan…'
+          : 'Upgrade for unlimited AI';
 
   const initials = useMemo(() => {
     if (!userName?.trim()) return 'MS';
@@ -221,14 +242,15 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
             effectiveCollapsed && 'px-2',
           )}
         >
-          {!effectiveCollapsed && (showUpgradeCta || isPaid || creditDisplay) && (
+          {!effectiveCollapsed && (
             <div
               className={cn(
                 'dashboard-workspace-sidebar__membership relative overflow-hidden rounded-xl p-3.5',
+                planLoading && 'dashboard-workspace-sidebar__membership--loading',
                 isPaid && 'dashboard-workspace-sidebar__membership--paid',
                 isPremium && 'dashboard-workspace-sidebar__membership--premium',
-                isPro && !isPremium && 'dashboard-workspace-sidebar__membership--pro',
-                showUpgradeCta && !isPaid && 'dashboard-workspace-sidebar__membership--upgrade',
+                plan === 'pro' && 'dashboard-workspace-sidebar__membership--pro',
+                showUpgradeCta && 'dashboard-workspace-sidebar__membership--upgrade',
               )}
             >
               <div className="dashboard-workspace-sidebar__membership-glow" aria-hidden />
@@ -254,11 +276,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-xs font-semibold text-foreground leading-tight">
-                      {isPaid
-                        ? isPremium
-                          ? 'Premium membership'
-                          : 'Pro membership'
-                        : 'Your membership'}
+                      {membershipTitle}
                     </p>
                     {isPaid ? (
                       <span
@@ -269,16 +287,16 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                             : 'border-primary/30 bg-primary/10 text-primary',
                         )}
                       >
-                        Active
+                        {isPremium ? 'Premium' : 'Pro'}
+                      </span>
+                    ) : membershipResolved && !planLoading ? (
+                      <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] border border-border/60 bg-muted/50 text-muted-foreground">
+                        Free
                       </span>
                     ) : null}
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
-                    {isPaid
-                      ? isPremium
-                        ? 'Full workspace access'
-                        : 'Advanced AI tools included'
-                      : 'Upgrade for unlimited AI'}
+                    {membershipSubtitle}
                   </p>
                 </div>
               </div>
@@ -351,7 +369,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
             </div>
           )}
 
-          {effectiveCollapsed && isPaid && (
+          {effectiveCollapsed && (isPaid || planLoading) && (
             <button
               type="button"
               title="Membership"
@@ -379,9 +397,12 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
               setProfileMenuOpen(true);
             }}
           >
-            <span className="dashboard-workspace-sidebar__avatar flex items-center justify-center w-10 h-10 rounded-full text-xs font-semibold shrink-0">
-              {initials}
-            </span>
+            <Avatar className="dashboard-workspace-sidebar__avatar w-10 h-10 shrink-0 text-xs font-semibold">
+              <AvatarImage src={avatarUrl || undefined} alt={userName || 'Profile'} />
+              <AvatarFallback className="bg-primary/10 text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
             {!effectiveCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
@@ -389,7 +410,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                     {userName || 'Your profile'}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                    {userEmail?.trim() || (!isPaid ? planLabel : 'Signed in')}
+                    {userEmail?.trim() || planLabel}
                   </p>
                 </div>
                 <ChevronDown

@@ -8,6 +8,7 @@ export interface PlanResult {
   isPro: boolean;
   isPremium: boolean;
   isLoading: boolean;
+  subscriptionVerified: boolean;
   trialPlan: string | null;
   trialExpiresAt: string | null;
   refetch?: () => void;
@@ -17,7 +18,8 @@ const FALLBACK: PlanResult = {
   plan: 'free',
   isPro: false,
   isPremium: false,
-  isLoading: false,
+  isLoading: true,
+  subscriptionVerified: false,
   trialPlan: null,
   trialExpiresAt: null,
 };
@@ -37,21 +39,35 @@ const FALLBACK: PlanResult = {
  * Realtime invalidation and 4-second polling are handled inside `useMe`.
  */
 export function usePlan(): PlanResult {
-  const { isAuthenticated } = useAuth();
-  const { data: meData, isLoading, refetch } = useMe();
+  const { isAuthenticated, authReady } = useAuth();
+  const { data: meData, isPending, isFetching, refetch } = useMe();
 
-  if (!isAuthenticated) return FALLBACK;
+  if (!isAuthenticated) {
+    return { ...FALLBACK, isLoading: false };
+  }
 
-  const raw = String(meData?.subscription?.effective_plan ?? 'free').toLowerCase();
-  const plan: PlanName = (raw === 'pro' || raw === 'premium') ? (raw as PlanName) : 'free';
+  const subscriptionVerified = meData?.subscriptionVerified ?? false;
+  const subscription = meData?.subscription;
+
+  let plan: PlanName = 'free';
+  if (subscription) {
+    const raw = String(subscription.effective_plan ?? subscription.plan ?? 'free').toLowerCase();
+    plan = raw === 'pro' || raw === 'premium' ? (raw as PlanName) : 'free';
+  } else if (subscriptionVerified) {
+    plan = 'free';
+  }
+
+  // Block UI until the first live plan fetch completes (or auth is still settling).
+  const planLoading = !authReady || isPending || (isFetching && meData === undefined);
 
   return {
     plan,
     isPro: plan === 'pro' || plan === 'premium',
     isPremium: plan === 'premium',
-    isLoading,
-    trialPlan: meData?.subscription?.trial_plan ?? null,
-    trialExpiresAt: meData?.subscription?.trial_expires_at ?? null,
+    isLoading: planLoading,
+    subscriptionVerified,
+    trialPlan: subscription?.trial_plan ?? null,
+    trialExpiresAt: subscription?.trial_expires_at ?? null,
     refetch,
   };
 }

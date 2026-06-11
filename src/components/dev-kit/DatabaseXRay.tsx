@@ -30,12 +30,12 @@ export const DatabaseXRay = () => {
         headers: devKitAuthHeaders(),
         body: { action: 'list-all-resumes', limit: 20 },
       });
-      const result = unwrapAdminResponse<{ data?: { documents?: ResumeDoc[]; total?: number } }>(
+      const result = unwrapAdminResponse<{ documents?: ResumeDoc[]; total?: number }>(
         tuple,
         'admin-devkit-data',
       );
-      setResumes(result.data?.documents ?? []);
-      setTotal(result.data?.total ?? 0);
+      setResumes(result.documents ?? []);
+      setTotal(result.total ?? 0);
     } catch (e) {
       setError(formatEdgeError(e, 'Failed to load resumes'));
     } finally {

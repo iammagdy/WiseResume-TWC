@@ -111,6 +111,20 @@ function getClients() {
 
 // ─── Logging helpers ─────────────────────────────────────────────────────────
 
+function formatExecutionError(err) {
+  if (!err) return 'Unknown error';
+  if (typeof err === 'string' && err.trim()) return err.trim();
+  if (typeof err.message === 'string' && err.message.trim()) return err.message.trim();
+  if (typeof err.response === 'string' && err.response.trim()) return err.response.trim();
+  try {
+    const json = JSON.stringify(err);
+    if (json && json !== '{}') return json;
+  } catch {
+    // ignore
+  }
+  return 'Unknown error';
+}
+
 function log(msg)   { console.log(msg); }
 function error(msg) { console.error(msg); }
 
@@ -802,7 +816,8 @@ module.exports = async ({ req, res, log: _log, error: _error }) => {
         return res.json({ success: false, error: `Unknown action: ${action}` }, 400);
     }
   } catch (e) {
-    error(`admin-portfolio-usernames: error in action=${action}: ${e.message}`);
-    return res.json({ success: false, error: e.message }, 500);
+    const message = formatExecutionError(e);
+    error(`admin-portfolio-usernames: error in action=${action}: ${message}`);
+    return res.json({ success: false, error: message }, 500);
   }
 };

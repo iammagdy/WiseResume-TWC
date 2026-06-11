@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
+import { withAvatarCacheBust } from '@/lib/avatarStorage';
 
 interface AppWorkspaceLayoutProps {
   children: ReactNode;
@@ -34,7 +35,7 @@ export function AppWorkspaceLayout({ children, onImportJob, onHelp }: AppWorkspa
   const sidebarProps = {
     userName: profile?.fullName,
     userEmail: user?.email,
-    avatarUrl: profile?.avatarUrl,
+    avatarUrl: withAvatarCacheBust(profile?.avatarUrl, profile?.updatedAt),
     plan,
     profileCompletion: profile ? calculateProfileCompletion(profile) : undefined,
     onManageAccount: () => navigate('/profile'),

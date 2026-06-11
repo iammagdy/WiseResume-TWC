@@ -4,6 +4,7 @@
  * The Supabase / Kinde bridge has been removed. This server now only
  * provides:
  *   - GET  /api/health           liveness probe
+ *   - GET  /api/app-settings     public maintenance + feature gates (API key server-side)
  *   - POST /api/export/pdf-native server-side PDF export (Puppeteer)
  *
  * All other former routes (`/api/fn/*`, `/api/data/*`, `/api/auth/*`,
@@ -32,6 +33,7 @@ import {
   type ExportAvoidBounds,
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
+import { fetchAppSettingsFromDb } from './appSettingsFetch';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -95,6 +97,16 @@ app.use(
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ ok: true, server: 'wise-resume', stack: 'appwrite-native' });
+});
+
+app.get('/api/app-settings', async (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+  try {
+    const settings = await fetchAppSettingsFromDb();
+    res.json(settings);
+  } catch {
+    res.status(500).json({ error: 'server_error' });
+  }
 });
 
 const PDF_FORMATS = {

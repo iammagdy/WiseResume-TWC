@@ -70,7 +70,7 @@ export const COLLECTIONS = {
   subscriptions:                     'subscriptions',
 
   // Feedback / Support
-  bug_reports:                       'bug_reports',
+  bug_reports:                       'moderation_bugs',
   contact_inquiries:                 'contact_inquiries',
   contact_requests:                  'contact_requests',
   feature_requests:                  'feature_requests',

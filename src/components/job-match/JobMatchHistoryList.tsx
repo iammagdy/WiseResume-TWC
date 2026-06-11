@@ -1,11 +1,7 @@
-import { useMemo } from 'react';
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { History, Briefcase, TrendingUp, ChevronRight } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { useResumeStore } from '@/store/resumeStore';
-import { useAuth } from '@/hooks/useAuth';
-import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { useCombinedTailorHistory } from '@/hooks/useCombinedTailorHistory';
 import type { TailorHistory } from '@/types/resume';
 import { cn } from '@/lib/utils';
 
@@ -67,87 +63,27 @@ function JobMatchHistoryItem({ entry, onClick }: JobMatchHistoryItemProps) {
 
 interface JobMatchHistoryListProps {
   className?: string;
+  limit?: number;
+  showEmpty?: boolean;
 }
 
-export function JobMatchHistoryList({ className }: JobMatchHistoryListProps) {
+export function JobMatchHistoryList({ className, limit = 5, showEmpty = false }: JobMatchHistoryListProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const localHistory = useResumeStore((s) => s.tailorHistory) || [];
+  const { history: combinedHistory, isLoading } = useCombinedTailorHistory(Math.max(limit, 10));
 
-  // Query Appwrite tailor_history collection
-  const { data: dbHistory, isLoading } = useQuery({
-    queryKey: ['tailor-history-list-jmw', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      try {
-        const res = await databases.listDocuments(
-          DATABASE_ID,
-          COLLECTIONS.tailor_history,
-          [
-            Query.equal('user_id', [user.id]),
-            Query.orderDesc('$createdAt'),
-            Query.limit(10),
-          ]
-        );
-        return res.documents.map((doc) => {
-          let appliedSections: string[] = [];
-          try {
-            appliedSections = doc.applied_sections ? JSON.parse(doc.applied_sections as string) : [];
-          } catch {
-            // ignore
-          }
-          return {
-            id: doc.$id,
-            jobTitle: doc.job_title as string,
-            company: doc.company as string,
-            jobDescription: doc.job_description as string || '',
-            jobUrl: doc.job_url as string || null,
-            tailoredResumeId: doc.tailored_resume_id as string || null,
-            scoreBeforeAfter: {
-              before: doc.score_before as number || 0,
-              after: doc.score_after as number || 0,
-            },
-            appliedSections,
-            createdAt: doc.$createdAt,
-          } as TailorHistory;
-        });
-      } catch (err) {
-        console.error('[JobMatchHistoryList] failed to load db history:', err);
-        return [];
-      }
-    },
-    enabled: !!user?.id,
-    staleTime: 30 * 1000,
-  });
-
-  // Merge histories, deduplicate, and sort chronologically
-  const combinedHistory = useMemo(() => {
-    const list = [...localHistory];
-    if (dbHistory) {
-      dbHistory.forEach((dbEntry) => {
-        const hasDuplicate = list.some(
-          (h) =>
-            h.id === dbEntry.id ||
-            (h.tailoredResumeId && h.tailoredResumeId === dbEntry.tailoredResumeId)
-        );
-        if (!hasDuplicate) {
-          list.push(dbEntry);
-        }
-      });
-    }
-    // Sort by createdAt descending
-    return list.sort((a, b) => {
-      const timeA = new Date(a.createdAt || 0).getTime();
-      const timeB = new Date(b.createdAt || 0).getTime();
-      return timeB - timeA;
-    });
-  }, [localHistory, dbHistory]);
-
-  if (isLoading && combinedHistory.length === 0) {
-    return null; // hide while initial loading if no local cache
+  if (isLoading && combinedHistory.length === 0 && !showEmpty) {
+    return null;
   }
 
-  if (combinedHistory.length === 0) return null;
+  if (combinedHistory.length === 0) {
+    if (!showEmpty) return null;
+    return (
+      <div className={cn('rounded-xl border border-dashed border-border/50 bg-card/30 px-4 py-5 text-center', className)}>
+        <p className="text-sm font-medium text-foreground">No tailoring history yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Completed sessions appear here.</p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -158,7 +94,7 @@ export function JobMatchHistoryList({ className }: JobMatchHistoryListProps) {
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
-        {combinedHistory.slice(0, 5).map((entry: TailorHistory) => (
+        {combinedHistory.slice(0, limit).map((entry: TailorHistory) => (
           <JobMatchHistoryItem
             key={entry.id}
             entry={entry}

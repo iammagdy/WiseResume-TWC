@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion, getNextMissingField } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
+import { withAvatarCacheBust } from '@/lib/avatarStorage';
 import { useResumes } from '@/hooks/useResumes';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
@@ -193,7 +194,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
         <div className="flex flex-col items-center text-center gap-3">
           <PlanAvatar
             plan={plan}
-            avatarUrl={profile?.avatarUrl}
+            avatarUrl={withAvatarCacheBust(profile?.avatarUrl, profile?.updatedAt)}
             initials={getInitials()}
             size="h-24 w-24"
             showLabel

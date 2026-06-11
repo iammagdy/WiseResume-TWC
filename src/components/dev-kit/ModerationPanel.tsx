@@ -21,6 +21,8 @@ import { useIsMounted } from '@/lib/devkit/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DevKitErrorCard } from './DevKitErrorCard';
+import { parseCrashContextFromDb } from '@/lib/crashReportPayload';
+import { Copy, Check, Crown } from 'lucide-react';
 
 type InternalTab = 'bugs' | 'blocklist' | 'queue';
 
@@ -72,6 +74,55 @@ function fmtDate(iso: string) {
   });
 }
 
+function copyToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return Promise.resolve(ok);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+function buildBugCopyPrompt(bug: BugReport): string {
+  const ctx = parseCrashContextFromDb(bug.additional_context, bug.component_stack);
+  if (ctx && typeof ctx.ai_fix_prompt === 'string' && ctx.ai_fix_prompt.trim()) {
+    return ctx.ai_fix_prompt;
+  }
+  const lines = [
+    '# WiseResume — Bug Report (AI Fix Prompt)',
+    '',
+    '## User',
+    `- Email: ${bug.user_email ?? 'unknown'}`,
+    ctx?.user_id ? `- User ID: ${String(ctx.user_id)}` : null,
+    ctx?.plan_tier ? `- Plan: ${String(ctx.plan_tier)}${ctx.is_premium ? ' (Premium)' : ''}` : null,
+    '',
+    '## When & where',
+    `- Reported: ${bug.created_at}`,
+    bug.route ? `- Route: \`${bug.route}\`` : null,
+    ctx?.screen ? `- Screen: ${String(ctx.screen)}` : null,
+    ctx?.active_feature ? `- Active feature: ${String(ctx.active_feature)}` : null,
+    ctx?.action ? `- User action: ${String(ctx.action)}` : null,
+    '',
+    '## Error',
+    bug.error_message,
+    '',
+    bug.error_stack ? `## Stack trace\n\`\`\`\n${bug.error_stack}\n\`\`\`` : null,
+    bug.component_stack ? `## Component stack\n\`\`\`\n${bug.component_stack}\n\`\`\`` : null,
+    bug.additional_context && !ctx ? `## Additional context\n${bug.additional_context}` : null,
+  ].filter((line): line is string => line !== null);
+  return lines.join('\n');
+}
+
 function statusBadge(status: string) {
   const map: Record<string, string> = {
     open: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
@@ -102,10 +153,23 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState('open');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyPrompt = useCallback(async (bug: BugReport) => {
+    const text = buildBugCopyPrompt(bug);
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopiedId(bug.id);
+      toast.success('AI fix prompt copied');
+      setTimeout(() => setCopiedId(null), 2000);
+    } else {
+      toast.error('Could not copy to clipboard');
+    }
+  }, []);
 
   const fetchBugs = useCallback(async () => {
     if (!isMounted()) return;
@@ -131,6 +195,24 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
   }, [isMounted, statusFilter, onCountChange]);
 
   useEffect(() => { fetchBugs(); }, [fetchBugs]);
+
+  useEffect(() => {
+    if (!onCountChange) return;
+    let active = true;
+    void (async () => {
+      try {
+        const tuple = await appwriteFunctions.invoke(
+          'admin-moderation',
+          devKitInvokeOptions({ action: 'list_bug_reports', status_filter: 'open', per_page: 1 }),
+        );
+        const data = unwrapAdminResponse<{ total: number }>(tuple, 'admin-moderation');
+        if (active && isMounted()) onCountChange(data.total ?? 0);
+      } catch {
+        /* badge is non-critical */
+      }
+    })();
+    return () => { active = false; };
+  }, [isMounted, onCountChange]);
 
   const updateBug = useCallback(async (id: string, updates: { status?: string; private_note?: string }) => {
     setSaving(id);
@@ -181,7 +263,11 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
       )}
 
       <div className="space-y-2">
-        {bugs.map((bug) => (
+        {bugs.map((bug) => {
+          const ctx = parseCrashContextFromDb(bug.additional_context, bug.component_stack);
+          const isPremium = ctx?.is_premium === true;
+          const isAutoCrash = ctx?.auto_report === true || ctx?.source === 'error_boundary_auto';
+          return (
           <div key={bug.id} className="rounded-lg border border-border bg-card overflow-hidden">
             <button
               className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
@@ -190,12 +276,33 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   {statusBadge(bug.status)}
-                  <span className="text-xs text-muted-foreground">{bug.user_email}</span>
+                  {isAutoCrash ? (
+                    <Badge variant="outline" className="text-[10px] h-5 border-rose-500/30 text-rose-600 dark:text-rose-400">
+                      auto-crash
+                    </Badge>
+                  ) : null}
+                  {isPremium ? (
+                    <Badge variant="outline" className="text-[10px] h-5 border-amber-500/40 text-amber-600 dark:text-amber-400 gap-0.5">
+                      <Crown className="w-3 h-3" aria-hidden />
+                      Premium
+                    </Badge>
+                  ) : ctx?.plan_tier ? (
+                    <Badge variant="outline" className="text-[10px] h-5 capitalize">{String(ctx.plan_tier)}</Badge>
+                  ) : null}
+                  <span className="text-xs text-muted-foreground">{bug.user_email || 'anonymous'}</span>
+                  {ctx?.user_id ? (
+                    <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]" title={String(ctx.user_id)}>
+                      {String(ctx.user_id).slice(0, 8)}…
+                    </span>
+                  ) : null}
                   {bug.route && (
                     <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
                       {bug.route}
                     </span>
                   )}
+                  {ctx?.screen ? (
+                    <span className="text-xs text-muted-foreground">{String(ctx.screen)}</span>
+                  ) : null}
                   <span className="text-xs text-muted-foreground ml-auto">{fmtDate(bug.created_at)}</span>
                 </div>
                 <p className="text-sm font-medium truncate">{bug.error_message}</p>
@@ -209,14 +316,32 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
 
             {expanded === bug.id && (
               <div className="px-4 pb-4 border-t border-border bg-muted/20 space-y-3 pt-3">
-                {/* Full report metadata */}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => void handleCopyPrompt(bug)}
+                  >
+                    {copiedId === bug.id ? (
+                      <Check className="w-3.5 h-3.5" aria-hidden />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" aria-hidden />
+                    )}
+                    Copy prompt
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {ctx?.screen ? <span><span className="font-medium text-foreground/70">Screen:</span> {String(ctx.screen)}</span> : null}
+                  {ctx?.active_feature ? <span><span className="font-medium text-foreground/70">Feature:</span> {String(ctx.active_feature)}</span> : null}
+                  {ctx?.action ? <span className="col-span-2"><span className="font-medium text-foreground/70">Action:</span> {String(ctx.action)}</span> : null}
+                  {ctx?.user_id ? <span className="col-span-2 truncate"><span className="font-medium text-foreground/70">User ID:</span> {String(ctx.user_id)}</span> : null}
                   {bug.app_version && <span><span className="font-medium text-foreground/70">Version:</span> {bug.app_version}</span>}
-                  {bug.session_id && <span className="truncate"><span className="font-medium text-foreground/70">Session:</span> {bug.session_id}</span>}
+                  {bug.session_id && <span className="truncate"><span className="font-medium text-foreground/70">Sentry:</span> {bug.session_id}</span>}
                   {bug.user_agent && <span className="col-span-2 truncate"><span className="font-medium text-foreground/70">UA:</span> {bug.user_agent}</span>}
                 </div>
 
-                {bug.additional_context && (
+                {bug.additional_context && !ctx?.ai_fix_prompt && (
                   <div>
                     <p className="text-[11px] font-medium text-foreground/60 uppercase tracking-wide mb-1">Additional Context</p>
                     <pre className="text-xs bg-muted rounded px-2 py-1.5 whitespace-pre-wrap break-words max-h-24 overflow-y-auto">{bug.additional_context}</pre>
@@ -236,6 +361,13 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
                     <pre className="text-xs bg-muted rounded px-2 py-1.5 whitespace-pre-wrap break-words max-h-24 overflow-y-auto font-mono">{bug.component_stack}</pre>
                   </div>
                 )}
+
+                {ctx?.ai_fix_prompt ? (
+                  <div>
+                    <p className="text-[11px] font-medium text-foreground/60 uppercase tracking-wide mb-1">AI fix prompt</p>
+                    <pre className="text-xs bg-muted rounded px-2 py-1.5 whitespace-pre-wrap break-words max-h-48 overflow-y-auto font-mono">{String(ctx.ai_fix_prompt)}</pre>
+                  </div>
+                ) : null}
 
                 {bug.private_note && (
                   <div className="text-xs bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2 text-amber-700 dark:text-amber-400">
@@ -278,7 +410,8 @@ function BugInboxTab({ onCountChange }: { onCountChange?: (n: number) => void })
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {total > bugs.length && (
@@ -602,22 +735,6 @@ export function ModerationPanel() {
   const isMounted = useIsMounted();
   const [activeTab, setActiveTab] = useState<InternalTab>('bugs');
   const [openBugCount, setOpenBugCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    async function fetchOpenCount() {
-      try {
-        const tuple = await appwriteFunctions.invoke(
-          'admin-moderation',
-          devKitInvokeOptions({ action: 'list_bug_reports', status_filter: 'open', per_page: 1 }),
-        );
-        const data = unwrapAdminResponse<{ total: number }>(tuple, 'admin-moderation');
-        if (active && isMounted()) setOpenBugCount(data.total ?? 0);
-      } catch { /* ignore — badge is non-critical */ }
-    }
-    fetchOpenCount();
-    return () => { active = false; };
-  }, [isMounted]);
 
   const TABS: { id: InternalTab; label: string; icon: React.ElementType; badge?: number | null }[] = [
     { id: 'bugs', label: 'Bug Inbox', icon: Bug, badge: openBugCount },

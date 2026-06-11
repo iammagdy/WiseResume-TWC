@@ -44,6 +44,8 @@ import { JobMatchStickyFooter } from '@/components/job-match/JobMatchStickyFoote
 import { JobMatchProgressStage } from '@/components/job-match/JobMatchProgressStage';
 import { JobMatchHistoryList } from '@/components/job-match/JobMatchHistoryList';
 import { JobMatchSavedJobsList } from '@/components/job-match/JobMatchSavedJobsList';
+import { TailoringHubLanding } from '@/components/tailoring-hub/TailoringHubLanding';
+import { isSyntheticSavedJobId } from '@/hooks/useSavedJobPostings';
 import '@/components/job-match/job-match-workspace.css';
 import { saveTailorJobDescriptionForResume } from '@/lib/tailorJobContext';
 
@@ -53,9 +55,20 @@ const DEFAULT_SECTIONS: TailorSectionId[] = [
   'summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards',
 ];
 
+type HubView = 'hub' | 'workspace';
+
+function shouldOpenWorkspaceDirectly(params: URLSearchParams, preloadedDesc: string): boolean {
+  return Boolean(
+    params.get('jobId') ||
+      params.get('mode') === 'workspace' ||
+      params.get('tailor') === '1' ||
+      (preloadedDesc && preloadedDesc.trim().length > 0),
+  );
+}
+
 export default function JobMatchWorkspacePage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -97,6 +110,11 @@ export default function JobMatchWorkspacePage() {
   const preloadedDesc = searchParams.get('job') || '';
   const preloadedTitle = searchParams.get('title') || '';
   const preloadedCompany = searchParams.get('company') || '';
+  const preloadedUrl = searchParams.get('url') || '';
+
+  const [hubView, setHubView] = useState<HubView>(() =>
+    shouldOpenWorkspaceDirectly(searchParams, preloadedDesc) ? 'workspace' : 'hub',
+  );
 
   const { data: preloadedJob } = useJob(jobIdParam);
 
@@ -152,6 +170,7 @@ export default function JobMatchWorkspacePage() {
     if (preloadedTitle && preloadedCompany) {
       setParsedJobInfo({ title: preloadedTitle, company: preloadedCompany });
     }
+    if (preloadedUrl && !jobUrl) setJobUrl(preloadedUrl);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -196,6 +215,28 @@ export default function JobMatchWorkspacePage() {
     return computeMatch(jobDescription, resumeText).score;
   }, [jobDescription, resumeText]);
 
+  const enterWorkspace = useCallback((nextParams?: Record<string, string>) => {
+    setHubView('workspace');
+    const merged = new URLSearchParams(searchParams);
+    merged.set('mode', 'workspace');
+    if (nextParams) {
+      Object.entries(nextParams).forEach(([key, value]) => merged.set(key, value));
+    }
+    setSearchParams(merged, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const exitToHub = useCallback(() => {
+    setHubView('hub');
+    const merged = new URLSearchParams(searchParams);
+    merged.delete('mode');
+    merged.delete('tailor');
+    merged.delete('jobId');
+    merged.delete('job');
+    merged.delete('title');
+    merged.delete('company');
+    setSearchParams(merged, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const applyImportedJob = useCallback((job: {
     title: string;
     company: string;
@@ -208,16 +249,27 @@ export default function JobMatchWorkspacePage() {
     setParsedJobInfo({ title: job.title, company: job.company });
     if (job.source_url) setJobUrl(job.source_url);
     setJobInputActiveTab('paste');
-    if (jobId) {
-      navigate(`/tailoring-hub?jobId=${jobId}`, { replace: true });
-    }
-  }, [navigate, setJobDescription]);
+    enterWorkspace(jobId ? { jobId } : undefined);
+  }, [enterWorkspace, setJobDescription]);
 
   const handleSelectSavedJob = useCallback((job: Job) => {
     haptics.selection();
-    applyImportedJob(job, job.id);
+    applyImportedJob(
+      {
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: job.requirements,
+        source_url: job.source_url,
+      },
+      isSyntheticSavedJobId(job.id) ? undefined : job.id,
+    );
     toast.success('Job loaded — review the description and tailor when ready.');
   }, [applyImportedJob]);
+
+  const handleStartTailoring = useCallback(() => {
+    enterWorkspace();
+  }, [enterWorkspace]);
 
   const handleFetchUrl = useCallback(async (url: string) => {
     if (!user) {
@@ -359,6 +411,8 @@ export default function JobMatchWorkspacePage() {
       // Invalidate credits and resumes cache
       await invalidateAiCreditQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-job-postings'] });
+      queryClient.invalidateQueries({ queryKey: ['tailor-history-list'] });
 
       haptics.success();
       toast.success('Tailored CV created!');
@@ -448,9 +502,9 @@ export default function JobMatchWorkspacePage() {
         <div className="jmw-header__inner">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => (hubView === 'workspace' ? exitToHub() : navigate(-1))}
             className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
-            aria-label="Go back"
+            aria-label={hubView === 'workspace' ? 'Back to hub overview' : 'Go back'}
           >
             <ArrowLeft className="w-4 h-4" aria-hidden />
           </button>
@@ -463,11 +517,11 @@ export default function JobMatchWorkspacePage() {
                 AI Tailoring
               </p>
               <h1 className="text-sm font-bold text-foreground leading-snug truncate">
-                Tailoring Hub
+                {hubView === 'hub' ? 'Tailoring Hub' : 'New tailoring session'}
               </h1>
             </div>
           </div>
-          {parsedJobInfo && (
+          {hubView === 'workspace' && parsedJobInfo && (
             <div className="hidden sm:flex items-center gap-1.5 shrink-0 max-w-[12rem]">
               <Briefcase className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden />
               <span className="text-xs text-muted-foreground truncate">
@@ -493,6 +547,14 @@ export default function JobMatchWorkspacePage() {
 
       {/* Scrollable body */}
       <div className="jmw-body">
+        {hubView === 'hub' ? (
+          <TailoringHubLanding
+            persistedTailoredIds={persistedTailoredIds}
+            onStartTailoring={handleStartTailoring}
+            onImportJob={() => setImportJobOpen(true)}
+            onSelectSavedJob={handleSelectSavedJob}
+          />
+        ) : (
         <div className="jmw-content">
           <div className="jmw-workflow-steps" aria-label="Tailoring steps">
             <div className="jmw-workflow-step" data-done={currentResumeId ? 'true' : 'false'}>
@@ -626,6 +688,7 @@ export default function JobMatchWorkspacePage() {
             />
           )}
         </div>
+        )}
       </div>
       <ImportJobSheet open={importJobOpen} onOpenChange={setImportJobOpen} />
     </div>

@@ -19,8 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 import { haptics } from '@/lib/haptics';
-import { storage, ID } from '@/lib/appwrite';
+import { storage } from '@/lib/appwrite';
 import { BUCKETS } from '@/lib/appwrite-collections';
+import { avatarFileIdForUser, uploadUserAvatar } from '@/lib/avatarStorage';
 import { toast } from 'sonner';
 import { 
   Profile,
@@ -196,22 +197,11 @@ export function EditProfileSheet({
 
     setIsUploading(true);
     try {
-      // Use a stable, deterministic file ID so re-uploads replace the existing
-      // avatar rather than accumulating new files.
-      const fileId = userId.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 36);
-      const file = new File([blob], 'avatar.png', { type: 'image/png' });
+      const newAvatarUrl = await uploadUserAvatar(userId, blob);
+      // Cache-bust locally so the preview updates before profile refetch
+      setAvatarUrl(`${newAvatarUrl}${newAvatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}`);
 
-      // Delete the previous avatar (ignore 404 if it doesn't exist yet)
-      try { await storage.deleteFile(BUCKETS.avatars, fileId); } catch { /* no previous avatar */ }
-
-      const uploaded = await storage.createFile(BUCKETS.avatars, fileId, file);
-      const viewUrl = storage.getFileView(BUCKETS.avatars, uploaded.$id);
-
-      // Cache-bust so browsers pick up the new image immediately
-      const newAvatarUrl = `${viewUrl.href}&t=${Date.now()}`;
-      setAvatarUrl(newAvatarUrl);
-      
-      // AUTO-SAVE: Immediately persist avatar URL to database
+      // AUTO-SAVE: persist stable view URL (no cache-bust param) to profile doc
       await onSave({ avatarUrl: newAvatarUrl });
       
       haptics.success();
@@ -233,7 +223,7 @@ export function EditProfileSheet({
     setIsUploading(true);
     try {
       // Delete avatar from Appwrite Storage (ignore errors if already gone)
-      const fileId = userId.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 36);
+      const fileId = avatarFileIdForUser(userId);
       try { await storage.deleteFile(BUCKETS.avatars, fileId); } catch { /* already deleted */ }
       
       // Clear local state

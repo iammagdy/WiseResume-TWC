@@ -35,6 +35,8 @@ const SESSION_PAGE_SIZE = 50;
 
 // Max events to fetch per query (Appwrite cap is 500 per request)
 const MAX_FETCH = 500;
+// Hard cap per analytics request — prevents function timeout on large datasets
+const MAX_TOTAL_DOCS = 15000;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
@@ -119,11 +121,185 @@ async function fetchAll(databases, collectionId, queries = []) {
     const docs = page.documents || [];
     allDocs.push(...docs);
 
+    if (allDocs.length >= MAX_TOTAL_DOCS) break;
     if (docs.length < limit) break;
     cursor = docs[docs.length - 1].$id;
   }
 
   return allDocs;
+}
+
+function todayStartIso() {
+  return new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+}
+
+async function fetchTotalEventCount(databases) {
+  try {
+    const totPage = await databases.listDocuments(DB_ID, COLLECTION_VISITOR_EVENTS, [sdk.Query.limit(1)]);
+    return totPage.total ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+function computeKpis(primaryDocs, todayDocs) {
+  const todayPageViews = todayDocs.filter(d => d.event_type === 'page_view');
+  const todayAnonIds = new Set(todayDocs.map(d => d.anon_id).filter(Boolean));
+
+  const pageViews = primaryDocs.filter(d => d.event_type === 'page_view');
+  const anonIds = new Set(primaryDocs.map(d => d.anon_id).filter(Boolean));
+  const anonIdList = [...anonIds];
+
+  const deviceCounts = {};
+  for (const d of primaryDocs) {
+    const dev = normalizeDevice(d.device_type);
+    deviceCounts[dev] = (deviceCounts[dev] || 0) + 1;
+  }
+  const deviceBreakdown = Object.entries(deviceCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  const totalPrimary = primaryDocs.length;
+  const mobileCount = deviceCounts.mobile || 0;
+  const desktopCount = deviceCounts.desktop || 0;
+  const mobilePct = totalPrimary > 0 ? Math.round((mobileCount / totalPrimary) * 100) : 0;
+  const desktopPct = totalPrimary > 0 ? Math.round((desktopCount / totalPrimary) * 100) : 0;
+
+  const browserBreakdown = countBy(primaryDocs, 'browser').slice(0, 8);
+  const countryCounts = countByCountry(primaryDocs);
+  const topCountryEntry = countryCounts[0] ?? null;
+
+  return {
+    totalVisitsToday: todayPageViews.length,
+    uniqueVisitorsToday: todayAnonIds.size,
+    totalVisits: pageViews.length,
+    uniqueVisitors: anonIds.size,
+    newVisitors: anonIdList.length,
+    returningVisitors: 0,
+    topCountry: topCountryEntry ? topCountryEntry.country : null,
+    topCountryCount: topCountryEntry ? topCountryEntry.count : 0,
+    mobilePct,
+    desktopPct,
+    deviceBreakdown,
+    browserBreakdown,
+  };
+}
+
+function computeTopPages(docs) {
+  const pageCounts = {};
+  const pageSessions = {};
+  for (const d of docs) {
+    if (d.event_type !== 'page_view') continue;
+    const page = d.page || '/';
+    pageCounts[page] = (pageCounts[page] || 0) + 1;
+    if (d.session_id) {
+      if (!pageSessions[page]) pageSessions[page] = new Set();
+      pageSessions[page].add(d.session_id);
+    }
+  }
+  return Object.entries(pageCounts)
+    .map(([name, count]) => ({ name, count, sessions: pageSessions[name]?.size ?? 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 30);
+}
+
+function computeClickTargets(docs, page) {
+  const targetCounts = {};
+  for (const d of docs) {
+    if (d.event_type !== 'click') continue;
+    if (page && d.page !== page) continue;
+    const t = d.target || 'unknown';
+    targetCounts[t] = (targetCounts[t] || 0) + 1;
+  }
+  return Object.entries(targetCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 30);
+}
+
+function computeSections(docs) {
+  const sectionCounts = {};
+  const sectionVisitors = {};
+  for (const d of docs) {
+    if (d.event_type !== 'section_view') continue;
+    const sec = d.section || 'unknown';
+    sectionCounts[sec] = (sectionCounts[sec] || 0) + 1;
+    if (d.anon_id) {
+      if (!sectionVisitors[sec]) sectionVisitors[sec] = new Set();
+      sectionVisitors[sec].add(d.anon_id);
+    }
+  }
+  return Object.entries(sectionCounts)
+    .map(([name, count]) => ({
+      name,
+      count,
+      uniqueVisitors: sectionVisitors[name]?.size ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 30);
+}
+
+function computeSessions(docs, pageNum) {
+  const sessionMap = {};
+  for (const d of docs) {
+    const sid = d.session_id || d.anon_id || 'unknown';
+    if (!sessionMap[sid]) {
+      sessionMap[sid] = {
+        session_id: d.session_id || sid,
+        anon_id: d.anon_id || sid,
+        user_id: d.user_id || null,
+        country: d.country || null,
+        device_type: normalizeDevice(d.device_type),
+        browser: d.browser || null,
+        firstSeen: d.$createdAt,
+        lastSeen: d.$createdAt,
+        pageCount: 0,
+        eventCount: 0,
+        durationSeconds: 0,
+      };
+    }
+    const sess = sessionMap[sid];
+    sess.eventCount++;
+    if (d.event_type === 'page_view') sess.pageCount++;
+    if (d.$createdAt < sess.firstSeen) sess.firstSeen = d.$createdAt;
+    if (d.$createdAt > sess.lastSeen) sess.lastSeen = d.$createdAt;
+  }
+
+  const allSessions = Object.values(sessionMap).map(s => {
+    const ms = new Date(s.lastSeen).getTime() - new Date(s.firstSeen).getTime();
+    return { ...s, durationSeconds: Math.round(ms / 1000) };
+  });
+  allSessions.sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+
+  const total = allSessions.length;
+  const offset = (pageNum || 0) * SESSION_PAGE_SIZE;
+  const page = allSessions.slice(offset, offset + SESSION_PAGE_SIZE);
+  return { sessions: page, total, page: pageNum || 0 };
+}
+
+function computeCohort(docs) {
+  const weekMap = {};
+  for (const d of docs) {
+    if (!d.anon_id) continue;
+    const week = getISOWeekLabel(new Date(d.$createdAt));
+    if (!weekMap[week]) weekMap[week] = new Set();
+    weekMap[week].add(d.anon_id);
+  }
+  return Object.entries(weekMap)
+    .map(([name, set]) => ({ name, count: set.size }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function loadRangeDocs(databases, range) {
+  const since = rangeStart(range);
+  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
+    sdk.Query.greaterThanEqual('$createdAt', since),
+  ]);
+  const sinceToday = todayStartIso();
+  const todayDocs = range === 'today'
+    ? docs
+    : docs.filter(d => d.$createdAt >= sinceToday);
+  return { docs, todayDocs, truncated: docs.length >= MAX_TOTAL_DOCS };
 }
 
 /** ISO string for `now - ms` */
@@ -199,233 +375,72 @@ async function handleLiveCount(databases) {
 // ─── Action: kpis ───────────────────────────────────────────────────────────
 
 async function handleKpis(databases, range) {
-  const sincePrimary = rangeStart(range);
-  const sinceToday   = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-
-  const [primaryDocs, todayDocs] = await Promise.all([
-    fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-      sdk.Query.greaterThanEqual('$createdAt', sincePrimary),
-    ]),
-    fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-      sdk.Query.greaterThanEqual('$createdAt', sinceToday),
-    ]),
-  ]);
-
-  // Today KPIs
-  const todayPageViews = todayDocs.filter(d => d.event_type === 'page_view');
-  const todayAnonIds = new Set(todayDocs.map(d => d.anon_id).filter(Boolean));
-
-  // Range KPIs
-  const pageViews = primaryDocs.filter(d => d.event_type === 'page_view');
-  const anonIds   = new Set(primaryDocs.map(d => d.anon_id).filter(Boolean));
-
-  // New vs returning: anon_id seen before sinceToday that also appear in range
-  const anonIdList = [...anonIds];
-  const newVisitors = anonIdList.length; // can't reliably distinguish without a separate lookup
-
-  // Device breakdown
-  const deviceCounts = {};
-  for (const d of primaryDocs) {
-    const dev = normalizeDevice(d.device_type);
-    deviceCounts[dev] = (deviceCounts[dev] || 0) + 1;
-  }
-  const deviceBreakdown = Object.entries(deviceCounts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-
-  const totalPrimary = primaryDocs.length;
-  const mobileCount  = deviceCounts['mobile'] || 0;
-  const desktopCount = deviceCounts['desktop'] || 0;
-  const mobilePct  = totalPrimary > 0 ? Math.round((mobileCount  / totalPrimary) * 100) : 0;
-  const desktopPct = totalPrimary > 0 ? Math.round((desktopCount / totalPrimary) * 100) : 0;
-
-  // Browser breakdown
-  const browserBreakdown = countBy(primaryDocs, 'browser').slice(0, 8);
-
-  // Top country
-  const countryCounts = countByCountry(primaryDocs);
-  const topCountryEntry = countryCounts[0] ?? null;
-
-  return {
-    totalVisitsToday:    todayPageViews.length,
-    uniqueVisitorsToday: todayAnonIds.size,
-    totalVisits:    pageViews.length,
-    uniqueVisitors: anonIds.size,
-    newVisitors,
-    returningVisitors: 0, // would require a cross-range check — returned as 0 to avoid false data
-    topCountry:      topCountryEntry ? topCountryEntry.country : null,
-    topCountryCount: topCountryEntry ? topCountryEntry.count   : 0,
-    mobilePct,
-    desktopPct,
-    deviceBreakdown,
-    browserBreakdown,
-  };
+  const { docs, todayDocs } = await loadRangeDocs(databases, range);
+  return computeKpis(docs, todayDocs);
 }
 
 // ─── Action: country-dist ────────────────────────────────────────────────────
 
 async function handleCountryDist(databases, range) {
-  const since = rangeStart(range);
-  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-    sdk.Query.greaterThanEqual('$createdAt', since),
-  ]);
+  const { docs } = await loadRangeDocs(databases, range);
   return countByCountry(docs);
 }
 
 // ─── Action: top-pages ──────────────────────────────────────────────────────
 
 async function handleTopPages(databases, range) {
-  const since = rangeStart(range);
-  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-    sdk.Query.greaterThanEqual('$createdAt', since),
-    sdk.Query.equal('event_type', 'page_view'),
-  ]);
-
-  const pageCounts = {};
-  const pageSessions = {};
-  for (const d of docs) {
-    const page = d.page || '/';
-    pageCounts[page] = (pageCounts[page] || 0) + 1;
-    if (d.session_id) {
-      if (!pageSessions[page]) pageSessions[page] = new Set();
-      pageSessions[page].add(d.session_id);
-    }
-  }
-
-  return Object.entries(pageCounts)
-    .map(([name, count]) => ({ name, count, sessions: pageSessions[name]?.size ?? 0 }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 30);
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeTopPages(docs);
 }
 
 // ─── Action: click-targets ───────────────────────────────────────────────────
 
 async function handleClickTargets(databases, range, page) {
-  const since = rangeStart(range);
-  const queries = [
-    sdk.Query.greaterThanEqual('$createdAt', since),
-    sdk.Query.equal('event_type', 'click'),
-  ];
-  if (page) queries.push(sdk.Query.equal('page', page));
-
-  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, queries);
-
-  const targetCounts = {};
-  for (const d of docs) {
-    const t = d.target || 'unknown';
-    targetCounts[t] = (targetCounts[t] || 0) + 1;
-  }
-
-  return Object.entries(targetCounts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 30);
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeClickTargets(docs, page);
 }
 
 // ─── Action: sections ────────────────────────────────────────────────────────
 
 async function handleSections(databases, range) {
-  const since = rangeStart(range);
-  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-    sdk.Query.greaterThanEqual('$createdAt', since),
-    sdk.Query.equal('event_type', 'section_view'),
-  ]);
-
-  const sectionCounts = {};
-  const sectionVisitors = {};
-  for (const d of docs) {
-    const sec = d.section || 'unknown';
-    sectionCounts[sec] = (sectionCounts[sec] || 0) + 1;
-    if (d.anon_id) {
-      if (!sectionVisitors[sec]) sectionVisitors[sec] = new Set();
-      sectionVisitors[sec].add(d.anon_id);
-    }
-  }
-
-  return Object.entries(sectionCounts)
-    .map(([name, count]) => ({
-      name,
-      count,
-      uniqueVisitors: sectionVisitors[name]?.size ?? 0,
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 30);
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeSections(docs);
 }
 
 // ─── Action: sessions ────────────────────────────────────────────────────────
 
 async function handleSessions(databases, range, pageNum) {
-  const since = rangeStart(range);
-  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-    sdk.Query.greaterThanEqual('$createdAt', since),
-  ]);
-
-  // Group events by session_id (fall back to anon_id if no session_id)
-  const sessionMap = {};
-  for (const d of docs) {
-    const sid = d.session_id || d.anon_id || 'unknown';
-    if (!sessionMap[sid]) {
-      sessionMap[sid] = {
-        session_id:    d.session_id || sid,
-        anon_id:       d.anon_id   || sid,
-        user_id:       d.user_id   || null,
-        country:       d.country   || null,
-        device_type:   normalizeDevice(d.device_type),
-        browser:       d.browser   || null,
-        firstSeen:     d.$createdAt,
-        lastSeen:      d.$createdAt,
-        pageCount:     0,
-        eventCount:    0,
-        durationSeconds: 0,
-        events: [],
-      };
-    }
-    const sess = sessionMap[sid];
-    sess.eventCount++;
-    if (d.event_type === 'page_view') sess.pageCount++;
-    if (d.$createdAt < sess.firstSeen) sess.firstSeen = d.$createdAt;
-    if (d.$createdAt > sess.lastSeen)  sess.lastSeen  = d.$createdAt;
-    sess.events.push(d.$createdAt);
-  }
-
-  // Compute duration
-  const allSessions = Object.values(sessionMap).map(s => {
-    const ms = new Date(s.lastSeen).getTime() - new Date(s.firstSeen).getTime();
-    const { events: _events, ...rest } = s;
-    return { ...rest, durationSeconds: Math.round(ms / 1000) };
-  });
-
-  // Sort by lastSeen desc
-  allSessions.sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
-
-  const total  = allSessions.length;
-  const offset = (pageNum || 0) * SESSION_PAGE_SIZE;
-  const page   = allSessions.slice(offset, offset + SESSION_PAGE_SIZE);
-
-  return { sessions: page, total, page: pageNum || 0 };
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeSessions(docs, pageNum);
 }
 
 // ─── Action: cohort ──────────────────────────────────────────────────────────
 
 async function handleCohort(databases, range) {
-  const since = rangeStart(range);
-  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-    sdk.Query.greaterThanEqual('$createdAt', since),
-  ]);
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeCohort(docs);
+}
 
-  // Group by week label (YYYY-Www) and count unique anon_ids
-  const weekMap = {};
-  for (const d of docs) {
-    if (!d.anon_id) continue;
-    const date = new Date(d.$createdAt);
-    const week = getISOWeekLabel(date);
-    if (!weekMap[week]) weekMap[week] = new Set();
-    weekMap[week].add(d.anon_id);
-  }
+// ─── Action: dashboard — single fetch, all panels ───────────────────────────
 
-  return Object.entries(weekMap)
-    .map(([name, set]) => ({ name, count: set.size }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+async function handleDashboard(databases, range, pageNum) {
+  const { docs, todayDocs, truncated } = await loadRangeDocs(databases, range);
+  const totalEvents = await fetchTotalEventCount(databases);
+
+  return {
+    kpis: computeKpis(docs, todayDocs),
+    countryDist: countByCountry(docs),
+    topPages: computeTopPages(docs),
+    clickTargets: computeClickTargets(docs, null),
+    sections: computeSections(docs),
+    sessions: computeSessions(docs, pageNum || 0),
+    cohort: computeCohort(docs),
+    meta: {
+      eventsInRange: docs.length,
+      totalEvents,
+      truncated,
+    },
+  };
 }
 
 function getISOWeekLabel(date) {
@@ -527,6 +542,11 @@ module.exports = async ({ req, res, log, error }) => {
 
       case 'cohort': {
         const data = await handleCohort(databases, range);
+        return res.json({ success: true, data });
+      }
+
+      case 'dashboard': {
+        const data = await handleDashboard(databases, range, body.page_num || 0);
         return res.json({ success: true, data });
       }
 

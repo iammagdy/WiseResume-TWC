@@ -83,6 +83,17 @@ interface JourneyEvent {
   created_at: string;
 }
 
+interface DashboardData {
+  kpis: KpiData;
+  countryDist: CountryDist[];
+  topPages: PageRow[];
+  clickTargets: NamedCount[];
+  sections: SectionRow[];
+  sessions: { sessions: Session[]; total: number; page: number };
+  cohort: NamedCount[];
+  meta?: { eventsInRange: number; totalEvents: number; truncated?: boolean };
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const COUNTRY_FLAG: Record<string, string> = {
@@ -253,7 +264,10 @@ export function VisitorsPanel() {
   const { isUnlocked } = useDevKitSession();
   const [range, setRange] = useState<VisitorsRange>('7d');
   const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadStatus, setLoadStatus] = useState<string | null>(null);
+  const [dataTruncated, setDataTruncated] = useState(false);
 
   const [kpis, setKpis] = useState<KpiData | null>(null);
   const [countryDist, setCountryDist] = useState<CountryDist[]>([]);
@@ -269,73 +283,74 @@ export function VisitorsPanel() {
   const [journeySearch, setJourneySearch] = useState('');
   const [eventCount, setEventCount] = useState<number | null>(null);
 
-  const invoke = useCallback(async (action: string, extra: Record<string, unknown> = {}) => {
+  const invoke = useCallback(async (action: string, extra: Record<string, unknown> = {}, timeoutMs?: number) => {
     const result = await devKitCall<unknown>({
       functionId: 'admin-visitor-analytics',
       action,
       payload: { range, ...extra },
+      timeoutMs,
     });
     if (!result.ok) throw result.error;
     return { success: true, data: result.data } as { success: boolean; data?: unknown };
   }, [range]);
 
+  const applyDashboard = useCallback((data: DashboardData) => {
+    setKpis(data.kpis);
+    setCountryDist(data.countryDist ?? []);
+    setTopPages(data.topPages ?? []);
+    setClickTargets(data.clickTargets ?? []);
+    setSections(data.sections ?? []);
+    setSessions(data.sessions?.sessions ?? []);
+    setSessionsTotal(data.sessions?.total ?? 0);
+    setSessionsPage(data.sessions?.page ?? 0);
+    setCohort(data.cohort ?? []);
+    if (typeof data.meta?.totalEvents === 'number') {
+      setEventCount(data.meta.totalEvents);
+    }
+    setDataTruncated(!!data.meta?.truncated);
+  }, []);
+
   const fetchAll = useCallback(async () => {
     if (!isUnlocked) return;
     setLoading(true);
     setError(null);
+    setLoadStatus('Checking collection…');
     try {
-      const [kpisRes, countryRes, pagesRes, clicksRes, sectionsRes, sessionsRes, cohortRes, liveCountRes] = await Promise.allSettled([
-        invoke('kpis'),
-        invoke('country-dist'),
-        invoke('top-pages'),
-        invoke('click-targets'),
-        invoke('sections'),
-        invoke('sessions', { page_num: 0 }),
-        invoke('cohort'),
-        invoke('live-count'),
-      ]);
-
-      type InvokeResult = { success: boolean; data?: unknown };
-      const val = (r: PromiseSettledResult<InvokeResult>) =>
-        r.status === 'fulfilled' && r.value.success ? r.value.data : undefined;
-
-      if (liveCountRes.status === 'fulfilled' && liveCountRes.value.success) {
-        const lc = liveCountRes.value.data as { liveCount: number; totalEvents?: number };
-        setEventCount(typeof lc.totalEvents === 'number' ? lc.totalEvents : null);
+      const liveResult = await devKitCall<{ liveCount: number; totalEvents?: number }>({
+        functionId: 'admin-visitor-analytics',
+        action: 'live-count',
+        timeoutMs: 30_000,
+      });
+      if (liveResult.ok && typeof liveResult.data.totalEvents === 'number') {
+        setEventCount(liveResult.data.totalEvents);
       }
 
-      const kpis = val(kpisRes) as KpiData | undefined;
-      if (kpis) {
-        setKpis(kpis);
-      } else if (kpisRes.status === 'rejected') {
-        setError(toDevKitError(kpisRes.reason, { functionId: 'admin-visitor-analytics' }).message);
+      setLoadStatus(
+        liveResult.ok && (liveResult.data.totalEvents ?? 0) > 0
+          ? `Loading ${liveResult.data.totalEvents!.toLocaleString()} events for ${range}…`
+          : `Loading visitor data for ${range}…`,
+      );
+
+      const dashboardResult = await devKitCall<DashboardData>({
+        functionId: 'admin-visitor-analytics',
+        action: 'dashboard',
+        payload: { range, page_num: 0 },
+        timeoutMs: 180_000,
+      });
+
+      if (!dashboardResult.ok) {
+        throw dashboardResult.error;
       }
 
-      const country = val(countryRes) as CountryDist[] | undefined;
-      if (country) setCountryDist(country);
-
-      const pages = val(pagesRes) as PageRow[] | undefined;
-      if (pages) setTopPages(pages);
-
-      const clicks = val(clicksRes) as NamedCount[] | undefined;
-      if (clicks) setClickTargets(clicks);
-
-      const sects = val(sectionsRes) as SectionRow[] | undefined;
-      if (sects) setSections(sects);
-
-      if (sessionsRes.status === 'fulfilled' && sessionsRes.value.success) {
-        const d = sessionsRes.value.data as { sessions: Session[]; total: number; page: number };
-        setSessions(d.sessions);
-        setSessionsTotal(d.total);
-        setSessionsPage(0);
-      }
-
-      const cohortData = val(cohortRes) as NamedCount[] | undefined;
-      if (cohortData) setCohort(cohortData);
+      applyDashboard(dashboardResult.data);
+    } catch (err) {
+      setError(toDevKitError(err, { functionId: 'admin-visitor-analytics', action: 'dashboard' }).message);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
+      setLoadStatus(null);
     }
-  }, [isUnlocked, invoke]);
+  }, [isUnlocked, range, applyDashboard]);
 
   useEffect(() => {
     if (isUnlocked) fetchAll();
@@ -343,7 +358,7 @@ export function VisitorsPanel() {
 
   const fetchSessionsPage = useCallback(async (pageNum: number) => {
     try {
-      const res = await invoke('sessions', { page_num: pageNum });
+      const res = await invoke('sessions', { page_num: pageNum }, 120_000);
       if (res.success) {
         const d = res.data as { sessions: Session[]; total: number; page: number };
         setSessions(d.sessions);
@@ -355,7 +370,7 @@ export function VisitorsPanel() {
 
   const fetchClickTargetsForPage = useCallback(async (page: string) => {
     try {
-      const res = await invoke('click-targets', { page: page || undefined });
+      const res = await invoke('click-targets', { page: page || undefined }, 120_000);
       if (res.success) setClickTargets(res.data as NamedCount[]);
     } catch { /* ignore */ }
   }, [invoke]);
@@ -405,10 +420,28 @@ export function VisitorsPanel() {
       </div>
 
       {error && (
-        <DevKitErrorCard error={error} title="Couldn't load visitor data" context={{ panel: 'Visitors', function: 'admin-visitor-analytics' }} />
+        <DevKitErrorCard error={error} title="Couldn't load visitor data" context={{ panel: 'Visitors', function: 'admin-visitor-analytics' }} onRetry={fetchAll} />
       )}
 
-      {loading && !kpis && (
+      {loading && loadStatus && (
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 flex items-center gap-3 text-sm text-blue-100">
+          <MiniSpinner size={16} />
+          <span>{loadStatus}</span>
+          {eventCount !== null && eventCount > 0 && (
+            <span className="ml-auto text-xs text-blue-200/80 tabular-nums">
+              {eventCount.toLocaleString()} events in collection
+            </span>
+          )}
+        </div>
+      )}
+
+      {dataTruncated && kpis && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
+          Showing the most recent 15,000 events in this range. Narrow the time range for full accuracy on high-traffic periods.
+        </div>
+      )}
+
+      {initialLoad && loading && !kpis && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />)}
@@ -438,6 +471,15 @@ export function VisitorsPanel() {
 
       {kpis && (
         <>
+          {eventCount === 0 && kpis.totalVisits === 0 && (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              <p className="font-medium">No visitor events recorded yet</p>
+              <p className="mt-1 text-xs text-amber-200/90">
+                The <span className="font-mono">visitor_events</span> collection is empty. Analytics populate after visitors accept cookies in the GDPR banner — no consent means no tracking writes.
+              </p>
+            </div>
+          )}
+
           {/* KPI Strip */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <KpiCard

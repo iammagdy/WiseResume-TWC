@@ -78,11 +78,10 @@ export function OnboardingFunnelPanel() {
         'admin-onboarding-funnel',
         { headers: devKitAuthHeaders(), body: { days, granularity } },
       );
-      const result = unwrapAdminResponse<{ data?: FunnelData }>(tuple, 'admin-onboarding-funnel');
+      const result = unwrapAdminResponse<FunnelData>(tuple, 'admin-onboarding-funnel');
       if (!isMounted()) return;
-      const raw = result?.data;
-      if (!raw) throw new Error('No data returned');
-      setData(raw);
+      if (!result) throw new Error('No data returned');
+      setData(result);
     } catch (e) {
       if (!isMounted()) return;
       setError(formatEdgeError(e, 'Failed to load funnel'));

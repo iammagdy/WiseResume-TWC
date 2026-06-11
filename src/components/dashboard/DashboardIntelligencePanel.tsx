@@ -44,6 +44,7 @@ interface DashboardIntelligencePanelProps {
   healthScores?: Record<string, ResumeHealthScore>;
   atsAverage?: number | null;
   scoringId?: string | null;
+  scoresLoading?: boolean;
   onOpenImportJob: () => void;
   onEditResume: (resumeId: string) => void;
   onTailorResume: (resumeId: string) => void;
@@ -57,6 +58,7 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
   healthScores = {},
   atsAverage = null,
   scoringId = null,
+  scoresLoading = false,
   onOpenImportJob,
   onEditResume,
   onTailorResume,
@@ -142,7 +144,7 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
               <p className="text-sm font-semibold text-foreground truncate">AI Workspace</p>
             </div>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
-              {signals.badge}
+              {scoresLoading ? 'Loading scores…' : signals.badge}
             </span>
           </div>
           {featuredResume?.title && (

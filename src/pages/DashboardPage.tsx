@@ -30,7 +30,6 @@ import {
   computeApplicationStrongMatches,
   computeCurrentAtsAverage,
   computePortfolioAtsDelta,
-  computeTotalMissingKeywords,
   countResumesWithJobMatchScore,
   countTailoredResumesThisWeek,
 } from '@/components/dashboard/dashboardMetricsUtils';
@@ -62,11 +61,11 @@ const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobShee
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
+import { useJobs } from '@/hooks/useJobs';
 
 import { useResumeStore } from '@/store/resumeStore';
-import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
+import { useResumeScore, ResumeHealthScore, hydrateHealthScoresForResumes } from '@/hooks/useResumeScore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
-import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -88,13 +87,14 @@ function DashboardPageContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, authReady, authSettled, signOut } = useAuth();
   const { isMigrating } = useGuestMigration();
-  const { 
-    data: resumes = [], 
-    isLoading: resumesLoading, 
-    isInitialLoading: resumesInitialLoading,
+  const {
+    data: resumes = [],
+    isFetched: resumesFetched,
+    isPlaceholderData: resumesPlaceholder,
     error: resumesError,
-    refetch 
+    refetch,
   } = useResumes();
+  const { data: savedJobs = [], isLoading: savedJobsLoading } = useJobs();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
 
   const { setCurrentResume, setCurrentResumeId, tailorHistory } = useResumeStore();
@@ -105,12 +105,22 @@ function DashboardPageContent() {
     appwriteTailoredIds?.forEach((id) => ids.add(id));
     return ids;
   }, [tailorHistory, appwriteTailoredIds]);
-  const { scoreResume, getCachedScore, scoringId } = useResumeScore();
+  const { scoreResume, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id);
   const { plan } = usePlan();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
   usePlanUpgradeCelebration();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
+
+  const cachedHealthScores = useMemo(
+    () => (resumes?.length ? hydrateHealthScoresForResumes(resumes, dbToResumeData) : {}),
+    [resumes],
+  );
+
+  const effectiveHealthScores = useMemo(
+    () => ({ ...cachedHealthScores, ...healthScores }),
+    [cachedHealthScores, healthScores],
+  );
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
@@ -220,15 +230,12 @@ function DashboardPageContent() {
     return resumes.find((r) => r.is_primary) ?? resumes[0];
   }, [resumes, defaultResumeId]);
 
-  const featuredHealthScore = featuredResume ? healthScores[featuredResume.$id] : undefined;
+  const featuredHealthScore = featuredResume ? effectiveHealthScores[featuredResume.$id] : undefined;
 
   const atsHistory = useATSScoreHistoryStore((s) => s.history);
   const activeResumeIds = useMemo(() => resumes?.map((r) => r.$id) ?? [], [resumes]);
 
-  const missingKeywordsCount = useMemo(
-    () => computeTotalMissingKeywords(healthScores, activeResumeIds),
-    [healthScores, activeResumeIds],
-  );
+  const savedJobsCount = savedJobs.length;
 
   const applicationMatches = useMemo(
     () => (resumes ? computeApplicationStrongMatches(resumes) : 0),
@@ -240,13 +247,13 @@ function DashboardPageContent() {
     [resumes],
   );
   const atsAverage = useMemo(
-    () => computeCurrentAtsAverage(healthScores, activeResumeIds),
-    [healthScores, activeResumeIds],
+    () => computeCurrentAtsAverage(effectiveHealthScores, activeResumeIds),
+    [effectiveHealthScores, activeResumeIds],
   );
   const scoredResumeCount = useMemo(
     () =>
-      activeResumeIds.filter((id) => (healthScores[id]?.overallScore ?? 0) > 0).length,
-    [activeResumeIds, healthScores],
+      activeResumeIds.filter((id) => (effectiveHealthScores[id]?.overallScore ?? 0) > 0).length,
+    [activeResumeIds, effectiveHealthScores],
   );
   const atsTrendDelta = useMemo(
     () => computePortfolioAtsDelta(atsHistory, activeResumeIds, atsAverage),
@@ -256,6 +263,7 @@ function DashboardPageContent() {
     () => buildPortfolioAtsChartSeries(atsHistory, activeResumeIds, atsAverage),
     [atsHistory, activeResumeIds, atsAverage],
   );
+  const metricsScoringActive = scoringId !== null;
   const tailoredThisWeek = useMemo(
     () => (resumes ? countTailoredResumesThisWeek(resumes) : 0),
     [resumes],
@@ -420,51 +428,7 @@ function DashboardPageContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [resumes, handleCreateNew, navigate]);
 
-  // Auto-score resumes in background (up to 3 concurrent, debounced)
-  useEffect(() => {
-    if (!resumes || resumes.length === 0) return;
-
-    let cancelled = false;
-
-    const scoreOne = async (resume: typeof resumes[0]) => {
-      if (cancelled) return;
-      const rid = resume.$id;
-      const rUpdatedAt = resume.$updatedAt;
-      const cached = getCachedScore(rid, rUpdatedAt);
-      if (cached) {
-        setHealthScores(prev => ({ ...prev, [rid]: cached }));
-        return;
-      }
-      const resumeData = dbToResumeData(resume);
-      await backgroundScore(rid, resumeData, rUpdatedAt);
-      const newCached = getCachedScore(rid, rUpdatedAt);
-      if (newCached && !cancelled) {
-        setHealthScores(prev => ({ ...prev, [rid]: newCached }));
-      }
-    };
-
-    const scoreAll = async () => {
-      if (cancelled) return;
-      // Concurrency limit of 3: process resumes in batches to avoid
-      // overwhelming the main thread while still parallelising scoring.
-      const CONCURRENCY = 3;
-      for (let i = 0; i < resumes.length && !cancelled; i += CONCURRENCY) {
-        const batch = resumes.slice(i, i + CONCURRENCY);
-        await Promise.allSettled(batch.map(scoreOne));
-        // Yield to the main thread between batches
-        if (!cancelled) {
-          await new Promise<void>(r =>
-            'requestIdleCallback' in window
-              ? (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(r)
-              : setTimeout(r, 50)
-          );
-        }
-      }
-    };
-
-    const timer = setTimeout(scoreAll, 1000);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [resumes, getCachedScore]);
+  // Scores are hydrated synchronously in cachedHealthScores (local cache + deterministic calc).
 
   const [onboardingTemplateId, setOnboardingTemplateId] = useState<string | null>(null);
 
@@ -701,7 +665,7 @@ function DashboardPageContent() {
   }, [selectedIds, deleteMultipleResumes, exitSelectionMode]);
 
   const checklistSteps = useMemo((): ChecklistStep[] => {
-    const hasAnyScore = Object.values(healthScores).some(s => (s.overallScore ?? 0) > 0);
+    const hasAnyScore = Object.values(effectiveHealthScores).some(s => (s.overallScore ?? 0) > 0);
     const hasTargetJob = resumes.some(r => r.target_job_title);
     return [
       { id: 'first-resume', label: 'Create your first resume', description: 'Build a professional resume to get started.', done: resumes.length > 0, href: '/dashboard?action=create' },
@@ -710,7 +674,7 @@ function DashboardPageContent() {
       { id: 'target-job', label: 'Set a target job', description: 'Tailor your resume for specific roles.', done: hasTargetJob, href: '/tailor' },
       { id: 'portfolio', label: 'View your portfolio', description: 'Share your professional portfolio online.', done: !!profile?.portfolioEnabled, href: '/portfolio' },
     ];
-  }, [resumes, healthScores, exportedChecked, profile?.portfolioEnabled]);
+  }, [resumes, effectiveHealthScores, exportedChecked, profile?.portfolioEnabled]);
 
   const onboardingCompleted = user?.id ? localStorage.getItem(`wr-onboarding-completed-${user.id}`) === 'true' : false;
   const showChecklist = !!user && onboardingCompleted && !checklistDismissed && !showProfileBanner;
@@ -733,15 +697,37 @@ function DashboardPageContent() {
 
   // Auth guard handled by ProtectedRoute
 
-  const isLoading = !authSettled;
+  const authBootstrapping = !authSettled;
+  const resumesKnownEmpty =
+    resumesFetched && !resumesPlaceholder && !resumesError && resumes.length === 0;
+  const resumesBootstrapping =
+    authReady &&
+    !!user &&
+    !resumesError &&
+    !resumesKnownEmpty &&
+    resumes.length === 0;
 
-  if (isLoading) {
+  if (authBootstrapping) {
     return (
       <div className="flex-1 flex flex-col">
         <div className="px-4 pt-6 pb-3">
           <p className="text-sm font-medium text-foreground">Loading your workspace</p>
           <p className="mt-1 text-xs text-muted-foreground">
             We&apos;re syncing your resumes, scores, and recent activity.
+          </p>
+        </div>
+        <DashboardSkeleton />
+      </div>
+    );
+  }
+
+  if (resumesBootstrapping) {
+    return (
+      <div className="flex flex-1 flex-col min-h-0">
+        <div className="px-4 pt-6 pb-3">
+          <p className="text-sm font-medium text-foreground">Loading your resumes</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Syncing your workspace from the cloud…
           </p>
         </div>
         <DashboardSkeleton />
@@ -769,19 +755,27 @@ function DashboardPageContent() {
   }
 
   const hasWorkspace = resumes.length > 0;
+  const showEmptyDashboard = resumesKnownEmpty;
 
   return (
-    <div className={cn('flex flex-col', hasWorkspace && 'min-h-0 flex-1')}>
+    <div className="flex flex-col flex-1 min-h-0">
       {/* All scrollable content inside PullToRefresh */}
       <PullToRefresh
         onRefresh={handleRefresh}
         className={cn(
-          hasWorkspace && 'flex min-h-0 flex-1 flex-col',
-          hasWorkspace ? 'dashboard-workspace-os-bg' : 'dashboard-atlas-bg',
+          'flex flex-1 min-h-0 flex-col',
+          hasWorkspace
+            ? 'overflow-hidden dashboard-workspace-os-bg'
+            : 'overflow-y-auto overscroll-y-contain dashboard-atlas-bg',
         )}
       >
-        <div className={cn('pb-safe w-full mx-auto', hasWorkspace && 'flex min-h-0 flex-1 flex-col')}>
-          {resumes.length === 0 && (
+        <div
+          className={cn(
+            'pb-safe w-full mx-auto',
+            hasWorkspace && 'flex min-h-0 flex-1 flex-col',
+          )}
+        >
+          {showEmptyDashboard && (
             <>
               <DashboardTopBar
                 hasResumes={false}
@@ -791,14 +785,14 @@ function DashboardPageContent() {
               />
               <DashboardStats
                 totalResumes={0}
-                healthScores={healthScores}
+                healthScores={effectiveHealthScores}
                 userName={profile?.fullName}
                 userId={user?.id}
               />
             </>
           )}
 
-          {resumes.length === 0 && (
+          {showEmptyDashboard && (
             <DashboardHero
               hasResumes={false}
               onBuild={handleCreateNew}
@@ -809,11 +803,7 @@ function DashboardPageContent() {
           {/* Filter/Sort bar removed — simplified UI */}
 
           {/* Content */}
-          {isLoading ? (
-            <div className="px-4">
-              <SkeletonCardList count={3} />
-            </div>
-          ) : resumesError && !resumes && !navigator.onLine ? (
+          {resumesError && !resumes && !navigator.onLine ? (
             /* Offline and no cached data — show specific offline state */
             <div className="flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
@@ -846,7 +836,7 @@ function DashboardPageContent() {
                 Tap to retry
               </Button>
             </div>
-          ) : !resumes || resumes.length === 0 ? (
+          ) : showEmptyDashboard ? (
             <>
               <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => navigate('/onboarding')} onImportProfile={() => setShowLinkedInImport(true)} />
             </>
@@ -863,9 +853,10 @@ function DashboardPageContent() {
                   healthScore={featuredHealthScore}
                   featuredResume={featuredResume}
                   resumes={resumes}
-                  healthScores={healthScores}
+                  healthScores={effectiveHealthScores}
                   atsAverage={atsAverage}
                   scoringId={scoringId}
+                  scoresLoading={scoringId !== null && !featuredHealthScore}
                   onOpenImportJob={handleImportJob}
                   onEditResume={handleEdit}
                   onTailorResume={handleTailorResume}
@@ -877,16 +868,18 @@ function DashboardPageContent() {
 
               <DashboardMetricsStrip
                 resumes={resumes}
-                healthScores={healthScores}
+                healthScores={effectiveHealthScores}
                 atsAverage={atsAverage}
                 scoredResumeCount={scoredResumeCount}
                 tailoredThisWeek={tailoredThisWeek}
                 applicationMatches={applicationMatches}
                 hasJobMatchScores={hasJobMatchScores}
-                missingKeywordsCount={missingKeywordsCount}
+                savedJobsCount={savedJobsCount}
+                isSavedJobsLoading={savedJobsLoading && savedJobs.length === 0}
+                onImportJob={handleImportJob}
                 atsTrendDelta={atsTrendDelta}
                 atsChartSeries={atsChartSeries}
-                isScoring={scoringId !== null || scoredResumeCount < resumes.length}
+                isScoring={metricsScoringActive}
                 scoringId={scoringId}
                 onEditResume={handleEdit}
                 onTailorResume={handleTailorResume}
@@ -1089,7 +1082,7 @@ function DashboardPageContent() {
                                   isMaster && !!resumeHierarchy?.tailoredByParent[resume.$id]?.length
                                 }
                                 showTailoredBadge={tailored}
-                                healthScore={healthScores[resume.$id]}
+                                healthScore={effectiveHealthScores[resume.$id]}
                                 isScoring={scoringId === resume.$id}
                                 selectionMode={selectionMode}
                                 selected={selectedIds.has(resume.$id)}
@@ -1111,7 +1104,7 @@ function DashboardPageContent() {
                 </div>
 
               <div className="dashboard-workspace-bottom shrink-0">
-              {!isLoading && <DashboardDiscoverySection compact className="shrink-0" />}
+              <DashboardDiscoverySection compact className="shrink-0" />
 
               {(showTrustBanner || showProfileBanner || showChecklist) && (
                 <div className="dashboard-workspace-footer mt-2 space-y-1.5 pb-1">
@@ -1161,7 +1154,7 @@ function DashboardPageContent() {
             </DashboardWorkspaceLayout>
           )}
 
-          {!isLoading && resumes.length === 0 && (
+          {showEmptyDashboard && (
             <div className="px-3 sm:px-4 lg:px-6 max-w-3xl mx-auto w-full">
               <DashboardDiscoverySection />
             </div>

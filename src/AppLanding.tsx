@@ -1,7 +1,6 @@
 import { Suspense, useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useResumeStore } from "@/store/resumeStore";
 
@@ -71,10 +70,10 @@ function LandingRoutes() {
 
 const AppLanding = () => {
   return (
-    <AuthProvider>
+    <>
       <Toaster />
       <LandingRoutes />
-    </AuthProvider>
+    </>
   );
 };
 

@@ -388,7 +388,11 @@ export const ResumeListCard = memo(function ResumeListCard({
               />
             </div>
             <div className="shrink-0">
-              <ScoreRing score={healthScore?.overallScore ?? 0} size={40} isLoading={isScoring} />
+              <ScoreRing
+                score={healthScore?.overallScore ?? 0}
+                size={40}
+                isLoading={isScoring || healthScore == null}
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -494,7 +498,11 @@ export const ResumeListCard = memo(function ResumeListCard({
               )}
               {!selectionMode && (
                 <div className="shrink-0 pt-0.5 hidden sm:flex">
-                  <ScoreRing score={healthScore?.overallScore ?? 0} size={44} isLoading={isScoring} />
+                  <ScoreRing
+                    score={healthScore?.overallScore ?? 0}
+                    size={44}
+                    isLoading={isScoring || healthScore == null}
+                  />
                 </div>
               )}
               <div className="flex-1 min-w-0">

@@ -19,7 +19,7 @@ import { AdminRoute } from "@/components/layout/AdminRoute";
 import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { WiseHireGuard } from "@/components/wisehire/WiseHireGuard";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { CrashReporterContextSync } from "@/components/CrashReporterContextSync";
 import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
 import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
 import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
@@ -477,14 +477,13 @@ const AppInterior = () => {
       {/* Push all app content below the fixed impersonation banner so it is
           never obscured. The banner is ~40px tall (py-2 + one text line). */}
       <div className={showingImpersonationBanner ? 'pt-10' : undefined}>
-        <AuthProvider>
-          <BottomSheetProvider>
-            <AIPrivacyDisclosureProvider>
-              <AppRoutes />
-              <DeferredProviders />
-            </AIPrivacyDisclosureProvider>
-          </BottomSheetProvider>
-        </AuthProvider>
+        <CrashReporterContextSync />
+        <BottomSheetProvider>
+          <AIPrivacyDisclosureProvider>
+            <AppRoutes />
+            <DeferredProviders />
+          </AIPrivacyDisclosureProvider>
+        </BottomSheetProvider>
       </div>
     </MotionConfigProvider>
   );

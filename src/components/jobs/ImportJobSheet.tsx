@@ -72,12 +72,6 @@ function validateJobUrl(raw: string): { valid: boolean; normalized: string; erro
   };
 }
 
-function detectSiteLabel(url: string): string | null {
-  const site = SUPPORTED_SITES.find((s) => url.includes(s.match));
-  return site?.label ?? null;
-}
-
-type Stage = 'idle' | 'loading' | 'success' | 'error';
 
 interface ImportJobSheetProps {
   open: boolean;
@@ -100,7 +94,6 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
   const importJob = useImportJob();
 
   const validation = useMemo(() => validateJobUrl(url), [url]);
-  const siteLabel = useMemo(() => (validation.valid ? detectSiteLabel(validation.normalized) : null), [validation]);
 
   const applyClipboardText = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -240,16 +233,26 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                 exit={{ opacity: 0, y: -6 }}
                 className="space-y-4"
               >
-                <div className="flex flex-wrap gap-1.5">
-                  {SUPPORTED_SITES.map(({ label }) => (
-                    <Badge
-                      key={label}
-                      variant="secondary"
-                      className="text-[10px] font-medium rounded-md px-2 py-0.5 bg-muted/50"
-                    >
-                      {label}
-                    </Badge>
-                  ))}
+                <div className="import-job-sheet__sources space-y-2.5 rounded-xl px-3.5 py-3">
+                  <p className="text-xs font-medium text-foreground/90">Supported job sources</p>
+                  <ul className="flex flex-wrap gap-2" role="list" aria-label="Supported job boards">
+                    {SUPPORTED_SITES.map(({ label, match }) => {
+                      const isActive =
+                        validation.valid && validation.normalized.toLowerCase().includes(match);
+                      return (
+                        <li key={label}>
+                          <span
+                            className={cn(
+                              'import-job-sheet__source-chip inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-medium leading-none',
+                              isActive && 'import-job-sheet__source-chip--active',
+                            )}
+                          >
+                            {label}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
 
                 {clipboardDetected && validation.valid && (
@@ -308,9 +311,6 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                       ? validation.error
                       : validation.hint ?? 'Works with major job boards and public careers pages.'}
                   </p>
-                  {siteLabel && validation.valid && (
-                    <p className="text-[10px] font-medium text-primary/90">Detected: {siteLabel}</p>
-                  )}
                 </div>
 
                 <Button

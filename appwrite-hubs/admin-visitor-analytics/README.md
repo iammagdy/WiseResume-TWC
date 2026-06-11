@@ -14,6 +14,7 @@ Appwrite Function that serves the **VisitorsPanel** and **MissionControlPanel** 
 | `sections` | Most-viewed page sections | `{ data: SectionRow[] }` |
 | `sessions` | Paginated session list | `{ data: { sessions, total, page } }` |
 | `cohort` | Unique visitors grouped by ISO week | `{ data: NamedCount[] }` |
+| `dashboard` | All visitor panels in one request (recommended) | `{ data: { kpis, countryDist, topPages, clickTargets, sections, sessions, cohort, meta } }` |
 | `journey` | All events for a session/visitor | `{ success, data: JourneyEvent[] }` |
 
 ### Request body

@@ -12,6 +12,7 @@ import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { isImpersonating, getImpersonationState } from '@/lib/impersonationStore';
 import { aiErrorToastMessage, parseAIErrorBody } from '@/lib/aiErrorParser';
+import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 
 interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
@@ -110,8 +111,42 @@ function messageFromPayload(parsed: unknown): string | null {
   if (typeof parsed === 'string' && parsed.trim()) return parsed;
   if (typeof parsed !== 'object' || parsed === null) return null;
   const obj = parsed as Record<string, unknown>;
-  if (typeof obj.error === 'string') return obj.error;
-  if (typeof obj.message === 'string') return obj.message;
+  if (typeof obj.error === 'string' && obj.error.trim()) return obj.error;
+  if (typeof obj.message === 'string' && obj.message.trim()) return obj.message;
+  if (typeof obj.error === 'object' && obj.error !== null) {
+    const nested = messageFromPayload(obj.error);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function adminFunctionErrorMessage(fnName: string, runtimeMessage: string, timedOut: boolean): string {
+  if (timedOut) {
+    return `${fnName} timed out (Appwrite 30s sync limit). Redeploy with a longer timeout or optimize the handler.`;
+  }
+  return runtimeMessage || `Appwrite Function runtime failed for ${fnName}.`;
+}
+
+function messageFromFailedExecution(
+  fnName: string,
+  execution: { errors?: string; responseBody?: string; responseStatusCode?: number },
+): string | null {
+  if (execution.responseBody) {
+    try {
+      const parsed = JSON.parse(execution.responseBody) as Record<string, unknown>;
+      const payloadMessage = messageFromPayload(parsed);
+      if (payloadMessage) return payloadMessage;
+    } catch {
+      if (typeof execution.responseBody === 'string' && execution.responseBody.trim()) {
+        return execution.responseBody.trim();
+      }
+    }
+  }
+  const runtimeMessage = execution.errors || '';
+  const timedOut = /timed out|timeout/i.test(String(runtimeMessage));
+  if (isAdminFunction(fnName)) {
+    return adminFunctionErrorMessage(fnName, runtimeMessage, timedOut);
+  }
   return null;
 }
 
@@ -189,10 +224,6 @@ export const appwriteFunctions = {
             ? (crypto as Crypto).randomUUID()
             : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
       }
-      const finalPayload = {
-        ...bodyPayload,
-        __headers: headers,
-      };
 
       const deriveCouponAction = (name: string): string => {
         if (name === 'validate-coupon') return 'validate';
@@ -214,6 +245,18 @@ export const appwriteFunctions = {
             : routeToPublicShare
               ? 'public-share'
             : fnName;
+      if (functionId.startsWith('admin-') || functionId === 'inspect-ai-keys') {
+        const devKitHeaders = devKitAuthHeaders();
+        if (devKitHeaders.Authorization && !headers.Authorization) {
+          headers.Authorization = devKitHeaders.Authorization;
+        }
+      }
+
+      const finalPayload = {
+        ...bodyPayload,
+        __headers: headers,
+      };
+
       const executionBody = routeToAiGateway
         ? JSON.stringify({ featureName: fnName, ...finalPayload })
         : routeToCoupons
@@ -241,12 +284,28 @@ export const appwriteFunctions = {
 
       if (execution.status === 'failed') {
         console.error('[appwriteFunctions] execution failed', execution.errors);
+        const adminMessage = messageFromFailedExecution(fnName, execution);
+        if (adminMessage) {
+          return {
+            data: null,
+            error: {
+              message: adminMessage,
+              status: execution.responseStatusCode || 500,
+              raw: execution,
+            },
+          };
+        }
+
+        const runtimeMessage = execution.errors || `Appwrite Function runtime failed for ${functionId}.`;
+        const timedOut = /timed out|timeout/i.test(String(runtimeMessage));
         const runtimeInfo = parseAIErrorBody(
           {
-            code: 'FUNCTION_RUNTIME_FAILED',
-            message: execution.errors || `Appwrite Function runtime failed for ${functionId}.`,
+            code: timedOut ? 'FUNCTION_TIMEOUT' : 'FUNCTION_RUNTIME_FAILED',
+            message: timedOut
+              ? `${functionId} timed out. Please try again.`
+              : runtimeMessage,
           },
-          504,
+          timedOut ? 504 : 500,
         );
         return {
           data: null,

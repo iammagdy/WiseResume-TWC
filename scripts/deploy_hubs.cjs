@@ -35,6 +35,7 @@ const HUB_TIMEOUTS = {
     // tailor-resume allows up to 28s per provider attempt with cross-provider fallbacks
     'ai-gateway': 180,
     'admin-deploy-hubs': 900,
+    'admin-moderation': 60,
 };
 
 const HUBS = [

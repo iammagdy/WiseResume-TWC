@@ -7,6 +7,7 @@ import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { sendFeedback } from '@/lib/sendFeedback';
 import { getLastSentryEventId } from '@/lib/captureErrorShim';
+import { buildCrashReportMetadata, buildCrashReportSubject } from '@/lib/crashReportPayload';
 import { useAuth } from '@/hooks/useAuth';
 import {
   onBugReport,
@@ -16,20 +17,6 @@ import {
   type ErrorCategoryInfo,
 } from '@/lib/bugReport';
 import { activityTracker } from '@/lib/activityTracker';
-
-let cachedAppVersion: string | null = null;
-async function getAppVersion(): Promise<string> {
-  if (cachedAppVersion) return cachedAppVersion;
-  try {
-    const res = await fetch('/changelog.json');
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    cachedAppVersion = data?.[0]?.version || 'unknown';
-  } catch {
-    cachedAppVersion = 'unknown';
-  }
-  return cachedAppVersion!; // always set to a string by the try/catch above
-}
 
 // ── Detected Context Card ──────────────────────────────────────────────────
 
@@ -129,57 +116,45 @@ export function BugReportDialog() {
     if (!data) return;
     setStatus('sending');
 
-    // Get auth from the Appwrite session
-    const userId = user?.id || undefined;
-    const userEmail = userId ? 'authenticated' : 'anonymous';
-    const sessionId: string | undefined = undefined;
-
-    const appVersion = await getAppVersion();
-
     const effectiveMessage = reportMode === 'detected' && recentError
       ? recentError.message
       : data.errorMessage;
 
-    const payload = {
-      type: 'bug',
-      email: user?.email || email.trim(),
-      subject: `[Bug] ${screenLabel} · ${categoryInfo.category}`,
-      message: effectiveMessage + (additionalContext.trim() ? `\n\nUser Note: ${additionalContext.trim()}` : ''),
-      metadata: {
-        error_stack: (reportMode === 'detected' && recentError?.stack) || data.errorStack || null,
-        component_stack: data.componentStack || null,
-        route: data.route,
-        selected_screen: screenLabel,
-        error_category: categoryInfo.category,
-        action: data.action || null,
-        active_feature: activeFeature || null,
-        recent_errors: data.detectedContext?.recentErrors || null,
-        user_id: userId || null,
-        user_agent: navigator.userAgent,
-        app_version: appVersion,
-        timestamp: new Date().toISOString(),
-      },
-    };
+    const effectiveStack =
+      (reportMode === 'detected' && recentError?.stack) || data.errorStack || undefined;
+    const reportError = new Error(effectiveMessage);
+    if (effectiveStack) reportError.stack = effectiveStack;
 
-    // Auto-detected error events should link the originating Sentry event
-    // so the replay/stacktrace surfaces alongside the feedback entry. We
-    // only opt-in to lastEventId in detected mode — for ad-hoc bug
-    // reports the most recent Sentry event is unrelated to the user's
-    // complaint and would mis-link the feedback.
     const associatedEventId =
       reportMode === 'detected' && recentError ? getLastSentryEventId() : undefined;
 
+    const metadata = buildCrashReportMetadata({
+      error: reportError,
+      componentStack: data.componentStack,
+      route: data.route,
+      userNote: additionalContext.trim() || undefined,
+      source: 'bug_dialog',
+      reportType: 'bug',
+      sentryEventId: associatedEventId,
+      screenLabel,
+      errorCategory: categoryInfo.category,
+      action: data.action ?? activeFeature,
+      recentErrors: data.detectedContext?.recentErrors,
+    });
+
     const result = await sendFeedback({
       type: 'bug',
-      email: payload.email,
-      name: user?.email || undefined,
-      subject: payload.subject,
-      message: payload.message,
-      metadata: payload.metadata,
+      email: user?.email || email.trim(),
+      name: user?.name || user?.email || undefined,
+      subject: buildCrashReportSubject(metadata),
+      message: effectiveMessage + (additionalContext.trim() ? `\n\nUser Note: ${additionalContext.trim()}` : ''),
+      metadata,
       associatedEventId,
       tags: {
         screen: screenLabel,
         category: categoryInfo.category,
+        priority: metadata.priority,
+        plan: metadata.plan_tier ?? 'unknown',
         ...(activeFeature ? { feature: activeFeature } : {}),
         report_mode: reportMode,
         ...(isShake ? { source: 'shake' } : {}),

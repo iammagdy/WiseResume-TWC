@@ -17,7 +17,7 @@
  *
  * Database ID: main
  * Collections used:
- *   bug_reports       — see README for attribute spec
+ *   moderation_bugs   — bug inbox (replaces legacy bug_reports)
  *   blocklist         — see README for attribute spec
  *   moderation_queue  — see README for attribute spec
  */
@@ -30,11 +30,37 @@ const crypto = require('crypto');
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const DB_ID            = 'main';
-const COL_BUGS         = 'bug_reports';
+const COL_BUGS         = process.env.MODERATION_BUGS_COLLECTION || 'moderation_bugs';
 const COL_BLOCKLIST    = 'blocklist';
 const COL_MOD_QUEUE    = 'moderation_queue';
 const DEFAULT_PER_PAGE = 50;
 const MAX_PER_PAGE     = 200;
+const DB_OP_TIMEOUT_MS = 20_000;
+
+function requireConfig() {
+  const missing = [];
+  if (!process.env.APPWRITE_PROJECT_ID) missing.push('APPWRITE_PROJECT_ID');
+  if (!process.env.APPWRITE_API_KEY && !process.env.APPWRITE_FUNCTION_API_KEY) {
+    missing.push('APPWRITE_API_KEY');
+  }
+  if (missing.length) {
+    throw new Error(`Server misconfigured — missing function variables: ${missing.join(', ')}`);
+  }
+}
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    }),
+  ]);
+}
+
+function isCollectionBrokenError(err) {
+  const msg = String(err?.message || err || '').toLowerCase();
+  return err?.code === 500 || msg.includes('server error') || msg.includes('timed out after');
+}
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -86,15 +112,39 @@ function checkAuth(req, body) {
 // ─── SDK clients ─────────────────────────────────────────────────────────────
 
 function getClients() {
+  requireConfig();
   const client = new sdk.Client();
   client
     .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
     .setProject(process.env.APPWRITE_PROJECT_ID)
-    .setKey(process.env.APPWRITE_API_KEY || '');
+    .setKey(process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '');
   return {
     databases: new sdk.Databases(client),
     users:     new sdk.Users(client),
   };
+}
+
+async function listDocumentsSafe(databases, collectionId, queries, label) {
+  try {
+    return await withTimeout(
+      databases.listDocuments(DB_ID, collectionId, queries),
+      DB_OP_TIMEOUT_MS,
+      label || `listDocuments(${collectionId})`,
+    );
+  } catch (err) {
+    if (isCollectionBrokenError(err)) {
+      throw new Error(
+        `The "${collectionId}" collection is unavailable (Appwrite returned a server error). ` +
+        'Run `node scripts/setup_moderation_schema.cjs` to recreate it, then redeploy admin-moderation.',
+      );
+    }
+    if (err?.code === 404 || /collection.*not found/i.test(String(err?.message || ''))) {
+      throw new Error(
+        `Collection "${collectionId}" does not exist. Run \`node scripts/setup_moderation_schema.cjs\` against project ${process.env.APPWRITE_PROJECT_ID}.`,
+      );
+    }
+    throw err;
+  }
 }
 
 // ─── Logging helpers ─────────────────────────────────────────────────────────
@@ -168,7 +218,7 @@ async function handleListBugReports(databases, body) {
     queries.push(sdk.Query.equal('status', statusFilter));
   }
 
-  const result = await databases.listDocuments(DB_ID, COL_BUGS, queries);
+  const result = await listDocumentsSafe(databases, COL_BUGS, queries, 'list_bug_reports');
   return {
     bug_reports: result.documents.map(mapBug),
     total:       result.total,
@@ -191,10 +241,10 @@ async function handleUpdateBugReport(databases, body) {
 // ─── Blocklist ────────────────────────────────────────────────────────────────
 
 async function handleListBlocklist(databases) {
-  const result = await databases.listDocuments(DB_ID, COL_BLOCKLIST, [
+  const result = await listDocumentsSafe(databases, COL_BLOCKLIST, [
     sdk.Query.limit(500),
     sdk.Query.orderDesc('$createdAt'),
-  ]);
+  ], 'list_blocklist');
   return { entries: result.documents.map(mapBlocklistEntry) };
 }
 
@@ -242,7 +292,7 @@ async function handleListModerationQueue(databases, body) {
     queries.push(sdk.Query.equal('status', statusFilter));
   }
 
-  const result = await databases.listDocuments(DB_ID, COL_MOD_QUEUE, queries);
+  const result = await listDocumentsSafe(databases, COL_MOD_QUEUE, queries, 'list_moderation_queue');
   return {
     items: result.documents.map(mapQueueItem),
     total: result.total,
@@ -304,6 +354,15 @@ module.exports = async ({ req, res, log: _log, error: _error }) => {
 
   try {
     switch (action) {
+
+      case 'ping': {
+        return res.json({
+          success: true,
+          ok: true,
+          project: process.env.APPWRITE_PROJECT_ID || null,
+          collections: [COL_BUGS, COL_BLOCKLIST, COL_MOD_QUEUE],
+        });
+      }
 
       // ── Bug reports ───────────────────────────────────────────────────────
       case 'list_bug_reports': {

@@ -140,7 +140,7 @@ export function resumeDataToDb(resume: ResumeData, userId: string): Partial<Data
 }
 
 export function useResumes(options: { select?: (data: any[]) => any } = {}) {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   return useQuery({
     queryKey: ['resumes', user?.id],
     staleTime: 5 * 60 * 1000,
@@ -149,13 +149,17 @@ export function useResumes(options: { select?: (data: any[]) => any } = {}) {
       const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
         Query.equal('user_id', user.id),
         Query.orderDesc('$updatedAt'),
-        Query.limit(50)
+        Query.limit(50),
       ]);
       writePersistedCache(`resumes:${user.id}`, response.documents);
       return response.documents;
     },
-    enabled: !!user,
-    select: options.select
+    enabled: authReady && !!user,
+    placeholderData: (previous) =>
+      previous ??
+      (user?.id ? readPersistedCache<DatabaseResume[]>(`resumes:${user.id}`) ?? undefined : undefined),
+    select: options.select,
+    retry: 2,
   });
 }
 

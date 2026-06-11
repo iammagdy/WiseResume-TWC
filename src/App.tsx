@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
@@ -175,15 +176,17 @@ function SplashGate() {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ErrorBoundary>
-          <BrowserRouter
-            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-          >
-            <SplashGate />
-          </BrowserRouter>
-        </ErrorBoundary>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <ErrorBoundary>
+            <BrowserRouter
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
+              <SplashGate />
+            </BrowserRouter>
+          </ErrorBoundary>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };

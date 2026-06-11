@@ -32,11 +32,11 @@ export const CouponsPanel = () => {
         headers: devKitAuthHeaders(),
         body: { action: 'list-discount-codes' },
       });
-      const result = unwrapAdminResponse<{ data?: { codes?: DiscountCode[]; total?: number } }>(
+      const result = unwrapAdminResponse<{ codes?: DiscountCode[]; total?: number }>(
         tuple,
         'admin-devkit-data',
       );
-      setCoupons(result.data?.codes ?? []);
+      setCoupons(result.codes ?? []);
     } catch (e) {
       setError(formatEdgeError(e, 'Failed to load discount codes'));
     } finally {

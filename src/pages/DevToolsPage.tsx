@@ -93,7 +93,9 @@ function DevToolsInner() {
       if (!result.success) {
         const message = result.code === 'CONFIG_MISSING'
           ? 'DevKit auth is not configured on Appwrite.'
-          : 'Access denied. Sign in with the admin email account.';
+          : (typeof result.error === 'string' && result.error.trim())
+            ? result.error
+            : 'Access denied. Your Appwrite account needs the admin label (or ADMIN_EMAIL must match on the function).';
         setUnlockError(message);
         toast.error(message);
         return;
@@ -224,7 +226,7 @@ function DevToolsInner() {
             </div>
           ) : (
             <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/45">
-              No password is required. Access is granted only when the signed-in Appwrite email matches the admin account.
+              No password is required. Access requires the Appwrite <code className="text-white/60">admin</code> label on your account (or a matching <code className="text-white/60">ADMIN_EMAIL</code> on the function).
             </p>
           )}
         </div>

@@ -4,6 +4,11 @@ import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, 
 import { Button } from '@/components/ui/button';
 import { captureError, getLastSentryEventId } from '@/lib/captureErrorShim';
 import { sendFeedback } from '@/lib/sendFeedback';
+import {
+  buildCrashReportMetadata,
+  buildCrashReportSubject,
+} from '@/lib/crashReportPayload';
+import { getCrashReporterContext } from '@/lib/crashReportContext';
 
 // Module-level auth user id store — populated by AuthContext on each auth
 // state change. Avoids hooks (impossible in a class component).
@@ -225,11 +230,13 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private autoSendCrashReport = (error: Error, errorInfo: ErrorInfo) => {
-    const userId = _currentUserId ?? 'anonymous';
     const route = window.location.pathname + window.location.search;
     const dedupeKey = `wr-crash-auto:${error.name}:${error.message.slice(0, 120)}:${route}`;
+    const dedupeTtlMs = 30 * 60 * 1000;
     try {
-      if (sessionStorage.getItem(dedupeKey)) return;
+      const raw = localStorage.getItem(dedupeKey) || sessionStorage.getItem(dedupeKey);
+      if (raw && Date.now() - Number(raw) < dedupeTtlMs) return;
+      localStorage.setItem(dedupeKey, String(Date.now()));
       sessionStorage.setItem(dedupeKey, String(Date.now()));
     } catch {
       // storage unavailable — still attempt send once
@@ -237,24 +244,32 @@ export class ErrorBoundary extends Component<Props, State> {
 
     this.setState({ autoReportStatus: 'sending' });
 
+    const sentryEventId = getLastSentryEventId();
+    const metadata = buildCrashReportMetadata({
+      error,
+      componentStack: errorInfo.componentStack,
+      route,
+      source: 'error_boundary_auto',
+      reportType: 'auto-crash-report',
+      sentryEventId,
+    });
+    const ctx = getCrashReporterContext();
+
     void sendFeedback(
       {
         type: 'auto-crash-report',
-        email: 'contact@thewise.cloud',
-        subject: `Auto Crash: ${error.message.slice(0, 80)}`,
-        message: error.message,
-        associatedEventId: getLastSentryEventId(),
-        metadata: {
-          error_stack: error.stack?.slice(0, 4000) ?? null,
-          component_stack: errorInfo.componentStack?.slice(0, 4000) ?? null,
-          route,
-          user_agent: navigator.userAgent,
-          user_id: userId,
-          auto_report: true,
-        },
+        email: ctx.userEmail ?? 'anonymous@wiseresume.app',
+        name: ctx.userName ?? undefined,
+        subject: buildCrashReportSubject(metadata),
+        message: metadata.error_message,
+        associatedEventId: sentryEventId,
+        metadata,
         tags: {
           source: 'error_boundary_auto',
           error_name: error.name,
+          priority: metadata.priority,
+          screen: metadata.screen,
+          plan: metadata.plan_tier ?? 'unknown',
         },
       },
       { skipFallback: true },
@@ -311,37 +326,38 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleSendReport = async () => {
     this.setState({ reportStatus: 'sending' });
-    const userId = _currentUserId ?? 'anonymous';
-    const errorMsg = this.state.error?.message || 'Unknown error';
+    const error = this.state.error;
+    if (!error) return;
     const userNote = this.state.reportContext?.trim();
+    const sentryEventId = getLastSentryEventId();
+    const metadata = buildCrashReportMetadata({
+      error,
+      componentStack: this.state.errorInfo?.componentStack,
+      route: this.state.errorRoute ?? window.location.pathname,
+      userNote,
+      source: 'error_boundary_manual',
+      reportType: 'auto-crash-report',
+      sentryEventId,
+    });
+    const ctx = getCrashReporterContext();
 
-    // Dual-channel send: Sentry user-feedback (linked to the most recent
-    // captured exception via getLastSentryEventId() inside sendFeedback)
-    // AND the existing email pipeline. Each channel succeeds/fails
-    // independently; we treat the report as accepted if either lands.
     const result = await sendFeedback(
       {
         type: 'auto-crash-report',
-        email: 'contact@thewise.cloud',
-        subject: `Auto Crash: ${errorMsg.slice(0, 80)}`,
-        message: errorMsg + (userNote ? `\n\nUser note: ${userNote}` : ''),
-        // Link the user feedback entry to the just-captured exception so
-        // Sentry attaches its stacktrace and session replay automatically.
-        associatedEventId: getLastSentryEventId(),
-        metadata: {
-          error_stack: this.state.error?.stack?.slice(0, 4000) ?? null,
-          component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) ?? null,
-          route: window.location.pathname,
-          user_agent: navigator.userAgent,
-          user_id: userId,
-          app_version: 'unknown',
-        },
+        email: ctx.userEmail ?? 'anonymous@wiseresume.app',
+        name: ctx.userName ?? undefined,
+        subject: buildCrashReportSubject(metadata),
+        message: metadata.error_message + (userNote ? `\n\nUser note: ${userNote}` : ''),
+        associatedEventId: sentryEventId,
+        metadata,
         tags: {
           source: 'error_boundary',
-          error_name: this.state.error?.name ?? 'Error',
+          error_name: error.name,
+          priority: metadata.priority,
+          screen: metadata.screen,
+          plan: metadata.plan_tier ?? 'unknown',
         },
       },
-      // Keep the public report on the single owned Appwrite contact route.
       { skipFallback: true },
     );
 

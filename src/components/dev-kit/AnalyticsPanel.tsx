@@ -63,11 +63,10 @@ export function AnalyticsPanel() {
         headers: devKitAuthHeaders(),
         body: { action: 'analytics', range: r },
       });
-      const result = unwrapAdminResponse<{ data?: PremiumAnalyticsData }>(tuple, 'admin-devkit-data');
-      const raw = result.data;
-      if (!raw) throw new Error('No data returned');
+      const result = unwrapAdminResponse<PremiumAnalyticsData>(tuple, 'admin-devkit-data');
+      if (!result) throw new Error('No data returned');
       if (!isMounted()) return;
-      setData({ ...raw, lastUpdatedAt: new Date() });
+      setData({ ...result, lastUpdatedAt: new Date() });
       setSecondsAgo(0);
     } catch (e) {
       if (!isMounted()) return;

@@ -56,7 +56,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
+import { devKitCall } from '@/lib/devkit/devKitClient';
 
 type DirectoryRow = {
   user_id: string;
@@ -123,17 +123,15 @@ async function invoke<T = unknown>(
   action: string,
   extra: Record<string, unknown> = {},
 ): Promise<{ data: T | null; error: string | null }> {
-  try {
-    const result = await devKitCall<T>({
-      functionId: 'admin-portfolio-usernames',
-      action,
-      payload: extra,
-    });
-    if (!result.ok) throw result.error;
-    return { data: result.data, error: null };
-  } catch (e) {
-    return { data: null, error: toDevKitError(e, { functionId: 'admin-portfolio-usernames', action }).message || 'Request failed' };
+  const result = await devKitCall<T>({
+    functionId: 'admin-portfolio-usernames',
+    action,
+    payload: extra,
+  });
+  if (!result.ok) {
+    return { data: null, error: result.error.message };
   }
+  return { data: result.data, error: null };
 }
 
 // ============================================================
@@ -191,8 +189,10 @@ function DirectorySection() {
       toast.error('Username cannot be empty');
       return;
     }
-    // Defer length/character validation to the server — it enforces the
-    // effective rules (global + per-user overrides) via check_username_available.
+    if (val.length < 3) {
+      toast.error('Username must be at least 3 characters');
+      return;
+    }
     const { error } = await invoke('directory_rename', {
       user_id: renaming.user_id,
       new_username: val,

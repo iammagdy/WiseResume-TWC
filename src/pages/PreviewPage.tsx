@@ -40,6 +40,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { storage, ID } from '@/lib/appwrite';
 import { BUCKETS } from '@/lib/appwrite-collections';
+import { avatarFilePermissions, getAvatarViewUrl } from '@/lib/avatarStorage';
 
 
 
@@ -259,9 +260,9 @@ export default function PreviewPage() {
     try {
       if (user) {
         const file = new File([blob], `resume-photo-${Date.now()}.png`, { type: 'image/png' });
-        const uploaded = await storage.createFile(BUCKETS.avatars, ID.unique(), file);
-        const viewUrl = storage.getFileView(BUCKETS.avatars, uploaded.$id);
-        updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: viewUrl.href } });
+        const fileId = ID.unique();
+        await storage.createFile(BUCKETS.avatars, fileId, file, avatarFilePermissions(user.id));
+        updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: getAvatarViewUrl(fileId) } });
       } else {
         const url = URL.createObjectURL(blob);
         updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: url } });

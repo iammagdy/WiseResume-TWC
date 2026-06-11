@@ -1,7 +1,8 @@
-import { Plus, MessageCircle, Sun, Moon, Sparkles, Briefcase } from 'lucide-react';
+import { Plus, MessageCircle, Sun, Moon, Sparkles, Briefcase, Crown } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useTheme } from '@/hooks/use-theme';
+import { usePlan } from '@/hooks/usePlan';
 import { useWiseWorkspaceStore } from '@/store/wiseWorkspaceStore';
 import { getPageTitle } from '@/lib/pageTitles';
 import { haptics } from '@/lib/haptics';
@@ -18,8 +19,10 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
   const { isDark, toggleTheme } = useTheme();
   const toggleWiseChat = useWiseWorkspaceStore((s) => s.toggleChat);
   const wiseChatOpen = useWiseWorkspaceStore((s) => s.open && s.mode === 'chat');
+  const { plan, isLoading: planLoading } = usePlan();
 
   const pageTitle = getPageTitle(pathname) ?? 'WiseResume';
+  const showPlanBadge = !planLoading && (plan === 'premium' || plan === 'pro');
 
   return (
     <header
@@ -55,6 +58,19 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
             <h2 className="text-sm lg:text-base font-semibold text-foreground truncate leading-tight mt-1">
               {pageTitle}
             </h2>
+            {showPlanBadge && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 mt-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] border',
+                  plan === 'premium'
+                    ? 'border-amber-500/35 bg-amber-500/12 text-amber-700 dark:text-amber-300'
+                    : 'border-primary/30 bg-primary/10 text-primary',
+                )}
+              >
+                <Crown className="w-3 h-3 shrink-0" aria-hidden />
+                {plan === 'premium' ? 'Premium' : 'Pro'}
+              </span>
+            )}
           </div>
         </div>
 

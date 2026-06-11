@@ -45,6 +45,7 @@ const SCREEN_MAP: { prefix: string; label: string }[] = [
   { prefix: '/profile', label: 'Profile' },
   { prefix: '/notifications', label: 'Notifications' },
   { prefix: '/dashboard', label: 'Dashboard' },
+  { prefix: '/tailoring-hub', label: 'Tailoring Hub' },
   { prefix: '/terms-of-service', label: 'Terms of Service' },
   { prefix: '/privacy-policy', label: 'Privacy Policy' },
   { prefix: '/help', label: 'Help Center' },
