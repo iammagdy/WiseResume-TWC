@@ -599,15 +599,37 @@ button,
     flex-shrink: 0;
   }
 
-  /* Resume list: up to ~4 rows, shrinks when Explore needs space */
+  /* Resume list: capped internal scroll on desktop workspace only */
   .dashboard-resume-list-scroll {
     --dashboard-resume-row-height: 4.875rem;
-    flex: 1 1 0;
-    min-height: 0;
-    max-height: calc(4 * var(--dashboard-resume-row-height) + 3 * 0.5rem);
-    overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  @media (min-width: 1280px) {
+    .dashboard-resume-list-scroll {
+      flex: 1 1 0;
+      min-height: 0;
+      max-height: calc(4 * var(--dashboard-resume-row-height) + 3 * 0.5rem);
+      overflow-y: auto;
+    }
+  }
+
+  /* Tablet/mobile: body scrolls as one column — inner flex traps must not collapse */
+  @media (max-width: 1279px) {
+    .dashboard-workspace-main-inner,
+    .dashboard-workspace-main-body {
+      flex: none;
+      min-height: auto;
+      overflow: visible;
+    }
+
+    .dashboard-resume-list-scroll {
+      flex: none;
+      min-height: auto;
+      max-height: none;
+      overflow: visible;
+    }
   }
 
   .dashboard-resume-list-scroll::-webkit-scrollbar {
@@ -1103,6 +1125,12 @@ button,
   }
 
   @media (max-width: 1279px) {
+    .dashboard-workspace-body {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
+    }
+
     .dashboard-workspace-intelligence {
       border-top: 1px solid hsl(var(--border) / 0.28);
     }

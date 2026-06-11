@@ -505,6 +505,8 @@ async function ensureJobImportVariables() {
         ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
         ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
         ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+        ['JINA_READER_API_KEY', process.env.JINA_READER_API_KEY],
+        ['JINA_API_KEY', process.env.JINA_API_KEY],
     ]) {
         await ensureVariable('job-import', key, value);
     }

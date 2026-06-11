@@ -119,11 +119,28 @@ function extractOpenGraph(html) {
 }
 
 function extractJsonLd(html) {
+  const findJobPosting = (node) => {
+    if (!node || typeof node !== 'object') return null;
+    if (node['@type'] === 'JobPosting') return node;
+    if (Array.isArray(node['@graph'])) {
+      for (const item of node['@graph']) {
+        const job = findJobPosting(item);
+        if (job) return job;
+      }
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const job = findJobPosting(item);
+        if (job) return job;
+      }
+    }
+    return null;
+  };
+
   const matches = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   for (const m of matches) {
     try {
-      const data = JSON.parse(m[1]);
-      const job = Array.isArray(data) ? data.find(d => d['@type'] === 'JobPosting') : (data['@type'] === 'JobPosting' ? data : null);
+      const job = findJobPosting(JSON.parse(m[1]));
       if (job) return job;
     } catch { /* skip malformed */ }
   }
@@ -143,6 +160,119 @@ function extractBodyText(html, maxChars = 3000) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxChars);
+}
+
+// --- Job page fetch (browser-like + safe redirects + reader fallback) ------------
+
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+function hostnameOf(rawUrl) {
+  try {
+    return new URL(rawUrl).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function buildFetchHeaders(rawUrl) {
+  const host = hostnameOf(rawUrl);
+  const headers = {
+    'User-Agent': BROWSER_UA,
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate',
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+    'Upgrade-Insecure-Requests': '1',
+  };
+
+  if (host.includes('linkedin.com')) {
+    headers.Referer = 'https://www.linkedin.com/jobs/';
+  } else if (host.includes('indeed.')) {
+    headers.Referer = 'https://www.indeed.com/';
+  } else if (host.includes('glassdoor.')) {
+    headers.Referer = 'https://www.glassdoor.com/';
+  } else if (host.includes('bayt.com')) {
+    headers.Referer = 'https://www.bayt.com/';
+  } else if (host.includes('wuzzuf.net')) {
+    headers.Referer = 'https://wuzzuf.net/';
+  } else if (host) {
+    headers.Referer = `https://${host}/`;
+  }
+
+  return headers;
+}
+
+async function fetchWithSafeRedirects(rawUrl, log, maxRedirects = 5) {
+  let current = rawUrl;
+
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    const safe = await isSafeUrlDnsResolved(current);
+    if (!safe) throw new Error('Redirect target blocked');
+
+    const response = await axios.get(current, {
+      timeout: 12000,
+      maxRedirects: 0,
+      validateStatus: (status) => (status >= 200 && status < 300) || (status >= 300 && status < 400),
+      headers: buildFetchHeaders(current),
+      maxContentLength: 2 * 1024 * 1024,
+      responseType: 'text',
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers?.location;
+      if (!location) throw new Error('Redirect missing location header');
+      current = new URL(location, current).href;
+      log(`Following redirect → ${current}`);
+      continue;
+    }
+
+    const html = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    if (!html || html.length < 200) {
+      throw new Error('Empty or too-short response');
+    }
+    return html;
+  }
+
+  throw new Error('Too many redirects');
+}
+
+async function fetchViaReaderProxy(rawUrl, log) {
+  const apiKey = process.env.JINA_READER_API_KEY || process.env.JINA_API_KEY;
+  const readerUrl = `https://r.jina.ai/${rawUrl}`;
+  const headers = {
+    Accept: 'text/html,application/json,text/plain',
+    'X-Return-Format': 'html',
+  };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  log(`Direct fetch blocked — trying reader proxy for ${hostnameOf(rawUrl)}`);
+  const response = await axios.get(readerUrl, {
+    timeout: 18000,
+    maxContentLength: 3 * 1024 * 1024,
+    headers,
+    responseType: 'text',
+  });
+
+  const body = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+  if (!body || body.length < 100) {
+    throw new Error('Reader proxy returned empty content');
+  }
+  return body;
+}
+
+async function fetchJobPageHtml(rawUrl, log) {
+  try {
+    return await fetchWithSafeRedirects(rawUrl, log);
+  } catch (directErr) {
+    log(`Direct fetch failed (${directErr.message}) — attempting reader proxy`);
+    try {
+      return await fetchViaReaderProxy(rawUrl, log);
+    } catch (proxyErr) {
+      throw new Error(`${directErr.message}; proxy: ${proxyErr.message}`);
+    }
+  }
 }
 
 // â”€â”€â”€ Appwrite document creation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -223,22 +353,17 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ ok: false, error: 'Invalid or blocked URL' }, 400);
   }
 
-  // Fetch raw HTML
+  // Fetch raw HTML (browser-like headers, redirects, reader proxy fallback)
   let html;
   try {
-    const response = await axios.get(url, {
-      timeout: 8000,
-      maxRedirects: 0,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; WiseResume/1.0; +https://thewise.cloud)',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      maxContentLength: 2 * 1024 * 1024, // 2MB cap
-    });
-    html = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    html = await fetchJobPageHtml(url, log);
   } catch (err) {
     error(`Fetch failed for ${url}: ${err.message}`);
-    return res.json({ ok: false, error: 'Could not fetch job page. The site may block automated access.' }, 422);
+    return res.json({
+      ok: false,
+      code: 'fetch_blocked',
+      error: 'Could not fetch job page. The site may block automated access — try again or paste the job text in Tailoring Hub.',
+    }, 422);
   }
 
   // Extract structured data
