@@ -2,6 +2,74 @@
 
 ---
 
+## Session Log - 2026-06-11 (DevKit Stabilization, Maintenance Mode, Portfolio/Auth, Visitor Analytics)
+
+### Overview
+
+Local `main` session — **uncommitted** product work. DevKit/moderation reliability, crash-report dedupe, Deploy All progress, Growth & Traffic `dashboard` action, maintenance mode via `/api/app-settings`, profile avatar public read, `/portfolio` AuthProvider + hooks fixes. Detailed log: `Project Atlas/05-Migration to Appwrite/33-Session-Log-2026-06-11-DevKit-Stabilization-Maintenance-Portfolio-Avatar.md`.
+
+---
+
+### What Changed (summary)
+
+| # | Area | Why | Root cause | Key fix |
+|---|------|-----|------------|---------|
+| 1 | Crash reports / moderation | Inbox empty; email flood | DB save failed; no dedupe | `ai-gateway` schema-safe save + dedupe; ErrorBoundary dedupe |
+| 2 | Dashboard crash | Page white-screen | Stale `isLoading` JSX | `authBootstrapping` in `DashboardPage.tsx` |
+| 3 | Moderation queue DevKit | `list_moderation_queue` failed | Prod schema missing `status` | `fix-moderation-queue-schema.cjs` |
+| 4 | Portfolio rename toast | `[object Object]` | Object errors in toast | `formatDevKitErrorMessage`; backend string errors |
+| 5 | Deploy All hubs | No deploy; no progress | Single 15min call vs 90s timeout | Sequential deploy + progress in `DeployHubsPanel.tsx` |
+| 6 | Growth & Traffic | Slow / stuck skeleton | 8 parallel full collection scans | `dashboard` action; 2-call client fetch |
+| 7 | Maintenance mode | App stayed online | Client cannot read server-only `app_settings` | `/api/app-settings` + hook rewrite |
+| 8 | Profile avatar | Initials after upload | Storage file private; sidebar no image | `avatarStorage.ts` + `Role.any()` read |
+| 9 | `/portfolio` auth crash | `useAuth` outside provider | Duplicate `AuthContext` from code-split | `AuthProvider` hoisted to `App.tsx` |
+| 10 | `/portfolio` hooks crash | Rules of Hooks violation | `savingDraft` after early returns | Move state to top of `PortfolioEditorPage.tsx` |
+
+---
+
+### Files Changed (product — uncommitted)
+
+See session log #33 for full table. Hubs: `ai-gateway`, `admin-visitor-analytics`, `admin-portfolio-usernames`, `admin-deploy-hubs`. Frontend: `App.tsx`, `AppInterior.tsx`, `useAppSettings.ts`, `api/app-settings.ts`, `server/appSettingsFetch.ts`, `DeployHubsPanel.tsx`, `VisitorsPanel.tsx`, `PortfolioEditorPage.tsx`, `avatarStorage.ts`, DevKit panels, crash-report libs, moderation scripts.
+
+---
+
+### Validation
+
+| Check | Result |
+|---|---|
+| `useAppSettings.test.tsx` | 3 passed |
+| `avatarStorage.test.ts` | 2 passed |
+| `test-visitor-dashboard.cjs` | dashboard 200, ~400ms; `visitor_events` 0 |
+| `tsc --noEmit` | OK (auth/portfolio fixes) |
+| Auth / ProtectedRoute vitest | OK |
+| `PortfolioEditorPage.test.tsx` | Pre-existing mock failure (unrelated) |
+
+---
+
+### Commits / Deployments
+
+| Item | State |
+|---|---|
+| Session product commits | **None** — uncommitted at session close |
+| Last commit | `32e0d4bc` — CI single-hub deploy fix |
+| Docs commit | This session (after log write) |
+| Appwrite hubs redeployed | `ai-gateway`, `admin-visitor-analytics`, `admin-portfolio-usernames` |
+| Vercel frontend | **Not deployed** this session (maintenance, avatar, auth, deploy panel, visitor UI) |
+| Production DB | `moderation_queue` schema repaired via script |
+
+---
+
+### Where We Stopped (authoritative)
+
+1. **Commit + push** — ~60+ modified/new files uncommitted. Await user approval.
+2. **Vercel deploy** — required for maintenance mode (`/api/app-settings`), avatar UI, AuthProvider hoist, Deploy All progress, visitor panel, dashboard fix.
+3. **Vercel env:** `APPWRITE_API_KEY`, `APPWRITE_PROJECT_ID` for app-settings route.
+4. **Manual QA:** maintenance toggle; profile re-upload; `/portfolio`; Deploy All progress; Growth & Traffic empty state.
+5. **Optional:** redeploy remaining hubs via DevKit sequential Deploy All or CI.
+6. **Prior session follow-ups still open if overlapping:** Sentry CSP, cover letter bundle QA — see 2026-06-10 logs.
+
+---
+
 ## Session Log - 2026-06-10 (Cover Letter Bundle, PDF Dialog Desktop, Preview Crash, ErrorBoundary, Observability)
 
 ### Overview

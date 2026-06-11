@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-10
+**Last verified:** 2026-06-11
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,32 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-11 - DevKit stabilization, maintenance mode, portfolio/auth, visitor analytics
+
+### Context
+- Triggered by: DevKit/moderation broken, Deploy All useless, Growth & Traffic stuck, maintenance mode ineffective, profile avatar not showing, `/portfolio` crashes.
+
+### Product changes (uncommitted)
+- `ai-gateway`: crash email dedupe, schema-safe moderation bug save, rate limits.
+- `admin-visitor-analytics`: single `dashboard` action; 15k doc cap.
+- Maintenance mode: `api/app-settings.ts`, server route, `useAppSettings` fetch rewrite.
+- Profile avatar: `avatarStorage.ts` with public read; sidebar `AvatarImage`.
+- Auth: `AuthProvider` hoisted to `App.tsx` (fix duplicate context from lazy chunk).
+- Portfolio: `savingDraft` hook order fix.
+- Deploy All: sequential deploy + progress bar in DevKit.
+
+### Deployments (session)
+- Appwrite: `ai-gateway`, `admin-visitor-analytics`, `admin-portfolio-usernames` redeployed.
+- Vercel frontend: **not deployed** at session close.
+
+### Files changed
+- See `Project Atlas/05-Migration to Appwrite/33-Session-Log-2026-06-11-DevKit-Stabilization-Maintenance-Portfolio-Avatar.md`
+
+### Validation
+- `useAppSettings.test.tsx` (3), `avatarStorage.test.ts` (2), `test-visitor-dashboard.cjs`, `tsc`, auth vitest — OK.
 
 ---
 
