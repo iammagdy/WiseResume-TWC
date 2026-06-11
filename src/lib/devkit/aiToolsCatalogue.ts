@@ -32,41 +32,28 @@ export const TOOL_CREDIT_COSTS: Record<string, number> = {
   'tailor-resume': 2,
   'generate-cover-letter': 2,
   'generate-question-bank': 1,
-  'recruiter-simulation': 2,
   'agentic-chat': 1,
   'wise-ai-chat': 1,
   'resume-section-ai': 1,
   'editor-ai': 1,
-  'detect-and-humanize': 1,
   'smart-fit-rewrite': 2,
-  'career-assessment': 2,
-  'generate-portfolio-bio': 1,
-  'generate-resignation-letter': 1,
-  'validate-tailor': 1,
   'suggest-template': 1,
   'generate-fix-suggestions': 1,
   'parse-resume': 1,
   'parse-job': 1,
   'optimize-for-linkedin': 1,
   'company-briefing': 1,
-  'ask-portfolio': 1,
 };
 
 /** Mirrors FEATURE_ROUTES in appwrite-hubs/ai-gateway/src/main.js */
 export const TOOL_GATEWAY_DEFAULTS: Record<string, { provider: ToolProvider; model: string }> = {
   'generate-cover-letter':        { provider: 'deepseek',   model: 'deepseek-chat' },
-  'tailor-resume':                { provider: 'deepseek',   model: 'deepseek-chat' },
-  'recruiter-simulation':         { provider: 'deepseek',   model: 'deepseek-chat' },
+  'tailor-resume':                 { provider: 'deepseek',   model: 'deepseek-chat' },
   'agentic-chat':                 { provider: 'deepseek',   model: 'deepseek-chat' },
   'wise-ai-chat':                 { provider: 'deepseek',   model: 'deepseek-chat' },
   'resume-section-ai':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
   'editor-ai':                    { provider: 'deepseek',   model: 'deepseek-chat' },
-  'detect-and-humanize':          { provider: 'deepseek',   model: 'deepseek-chat' },
   'smart-fit-rewrite':            { provider: 'deepseek',   model: 'deepseek-chat' },
-  'career-assessment':            { provider: 'deepseek',   model: 'deepseek-chat' },
-  'generate-portfolio-bio':       { provider: 'deepseek',   model: 'deepseek-chat' },
-  'generate-resignation-letter':  { provider: 'deepseek',   model: 'deepseek-chat' },
-  'validate-tailor':              { provider: 'deepseek',   model: 'deepseek-chat' },
   'suggest-template':             { provider: 'deepseek',   model: 'deepseek-chat' },
   'analyze-resume':               { provider: 'deepseek',   model: 'deepseek-chat' },
   'generate-fix-suggestions':     { provider: 'deepseek',   model: 'deepseek-chat' },
@@ -75,12 +62,11 @@ export const TOOL_GATEWAY_DEFAULTS: Record<string, { provider: ToolProvider; mod
   'optimize-for-linkedin':        { provider: 'deepseek',   model: 'deepseek-chat' },
   'generate-question-bank':       { provider: 'deepseek',   model: 'deepseek-chat' },
   'company-briefing':             { provider: 'deepseek',   model: 'deepseek-chat' },
-  'ask-portfolio':                { provider: 'deepseek',   model: 'deepseek-chat' },
 };
 
 /** All AI tools, grouped by app area. */
 export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
-  // ── Resume Editor ─────────────────────────────────────────────────────────
+  // ─── Resume Editor ──────────────────────────────────────────────────────────
   {
     id: 'resume-section-ai',
     appArea: 'resume-editor',
@@ -106,14 +92,6 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     description: 'Generates targeted improvement tips after an ATS score run highlights red-zone sections',
   },
   {
-    id: 'detect-and-humanize',
-    appArea: 'resume-editor',
-    creditCost: TOOL_CREDIT_COSTS['detect-and-humanize'],
-    gatewayDefault: TOOL_GATEWAY_DEFAULTS['detect-and-humanize'],
-    label: 'Humanize Text',
-    description: 'Detects AI-generated phrasing and rewrites it to read naturally and authentically',
-  },
-  {
     id: 'suggest-template',
     appArea: 'resume-editor',
     creditCost: TOOL_CREDIT_COSTS['suggest-template'],
@@ -122,7 +100,7 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     description: "Recommends the best resume template layout based on the user's role and industry",
   },
 
-  // ── Tailoring & Job Match ─────────────────────────────────────────────────
+  // ─── Tailoring & Job Match ──────────────────────────────────────────────────
   {
     id: 'tailor-resume',
     appArea: 'tailoring',
@@ -156,14 +134,6 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     description: "Rewrites individual bullet points to better echo keywords and requirements from a job posting",
   },
   {
-    id: 'validate-tailor',
-    appArea: 'tailoring',
-    creditCost: TOOL_CREDIT_COSTS['validate-tailor'],
-    gatewayDefault: TOOL_GATEWAY_DEFAULTS['validate-tailor'],
-    label: 'Tailor Validation',
-    description: "Verifies that a tailored resume adequately addresses the target job's key requirements",
-  },
-  {
     id: 'optimize-for-linkedin',
     appArea: 'tailoring',
     creditCost: TOOL_CREDIT_COSTS['optimize-for-linkedin'],
@@ -180,7 +150,7 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     description: 'Scores a resume against a job description for ATS compatibility — uses provider pool, no dedicated route',
   },
 
-  // ── Chat & Analysis ───────────────────────────────────────────────────────
+  // ─── Chat & Analysis ────────────────────────────────────────────────────────
   {
     id: 'agentic-chat',
     appArea: 'chat',
@@ -207,22 +177,6 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     description: 'Deep resume analysis: scores sections, identifies gaps, and produces a full ATS compatibility report',
   },
   {
-    id: 'career-assessment',
-    appArea: 'chat',
-    creditCost: TOOL_CREDIT_COSTS['career-assessment'],
-    gatewayDefault: TOOL_GATEWAY_DEFAULTS['career-assessment'],
-    label: 'Career Assessment',
-    description: "Career path assessment and skills-gap analysis based on the user's current profile and goals",
-  },
-  {
-    id: 'recruiter-simulation',
-    appArea: 'chat',
-    creditCost: TOOL_CREDIT_COSTS['recruiter-simulation'],
-    gatewayDefault: TOOL_GATEWAY_DEFAULTS['recruiter-simulation'],
-    label: 'Recruiter Simulation',
-    description: 'Simulates a recruiter reviewing the resume, providing realistic feedback as if in an early screening',
-  },
-  {
     id: 'company-briefing',
     appArea: 'chat',
     creditCost: TOOL_CREDIT_COSTS['company-briefing'],
@@ -231,7 +185,7 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     description: 'Generates a pre-interview briefing on the target company — culture, product, recent news',
   },
 
-  // ── Document Generation ───────────────────────────────────────────────────
+  // ─── Document Generation ────────────────────────────────────────────────────
   {
     id: 'generate-cover-letter',
     appArea: 'documents',
@@ -241,37 +195,11 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     description: 'Generates a personalised, job-specific cover letter from the resume and job description',
   },
   {
-    id: 'generate-portfolio-bio',
-    appArea: 'documents',
-    creditCost: TOOL_CREDIT_COSTS['generate-portfolio-bio'],
-    gatewayDefault: TOOL_GATEWAY_DEFAULTS['generate-portfolio-bio'],
-    label: 'Portfolio Bio',
-    description: "Writes the \"About Me\" bio displayed on the user's public portfolio page",
-  },
-  {
-    id: 'generate-resignation-letter',
-    appArea: 'documents',
-    creditCost: TOOL_CREDIT_COSTS['generate-resignation-letter'],
-    gatewayDefault: TOOL_GATEWAY_DEFAULTS['generate-resignation-letter'],
-    label: 'Resignation Letter',
-    description: "Generates a professional resignation letter based on the user's role and chosen tone",
-  },
-  {
     id: 'generate-question-bank',
     appArea: 'documents',
     creditCost: TOOL_CREDIT_COSTS['generate-question-bank'],
     gatewayDefault: TOOL_GATEWAY_DEFAULTS['generate-question-bank'],
     label: 'Question Bank',
     description: 'Generates a role-specific interview Q&A bank, including behavioural and technical questions',
-  },
-
-  // ── Portfolio & Public ────────────────────────────────────────────────────
-  {
-    id: 'ask-portfolio',
-    appArea: 'portfolio',
-    creditCost: TOOL_CREDIT_COSTS['ask-portfolio'],
-    gatewayDefault: TOOL_GATEWAY_DEFAULTS['ask-portfolio'],
-    label: 'Ask Portfolio',
-    description: "Answers visitor questions about a user's public portfolio page",
   },
 ];
