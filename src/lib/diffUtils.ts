@@ -11,33 +11,42 @@ export interface TextDiff {
   text: string;
 }
 
+/** Canonical key for skill equality (case, spaces, punctuation insensitive). */
+export function normalizeSkill(skill: string): string {
+  return skill.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 /**
- * Compare two arrays of skills and identify additions/removals
+ * Compare two arrays of skills and identify additions/removals.
+ * Uses normalized keys so "Node.js" vs "Node js" or spacing changes are not
+ * falsely marked as removed+added pairs.
  */
 export function compareSkills(original: string[], tailored: string[]): SkillDiff {
-  const originalSet = new Set(original.map(s => s.toLowerCase()));
-  const tailoredSet = new Set(tailored.map(s => s.toLowerCase()));
-  
+  const originalByNorm = new Map<string, string>();
+  for (const skill of original) {
+    const norm = normalizeSkill(skill);
+    if (norm && !originalByNorm.has(norm)) originalByNorm.set(norm, skill);
+  }
+
+  const tailoredByNorm = new Map<string, string>();
+  for (const skill of tailored) {
+    const norm = normalizeSkill(skill);
+    if (norm && !tailoredByNorm.has(norm)) tailoredByNorm.set(norm, skill);
+  }
+
   const added: string[] = [];
   const removed: string[] = [];
   const unchanged: string[] = [];
-  
-  // Find added skills (in tailored but not in original)
-  tailored.forEach(skill => {
-    if (!originalSet.has(skill.toLowerCase())) {
-      added.push(skill);
-    } else {
-      unchanged.push(skill);
-    }
-  });
-  
-  // Find removed skills (in original but not in tailored)
-  original.forEach(skill => {
-    if (!tailoredSet.has(skill.toLowerCase())) {
-      removed.push(skill);
-    }
-  });
-  
+
+  for (const [norm, display] of tailoredByNorm) {
+    if (originalByNorm.has(norm)) unchanged.push(display);
+    else added.push(display);
+  }
+
+  for (const [norm, display] of originalByNorm) {
+    if (!tailoredByNorm.has(norm)) removed.push(display);
+  }
+
   return { added, removed, unchanged };
 }
 

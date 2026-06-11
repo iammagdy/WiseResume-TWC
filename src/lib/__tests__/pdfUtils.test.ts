@@ -5,7 +5,9 @@ import {
   computePreviewBreaks,
   estimatePageCount,
   getSectionLabelForBreakY,
+  getSectionsWithBreaksBefore,
   injectForcedBreaks,
+  resolveExportBreakPositions,
   resolveExportPageCount,
 } from '@/lib/pdfUtils';
 
@@ -236,7 +238,7 @@ describe('injectForcedBreaks', () => {
     expect(result).toContain(300);
   });
 
-  it('uses the section h2 offsetTop when the heading is not flush with the section box', () => {
+  it('uses the earliest boundary before section content when heading is inset', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500 });
@@ -251,7 +253,7 @@ describe('injectForcedBreaks', () => {
     layout(heading, { offsetTop: 20, offsetHeight: 24, offsetParent: section });
 
     const result = injectForcedBreaks([748], root, ['education'], 1500);
-    expect(result).toContain(300);
+    expect(result).toContain(280);
   });
 
   it('preserves existing smart breaks that are far enough from the forced break', () => {
@@ -345,6 +347,55 @@ describe('injectForcedBreaks', () => {
 
     const result = injectForcedBreaks([700], root, ['experience'], 1500);
     expect(result).toEqual([500]);
+  });
+});
+
+describe('resolveExportBreakPositions', () => {
+  const PAGE_WIDTH = 612;
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('re-measures section-aligned breaks on the export template', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500, offsetHeight: 1500 });
+
+    const summary = document.createElement('section');
+    summary.setAttribute('data-section', 'summary');
+    root.appendChild(summary);
+    layout(summary, { offsetTop: 0, offsetHeight: 200, offsetParent: root });
+
+    const education = document.createElement('section');
+    education.setAttribute('data-section', 'education');
+    root.appendChild(education);
+    layout(education, { offsetTop: 520, offsetHeight: 300, offsetParent: root });
+
+    const resolved = resolveExportBreakPositions(root, [525], 40);
+    expect(resolved).toEqual([520]);
+  });
+});
+
+describe('getSectionsWithBreaksBefore', () => {
+  const PAGE_WIDTH = 612;
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('returns section ids aligned to break boundaries', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    layout(root, { offsetWidth: PAGE_WIDTH, scrollHeight: 1500, offsetHeight: 1500 });
+
+    const education = document.createElement('section');
+    education.setAttribute('data-section', 'education');
+    root.appendChild(education);
+    layout(education, { offsetTop: 500, offsetHeight: 300, offsetParent: root });
+
+    expect(getSectionsWithBreaksBefore(root, [500], 40)).toEqual(['education']);
+    expect(getSectionsWithBreaksBefore(root, [700], 40)).toEqual([]);
   });
 });
 

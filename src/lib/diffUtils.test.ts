@@ -75,6 +75,17 @@ describe('diffUtils', () => {
       expect(result.unchanged).toEqual(['react']);
     });
 
+    it('treats punctuation and spacing variants as the same skill', () => {
+      const original = ['Service Level Agreements (SLAs)', 'Node.js'];
+      const tailored = ['ServiceLevelAgreements (SLAs)', 'Node js'];
+
+      const result = compareSkills(original, tailored);
+
+      expect(result.added).toEqual([]);
+      expect(result.removed).toEqual([]);
+      expect(result.unchanged).toHaveLength(2);
+    });
+
     it('should handle empty arrays', () => {
       const result = compareSkills([], []);
 

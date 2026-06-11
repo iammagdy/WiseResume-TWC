@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-06-10 - Cover letter bundle, Preview crash fix, ErrorBoundary, observability audit
+
+### Context
+- Triggered by: tailor → cover letter flow gaps, PreviewPage crash, production error UX, Sentry/email appearing inactive.
+
+### Product changes (uncommitted)
+- Tailor result ↔ cover letter round-trip: `tailorJobContext.ts`, linked letter panel, bundle PDF downloads.
+- PDF export dialog: desktop spread layout, editable filename, accurate page count.
+- `PreviewPage.tsx`: import `lazy` — fixes `ReferenceError: lazy is not defined`.
+- `ErrorBoundary`: production-friendly UI; auto crash email via `send-contact-email`.
+
+### Observability (audit only)
+- `send-contact-email` is a route inside `ai-gateway` (not a separate hub). User added `RESEND_API_KEY`.
+- Sentry DSN present in prod bundle but **CSP blocks** `*.ingest.sentry.io` — fix pending.
+- Datadog on ai-gateway deferred (stubbed no-op).
+
+### Files changed
+- See `Project Atlas/05-Migration to Appwrite/32-Session-Log-2026-06-10-Cover-Letter-Bundle-Preview-Crash-Observability.md`
+
+### Validation
+- Preview route browser smoke — OK
+- Full build/vitest — not re-run
+
+### Deployment
+- Not committed or deployed this session
+
+---
+
 ## 2026-06-10 - Dashboard stale list search fix
 
 ### Context

@@ -120,7 +120,7 @@ async function main() {
 
   // Index on user_id for fast per-user lookups
   if (!(await indexExists(COLLECTION_ID, 'idx_user_id'))) {
-    await databases.createIndex(DB_ID, COLLECTION_ID, 'idx_user_id', sdk.IndexType.Key, ['user_id'], ['ASC']);
+    await databases.createIndex(DB_ID, COLLECTION_ID, 'idx_user_id', 'key', ['user_id'], ['ASC']);
     console.log('✓ created index "idx_user_id"');
   } else {
     console.log('✓ index "idx_user_id" already exists');

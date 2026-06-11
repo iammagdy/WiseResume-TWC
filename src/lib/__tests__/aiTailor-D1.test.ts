@@ -105,7 +105,7 @@ describe("tailorResumeWithProgress (D1)", () => {
     ).rejects.toMatchObject({ code: "rate_limit" });
   });
 
-  it("throws credits_exhausted error on 402 response", async () => {
+  it("throws payment_required error on 402 response", async () => {
     mockInvoke.mockResolvedValueOnce({
       data: null,
       error: { message: "credits exhausted", status: 402 },
@@ -118,7 +118,7 @@ describe("tailorResumeWithProgress (D1)", () => {
         mockJobDescription,
         onProgress
       )
-    ).rejects.toMatchObject({ code: "credits_exhausted" });
+    ).rejects.toMatchObject({ code: "payment_required" });
   });
 
   it("retries once on generic (500) error after delay", async () => {

@@ -32,6 +32,8 @@ const DEPLOY_POLL_ATTEMPTS = 120;
 const DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true;
 
 const HUB_TIMEOUTS = {
+    // tailor-resume allows up to 28s per provider attempt with cross-provider fallbacks
+    'ai-gateway': 180,
     'admin-deploy-hubs': 900,
 };
 
@@ -627,10 +629,18 @@ async function syncVariablesForHubs(hubIds) {
     const selected = new Set(hubIds);
     const hasAny = ids => ids.some(id => selected.has(id));
 
-    if (selected.has('ai-gateway')) await ensureAiGatewayVariables();
+    if (selected.has('ai-gateway')) {
+        await ensureAiGatewayVariables();
+        console.log('\nEnsuring ai_credits schema...');
+        execSync('node scripts/setup_ai_credits_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
     if (selected.has('ai-health')) await ensureAiHealthVariables();
     if (selected.has('resume-section-ai')) await ensureResumeSectionVariables();
-    if (selected.has('job-import')) await ensureJobImportVariables();
+    if (selected.has('job-import')) {
+        await ensureJobImportVariables();
+        console.log('\nEnsuring jobs collection schema...');
+        execSync('node scripts/setup_jobs_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
 
     const sharedAdminIds = [
         'admin-devkit-data',

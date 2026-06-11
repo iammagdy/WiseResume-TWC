@@ -19,6 +19,17 @@ export function getSectionHeadingTop(sectionEl: HTMLElement, root: HTMLElement):
   return getOffsetTopRelative(heading ?? sectionEl, root);
 }
 
+/** Safe page-break Y before a section — never splits the heading band. */
+export function getSectionBreakBoundary(
+  sectionEl: HTMLElement,
+  root: HTMLElement,
+  minGap: number = 40,
+): number {
+  const top = getOffsetTopRelative(sectionEl, root);
+  const headTop = getSectionHeadingTop(sectionEl, root);
+  return Math.max(minGap, Math.min(top, headTop));
+}
+
 export interface SectionLayoutBounds {
   top: number;
   bottom: number;

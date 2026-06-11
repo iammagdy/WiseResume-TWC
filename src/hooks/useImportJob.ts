@@ -26,7 +26,7 @@ export function useImportJob() {
 
   return useMutation({
     mutationFn: async (url: string) => {
-      if (!user?.$id) {
+      if (!user?.id) {
         throw new Error('Sign in to import job postings.');
       }
 
@@ -36,7 +36,7 @@ export function useImportJob() {
         job: ParsedJobImport;
         error?: string;
       }>('job-import', {
-        body: { url, userId: user.$id },
+        body: { url, userId: user.id },
       });
 
       if (result.error || !result.data?.ok) {
@@ -46,7 +46,7 @@ export function useImportJob() {
       const { job, jobId } = result.data;
 
       if (jobId) {
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        await queryClient.invalidateQueries({ queryKey: ['jobs', user.id] });
         return { id: jobId, job };
       }
 

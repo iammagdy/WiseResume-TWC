@@ -11,6 +11,7 @@ import { functions } from '@/lib/appwrite';
 import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { isImpersonating, getImpersonationState } from '@/lib/impersonationStore';
+import { aiErrorToastMessage, parseAIErrorBody } from '@/lib/aiErrorParser';
 
 interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
@@ -240,11 +241,19 @@ export const appwriteFunctions = {
 
       if (execution.status === 'failed') {
         console.error('[appwriteFunctions] execution failed', execution.errors);
+        const runtimeInfo = parseAIErrorBody(
+          {
+            code: 'FUNCTION_RUNTIME_FAILED',
+            message: execution.errors || `Appwrite Function runtime failed for ${functionId}.`,
+          },
+          504,
+        );
         return {
           data: null,
           error: {
-            message: execution.errors || `Appwrite Function runtime failed for ${functionId}.`,
-            code: 'FUNCTION_RUNTIME_FAILED',
+            message: aiErrorToastMessage(runtimeInfo),
+            status: runtimeInfo.status,
+            code: runtimeInfo.code,
             raw: execution,
           },
         };
@@ -274,25 +283,38 @@ export const appwriteFunctions = {
       if (
         (routeToAiGateway || routeToCoupons || routeToWiseHire || routeToPublicShare) &&
         parsed !== null &&
-        typeof parsed === 'object' &&
-        'data' in (parsed as object)
+        typeof parsed === 'object'
       ) {
-        const envelope = parsed as { status?: string; data: unknown; message?: string };
+        const envelope = parsed as {
+          status?: string;
+          data?: unknown;
+          message?: string;
+          code?: string;
+          error?: string;
+        };
         if (envelope.status === 'error') {
-          const inferredStatus = inferStatusFromMessage(envelope.message);
+          const inferredStatus = inferStatusFromMessage(envelope.message) ?? (statusCode >= 400 ? statusCode : 503);
+          const info = parseAIErrorBody(
+            {
+              code: envelope.code ?? envelope.error,
+              message: envelope.message,
+              error: envelope.error,
+            },
+            inferredStatus,
+          );
           return {
             data: null,
             error: {
-              message:
-                inferredStatus !== undefined
-                  ? classifyHttpError(fnName, inferredStatus, parsed)
-                  : (envelope.message || 'AI function returned an error.'),
-              status: inferredStatus,
+              message: aiErrorToastMessage(info),
+              status: info.status,
+              code: info.code,
               raw: parsed,
             },
           };
         }
-        return { data: envelope.data as T, error: null };
+        if ('data' in envelope) {
+          return { data: envelope.data as T, error: null };
+        }
       }
 
       return { data: parsed as T, error: null };

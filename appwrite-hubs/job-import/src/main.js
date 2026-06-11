@@ -169,8 +169,6 @@ async function createJobDocument(userId, job, sourceUrl) {
           location: job.location || '',
           salary_range: job.salary_range || null,
           job_type: job.job_type || 'full-time',
-          remote: job.remote,
-          skills: job.skills,
           description: job.description || '',
           requirements: job.requirements || '',
           posted_date: new Date().toISOString(),

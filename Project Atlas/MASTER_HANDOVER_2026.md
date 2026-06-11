@@ -2,6 +2,63 @@
 
 ---
 
+## Session Log - 2026-06-10 (Cover Letter Bundle, PDF Dialog Desktop, Preview Crash, ErrorBoundary, Observability)
+
+### Overview
+
+Local `main` session — **uncommitted** product work after docs commit `e7aba0b7`. **Tailor result ↔ cover letter round-trip** (prefill, linked letter on result, bundle downloads), **PDF export dialog desktop polish**, **PreviewPage `lazy` crash fix**, **production ErrorBoundary** + auto email crash reports, **observability audit** (Sentry blocked by CSP; `send-contact-email` is inside `ai-gateway`; user added `RESEND_API_KEY`; Datadog deferred). Detailed log: `Project Atlas/05-Migration to Appwrite/32-Session-Log-2026-06-10-Cover-Letter-Bundle-Preview-Crash-Observability.md`.
+
+---
+
+### What Changed (summary)
+
+| # | Area | Why | Root cause | Key fix |
+|---|------|-----|------------|---------|
+| 1 | Cover letter bundle | Empty form; no return to tailor result | Wrong resume id field; JD not persisted | `tailorJobContext.ts`, result panels, round-trip nav |
+| 2 | PDF dialog desktop | Too narrow; wrong page count; bad filename | Stack layout; break count mismatch | Spread preview, `defaultBreakSection`, editable filename |
+| 3 | Preview crash | Raw stack shown to users | `lazy` not imported | `PreviewPage.tsx` React import fix |
+| 4 | ErrorBoundary | Technical errors exposed in prod | Dev-oriented fallback UI | Friendly UI + auto `sendFeedback` email |
+| 5 | Observability | Sentry/email seemed dead | CSP blocks Sentry; email is ai-gateway route | Audit only; `RESEND_API_KEY` added; CSP fix pending |
+
+---
+
+### Files Changed (product — uncommitted)
+
+Primary paths: `src/lib/tailorJobContext.ts`, `TailoringHubResultPage.tsx`, `CoverLetterNewPage.tsx`, `TailorResultCoverLetterPanel.tsx`, `TailorResultExportPanel.tsx`, `TailorQuickPdfExportDialog.tsx`, `ExportPageBreakSetup.tsx`, `PreviewPage.tsx`, `ErrorBoundary.tsx`. Plus all files from session #31 still uncommitted.
+
+---
+
+### Validation
+
+| Check | Result |
+|---|---|
+| Preview route smoke | OK |
+| Production Sentry DSN in bundle | OK |
+| Sentry events reaching dashboard | **Blocked by CSP** until `connect-src` updated |
+| `RESEND_API_KEY` on ai-gateway | User added in Console |
+
+---
+
+### Commits / Deployments
+
+| Item | State |
+|---|---|
+| Last docs commit | `e7aba0b7` — session log #31 |
+| Product commits | **None** this session |
+| Vercel / Appwrite hub redeploy | **Not deployed** (env var only for Resend) |
+
+---
+
+### Where We Stopped (authoritative)
+
+1. **Uncommitted product work** — this session + session #31 + dashboard/AI Studio changes in same tree. Commit/push when user approves.
+2. **CSP:** Add `https://*.ingest.sentry.io` to `vite.config.ts` + `vercel.json`, redeploy for Sentry.
+3. **Email crash reports:** Should work with `RESEND_API_KEY` on `ai-gateway` — verify with test error.
+4. **Datadog:** Deferred (stubbed in ai-gateway code).
+5. **Manual QA:** cover letter bundle flow, PDF dialog desktop, preview from tailor result.
+
+---
+
 ## Session Log - 2026-06-10 (Tailoring Hub Compare, PDF Export Dialog, Local PDF Server, Cover Letter Route)
 
 ### Overview
@@ -52,13 +109,10 @@ See session log for full table. Primary paths: `src/components/job-match/Tailor*
 
 ---
 
-### Where We Stopped (authoritative)
+### Where We Stopped
 
-1. **Uncommitted product work** — Tailoring compare/export/cover-letter + prior 2026-06-10 dashboard/AI Studio changes in same tree. Review diff, test, commit, push when user approves.
-2. **Manual QA:** section compare + skills highlights; Download PDF 2-page break before Education; Create cover letter from tailor result; local PDF via `npm run dev:full`.
-3. **Local PDF:** Requires `dev:pdf-server` or `dev:full` when `VITE_API_URL=http://localhost:5001`.
-4. **Ops (unchanged):** Deploy Appwrite Hubs (`ai_credits`); Vercel `VITE_TURNSTILE_SITE_KEY` non-Sensitive.
-5. **Re-tailor** old results for project/skills merge fixes.
+1. **Superseded** by 2026-06-10 cover-letter bundle / preview crash session above — see authoritative section there for current stop point.
+2. Items below still apply until committed/deployed: section compare QA, local PDF via `dev:full`, re-tailor for merge fixes.
 
 ---
 

@@ -189,6 +189,11 @@ function FeatureGate({ enabled, children }: { enabled: boolean; children: React.
   return <>{children}</>;
 }
 
+function LegacyCoverLetterRedirect() {
+  const { search, state } = useLocation();
+  return <Navigate to={`/cover-letter/new${search}`} replace state={state} />;
+}
+
 function RouteEB({ children }: { children: ReactNode }) {
   function handleReset() {
     useResumeStore.persist.rehydrate();
@@ -360,6 +365,7 @@ function AppRoutes() {
                  <Route path="/cover-letters" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/cover-letter/new" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/cover-letter/edit/:id" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense></FeatureGate></RouteEB>} />
+                <Route path="/cover-letter" element={<RouteEB><LegacyCoverLetterRedirect /></RouteEB>} />
                 <Route path="/examples" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense></RouteEB>} />
                 <Route path="/career" element={<RouteEB><FeatureGate enabled={appSettings.feature_career_advisor}><Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/resignation-letters" element={<RouteEB><Suspense fallback={<ResignationLettersSkeleton />}><ResignationLettersPage /></Suspense></RouteEB>} />

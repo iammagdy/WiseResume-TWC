@@ -1043,7 +1043,7 @@ function normalizeExperienceItem(item) {
     endDate: asString(item.endDate),
     current: asBoolean(item.current),
     description: asString(item.description),
-    achievements: toStringArray(item.achievements),
+    achievements: dedupeAchievements(toStringArray(item.achievements)),
     responsibilities: toStringArray(item.responsibilities),
     isProject: asBoolean(item.isProject),
   };
@@ -1283,6 +1283,101 @@ function normalizeIdentityValue(value) {
   return asString(value).trim().toLowerCase();
 }
 
+function normalizeSkillKey(skill) {
+  return asString(skill).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function mergeSkillsForTailor(original, tailored) {
+  const originals = Array.isArray(original) ? original.map(asString).filter(Boolean) : [];
+  const tailoredList = Array.isArray(tailored) ? tailored.map(asString).filter(Boolean) : [];
+  const originalByNorm = new Map();
+  originals.forEach((skill) => originalByNorm.set(normalizeSkillKey(skill), skill));
+
+  const merged = [];
+  const seen = new Set();
+  for (const skill of tailoredList) {
+    const norm = normalizeSkillKey(skill);
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    merged.push(originalByNorm.get(norm) || skill);
+  }
+  for (const skill of originals) {
+    const norm = normalizeSkillKey(skill);
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    merged.push(skill);
+  }
+  return merged;
+}
+
+function normalizeBulletKey(text) {
+  return asString(text).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function bulletSimilarity(a, b) {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.includes(b) || b.includes(a)) return 0.92;
+  const aWords = new Set(a.split(' ').filter(Boolean));
+  const bWords = new Set(b.split(' ').filter(Boolean));
+  if (!aWords.size || !bWords.size) return 0;
+  let overlap = 0;
+  for (const word of aWords) {
+    if (bWords.has(word)) overlap += 1;
+  }
+  return overlap / Math.max(aWords.size, bWords.size);
+}
+
+function dedupeAchievements(achievements) {
+  const list = Array.isArray(achievements) ? achievements.map(asString).filter(Boolean) : [];
+  const kept = [];
+  const norms = [];
+  for (const bullet of list) {
+    const norm = normalizeBulletKey(bullet);
+    const isDupe = norms.some((existing) => bulletSimilarity(existing, norm) >= 0.82);
+    if (isDupe) continue;
+    norms.push(norm);
+    kept.push(bullet);
+  }
+  return kept;
+}
+
+function mergeTailorItemsWithOriginals(parsedItems, originalItems, matcher) {
+  const merged = preserveStructuredIds(parsedItems, originalItems, matcher);
+  const originals = Array.isArray(originalItems) ? originalItems.filter(isRecord) : [];
+  if (!originals.length) return merged;
+
+  const hasMatch = (original, item) => {
+    const originalId = asString(original.id);
+    const itemId = asString(item.id);
+    if (originalId && itemId && originalId === itemId) return true;
+    return matcher(original, item);
+  };
+
+  for (let i = 0; i < originals.length; i += 1) {
+    const original = originals[i];
+    if (merged.some((item) => hasMatch(original, item))) continue;
+    merged.push({ ...original });
+  }
+
+  const orderIndex = new Map();
+  originals.forEach((original, index) => {
+    const id = asString(original.id);
+    if (id) orderIndex.set(id, index);
+  });
+
+  merged.sort((a, b) => {
+    const ai = orderIndex.get(asString(a.id));
+    const bi = orderIndex.get(asString(b.id));
+    if (ai == null && bi == null) return 0;
+    if (ai == null) return 1;
+    if (bi == null) return -1;
+    return ai - bi;
+  });
+
+  return merged;
+}
+
 function preserveStructuredIds(parsedItems, originalItems, matcher) {
   const parsedList = Array.isArray(parsedItems) ? parsedItems.filter(isRecord).map((item) => ({ ...item })) : [];
   const originals = Array.isArray(originalItems) ? originalItems.filter(isRecord) : [];
@@ -1316,8 +1411,12 @@ function preserveStructuredIds(parsedItems, originalItems, matcher) {
 function normalizeTailorResumeCollections(parsed, opts = {}) {
   const resume = isRecord(opts.resume) ? opts.resume : {};
   return {
-    experience: preserveStructuredIds(
-      parsed.experience,
+    experience: mergeTailorItemsWithOriginals(
+      (Array.isArray(parsed.experience) ? parsed.experience : []).map((item) => (
+        isRecord(item)
+          ? { ...item, achievements: dedupeAchievements(toStringArray(item.achievements)) }
+          : item
+      )),
       resume.experience,
       (original, item) => (
         normalizeIdentityValue(original.company) !== '' &&
@@ -1336,17 +1435,15 @@ function normalizeTailorResumeCollections(parsed, opts = {}) {
         normalizeIdentityValue(original.degree) === normalizeIdentityValue(item.degree)
       ),
     ),
-    projects: preserveStructuredIds(
+    projects: mergeTailorItemsWithOriginals(
       parsed.projects,
       resume.projects,
       (original, item) => (
         normalizeIdentityValue(original.name) !== '' &&
-        normalizeIdentityValue(original.role) !== '' &&
-        normalizeIdentityValue(original.name) === normalizeIdentityValue(item.name) &&
-        normalizeIdentityValue(original.role) === normalizeIdentityValue(item.role)
+        normalizeIdentityValue(original.name) === normalizeIdentityValue(item.name)
       ),
     ),
-    certifications: preserveStructuredIds(
+    certifications: mergeTailorItemsWithOriginals(
       parsed.certifications,
       resume.certifications,
       (original, item) => (
@@ -1356,7 +1453,7 @@ function normalizeTailorResumeCollections(parsed, opts = {}) {
         normalizeIdentityValue(original.issuer) === normalizeIdentityValue(item.issuer)
       ),
     ),
-    awards: preserveStructuredIds(
+    awards: mergeTailorItemsWithOriginals(
       parsed.awards,
       resume.awards,
       (original, item) => (
@@ -1579,7 +1676,9 @@ function normalizeStructuredFeatureData(featureName, raw, opts) {
     const normalizedCollections = normalizeTailorResumeCollections(parsed, opts);
     return {
       summary: asString(parsed.summary) || asString(resume.summary),
-      skills: toStringArray(parsed.skills).length ? toStringArray(parsed.skills) : toStringArray(resume.skills),
+      skills: toStringArray(parsed.skills).length
+        ? mergeSkillsForTailor(toStringArray(resume.skills), toStringArray(parsed.skills))
+        : toStringArray(resume.skills),
       experience: normalizedCollections.experience.length ? normalizedCollections.experience : (Array.isArray(resume.experience) ? resume.experience : []),
       education: normalizedCollections.education.length ? normalizedCollections.education : (Array.isArray(resume.education) ? resume.education : []),
       projects: normalizedCollections.projects.length ? normalizedCollections.projects : (Array.isArray(resume.projects) ? resume.projects : []),
@@ -1635,7 +1734,11 @@ function structuredFeatureInstructions(featureName) {
       '- Preserve the ORIGINAL `id` values exactly for every returned `experience`, `education`, `projects`, `certifications`, and `awards` item.\n' +
       '- Never invent replacement ids, never rename ids, and never drop ids when the source resume already has them.\n' +
       '- If a section item is unchanged, still return it with its original id.\n' +
-      '- Keep returned list order aligned to the source resume whenever possible.\n'
+      '- Keep returned list order aligned to the source resume whenever possible.\n' +
+      '- NEVER omit projects, certifications, or awards that exist in the source resume — return every item and enhance descriptions where relevant.\n' +
+      '- For each project: rewrite the description with job-relevant keywords, impact, and technologies; keep name, role, dates, and id unchanged.\n' +
+      '- NEVER omit experience entries. Tailor every job — not only the first one.\n' +
+      '- NEVER duplicate achievement bullets. Skills: reorder for the role but keep the candidate\'s skill breadth.\n'
     );
   }
   if (featureName === 'optimize-for-linkedin') {
@@ -1858,10 +1961,15 @@ function buildTailorResumeSystemPrompt(opts) {
     '1. NEVER fabricate experience, companies, degrees, certifications, or metrics - only reframe existing content.\n' +
     '2. ID PRESERVATION: You MUST preserve the original `id` values exactly for every item in `experience`, `education`, `projects`, `certifications`, and `awards`. Never drop, rename, or invent replacement IDs.\n' +
     '3. HONEST SCORING: Provide an honest assessment of the candidate\'s match score before and after tailoring. Do not inflate scores or force fake improvements.\n' +
-    '4. BULLET TRANSFORMATIONS LIMIT: Cap the `bulletTransformations` array to a maximum of 3-5 of the most impactful bullet transformations. Do not list every modified bullet.\n' +
-    '5. Every rewritten bullet should follow the STAR method: Action Verb + What was done + Result/Impact.\n' +
-    '6. Weave critical job description keywords naturally throughout summary, skills, and experience - do not stuff.\n' +
-    '7. Do NOT include sectionScores, missingSkills, boostableSkills, jobParsed, atsAnalysis, interviewTalkingPoints, or strengthsAnalysis in your output - the system computes these separately.'
+    '4. EXPERIENCE COVERAGE: Rewrite the description and at least one achievement bullet for EVERY experience entry — not only the most recent job.\n' +
+    '5. NO DUPLICATE BULLETS: Never repeat the same achievement line twice under one job. Each achievements[] entry must be unique.\n' +
+    '6. BULLET TRANSFORMATIONS: List every rewritten bullet in `bulletTransformations` AND put the final text in `experience[].achievements` — never duplicate original + rewritten versions.\n' +
+    '7. Every rewritten bullet should follow the STAR method: Action Verb + What was done + Result/Impact.\n' +
+    '8. SKILLS: Reorder skills for the target role and add missing job keywords — do NOT silently drop most of the candidate\'s skills. Keep breadth; prioritize job-relevant skills first.\n' +
+    '9. Weave critical job description keywords naturally throughout summary, skills, and experience - do not stuff.\n' +
+    '10. Do NOT include sectionScores, missingSkills, boostableSkills, jobParsed, atsAnalysis, interviewTalkingPoints, or strengthsAnalysis in your output - the system computes these separately.\n' +
+    '11. COMPLETENESS: Every `experience`, `education`, `projects`, `certifications`, and `awards` item in the source resume MUST appear in your output. Missing items is a critical failure.\n' +
+    '12. PROJECTS: Tailor every project description for the target role — emphasize relevant tech, outcomes, and scope. Never drop a project because it seems less relevant.'
   );
 }
 
@@ -2251,7 +2359,13 @@ function shouldAttemptStructuredRepair(featureName) {
 function shouldRetryPreferredStructuredProvider(featureName, candidate, candidateErr, attemptIndex) {
   if (attemptIndex !== 0) return false;
   if (!candidate || candidate.provider !== 'deepseek') return false;
-  if (featureName !== 'company-briefing' && featureName !== 'generate-question-bank') return false;
+  if (
+    featureName !== 'company-briefing' &&
+    featureName !== 'generate-question-bank' &&
+    featureName !== 'tailor-resume'
+  ) {
+    return false;
+  }
 
   const httpStatus = candidateErr?.response?.status;
   const message = asString(candidateErr?.message).toLowerCase();
@@ -2458,7 +2572,8 @@ function pickKey(pool, provider) {
 /** Tiered per-attempt timeout: DeepSeek is primary and needs more time than fast fallbacks. */
 function candidateTimeoutForFeature(featureName, i, total) {
   if (featureName === 'tailor-resume') {
-    return 28_000; // Tailoring is slow and complex, give it maximum possible time
+    // Full-resume tailoring often needs 40–60s for structured JSON; 28s caused false timeouts.
+    return 65_000;
   }
   if (i === 0 && (featureName === 'company-briefing' || featureName === 'generate-question-bank')) {
     return 22_000;
@@ -2600,6 +2715,21 @@ function buildCandidates(featureName, pool, opts = {}) {
   }
 
   return candidates;
+}
+
+/** Tailor is slow — avoid burning the whole function budget on many sequential 65s attempts. */
+function limitCandidatesForFeature(featureName, candidates) {
+  if (featureName !== 'tailor-resume' || candidates.length <= 2) return candidates;
+
+  const picked = [];
+  const usedProviders = new Set();
+  for (const candidate of candidates) {
+    if (picked.length >= 2) break;
+    if (usedProviders.has(candidate.provider)) continue;
+    picked.push(candidate);
+    usedProviders.add(candidate.provider);
+  }
+  return picked.length > 0 ? picked : candidates.slice(0, 2);
 }
 
 // --- Main handler -------------------------------------------------------------
@@ -2916,7 +3046,7 @@ module.exports = async ({ req, res, log, error }) => {
     const noFallback = isAdminTest && opts.__admin_no_fallback === true;
     const pool       = buildPool();
     logPoolSummary(pool, log);
-    const candidates = buildCandidates(featureName, pool, { noFallback });
+    const candidates = limitCandidatesForFeature(featureName, buildCandidates(featureName, pool, { noFallback }));
     const requestMessages = buildMessages(featureName, aiOpts);
 
     if (candidates.length === 0) {
@@ -3164,7 +3294,17 @@ module.exports = async ({ req, res, log, error }) => {
           if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
           await deleteIdempotencyDoc(db, idempotencyDocId);
           await flushDD();
-          return res.json({ status: 'error', message: candidateErr.message }, 500);
+          const userMessage = isTimeout
+            ? 'The AI request timed out. Please try again.'
+            : httpStatus === 429
+              ? 'AI providers are busy right now. Please wait a moment and try again.'
+              : 'AI providers are temporarily unavailable. Please try again in a few minutes.';
+          const responseStatus = isTimeout ? 504 : (httpStatus === 429 ? 429 : 503);
+          return res.json({
+            status: 'error',
+            code: 'provider_unavailable',
+            message: userMessage,
+          }, responseStatus);
         }
         // Continue to next candidate.
       }
@@ -3191,6 +3331,7 @@ module.exports = async ({ req, res, log, error }) => {
 module.exports.__test = {
   FEATURE_ROUTES,
   candidateTimeoutForFeature,
+  limitCandidatesForFeature,
   normalizeStructuredFeatureData,
   schemaPrompt,
   shouldRetryPreferredStructuredProvider,

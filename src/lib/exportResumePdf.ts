@@ -98,12 +98,14 @@ export async function exportResumePdfFromData(
   try {
     await waitForRender(mount.template, options?.renderTimeoutMs ?? 4000);
     const { renderTimeoutMs: _renderTimeoutMs, ...nativeOpts } = options ?? {};
-    const customBreakPositions =
+    const savedBreaks =
       nativeOpts.customBreakPositions ?? resume.customization?.customBreakPositions;
+    const { resolveExportBreakPositions } = await import('@/lib/pdfUtils');
+    const customBreakPositions = resolveExportBreakPositions(mount.template, savedBreaks);
     return await generateNativePDF(mount.template, {
       pageFormat,
       ...nativeOpts,
-      ...(customBreakPositions?.length ? { customBreakPositions } : {}),
+      ...(customBreakPositions.length ? { customBreakPositions } : {}),
     });
   } finally {
     try { mount.root.unmount(); } catch { /* ignore */ }

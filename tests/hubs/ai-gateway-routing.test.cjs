@@ -420,19 +420,30 @@ function main() {
   console.log('[TEST] Verifying tailor-resume timeout configuration...');
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('tailor-resume', 0, 3),
-    28_000,
-    'tailor-resume should get 28s timeout on attempt 0'
+    65_000,
+    'tailor-resume should get 65s timeout on attempt 0'
   );
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('tailor-resume', 1, 3),
-    28_000,
-    'tailor-resume should get 28s timeout on attempt 1'
+    65_000,
+    'tailor-resume should get 65s timeout on attempt 1'
   );
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('tailor-resume', 2, 3),
-    28_000,
-    'tailor-resume should get 28s timeout on attempt 2'
+    65_000,
+    'tailor-resume should get 65s timeout on attempt 2'
   );
+
+  const manyCandidates = [
+    { provider: 'deepseek', key: 'd1', routed: true },
+    { provider: 'deepseek', key: 'd2', routed: true },
+    { provider: 'groq', key: 'g1', routed: false },
+    { provider: 'openrouter', key: 'o1', routed: false },
+  ];
+  const limited = aiGateway.__test.limitCandidatesForFeature('tailor-resume', manyCandidates);
+  assert.equal(limited.length, 2, 'tailor-resume should cap to two provider attempts');
+  assert.equal(limited[0].provider, 'deepseek');
+  assert.equal(limited[1].provider, 'groq');
 
   console.log('[TEST] All tailor-resume custom logic tests passed successfully!');
 }

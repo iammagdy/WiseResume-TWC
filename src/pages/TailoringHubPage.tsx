@@ -6,7 +6,8 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData, type DatabaseResume } from '@/hooks/useResumes';
-import { useJob } from '@/hooks/useJobs';
+import { useJob, type Job } from '@/hooks/useJobs';
+import { ImportJobSheet } from '@/components/jobs/ImportJobSheet';
 import { useAuth } from '@/hooks/useAuth';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useImportJob } from '@/hooks/useImportJob';
@@ -19,6 +20,7 @@ import { buildMergedResume } from '@/lib/tailorMerge';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
+import { aiErrorToastMessage, isAIError } from '@/lib/aiErrorParser';
 import { activityTracker } from '@/lib/activityTracker';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -41,7 +43,9 @@ import { JobMatchAdvancedOptions } from '@/components/job-match/JobMatchAdvanced
 import { JobMatchStickyFooter } from '@/components/job-match/JobMatchStickyFooter';
 import { JobMatchProgressStage } from '@/components/job-match/JobMatchProgressStage';
 import { JobMatchHistoryList } from '@/components/job-match/JobMatchHistoryList';
+import { JobMatchSavedJobsList } from '@/components/job-match/JobMatchSavedJobsList';
 import '@/components/job-match/job-match-workspace.css';
+import { saveTailorJobDescriptionForResume } from '@/lib/tailorJobContext';
 
 type AnyTailorProgress = TailorProgress | EnhancedTailorProgress;
 
@@ -105,6 +109,7 @@ export default function JobMatchWorkspacePage() {
   const [tailorError, setTailorError] = useState<string | null>(null);
   const [showResumePicker, setShowResumePicker] = useState(false);
   const [jobInputActiveTab, setJobInputActiveTab] = useState<'paste' | 'url'>('paste');
+  const [importJobOpen, setImportJobOpen] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
@@ -186,6 +191,34 @@ export default function JobMatchWorkspacePage() {
     [jobDescription],
   );
 
+  const matchScoreBefore = useMemo(() => {
+    if (!jobDescription.trim() || !resumeText.trim()) return undefined;
+    return computeMatch(jobDescription, resumeText).score;
+  }, [jobDescription, resumeText]);
+
+  const applyImportedJob = useCallback((job: {
+    title: string;
+    company: string;
+    description?: string;
+    requirements?: string;
+    source_url?: string | null;
+  }, jobId?: string) => {
+    const desc = [job.description, job.requirements].filter(Boolean).join('\n\n');
+    if (desc) setJobDescription(desc);
+    setParsedJobInfo({ title: job.title, company: job.company });
+    if (job.source_url) setJobUrl(job.source_url);
+    setJobInputActiveTab('paste');
+    if (jobId) {
+      navigate(`/tailoring-hub?jobId=${jobId}`, { replace: true });
+    }
+  }, [navigate, setJobDescription]);
+
+  const handleSelectSavedJob = useCallback((job: Job) => {
+    haptics.selection();
+    applyImportedJob(job, job.id);
+    toast.success('Job loaded — review the description and tailor when ready.');
+  }, [applyImportedJob]);
+
   const handleFetchUrl = useCallback(async (url: string) => {
     if (!user) {
       toast.error('Still signing you in — please try again in a moment.');
@@ -194,13 +227,17 @@ export default function JobMatchWorkspacePage() {
     try {
       const result = await importJob.mutateAsync(url);
       const { job } = result;
-      if (job.description) {
-        const desc = [job.description, job.requirements].filter(Boolean).join('\n\n');
-        setJobDescription(desc);
-      }
-      setParsedJobInfo({ title: job.title, company: job.company });
-      setJobInputActiveTab('paste');
-      toast.success('Job details loaded — review the description below.');
+      applyImportedJob(
+        {
+          title: job.title,
+          company: job.company,
+          description: job.description,
+          requirements: job.requirements,
+          source_url: url,
+        },
+        result.id,
+      );
+      toast.success('Job saved — review the description below.');
     } catch (err) {
       const msg =
         err instanceof Error && err.message && err.message.length < 150 && err.message !== 'Import failed'
@@ -208,7 +245,7 @@ export default function JobMatchWorkspacePage() {
           : 'Could not fetch job details — paste the description manually.';
       toast.error(msg);
     }
-  }, [importJob, setJobDescription, setJobInputActiveTab]);
+  }, [applyImportedJob, importJob, user]);
 
   const handleTailor = useCallback(async () => {
     if (!currentResume || !jobDescription.trim() || !user) {
@@ -232,7 +269,7 @@ export default function JobMatchWorkspacePage() {
       let tailorResult: SuperTailorResult | null = null;
       const originalResume = currentResume;
 
-      await executeAI(async () => {
+      const aiRan = await executeAI(async () => {
         tailorResult = await tailorResumeWithProgress(
           redactedResume ?? currentResume,
           jobDescription,
@@ -241,9 +278,14 @@ export default function JobMatchWorkspacePage() {
           abort.signal,
           localStorage.getItem('wr-tailor-custom-instructions') || undefined,
         );
+        return tailorResult;
       });
 
-      if (!tailorResult || !originalResume || abort.signal.aborted) return;
+      if (abort.signal.aborted) return;
+      if (!aiRan || !tailorResult || !originalResume) {
+        setTailorError('Tailoring could not complete. Please try again in a moment.');
+        return;
+      }
 
       // Compute keyword-overlap score BEFORE merging (used as fallback when AI returns overallScore: null)
       const resumeTextBefore = [
@@ -333,6 +375,8 @@ export default function JobMatchWorkspacePage() {
         },
       });
 
+      saveTailorJobDescriptionForResume(newResumeId, jobDescription);
+
       // Clear persisted job description so workspace starts fresh next session
       setJobDescription('');
 
@@ -361,7 +405,9 @@ export default function JobMatchWorkspacePage() {
       });
     } catch (err: unknown) {
       if (abort.signal.aborted) return;
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const msg = isAIError(err)
+        ? aiErrorToastMessage({ code: err.code, message: err.message, status: err.status })
+        : (err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setTailorError(msg);
       haptics.error();
       toast.error(msg);
@@ -439,6 +485,8 @@ export default function JobMatchWorkspacePage() {
           progress={progress}
           jobTitle={parsedJobInfo?.title}
           company={parsedJobInfo?.company}
+          resumeTitle={selectedResumeTitle ?? undefined}
+          matchScoreBefore={matchScoreBefore}
           onCancel={handleAbort}
         />
       )}
@@ -559,6 +607,12 @@ export default function JobMatchWorkspacePage() {
                 onSectionsChange={setEnabledSections}
               />
 
+              <JobMatchSavedJobsList
+                selectedJobId={jobIdParam}
+                onSelectJob={handleSelectSavedJob}
+                onImportJob={() => setImportJobOpen(true)}
+              />
+
               <JobMatchHistoryList />
             </div>
           </div>
@@ -573,6 +627,7 @@ export default function JobMatchWorkspacePage() {
           )}
         </div>
       </div>
+      <ImportJobSheet open={importJobOpen} onOpenChange={setImportJobOpen} />
     </div>
   );
 }

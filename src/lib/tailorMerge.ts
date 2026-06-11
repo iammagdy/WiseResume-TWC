@@ -1,4 +1,8 @@
 import { ResumeData, SuperTailorResult, TailorSectionId, FixSuggestion } from '@/types/resume';
+import { normalizeSkill } from '@/lib/diffUtils';
+import { dedupeAchievements, mergeSkillsForTailor } from '@/lib/tailorSanitize';
+
+export { normalizeSkill };
 
 function normalizeMatchValue(value: string | undefined): string {
   return (value || '').trim().toLowerCase();
@@ -26,6 +30,83 @@ function findExperienceMatch(
   }
 
   return undefined;
+}
+
+function findProjectMatch(
+  original: NonNullable<ResumeData['projects']>[number],
+  tailoredProjects: NonNullable<ResumeData['projects']>,
+  index: number,
+  originalLength: number,
+): NonNullable<ResumeData['projects']>[number] | undefined {
+  const byId = tailoredProjects.find((item) => item.id === original.id);
+  if (byId) return byId;
+
+  const name = normalizeMatchValue(original.name);
+  const byName = tailoredProjects.find((item) => normalizeMatchValue(item.name) === name && name !== '');
+  if (byName) return byName;
+
+  if (tailoredProjects.length === originalLength) {
+    return tailoredProjects[index];
+  }
+
+  return undefined;
+}
+
+function findCertificationMatch(
+  original: NonNullable<ResumeData['certifications']>[number],
+  tailored: NonNullable<ResumeData['certifications']>,
+  index: number,
+  originalLength: number,
+): NonNullable<ResumeData['certifications']>[number] | undefined {
+  const byId = tailored.find((item) => item.id === original.id);
+  if (byId) return byId;
+  const byName = tailored.find((item) =>
+    normalizeMatchValue(item.name) === normalizeMatchValue(original.name) &&
+    normalizeMatchValue(item.issuer) === normalizeMatchValue(original.issuer),
+  );
+  if (byName) return byName;
+  if (tailored.length === originalLength) return tailored[index];
+  return undefined;
+}
+
+function findAwardMatch(
+  original: NonNullable<ResumeData['awards']>[number],
+  tailored: NonNullable<ResumeData['awards']>,
+  index: number,
+  originalLength: number,
+): NonNullable<ResumeData['awards']>[number] | undefined {
+  const byId = tailored.find((item) => item.id === original.id);
+  if (byId) return byId;
+  const byTitle = tailored.find((item) =>
+    normalizeMatchValue(item.title) === normalizeMatchValue(original.title) &&
+    normalizeMatchValue(item.issuer) === normalizeMatchValue(original.issuer),
+  );
+  if (byTitle) return byTitle;
+  if (tailored.length === originalLength) return tailored[index];
+  return undefined;
+}
+
+function mergeListWithOriginals<T extends { id?: string }>(
+  originals: T[],
+  tailored: T[] | undefined,
+  matcher: (original: T, tailoredList: T[], index: number, length: number) => T | undefined,
+): T[] {
+  if (!originals.length) return tailored ?? [];
+  const tailoredList = tailored ?? [];
+  const merged = originals.map((orig, index, list) => {
+    const match = matcher(orig, tailoredList, index, list.length);
+    return match ? { ...orig, ...match, id: match.id || orig.id } : orig;
+  });
+
+  for (const item of tailoredList) {
+    const exists = merged.some((entry) => (
+      (item.id && entry.id === item.id) ||
+      JSON.stringify(entry) === JSON.stringify(item)
+    ));
+    if (!exists) merged.push(item);
+  }
+
+  return merged;
 }
 
 function findEducationMatch(
@@ -70,23 +151,54 @@ export function buildMergedResume(
     mergedResume.summary = tailorResult.summary;
   }
   if (enabledSections.includes('skills')) {
-    mergedResume.skills = tailorResult.skills;
+    mergedResume.skills = mergeSkillsForTailor(
+      currentResume.skills ?? [],
+      tailorResult.skills ?? [],
+    );
   }
   if (enabledSections.includes('experience')) {
-    mergedResume.experience = currentResume.experience.map((orig, index, originalList) => {
-      const tailored = findExperienceMatch(orig, tailorResult.experience, index, originalList.length);
-      if (!tailored) return orig;
-      const merged = { ...orig, ...tailored, id: tailored.id || orig.id };
-      if (tailorResult.bulletTransformations && orig.achievements) {
-        const mergedAchievements = [...(tailored.achievements ?? orig.achievements)];
-        tailorResult.bulletTransformations
-          .filter(bt => bt.experienceId === orig.id && rejectedBullets.has(`${bt.experienceId}-${bt.bulletIndex}`))
-          .forEach(bt => {
-            mergedAchievements[bt.bulletIndex] = bt.originalBullet;
-          });
-        merged.achievements = mergedAchievements;
+    mergedResume.experience = mergeListWithOriginals(
+      currentResume.experience,
+      tailorResult.experience,
+      (orig, list, index, length) => findExperienceMatch(orig, list, index, length),
+    ).map((entry) => {
+      const orig = currentResume.experience.find((e) => e.id === entry.id)
+        ?? currentResume.experience.find((e) =>
+          normalizeMatchValue(e.company) === normalizeMatchValue(entry.company) &&
+          normalizeMatchValue(e.position) === normalizeMatchValue(entry.position),
+        );
+      if (!orig) {
+        return {
+          ...entry,
+          achievements: dedupeAchievements(entry.achievements),
+        };
       }
-      return merged;
+
+      let achievements = dedupeAchievements(entry.achievements ?? orig.achievements);
+      if (tailorResult.bulletTransformations?.length) {
+        achievements = [...achievements];
+        tailorResult.bulletTransformations
+          .filter((bt) => bt.experienceId === orig.id)
+          .forEach((bt) => {
+            if (rejectedBullets.has(`${bt.experienceId}-${bt.bulletIndex}`)) {
+              if (bt.bulletIndex >= 0 && bt.bulletIndex < achievements.length) {
+                achievements[bt.bulletIndex] = bt.originalBullet;
+              }
+              return;
+            }
+            if (bt.bulletIndex >= 0 && bt.bulletIndex < achievements.length) {
+              achievements[bt.bulletIndex] = bt.enhancedBullet;
+            }
+          });
+        achievements = dedupeAchievements(achievements);
+      }
+
+      return {
+        ...orig,
+        ...entry,
+        id: entry.id || orig.id,
+        achievements,
+      };
     });
   }
   if (enabledSections.includes('education')) {
@@ -95,21 +207,29 @@ export function buildMergedResume(
       return tailored ? { ...orig, ...tailored, id: tailored.id || orig.id } : orig;
     });
   }
-  if (enabledSections.includes('projects') && tailorResult.projects) {
-    mergedResume.projects = tailorResult.projects;
+  if (enabledSections.includes('projects')) {
+    mergedResume.projects = mergeListWithOriginals(
+      currentResume.projects ?? [],
+      tailorResult.projects,
+      (orig, list, index, length) => findProjectMatch(orig, list, index, length),
+    );
   }
-  if (enabledSections.includes('certifications') && tailorResult.certifications) {
-    mergedResume.certifications = tailorResult.certifications;
+  if (enabledSections.includes('certifications')) {
+    mergedResume.certifications = mergeListWithOriginals(
+      currentResume.certifications ?? [],
+      tailorResult.certifications,
+      (orig, list, index, length) => findCertificationMatch(orig, list, index, length),
+    );
   }
-  if (enabledSections.includes('awards') && tailorResult.awards) {
-    mergedResume.awards = tailorResult.awards;
+  if (enabledSections.includes('awards')) {
+    mergedResume.awards = mergeListWithOriginals(
+      currentResume.awards ?? [],
+      tailorResult.awards,
+      (orig, list, index, length) => findAwardMatch(orig, list, index, length),
+    );
   }
 
   return mergedResume;
-}
-
-export function normalizeSkill(skill: string): string {
-  return skill.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 export function applyFixesOnTop(

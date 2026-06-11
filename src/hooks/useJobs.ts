@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { databases, DATABASE_ID, Query, ID, Permission, Role } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -110,6 +110,11 @@ export function useJobMutations() {
           source_url: input.source_url ?? null,
           is_saved: input.is_saved ?? true,
         },
+        [
+          Permission.read(Role.user(user.id)),
+          Permission.update(Role.user(user.id)),
+          Permission.delete(Role.user(user.id)),
+        ],
       );
       return docToJob(doc as unknown as Record<string, unknown>);
     },

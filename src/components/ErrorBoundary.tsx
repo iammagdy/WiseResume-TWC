@@ -33,9 +33,12 @@ interface State {
   errorTimestamp: string | null;
   errorRoute: string | null;
   copySuccess: boolean;
+  showTechnicalDetails: boolean;
+  autoReportStatus: 'idle' | 'sending' | 'sent' | 'saved' | 'error';
 }
 
 const MAX_RETRIES = 2;
+const SHOW_TECHNICAL_DETAILS = import.meta.env.DEV;
 const TRANSIENT_ERRORS = [
   'Failed to fetch',
   'dynamically imported module',
@@ -60,6 +63,8 @@ export class ErrorBoundary extends Component<Props, State> {
     errorTimestamp: null,
     errorRoute: null,
     copySuccess: false,
+    showTechnicalDetails: SHOW_TECHNICAL_DETAILS,
+    autoReportStatus: 'idle',
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
@@ -117,11 +122,14 @@ export class ErrorBoundary extends Component<Props, State> {
       source: 'ErrorBoundary.componentDidCatch',
     });
 
-    // Specific check for ChunkLoadError (Vite/Webpack)
-    const isChunkError = 
-      error.name === 'ChunkLoadError' || 
+    const isChunkError =
+      error.name === 'ChunkLoadError' ||
       /Loading chunk .* failed/.test(error.message) ||
       /Failed to fetch dynamically imported module/.test(error.message);
+
+    if (!isChunkError) {
+      this.autoSendCrashReport(error, errorInfo);
+    }
 
     if (isChunkError) {
       console.error('[ErrorBoundary] Chunk loading failed. This is likely a stale PWA/deployment issue.');
@@ -175,7 +183,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   }
 
-  private handleCopyError = () => {
+  private handleCopyError = async () => {
     const { error, errorInfo, errorTimestamp, errorRoute } = this.state;
     const parts = [
       `Error: ${error?.name ?? 'Error'}: ${error?.message ?? ''}`,
@@ -188,10 +196,78 @@ export class ErrorBoundary extends Component<Props, State> {
       '--- Component Stack ---',
       errorInfo?.componentStack ?? '(no component stack)',
     ];
-    navigator.clipboard.writeText(parts.join('\n')).then(() => {
+    const text = parts.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
       this.setState({ copySuccess: true });
       setTimeout(() => this.setState({ copySuccess: false }), 2000);
-    }).catch(() => undefined);
+      return;
+    } catch {
+      // Fallback for non-secure contexts / denied clipboard permission
+    }
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (copied) {
+        this.setState({ copySuccess: true });
+        setTimeout(() => this.setState({ copySuccess: false }), 2000);
+      }
+    } catch {
+      // ignore — user can still use Report Issue
+    }
+  };
+
+  private autoSendCrashReport = (error: Error, errorInfo: ErrorInfo) => {
+    const userId = _currentUserId ?? 'anonymous';
+    const route = window.location.pathname + window.location.search;
+    const dedupeKey = `wr-crash-auto:${error.name}:${error.message.slice(0, 120)}:${route}`;
+    try {
+      if (sessionStorage.getItem(dedupeKey)) return;
+      sessionStorage.setItem(dedupeKey, String(Date.now()));
+    } catch {
+      // storage unavailable — still attempt send once
+    }
+
+    this.setState({ autoReportStatus: 'sending' });
+
+    void sendFeedback(
+      {
+        type: 'auto-crash-report',
+        email: 'contact@thewise.cloud',
+        subject: `Auto Crash: ${error.message.slice(0, 80)}`,
+        message: error.message,
+        associatedEventId: getLastSentryEventId(),
+        metadata: {
+          error_stack: error.stack?.slice(0, 4000) ?? null,
+          component_stack: errorInfo.componentStack?.slice(0, 4000) ?? null,
+          route,
+          user_agent: navigator.userAgent,
+          user_id: userId,
+          auto_report: true,
+        },
+        tags: {
+          source: 'error_boundary_auto',
+          error_name: error.name,
+        },
+      },
+      { skipFallback: true },
+    ).then((result) => {
+      if (!result.anyDelivered) {
+        this.setState({ autoReportStatus: 'error' });
+        return;
+      }
+      const fullySent = result.emailOk && !result.emailSaved;
+      this.setState({ autoReportStatus: fullySent ? 'sent' : 'saved' });
+    }).catch(() => {
+      this.setState({ autoReportStatus: 'error' });
+    });
   };
 
   private handleRetry = async () => {
@@ -292,35 +368,39 @@ export class ErrorBoundary extends Component<Props, State> {
          this.state.error.message.includes('Failed to fetch') ||
          this.state.error.message.includes('Loading chunk'));
 
+      const { showTechnicalDetails, autoReportStatus } = this.state;
+
       return (
         <div className={`${this.props.routeScoped ? 'min-h-[50vh]' : 'min-h-screen min-h-[100dvh]'} relative z-[1] flex flex-col items-center justify-center p-6 bg-background`}>
-          <div className="w-full max-w-2xl text-center space-y-6">
+          <div className="w-full max-w-lg text-center space-y-6">
             {/* Error icon */}
             <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center ${isChunkError ? 'bg-warning/10' : 'bg-destructive/10'}`}>
               <AlertTriangle className={`w-10 h-10 ${isChunkError ? 'text-warning' : 'text-destructive'}`} />
             </div>
 
-            {/* Error headline — always shows error name + message */}
             <div className="space-y-2">
-              <h1 className="text-xl font-display font-semibold text-foreground break-all font-mono text-destructive">
-                {this.state.error?.name ?? 'Error'}: {this.state.error?.message ?? 'Unknown error'}
+              <h1 className="text-xl font-display font-semibold text-foreground">
+                {isChunkError ? 'This page needs a refresh' : 'Something went wrong'}
               </h1>
-              {isChunkError && (
-                <p className="text-sm text-muted-foreground">
-                  The page couldn&apos;t load properly. This usually fixes itself — just tap Reload.
-                </p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                {isChunkError
+                  ? "We couldn't load the latest version of this page. Reloading usually fixes it."
+                  : "We're sorry — an unexpected error occurred. Our team has been notified and we're looking into it."}
+              </p>
+              {autoReportStatus === 'sent' && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">Report sent to our team.</p>
               )}
-              {(this.state.errorRoute || this.state.errorTimestamp) && (
-                <p className="text-xs text-muted-foreground font-mono">
-                  {this.state.errorRoute && <span>Route: {this.state.errorRoute}</span>}
-                  {this.state.errorRoute && this.state.errorTimestamp && <span> · </span>}
-                  {this.state.errorTimestamp && <span>{this.state.errorTimestamp}</span>}
+              {autoReportStatus === 'saved' && (
+                <p className="text-xs text-muted-foreground">Issue logged for our team.</p>
+              )}
+              {SHOW_TECHNICAL_DETAILS && this.state.error && (
+                <p className="text-xs text-destructive font-mono break-all">
+                  {this.state.error.name}: {this.state.error.message}
                 </p>
               )}
             </div>
 
-            {/* Full error details — always expanded */}
-            {this.state.error && (
+            {this.state.error && (SHOW_TECHNICAL_DETAILS || showTechnicalDetails) && (
               <div className="text-left space-y-3">
                 <div className="bg-muted rounded-lg p-4 space-y-3">
                   <div>
@@ -347,10 +427,21 @@ export class ErrorBoundary extends Component<Props, State> {
                   {this.state.copySuccess ? (
                     <><Check className="w-3.5 h-3.5 mr-2 text-green-500" />Copied!</>
                   ) : (
-                    <><Copy className="w-3.5 h-3.5 mr-2" />Copy full error</>
+                    <><Copy className="w-3.5 h-3.5 mr-2" />Copy error details</>
                   )}
                 </Button>
               </div>
+            )}
+
+            {!SHOW_TECHNICAL_DETAILS && this.state.error && !showTechnicalDetails && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={() => this.setState({ showTechnicalDetails: true })}
+              >
+                Show technical details
+              </Button>
             )}
 
             {/* Auto-retry countdown for chunk errors */}

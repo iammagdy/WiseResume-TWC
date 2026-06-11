@@ -306,14 +306,26 @@ async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
 }
 
 // ── Appwrite JWT auth middleware ──────────────────────────────────────────────
+function resolveAppwriteServerConfig(): { endpoint: string; projectId: string } {
+  const endpoint =
+    process.env.APPWRITE_ENDPOINT ||
+    process.env.VITE_APPWRITE_ENDPOINT ||
+    'https://fra.cloud.appwrite.io/v1';
+  const projectId =
+    process.env.APPWRITE_PROJECT_ID ||
+    process.env.VITE_APPWRITE_PROJECT_ID ||
+    process.env.APPWRITE_FUNCTION_PROJECT_ID ||
+    '';
+  return { endpoint, projectId };
+}
+
 async function requireAppwriteJWT(req: Request, res: Response): Promise<boolean> {
   const jwtToken = req.headers['x-appwrite-jwt'];
   if (!jwtToken || typeof jwtToken !== 'string') {
     res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
     return false;
   }
-  const endpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-  const projectId = process.env.APPWRITE_PROJECT_ID || '';
+  const { endpoint, projectId } = resolveAppwriteServerConfig();
   if (!projectId) {
     console.error('[server] APPWRITE_PROJECT_ID not configured');
     res.status(500).json({ error: 'config_error', message: 'Server configuration error' });

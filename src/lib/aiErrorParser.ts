@@ -27,6 +27,7 @@ export type AIErrorCode =
   | 'quota_exceeded'
   | 'enhancement_failed'
   | 'provider_busy'
+  | 'provider_unavailable'
   | 'upstream_5xx'
   | 'not_configured'
   | 'invalid_ai_response'
@@ -100,7 +101,10 @@ function classify(status: number, code: string, message: string): AIErrorCode {
     case 'invalid_api_key':
       return 'invalid_key';
     case 'provider_unavailable':
-      return 'provider_busy';
+      return 'provider_unavailable';
+    case 'function_runtime_failed':
+    case 'FUNCTION_RUNTIME_FAILED':
+      return 'timeout';
     case 'byok_failed':
       return 'byok_failed';
     case 'free_limit_reached':
@@ -113,6 +117,8 @@ function classify(status: number, code: string, message: string): AIErrorCode {
   // "Session expired" message. Order matters here.
   const m = (message || code || '').toLowerCase();
   if (/invalid.?key|invalid api key|no ai api key/.test(m)) return 'invalid_key';
+  if (/credit tracking is not available|no ai keys found/.test(m)) return 'not_configured';
+  if (/providers are temporarily unavailable|provider_unavailable|all ai providers/.test(m)) return 'provider_unavailable';
   if (/api key not configured|not configured|please contact support/.test(m)) return 'not_configured';
   if (/quota.*exceed|daily.*quota/.test(m)) return 'quota_exceeded';
 
@@ -128,7 +134,7 @@ function classify(status: number, code: string, message: string): AIErrorCode {
   if (status >= 500 && status < 600) return 'upstream_5xx';
 
   if (/rate.?limit|too many/.test(m)) return 'rate_limit';
-  if (/timed? ?out|timeout|abort/.test(m)) return 'timeout';
+  if (/timed? ?out|timeout|abort|runtime failed|function.*failed/.test(m)) return 'timeout';
 
   return 'internal';
 }
@@ -209,6 +215,8 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       return 'Failed to enhance content — please try again.';
     case 'provider_busy':
       return 'AI is temporarily busy — please try again in a moment.';
+    case 'provider_unavailable':
+      return 'AI providers are temporarily unavailable. Please try again in a few minutes.';
     case 'invalid_ai_response':
       // Server-side schema validation rejected the AI's reply. The credit
       // is already refunded, so we explicitly tell the user not to retry

@@ -5,9 +5,9 @@
  */
 
 import { SectionId } from '@/types/resume';
-import { normalizeBreakPositions } from '@/lib/exportPagePlan';
+import { normalizeBreakPositions, snapBreakPositionsToSectionHeadings } from '@/lib/exportPagePlan';
 import { SECTION_LABELS } from '@/lib/sectionLabels';
-import { getExportContentHeightPx, getSectionHeadingTop } from '@/lib/exportLayoutMetrics';
+import { getExportContentHeightPx, getSectionBreakBoundary, getSectionHeadingTop, collectSectionLayoutBounds } from '@/lib/exportLayoutMetrics';
 
 // Page dimensions (points / CSS pixels — same unit system)
 const DEFAULT_PAGE_WIDTH = 612;
@@ -61,7 +61,67 @@ function getOffsetTopRelative(el: HTMLElement, root: HTMLElement): number {
 }
 
 function getSectionPageBreakY(sectionEl: HTMLElement, root: HTMLElement): number {
-  return getSectionHeadingTop(sectionEl, root);
+  return getSectionBreakBoundary(sectionEl, root);
+}
+
+/** Section IDs that currently have a page break aligned before them. */
+export function getSectionsWithBreaksBefore(
+  sourceElement: HTMLElement,
+  breakYs: number[],
+  minGap: number = 40,
+): string[] {
+  if (!breakYs.length) return [];
+
+  const active: string[] = [];
+  sourceElement.querySelectorAll<HTMLElement>('[data-section]').forEach((sectionEl) => {
+    const id = sectionEl.getAttribute('data-section');
+    if (!id) return;
+
+    const boundary = getSectionBreakBoundary(sectionEl, sourceElement, minGap);
+    const hasAlignedBreak = breakYs.some((breakY) => Math.abs(breakY - boundary) <= minGap);
+    if (hasAlignedBreak) active.push(id);
+  });
+
+  return active;
+}
+
+/**
+ * Re-measures saved break Y values on the template that will be exported so
+ * PDF generation uses the same coordinate system as the page-break UI.
+ */
+export function resolveExportBreakPositions(
+  templateEl: HTMLElement,
+  savedBreaks?: number[],
+  minGap: number = 40,
+): number[] {
+  if (!savedBreaks?.length) return [];
+
+  const liveHeight = Math.max(
+    templateEl.scrollHeight || 0,
+    templateEl.offsetHeight || 0,
+    1,
+  );
+
+  const alignedSectionIds = getSectionsWithBreaksBefore(templateEl, savedBreaks, minGap);
+  if (alignedSectionIds.length > 0) {
+    const remeasured: number[] = [];
+    for (const sectionId of alignedSectionIds) {
+      const el = templateEl.querySelector(`[data-section="${sectionId}"]`) as HTMLElement | null;
+      if (!el) continue;
+      remeasured.push(getSectionBreakBoundary(el, templateEl, minGap));
+    }
+    return normalizeBreakPositions(remeasured, liveHeight, minGap);
+  }
+
+  const sections = collectSectionLayoutBounds(templateEl);
+  const snapped = snapBreakPositionsToSectionHeadings(
+    savedBreaks,
+    sections,
+    liveHeight,
+    minGap,
+    liveHeight,
+  );
+  return normalizeBreakPositions(snapped, liveHeight, minGap);
 }
 
 /**
@@ -285,8 +345,8 @@ export function addBreakBeforeSection(
   if (!el) return { breaks: existingBreaks, applied: false };
 
   const MIN_GAP = 40;
-  const top = getOffsetTopRelative(el, sourceElement);
-  if (top <= MIN_GAP || top >= totalHeight - MIN_GAP) {
+  const boundary = getSectionBreakBoundary(el, sourceElement, MIN_GAP);
+  if (boundary <= MIN_GAP || boundary >= totalHeight - MIN_GAP) {
     return { breaks: existingBreaks, applied: false };
   }
 
@@ -311,8 +371,9 @@ export function injectForcedBreaks(
   for (const name of manualBreakSections) {
     const el = sourceElement.querySelector(`[data-section="${name}"]`) as HTMLElement | null;
     if (!el) continue;
-    const top = getSectionPageBreakY(el, sourceElement);
-    const bottom = top + el.offsetHeight;
+    const top = getSectionBreakBoundary(el, sourceElement, MIN_GAP);
+    const sectionTop = getOffsetTopRelative(el, sourceElement);
+    const bottom = sectionTop + el.offsetHeight;
     if (top > MIN_GAP && top < totalHeight - MIN_GAP) {
       forced.push(top);
       working = working.filter((sb) => {

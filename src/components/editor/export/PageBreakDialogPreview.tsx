@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
 import { buildExportPageSegments } from '@/lib/exportPagePlan';
-import { computeDialogPreviewScale } from '@/lib/pageBreakPreviewScale';
+import { computeDialogPreviewScale, computeSpreadPreviewScale } from '@/lib/pageBreakPreviewScale';
 
 interface PageBreakDialogPreviewProps {
   templateElement: HTMLElement | null;
@@ -10,6 +10,8 @@ interface PageBreakDialogPreviewProps {
   pageHeightPx?: number;
   footerHeightPx?: number;
   maxPreviewHeight?: number;
+  /** stack = vertical pages; spread = horizontal row (desktop). */
+  layout?: 'stack' | 'spread';
 }
 
 function measureTemplateHeight(templateElement: HTMLElement, clone: HTMLElement): number {
@@ -30,14 +32,14 @@ export function PageBreakDialogPreview({
   pageHeightPx = 792,
   footerHeightPx = 44,
   maxPreviewHeight = 320,
+  layout = 'stack',
 }: PageBreakDialogPreviewProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [layout, setLayout] = useState<{
+  const [layoutMetrics, setLayoutMetrics] = useState<{
     scale: number;
-    contentHeight: number;
-    designWidth: number;
+    visualWidth: number;
     visualHeight: number;
   } | null>(null);
 
@@ -57,7 +59,7 @@ export function PageBreakDialogPreview({
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount || !templateElement || containerWidth <= 0) {
-      setLayout(null);
+      setLayoutMetrics(null);
       mount?.replaceChildren();
       return;
     }
@@ -75,31 +77,53 @@ export function PageBreakDialogPreview({
         totalContentHeightPx: contentHeight,
         pageHeightPx: printableHeight,
         customBreakPositions: breakYs,
+        breakValidationHeightPx: Math.max(
+          templateElement.scrollHeight,
+          templateElement.offsetHeight,
+          contentHeight,
+        ),
       });
-      const { scale, visualHeight } = computeDialogPreviewScale(
-        containerWidth,
-        designWidth,
-        segments.reduce((sum, segment) => sum + segment.heightPx + footerHeightPx, 0),
-      );
-      const pageGapPx = 10;
-      const scaledGapPx = pageGapPx * Math.max(0.75, scale);
+
+      const useSpread = layout === 'spread' && segments.length > 1;
+      const pageGapPx = useSpread ? 16 : 10;
+      const pageBlockHeight = printableHeight + footerHeightPx;
+
+      const { scale, visualWidth, visualHeight } = useSpread
+        ? computeSpreadPreviewScale(
+          containerWidth,
+          designWidth,
+          pageBlockHeight,
+          segments.length,
+          maxPreviewHeight,
+          pageGapPx,
+        )
+        : computeDialogPreviewScale(
+          containerWidth,
+          designWidth,
+          segments.reduce((sum, segment) => sum + segment.heightPx + footerHeightPx, 0),
+        );
+
+      const scaledGapPx = pageGapPx * Math.max(useSpread ? 1 : 0.75, scale);
 
       const host = document.createElement('div');
       host.style.position = 'relative';
-      host.style.width = `${containerWidth}px`;
-      host.style.height = `${visualHeight + Math.max(0, segments.length - 1) * scaledGapPx}px`;
+      host.style.width = `${visualWidth}px`;
+      host.style.height = `${visualHeight}px`;
+      host.style.margin = '0 auto';
 
       let pageTop = 0;
+      let pageLeft = 0;
       segments.forEach((segment) => {
         const page = document.createElement('div');
         page.setAttribute('data-pdf-exclude', '');
         page.style.position = 'absolute';
-        page.style.left = '0';
-        page.style.top = `${pageTop}px`;
+        page.style.left = `${pageLeft}px`;
+        page.style.top = `${useSpread ? 0 : pageTop}px`;
         page.style.width = `${designWidth * scale}px`;
         page.style.height = `${(segment.heightPx + footerHeightPx) * scale}px`;
         page.style.background = '#fff';
-        page.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12)';
+        page.style.boxShadow = '0 4px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.08)';
+        page.style.borderRadius = `${Math.max(2, 4 * scale)}px`;
         page.style.overflow = 'hidden';
 
         const clip = document.createElement('div');
@@ -135,11 +159,15 @@ export function PageBreakDialogPreview({
         }
 
         host.appendChild(page);
-        pageTop += (segment.heightPx + footerHeightPx) * scale + scaledGapPx;
+        if (useSpread) {
+          pageLeft += designWidth * scale + scaledGapPx;
+        } else {
+          pageTop += (segment.heightPx + footerHeightPx) * scale + scaledGapPx;
+        }
       });
 
       mountRef.current.replaceChildren(host);
-      setLayout({ scale, contentHeight, designWidth, visualHeight: pageTop - scaledGapPx });
+      setLayoutMetrics({ scale, visualWidth, visualHeight });
     };
 
     paint();
@@ -153,7 +181,16 @@ export function PageBreakDialogPreview({
       observer.disconnect();
       mount.replaceChildren();
     };
-  }, [templateElement, containerWidth, breakYs.join(','), pageWidthPx, pageHeightPx, footerHeightPx, maxPreviewHeight]);
+  }, [
+    templateElement,
+    containerWidth,
+    breakYs.join(','),
+    pageWidthPx,
+    pageHeightPx,
+    footerHeightPx,
+    maxPreviewHeight,
+    layout,
+  ]);
 
   if (!templateElement) {
     return (
@@ -163,22 +200,24 @@ export function PageBreakDialogPreview({
     );
   }
 
-  const scale = layout?.scale ?? (containerWidth > 0 ? containerWidth / 612 : 0.5);
-  const visualHeight = layout?.visualHeight ?? 120;
-  const visualWidth = containerWidth > 0 ? containerWidth : '100%';
+  const visualHeight = layoutMetrics?.visualHeight ?? 120;
+  const visualWidth = layoutMetrics?.visualWidth ?? containerWidth;
 
   return (
     <div
       ref={viewportRef}
-      className="w-full rounded-lg border border-border bg-muted/30 overflow-y-auto overflow-x-hidden"
+      className="jmw-pdf-preview-viewport w-full overflow-y-auto overflow-x-hidden"
       style={{ maxHeight: maxPreviewHeight }}
     >
       <div
-        className="relative mx-auto"
-        style={{ width: visualWidth, minHeight: layout ? visualHeight : 120 }}
+        className="jmw-pdf-preview-stage relative mx-auto flex items-center justify-center"
+        style={{
+          width: '100%',
+          minHeight: layoutMetrics ? visualHeight + 8 : 120,
+        }}
       >
-        <div ref={mountRef} className="relative" />
-        {!layout && (
+        <div ref={mountRef} className="relative" style={{ width: visualWidth, height: visualHeight }} />
+        {!layoutMetrics && (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
             Loading preview…
           </div>

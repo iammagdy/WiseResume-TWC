@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/copy-pdf-ocr-assets.mjs && vite",
+    "dev:full": "node scripts/dev-with-api.mjs",
     "dev:pdf-server": "npm run build:server && node scripts/dev-pdf-server.mjs",
     "start": "node scripts/copy-pdf-ocr-assets.mjs && vite --host 0.0.0.0 --port 3000",
     "prebuild": "node scripts/copy-pdf-ocr-assets.mjs",

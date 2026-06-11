@@ -2,6 +2,7 @@ import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress,
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
+import { AIError, isAIError, parseAIErrorBody } from './aiErrorParser';
 import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
@@ -70,17 +71,20 @@ export async function tailorResumeWithProgress(
   signal?: AbortSignal,
   userInstructions?: string
 ): Promise<SuperTailorResult> {
-  // Smooth ease-out progress: fast start, slows toward 85%
+  // Smooth ease-out progress: ramps toward 94% over ~2 min (tailoring can take 60–90s server-side).
+  const PROGRESS_CAP = 94;
+  const PROGRESS_RAMP_MS = 120_000;
   const startTime = Date.now();
-  const STEP_THRESHOLDS = [10, 20, 35, 50, 60, 70, 75, 80]; // percentage thresholds for step transitions
+  const STEP_THRESHOLDS = [10, 20, 35, 50, 60, 70, 75, 80, 88]; // percentage thresholds for step transitions
   let lastStepIndex = -1;
-  let lastEmittedProgress = 0; // track last-emitted value to avoid regressing on retry
+  let lastEmittedProgress = 0; // track live value for retry resume point
+  let lastReportedProgress = -1;
 
   const progressInterval = setInterval(() => {
     const elapsed = Date.now() - startTime;
-    const t = Math.min(elapsed / 30000, 1); // 30s expected max
+    const t = Math.min(elapsed / PROGRESS_RAMP_MS, 1);
     const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
-    const currentProgress = Math.min(eased * 85, 85);
+    const currentProgress = Math.min(eased * PROGRESS_CAP, PROGRESS_CAP);
     lastEmittedProgress = currentProgress; // always track live animated value for retry use
 
     // Determine which step we're on based on percentage thresholds
@@ -90,8 +94,8 @@ export async function tailorResumeWithProgress(
     }
     stepIndex = Math.min(stepIndex, ENHANCED_STEPS.length - 2);
 
-    if (stepIndex !== lastStepIndex) {
-      const step = ENHANCED_STEPS[stepIndex];
+    const step = ENHANCED_STEPS[stepIndex];
+    if (stepIndex !== lastStepIndex || Math.abs(currentProgress - lastReportedProgress) >= 0.4) {
       onProgress({
         step: step.step,
         progress: currentProgress,
@@ -99,6 +103,7 @@ export async function tailorResumeWithProgress(
         funFact: step.funFact,
       } as EnhancedTailorProgress);
       lastStepIndex = stepIndex;
+      lastReportedProgress = currentProgress;
     }
   }, 200);
 
@@ -112,7 +117,7 @@ export async function tailorResumeWithProgress(
         toast.info('This is taking longer than usual. Hang tight…');
       });
     }
-  }, 25_000);
+  }, 50_000);
 
   const invokeOnce = async (): Promise<SuperTailorResult> => {
     const { data, error } = await appwriteFunctions.invoke<SuperTailorResult>('tailor-resume', {
@@ -120,25 +125,16 @@ export async function tailorResumeWithProgress(
     });
 
     if (error) {
-      const status = error.status;
-      const msg = error.message;
-      if (status === 401) {
-        throw new Error('Session expired. Please sign in again to use AI features.');
-      }
-      if (status === 429 || msg.toLowerCase().includes('rate limit')) {
-        const e = new Error('Our AI servers are experiencing high demand. Please try again in a moment.');
-        (e as TailorError).code = 'rate_limit';
-        throw e;
-      }
-      if (status === 402 || msg.toLowerCase().includes('credits')) {
-        const e = new Error('Your AI credits have been used up for today. Try again tomorrow or upgrade your plan.');
-        (e as TailorError).code = 'credits_exhausted';
-        throw e;
-      }
-      const code = status && status >= 500 ? 'upstream_5xx' : 'generic';
-      const e = new Error(msg || 'Failed to tailor resume');
-      (e as TailorError).code = code;
-      throw e;
+      const raw = (error.raw && typeof error.raw === 'object') ? error.raw as Record<string, unknown> : {};
+      const info = parseAIErrorBody(
+        {
+          code: error.code ?? raw.code ?? raw.error,
+          message: error.message,
+          error: raw.error,
+        },
+        error.status ?? 500,
+      );
+      throw new AIError(info);
     }
 
     return data!;
@@ -150,19 +146,19 @@ export async function tailorResumeWithProgress(
       data = await invokeOnce();
     } catch (firstError: unknown) {
       // Only retry transient errors (not auth/credits/rate-limit)
-      const code = (firstError as TailorError).code;
-      if (code === 'rate_limit' || code === 'credits_exhausted') throw firstError;
-      if ((firstError as Error).message?.includes('Session expired')) throw firstError;
+      const code = isAIError(firstError) ? firstError.code : (firstError as TailorError).code;
+      if (code === 'rate_limit' || code === 'payment_required' || code === 'unauthorized') throw firstError;
 
       // Auto-retry once after 4s — give transient provider overloads time to clear.
-      // Use a more specific message when the error is a known upstream provider outage.
       const isUpstreamOverload =
-        (firstError as TailorError).code === 'upstream_5xx' ||
-        (firstError as TailorError).code === 'upstream_error' ||
+        code === 'upstream_5xx' ||
+        code === 'provider_unavailable' ||
+        code === 'provider_busy' ||
+        code === 'timeout' ||
         ((firstError as Error).message ?? '').toLowerCase().includes('upstream');
       onProgress({
         step: 'finalizing',
-        progress: lastEmittedProgress,
+        progress: Math.max(lastEmittedProgress, 88),
         message: isUpstreamOverload
           ? '⏳ Our AI is temporarily overloaded — retrying...'
           : '🔄 Retrying — hang tight...',

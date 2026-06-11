@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';

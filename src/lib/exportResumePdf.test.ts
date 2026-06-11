@@ -4,6 +4,14 @@ vi.mock('@/lib/nativePdfGenerator', () => ({
   generateNativePDF: vi.fn(async () => new Blob(['pdf'], { type: 'application/pdf' })),
 }));
 
+vi.mock('@/lib/pdfUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/pdfUtils')>();
+  return {
+    ...actual,
+    resolveExportBreakPositions: vi.fn((_el: HTMLElement, breaks?: number[]) => breaks ?? []),
+  };
+});
+
 vi.mock('@/components/templates/registry', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
   return {
@@ -22,6 +30,7 @@ vi.mock('@/lib/templateCustomization', () => ({
 
 import { exportResumePdfFromData, OffscreenRenderTimeoutError } from './exportResumePdf';
 import { generateNativePDF } from '@/lib/nativePdfGenerator';
+import { resolveExportBreakPositions } from '@/lib/pdfUtils';
 import type { ResumeData } from '@/types/resume';
 
 const minimalResume = {
@@ -43,7 +52,6 @@ const paintedResume = {
 
 describe('exportResumePdfFromData', () => {
   beforeEach(() => {
-    // jsdom does not implement requestAnimationFrame — polyfill with setTimeout(0)
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
       setTimeout(() => cb(performance.now()), 0) as unknown as number,
     );
@@ -60,6 +68,7 @@ describe('exportResumePdfFromData', () => {
     vi.restoreAllMocks();
     document.body.innerHTML = '';
     (generateNativePDF as ReturnType<typeof vi.fn>).mockClear();
+    (resolveExportBreakPositions as ReturnType<typeof vi.fn>).mockClear();
   });
 
   it('throws OffscreenRenderTimeoutError when the template never paints, does not call the native generator, and still cleans up the offscreen container', async () => {
@@ -70,14 +79,16 @@ describe('exportResumePdfFromData', () => {
     expect(document.querySelectorAll('[data-resume-template]').length).toBe(0);
   });
 
-  it('passes saved custom page cuts for offscreen data-based downloads', async () => {
+  it('re-resolves saved custom page cuts on the export template before calling the native generator', async () => {
     const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
     Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
       configurable: true,
       get() {
-        return this instanceof HTMLElement && this.hasAttribute('data-resume-template') ? 200 : 0;
+        return this instanceof HTMLElement && this.hasAttribute('data-resume-template') ? 1200 : 0;
       },
     });
+    (resolveExportBreakPositions as ReturnType<typeof vi.fn>).mockReturnValueOnce([520]);
+
     try {
       await exportResumePdfFromData(paintedResume, 'modern', { renderTimeoutMs: 200 });
     } finally {
@@ -88,11 +99,15 @@ describe('exportResumePdfFromData', () => {
       }
     }
 
+    expect(resolveExportBreakPositions).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      [900],
+    );
     expect(generateNativePDF).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({
         pageFormat: 'letter',
-        customBreakPositions: [900],
+        customBreakPositions: [520],
       }),
     );
   });

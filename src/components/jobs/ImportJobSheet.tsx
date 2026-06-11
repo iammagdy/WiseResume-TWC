@@ -86,7 +86,7 @@ interface ImportJobSheetProps {
 
 export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const [url, setUrl] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -157,6 +157,12 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
   };
 
   const handleAnalyze = async () => {
+    if (!authReady) {
+      setStage('error');
+      setErrorMessage('Still signing you in — please try again in a moment.');
+      return;
+    }
+
     if (!user) {
       setStage('error');
       setErrorMessage('Sign in to import and save job postings.');
