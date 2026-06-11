@@ -15,13 +15,6 @@ import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { CompanyBriefingSheet } from "@/components/interview/CompanyBriefingSheet";
 import { AICostBadge } from "@/components/ai/AICostBadge";
-import { SalaryNegotiationSheet } from "@/components/ai-studio/SalaryNegotiationSheet";
-import { JobRejectionSheet } from "@/components/ai-studio/JobRejectionSheet";
-import { ReferenceLetterSheet } from "@/components/ai-studio/ReferenceLetterSheet";
-import { PersonalBrandingSheet } from "@/components/ai-studio/PersonalBrandingSheet";
-import { ColdEmailSheet } from "@/components/ai-studio/ColdEmailSheet";
-import { SkillsGapSheet } from "@/components/ai-studio/SkillsGapSheet";
-import { PortfolioBioSheet } from "@/components/ai-studio/PortfolioBioSheet";
 import { createRouteOverlayOpenChange } from "@/hooks/useRouteOverlaySync";
 import {
   aiStudioPrimaryWorkflows,
@@ -43,6 +36,7 @@ const OnePageWizardSheet = lazy(() => import("@/components/editor/ai/SmartFitWiz
 const AgenticChatSheet = lazy(() => import("@/components/editor/AgenticChatSheet").then((m) => ({ default: m.AgenticChatSheet })));
 const AIEnhanceSheet = lazy(() => import("@/components/editor/ai/AIEnhanceSheet").then((m) => ({ default: m.AIEnhanceSheet })));
 const ResumeABCompareSheet = lazy(() => import("@/components/ai-studio/ResumeABCompareSheet"));
+const SkillsGapSheet = lazy(() => import("@/components/ai-studio/SkillsGapSheet"));
 
 const RECENT_TOOLS_KEY = "wr-recent-ai-tools";
 const TIP_DISMISSED_KEY = "wr-ai-tip-dismissed";
@@ -90,7 +84,6 @@ export default function AIStudioPage() {
   const { data: resumeData } = useResume(currentResumeId);
   const hasSeenAIStudioTour = useSettingsStore((s) => s.hasSeenAIStudioTour);
   const setHasSeenAIStudioTour = useSettingsStore((s) => s.setHasSeenAIStudioTour);
-  const isFirstVisit = !hasSeenAIStudioTour;
 
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   useEffect(() => {
@@ -139,13 +132,7 @@ export default function AIStudioPage() {
   const [showEnhance, setShowEnhance] = useState(false);
   const [showABCompare, setShowABCompare] = useState(false);
   const [showCompanyBriefing, setShowCompanyBriefing] = useState(false);
-  const [showSalaryNegotiation, setShowSalaryNegotiation] = useState(false);
-  const [showJobRejection, setShowJobRejection] = useState(false);
-  const [showReferenceLetter, setShowReferenceLetter] = useState(false);
-  const [showPersonalBranding, setShowPersonalBranding] = useState(false);
-  const [showColdEmail, setShowColdEmail] = useState(false);
   const [showSkillsGap, setShowSkillsGap] = useState(false);
-  const [showPortfolioBio, setShowPortfolioBio] = useState(false);
 
   const [searchParams] = useSearchParams();
   const activatedToolRef = useRef<string | null>(null);
@@ -169,13 +156,7 @@ export default function AIStudioPage() {
     setShowEnhance(false);
     setShowABCompare(false);
     setShowCompanyBriefing(false);
-    setShowSalaryNegotiation(false);
-    setShowJobRejection(false);
-    setShowReferenceLetter(false);
-    setShowPersonalBranding(false);
-    setShowColdEmail(false);
     setShowSkillsGap(false);
-    setShowPortfolioBio(false);
     setChatInitialMessage("");
   }, []);
 
@@ -208,14 +189,7 @@ export default function AIStudioPage() {
       chat: () => setShowChat(true),
       "company-briefing": () => setShowCompanyBriefing(true),
       "cover-letters": () => navigate("/cover-letters"),
-      "resignation-letters": () => navigate("/resignation-letters"),
-      "salary-negotiation": () => setShowSalaryNegotiation(true),
-      "job-rejection": () => setShowJobRejection(true),
-      "reference-letter": () => setShowReferenceLetter(true),
-      "personal-branding": () => setShowPersonalBranding(true),
-      "cold-email": () => setShowColdEmail(true),
       "skills-gap": () => setShowSkillsGap(true),
-      "portfolio-bio": () => setShowPortfolioBio(true),
       customize: () => {
         if (!currentResumeId) {
           toast.info("Select a resume first to customize design", {
@@ -428,7 +402,7 @@ export default function AIStudioPage() {
               key={`${workflow.id}-${action.toolId}`}
               variant="outline"
               size="sm"
-              className="min-h-9 rounded-xl border-border/60 bg-transparent px-3 hover:bg-muted/30"
+              className="min-h-9 rounded-xl border border-border/60 bg-transparent px-3 hover:bg-muted/30"
               onClick={() => handleWorkflowAction(action.toolId)}
             >
               {action.label}
@@ -637,35 +611,11 @@ export default function AIStudioPage() {
               }
             />
           )}
+          {showSkillsGap && (
+            <SkillsGapSheet open={showSkillsGap} onOpenChange={bindToolSheetOpenChange("skills-gap", setShowSkillsGap)} />
+          )}
         </Suspense>
       </ErrorBoundary>
-
-      {showSalaryNegotiation && (
-        <SalaryNegotiationSheet
-          open={showSalaryNegotiation}
-          onOpenChange={bindToolSheetOpenChange("salary-negotiation", setShowSalaryNegotiation)}
-        />
-      )}
-      {showJobRejection && (
-        <JobRejectionSheet open={showJobRejection} onOpenChange={bindToolSheetOpenChange("job-rejection", setShowJobRejection)} />
-      )}
-      {showReferenceLetter && (
-        <ReferenceLetterSheet
-          open={showReferenceLetter}
-          onOpenChange={bindToolSheetOpenChange("reference-letter", setShowReferenceLetter)}
-        />
-      )}
-      {showPersonalBranding && (
-        <PersonalBrandingSheet
-          open={showPersonalBranding}
-          onOpenChange={bindToolSheetOpenChange("personal-branding", setShowPersonalBranding)}
-        />
-      )}
-      {showColdEmail && <ColdEmailSheet open={showColdEmail} onOpenChange={bindToolSheetOpenChange("cold-email", setShowColdEmail)} />}
-      {showSkillsGap && <SkillsGapSheet open={showSkillsGap} onOpenChange={bindToolSheetOpenChange("skills-gap", setShowSkillsGap)} />}
-      {showPortfolioBio && (
-        <PortfolioBioSheet open={showPortfolioBio} onOpenChange={bindToolSheetOpenChange("portfolio-bio", setShowPortfolioBio)} />
-      )}
     </div>
   );
 }
