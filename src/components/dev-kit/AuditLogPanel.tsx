@@ -61,13 +61,33 @@ export const AuditLogPanel = () => {
   const [dateRange, setDateRange] = useState<'' | '24h' | '7d' | '30d'>('7d');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
 
-  const fetchLogs = useCallback(async (append = false, currentOffset = 0) => {
+  const buildDateFrom = (range: '' | '24h' | '7d' | '30d'): string | undefined => {
+    if (range === '') return undefined;
+    const msMap = { '24h': 86_400_000, '7d': 7 * 86_400_000, '30d': 30 * 86_400_000 };
+    return new Date(Date.now() - msMap[range]).toISOString();
+  };
+
+  const fetchLogs = useCallback(async (
+    append = false,
+    currentOffset = 0,
+    cat = categoryFilter,
+    range = dateRange,
+  ) => {
     if (append) setLoadingMore(true);
     else { setLoading(true); setError(null); }
     try {
+      const date_from = buildDateFrom(range);
+      const body: Record<string, unknown> = {
+        action: 'list-audit-logs',
+        limit: PAGE_SIZE,
+        offset: currentOffset,
+      };
+      if (cat) body.category = cat;
+      if (date_from) body.date_from = date_from;
+
       const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'list-audit-logs', limit: PAGE_SIZE, offset: currentOffset },
+        body,
       });
       const result = unwrapAdminResponse<{ documents?: AuditEntry[]; total?: number }>(
         tuple,
@@ -87,36 +107,41 @@ export const AuditLogPanel = () => {
       if (append) setLoadingMore(false);
       else setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { fetchLogs(false, 0); }, [fetchLogs]);
+  // Re-fetch from page 0 on mount and whenever server-side filters change
+  useEffect(() => {
+    setOffset(0);
+    setAllLogs([]);
+    fetchLogs(false, 0, categoryFilter, dateRange);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilter, dateRange]);
 
   const handleRefresh = () => {
     setOffset(0);
     setSearch('');
     setCategoryFilter('');
-    fetchLogs(false, 0);
+    setDateRange('7d');
+    fetchLogs(false, 0, '', '7d');
   };
 
   const handleLoadMore = () => {
     const newOffset = offset + PAGE_SIZE;
     setOffset(newOffset);
-    fetchLogs(true, newOffset);
+    fetchLogs(true, newOffset, categoryFilter, dateRange);
   };
 
+  // Only search is client-side; category and date are server-side
   const filtered = allLogs.filter(log => {
-    const matchSearch = search === '' ||
-      (log.action ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (log.details ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (log.metadata ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (log.user_id ?? '').toLowerCase().includes(search.toLowerCase());
-    const matchCat = categoryFilter === '' || log.category === categoryFilter;
-    let matchDate = true;
-    if (dateRange !== '') {
-      const msMap = { '24h': 86_400_000, '7d': 7 * 86_400_000, '30d': 30 * 86_400_000 };
-      matchDate = Date.now() - new Date(log.$createdAt).getTime() <= msMap[dateRange];
-    }
-    return matchSearch && matchCat && matchDate;
+    if (search === '') return true;
+    const q = search.toLowerCase();
+    return (
+      (log.action ?? '').toLowerCase().includes(q) ||
+      (log.details ?? '').toLowerCase().includes(q) ||
+      (log.metadata ?? '').toLowerCase().includes(q) ||
+      (log.user_id ?? '').toLowerCase().includes(q)
+    );
   });
 
   const selectedCatLabel = CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.label ?? 'All Categories';

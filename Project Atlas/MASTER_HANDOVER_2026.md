@@ -2,6 +2,74 @@
 
 ---
 
+## Session Log - 2026-06-12 (DevKit Admin Panel Full Audit & Fix — Phases 1–4)
+
+### Overview
+
+Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin panel identified 21 issues: 6 hardcoded backend stubs, 4 frontend/backend mismatches, 11 missing Appwrite collections, plus phantom health-check entries, a wrong function ID, and a capped counter. All 21 fixed across 4 phases. Detailed log: `Project Atlas/05-Migration to Appwrite/34-Session-Log-2026-06-12-DevKit-Full-Audit-Fix.md`.
+
+---
+
+### What Changed (summary)
+
+| # | Area | Root Cause | Fix |
+|---|------|------------|-----|
+| 1 | `handlePurgeOrphans` | One-line stub | Real paginated cursor scan, dry-run guard, audit log on delete |
+| 2 | `handleListAuditLogs` | No offset/date params | Added `offset`, `date_from`, `date_to` server-side filtering |
+| 3 | `handleGlobalStats.activeToday` | Hard-capped at 500 events → always 0 | Paginated `countUniqueTodayVisitors` helper (up to 5k/day) |
+| 4 | `handleLiveActivity user_content_stats` | Wrong field names, `cover_letters` never queried, `planHistory` always `[]` | Fixed field to `credits_charged`; added cover_letters; real plan history from `admin_audit_logs` |
+| 5 | `handleListAiGatewayActivity` | Queried phantom `ai_usage_logs` | Switched to real `ai_request_logs` |
+| 6 | `handleAnalytics` | All hardcoded zeros/empty arrays | Real heatmap (7×24), top referrers, new vs returning, AI credits, signups-per-day |
+| 7 | `AuditLogPanel.tsx` | Filters not forwarded to backend; double-fetch on mount | Server-side category/date; single consolidated useEffect |
+| 8 | Health-check list | Phantom `'audit_logs'` entry caused permanent false alarm | Removed from `requiredCollections` |
+| 9 | `appwrite.json` admin-sentry | Numeric ID `6a0760710000ff231048` instead of slug | Changed to `"admin-sentry"` |
+| 10–18 | 9 missing collections | Never created | 9 idempotent setup scripts; all added to CI pipeline |
+
+---
+
+### Files Changed
+
+**Backend:** `appwrite-hubs/admin-devkit-data/src/main.js`
+**Frontend:** `src/components/dev-kit/AuditLogPanel.tsx`
+**Config:** `appwrite.json`
+**CI:** `.github/workflows/deploy-appwrite-hubs.yml` (+9 schema steps)
+**Scripts (new):** `setup_discount_codes_schema.cjs`, `setup_feature_flags_schema.cjs`, `setup_wisehire_collections_schema.cjs`, `setup_ai_routing_config_schema.cjs`, `setup_contact_requests_schema.cjs`, `setup_audit_logs_schema.cjs`, `setup_notifications_schema.cjs`, `setup_edge_function_logs_schema.cjs`, `setup_error_log_schema.cjs`
+
+---
+
+### Validation
+
+| Check | Result |
+|---|---|
+| `node --check admin-devkit-data/src/main.js` | OK |
+| `tsc --noEmit` | OK |
+| `npm run build` | OK (exit 0) |
+| Vercel preview | Ready (all commits) |
+| Appwrite `ai-gateway` preview | Ready (all commits) |
+
+---
+
+### Commits / Deployments
+
+| Item | State |
+|---|---|
+| Commits | `1960fa8` (Ph 1-3) · `026165c` (Ph 4) · `d739333` (Atlas) |
+| PR | [#99](https://github.com/iammagdy/WiseResume-TWC/pull/99) — Draft, all CI green |
+| `admin-devkit-data` production | **NOT redeployed** — requires CI after merge |
+| Appwrite collections production | **NOT created** — requires CI after merge |
+| Vercel production | **NOT deployed** — requires Vercel deploy after merge |
+
+---
+
+### Where We Stopped (authoritative)
+
+1. **Merge PR #99** — all code complete, all checks green.
+2. **Trigger `deploy-appwrite-hubs.yml`** (target: `all`) after merge — creates 9 missing Appwrite collections + redeploys all functions including `admin-devkit-data`.
+3. **Trigger Vercel production deploy** after merge — picks up `AuditLogPanel.tsx` changes.
+4. **Carry-forward from 2026-06-11:** ~60 uncommitted local product files (maintenance mode, avatar, auth, Deploy All, visitor panel, dashboard fix) still need commit + Vercel deploy + env vars. See session log #33.
+
+---
+
 ## Session Log - 2026-06-11 (DevKit Stabilization, Maintenance Mode, Portfolio/Auth, Visitor Analytics)
 
 ### Overview

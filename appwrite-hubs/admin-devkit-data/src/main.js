@@ -333,7 +333,7 @@ async function handleDiagnostics(log, error) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
 
-  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'moderation_bugs', 'blocklist', 'moderation_queue'];
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'moderation_bugs', 'blocklist', 'moderation_queue'];
   try {
     const collPage = await listCollections([sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
@@ -729,15 +729,36 @@ async function handleOverviewStats(log) {
   };
 }
 
+async function countUniqueTodayVisitors(since) {
+  const ids = new Set();
+  let cursor = null;
+  // Cap at 10 pages (5000 events) to prevent dashboard timeout
+  for (let i = 0; i < 10; i++) {
+    const q = [sdk.Query.greaterThanEqual('$createdAt', since), sdk.Query.limit(500)];
+    if (cursor) q.push(sdk.Query.cursorAfter(cursor));
+    let page;
+    try { page = await listDocuments('visitor_events', q); } catch { break; }
+    const docs = page.documents || [];
+    for (const d of docs) { if (d.anon_id) ids.add(d.anon_id); }
+    if (docs.length < 500) break;
+    cursor = docs[docs.length - 1].$id;
+  }
+  return ids.size;
+}
+
 async function handleGlobalStats(log) {
+  const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
   const [profiles, premium, pro, suspended] = await Promise.all([
     safeList(null, 'profiles', [sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
     safeList(null, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
   ]);
-  const auth = await listUsers([sdk.Query.limit(1)]);
-  return { total: auth.total, profilesTotal: profiles.total, premium: premium.total, pro: pro.total, suspended: suspended.total, activeToday: 0 };
+  const [auth, activeToday] = await Promise.all([
+    listUsers([sdk.Query.limit(1)]),
+    countUniqueTodayVisitors(todaySince),
+  ]);
+  return { total: auth.total, profilesTotal: profiles.total, premium: premium.total, pro: pro.total, suspended: suspended.total, activeToday };
 }
 
 async function handleListUsersPage(body, log) {
@@ -869,17 +890,100 @@ async function handleSendWisehireInvite(body, log) {
 }
 
 async function handlePurgeOrphans(body, log) {
-  return { dryRun: body.dryRun !== false, orphanedProfiles: 0, orphanedResumes: 0, sampleProfiles: [], sampleResumes: [], deletedProfiles: 0, deletedResumes: 0 };
+  const { databases } = getClients();
+  const isDryRun = body.dryRun !== false;
+
+  // Collect all valid auth user IDs
+  const authData = await listAllAuthUsers();
+  const authUserIds = new Set(authData.users.map(u => u.$id));
+
+  // Find orphaned profiles (profile.user_id not in auth users)
+  const orphanedProfiles = [];
+  let cursor = null;
+  while (true) {
+    const q = [sdk.Query.limit(500)];
+    if (cursor) q.push(sdk.Query.cursorAfter(cursor));
+    const page = await safeList(databases, 'profiles', q);
+    const docs = page.documents || [];
+    for (const d of docs) {
+      if (d.user_id && !authUserIds.has(d.user_id)) {
+        orphanedProfiles.push({ id: d.$id, user_id: d.user_id, email: d.email || null });
+      }
+    }
+    if (docs.length < 500) break;
+    cursor = docs[docs.length - 1].$id;
+  }
+
+  // Find orphaned resumes (resume.user_id not in auth users)
+  const orphanedResumes = [];
+  cursor = null;
+  while (true) {
+    const q = [sdk.Query.limit(500)];
+    if (cursor) q.push(sdk.Query.cursorAfter(cursor));
+    const page = await safeList(databases, 'resumes', q);
+    const docs = page.documents || [];
+    for (const d of docs) {
+      if (d.user_id && !authUserIds.has(d.user_id)) {
+        orphanedResumes.push({ id: d.$id, user_id: d.user_id, title: d.title || null });
+      }
+    }
+    if (docs.length < 500) break;
+    cursor = docs[docs.length - 1].$id;
+  }
+
+  log(`purge-orphans: found ${orphanedProfiles.length} orphaned profiles, ${orphanedResumes.length} orphaned resumes (dryRun=${isDryRun})`);
+
+  if (isDryRun) {
+    return {
+      dryRun: true,
+      orphanedProfiles: orphanedProfiles.length,
+      orphanedResumes: orphanedResumes.length,
+      sampleProfiles: orphanedProfiles.slice(0, 5),
+      sampleResumes: orphanedResumes.slice(0, 5),
+      deletedProfiles: 0,
+      deletedResumes: 0,
+    };
+  }
+
+  let deletedProfiles = 0;
+  let deletedResumes = 0;
+  for (const p of orphanedProfiles) {
+    try { await databases.deleteDocument(DB_ID, 'profiles', p.id); deletedProfiles++; }
+    catch (e) { log(`[warn] purge-orphans: profile ${p.id} delete failed: ${e.message}`); }
+  }
+  for (const r of orphanedResumes) {
+    try { await databases.deleteDocument(DB_ID, 'resumes', r.id); deletedResumes++; }
+    catch (e) { log(`[warn] purge-orphans: resume ${r.id} delete failed: ${e.message}`); }
+  }
+  await auditLog(databases, 'purge-orphans', { isDryRun: false, deletedProfiles, deletedResumes });
+  log(`purge-orphans: deleted ${deletedProfiles} profiles, ${deletedResumes} resumes`);
+  return {
+    dryRun: false,
+    orphanedProfiles: orphanedProfiles.length,
+    orphanedResumes: orphanedResumes.length,
+    sampleProfiles: [],
+    sampleResumes: [],
+    deletedProfiles,
+    deletedResumes,
+  };
 }
 
 async function handleListAuditLogs(body, log) {
   const { databases } = getClients();
   const limit = Math.min(Math.max(1, Number(body.limit) || 25), 100);
+  const offset = Math.max(0, Number(body.offset) || 0);
   const queries = [];
   if (typeof body.category === 'string' && body.category.trim()) {
     queries.push(sdk.Query.equal('category', body.category.trim()));
   }
+  if (typeof body.date_from === 'string' && body.date_from.trim()) {
+    try { queries.push(sdk.Query.greaterThanEqual('$createdAt', body.date_from.trim())); } catch (_) {}
+  }
+  if (typeof body.date_to === 'string' && body.date_to.trim()) {
+    try { queries.push(sdk.Query.lessThan('$createdAt', body.date_to.trim())); } catch (_) {}
+  }
   queries.push(sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(limit));
+  if (offset > 0) queries.push(sdk.Query.offset(offset));
   const res = await safeList(databases, 'admin_audit_logs', queries);
   return { documents: res.documents, total: res.total };
 }
@@ -1753,17 +1857,52 @@ async function handleLiveActivity(body, log) {
     return { data: res.documents };
   }
   if (resource === 'user_content_stats') {
-    const [resumeRes, credRes] = await Promise.all([
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+    const [resumeRes, coverRes, credRes, planHistRes, requestLogRes] = await Promise.all([
       safeList(databases, 'resumes', [sdk.Query.equal('user_id', user_id || ''), sdk.Query.limit(1)]),
+      safeList(databases, 'cover_letters', [sdk.Query.equal('user_id', user_id || ''), sdk.Query.limit(1)]),
       safeList(databases, 'ai_credits', [sdk.Query.equal('user_id', user_id || ''), sdk.Query.limit(1)]),
+      safeList(databases, 'admin_audit_logs', [
+        sdk.Query.equal('user_id', user_id || ''),
+        sdk.Query.greaterThanEqual('$createdAt', thirtyDaysAgo),
+        sdk.Query.orderDesc('$createdAt'),
+        sdk.Query.limit(20),
+      ]),
+      safeList(databases, 'ai_request_logs', [
+        sdk.Query.equal('user_id', user_id || ''),
+        sdk.Query.greaterThanEqual('created_at', thirtyDaysAgo),
+        sdk.Query.limit(500),
+      ]),
     ]);
     const profile = await getProfileDoc(databases, user_id || '');
     const cred = credRes.documents[0];
+
+    // AI credits over the last 30 days from request logs; fall back to today's daily_usage
+    const credits30d = requestLogRes.error
+      ? (cred ? (cred.daily_usage || 0) : null)
+      : (requestLogRes.documents || []).reduce((sum, d) => sum + (typeof d.credits_charged === 'number' ? d.credits_charged : 0), 0);
+
+    // Cover letter count (null if collection missing)
+    const coverLetterCount = coverRes.error ? null : (coverRes.total ?? 0);
+
+    // Plan history from audit log entries
+    const planActions = new Set(['set-plan', 'grant-trial', 'revoke-trial', 'plan-change']);
+    const planHistory = (planHistRes.documents || [])
+      .filter(d => planActions.has(d.action || ''))
+      .map(d => {
+        let metadata = {};
+        try { metadata = JSON.parse(d.metadata || '{}'); } catch {}
+        return { action: d.action || '', metadata, created_at: d.$createdAt };
+      });
+
     return {
-      resumeCount: resumeRes.total, coverLetterCount: null,
-      hasPortfolio: !!(profile?.username), portfolioEnabled: profile?.portfolio_enabled ?? null,
+      resumeCount: resumeRes.total,
+      coverLetterCount,
+      hasPortfolio: !!(profile?.username),
+      portfolioEnabled: profile?.portfolio_enabled ?? null,
       portfolioUsername: profile?.username ?? null,
-      aiCredits30d: cred ? (cred.credits_used || 0) : null, planHistory: [],
+      aiCredits30d: credits30d,
+      planHistory,
     };
   }
   throw new Error(`Unknown resource: ${resource}`);
@@ -2097,7 +2236,7 @@ async function handleListAiGatewayActivity(body, log) {
     log(`list-ai-gateway-activity: executions fetch failed: ${e.message}`);
   }
 
-  const usageRes = await safeList(null, 'ai_usage_logs', [sdk.Query.limit(50), sdk.Query.orderDesc('$createdAt')]);
+  const usageRes = await safeList(null, 'ai_request_logs', [sdk.Query.limit(50), sdk.Query.orderDesc('created_at')]);
   const missingUsageCollection = !!usageRes.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(usageRes.error);
   const usageFetchError = usageRes.error && !missingUsageCollection ? usageRes.error : null;
 
@@ -2299,6 +2438,70 @@ async function handleAnalytics(body, log) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
+  // ── Signups last 14 days: profiles created per day ───────────────────────
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
+  const signupRes = await safeList(null, 'profiles', [
+    sdk.Query.greaterThanEqual('$createdAt', fourteenDaysAgo),
+    sdk.Query.orderDesc('$createdAt'),
+    sdk.Query.limit(500),
+  ]);
+  const signupByDay = {};
+  for (const d of (signupRes.documents || [])) {
+    const day = d.$createdAt.slice(0, 10);
+    signupByDay[day] = (signupByDay[day] || 0) + 1;
+  }
+  const signupsLast14Days = Object.entries(signupByDay)
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // ── AI credits for the selected range (from ai_request_logs) ──────────────
+  const [credLogsRes, prevCredLogsRes, todayCredRes, ydayCredRes] = await Promise.all([
+    safeList(null, 'ai_request_logs', [sdk.Query.greaterThanEqual('created_at', since), sdk.Query.limit(500)]),
+    safeList(null, 'ai_request_logs', [sdk.Query.greaterThanEqual('created_at', prevSince), sdk.Query.lessThan('created_at', since), sdk.Query.limit(500)]),
+    safeList(null, 'ai_credits', [sdk.Query.equal('usage_date', isoNow().slice(0, 10)), sdk.Query.limit(500)]),
+    safeList(null, 'ai_credits', [sdk.Query.equal('usage_date', new Date(Date.now() - 86400000).toISOString().slice(0, 10)), sdk.Query.limit(500)]),
+  ]);
+  const rangeCredits = (credLogsRes.documents || []).reduce((s, d) => s + (typeof d.credits_charged === 'number' ? d.credits_charged : 0), 0);
+  const prevRangeCredits = (prevCredLogsRes.documents || []).reduce((s, d) => s + (typeof d.credits_charged === 'number' ? d.credits_charged : 0), 0);
+  const aiCreditsToday = (todayCredRes.documents || []).reduce((s, d) => s + (d.daily_usage || 0), 0);
+  const aiCreditsYesterday = (ydayCredRes.documents || []).reduce((s, d) => s + (d.daily_usage || 0), 0);
+
+  // ── Heatmap: 7 (Sun–Sat) × 24 (hours UTC) matrix from visitor_events ─────
+  const heatmapMatrix = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  for (const d of currentDocs) {
+    const dt = new Date(d.$createdAt);
+    heatmapMatrix[dt.getUTCDay()][dt.getUTCHours()]++;
+  }
+
+  // ── Top referrers from visitor_events.referrer field ─────────────────────
+  const referrerMap = {};
+  for (const d of pageViews) {
+    const ref = (d.referrer || '').trim();
+    if (!ref) continue;
+    try {
+      const host = new URL(ref).hostname.replace(/^www\./, '');
+      if (host) referrerMap[host] = (referrerMap[host] || 0) + 1;
+    } catch {}
+  }
+  const topReferrers = Object.entries(referrerMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // ── New vs Returning: new = anon_id unseen in previous period ────────────
+  const prevAnonIdSet = new Set(prevDocs.map(d => d.anon_id).filter(Boolean));
+  const nvrMap = {};
+  for (const d of currentDocs) {
+    if (!d.anon_id) continue;
+    const key = bucket === 'hour' ? d.$createdAt.slice(0, 13) : d.$createdAt.slice(0, 10);
+    if (!nvrMap[key]) nvrMap[key] = { newUsers: new Set(), returningUsers: new Set() };
+    if (prevAnonIdSet.has(d.anon_id)) nvrMap[key].returningUsers.add(d.anon_id);
+    else nvrMap[key].newUsers.add(d.anon_id);
+  }
+  const newVsReturning = Object.entries(nvrMap)
+    .map(([date, v]) => ({ date, newUsers: v.newUsers.size, returningUsers: v.returningUsers.size }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   const analyticsPayload = {
     // Back-compat fields
     pageViewsAllTime: pageViews.length,
@@ -2307,9 +2510,9 @@ async function handleAnalytics(body, log) {
     activeUsersYesterday: ydayUsers.size,
     topFeatures: topFeaturesRanked,
     portfolioViewsTotal: pageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
-    signupsLast14Days: [],
-    aiCreditsToday: 0,
-    aiCreditsYesterday: 0,
+    signupsLast14Days,
+    aiCreditsToday,
+    aiCreditsYesterday,
     countryDistribution: countryRanking.map(c => ({ country: c.country, count: c.count })),
     // New fields
     range,
@@ -2317,7 +2520,7 @@ async function handleAnalytics(body, log) {
     rangeKpis: {
       views: { current: pageViews.length, previous: prevPageViews.length },
       activeUsers: { current: anonIds.size, previous: prevAnonIds.size },
-      aiCredits: { current: 0, previous: 0 },
+      aiCredits: { current: rangeCredits, previous: prevRangeCredits },
       portfolioViews: {
         current: pageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
         previous: prevPageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
@@ -2328,10 +2531,10 @@ async function handleAnalytics(body, log) {
     },
     activitySeries,
     dauRollingSeries: activitySeries.map(p => ({ date: p.date, value: p.users })),
-    newVsReturning: activitySeries.map(p => ({ date: p.date, newUsers: p.users, returningUsers: 0 })),
-    heatmap: [],
+    newVsReturning,
+    heatmap: heatmapMatrix,
     topFeaturesRanged: topFeaturesRanked.map(f => ({ name: f.name, count: f.count, trend: [] })),
-    topReferrers: [],
+    topReferrers,
     deviceBreakdown,
     topPages,
     countryRanking,
