@@ -162,7 +162,7 @@ export function TailorQuickPdfExportDialog({
 
   const pageFormat = currentResume?.customization?.pageFormat ?? 'letter';
 
-  const previewDims = useMemo(() => getPageDimensionsForFormat(pageFormat), [pageFormat]);
+  const previewDims = useMemo(() => getPageDimensionsForFormat(pageFormat, safeTemplateId), [pageFormat, safeTemplateId]);
 
 
 

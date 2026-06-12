@@ -8,6 +8,7 @@ import { SectionId } from '@/types/resume';
 import { normalizeBreakPositions, snapBreakPositionsToSectionHeadings } from '@/lib/exportPagePlan';
 import { SECTION_LABELS } from '@/lib/sectionLabels';
 import { getExportContentHeightPx, getSectionBreakBoundary, getSectionHeadingTop, collectSectionLayoutBounds } from '@/lib/exportLayoutMetrics';
+import { getTemplateDesignDimensions } from '@/lib/templateDimensions';
 
 // Page dimensions (points / CSS pixels — same unit system)
 const DEFAULT_PAGE_WIDTH = 612;
@@ -21,8 +22,10 @@ const PAGE_FORMATS: Record<string, { width: number; height: number }> = {
 
 /** Resolves page width and height from a page format string. */
 export function getPageDimensionsForFormat(
-  pageFormat: string = 'letter'
+  pageFormat: string = 'letter',
+  templateId?: string | null,
 ): { pageWidth: number; pageHeight: number } {
+  if (templateId) return getTemplateDesignDimensions(templateId, pageFormat);
   const dims = PAGE_FORMATS[pageFormat] || PAGE_FORMATS['letter'];
   return { pageWidth: dims.width, pageHeight: dims.height };
 }

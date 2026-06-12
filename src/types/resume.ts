@@ -232,7 +232,7 @@ export interface GapAnalysis {
   }[];
 }
 
-export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive' | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant' | 'banking' | 'consulting' | 'federal' | 'legal' | 'marketing' | 'designer' | 'portfolio' | 'data-science' | 'devops' | 'product' | 'clean' | 'swiss' | 'bento' | 'brutalist' | 'bold-type';
+export type TemplateId = 'wiseresume-classic' | 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive' | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant' | 'banking' | 'consulting' | 'federal' | 'legal' | 'marketing' | 'designer' | 'portfolio' | 'data-science' | 'devops' | 'product' | 'clean' | 'swiss' | 'bento' | 'brutalist' | 'bold-type';
 
 export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'hobbies' | 'references' | 'languages';
 

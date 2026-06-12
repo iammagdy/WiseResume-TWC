@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TemplateId, PDFOptions } from '@/types/resume';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 
 export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
 export type AutoSaveToastMode = 'always' | 'errors-only';
@@ -116,7 +117,7 @@ const defaultSettings = {
   biometricLockEnabled: false,
   biometricLockTimeout: 30000 as BiometricLockTimeout,
   redactPiiBeforeAI: true,
-  defaultTemplate: 'modern' as TemplateId,
+  defaultTemplate: DEFAULT_RESUME_TEMPLATE_ID,
   pdfDefaults: {
     showPageNumbers: true,
     pageNumberFormat: 'full' as const,

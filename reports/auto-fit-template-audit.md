@@ -109,9 +109,11 @@ Static analysis of every resume template against the set of utility classes scal
 
 ### `src/components/templates/SwissTemplate.tsx` — ✅ all vertical utilities covered
 
+### `src/components/templates/WiseResumeClassicTemplate.tsx` — ✅ all vertical utilities covered
+
 ## Summary
 
-- Templates audited: **27**
+- Templates audited: **28**
 - Unscaled vertical utility occurrences: **0**
 - Arbitrary font sizes: **1**
 - Arbitrary spacing: **0**

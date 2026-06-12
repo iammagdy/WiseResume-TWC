@@ -14,7 +14,7 @@ export const mockResume: Partial<ResumeData> = {
   education: [],
   skills: [],
   certifications: [],
-  templateId: "modern",
+  templateId: "wiseresume-classic",
 };
 
 // Mock useResumeStore
@@ -27,7 +27,8 @@ const mockResumeStore = {
   matchScore: null,
   gapAnalysis: null,
   isAnalyzing: false,
-  selectedTemplate: "modern" as const,
+  selectedTemplate: "wiseresume-classic" as const,
+  defaultTemplate: "wiseresume-classic" as const,
   tailorHistory: [],
   tailorHistoryByResume: {},
   coverLetterHistory: [],
@@ -57,7 +58,8 @@ const mockSettingsStore = {
   biometricLockEnabled: false,
   biometricLockTimeout: 0,
   aiTipFrequency: "on-demand" as const,
-  selectedTemplate: "modern" as const,
+  selectedTemplate: "wiseresume-classic" as const,
+  defaultTemplate: "wiseresume-classic" as const,
   byokGeminiKey: null,
   byokOllamaUrl: null,
   aiProvider: "wiseresume" as const,

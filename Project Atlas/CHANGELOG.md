@@ -11,6 +11,33 @@
 
 ---
 
+## 2026-06-12 - WiseResume Classic default template
+
+### Context
+- Triggered by: request to add `wiseresume-classic` and make it the default resume template.
+
+### Product changes (uncommitted)
+- Added WiseResume Classic template with 816x1056 px US Letter pages, crimson primary accents, Inter typography, contact icons, grouped competencies, experience, education, projects, and per-page WiseResume footer.
+- Registered `wiseresume-classic` in template types, registry, migration allowlist, template picker data, thumbnails, live preview, and offscreen export sizing.
+- Changed new-resume defaults from `modern` to `wiseresume-classic`.
+- Updated sample preview data to Magdy Saber resume content for visual QA.
+
+### Validation
+- Focused WiseResume Classic Vitest: 2 passed.
+- Template audit Vitest: 32 passed.
+- `npx tsc --noEmit`: OK.
+- `git diff --check`: OK, line-ending warnings only.
+- `npm run build`: OK.
+- Browser visual check: template appears first in `/templates`; sample renders 2 pages with correct footers and visible email links.
+
+### Deployment
+- Not deployed. Requires owner approval before commit, push, and Vercel deploy.
+
+### Detailed log
+`Project Atlas/05-Migration to Appwrite/35-Session-Log-2026-06-12-WiseResume-Classic-Template.md`
+
+---
+
 ## 2026-06-12 - DevKit admin panel full audit & fix (Phases 1–4)
 
 ### Context

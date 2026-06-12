@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory, SectionStyleOverride, TemplateCustomization } from '@/types/resume';
 import { migrateTemplateId } from '@/lib/templateMigration';
 import { getDefaultCustomization } from '@/lib/templateCustomization';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import { TailorIntensity } from '@/lib/aiTailor';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -111,7 +112,7 @@ const defaultResume: ResumeData = {
   volunteering: [],
   hobbies: [],
   references: [],
-  templateId: 'modern',
+  templateId: DEFAULT_RESUME_TEMPLATE_ID,
 };
 
 export const useResumeStore = create<ResumeState>()(
@@ -125,7 +126,7 @@ export const useResumeStore = create<ResumeState>()(
       matchScore: null,
       gapAnalysis: null,
       isAnalyzing: false,
-      selectedTemplate: 'modern',
+      selectedTemplate: DEFAULT_RESUME_TEMPLATE_ID,
       tailorHistory: [],
       tailorHistoryByResume: {},
       generatedCoverLetter: null,
@@ -410,7 +411,7 @@ export const useResumeStore = create<ResumeState>()(
         matchScore: null,
         gapAnalysis: null,
         isAnalyzing: false,
-        selectedTemplate: 'modern',
+        selectedTemplate: DEFAULT_RESUME_TEMPLATE_ID,
         tailorHistory: [],
         tailorHistoryByResume: {},
         generatedCoverLetter: null,

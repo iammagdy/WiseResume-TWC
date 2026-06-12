@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import templateComponents from '@/components/templates/registry';
 import { generateCustomizationCSS } from '@/lib/templateCustomization';
+import { getTemplateDesignDimensions } from '@/lib/templateDimensions';
 import type { ResumeData, TemplateId } from '@/types/resume';
 import type { NativePdfOptions } from '@/lib/nativePdfGenerator';
 
@@ -94,7 +95,8 @@ export async function exportResumePdfFromData(
 ): Promise<Blob> {
   const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
   const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-  const mount = mountOffscreenTemplate(resume, templateId, PAGE_WIDTHS[pageFormat]);
+  const pageWidth = getTemplateDesignDimensions(templateId, pageFormat).pageWidth || PAGE_WIDTHS[pageFormat];
+  const mount = mountOffscreenTemplate(resume, templateId, pageWidth);
   try {
     await waitForRender(mount.template, options?.renderTimeoutMs ?? 4000);
     const { renderTimeoutMs: _renderTimeoutMs, ...nativeOpts } = options ?? {};

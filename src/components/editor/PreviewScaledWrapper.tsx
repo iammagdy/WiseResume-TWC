@@ -9,6 +9,8 @@ interface PreviewScaledWrapperProps {
   isGenerating: boolean;
   previewScale: number;
   setPreviewScale: (scale: number) => void;
+  pageWidth?: number;
+  pageHeight?: number;
   children: ReactNode;
 }
 
@@ -23,9 +25,11 @@ export function PreviewScaledWrapper({
   isGenerating,
   previewScale,
   setPreviewScale,
+  pageWidth = PDF_WIDTH,
+  pageHeight = 792,
   children,
 }: PreviewScaledWrapperProps) {
-  const [templateHeight, setTemplateHeight] = useState(792);
+  const [templateHeight, setTemplateHeight] = useState(pageHeight);
 
   // Measure container width and compute scale
   useEffect(() => {
@@ -35,14 +39,14 @@ export function PreviewScaledWrapper({
     const updateScale = () => {
       const padding = 16; // p-1 sm:p-4, use small padding
       const available = container.clientWidth - padding * 2;
-      setPreviewScale(Math.min(1, available / PDF_WIDTH));
+      setPreviewScale(Math.min(1, available / pageWidth));
     };
 
     updateScale();
     const observer = new ResizeObserver(updateScale);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [scrollContainerRef, setPreviewScale]);
+  }, [pageWidth, scrollContainerRef, setPreviewScale]);
 
   // Track template height for wrapper sizing
   useEffect(() => {
@@ -66,7 +70,7 @@ export function PreviewScaledWrapper({
     <div
       className="mx-auto relative"
       style={{
-        width: `${PDF_WIDTH * displayScale}px`,
+        width: `${pageWidth * displayScale}px`,
         height: `${wrapperHeight}px`,
       }}
     >
@@ -76,8 +80,8 @@ export function PreviewScaledWrapper({
         data-capturing={isGenerating ? 'true' : undefined}
         className="bg-white text-black shadow-2xl relative"
         style={{
-          width: `${PDF_WIDTH}px`,
-          minHeight: '792px',
+          width: `${pageWidth}px`,
+          minHeight: `${pageHeight}px`,
           transform: `scale(${displayScale})`,
           transformOrigin: 'top left',
         }}

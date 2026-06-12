@@ -45,6 +45,7 @@ import type { ProfileData } from '@/components/settings/ProfileImportSheet';
 import type { Experience, Education, Certification, TemplateId } from '@/types/resume';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { templates, sampleResumeData } from '@/lib/templateData';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 
 function mapProfileDataToResumeFields(data: Partial<ProfileData>): {
   experience: Experience[];
@@ -128,7 +129,7 @@ export function CreateResumeDialog({
   const [blankStep, setBlankStep] = useState<'intake' | 'template' | 'title'>('intake');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
   const [intakeJobTitle, setIntakeJobTitle] = useState('');
-  const [selectedDialogTemplate, setSelectedDialogTemplate] = useState<TemplateId>((defaultTemplateId as TemplateId) || 'modern');
+  const [selectedDialogTemplate, setSelectedDialogTemplate] = useState<TemplateId>((defaultTemplateId as TemplateId) || DEFAULT_RESUME_TEMPLATE_ID);
 
   // Build-from-text state
   const [pasteText, setPasteText] = useState('');
@@ -168,7 +169,7 @@ export function CreateResumeDialog({
         education: [],
         skills: [],
         certifications: [],
-        templateId: selectedDialogTemplate || defaultTemplateId || 'modern',
+        templateId: selectedDialogTemplate || defaultTemplateId || DEFAULT_RESUME_TEMPLATE_ID,
       });
       onOpenChange(false);
       // Pass intake params so EditorPage can apply section ordering and queue summary stub
@@ -195,7 +196,7 @@ export function CreateResumeDialog({
           education: [],
           skills: [],
           certifications: [],
-          templateId: selectedDialogTemplate || defaultTemplateId || 'modern',
+          templateId: selectedDialogTemplate || defaultTemplateId || DEFAULT_RESUME_TEMPLATE_ID,
         },
         title: title.trim(),
       });
@@ -327,7 +328,7 @@ export function CreateResumeDialog({
     setBlankStep('intake');
     setExperienceLevel('');
     setIntakeJobTitle('');
-    setSelectedDialogTemplate((defaultTemplateId as TemplateId) || 'modern');
+    setSelectedDialogTemplate((defaultTemplateId as TemplateId) || DEFAULT_RESUME_TEMPLATE_ID);
     setTailoredJobTitle('');
     setTailoredCompany('');
     setTailoredJobDescription('');
@@ -386,7 +387,7 @@ export function CreateResumeDialog({
           },
           summary: parsed.summary || '',
           ...mapped,
-          templateId: defaultTemplateId || 'modern',
+          templateId: defaultTemplateId || DEFAULT_RESUME_TEMPLATE_ID,
         },
         title: pasteTitle.trim() || 'My Resume',
       });
@@ -429,7 +430,7 @@ export function CreateResumeDialog({
       const insertPayload: Record<string, unknown> = {
         user_id: user.id,
         title: source ? `${source.title} (Trial)` : 'My Trial Resume',
-        template: source?.template || 'modern',
+        template: source?.template || DEFAULT_RESUME_TEMPLATE_ID,
       };
       if (source) {
         // These fields are already JSON strings in Appwrite — pass them directly.
@@ -676,7 +677,7 @@ export function CreateResumeDialog({
             <div className="max-h-[52vh] overflow-y-auto -mx-1 px-1">
               <div className="grid grid-cols-2 gap-2.5">
                 {templates
-                  .filter(t => ['modern', 'classic', 'minimal', 'professional', 'compact', 'developer', 'elegant', 'executive'].includes(t.id))
+                  .filter(t => ['wiseresume-classic', 'modern', 'classic', 'minimal', 'professional', 'compact', 'developer', 'elegant', 'executive'].includes(t.id))
                   .map((template) => {
                     const isSelected = selectedDialogTemplate === template.id;
                     return (
@@ -956,7 +957,7 @@ export function CreateResumeDialog({
                     summary: data.summary || '',
                     ...mapped,
                     certifications: [],
-                    templateId: defaultTemplateId || 'modern',
+                    templateId: defaultTemplateId || DEFAULT_RESUME_TEMPLATE_ID,
                   },
                   title: 'Imported Resume',
                 });
@@ -969,7 +970,7 @@ export function CreateResumeDialog({
                   education: newResume.education || [],
                   skills: newResume.skills || [],
                   certifications: [],
-                  templateId: newResume.template_id || 'modern',
+                  templateId: newResume.template_id || DEFAULT_RESUME_TEMPLATE_ID,
                 });
                 toast.success('Profile imported — review and edit below');
                 onOpenChange(false);

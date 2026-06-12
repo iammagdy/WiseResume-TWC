@@ -120,7 +120,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   // design width). See the comment on the template wrapper below for why
   // pinning these dimensions is essential for accurate page-break placement.
   const previewPageFormat = currentResume?.customization?.pageFormat || 'letter';
-  const previewDims = useMemo(() => getPageDimensionsForFormat(previewPageFormat), [previewPageFormat]);
+  const previewDims = useMemo(() => getPageDimensionsForFormat(previewPageFormat, safeTemplateId), [previewPageFormat, safeTemplateId]);
 
   // Track resume content and compute snap-aware page break positions
   useEffect(() => {

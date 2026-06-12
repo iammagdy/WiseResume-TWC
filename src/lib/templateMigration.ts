@@ -1,4 +1,5 @@
 import type { TemplateId } from '@/types/resume';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 
 export const LEGACY_TEMPLATE_FALLBACKS: Record<string, TemplateId> = {
   corporate: 'classic',
@@ -10,6 +11,7 @@ export const LEGACY_TEMPLATE_FALLBACKS: Record<string, TemplateId> = {
 };
 
 const VALID_TEMPLATE_IDS = new Set<string>([
+  'wiseresume-classic',
   'modern', 'classic', 'minimal', 'professional', 'developer', 'creative',
   'executive', 'compact', 'academic', 'healthcare', 'sales', 'elegant',
   'banking', 'consulting', 'federal', 'legal', 'marketing', 'designer',
@@ -19,11 +21,11 @@ const VALID_TEMPLATE_IDS = new Set<string>([
 
 /**
  * Maps a potentially stale/legacy template ID to a valid current TemplateId.
- * Falls back to 'modern' for any unknown ID not in the current allowlist.
+ * Falls back to the current default for any unknown ID not in the allowlist.
  */
 export function migrateTemplateId(id: string | null | undefined): TemplateId {
-  if (!id) return 'modern';
+  if (!id) return DEFAULT_RESUME_TEMPLATE_ID;
   if (LEGACY_TEMPLATE_FALLBACKS[id]) return LEGACY_TEMPLATE_FALLBACKS[id];
   if (VALID_TEMPLATE_IDS.has(id)) return id as TemplateId;
-  return 'modern';
+  return DEFAULT_RESUME_TEMPLATE_ID;
 }

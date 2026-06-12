@@ -112,7 +112,7 @@ export default function PreviewPage() {
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
 
   const pageFormat = currentResume?.customization?.pageFormat ?? 'letter';
-  const previewDims = useMemo(() => getPageDimensionsForFormat(pageFormat), [pageFormat]);
+  const previewDims = useMemo(() => getPageDimensionsForFormat(pageFormat, selectedTemplate), [pageFormat, selectedTemplate]);
   const customBreakPositions = currentResume?.customization?.customBreakPositions;
 
   useEffect(() => {
@@ -701,6 +701,8 @@ export default function PreviewPage() {
             isGenerating={isGenerating}
             previewScale={previewScale}
             setPreviewScale={setPreviewScale}
+            pageWidth={previewDims.pageWidth}
+            pageHeight={previewDims.pageHeight}
           >
             <Suspense fallback={<TemplateSkeleton />}>
               {/*

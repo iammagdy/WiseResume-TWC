@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { TemplateId } from '@/types/resume';
 
 const templateComponents = {
+  'wiseresume-classic': lazy(() => import('@/components/templates/WiseResumeClassicTemplate').then(m => ({ default: m.WiseResumeClassicTemplate }))),
   modern: lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate }))),
   classic: lazy(() => import('@/components/templates/ClassicTemplate').then(m => ({ default: m.ClassicTemplate }))),
   minimal: lazy(() => import('@/components/templates/MinimalTemplate').then(m => ({ default: m.MinimalTemplate }))),

@@ -2,6 +2,59 @@
 
 ---
 
+## Session Log - 2026-06-12 (WiseResume Classic Default Template)
+
+### Overview
+
+Local `main` session adding `wiseresume-classic` as the default resume template. The template is implemented and verified locally, but no commit, push, deployment, branch creation, or environment-variable change was performed. Detailed log: `Project Atlas/05-Migration to Appwrite/35-Session-Log-2026-06-12-WiseResume-Classic-Template.md`.
+
+---
+
+### What Changed (summary)
+
+| # | Area | Key fix |
+|---|---|---|
+| 1 | Template | Added WiseResume Classic 816x1056 px Letter layout with header, summary, competencies, experience, education, projects, and per-page footer. |
+| 2 | Defaults | New blank resumes now default to `wiseresume-classic` instead of `modern`. |
+| 3 | Registry | Added template id to `TemplateId`, template registry, migration allowlist, template picker, thumbnails, and test mocks. |
+| 4 | Preview/export | Added template dimension helper so Classic uses 816x1056 px while legacy templates keep existing dimensions. |
+| 5 | Sample | Updated preview sample data to Magdy Saber content with grouped competencies. |
+
+---
+
+### Validation
+
+| Check | Result |
+|---|---|
+| Focused WiseResume Classic Vitest | 2 passed |
+| Template audit Vitest | 32 passed |
+| `npx tsc --noEmit` | OK |
+| `git diff --check` | OK, line-ending warnings only |
+| `npm run build` | OK |
+| Browser visual check | `/templates` shows WiseResume Classic first; sample renders 2 pages; footers and visible email links verified. |
+
+---
+
+### Deployment / Schema
+
+| Item | State |
+|---|---|
+| Vercel deploy | **Not run** |
+| Appwrite deploy | Not required |
+| Schema/env changes | None |
+
+---
+
+### Where We Stopped (authoritative)
+
+1. WiseResume Classic is implemented locally, verified, and documented.
+2. Work is uncommitted and undeployed.
+3. User should review the visible browser preview.
+4. Next action requires owner approval before commit, push, or Vercel deploy.
+5. Prior uncommitted security/DevKit remediation work is still present in the same working tree.
+
+---
+
 ## Session Log - 2026-06-12 (DevKit Admin Panel Full Audit & Fix — Phases 1–4)
 
 ### Overview

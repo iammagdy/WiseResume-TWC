@@ -3,8 +3,10 @@ import { ResumeData, TemplateId } from '@/types/resume';
 import { useInView } from '@/hooks/useInView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { migrateTemplateId } from '@/lib/templateMigration';
+import { getTemplateDesignDimensions } from '@/lib/templateDimensions';
 
 // Lazy load all template components
+const WiseResumeClassicTemplate = lazy(() => import('@/components/templates/WiseResumeClassicTemplate').then(m => ({ default: m.WiseResumeClassicTemplate })));
 const ModernTemplate = lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate })));
 const ClassicTemplate = lazy(() => import('@/components/templates/ClassicTemplate').then(m => ({ default: m.ClassicTemplate })));
 const MinimalTemplate = lazy(() => import('@/components/templates/MinimalTemplate').then(m => ({ default: m.MinimalTemplate })));
@@ -39,6 +41,7 @@ interface TemplateThumbnailProps {
 }
 
 export const templateComponents: Record<TemplateId, React.LazyExoticComponent<React.ComponentType<{ resume: ResumeData; accentColor?: string }>>> = {
+  'wiseresume-classic': WiseResumeClassicTemplate,
   modern: ModernTemplate,
   classic: ClassicTemplate,
   minimal: MinimalTemplate,
@@ -85,12 +88,15 @@ export const TemplateThumbnail = memo(function TemplateThumbnail({ templateId, r
   const [scale, setScale] = useState(0.15);
   
   const { ref: inViewRef, inView } = useInView({ rootMargin: '100px', triggerOnce: true });
+  const safeId: TemplateId = templateComponents[templateId] ? templateId : migrateTemplateId(templateId);
+  const TemplateComponent = templateComponents[safeId] ?? templateComponents['modern'];
+  const designDims = getTemplateDesignDimensions(safeId, resume.customization?.pageFormat ?? 'letter');
 
   useEffect(() => {
     const updateScale = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth;
-        const calculatedScale = containerWidth / 612;
+        const calculatedScale = containerWidth / designDims.pageWidth;
         setScale(Math.max(calculatedScale, 0.35));
       }
     };
@@ -103,10 +109,7 @@ export const TemplateThumbnail = memo(function TemplateThumbnail({ templateId, r
     }
 
     return () => resizeObserver.disconnect();
-  }, []);
-
-  const safeId: TemplateId = templateComponents[templateId] ? templateId : migrateTemplateId(templateId);
-  const TemplateComponent = templateComponents[safeId] ?? templateComponents['modern'];
+  }, [designDims.pageWidth]);
 
   return (
     <div 
@@ -124,8 +127,8 @@ export const TemplateThumbnail = memo(function TemplateThumbnail({ templateId, r
             className="origin-top-left"
             style={{
               transform: `scale(${scale})`,
-              width: '612px',
-              height: '792px',
+              width: `${designDims.pageWidth}px`,
+              height: `${designDims.pageHeight}px`,
             }}
           >
             <TemplateComponent resume={resume} accentColor={resume.customization?.accentColor} />

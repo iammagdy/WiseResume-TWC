@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 import { useResumeUpload } from '@/hooks/useResumeUpload';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 
 export default function UploadPage() {
   const navigate = useNavigate();
@@ -210,7 +211,7 @@ export default function UploadPage() {
         education: [],
         skills: [],
         certifications: [],
-        templateId: 'modern',
+        templateId: DEFAULT_RESUME_TEMPLATE_ID,
       });
       navigate('/editor');
       return;
@@ -224,7 +225,7 @@ export default function UploadPage() {
           education: [],
           skills: [],
           certifications: [],
-          templateId: 'modern',
+          templateId: DEFAULT_RESUME_TEMPLATE_ID,
         },
         title: 'My Resume',
       });
