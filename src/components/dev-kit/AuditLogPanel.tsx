@@ -110,9 +110,7 @@ export const AuditLogPanel = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { fetchLogs(false, 0, categoryFilter, dateRange); }, [fetchLogs]);
-
-  // Re-fetch from page 0 whenever server-side filters change
+  // Re-fetch from page 0 on mount and whenever server-side filters change
   useEffect(() => {
     setOffset(0);
     setAllLogs([]);

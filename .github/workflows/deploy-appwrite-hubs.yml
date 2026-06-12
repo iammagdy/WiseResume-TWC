@@ -101,6 +101,22 @@ jobs:
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/setup_ai_credits_schema.cjs
 
+      - name: Ensure edge function logs schema
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup_edge_function_logs_schema.cjs
+
+      - name: Ensure error log schema
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup_error_log_schema.cjs
+
       - name: Ensure discount codes schema
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
         env:

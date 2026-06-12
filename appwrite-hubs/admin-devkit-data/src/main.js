@@ -333,7 +333,7 @@ async function handleDiagnostics(log, error) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
 
-  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'usage_events', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'moderation_bugs', 'blocklist', 'moderation_queue'];
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'moderation_bugs', 'blocklist', 'moderation_queue'];
   try {
     const collPage = await listCollections([sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
@@ -729,17 +729,35 @@ async function handleOverviewStats(log) {
   };
 }
 
+async function countUniqueTodayVisitors(since) {
+  const ids = new Set();
+  let cursor = null;
+  // Cap at 10 pages (5000 events) to prevent dashboard timeout
+  for (let i = 0; i < 10; i++) {
+    const q = [sdk.Query.greaterThanEqual('$createdAt', since), sdk.Query.limit(500)];
+    if (cursor) q.push(sdk.Query.cursorAfter(cursor));
+    let page;
+    try { page = await listDocuments('visitor_events', q); } catch { break; }
+    const docs = page.documents || [];
+    for (const d of docs) { if (d.anon_id) ids.add(d.anon_id); }
+    if (docs.length < 500) break;
+    cursor = docs[docs.length - 1].$id;
+  }
+  return ids.size;
+}
+
 async function handleGlobalStats(log) {
   const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-  const [profiles, premium, pro, suspended, todayVisitors] = await Promise.all([
+  const [profiles, premium, pro, suspended] = await Promise.all([
     safeList(null, 'profiles', [sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
     safeList(null, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
-    safeList(null, 'visitor_events', [sdk.Query.greaterThanEqual('$createdAt', todaySince), sdk.Query.limit(500)]),
   ]);
-  const auth = await listUsers([sdk.Query.limit(1)]);
-  const activeToday = new Set((todayVisitors.documents || []).map(d => d.anon_id).filter(Boolean)).size;
+  const [auth, activeToday] = await Promise.all([
+    listUsers([sdk.Query.limit(1)]),
+    countUniqueTodayVisitors(todaySince),
+  ]);
   return { total: auth.total, profilesTotal: profiles.total, premium: premium.total, pro: pro.total, suspended: suspended.total, activeToday };
 }
 
@@ -2420,6 +2438,22 @@ async function handleAnalytics(body, log) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
+  // ── Signups last 14 days: profiles created per day ───────────────────────
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
+  const signupRes = await safeList(null, 'profiles', [
+    sdk.Query.greaterThanEqual('$createdAt', fourteenDaysAgo),
+    sdk.Query.orderDesc('$createdAt'),
+    sdk.Query.limit(500),
+  ]);
+  const signupByDay = {};
+  for (const d of (signupRes.documents || [])) {
+    const day = d.$createdAt.slice(0, 10);
+    signupByDay[day] = (signupByDay[day] || 0) + 1;
+  }
+  const signupsLast14Days = Object.entries(signupByDay)
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   // ── AI credits for the selected range (from ai_request_logs) ──────────────
   const [credLogsRes, prevCredLogsRes, todayCredRes, ydayCredRes] = await Promise.all([
     safeList(null, 'ai_request_logs', [sdk.Query.greaterThanEqual('created_at', since), sdk.Query.limit(500)]),
@@ -2476,7 +2510,7 @@ async function handleAnalytics(body, log) {
     activeUsersYesterday: ydayUsers.size,
     topFeatures: topFeaturesRanked,
     portfolioViewsTotal: pageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
-    signupsLast14Days: [],
+    signupsLast14Days,
     aiCreditsToday,
     aiCreditsYesterday,
     countryDistribution: countryRanking.map(c => ({ country: c.country, count: c.count })),

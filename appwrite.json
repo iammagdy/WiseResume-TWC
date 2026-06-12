@@ -13,7 +13,7 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
-      "functionId": "6a0760710000ff231048",
+      "functionId": "admin-sentry",
       "name": "Admin Sentry Hub",
       "runtime": "node-20.0",
       "path": "appwrite-hubs/admin-sentry",
