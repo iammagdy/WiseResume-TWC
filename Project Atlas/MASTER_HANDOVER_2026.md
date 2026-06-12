@@ -74,14 +74,26 @@ Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin 
 
 ---
 
+### Phase 4 Fixes (same session, follow-up commit `026165c`)
+
+Additional fixes after self-review:
+- Removed phantom `'audit_logs'` from health-check `requiredCollections` (was causing permanent false alarm)
+- Fixed `appwrite.json` admin-sentry `functionId` from numeric `6a0760710000ff231048` → slug `admin-sentry`
+- `signupsLast14Days` now queries real `profiles.$createdAt`, bucketed by day (was hardcoded `[]`)
+- `activeToday` in `handleGlobalStats` now paginates visitor_events (was capped at 500 docs)
+- `AuditLogPanel.tsx` double-fetch on mount removed (was two useEffects both firing at init)
+- `scripts/setup_edge_function_logs_schema.cjs` created — Observability telemetry collection
+- `scripts/setup_error_log_schema.cjs` created — Error Log collection
+- Both new scripts added to `deploy-appwrite-hubs.yml` CI pipeline
+
 ### Where We Stopped (authoritative)
 
-1. **PR created** on `claude/gallant-lovelace-zgwv00` — awaits review and merge.
-2. **Run schema setup scripts** against production: either trigger CI deploy or run manually with `APPWRITE_API_KEY`.
-3. **Redeploy `admin-devkit-data` function** via CI or DevKit Deploy All after merge — this is the critical function with all 6 fixes.
+1. **PR #99 created** on `claude/gallant-lovelace-zgwv00` — awaits review and merge.
+2. **Trigger CI deploy workflow** (`all` target) after merge — all schema setup scripts run idempotently.
+3. **Redeploy `admin-devkit-data` function** via CI or DevKit Deploy All after merge.
 4. **Vercel deploy** after merge to pick up AuditLogPanel frontend fix.
-5. **Open items:** `admin-sentry` ID mismatch (`appwrite.json` has `6a0760710000ff231048` but source key is `admin-sentry`) — ops-level alignment needed.
-6. **Manual QA:** All previously pending QA items from 2026-06-11 session remain open.
+5. **Manual QA:** All previously pending QA items from 2026-06-11 session remain open.
+6. **No remaining open code items** — all 21 audit findings resolved.
 
 ---
 
