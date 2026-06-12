@@ -2,6 +2,89 @@
 
 ---
 
+## Session Log - 2026-06-12 (DevKit Admin Panel Full Audit & Fix — Phases 1-3)
+
+### Overview
+
+Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin panel revealed 24 issues: 6 hardcoded backend stubs, 4 frontend/backend mismatches, 14 missing Appwrite collections causing load failures. Fixed in 3 phases. Detailed changes committed to `claude/gallant-lovelace-zgwv00`. PR created as draft for review.
+
+---
+
+### What Changed (summary)
+
+| # | Area | Root Cause | Fix |
+|---|------|------------|-----|
+| 1 | `handlePurgeOrphans` stub | One-line placeholder | Real paginated implementation with cursor, dry-run support |
+| 2 | `handleListAuditLogs` stub | Missing offset/date filter | Added `offset`, `date_from`, `date_to` query params |
+| 3 | `handleGlobalStats` activeToday | Always 0 | Real `visitor_events` query using today's UTC midnight boundary |
+| 4 | `handleLiveActivity` user_content_stats | Wrong field names, missing cover letters | Fixed `credits_charged` field, added `cover_letters` collection, real plan history from audit logs |
+| 5 | `handleListAiGatewayActivity` | Used phantom `ai_usage_logs` collection | Switched to real `ai_request_logs` collection |
+| 6 | `handleAnalytics` | All hardcoded zeros/empty arrays | Real heatmap (7×24 matrix), top referrers, new vs returning, AI credits from correct collections |
+| 7 | AuditLogPanel frontend | Category/date filters not sent to backend | Refactored to server-side filtering with `offset` pagination |
+| 8 | `discount_codes` collection missing | Collection never created | `setup_discount_codes_schema.cjs` (idempotent) |
+| 9 | `feature_flags` collection missing | Collection never created | `setup_feature_flags_schema.cjs` (idempotent) |
+| 10 | `wisehire_waitlist/invites/accounts` missing | Collections never created | `setup_wisehire_collections_schema.cjs` (idempotent) |
+| 11 | `ai_routing_config` collection missing | Collection never created | `setup_ai_routing_config_schema.cjs` (idempotent) |
+| 12 | `contact_requests` collection missing | Collection never created | `setup_contact_requests_schema.cjs` (idempotent) |
+| 13 | `admin_audit_logs` collection missing | Collection never created | `setup_audit_logs_schema.cjs` (idempotent) |
+| 14 | `notifications` collection missing | Collection never created | `setup_notifications_schema.cjs` (idempotent) |
+| 15 | CI workflow missing schema steps | 7 new collections not in deploy pipeline | Added all 7 setup scripts to `deploy-appwrite-hubs.yml` |
+
+---
+
+### Files Changed
+
+**Backend (Appwrite Function):**
+- `appwrite-hubs/admin-devkit-data/src/main.js` — 6 handler functions rewritten
+
+**Frontend:**
+- `src/components/dev-kit/AuditLogPanel.tsx` — server-side filter support added
+
+**Scripts (new — idempotent):**
+- `scripts/setup_discount_codes_schema.cjs`
+- `scripts/setup_feature_flags_schema.cjs`
+- `scripts/setup_wisehire_collections_schema.cjs`
+- `scripts/setup_ai_routing_config_schema.cjs`
+- `scripts/setup_contact_requests_schema.cjs`
+- `scripts/setup_audit_logs_schema.cjs`
+- `scripts/setup_notifications_schema.cjs`
+
+**CI:**
+- `.github/workflows/deploy-appwrite-hubs.yml` — 7 new schema steps added
+
+---
+
+### Validation
+
+| Check | Result |
+|---|---|
+| `node --check appwrite-hubs/admin-devkit-data/src/main.js` | OK (no syntax errors) |
+| `tsc --noEmit` | OK (no type errors) |
+
+---
+
+### Commits / Deployments
+
+| Item | State |
+|---|---|
+| Branch | `claude/gallant-lovelace-zgwv00` |
+| PR | Draft — pending review |
+| Appwrite hubs redeployed | Not yet — requires `APPWRITE_API_KEY` secret + CI run or manual trigger |
+| Vercel frontend | Not deployed — AuditLogPanel.tsx change requires Vercel deploy |
+
+---
+
+### Where We Stopped (authoritative)
+
+1. **PR created** on `claude/gallant-lovelace-zgwv00` — awaits review and merge.
+2. **Run schema setup scripts** against production: either trigger CI deploy or run manually with `APPWRITE_API_KEY`.
+3. **Redeploy `admin-devkit-data` function** via CI or DevKit Deploy All after merge — this is the critical function with all 6 fixes.
+4. **Vercel deploy** after merge to pick up AuditLogPanel frontend fix.
+5. **Open items:** `admin-sentry` ID mismatch (`appwrite.json` has `6a0760710000ff231048` but source key is `admin-sentry`) — ops-level alignment needed.
+6. **Manual QA:** All previously pending QA items from 2026-06-11 session remain open.
+
+---
+
 ## Session Log - 2026-06-11 (DevKit Stabilization, Maintenance Mode, Portfolio/Auth, Visitor Analytics)
 
 ### Overview

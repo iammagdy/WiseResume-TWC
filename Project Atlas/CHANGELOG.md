@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-11
+**Last verified:** 2026-06-12
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,40 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-12 - DevKit admin panel full audit & fix (Phases 1–3)
+
+### Context
+- Triggered by: multiple DevKit panels loading blank/fake data, stubs returning zero counts, missing Appwrite collections causing 404 errors.
+
+### Product changes (committed to `claude/gallant-lovelace-zgwv00`)
+- `admin-devkit-data/src/main.js`: rewrote 6 stub handlers — `handlePurgeOrphans`, `handleListAuditLogs`, `handleGlobalStats`, `handleLiveActivity`, `handleListAiGatewayActivity`, `handleAnalytics`.
+- `AuditLogPanel.tsx`: server-side category/date filtering; proper pagination with `offset`.
+- 7 new idempotent Appwrite schema setup scripts for missing collections: `discount_codes`, `feature_flags`, `wisehire_waitlist/invites/accounts`, `ai_routing_config`, `contact_requests`, `admin_audit_logs`, `notifications`.
+- `.github/workflows/deploy-appwrite-hubs.yml`: 7 new schema ensure steps added to CI.
+
+### Deployments (session)
+- Appwrite hubs: not redeployed yet — requires CI trigger after PR merge.
+- Vercel frontend: not deployed yet — requires PR merge + deploy.
+
+### Files changed
+- `appwrite-hubs/admin-devkit-data/src/main.js`
+- `src/components/dev-kit/AuditLogPanel.tsx`
+- `scripts/setup_discount_codes_schema.cjs` (new)
+- `scripts/setup_feature_flags_schema.cjs` (new)
+- `scripts/setup_wisehire_collections_schema.cjs` (new)
+- `scripts/setup_ai_routing_config_schema.cjs` (new)
+- `scripts/setup_contact_requests_schema.cjs` (new)
+- `scripts/setup_audit_logs_schema.cjs` (new)
+- `scripts/setup_notifications_schema.cjs` (new)
+- `.github/workflows/deploy-appwrite-hubs.yml`
+- `Project Atlas/MASTER_HANDOVER_2026.md`
+
+### Validation
+- `node --check` on `admin-devkit-data/src/main.js` — OK.
+- `tsc --noEmit` — OK (no type errors).
 
 ---
 
