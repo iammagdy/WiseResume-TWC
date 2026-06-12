@@ -36,7 +36,7 @@ const SESSION_PAGE_SIZE = 50;
 // Max events to fetch per query (Appwrite cap is 500 per request)
 const MAX_FETCH = 500;
 // Hard cap per analytics request — prevents function timeout on large datasets
-const MAX_TOTAL_DOCS = 15000;
+const MAX_TOTAL_DOCS = 5000;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 

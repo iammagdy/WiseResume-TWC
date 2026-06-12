@@ -14,6 +14,9 @@ const DATABASE_ID = 'main';
 const PROFILES_COLLECTION = 'profiles';
 const RESUMES_COLLECTION = 'resumes';
 const PORTFOLIO_SETTINGS_COLLECTION = 'portfolio_settings';
+const PORTFOLIO_RATE_LIMIT_COLLECTION = 'portfolio_session_rate_limits';
+const PASSWORD_ATTEMPT_LIMIT = 8;
+const PASSWORD_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 
 function getDb() {
   const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
@@ -47,6 +50,66 @@ function parseJsonField<T>(value: unknown, fallback: T): T {
 
 async function sha256Hex(text: string): Promise<string> {
   return createHash('sha256').update(text).digest('hex');
+}
+
+function getClientIp(req: VercelRequest): string {
+  const cfIp = typeof req.headers['cf-connecting-ip'] === 'string' ? req.headers['cf-connecting-ip'].trim() : '';
+  if (cfIp) return cfIp;
+  const realIp = typeof req.headers['x-real-ip'] === 'string' ? req.headers['x-real-ip'].trim() : '';
+  if (realIp) return realIp;
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
+  return 'unknown';
+}
+
+async function portfolioPasswordAttemptId(username: string, ip: string): Promise<string> {
+  const digest = await sha256Hex(`${username.toLowerCase()}|${ip || 'unknown'}`);
+  return `pwd_${digest.slice(0, 32)}`;
+}
+
+async function getPasswordAttemptState(db: Databases, username: string, ip: string) {
+  const id = await portfolioPasswordAttemptId(username, ip);
+  try {
+    const doc = await db.getDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id) as unknown as Record<string, unknown>;
+    const resetAt = new Date(asString(doc.reset_at)).getTime();
+    const count = Number(doc.count || 0);
+    if (Number.isFinite(resetAt) && Date.now() <= resetAt && count >= PASSWORD_ATTEMPT_LIMIT) {
+      return { blocked: true, id, retryAfterSeconds: Math.ceil((resetAt - Date.now()) / 1000) };
+    }
+    return { blocked: false, id };
+  } catch {
+    return { blocked: false, id };
+  }
+}
+
+async function recordPasswordFailure(db: Databases, username: string, ip: string): Promise<void> {
+  const id = await portfolioPasswordAttemptId(username, ip);
+  const now = Date.now();
+  const resetAt = new Date(now + PASSWORD_ATTEMPT_WINDOW_MS).toISOString();
+  try {
+    const doc = await db.getDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id) as unknown as Record<string, unknown>;
+    const currentReset = new Date(asString(doc.reset_at)).getTime();
+    const count = Number(doc.count || 0);
+    if (!Number.isFinite(currentReset) || now > currentReset) {
+      await db.updateDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, { count: 1, reset_at: resetAt });
+      return;
+    }
+    await db.updateDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, { count: count + 1 });
+  } catch {
+    try {
+      await db.createDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, { count: 1, reset_at: resetAt });
+    } catch { }
+  }
+}
+
+async function clearPasswordFailures(db: Databases, username: string, ip: string): Promise<void> {
+  const id = await portfolioPasswordAttemptId(username, ip);
+  try {
+    await db.updateDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, {
+      count: 0,
+      reset_at: new Date(Date.now() + PASSWORD_ATTEMPT_WINDOW_MS).toISOString(),
+    });
+  } catch { }
 }
 
 async function findProfileByUsername(db: Databases, username: string) {
@@ -264,14 +327,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const settings = await getPortfolioSettings(db, String(profile.user_id || ''));
       if (settings.passwordEnabled) {
+        const clientIp = getClientIp(req);
+        const attemptState = await getPasswordAttemptState(db, username, clientIp);
+        if (attemptState.blocked) {
+          return res.status(429).json({ error: 'rate_limited', retryAfterSeconds: attemptState.retryAfterSeconds });
+        }
         const submittedPassword = typeof body.password === 'string' ? body.password : '';
         if (!submittedPassword) {
+          await recordPasswordFailure(db, username, clientIp);
           return res.status(401).json({ error: 'invalid_password' });
         }
         const ok = await verifyAndMaybeUpgradePassword(db, settings.$id, submittedPassword, settings.passwordHash);
         if (!ok) {
+          await recordPasswordFailure(db, username, clientIp);
           return res.status(401).json({ error: 'invalid_password' });
         }
+        await clearPasswordFailures(db, username, clientIp);
       }
 
       const resumeDoc = await getResume(db, profile);

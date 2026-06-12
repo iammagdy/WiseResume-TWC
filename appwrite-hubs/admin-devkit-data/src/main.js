@@ -5,10 +5,11 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 const DB_ID = 'main';
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 60 * 60 * 1000;
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
+const IMPERSONATION_SESSIONS_COLLECTION = 'admin_impersonation_sessions';
 // â”€â”€â”€ Phase-4: Cold-start startup validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 (function performStartupValidation() {
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
@@ -30,10 +31,7 @@ function base64url(input) {
 }
 
 function getImpersonationSecret() {
-  return process.env.IMPERSONATION_HMAC_SECRET
-    || process.env.APPWRITE_API_KEY
-    || process.env.APPWRITE_FUNCTION_API_KEY
-    || '';
+  return process.env.IMPERSONATION_HMAC_SECRET || '';
 }
 
 function signImpersonationPayload(encoded) {
@@ -78,6 +76,12 @@ function verifySignedToken(token) {
   let payload;
   try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return false; }
   return payload.purpose === 'devkit' && typeof payload.exp === 'number' && Date.now() < payload.exp;
+}
+
+function decodeSignedTokenPayload(token) {
+  if (!token || !token.includes('.')) return null;
+  const [encoded] = token.split('.');
+  try { return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { return null; }
 }
 
 function bearerToken(req, body) {
@@ -293,7 +297,7 @@ async function verifyDevKitSession(body) {
 
     const now = Date.now();
     const expiresAtMs = now + SESSION_TTL_MS;
-    const token = signToken({ purpose: 'devkit', iat: now, exp: expiresAtMs, version: 2, uid: userId });
+    const token = signToken({ purpose: 'devkit', iat: now, exp: expiresAtMs, version: 3, uid: userId, jti: crypto.randomUUID() });
     return {
       success: true,
       session: { token, expiresAt: new Date(expiresAtMs).toISOString(), email: user.email || account.email },
@@ -321,7 +325,7 @@ async function handleDiagnostics(log, error) {
     'admin-devkit-data', 'inspect-ai-keys', 'ai-gateway', 'admin-feature-flags',
     'admin-email', 'admin-testmail', 'admin-visitor-analytics',
     'admin-impersonate', 'admin-onboarding-funnel', 'admin-portfolio-usernames', 'admin-moderation',
-    'coupons', 'wisehire-gateway', 'public-share',
+    'admin-sentry', 'coupons', 'wisehire-gateway', 'public-share',
   ];
   try {
     const fnPage = await listFunctions([sdk.Query.limit(200)]);
@@ -748,17 +752,24 @@ async function countUniqueTodayVisitors(since) {
 
 async function handleGlobalStats(log) {
   const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-  const [profiles, premium, pro, suspended] = await Promise.all([
+  const [profiles, premiumEffective, premiumBase, proEffective, proBase, suspended, auth, activeToday] = await Promise.all([
     safeList(null, 'profiles', [sdk.Query.limit(1)]),
+    safeList(null, 'subscriptions', [sdk.Query.equal('effective_plan', 'premium'), sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'premium'), sdk.Query.limit(1)]),
+    safeList(null, 'subscriptions', [sdk.Query.equal('effective_plan', 'pro'), sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
     safeList(null, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
-  ]);
-  const [auth, activeToday] = await Promise.all([
     listUsers([sdk.Query.limit(1)]),
     countUniqueTodayVisitors(todaySince),
   ]);
-  return { total: auth.total, profilesTotal: profiles.total, premium: premium.total, pro: pro.total, suspended: suspended.total, activeToday };
+  return {
+    total: auth.total,
+    profilesTotal: profiles.total,
+    premium: (premiumEffective.total || premiumBase.total || 0),
+    pro: (proEffective.total || proBase.total || 0),
+    suspended: suspended.total,
+    activeToday,
+  };
 }
 
 async function handleListUsersPage(body, log) {
@@ -819,7 +830,8 @@ async function handleListUsersPage(body, log) {
       const doc = profileMap.get(authUser.$id) || {};
       const s = subMap.get(authUser.$id) || {};
       const c = credMap.get(authUser.$id) || {};
-      const plan_name = s.plan ?? doc.plan ?? 'free';
+      const base_plan = s.plan ?? doc.plan ?? 'free';
+      const effective_plan = s.effective_plan || s.trial_plan || base_plan;
       return {
         $id: doc.$id || authUser.$id,
         $createdAt: authUser.$createdAt || doc.$createdAt,
@@ -827,13 +839,15 @@ async function handleListUsersPage(body, log) {
         email: authUser.email || doc.email || null,
         full_name: doc.full_name || authUser.name || null,
         contact_email: doc.contact_email ?? null,
-        plan_name,
+        plan_name: effective_plan,
+        base_plan,
+        effective_plan,
         plan_updated_at: s.$updatedAt ?? null,
         is_suspended: doc.is_suspended ?? false,
         suspension_reason: doc.suspension_reason ?? null,
         // Use the ai_credits document limit when present; fall back to plan default
         // so free/pro users without a credits doc show their actual cap (not âˆž).
-        daily_limit: c.daily_limit != null ? c.daily_limit : (PLAN_CREDIT_DEFAULTS[plan_name] ?? 5),
+        daily_limit: c.daily_limit != null ? c.daily_limit : (PLAN_CREDIT_DEFAULTS[effective_plan] ?? 5),
         credits_used_today: c.daily_usage ?? 0,
         trial_plan: s.trial_plan ?? null,
         trial_expires_at: s.trial_expires_at ?? null,
@@ -1911,6 +1925,7 @@ async function handleLiveActivity(body, log) {
 async function handleImpersonate(body, log) {
   const { target_user_id } = body;
   if (!target_user_id) throw new Error('Missing target_user_id');
+  const { databases } = getClients();
   const targetUser = await getUser(target_user_id);
   const expiresAt = Date.now() + 15 * 60 * 1000;
   const nonce = crypto.randomBytes(16).toString('hex');
@@ -1918,6 +1933,20 @@ async function handleImpersonate(body, log) {
   const encoded = base64url(JSON.stringify(payloadObj));
   const sig = signImpersonationPayload(encoded);
   if (!sig) throw new Error('Server misconfiguration: signing key unavailable.');
+  const actorPayload = decodeSignedTokenPayload(String(body?.__headers?.Authorization || '').replace(/^Bearer\s+/i, ''));
+  try {
+    await databases.createDocument(DB_ID, IMPERSONATION_SESSIONS_COLLECTION, nonce, {
+      nonce,
+      target_user_id,
+      target_email: targetUser.email,
+      actor_user_id: actorPayload?.uid || null,
+      expires_at: new Date(expiresAt).toISOString(),
+      revoked_at: null,
+      created_at: new Date().toISOString(),
+    });
+  } catch (sessionErr) {
+    throw new Error(`Impersonation session storage is not configured: ${sessionErr.message}`);
+  }
   log(`impersonate: ${target_user_id}`);
   return { url: `/act-as#${encoded}.${sig}`, email: targetUser.email, userId: target_user_id, expiresAt };
 }

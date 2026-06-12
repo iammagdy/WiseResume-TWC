@@ -81,6 +81,32 @@
 
 ---
 
+## 2026-06-12 - Security and DevKit remediation
+
+### Context
+- Triggered by: comprehensive security audit and DevKit functionality audit before production.
+
+### Product/security changes (uncommitted)
+- SSRF hardening for public URL fetch and PDF Chromium rendering.
+- WiseHire recruiter access guard and tenant-scoped candidate/role reads.
+- DevKit token TTL reduced to 1 hour; tokens include `jti`; impersonation secret fallback removed.
+- Act As sessions now require server-side nonce storage/revocation.
+- Email verification status is current-user-only and no longer returns email.
+- Public portfolio password attempts persistently throttle by username and hashed client IP.
+- DevKit AI Radar wired; `admin-sentry` inventory drift fixed; effective-plan stats improved.
+- AI catalogue tests updated to 16 current tools.
+
+### Validation
+- Focused security/DevKit Vitest suite: 26 passed.
+- `node --check` for changed hubs: OK.
+- `npx tsc --noEmit`: OK.
+- Source hashes regenerated.
+
+### Deployment
+- Not deployed. Requires owner approval, schema/env prerequisites, and targeted Appwrite/Vercel deploys later.
+
+---
+
 ## 2026-06-11 - DevKit stabilization, maintenance mode, portfolio/auth, visitor analytics
 
 ### Context

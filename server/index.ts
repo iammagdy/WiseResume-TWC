@@ -33,6 +33,15 @@ import {
   type ExportAvoidBounds,
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
+import {
+  MAX_PUBLIC_FETCH_BYTES,
+  MAX_PUBLIC_FETCH_REDIRECTS,
+  assertPublicHttpUrl,
+  isPrivateOrLocalHostname,
+  isPrivateOrLocalIpAddress,
+  isPuppeteerRequestUrlAllowed,
+  resolveRedirectUrl,
+} from '../src/lib/security/ssrfGuards';
 import { fetchAppSettingsFromDb } from './appSettingsFetch';
 
 const app = express();
@@ -213,6 +222,19 @@ interface ExportLayoutMetrics {
   avoidBlocks: ExportAvoidBounds[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function installPuppeteerRequestGuard(page: any): Promise<void> {
+  await page.setRequestInterception(true);
+  page.on('request', (req: any) => {
+    const url = String(req.url?.() || '');
+    if (!isPuppeteerRequestUrlAllowed(url)) {
+      req.abort().catch(() => undefined);
+      return;
+    }
+    req.continue().catch(() => undefined);
+  });
+}
+
 async function measureExportLayout(
   browser: Awaited<ReturnType<typeof puppeteer.launch>>,
   html: string,
@@ -220,6 +242,7 @@ async function measureExportLayout(
 ): Promise<ExportLayoutMetrics> {
   const page = await browser.newPage();
   try {
+    await installPuppeteerRequestGuard(page);
     await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
     return await page.evaluate(`(() => {
@@ -292,6 +315,7 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
+    await installPuppeteerRequestGuard(page);
     await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
     const pdf = await page.pdf({
@@ -443,6 +467,7 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     if (onePage) {
       const page = await browser.newPage();
       try {
+        await installPuppeteerRequestGuard(page);
         await page.setViewport({ width: dims.widthPx, height: dims.heightPx, deviceScaleFactor: 2 });
         await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
         const onePageBuffer = await page.pdf({
@@ -566,36 +591,70 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
  *   - IPv6 loopback (::1) and private (fc00::/7)
  */
 function isBlockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase().replace(/^\[|\]$/g, ''); // strip IPv6 brackets
+  return isPrivateOrLocalHostname(hostname);
+}
 
-  // Block dangerous hostnames
-  if (h === 'localhost' || h === '0.0.0.0' || h.endsWith('.local') ||
-      h === 'ip6-localhost' || h === 'ip6-loopback') {
-    return true;
+async function assertResolvedHostIsPublic(url: URL): Promise<void> {
+  const results = await dns.promises.lookup(url.hostname, { all: true, verbatim: true });
+  for (const result of results) {
+    if (isPrivateOrLocalIpAddress(result.address)) {
+      throw new Error('URL host resolves to a private address.');
+    }
+  }
+}
+
+async function readResponseTextWithLimit(response: globalThis.Response): Promise<string> {
+  if (!response.body) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength > MAX_PUBLIC_FETCH_BYTES) throw new Error('Response body is too large.');
+    return buffer.toString('utf8');
   }
 
-  // Block IPv6 loopback and private ranges (fc00::/7 = fc... and fd...)
-  if (h === '::1' || h === '::' || /^(fc|fd)[0-9a-f]{0,2}:/i.test(h)) {
-    return true;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > MAX_PUBLIC_FETCH_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      throw new Error('Response body is too large.');
+    }
+    chunks.push(value);
   }
+  return Buffer.concat(chunks).toString('utf8');
+}
 
-  // Block IPv4 private/special ranges
-  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const [a, b, c] = [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
-    if (a === 0) return true;                               // 0.x.x.x
-    if (a === 10) return true;                              // 10.x.x.x  RFC 1918
-    if (a === 100 && b >= 64 && b <= 127) return true;     // 100.64-127.x.x  CG-NAT
-    if (a === 127) return true;                             // 127.x.x.x  loopback
-    if (a === 169 && b === 254) return true;                // 169.254.x.x  link-local / metadata
-    if (a === 172 && b >= 16 && b <= 31) return true;      // 172.16-31.x.x  RFC 1918
-    if (a === 192 && b === 0 && c === 2) return true;      // 192.0.2.x  documentation
-    if (a === 192 && b === 168) return true;                // 192.168.x.x  RFC 1918
-    if (a === 198 && b >= 18 && b <= 19) return true;      // 198.18-19.x.x  benchmarking
-    if (a === 255) return true;                             // 255.x.x.x  broadcast
+async function fetchPublicHtmlWithRedirects(rawUrl: string): Promise<string> {
+  let currentUrl = assertPublicHttpUrl(rawUrl);
+  for (let redirectCount = 0; redirectCount <= MAX_PUBLIC_FETCH_REDIRECTS; redirectCount += 1) {
+    await assertResolvedHostIsPublic(currentUrl);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const response = await fetch(currentUrl.toString(), {
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'WiseResume/4.0 (resume-import-bot; +https://thewise.cloud)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        if (redirectCount >= MAX_PUBLIC_FETCH_REDIRECTS) throw new Error('Too many redirects.');
+        currentUrl = resolveRedirectUrl(currentUrl, response.headers.get('location'));
+        continue;
+      }
+
+      return readResponseTextWithLimit(response);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
-
-  return false;
+  throw new Error('Too many redirects.');
 }
 
 // ── Portfolio view tracker (sendBeacon target) ────────────────────────────────
@@ -728,29 +787,15 @@ app.post('/api/fetch-url', async (req: Request, res: Response) => {
   }
   let parsedUrl: URL;
   try {
-    parsedUrl = new URL(url);
-  } catch {
-    res.status(400).json({ error: 'Invalid URL.' });
-    return;
-  }
-  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-    res.status(400).json({ error: 'Only http and https URLs are supported.' });
-    return;
-  }
-  // Layer 1: string-based hostname check
-  if (isBlockedHost(parsedUrl.hostname)) {
-    res.status(400).json({ error: 'URL host is not permitted.' });
+    parsedUrl = assertPublicHttpUrl(url);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Invalid URL.';
+    res.status(400).json({ error: 'fetch_failed', message });
     return;
   }
   // Layer 2: DNS resolution — check all resolved IPs against private ranges
   try {
-    const addresses = await dns.promises.resolve(parsedUrl.hostname);
-    for (const addr of addresses) {
-      if (isBlockedHost(addr)) {
-        res.status(400).json({ error: 'URL host resolves to a private address.' });
-        return;
-      }
-    }
+    await assertResolvedHostIsPublic(parsedUrl);
   } catch {
     // DNS lookup failed — could be NXDOMAIN or network error.
     // Fail closed: reject the request rather than risk fetching an unknown target.
@@ -758,21 +803,13 @@ app.post('/api/fetch-url', async (req: Request, res: Response) => {
     return;
   }
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'WiseResume/4.0 (resume-import-bot; +https://thewise.cloud)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-    });
-    clearTimeout(timeout);
-    const html = await response.text();
+    const html = await fetchPublicHtmlWithRedirects(url);
     res.json({ html });
   } catch (err) {
     console.error('[fetch-url] error:', err);
-    res.status(502).json({ error: 'fetch_failed', message: 'Failed to fetch the requested URL.' });
+    const message = err instanceof Error ? err.message : 'Failed to fetch the requested URL.';
+    const status = /invalid|not permitted|only http|credentials|resolve|redirect|too large/i.test(message) ? 400 : 502;
+    res.status(status).json({ error: 'fetch_failed', message });
   }
 });
 

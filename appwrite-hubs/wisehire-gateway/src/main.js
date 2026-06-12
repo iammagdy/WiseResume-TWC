@@ -101,8 +101,87 @@ async function safeCreate(databases, collectionId, payload) {
   catch (_) { return null; }
 }
 
+async function safeGet(databases, collectionId, documentId) {
+  try { return await databases.getDocument(DB_ID, collectionId, documentId); }
+  catch (_) { return null; }
+}
+
 function asString(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function forbidden(message = 'WiseHire access is not available for this account.') {
+  const err = new Error(message);
+  err.status = 403;
+  return err;
+}
+
+function normalizeRole(value) {
+  return asString(value).toLowerCase() || 'member';
+}
+
+function hasRequiredWiseHireRole(role, requiredRoles) {
+  if (!requiredRoles?.length) return true;
+  if (role === 'owner' || role === 'admin') return true;
+  return requiredRoles.includes(role);
+}
+
+async function requireWiseHireAccess(databases, user, action, requiredRoles = ['owner', 'admin', 'recruiter', 'member']) {
+  if (!user?.$id) throw forbidden('Please sign in to use WiseHire.');
+
+  const ownedCompany = await safeList(databases, 'wisehire_companies', [
+    sdk.Query.equal('owner_id', user.$id),
+    sdk.Query.limit(1),
+  ]);
+  if (ownedCompany.documents?.[0]) {
+    return {
+      action,
+      userId: user.$id,
+      ownerId: user.$id,
+      companyId: ownedCompany.documents[0].$id,
+      role: 'owner',
+    };
+  }
+
+  const member = await safeList(databases, 'wisehire_accounts', [
+    sdk.Query.equal('user_id', user.$id),
+    sdk.Query.limit(1),
+  ]);
+  const account = member.documents?.find(doc => {
+    const status = asString(doc.status || doc.access_status).toLowerCase();
+    return !status || ['active', 'approved', 'enabled'].includes(status);
+  });
+  if (!account) throw forbidden();
+
+  const role = normalizeRole(account.role || account.account_role);
+  if (!hasRequiredWiseHireRole(role, requiredRoles)) {
+    throw forbidden('WiseHire permissions are not sufficient for this action.');
+  }
+
+  return {
+    action,
+    userId: user.$id,
+    ownerId: asString(account.owner_id) || user.$id,
+    companyId: asString(account.company_id) || null,
+    role,
+  };
+}
+
+function canAccessWiseHireDocument(doc, access) {
+  if (!doc || !access) return false;
+  const ownerId = asString(doc.owner_id);
+  const companyId = asString(doc.company_id);
+  if (ownerId && (ownerId === access.userId || ownerId === access.ownerId)) return true;
+  if (companyId && access.companyId && companyId === access.companyId) return true;
+  return false;
+}
+
+async function getOwnedWiseHireDocument(databases, collectionId, documentId, access) {
+  const id = asString(documentId);
+  if (!id) return null;
+  const doc = await safeGet(databases, collectionId, id);
+  if (!canAccessWiseHireDocument(doc, access)) throw forbidden('WiseHire resource was not found.');
+  return doc;
 }
 
 function extractFileText(file) {
@@ -132,12 +211,15 @@ async function handleWriteJd(body) {
   );
 }
 
-async function handleGenerateBrief(databases, user, body) {
+async function handleGenerateBrief(databases, user, body, access) {
   const candidateId = asString(body.candidate_id);
   const jdText = asString(body.jd_text);
   if (!candidateId || jdText.length < 20) throw new Error('candidate_id and jd_text are required.');
 
-  const candidate = await databases.getDocument(DB_ID, 'wisehire_candidates', candidateId).catch(() => null);
+  const candidate = await getOwnedWiseHireDocument(databases, 'wisehire_candidates', candidateId, access);
+  if (candidate?.role_id) {
+    await getOwnedWiseHireDocument(databases, 'wisehire_roles', candidate.role_id, access);
+  }
   const candidateText = [
     candidate?.name || candidate?.full_name || 'Candidate',
     candidate?.resume_text || candidate?.headline || '',
@@ -177,6 +259,7 @@ async function handleGenerateBrief(databases, user, body) {
 }
 
 async function handleBulkScreen(databases, user, body) {
+  if (body.role_id) await getOwnedWiseHireDocument(databases, 'wisehire_roles', body.role_id, body.__wisehireAccess);
   const files = Array.isArray(body.__files) ? body.__files : [];
   const jdText = asString(body.jd_text);
   const results = files.map((file, index) => {
@@ -221,6 +304,7 @@ async function handleMaskCvs(body) {
 }
 
 async function handleOutreach(databases, user, body) {
+  if (body.candidate_id) await getOwnedWiseHireDocument(databases, 'wisehire_candidates', body.candidate_id, body.__wisehireAccess);
   if (body.ai_draft) {
     return {
       draft: `Hi ${body.candidate_name || 'there'},\n\nI came across your profile and thought your background could be a strong fit for ${body.role_title || 'an open role'}.\n\nWould you be open to a quick conversation this week?\n\nBest,\nWiseHire Team`,
@@ -323,14 +407,28 @@ module.exports = async ({ req, res, error }) => {
       return json(res, { status: 'error', message: 'Please sign in to use WiseHire.' }, 401);
     }
 
+    const recruiterActions = new Set([
+      'wisehire-write-jd',
+      'wisehire-generate-brief',
+      'wisehire-bulk-screen',
+      'wisehire-mask-cvs',
+      'wisehire-send-outreach',
+      'wisehire-talent-search',
+      'wisehire-talent-view',
+    ]);
+    const access = recruiterActions.has(action)
+      ? await requireWiseHireAccess(databases, user, action)
+      : null;
+    const scopedBody = access ? { ...body, __wisehireAccess: access } : body;
+
     let data;
-    if (action === 'wisehire-write-jd') data = await handleWriteJd(body);
-    else if (action === 'wisehire-generate-brief') data = await handleGenerateBrief(databases, user, body);
-    else if (action === 'wisehire-bulk-screen') data = await handleBulkScreen(databases, user, body);
-    else if (action === 'wisehire-mask-cvs') data = await handleMaskCvs(body);
-    else if (action === 'wisehire-send-outreach') data = await handleOutreach(databases, user, body);
-    else if (action === 'wisehire-talent-search') data = await handleTalentSearch(databases, body);
-    else if (action === 'wisehire-talent-view') data = await handleTalentView(databases, user, body);
+    if (action === 'wisehire-write-jd') data = await handleWriteJd(scopedBody);
+    else if (action === 'wisehire-generate-brief') data = await handleGenerateBrief(databases, user, scopedBody, access);
+    else if (action === 'wisehire-bulk-screen') data = await handleBulkScreen(databases, user, scopedBody);
+    else if (action === 'wisehire-mask-cvs') data = await handleMaskCvs(scopedBody);
+    else if (action === 'wisehire-send-outreach') data = await handleOutreach(databases, user, scopedBody);
+    else if (action === 'wisehire-talent-search') data = await handleTalentSearch(databases, scopedBody);
+    else if (action === 'wisehire-talent-view') data = await handleTalentView(databases, user, scopedBody);
     else if (action === 'wisehire-access') data = await handleWisehireAccess(databases, user, { ...body, action: body.wisehire_action || body.action_name || body.action });
     else return json(res, { status: 'error', message: `Unknown WiseHire action: ${action}` }, 400);
 
@@ -339,4 +437,9 @@ module.exports = async ({ req, res, error }) => {
     error(`WiseHire Gateway Error: ${err.message}`);
     return json(res, { status: 'error', message: err.message || 'WiseHire request failed.' }, err.status || 500);
   }
+};
+
+module.exports._test = {
+  canAccessWiseHireDocument,
+  hasRequiredWiseHireRole,
 };

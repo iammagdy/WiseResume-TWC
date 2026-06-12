@@ -214,6 +214,7 @@ export const appwriteFunctions = {
       if (isImpersonating()) {
         const impState = getImpersonationState();
         if (impState.userId) headers['X-Impersonating-User-Id'] = impState.userId;
+        if (impState.token) headers['X-Impersonation-Token'] = impState.token;
       }
       // Per-click idempotency key for AI gateway calls.
       // The server uses a content-hash key for dedup, but this UUID lets the server

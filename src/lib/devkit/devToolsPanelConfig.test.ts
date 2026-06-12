@@ -5,8 +5,8 @@ describe('devToolsPanelConfig', () => {
   it('promotes AI Control Center into three visible panels', () => {
     const aiGroup = PANEL_GROUPS.find(group => group.label === 'AI Control Center');
 
-    expect(aiGroup?.panels.map(panel => panel.id)).toEqual(['ai-health', 'ai-tools-map', 'ai-keys']);
-    expect(aiGroup?.panels.map(panel => panel.title)).toEqual(['AI Health', 'AI Tools Map', 'API Keys']);
+    expect(aiGroup?.panels.map(panel => panel.id)).toEqual(['ai-health', 'ai-tools-map', 'ai-radar', 'ai-keys']);
+    expect(aiGroup?.panels.map(panel => panel.title)).toEqual(['AI Health', 'AI Tools Map', 'AI Radar', 'API Keys']);
   });
 
   it('uses the approved sidebar labels', () => {
@@ -32,6 +32,7 @@ describe('devToolsPanelConfig', () => {
     expect(DEVTOOLS_PANEL_ALIASES.ai).toBe('ai-health');
     expect(DEVTOOLS_PANEL_ALIASES.openrouter).toBe('ai-health');
     expect(DEVTOOLS_PANEL_ALIASES['ai-routing']).toBe('ai-tools-map');
+    expect(DEVTOOLS_PANEL_ALIASES['ai-analytics']).toBe('ai-radar');
     expect(DEVTOOLS_PANEL_ALIASES['ai-keys']).toBe('ai-keys');
   });
 });

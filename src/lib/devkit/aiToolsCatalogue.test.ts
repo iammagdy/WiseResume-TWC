@@ -6,8 +6,8 @@ import {
 } from './aiToolsCatalogue';
 
 describe('aiToolsCatalogue', () => {
-  it('has 23 tools matching the gateway feature set', () => {
-    expect(AI_TOOLS_CATALOGUE).toHaveLength(23);
+  it('has 16 tools matching the current gateway feature set', () => {
+    expect(AI_TOOLS_CATALOGUE).toHaveLength(16);
   });
 
   it('every tool has a valid appArea', () => {
@@ -46,26 +46,23 @@ describe('aiToolsCatalogue', () => {
     expect(TOOL_GATEWAY_DEFAULTS['score-resume']).toBeUndefined();
   });
 
-  it('ask-portfolio now prefers the DeepSeek route', () => {
-    const portfolio = AI_TOOLS_CATALOGUE.find(t => t.id === 'ask-portfolio');
-    expect(portfolio?.gatewayDefault).not.toBeNull();
-    expect(portfolio?.gatewayDefault?.provider).toBe('deepseek');
+  it('removed portfolio/resignation/career-assessment routes are not reintroduced by tests', () => {
+    const removedToolIds = ['ask-portfolio', 'generate-portfolio-bio', 'generate-resignation-letter', 'career-assessment'];
+    for (const id of removedToolIds) {
+      expect(AI_TOOLS_CATALOGUE.some(tool => tool.id === id)).toBe(false);
+      expect(TOOL_GATEWAY_DEFAULTS[id]).toBeUndefined();
+      expect(TOOL_CREDIT_COSTS[id]).toBeUndefined();
+    }
   });
 
   it('all production-routed AI tools now prefer DeepSeek for stabilization', () => {
     const deepseekFirst = [
       'tailor-resume',
       'generate-cover-letter',
-      'recruiter-simulation',
       'agentic-chat',
       'wise-ai-chat',
       'editor-ai',
-      'detect-and-humanize',
       'smart-fit-rewrite',
-      'career-assessment',
-      'generate-portfolio-bio',
-      'generate-resignation-letter',
-      'validate-tailor',
       'suggest-template',
       'analyze-resume',
       'generate-fix-suggestions',
@@ -74,7 +71,6 @@ describe('aiToolsCatalogue', () => {
       'optimize-for-linkedin',
       'generate-question-bank',
       'company-briefing',
-      'ask-portfolio',
     ];
 
     for (const featureId of deepseekFirst) {

@@ -10,6 +10,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards';
 // @sparticuz/chromium v120+ is ESM-only. Vercel's ncc bundler outputs CJS, so a
 // static import would cause ERR_MODULE_NOT_FOUND at runtime. Dynamic import()
 // makes ncc treat it as external — Node.js loads it as ESM from node_modules.
@@ -516,6 +517,20 @@ interface ExportLayoutMetrics {
   avoidBlocks: ExportAvoidBounds[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function installPuppeteerRequestGuard(page: any): Promise<void> {
+  await page.setRequestInterception(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page.on('request', (req: any) => {
+    const url = String(req.url?.() || '');
+    if (!isPuppeteerRequestUrlAllowed(url)) {
+      req.abort().catch(() => undefined);
+      return;
+    }
+    req.continue().catch(() => undefined);
+  });
+}
+
 async function measureExportLayout(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   browser: any,
@@ -524,6 +539,7 @@ async function measureExportLayout(
 ): Promise<ExportLayoutMetrics> {
   const page = await browser.newPage();
   try {
+    await installPuppeteerRequestGuard(page);
     await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
     // Wait for fonts so layout heights are accurate (avoids system-font fallback metrics).
@@ -599,16 +615,7 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
-    await page.setRequestInterception(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    page.on('request', (req: any) => {
-      const url: string = req.url() as string;
-      if (!isPuppeteerUrlAllowed(url)) {
-        req.abort().catch(() => undefined);
-      } else {
-        req.continue().catch(() => undefined);
-      }
-    });
+    await installPuppeteerRequestGuard(page);
 
     await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 1 });
     // domcontentloaded fires as soon as the DOM is parsed; no waiting for external

@@ -30,6 +30,7 @@ import { HomePanel } from '@/components/dev-kit/HomePanel';
 import { DeployHubsPanel } from '@/components/dev-kit/DeployHubsPanel';
 import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
 import { AIRoutingSwitcher } from '@/components/dev-kit/AIRoutingSwitcher';
+import { AIRadarPanel } from '@/components/dev-kit/AIRadarPanel';
 import { PANEL_GROUPS, DEVTOOLS_PANEL_ALIASES, allPanels, groupForPanel, statusShort, type PanelDef, type PanelStatus } from '@/lib/devkit/devToolsPanelConfig';
 
 const STATUS_CLASSES: Record<PanelStatus, string> = {
@@ -172,6 +173,7 @@ function DevToolsInner() {
       case 'db':                return wrap('Database X-Ray',   <DatabaseXRay />);
       case 'ai-health':         return wrap('AI Health',        <AICommandCenterPanel />);
       case 'ai-tools-map':      return wrap('AI Tools Map',     <AIRoutingSwitcher />);
+      case 'ai-radar':          return wrap('AI Radar',         <AIRadarPanel />);
       case 'ai-keys':           return wrap('API Keys',         <AIKeysPanel />);
       case 'flags':             return wrap('Feature Flags',    <FeatureFlagsPanel />);
       case 'moderation':        return wrap('Moderation',       <ModerationPanel />);

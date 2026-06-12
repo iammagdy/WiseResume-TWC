@@ -60,6 +60,11 @@ Local `main` session adding `wiseresume-classic` as the default resume template.
 ### Overview
 
 Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin panel identified 21 issues: 6 hardcoded backend stubs, 4 frontend/backend mismatches, 11 missing Appwrite collections, plus phantom health-check entries, a wrong function ID, and a capped counter. All 21 fixed across 4 phases. Detailed log: `Project Atlas/05-Migration to Appwrite/34-Session-Log-2026-06-12-DevKit-Full-Audit-Fix.md`.
+## Session Log - 2026-06-12 (Security & DevKit Remediation)
+
+### Overview
+
+Local `main` session implementing the approved security and DevKit remediation plan. No deploy, commit, push, branch creation, or environment-variable changes were performed. Detailed log: `Project Atlas/05-Migration to Appwrite/34-Session-Log-2026-06-12-Security-DevKit-Remediation.md`.
 
 ---
 
@@ -87,6 +92,17 @@ Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin 
 **Config:** `appwrite.json`
 **CI:** `.github/workflows/deploy-appwrite-hubs.yml` (+9 schema steps)
 **Scripts (new):** `setup_discount_codes_schema.cjs`, `setup_feature_flags_schema.cjs`, `setup_wisehire_collections_schema.cjs`, `setup_ai_routing_config_schema.cjs`, `setup_contact_requests_schema.cjs`, `setup_audit_logs_schema.cjs`, `setup_notifications_schema.cjs`, `setup_edge_function_logs_schema.cjs`, `setup_error_log_schema.cjs`
+| # | Area | Key fix |
+|---|------|---------|
+| 1 | Public fetch SSRF | Manual redirect loop, per-hop URL/DNS private-range validation, response size cap |
+| 2 | PDF SSRF | Shared default-deny Puppeteer request guard before all `setContent` paths |
+| 3 | WiseHire auth | Access guard for recruiter actions; candidate/role reads require owner/company scope |
+| 4 | DevKit tokens | 1-hour TTL, token `jti`, no impersonation secret fallback |
+| 5 | Act As revoke | Server-side nonce storage/revocation via `admin_impersonation_sessions`; client sends impersonation token |
+| 6 | Email privacy | Verification status requires current-user JWT, self-only, no email response |
+| 7 | Portfolio passwords | Persistent username + hashed-IP throttling |
+| 8 | DevKit drift | AI Radar wired; `admin-sentry` added; effective-plan stats; visitor analytics 5k cap |
+| 9 | AI tests | Catalogue expectations updated to 16 current tools |
 
 ---
 
@@ -111,6 +127,21 @@ Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin 
 | `admin-devkit-data` production | **NOT redeployed** — requires CI after merge |
 | Appwrite collections production | **NOT created** — requires CI after merge |
 | Vercel production | **NOT deployed** — requires Vercel deploy after merge |
+| Focused security/DevKit Vitest suite | 26 passed |
+| `node --check` changed hubs | OK |
+| `npx tsc --noEmit` | OK |
+| Source hashes | Regenerated |
+
+---
+
+### Deployment / Schema
+
+| Item | State |
+|---|---|
+| Appwrite deploy | **Not run** |
+| Vercel deploy | **Not run** |
+| Required hub deploy targets later | `wisehire-gateway`, `admin-devkit-data`, `admin-impersonate`, `email-service`, `admin-deploy-hubs`, `admin-visitor-analytics` |
+| Required env/schema before hub deploy | `IMPERSONATION_HMAC_SECRET`; `admin_impersonation_sessions`; confirm `portfolio_session_rate_limits`; confirm WiseHire membership fields if non-owner recruiters are expected |
 
 ---
 
@@ -120,6 +151,11 @@ Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin 
 2. **Trigger `deploy-appwrite-hubs.yml`** (target: `all`) after merge — creates 9 missing Appwrite collections + redeploys all functions including `admin-devkit-data`.
 3. **Trigger Vercel production deploy** after merge — picks up `AuditLogPanel.tsx` changes.
 4. **Carry-forward from 2026-06-11:** ~60 uncommitted local product files (maintenance mode, avatar, auth, Deploy All, visitor panel, dashboard fix) still need commit + Vercel deploy + env vars. See session log #33.
+1. Implementation is local, uncommitted, and undeployed.
+2. Need final validation pass: `git diff --check`, focused tests, `npx tsc --noEmit`, and any owner-requested broader suites.
+3. Need owner approval for schema/env actions before Appwrite deploy.
+4. Need owner approval before commit/push/deploy.
+5. Manual QA still pending: URL import SSRF, PDF export, WiseHire auth, DevKit login, Act As revoke, email verification, public portfolio password throttling, AI Radar.
 
 ---
 

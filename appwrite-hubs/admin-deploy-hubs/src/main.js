@@ -25,6 +25,7 @@ const HUBS = [
   'admin-visitor-analytics',
   'admin-onboarding-funnel',
   'admin-impersonate',
+  'admin-sentry',
   'inspect-ai-keys',
   'admin-deploy-hubs',
   'email-service',

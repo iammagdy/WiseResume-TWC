@@ -669,29 +669,31 @@ async function handleSendWelcome({ req, res, log, error, body }) {
   }
 }
 
-async function handleGetVerificationStatus({ res, log, error, body }) {
+async function handleGetVerificationStatus({ req, res, log, error, body }) {
   const userId = (body?.userId || body?.user_id || '').trim();
   if (!userId) {
     return json(res, { error: 'userId is required' }, 400);
   }
 
-  const apiKey = appwriteApiKey();
-  if (!apiKey) {
-    return json(res, { error: 'APPWRITE_API_KEY is not configured' }, 500);
+  const userJwt = headerValue(req, body, ['x-appwrite-user-jwt', 'X-Appwrite-JWT']);
+  if (!userJwt) {
+    return json(res, { error: 'Authentication required' }, 401);
   }
 
   try {
-    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
-    const user = await new sdk.Users(adminClient).get(userId);
+    const userClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setJWT(userJwt);
+    const user = await new sdk.Account(userClient).get();
+    if (String(user.$id || '') !== userId) {
+      return json(res, { error: 'Forbidden' }, 403);
+    }
     return json(res, {
       success: true,
       emailVerification: user.emailVerification === true,
-      email: user.email || null,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error(`get-verification-status failed for ${userId}: ${msg}`);
-    return json(res, { error: msg }, 404);
+    return json(res, { error: 'Verification status is unavailable.' }, 401);
   }
 }
 
