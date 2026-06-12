@@ -11,24 +11,28 @@
 
 ---
 
-## 2026-06-12 - DevKit admin panel full audit & fix (Phases 1–3)
+## 2026-06-12 - DevKit admin panel full audit & fix (Phases 1–4)
 
 ### Context
 - Triggered by: multiple DevKit panels loading blank/fake data, stubs returning zero counts, missing Appwrite collections causing 404 errors.
+- Branch: `claude/gallant-lovelace-zgwv00` · PR: [#99](https://github.com/iammagdy/WiseResume-TWC/pull/99)
 
-### Product changes (committed to `claude/gallant-lovelace-zgwv00`)
-- `admin-devkit-data/src/main.js`: rewrote 6 stub handlers — `handlePurgeOrphans`, `handleListAuditLogs`, `handleGlobalStats`, `handleLiveActivity`, `handleListAiGatewayActivity`, `handleAnalytics`.
-- `AuditLogPanel.tsx`: server-side category/date filtering; proper pagination with `offset`.
-- 7 new idempotent Appwrite schema setup scripts for missing collections: `discount_codes`, `feature_flags`, `wisehire_waitlist/invites/accounts`, `ai_routing_config`, `contact_requests`, `admin_audit_logs`, `notifications`.
-- `.github/workflows/deploy-appwrite-hubs.yml`: 7 new schema ensure steps added to CI.
+### Product changes (committed — 21 findings resolved)
+- `admin-devkit-data/src/main.js`: rewrote 6 stub handlers; fixed phantom collection name (`ai_usage_logs` → `ai_request_logs`); removed phantom `'audit_logs'` from health-check; fixed `activeToday` pagination; real `signupsLast14Days` from profiles; `countUniqueTodayVisitors` helper.
+- `AuditLogPanel.tsx`: server-side category/date filtering; `offset` pagination; consolidated mount useEffect (eliminated double-fetch).
+- `appwrite.json`: `admin-sentry` `functionId` corrected from numeric ID to slug `"admin-sentry"`.
+- 9 new idempotent Appwrite schema setup scripts: `discount_codes`, `feature_flags`, `wisehire_waitlist/invites/accounts`, `ai_routing_config`, `contact_requests`, `admin_audit_logs`, `notifications`, `edge_function_logs`, `error_log`.
+- `.github/workflows/deploy-appwrite-hubs.yml`: 9 new schema ensure steps added to CI pipeline.
 
 ### Deployments (session)
-- Appwrite hubs: not redeployed yet — requires CI trigger after PR merge.
-- Vercel frontend: not deployed yet — requires PR merge + deploy.
+- Appwrite hubs: **not redeployed** — requires CI `deploy-appwrite-hubs.yml` trigger (target: `all`) after PR merge.
+- Vercel frontend: **not deployed** — requires Vercel deploy after PR merge.
+- PR previews: Vercel ✅ Ready · Appwrite `ai-gateway` ✅ Ready.
 
 ### Files changed
 - `appwrite-hubs/admin-devkit-data/src/main.js`
 - `src/components/dev-kit/AuditLogPanel.tsx`
+- `appwrite.json`
 - `scripts/setup_discount_codes_schema.cjs` (new)
 - `scripts/setup_feature_flags_schema.cjs` (new)
 - `scripts/setup_wisehire_collections_schema.cjs` (new)
@@ -36,12 +40,17 @@
 - `scripts/setup_contact_requests_schema.cjs` (new)
 - `scripts/setup_audit_logs_schema.cjs` (new)
 - `scripts/setup_notifications_schema.cjs` (new)
+- `scripts/setup_edge_function_logs_schema.cjs` (new)
+- `scripts/setup_error_log_schema.cjs` (new)
 - `.github/workflows/deploy-appwrite-hubs.yml`
-- `Project Atlas/MASTER_HANDOVER_2026.md`
 
 ### Validation
-- `node --check` on `admin-devkit-data/src/main.js` — OK.
-- `tsc --noEmit` — OK (no type errors).
+- `node --check admin-devkit-data/src/main.js` — OK.
+- `tsc --noEmit` — OK.
+- `npm run build` — OK (exit 0).
+
+### Detailed log
+`Project Atlas/05-Migration to Appwrite/34-Session-Log-2026-06-12-DevKit-Full-Audit-Fix.md`
 
 ---
 
