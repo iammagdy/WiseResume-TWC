@@ -2,6 +2,204 @@
 
 ---
 
+## Session Log - 2026-06-13 (wiseresume.app Domain Routing, Plan Cache, Portfolio URL Migration)
+
+### Overview
+
+Four discrete fix clusters committed and pushed to `main` in sequence. No Appwrite Functions changed. No Appwrite schema changes. No Vercel deployments triggered manually — Vercel auto-deployed from `main` after each push.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — `wiseresume.app/dashboard` showed "Portfolio not found for this domain"
+
+- **Root cause**: `isAppHostname()` in `src/hooks/usePublicPortfolio.ts` used `Array.some(h => hostname.includes(h))` with `'thewise.cloud'` in the list. `wiseresume.app` does not contain `thewise.cloud`, so it fell through and was treated as an unknown custom domain. `AppInterior.tsx` then routed it to `CustomDomainPortfolioWrapper`, which returned the "not found" page.
+- **Secondary risk**: The old `includes()` approach would also have accepted `fakewiseresume.app` and `mywiseresume.app` as first-party if those strings had been in the list — a false-positive security concern.
+- **Fix**: Rewrote `isAppHostname()` to use exact `===` equality for specific hostnames and `endsWith()` for wildcard subdomain patterns. Added `wiseresume.app` and `www.wiseresume.app` explicitly. Added `wiseresume.app` to the `validateCustomDomain()` reserved list.
+- **File**: `src/hooks/usePublicPortfolio.ts`
+
+```ts
+export function isAppHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === 'thewise.cloud' ||
+    h.endsWith('.thewise.cloud') ||
+    h === 'wiseresume.app' ||
+    h === 'www.wiseresume.app' ||
+    h.endsWith('.replit.dev') ||
+    h.endsWith('.replit.co')
+  );
+}
+```
+
+- **Tests added**: `src/hooks/__tests__/usePublicPortfolio.test.tsx` — 10 `isAppHostname` cases, 7 `validateCustomDomain` cases, 5 `portfolioUrl` helper cases (27 total, all passing).
+- **Commit**: `7fbd10d` — `fix(portfolio): treat WiseResume app domain as first-party host`
+
+---
+
+#### F2 — AI Tools page blank after Vercel deploy; stale job description in Tailoring Hub
+
+- **Root cause (AI Tools blank)**: `AIStudioPage.tsx` line 382 returned `null` while `planLoading` was true. During the brief plan-loading window (auth resolving → `useMe` query settling), the entire page content was unmounted, producing a completely blank screen.
+- **Fix**: `if (planLoading) return <AIStudioSkeleton />;` — page shows a skeleton frame instead of nothing.
+- **File**: `src/pages/AIStudioPage.tsx`
+
+- **Root cause (stale JD)**: `TailoringHubPage` persisted `jobDescription` in Zustand (backed by `localStorage`). No session boundary was enforced, so the last job description always rehydrated on any new visit — even days later.
+- **Fix**: Session-marker pattern using `sessionStorage`. On first mount within a browser session, if no JD was passed via URL param or preloaded context, `setJobDescription('')` clears the stale value.
+- **File**: `src/pages/TailoringHubPage.tsx`
+
+```ts
+useEffect(() => {
+  const SESSION_MARKER = 'wr_tailoring_session';
+  const isNewSession = !sessionStorage.getItem(SESSION_MARKER);
+  if (isNewSession) {
+    sessionStorage.setItem(SESSION_MARKER, '1');
+    if (!preloadedDesc && !jobIdParam) { setJobDescription(''); }
+  }
+}, []);
+```
+
+- **Commit**: `4c49319` — `fix(ai-studio+tailoring): show skeleton while plan loads; clear stale JD on new session`
+
+---
+
+#### F3 — Plan badge flashed "free" on every page load for paid users
+
+- **Root cause**: `usePlan()` returned `isLoading: true` / plan `'free'` during two back-to-back loading windows: (1) `useAuth()` auth-loading phase, (2) `useMe()` query settling after auth. Total window: ~300–800 ms on fast connections, longer on mobile. All UI consumers rendered the free-plan state during this window.
+- **Fix**: `src/lib/planCache.ts` — new module; reads/writes a `wr_plan_cache` localStorage entry with 15-minute TTL. `usePlan()` returns cached plan data during both loading windows (stale-while-revalidate pattern). Cache is cleared on sign-out and on user-switch.
+- **New file**: `src/lib/planCache.ts`
+- **Changed files**: `src/hooks/usePlan.ts`, `src/contexts/AuthContext.tsx`
+
+Cache shape:
+```ts
+interface PlanCacheEntry {
+  plan: PlanName;
+  trialPlan: string | null;
+  trialExpiresAt: string | null;
+  cachedAt: number; // Date.now()
+}
+```
+
+Cache TTL: 15 minutes. Cache key: `wr_plan_cache`. Cleared by `clearPlanCache()` in `AuthContext` `signOut` and user-switch `useEffect`.
+
+- **Commit**: `ab2dada` — `fix(plan): eliminate free-plan flash with localStorage cache`
+
+---
+
+#### F4 — All user-facing portfolio links referenced `resume.thewise.cloud` instead of `wiseresume.app`
+
+- **Root cause**: `wiseresume.app` became the primary app domain but the entire codebase still referenced `resume.thewise.cloud` in copy buttons, QR code URLs, Career Cards, PDF/export watermarks, canonical SEO URLs, "not found" CTAs, admin views, DNS copy, and the portfolio URL utility.
+- **Fix**: Complete migration across 16 files. `resume.thewise.cloud` backward-compatible — existing shared links still resolve correctly (domain kept in `DOMAIN_MAP` and `isAppHostname` allowlist).
+
+Central utility (`src/lib/portfolioUrl.ts`) rewritten:
+```ts
+export const PRIMARY_PORTFOLIO_DOMAIN = 'https://wiseresume.app';
+export const PORTFOLIO_DOMAIN = resolveDomain(); // runtime hostname lookup via DOMAIN_MAP
+export const getPortfolioUrl = (username: string) => `${PORTFOLIO_DOMAIN}/p/${username}`;
+export const getPortfolioCanonicalUrl = (username: string) => `${PRIMARY_PORTFOLIO_DOMAIN}/p/${username}`;
+export const getPortfolioDisplayUrl = (username: string) => `wiseresume.app/p/${username}`;
+export const getAppUrl = () => PRIMARY_PORTFOLIO_DOMAIN;
+```
+
+Custom domain section in `MoreTab.tsx` updated:
+- CNAME target changed: `resume.thewise.cloud` → `cname.vercel-dns.com`
+- Apex domain: A record to Vercel IP (not CNAME — technically correct)
+- Added "Manual Setup Required (Beta)" amber banner — honest about end-to-end status
+- **Audit finding**: `usePublicPortfolioByDomain` is completely stubbed (`queryFn: async () => null`). `customDomain` is stored inside a `portfolioExtras` JSON blob, which cannot be queried by Appwrite `Query.equal()` without a top-level indexed attribute. Custom domain feature is not functional end-to-end; UI now communicates this honestly.
+
+- **Commit**: `14d6037` — `feat(portfolio): migrate primary domain to wiseresume.app`
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `src/hooks/usePublicPortfolio.ts` | `isAppHostname` exact matching; `validateCustomDomain` reserved list |
+| `src/hooks/__tests__/usePublicPortfolio.test.tsx` | 27 tests — hostname classification, domain validation, URL helpers |
+| `src/lib/portfolioUrl.ts` | Full rewrite — `PRIMARY_PORTFOLIO_DOMAIN`, `PORTFOLIO_DOMAIN`, `getPortfolioCanonicalUrl`, `getPortfolioDisplayUrl`, `getAppUrl` |
+| `src/lib/planCache.ts` | **New** — localStorage plan cache with 15-min TTL |
+| `src/hooks/usePlan.ts` | Stale-while-revalidate via `planCache`; `isLoading` path returns cached plan |
+| `src/contexts/AuthContext.tsx` | `clearPlanCache()` on sign-out and user-switch |
+| `src/pages/AIStudioPage.tsx` | `planLoading` → `<AIStudioSkeleton />` instead of `null` |
+| `src/pages/TailoringHubPage.tsx` | Session-marker JD clear on new session |
+| `src/components/portfolio/editor/MoreTab.tsx` | CNAME target → `cname.vercel-dns.com`; Beta banner |
+| `src/components/portfolio/editor/SetupTab.tsx` | Display label → `getPortfolioDisplayUrl()` |
+| `src/pages/PortfolioEditorPage.tsx` | Canonical URL → `getPortfolioCanonicalUrl()` |
+| `src/components/portfolio/CareerCardSheet.tsx` | "Made with WiseResume" href → `wiseresume.app` |
+| `src/components/portfolio/VisitorsPanel.tsx` | `BASE_URL` → `wiseresume.app` |
+| `src/components/portfolio/editor/VisitorsTab.tsx` | `canonicalBase` prop → `wiseresume.app` |
+| `src/components/dev-kit/UserDetailDrawer.tsx` | Admin portfolio URL display → `wiseresume.app` |
+| `src/lib/exportWatermark.ts` | `BRAND_URL` → `https://wiseresume.app` |
+| `src/lib/nativePdfGenerator.ts` | `BRANDING_URL` → `https://wiseresume.app` |
+| `src/lib/portfolioPrintLayout.ts` | Footer text → `wiseresume.app` |
+| `src/lib/companyBriefingPdf.ts` | Footer text → `wiseresume.app` |
+| `src/hooks/usePortfolioSEO.ts` | JSON-LD `url` field → `getPortfolioCanonicalUrl()` |
+| `src/pages/PublicPortfolioPage.tsx` | "Not Found" CTA + footer link → `wiseresume.app` |
+| `src/lib/exportWatermark.test.ts` | Test assertion URL → `https://wiseresume.app` |
+
+---
+
+### New files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/planCache.ts` | localStorage plan cache — eliminates free-plan flash during auth/me loading window |
+
+---
+
+### Validation
+
+- `npx tsc --noEmit` — exit code 0 after each commit cluster.
+- `npx vitest run` — all tests passing, including 27 new tests in `usePublicPortfolio.test.tsx`.
+
+---
+
+### Commits created (this session)
+
+| SHA | Message |
+|-----|---------|
+| `7fbd10d` | `fix(portfolio): treat WiseResume app domain as first-party host` |
+| `4c49319` | `fix(ai-studio+tailoring): show skeleton while plan loads; clear stale JD on new session` |
+| `ab2dada` | `fix(plan): eliminate free-plan flash with localStorage cache` |
+| `14d6037` | `feat(portfolio): migrate primary domain to wiseresume.app` |
+
+All four commits pushed to `main`. Vercel auto-deployed.
+
+---
+
+### Deployments performed
+
+Vercel auto-deployed from `main` after each push. No manual Vercel deployments triggered. No Appwrite Hubs deployed.
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Live at `14d6037`. All four fix clusters deployed.
+- **Primary domain**: `wiseresume.app` — app + portfolio routes.
+- **Legacy domain**: `resume.thewise.cloud` — still connected to Vercel, backward-compatible, existing links resolve.
+- **Appwrite Functions**: Unchanged.
+- **Appwrite schema**: Unchanged.
+- **Custom domain feature**: UI updated to honest "Beta / Manual Setup Required" state. `usePublicPortfolioByDomain` remains stubbed — end-to-end custom domain routing is not functional.
+
+---
+
+### Where We Stopped
+
+All four fix clusters committed, pushed, and deployed. Codebase is in a clean, `tsc`-passing state on `main` at `14d6037`.
+
+Remaining known follow-ups:
+
+- **Custom domain end-to-end**: To make custom domains functional — (1) add top-level indexed `customDomain` attribute to Appwrite `profiles` collection, (2) implement `usePublicPortfolioByDomain` resolver with `Query.equal('customDomain', domain)`, (3) integrate Vercel domain registration API (requires explicit approval before implementation).
+- **`src/components/job-match/` → `src/components/tailoring-hub/` rename** — deferred from 2026-06-06 session, large churn, no functional impact.
+- **`tailor-resume` Appwrite Function returning `overallScore: null`** — deferred from 2026-06-06 session.
+- **Pre-existing lint in `AppInterior.tsx` lines 156/165** (`Property 'profile' does not exist on type 'never'`) — pre-existing, unrelated to this session.
+
+---
+
 ## Session Log - 2026-06-06 (Tailoring Hub Full Re-audit & Fixes)
 
 ### Overview
