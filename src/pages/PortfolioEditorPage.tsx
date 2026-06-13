@@ -19,7 +19,7 @@ import { Smartphone } from 'lucide-react';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
-import { getPortfolioUrl, getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
+import { getPortfolioUrl, getPortfolioDisplayUrl, getPortfolioCanonicalUrl } from '@/lib/portfolioUrl';
 import { databases, DATABASE_ID, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { openExternal } from '@/lib/openExternal';
@@ -1163,12 +1163,12 @@ export default function PortfolioEditorPage() {
     }
   };
 
-  // Display URL — always show resume.thewise.cloud (never thewise.cloud)
+  // Display URL label — shows wiseresume.app/p/<username> without protocol
   const portfolioDisplayUrl = username ? getPortfolioDisplayUrl(username) : '';
-  // Canonical URL for copy/share/QR — always uses resume.thewise.cloud so shared links
-  // always point to the primary domain regardless of which domain the editor is loaded on.
-  const portfolioCanonicalUrl = username ? `https://resume.thewise.cloud/p/${username}` : '';
-  // Navigation URL — uses the current domain so it works in any environment
+  // Canonical URL for copy/share/QR — always wiseresume.app so shared links
+  // always point to the primary brand domain regardless of which host the editor is on.
+  const portfolioCanonicalUrl = username ? getPortfolioCanonicalUrl(username) : '';
+  // Navigation URL — uses the runtime domain so preview works in any environment
   const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {

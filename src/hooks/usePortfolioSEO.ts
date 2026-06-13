@@ -71,7 +71,7 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       };
       if (profile.jobTitle) jsonLdData.jobTitle = profile.jobTitle;
       if (profile.portfolioBio) jsonLdData.description = profile.portfolioBio;
-      if (profile.username) jsonLdData.url = `https://resume.thewise.cloud/p/${profile.username}`;
+      if (profile.username) jsonLdData.url = `https://wiseresume.app/p/${profile.username}`;
       if (profile.linkedinUrl) jsonLdData.sameAs = [profile.linkedinUrl];
       if (profile.githubUrl) {
         jsonLdData.sameAs = [...((jsonLdData.sameAs as string[]) ?? []), profile.githubUrl];

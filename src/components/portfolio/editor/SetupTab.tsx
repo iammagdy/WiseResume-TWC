@@ -1,4 +1,5 @@
 import { Sparkles, CheckCircle2, XCircle, Eye, Zap, Video, ScanSearch, Crown } from 'lucide-react';
+import { getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -88,7 +89,7 @@ export function SetupTab(props: SetupTabProps) {
       {/* Username */}
       <div className="space-y-1">
         <label className="text-xs font-medium text-foreground">Username</label>
-        <p className="text-[11px] text-muted-foreground font-mono">resume.thewise.cloud/p/{username || 'your-name'}</p>
+        <p className="text-[11px] text-muted-foreground font-mono">{getPortfolioDisplayUrl(username || 'your-name')}</p>
         <div className="relative">
           <Input
             value={username}

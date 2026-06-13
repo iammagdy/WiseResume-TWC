@@ -115,7 +115,7 @@ function NotFound() {
         <SearchX className="w-16 h-16 mx-auto mb-4 text-white/60" />
         <h1 className="text-3xl font-bold text-white">Portfolio Not Found</h1>
         <p className="text-white/60">This portfolio doesn't exist or isn't public yet.</p>
-        <a href="https://resume.thewise.cloud" className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
+        <a href="https://wiseresume.app" className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
           Create your free portfolio with WiseResume →
         </a>
       </div>
@@ -669,7 +669,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
           )}
           <div>
             <a
-              href="https://resume.thewise.cloud/"
+              href="https://wiseresume.app/"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80 underline decoration-1 underline-offset-2 cursor-pointer"

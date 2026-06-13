@@ -280,6 +280,18 @@ export function isAppHostname(hostname: string): boolean {
   );
 }
 
+/**
+ * Custom-domain portfolio resolver.
+ *
+ * TODO(custom-domains): This is intentionally stubbed — custom-domain portfolio
+ * lookup is not yet functional end-to-end. Blockers:
+ *   1. `customDomain` is stored inside the `portfolioExtras` JSON blob in Appwrite
+ *      and cannot be queried with Query.equal() without a top-level indexed field.
+ *   2. No Vercel domain registration automation is in place.
+ * Until both are resolved the UI should present custom-domain as "manual setup /
+ * beta" only. Returning null causes AppInterior to render "Portfolio not found
+ * for this domain." which is the correct honest fallback.
+ */
 export function usePublicPortfolioByDomain(domain: string | null) {
   return useQuery({
     queryKey: ['public-portfolio-by-domain', domain],

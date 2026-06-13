@@ -1,6 +1,11 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { usePublicPortfolio, isAppHostname } from "../usePublicPortfolio";
+import { usePublicPortfolio, isAppHostname, validateCustomDomain } from "../usePublicPortfolio";
+import {
+  getPortfolioCanonicalUrl,
+  getPortfolioDisplayUrl,
+  PRIMARY_PORTFOLIO_DOMAIN,
+} from "../../lib/portfolioUrl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -40,6 +45,64 @@ const queryClient = new QueryClient({
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 );
+
+// ── Portfolio URL helpers ──────────────────────────────────────────────────────
+
+describe("portfolioUrl helpers", () => {
+  it("PRIMARY_PORTFOLIO_DOMAIN is wiseresume.app", () => {
+    expect(PRIMARY_PORTFOLIO_DOMAIN).toBe("https://wiseresume.app");
+  });
+
+  it("getPortfolioCanonicalUrl returns wiseresume.app URL", () => {
+    expect(getPortfolioCanonicalUrl("magdy")).toBe("https://wiseresume.app/p/magdy");
+  });
+
+  it("getPortfolioDisplayUrl shows wiseresume.app without protocol", () => {
+    expect(getPortfolioDisplayUrl("magdy")).toBe("wiseresume.app/p/magdy");
+  });
+
+  it("display URL does NOT contain resume.thewise.cloud", () => {
+    expect(getPortfolioDisplayUrl("magdy")).not.toContain("resume.thewise.cloud");
+  });
+
+  it("canonical URL does NOT contain resume.thewise.cloud", () => {
+    expect(getPortfolioCanonicalUrl("magdy")).not.toContain("resume.thewise.cloud");
+  });
+});
+
+// ── validateCustomDomain ──────────────────────────────────────────────────────
+
+describe("validateCustomDomain", () => {
+  it("rejects wiseresume.app", () => {
+    expect(validateCustomDomain("wiseresume.app")).not.toBeNull();
+  });
+
+  it("rejects www.wiseresume.app", () => {
+    expect(validateCustomDomain("www.wiseresume.app")).not.toBeNull();
+  });
+
+  it("rejects resume.thewise.cloud", () => {
+    expect(validateCustomDomain("resume.thewise.cloud")).not.toBeNull();
+  });
+
+  it("rejects thewise.cloud", () => {
+    expect(validateCustomDomain("thewise.cloud")).not.toBeNull();
+  });
+
+  it("allows a genuine custom portfolio domain", () => {
+    expect(validateCustomDomain("portfolio.johndoe.com")).toBeNull();
+  });
+
+  it("allows another genuine custom portfolio domain", () => {
+    expect(validateCustomDomain("cv.janedoe.io")).toBeNull();
+  });
+
+  it("rejects invalid domain format", () => {
+    expect(validateCustomDomain("not a domain")).not.toBeNull();
+  });
+});
+
+// ── isAppHostname ─────────────────────────────────────────────────────────────
 
 describe("isAppHostname", () => {
   it("classifies wiseresume.app as first-party", () => {

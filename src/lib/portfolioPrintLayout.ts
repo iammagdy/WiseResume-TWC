@@ -220,7 +220,7 @@ export function generatePortfolioPrintHTML(
     ${section('Case Studies', caseStudiesHtml)}
     ${section('Certifications', certsHtml)}
 
-    <div class="footer">Generated from WiseResume · thewise.cloud/p/${esc(profile.username)}</div>
+    <div class="footer">Generated from WiseResume · wiseresume.app/p/${esc(profile.username)}</div>
   </div>
   <script>
     window.onload = function() {

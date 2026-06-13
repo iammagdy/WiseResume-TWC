@@ -36,7 +36,7 @@ describe('appendImageWatermark', () => {
 
     expect(watermarked.height).toBeGreaterThan(source.height);
     expect(fillText).toHaveBeenCalledWith('Wise Resume', expect.any(Number), expect.any(Number));
-    expect(fillText).toHaveBeenCalledWith('https://resume.thewise.cloud', expect.any(Number), expect.any(Number));
+    expect(fillText).toHaveBeenCalledWith('https://wiseresume.app', expect.any(Number), expect.any(Number));
     expect(drawImage).toHaveBeenCalledWith(source, 0, 0);
   });
 });

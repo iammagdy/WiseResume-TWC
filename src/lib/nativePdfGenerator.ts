@@ -4,7 +4,7 @@ import { PDFDocument } from 'pdf-lib';
 import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
 import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 
-const BRANDING_URL = 'https://resume.thewise.cloud';
+const BRANDING_URL = 'https://wiseresume.app';
 
 /**
  * Thrown when the server-side PDF renderer is unavailable.

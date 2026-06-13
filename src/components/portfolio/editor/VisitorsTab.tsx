@@ -307,7 +307,7 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
                   link={link}
                   userId={userId}
                   visitCount={sourceCounts[link.id] ?? 0}
-                  canonicalBase="https://resume.thewise.cloud"
+                  canonicalBase="https://wiseresume.app"
                   onDelete={(id) => {
                     queryClient.setQueryData<ShortLink[]>(['short-links', userId], old => old?.filter(l => l.id !== id) ?? []);
                   }}
@@ -455,7 +455,7 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
                   link={link}
                   userId={userId}
                   visitCount={sourceCounts[link.id] ?? 0}
-                  canonicalBase="https://resume.thewise.cloud"
+                  canonicalBase="https://wiseresume.app"
                   onDelete={(id) => {
                     queryClient.setQueryData<ShortLink[]>(['short-links', userId], old => old?.filter(l => l.id !== id) ?? []);
                   }}

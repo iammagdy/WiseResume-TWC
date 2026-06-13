@@ -1397,7 +1397,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <span>
-                      The old portfolio URL <span className="font-mono">resume.thewise.cloud/p/{usernameChangedOldValue}</span> will no longer work. The user has been sent an in-app notification about this change.
+                      The old portfolio URL <span className="font-mono">wiseresume.app/p/{usernameChangedOldValue}</span> will no longer work. The user has been sent an in-app notification about this change.
                     </span>
                   </div>
                 )}
@@ -1440,7 +1440,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       <p className="text-[10px] text-green-600 mt-0.5">Username is available</p>
                     )}
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      Portfolio URL: <span className="font-mono">resume.thewise.cloud/p/{profileUsername || '…'}</span>
+                      Portfolio URL: <span className="font-mono">wiseresume.app/p/{profileUsername || '…'}</span>
                     </p>
                   </div>
 
