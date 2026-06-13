@@ -130,6 +130,21 @@ export default function JobMatchWorkspacePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allResumes]);
 
+  // Clear stale persisted JD from a previous browser session.
+  // sessionStorage is wiped when the tab/browser closes, so absence of the
+  // marker means this is a fresh session — any JD in localStorage is stale.
+  useEffect(() => {
+    const SESSION_MARKER = 'wr_tailoring_session';
+    const isNewSession = !sessionStorage.getItem(SESSION_MARKER);
+    if (isNewSession) {
+      sessionStorage.setItem(SESSION_MARKER, '1');
+      if (!preloadedDesc && !jobIdParam) {
+        setJobDescription('');
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Pre-fill job description/info from query params
   useEffect(() => {
     if (preloadedDesc && !jobDescription) setJobDescription(preloadedDesc);

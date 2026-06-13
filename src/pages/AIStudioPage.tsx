@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
+import { AIStudioSkeleton } from '@/components/layout/PageSkeletons';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { Badge } from '@/components/ui/badge';
 import { SalaryNegotiationSheet } from '@/components/ai-studio/SalaryNegotiationSheet';
@@ -379,7 +380,7 @@ export default function AIStudioPage() {
     localStorage.setItem(TIP_DISMISSED_KEY, '1');
   }, []);
 
-  if (planLoading) return null;
+  if (planLoading) return <AIStudioSkeleton />;
   if (!isPro) {
     return (
       <div className="flex-1 flex items-center justify-center">
