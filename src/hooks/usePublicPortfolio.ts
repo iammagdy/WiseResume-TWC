@@ -175,14 +175,22 @@ export function usePublicPortfolio(
 export function validateCustomDomain(domain: string): string | null {
   if (!domain || !domain.trim()) return null;
   const d = domain.trim().toLowerCase();
-  const appDomains = ['thewise.cloud', 'wiseresume.com', 'localhost', '127.0.0.1'];
+  const appDomains = ['thewise.cloud', 'wiseresume.com', 'wiseresume.app', 'localhost', '127.0.0.1'];
   if (appDomains.some(ad => d.includes(ad))) return 'This domain is reserved — use your own domain.';
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(d)) return 'Invalid domain format.';
   return null;
 }
 
 export function isAppHostname(hostname: string): boolean {
-  return ['localhost', '127.0.0.1', 'thewise.cloud'].some(h => hostname.includes(h));
+  const h = hostname.toLowerCase();
+  return (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === 'thewise.cloud' ||
+    h.endsWith('.thewise.cloud') ||
+    h === 'wiseresume.app' ||
+    h === 'www.wiseresume.app'
+  );
 }
 
 export function usePublicPortfolioByDomain(domain: string | null) {

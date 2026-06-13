@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { usePortfolioGate, usePublicPortfolio, usePublicPortfolioByDomain } from "../usePublicPortfolio";
+import { usePortfolioGate, usePublicPortfolio, usePublicPortfolioByDomain, isAppHostname } from "../usePublicPortfolio";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -17,6 +17,48 @@ const queryClient = new QueryClient({
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 );
+
+describe("isAppHostname", () => {
+  it("classifies wiseresume.app as first-party", () => {
+    expect(isAppHostname("wiseresume.app")).toBe(true);
+  });
+
+  it("classifies www.wiseresume.app as first-party", () => {
+    expect(isAppHostname("www.wiseresume.app")).toBe(true);
+  });
+
+  it("classifies resume.thewise.cloud as first-party", () => {
+    expect(isAppHostname("resume.thewise.cloud")).toBe(true);
+  });
+
+  it("classifies thewise.cloud as first-party", () => {
+    expect(isAppHostname("thewise.cloud")).toBe(true);
+  });
+
+  it("classifies localhost as first-party", () => {
+    expect(isAppHostname("localhost")).toBe(true);
+  });
+
+  it("classifies 127.0.0.1 as first-party", () => {
+    expect(isAppHostname("127.0.0.1")).toBe(true);
+  });
+
+  it("does NOT classify fakewiseresume.app as first-party", () => {
+    expect(isAppHostname("fakewiseresume.app")).toBe(false);
+  });
+
+  it("does NOT classify mywiseresume.app as first-party", () => {
+    expect(isAppHostname("mywiseresume.app")).toBe(false);
+  });
+
+  it("does NOT classify an unrelated custom domain as first-party", () => {
+    expect(isAppHostname("john-doe-portfolio.com")).toBe(false);
+  });
+
+  it("does NOT classify another unrelated custom domain as first-party", () => {
+    expect(isAppHostname("mycv.io")).toBe(false);
+  });
+});
 
 describe("usePublicPortfolio", () => {
   beforeEach(() => {
