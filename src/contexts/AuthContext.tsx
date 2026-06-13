@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/auditLogger';
 import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
 import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
+import { clearPlanCache } from '@/lib/planCache';
 import { setErrorBoundaryUserId } from '@/components/ErrorBoundary';
 import {
   isImpersonating as isImpersonatingFn,
@@ -151,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearAllPersistedCaches();
         clearAllCachedScores();
         clearAllEditorSessions();
+        clearPlanCache();
       }
     }
   }, [user?.id, queryClient]);
@@ -161,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAllPersistedCaches();
     clearAllCachedScores();
     clearAllEditorSessions();
+    clearPlanCache();
     lastSeenUserIdRef.current = null;
     setAppwriteUser(null);
     persistSessionUser(null);
