@@ -133,13 +133,13 @@ function buildPlainTextFromResume(resume: ResumeData, tailorResult: SuperTailorR
     lines.push(tailorResult.summary);
     lines.push('');
   }
-  const skills = enabledSections.includes('skills') ? tailorResult.skills : resume.skills;
+  const skills = enabledSections.includes('skills') ? (tailorResult.skills ?? []) : resume.skills;
   if (skills.length > 0) {
     lines.push('SKILLS');
     lines.push(skills.join(', '));
     lines.push('');
   }
-  const experiences = enabledSections.includes('experience') ? tailorResult.experience : resume.experience;
+  const experiences = enabledSections.includes('experience') ? (tailorResult.experience ?? []) : resume.experience;
   if (experiences.length > 0) {
     lines.push('EXPERIENCE');
     for (const exp of experiences) {
@@ -152,7 +152,7 @@ function buildPlainTextFromResume(resume: ResumeData, tailorResult: SuperTailorR
       lines.push('');
     }
   }
-  const educations = enabledSections.includes('education') ? tailorResult.education : resume.education;
+  const educations = enabledSections.includes('education') ? (tailorResult.education ?? []) : resume.education;
   if (educations.length > 0) {
     lines.push('EDUCATION');
     for (const edu of educations) {
@@ -478,9 +478,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     if (!currentResume) return '';
     const parts = [
       currentResume.summary,
-      ...currentResume.experience.map(e => `${e.position} ${e.company} ${e.description} ${e.achievements.join(' ')}`),
-      ...currentResume.education.map(e => `${e.degree} ${e.field} ${e.institution}`),
-      ...currentResume.skills,
+      ...(currentResume.experience ?? []).map(e => `${e.position} ${e.company} ${e.description} ${(e.achievements ?? []).join(' ')}`),
+      ...(currentResume.education ?? []).map(e => `${e.degree} ${e.field} ${e.institution}`),
+      ...(currentResume.skills ?? []),
     ];
     return parts.join(' ');
   }, [currentResume]);
@@ -528,9 +528,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
 
     const getCurrentContent = (): string | string[] | null => {
       if (sectionId === 'summary') return tailorResult.summary;
-      if (sectionId === 'skills') return tailorResult.skills;
-      if (sectionId === 'experience') return tailorResult.experience.flatMap(e => e.achievements ?? []);
-      if (sectionId === 'education') return tailorResult.education.map(e => e.field || `${e.degree} at ${e.institution}`);
+      if (sectionId === 'skills') return tailorResult.skills ?? [];
+      if (sectionId === 'experience') return (tailorResult.experience ?? []).flatMap(e => e.achievements ?? []);
+      if (sectionId === 'education') return (tailorResult.education ?? []).map(e => e.field || `${e.degree} at ${e.institution}`);
       if (sectionId === 'projects') return (tailorResult.projects ?? []).map(p => p.description || '');
       if (sectionId === 'certifications') return (tailorResult.certifications ?? []).map(c => c.name);
       return null;
@@ -562,7 +562,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       } else if (sectionId === 'experience' && Array.isArray(result.rewrittenContent)) {
         const newBullets = result.rewrittenContent as string[];
         let bulletIdx = 0;
-        const updatedExperience = tailorResult.experience.map(exp => {
+        const updatedExperience = (tailorResult.experience ?? []).map(exp => {
           const count = (exp.achievements ?? []).length;
           const slice = newBullets.slice(bulletIdx, bulletIdx + count);
           bulletIdx += count;
@@ -571,7 +571,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         handleUpdateTailorResult({ experience: updatedExperience, bulletTransformations: [] });
       } else if (sectionId === 'education' && Array.isArray(result.rewrittenContent)) {
         const newFields = result.rewrittenContent as string[];
-        const updatedEducation = tailorResult.education.map((edu, i) => ({
+        const updatedEducation = (tailorResult.education ?? []).map((edu, i) => ({
           ...edu,
           field: newFields[i] ?? edu.field,
         }));
@@ -815,7 +815,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const handleAddSkill = (skill: string) => {
     if (!currentResume) return;
     if (tailorResult) {
-      handleUpdateTailorResult({ skills: [...tailorResult.skills, skill] });
+      handleUpdateTailorResult({ skills: [...(tailorResult.skills ?? []), skill] });
     } else {
       updateResume({ skills: [...currentResume.skills, skill] });
     }
@@ -825,7 +825,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const handleBoostSkill = (skill: string) => {
     if (!currentResume) return;
     if (tailorResult) {
-      const newSkills = [skill, ...tailorResult.skills.filter(s => s !== skill)];
+      const newSkills = [skill, ...(tailorResult.skills ?? []).filter(s => s !== skill)];
       handleUpdateTailorResult({ skills: newSkills });
     } else {
       const newSkills = [skill, ...currentResume.skills.filter(s => s !== skill)];
@@ -837,8 +837,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const handleAddAllSkills = () => {
     if (!tailorResult || !currentResume) return;
     const newSkills = [
-      ...tailorResult.missingSkills.map(s => s.skill),
-      ...tailorResult.skills,
+      ...(tailorResult.missingSkills ?? []).map(s => s.skill),
+      ...(tailorResult.skills ?? []),
     ];
     handleUpdateTailorResult({ skills: newSkills });
     toast.success(`Added ${tailorResult.missingSkills.length} skills`);
@@ -1246,21 +1246,21 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                       enabled={enabledSections.includes('skills')}
                       onToggle={() => toggleSection('skills')}
                       impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before : 0}
-                      changesSummary={`${tailorResult.skills.length} skills optimized`}
+                      changesSummary={`${(tailorResult.skills ?? []).length} skills optimized`}
                       originalSkills={originalResume?.skills || []}
                       tailoredSkills={tailorResult.skills}
                       onEdit={handleEditSection}
                       onRegenerate={handleRegenerateSection}
                       preview={
                         <div className="flex flex-wrap gap-2">
-                          {tailorResult.skills.slice(0, 10).map((skill, i) => (
+                          {(tailorResult.skills ?? []).slice(0, 10).map((skill, i) => (
                             <Badge key={i} variant="secondary" className="text-xs">
                               {skill}
                             </Badge>
                           ))}
-                          {tailorResult.skills.length > 10 && (
+                          {(tailorResult.skills ?? []).length > 10 && (
                             <Badge variant="outline" className="text-xs">
-                              +{tailorResult.skills.length - 10} more
+                              +{(tailorResult.skills ?? []).length - 10} more
                             </Badge>
                           )}
                         </div>
@@ -1273,13 +1273,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                       enabled={enabledSections.includes('experience')}
                       onToggle={() => toggleSection('experience')}
                       impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.experience.after - tailorResult.sectionScores.experience.before : 0}
-                      changesSummary={`${tailorResult.experience.length} positions enhanced`}
+                      changesSummary={`${(tailorResult.experience ?? []).length} positions enhanced`}
                       bulletTransformations={tailorResult.bulletTransformations}
                       onBulletReject={setRejectedBullets}
                       onRegenerate={handleRegenerateSection}
                       preview={
                         <ul className="space-y-2">
-                          {tailorResult.experience.slice(0, 2).map((exp, i) => (
+                          {(tailorResult.experience ?? []).slice(0, 2).map((exp, i) => (
                             <li key={i} className="text-muted-foreground">
                               <span className="font-medium text-foreground">{exp.position}</span>
                               <span className="text-xs"> @ {exp.company}</span>
@@ -1295,11 +1295,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                       enabled={enabledSections.includes('education')}
                       onToggle={() => toggleSection('education')}
                       impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.education.after - tailorResult.sectionScores.education.before : 0}
-                      changesSummary={`${tailorResult.education.length} entries refined`}
+                      changesSummary={`${(tailorResult.education ?? []).length} entries refined`}
                       onRegenerate={handleRegenerateSection}
                       preview={
                         <ul className="space-y-1">
-                          {tailorResult.education.map((edu, i) => (
+                          {(tailorResult.education ?? []).map((edu, i) => (
                             <li key={i} className="text-muted-foreground text-sm">
                               {formatDegreeAndField(edu.degree, edu.field)}{edu.institution ? ` - ${edu.institution}` : ''}
                             </li>

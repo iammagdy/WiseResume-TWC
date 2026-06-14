@@ -217,6 +217,9 @@ export function usePublicPortfolio(
       const rawProfile = profileRes.documents[0] as Record<string, unknown>;
       const extras = (rawProfile.portfolioExtras ?? {}) as Record<string, unknown>;
 
+      // If the owner hasn't published their portfolio, treat it as not found.
+      if (!rawProfile.portfolioEnabled) return null;
+
       // Password verification — compare SHA-256 hashes client-side.
       // The hash is stored in portfolioExtras.passwordHash (written by the editor).
       if (extras.passwordEnabled && extras.passwordHash) {

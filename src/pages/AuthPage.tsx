@@ -27,6 +27,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
@@ -47,13 +48,16 @@ export default function AuthPage() {
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError(null);
     try {
       await appwriteAccount.createEmailPasswordSession(email, password);
       await refreshSession();
       toast.success('Logged in successfully!');
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
-      toast.error('Invalid email or password. You can reset your password if needed.');
+      const msg = 'Invalid email or password. You can reset your password if needed.';
+      setLoginError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -144,7 +148,10 @@ export default function AuthPage() {
 
           {view === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              {loginError && (
+                <p role="alert" className="text-sm text-red-400 text-center px-1">{loginError}</p>
+              )}
+              <Input type="email" placeholder="Email" value={email} onChange={e => { setEmail(e.target.value); setLoginError(null); }} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
               <div className="space-y-1">
                 <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
                 <div className="flex justify-end">

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { usePlan } from '@/hooks/usePlan';
@@ -49,7 +48,7 @@ export default function CoverLetterNewPage() {
 
   // Auth guard handled by ProtectedRoute
 
-  const selectedResume = resumes?.find((r) => r.id === selectedResumeId);
+  const selectedResume = resumes?.find((r) => r.$id === selectedResumeId);
 
   // Feature gate: Cover Letters is Pro+
   if (!planLoading && !isPro) {
@@ -199,15 +198,18 @@ export default function CoverLetterNewPage() {
 
           {/* Resume Selector */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Select Resume *</label>
-            <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-              <SelectTrigger><SelectValue placeholder="Choose a resume" /></SelectTrigger>
-              <SelectContent>
-                {resumes?.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block" htmlFor="cover-letter-resume-select">Select Resume *</label>
+            <select
+              id="cover-letter-resume-select"
+              value={selectedResumeId}
+              onChange={(e) => setSelectedResumeId(e.target.value)}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Choose a resume</option>
+              {resumes?.map((r) => (
+                <option key={r.$id} value={r.$id}>{r.title}</option>
+              ))}
+            </select>
           </div>
 
           {/* Job Description */}
