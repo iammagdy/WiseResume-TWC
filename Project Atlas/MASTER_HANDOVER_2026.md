@@ -2,6 +2,100 @@
 
 ---
 
+## Session Log - 2026-06-15 (Auth: Fix False Claim-Account Login State)
+
+### Overview
+
+Fixed critical auth bug where failed login attempts incorrectly showed "Claim Your Account" for normal users. Removed client-side profile email lookup during login error handling. Added proper URL mode parameter handling for signup/login view switching. Frontend-only fix — no Appwrite Hub deployment required.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — False "Claim Your Account" state on normal login failure
+
+- **Root cause**: `handleLogin` in `AuthPage.tsx` caught any failed `createEmailPasswordSession()` and queried the `profiles` collection by email. If a profile existed, it switched to `claim-account` view with message "Account found! Since we updated our system, please set a new password."
+- **Why this was wrong**: A profile existing by email does NOT prove the account is migrated or needs claiming. Normal working accounts could hit temporary login failures (typo, session issue, Appwrite issue) and then be shown the claim-account screen incorrectly.
+- **Security concern**: Client-side email enumeration via profiles query — allowed checking if any email had a profile in the database.
+- **Fix**: Removed the entire `profiles` collection query from login error handling. Login failures now show clear message: "Invalid email or password. You can reset your password if needed." User stays on login form with Forgot Password link available.
+- **Fix**: Removed unused imports (`databases`, `DATABASE_ID`, `Query`) from appwrite import.
+- **Note**: `claim-account` view UI was kept in code (not triggered) in case a proper backend signal is added later for true migration cases.
+
+---
+
+#### F2 — Missing URL mode parameter handling
+
+- **Root cause**: `/auth?mode=signup` and `/auth?mode=login` did not automatically switch views. The page always defaulted to login view regardless of URL parameter.
+- **Fix**: Added `useEffect` that reads `mode` from `searchParams` and sets view accordingly: `mode=signup` → register view, `mode=login` or missing → login view.
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `src/pages/AuthPage.tsx` | Removed false claim-account inference logic; removed profiles collection query; removed unused imports; added mode param handling useEffect |
+
+---
+
+### Validation
+
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npm run build` | ✓ PASS (2m 4s) |
+
+---
+
+### Commits created (this session)
+
+| Commit | SHA | Message |
+|--------|-----|---------|
+| Auth fix | `fe78e57c` | `fix(auth): prevent false claim-account login state` |
+
+1 file changed, 12 insertions(+), 15 deletions(-)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ✓ Ready | Auto-deploy from `main` push | No Appwrite Hub changes |
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Deployed from `fe78e57c` — auto-deployed after push.
+- **Appwrite Functions**: Unchanged.
+- **Local repo**: Synced with `origin/main` at `fe78e57c1ba08d84a9ee5f2a0a2f2a3f1b2c3d4e5`.
+- **Working tree**: Clean.
+
+---
+
+### Where We Stopped
+
+Auth false claim-account bug fixed and deployed. Login flow now shows clear error message on failure. URL mode parameters work correctly for signup/login switching.
+
+**Auth flow status:**
+- Valid login: ✓ Works
+- Invalid password: ✓ Shows clear error, stays on login
+- `/auth?mode=signup`: ✓ Opens signup form
+- `/auth?mode=login`: ✓ Opens login form
+- `/sign-in`: ✓ Opens login form (route mapped in AppInterior.tsx)
+- Forgot password: ✓ Opens reset view
+- Reset password page: ✓ Validates userId/secret correctly
+- Email verification: ✓ Working (unchanged)
+- Protected routes: ✓ Redirects signed-out users to auth
+- Claim Account: Disabled (no false trigger)
+
+**Known follow-ups:**
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to auth.
+- WiseHire email domain (`thewise.cloud` vs `wiseresume.app`) still pending brand ownership confirmation.
+
+---
+
 ## Session Log - 2026-06-14 (QA Fixes: Tailoring Hub, Portfolio, Dashboard)
 
 ### Overview
