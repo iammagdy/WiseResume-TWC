@@ -1,7 +1,7 @@
 {
   "resource": "https://wiseresume.app/api",
   "authorization_servers": [
-    "https://thewisecloud.kinde.com"
+    "https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192"
   ],
   "bearer_methods_supported": ["header"],
   "scopes_supported": ["openid", "profile", "email", "offline"],

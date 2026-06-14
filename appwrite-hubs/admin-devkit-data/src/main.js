@@ -1629,7 +1629,6 @@ async function handleGetIdentity(body, log) {
   return {
     auth_email: authUser?.email || profile?.email || null,
     contact_email: profile?.contact_email || null,
-    kinde_sub: null, kinde_email: null, kinde_email_status: 'not_needed',
     last_exchange_at: null,
     signed_up_at: authUser?.$createdAt || profile?.$createdAt || null,
     last_sign_in_at: authUser?.accessedAt || null,
@@ -1669,7 +1668,7 @@ async function handleWisehireResetUser(body, log) {
   } catch (e) { warnings.push(`Could not delete wisehire account: ${e.message}`); }
   await auditLog(databases, 'wisehire-reset-user', { target_user_id, actor_email });
   log(`wisehire-reset-user: ${target_user_id}`);
-  return { kinde_deleted: false, invite_tokens_reset: 0, warnings };
+  return { invite_tokens_reset: 0, warnings };
 }
 
 async function handleLiveActivity(body, log) {

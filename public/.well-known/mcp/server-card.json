@@ -27,7 +27,7 @@
   "authorization": {
     "type": "oauth2",
     "metadata_url": "https://wiseresume.app/.well-known/oauth-protected-resource",
-    "authorization_servers": ["https://thewisecloud.kinde.com"]
+    "authorization_servers": ["https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192"]
   },
   "capabilities": {
     "tools": {
