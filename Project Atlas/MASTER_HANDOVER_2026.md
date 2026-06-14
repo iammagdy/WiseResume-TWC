@@ -2,9 +2,112 @@
 
 ---
 
-## Session Log - 2026-06-13 (wiseresume.app Domain Routing, Plan Cache, Portfolio URL Migration)
+## Session Log - 2026-06-14 (Dashboard Dynamic Import Fix, Tablet UI/UX, Accessibility)
 
 ### Overview
+
+Dashboard routing and mobile/tablet UI fixes. No Appwrite Functions changed. No schema changes. No deployments triggered — local dev server only. All changes are uncommitted local working-tree changes on top of `main`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — Dashboard `/dashboard` route failed to load with `TypeError: Failed to fetch dynamically imported module`
+
+- **Root cause**: Corrupted `node_modules` directory from a previous failed `npm ci` on Windows. The dynamic import for `DashboardUploadWidget.tsx` (loaded via `React.lazy` in `DashboardTopBar.tsx`) failed because dependencies were inconsistent.
+- **Fix**: Ran `npm install --ignore-scripts` to repair `node_modules` without triggering potentially failing postinstall scripts.
+- **Validation**: Dashboard route loads successfully; dynamic import resolves; resumes visible.
+
+---
+
+#### F2 — Dashboard not scrollable on iPad/tablet, resumes hidden behind AI panel
+
+- **Root cause**: Multiple nested `overflow-hidden` containers in `DashboardWorkspaceLayout` and `DashboardPage` prevented scrolling on tablet viewport sizes. The AI Workspace panel (`DashboardIntelligencePanel`) was not hidden on tablet, overlaying the resume list.
+- **Fix A**: Changed main content container in `DashboardWorkspaceLayout` from `overflow-hidden` to `overflow-y-auto overscroll-y-contain`.
+- **Fix B**: Added `hidden xl:block` to AI Workspace panel to hide it on viewports smaller than `xl` (tablet/mobile).
+- **Fix C**: Changed nested resume list containers in `DashboardPage` from `overflow-hidden` to scrollable (`overflow-y-auto overscroll-y-contain`).
+- **Fix D**: Hidden `DashboardDiscoverySection` ("Explore" section) on tablet/mobile with `hidden lg:block`.
+- **Files**: `src/components/dashboard/DashboardWorkspaceLayout.tsx`, `src/pages/DashboardPage.tsx`
+
+---
+
+#### F3 — Duplicate Import/Wise AI buttons in mobile toolbar
+
+- **Root cause**: `DashboardTopCommandBar` rendered mobile-specific Import and Wise AI buttons (in `lg:hidden` section) that duplicated the same buttons already present in the global `AppWorkspaceTopBar`.
+- **Fix**: Removed the duplicate Import and Wise AI buttons from `DashboardTopCommandBar` mobile toolbar. Removed unused imports (`Plus`, `MessageCircle`, `Button`, `haptics`).
+- **File**: `src/components/dashboard/DashboardTopCommandBar.tsx`
+
+---
+
+#### F4 — Radix UI Dialog accessibility warnings in console
+
+- **Root cause**: Multiple components using `DialogContent` without required `DialogTitle` for screen reader accessibility. Console errors: `"DialogContent requires a DialogTitle for the component to be accessible"`.
+- **Fix A**: Added `DialogTitle` to Command Palette (`command.tsx`) — hidden with `sr-only` class.
+- **Fix B**: Added `SheetTitle` to mobile sidebar sheet (`AppMobileSidebarSheet.tsx`) — hidden with `sr-only` class.
+- **Fix C**: Removed red focus ring/border from mobile sidebar by adding `focus:outline-none focus:ring-0` and CSS overrides.
+- **Files**: `src/components/ui/command.tsx`, `src/components/layout/AppMobileSidebarSheet.tsx`, `src/index.css`
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `src/components/dashboard/DashboardTopCommandBar.tsx` | Removed duplicate Import/Wise AI buttons from mobile toolbar; removed unused imports |
+| `src/components/dashboard/DashboardWorkspaceLayout.tsx` | Fixed scroll (`overflow-y-auto`), hid AI panel on tablet (`hidden xl:block`) |
+| `src/pages/DashboardPage.tsx` | Fixed nested scroll containers, hid DiscoverySection on tablet (`hidden lg:block`) |
+| `src/components/ui/command.tsx` | Added `DialogTitle` for accessibility |
+| `src/components/layout/AppMobileSidebarSheet.tsx` | Added `SheetTitle`, removed borders/focus rings |
+| `src/index.css` | Mobile CSS to hide red active indicator bar, remove sidebar borders |
+| `.github/workflows/deploy-appwrite-hubs.yml` | FRONTEND_URL updated to `https://wiseresume.app` |
+| `package.json` | Moved `@testing-library/dom` to devDependencies |
+
+---
+
+### Validation
+
+- `npx tsc --noEmit` — exit code 0.
+- Dashboard loads on `/dashboard` — dynamic import resolves.
+- Scroll functional on iPad/tablet viewport sizes.
+- Mobile sidebar opens without accessibility console errors.
+
+---
+
+### Commits created (this session)
+
+None — all changes remain uncommitted in working tree.
+
+---
+
+### Deployments performed
+
+None — local dev server only (`npm run dev` on port 5000).
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Unchanged — last deploy at `14d6037` (2026-06-13).
+- **Local dev server**: Running on `http://localhost:5000` with uncommitted fixes.
+- **Appwrite Functions**: Unchanged.
+- **Appwrite schema**: Unchanged.
+
+---
+
+### Where We Stopped
+
+All dashboard fixes and mobile UI improvements are in local working tree, uncommitted. Codebase is in a `tsc`-passing state.
+
+**Next steps before deploy:**
+1. Commit changes with message: `fix(dashboard): repair dynamic import, tablet scroll, mobile UI, accessibility`
+2. Push to `main` — Vercel will auto-deploy.
+3. Verify dashboard on production `/dashboard` route.
+
+**Remaining known follow-ups:**
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to this session.
+- Other Dialog/Sheet components may still have missing titles (non-blocking console warnings only).
+
+---
 
 Four discrete fix clusters committed and pushed to `main` in sequence. No Appwrite Functions changed. No Appwrite schema changes. No Vercel deployments triggered manually — Vercel auto-deployed from `main` after each push.
 
