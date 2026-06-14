@@ -44,7 +44,7 @@ export function WiseHireGuard() {
     return () => window.removeEventListener('app:session-expired', handleSessionExpired);
   }, [navigate]);
 
-  // Wait for Kinde auth loading
+  // Wait for auth loading
   if (loading) return <WiseHireLoadingSkeleton />;
 
   // Not authenticated → send to login
@@ -56,7 +56,7 @@ export function WiseHireGuard() {
     return <Navigate to={`/auth?mode=login${redirectParam}`} replace />;
   }
 
-  // Wait for Supabase bridge + account type (with timeout)
+  // Wait for account type to resolve (with timeout)
   if (!loadingTimedOut && (!authSettled || accountTypeLoading)) {
     return <WiseHireLoadingSkeleton />;
   }

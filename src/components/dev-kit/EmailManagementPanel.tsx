@@ -102,12 +102,9 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
 
   const handleResendConfirmation = async (user: AdminUser) => {
     setSendingId(user.user_id);
-    // For Kinde shadow/collision rows the auth email is a non-deliverable
-    // placeholder (kp_xxx@collision.kinde.placeholder). Fall back to
-    // contact_email so the confirmation reaches the real inbox.
-    const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
-    const resolvedEmail = isKindeShadow
-      ? (user.contact_email ?? user.email)
+    // For collision rows the auth email may be a placeholder; fall back to contact_email.
+    const resolvedEmail = user.has_id_conflict && user.contact_email
+      ? user.contact_email
       : user.email;
     try {
       const tuple = await appwriteFunctions.invoke('admin-email', {
@@ -215,22 +212,21 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
                       <tr key={user.user_id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3">
                           {(() => {
-                            const isKindeShadow = (user.email ?? '').endsWith('@collision.kinde.placeholder');
-                            const displayEmail = isKindeShadow ? (user.contact_email ?? user.email) : user.email;
+                            const displayEmail = (user.has_id_conflict && user.contact_email) ? user.contact_email : user.email;
                             return (
                               <>
                                 <p className="font-mono text-xs truncate max-w-[200px]">{displayEmail}</p>
                                 {user.full_name && (
                                   <p className="text-xs text-muted-foreground truncate max-w-[200px]">{user.full_name}</p>
                                 )}
-                                {isKindeShadow && user.contact_email && (
+                                {user.has_id_conflict && user.contact_email && (
                                   <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]">
                                     Auth: {user.email}
                                   </p>
                                 )}
-                                {isKindeShadow && !user.contact_email && (
+                                {user.has_id_conflict && !user.contact_email && (
                                   <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                                    Unidentified · Kinde shadow
+                                    Unidentified · collision account
                                   </p>
                                 )}
                               </>
@@ -412,12 +408,10 @@ function ComposeEmailForm({
     setSending(true);
     setInviteUrl(null);
     try {
-      // Resolve the deliverable email for the selected user: for Kinde shadow/
-      // collision rows the auth email is a non-deliverable placeholder, so fall
-      // back to contact_email which holds the real address.
+      // For collision rows the auth email may be a placeholder; fall back to contact_email.
       const resolvedUserEmail = selectedUser
-        ? ((selectedUser.email ?? '').endsWith('@collision.kinde.placeholder')
-            ? (selectedUser.contact_email ?? selectedUser.email)
+        ? ((selectedUser.has_id_conflict && selectedUser.contact_email)
+            ? selectedUser.contact_email
             : selectedUser.email)
         : null;
       const recipientEmail = resolvedUserEmail ?? emailSearch.trim();

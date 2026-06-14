@@ -30,10 +30,8 @@ const makeAuth = (overrides = {}) => ({
   authSettled: true,
   user: null as any,
   authReady: false,
-  kindeUser: null as any,
   signOut: vi.fn(),
   refreshSession: vi.fn().mockResolvedValue(null),
-  getKindeToken: vi.fn().mockResolvedValue(null),
   ...overrides,
 });
 
