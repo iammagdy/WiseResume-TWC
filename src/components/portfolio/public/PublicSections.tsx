@@ -299,30 +299,30 @@ export const PublicSections = ({
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const hasMoreSkills = allSkills.length > SKILL_CLOUD_LIMIT;
 
-  const validExperience = resume.experience?.filter(e => e.position && e.company) || [];
-  const validEducation = resume.education?.filter(e => e.institution && e.degree) || [];
+  const validExperience = Array.isArray(resume.experience) ? resume.experience.filter(e => e.position && e.company) : [];
+  const validEducation = Array.isArray(resume.education) ? resume.education.filter(e => e.institution && e.degree) : [];
 
   // Resolve active translation for all sections
   const activeTrans = (activeLanguage && profile.portfolioTranslations?.[activeLanguage]) || null;
-  const testimonials = (profile.testimonials?.filter(t => t.quote && t.authorName) || []).map(t => {
+  const testimonials = (Array.isArray(profile.testimonials) ? profile.testimonials.filter(t => t.quote && t.authorName) : []).map(t => {
     const translatedQuote = activeTrans?.testimonials?.find((tr: { id: string; quote: string }) => tr.id === t.id)?.quote;
     return translatedQuote ? { ...t, quote: translatedQuote } : t;
   });
-  const activeServices = activeTrans?.services
-    ? profile.services?.map(s => {
+  const activeServices = activeTrans?.services && Array.isArray(profile.services)
+    ? profile.services.map(s => {
         const ts = activeTrans.services!.find((tr: { id: string; title: string; description?: string }) => tr.id === s.id);
         return ts ? { ...s, title: ts.title || s.title, description: ts.description ?? s.description } : s;
       }) ?? profile.services
     : profile.services;
-  const activeHighlights = activeTrans?.highlights ?? highlights;
-  const activeCaseStudies = activeTrans?.caseStudies
-    ? profile.caseStudies?.map(cs => {
+  const activeHighlights = activeTrans?.highlights ?? (Array.isArray(highlights) ? highlights : []);
+  const activeCaseStudies = activeTrans?.caseStudies && Array.isArray(profile.caseStudies)
+    ? profile.caseStudies.map(cs => {
         const tcs = activeTrans.caseStudies!.find((t: { id: string; title: string; challenge: string; outcome: string }) => t.id === cs.id);
         return tcs ? { ...cs, title: tcs.title || cs.title, challenge: tcs.challenge || cs.challenge, outcome: tcs.outcome || cs.outcome } : cs;
       }) ?? profile.caseStudies
     : profile.caseStudies;
-  const activePortfolioCerts = activeTrans?.portfolioCertifications
-    ? profile.portfolioCertifications?.map(c => {
+  const activePortfolioCerts = activeTrans?.portfolioCertifications && Array.isArray(profile.portfolioCertifications)
+    ? profile.portfolioCertifications.map(c => {
         const tc = activeTrans.portfolioCertifications!.find((t: { id: string; name: string; issuer: string }) => t.id === c.id);
         return tc ? { ...c, name: tc.name || c.name, issuer: tc.issuer || c.issuer } : c;
       }) ?? profile.portfolioCertifications
@@ -515,8 +515,8 @@ export const PublicSections = ({
             <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
             <SkillCloud
               skills={allSkills}
-              experience={resume.experience}
-              projects={resume.projects}
+              experience={Array.isArray(resume.experience) ? resume.experience : []}
+              projects={Array.isArray(resume.projects) ? resume.projects : []}
               pStyle={pStyle}
               showMore={showMoreSkills}
               onToggleMore={() => setShowMoreSkills(v => !v)}

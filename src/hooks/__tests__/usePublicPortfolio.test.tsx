@@ -214,4 +214,38 @@ describe("usePublicPortfolio", () => {
     expect(data?.resume.projects).toEqual([]);
     expect(data?.resume.certifications).toEqual([]);
   });
+
+  it("should normalize malformed array fields (null, object, string) to empty arrays", async () => {
+    mockListDocuments
+      .mockResolvedValueOnce({
+        total: 1,
+        documents: [makeProfileDoc({ username: "malformed" })],
+      })
+      .mockResolvedValueOnce({
+        total: 1,
+        documents: [makeResumeDoc({
+          $id: "res-malformed",
+          experience: null,
+          education: undefined,
+          skills: { not: "an array" },
+          projects: "not an array either",
+          certifications: "[\"cert1\", \"cert2\"]", // JSON string that looks like array
+        })],
+      });
+
+    const { result } = renderHook(() => usePublicPortfolio("malformed"), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const data = result.current.data;
+    expect(data).toBeDefined();
+    // All malformed fields should be normalized to arrays
+    expect(Array.isArray(data?.resume.experience)).toBe(true);
+    expect(Array.isArray(data?.resume.education)).toBe(true);
+    expect(Array.isArray(data?.resume.skills)).toBe(true);
+    expect(Array.isArray(data?.resume.projects)).toBe(true);
+    // JSON string should be parsed into an array
+    expect(Array.isArray(data?.resume.certifications)).toBe(true);
+    expect(data?.resume.certifications).toEqual(["cert1", "cert2"]);
+  });
 });

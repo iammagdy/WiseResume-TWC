@@ -6,10 +6,12 @@ export function computeSkillFrequencies(
   projects: Project[]
 ): Record<string, number> {
   const scores: Record<string, number> = {};
+  const safeExperience = Array.isArray(experience) ? experience : [];
+  const safeProjects = Array.isArray(projects) ? projects : [];
   for (const skill of skills) {
     const lower = skill.toLowerCase();
     let score = 0;
-    for (const exp of experience) {
+    for (const exp of safeExperience) {
       const corpus = [
         exp.description ?? '',
         ...(exp.achievements ?? []),
@@ -17,7 +19,7 @@ export function computeSkillFrequencies(
       ].join(' ').toLowerCase();
       if (corpus.includes(lower)) score += 2;
     }
-    for (const proj of projects) {
+    for (const proj of safeProjects) {
       if (proj.technologies?.some((t: string) => t.toLowerCase() === lower)) score += 1;
       if (proj.description?.toLowerCase().includes(lower)) score += 1;
     }

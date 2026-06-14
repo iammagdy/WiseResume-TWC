@@ -374,6 +374,7 @@ function AppRoutes() {
                  <Route path="/qr-batch" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrBatchPage /></Suspense></RouteEB>} />
                  <Route path="/qr-scan" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><QrScanPage /></Suspense></RouteEB>} />
                  <Route path="/search" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense></RouteEB>} />
+                 <Route path="/tailoring" element={<Navigate to="/tailoring-hub" replace />} />
                  <Route path="/tailor" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense></RouteEB>} />
                  <Route path="/tailor/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense></RouteEB>} />
                  <Route path="/tailoring-hub" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailoringHubPage /></Suspense></RouteEB>} />

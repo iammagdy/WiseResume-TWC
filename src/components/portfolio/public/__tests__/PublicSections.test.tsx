@@ -40,4 +40,54 @@ describe("PublicSections", () => {
     render(<PublicSections {...defaultProps} />);
     expect(screen.getByTestId("stats")).toBeDefined();
   });
+
+  it("handles null experience without crashing", () => {
+    const resumeWithNullExperience = {
+      ...mockResumes[0],
+      experience: null as any,
+    };
+    render(<PublicSections {...defaultProps} resume={resumeWithNullExperience as any} />);
+    // Should not crash - Experience section won't render
+    expect(screen.getByText("About")).toBeDefined();
+  });
+
+  it("handles undefined education without crashing", () => {
+    const resumeWithUndefinedEducation = {
+      ...mockResumes[0],
+      education: undefined as any,
+    };
+    render(<PublicSections {...defaultProps} resume={resumeWithUndefinedEducation as any} />);
+    // Should not crash - Education section won't render
+    expect(screen.getByText("About")).toBeDefined();
+  });
+
+  it("handles non-array testimonials without crashing", () => {
+    const profileWithBadTestimonials = {
+      ...mockProfile,
+      testimonials: { invalid: "object" } as any,
+    };
+    render(<PublicSections {...defaultProps} profile={profileWithBadTestimonials as any} />);
+    // Should not crash
+    expect(screen.getByText("About")).toBeDefined();
+  });
+
+  it("handles null skills without crashing", () => {
+    const resumeWithNullSkills = {
+      ...mockResumes[0],
+      skills: null as any,
+    };
+    render(<PublicSections {...defaultProps} resume={resumeWithNullSkills as any} allSkills={[]} />);
+    // Should not crash
+    expect(screen.getByText("About")).toBeDefined();
+  });
+
+  it("handles object instead of array for caseStudies without crashing", () => {
+    const profileWithObjectCaseStudies = {
+      ...mockProfile,
+      caseStudies: { not: "an array" } as any,
+    };
+    render(<PublicSections {...defaultProps} profile={profileWithObjectCaseStudies as any} />);
+    // Should not crash - Case Studies section won't render
+    expect(screen.getByText("About")).toBeDefined();
+  });
 });

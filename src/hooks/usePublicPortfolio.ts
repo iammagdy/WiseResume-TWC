@@ -93,6 +93,23 @@ async function sha256Hex(text: string): Promise<string> {
     .join('');
 }
 
+// ── Helper: normalize possibly malformed array data from Appwrite ─────────────
+
+function normalizeArray<T>(value: unknown, defaultValue: T[] = []): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (value === null || value === undefined) return defaultValue;
+  // Handle case where Appwrite returns JSON string that should be parsed
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed as T[];
+    } catch {
+      // Fall through to default
+    }
+  }
+  return defaultValue;
+}
+
 // ── Helper: map raw Appwrite profile document to PublicProfile ────────────────
 
 function mapProfile(p: Record<string, unknown>): PublicProfile {
@@ -224,14 +241,14 @@ export function usePublicPortfolio(
         ? {
             $id: rawResume.$id as string,
             summary: (rawResume.summary as string | null) ?? null,
-            experience: (rawResume.experience as PublicResume['experience']) ?? [],
-            education: (rawResume.education as PublicResume['education']) ?? [],
-            skills: (rawResume.skills as PublicResume['skills']) ?? [],
-            projects: (rawResume.projects as PublicResume['projects']) ?? [],
-            certifications: (rawResume.certifications as PublicResume['certifications']) ?? [],
-            awards: (rawResume.awards as PublicResume['awards']) ?? [],
-            publications: (rawResume.publications as PublicResume['publications']) ?? [],
-            volunteering: (rawResume.volunteering as PublicResume['volunteering']) ?? [],
+            experience: normalizeArray<PublicResume['experience'][number]>(rawResume.experience),
+            education: normalizeArray<PublicResume['education'][number]>(rawResume.education),
+            skills: normalizeArray<PublicResume['skills'][number]>(rawResume.skills),
+            projects: normalizeArray<PublicResume['projects'][number]>(rawResume.projects),
+            certifications: normalizeArray<PublicResume['certifications'][number]>(rawResume.certifications),
+            awards: normalizeArray<PublicResume['awards'][number]>(rawResume.awards),
+            publications: normalizeArray<PublicResume['publications'][number]>(rawResume.publications),
+            volunteering: normalizeArray<PublicResume['volunteering'][number]>(rawResume.volunteering),
           }
         : {
             $id: '',

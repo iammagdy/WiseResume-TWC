@@ -944,6 +944,19 @@ function DashboardPageContent() {
                       </TabsList>
                     </Tabs>
                   <div className="flex items-center gap-1.5 sm:ml-auto">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-8 px-3 text-xs rounded-lg gap-1.5 hidden sm:flex"
+                      onClick={() => {
+                        haptics.light();
+                        setShowCreateDialog(true);
+                      }}
+                      aria-label="Create new resume"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      New Resume
+                    </Button>
                     <div className="relative min-w-0 sm:w-52">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                       <Input
