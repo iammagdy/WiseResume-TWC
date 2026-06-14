@@ -11,6 +11,44 @@
 
 ---
 
+## 2026-06-14 - Tailoring Hub False Success Fix (F-1)
+
+### Root Cause (from TestSprite QA Report)
+TestSprite found that Tailoring Hub showed "Tailored CV Ready" with "0 Before / 0 After" scores when AI returned unchanged resume content. The AI Gateway (`appwrite-hubs/ai-gateway/src/main.js:1162-1168`) falls back to original resume fields when AI output is empty/invalid, but frontend had no validation to detect this silent failure.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `src/lib/tailorMerge.ts` | Added `normalizeText()` helper (trim, lowercase, collapse whitespace, remove punctuation); Added `hasMeaningfulChanges()` function with `ChangeSummary` interface — compares normalized content across enabled sections (summary, skills, experience, education, projects, certifications, awards); Returns detailed change detection including `hasChanges`, per-section flags, `changedSections` array, and human-readable `description` |
+| `src/pages/TailoringHubPage.tsx` | Added mandatory validation after AI response; Uses `hasMeaningfulChanges()` to compare original vs merged tailored resume; Detects zero scores (0/0), equal scores with no content changes, or missing meaningful changes; Blocks navigation, shows error toast "No meaningful changes detected", preserves original resume (no save), returns to workspace with retry option |
+| `src/pages/TailoringHubResultPage.tsx` | Added `isUnchangedWarning` detection logic (combines `changeSummary.hasChanges`, zero scores, equal scores); Header shows amber "Changes Not Verified" with warning icon when unchanged, green "Tailored CV Ready" when changed; Added warning banner with explanation and "Retry Tailoring"/"Edit Manually" buttons for unchanged results; Added success banner with change summary description for valid results; Added `changeSummary` to navigation state |
+| `src/lib/__tests__/tailorMerge.test.ts` | **New** — 30 tests: `normalizeText` (6 tests), `hasMeaningfulChanges` (18 tests), `buildMergedResume` (6 tests) |
+| `src/pages/__tests__/TailoringHubPage-F1.test.tsx` | **New** — 7 tests: unchanged detection, zero-score scenarios, meaningful change detection, whitespace/case filtering |
+| `src/pages/__tests__/TailoringHubResultPage-F1.test.tsx` | **New** — 9 tests: warning/success UI state logic, backwards compatibility |
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+- `npx vitest run src/lib/__tests__/tailorMerge.test.ts` — 30/30 pass.
+- `npx vitest run src/pages/__tests__/TailoringHubPage-F1.test.tsx` — 7/7 pass.
+- `npx vitest run src/pages/__tests__/TailoringHubResultPage-F1.test.tsx` — 9/9 pass.
+- `npm run build` — success (46.56s).
+
+### Important Correction from Code Review
+**Credits ARE consumed for unchanged AI output.** Frontend validation happens AFTER AI Gateway deducts credits (`recordSuccessUsage` at `main.js:2214`). The fix prevents false success UI but cannot prevent credit consumption without backend enhancement to validate AI output BEFORE recording credits. Documented as known limitation.
+
+### Behavior Summary
+| Scenario | Before Fix | After Fix |
+|----------|-----------|-----------|
+| AI returns unchanged content | Shows "Tailored CV Ready", saves resume, navigates | Blocks navigation, shows error, no save, retry available |
+| User refreshes unchanged result page | Would show success | Shows amber warning "Changes Not Verified" with retry/edit buttons |
+| AI returns meaningful changes | Works correctly | Shows "Tailored CV Ready" with change summary banner |
+
+### Deployment Required
+- Frontend deploys automatically via Vercel on next push.
+- No Appwrite changes required.
+
+---
+
 ## 2026-06-05 - Phase 2 AI Security Hardening: Idempotency, Dedup & Credit Resilience
 
 ### Root Causes (from AI-SECURITY-AUDIT-2026-06-05.md, Phase 2 scope)

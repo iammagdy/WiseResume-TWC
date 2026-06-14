@@ -13,11 +13,14 @@ import {
   ChevronRight,
   TrendingUp,
   ExternalLink,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useResumes, dbToResumeData, type DatabaseResume } from '@/hooks/useResumes';
+import type { ChangeSummary } from '@/lib/tailorMerge';
 import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
@@ -43,6 +46,7 @@ interface ResultState {
   scoreBeforeAfter?: { before: number; after: number };
   appliedSections?: string[];
   intensity?: string;
+  changeSummary?: ChangeSummary;
 }
 
 export default function JobMatchResultPage() {
@@ -210,6 +214,12 @@ export default function JobMatchResultPage() {
     ? Math.max(0, effectiveState.scoreBeforeAfter.after - effectiveState.scoreBeforeAfter.before)
     : 0;
 
+  // F-1: Detect unchanged/unverified tailoring result
+  const hasChanges = effectiveState.changeSummary?.hasChanges ?? true; // default to true for backwards compatibility
+  const isZeroScore = effectiveState.scoreBeforeAfter?.before === 0 && effectiveState.scoreBeforeAfter?.after === 0;
+  const isEqualScore = effectiveState.scoreBeforeAfter && effectiveState.scoreBeforeAfter.before === effectiveState.scoreBeforeAfter.after;
+  const isUnchangedWarning = !hasChanges || isZeroScore || (isEqualScore && !hasChanges);
+
   return (
     <div className="jmw-result-page">
       {/* Header */}
@@ -225,15 +235,31 @@ export default function JobMatchResultPage() {
             <ArrowLeft className="w-4 h-4" aria-hidden />
           </button>
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 leading-none">
-                Tailored CV Ready
-              </p>
-              <h1 className="text-sm font-bold text-foreground leading-snug truncate">
-                {isLoading ? 'Loading…' : dbResume?.title ?? 'Tailored CV'}
-              </h1>
-            </div>
+            {isUnchangedWarning ? (
+              <>
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" aria-hidden />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 leading-none">
+                    Changes Not Verified
+                  </p>
+                  <h1 className="text-sm font-bold text-foreground leading-snug truncate">
+                    {isLoading ? 'Loading…' : dbResume?.title ?? 'Tailored CV'}
+                  </h1>
+                </div>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" aria-hidden />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 leading-none">
+                    Tailored CV Ready
+                  </p>
+                  <h1 className="text-sm font-bold text-foreground leading-snug truncate">
+                    {isLoading ? 'Loading…' : dbResume?.title ?? 'Tailored CV'}
+                  </h1>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -255,6 +281,70 @@ export default function JobMatchResultPage() {
             </div>
           ) : (
             <>
+              {/* F-1: Warning banner for unchanged/unverified tailoring */}
+              {isUnchangedWarning && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50 overflow-hidden mb-4">
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 shrink-0">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                        No meaningful changes detected
+                      </p>
+                      <p className="text-xs text-amber-700/80 dark:text-amber-300/70 mt-0.5 leading-relaxed">
+                        The tailored resume appears unchanged or the AI did not produce meaningful modifications.
+                        This can happen when the job description is not specific enough or the AI service encountered an issue.
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-amber-200 hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/30"
+                          onClick={() => navigate('/tailoring-hub')}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Retry Tailoring
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-amber-700 hover:text-amber-800 dark:text-amber-400"
+                          onClick={() => resume && navigate(`/editor?id=${resumeId}`)}
+                        >
+                          <Edit3 className="w-3 h-3 mr-1" />
+                          Edit Manually
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Change summary for successful tailoring */}
+              {!isUnchangedWarning && effectiveState.changeSummary && effectiveState.changeSummary.hasChanges && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800/50 overflow-hidden mb-4">
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 shrink-0">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                        Changes applied successfully
+                      </p>
+                      <p className="text-xs text-emerald-700/80 dark:text-emerald-300/70 mt-0.5 leading-relaxed">
+                        {effectiveState.changeSummary.description}
+                        {effectiveState.changeSummary.changedSections.length > 0 && (
+                          <span className="block mt-1">
+                            Sections updated: {effectiveState.changeSummary.changedSections.join(', ')}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* E-9: 2-col layout — main column */}
               <div className="jmw-result-content__main">
                 {/* ── E-7: Job context + score card ── */}

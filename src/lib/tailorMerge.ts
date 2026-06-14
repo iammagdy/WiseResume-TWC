@@ -1,6 +1,214 @@
 import { ResumeData, SuperTailorResult, TailorSectionId, FixSuggestion } from '@/types/resume';
 
 /**
+ * Normalize text for meaningful comparison.
+ * - Trims whitespace
+ * - Collapses repeated spaces/newlines
+ * - Lowercases for case-insensitive comparison
+ * - Removes purely cosmetic punctuation-only variations
+ */
+export function normalizeText(text: string | null | undefined): string {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ') // collapse whitespace
+    .replace(/[\p{P}]+/gu, ' ') // replace punctuation with space (normalizes "word!" vs "word")
+    .replace(/\s+/g, ' ') // collapse again after punctuation removal
+    .trim();
+}
+
+/**
+ * Compare two arrays of strings for meaningful differences.
+ * Returns true if arrays differ in content (ignoring order, case, whitespace).
+ */
+function arraysDifferMeaningfully(a: string[], b: string[]): boolean {
+  const normA = a.map(normalizeText).filter(Boolean).sort();
+  const normB = b.map(normalizeText).filter(Boolean).sort();
+  if (normA.length !== normB.length) return true;
+  for (let i = 0; i < normA.length; i++) {
+    if (normA[i] !== normB[i]) return true;
+  }
+  return false;
+}
+
+export interface ChangeSummary {
+  hasChanges: boolean;
+  summaryChanged: boolean;
+  skillsChanged: boolean;
+  experienceChanged: boolean;
+  educationChanged: boolean;
+  projectsChanged: boolean;
+  certificationsChanged: boolean;
+  awardsChanged: boolean;
+  changedSections: TailorSectionId[];
+  /** Human-readable description of what changed */
+  description: string;
+}
+
+/**
+ * Detect whether the tailored resume has meaningful changes compared to the original.
+ * Compares normalized content across enabled sections.
+ * Does NOT count whitespace, casing, or punctuation-only changes as meaningful.
+ */
+export function hasMeaningfulChanges(
+  original: ResumeData,
+  tailored: ResumeData,
+  enabledSections: TailorSectionId[]
+): ChangeSummary {
+  const summary: ChangeSummary = {
+    hasChanges: false,
+    summaryChanged: false,
+    skillsChanged: false,
+    experienceChanged: false,
+    educationChanged: false,
+    projectsChanged: false,
+    certificationsChanged: false,
+    awardsChanged: false,
+    changedSections: [],
+    description: '',
+  };
+
+  // Check summary
+  if (enabledSections.includes('summary')) {
+    const origSummary = normalizeText(original.summary);
+    const tailoredSummary = normalizeText(tailored.summary);
+    if (origSummary !== tailoredSummary && (origSummary || tailoredSummary)) {
+      summary.summaryChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('summary');
+    }
+  }
+
+  // Check skills
+  if (enabledSections.includes('skills')) {
+    const origSkills = original.skills || [];
+    const tailoredSkills = tailored.skills || [];
+    if (arraysDifferMeaningfully(origSkills, tailoredSkills)) {
+      summary.skillsChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('skills');
+    }
+  }
+
+  // Check experience (position, company, description, achievements)
+  if (enabledSections.includes('experience')) {
+    const origExp = original.experience || [];
+    const tailoredExp = tailored.experience || [];
+    if (origExp.length !== tailoredExp.length) {
+      summary.experienceChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('experience');
+    } else {
+      for (let i = 0; i < origExp.length; i++) {
+        const o = origExp[i];
+        const t = tailoredExp[i];
+        if (
+          normalizeText(o.position) !== normalizeText(t.position) ||
+          normalizeText(o.company) !== normalizeText(t.company) ||
+          normalizeText(o.description) !== normalizeText(t.description) ||
+          arraysDifferMeaningfully(o.achievements || [], t.achievements || [])
+        ) {
+          summary.experienceChanged = true;
+          summary.hasChanges = true;
+          summary.changedSections.push('experience');
+          break;
+        }
+      }
+    }
+  }
+
+  // Check education
+  if (enabledSections.includes('education')) {
+    const origEd = original.education || [];
+    const tailoredEd = tailored.education || [];
+    if (origEd.length !== tailoredEd.length) {
+      summary.educationChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('education');
+    } else {
+      for (let i = 0; i < origEd.length; i++) {
+        const o = origEd[i];
+        const t = tailoredEd[i];
+        if (
+          normalizeText(o.institution) !== normalizeText(t.institution) ||
+          normalizeText(o.degree) !== normalizeText(t.degree) ||
+          normalizeText(o.field) !== normalizeText(t.field)
+        ) {
+          summary.educationChanged = true;
+          summary.hasChanges = true;
+          summary.changedSections.push('education');
+          break;
+        }
+      }
+    }
+  }
+
+  // Check projects
+  if (enabledSections.includes('projects')) {
+    const origProj = original.projects || [];
+    const tailoredProj = tailored.projects || [];
+    if (origProj.length !== tailoredProj.length) {
+      summary.projectsChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('projects');
+    } else if (arraysDifferMeaningfully(
+      origProj.map(p => `${p.name} ${p.description}`),
+      tailoredProj.map(p => `${p.name} ${p.description}`)
+    )) {
+      summary.projectsChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('projects');
+    }
+  }
+
+  // Check certifications
+  if (enabledSections.includes('certifications')) {
+    const origCert = original.certifications || [];
+    const tailoredCert = tailored.certifications || [];
+    if (arraysDifferMeaningfully(
+      origCert.map(c => `${c.name} ${c.issuer}`),
+      tailoredCert.map(c => `${c.name} ${c.issuer}`)
+    )) {
+      summary.certificationsChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('certifications');
+    }
+  }
+
+  // Check awards
+  if (enabledSections.includes('awards')) {
+    const origAwards = original.awards || [];
+    const tailoredAwards = tailored.awards || [];
+    if (arraysDifferMeaningfully(
+      origAwards.map(a => `${a.title} ${a.issuer}`),
+      tailoredAwards.map(a => `${a.title} ${a.issuer}`)
+    )) {
+      summary.awardsChanged = true;
+      summary.hasChanges = true;
+      summary.changedSections.push('awards');
+    }
+  }
+
+  // Generate human-readable description
+  if (summary.hasChanges) {
+    const parts: string[] = [];
+    if (summary.summaryChanged) parts.push('professional summary updated');
+    if (summary.skillsChanged) parts.push('skills optimized');
+    if (summary.experienceChanged) parts.push('experience enhanced');
+    if (summary.educationChanged) parts.push('education refined');
+    if (summary.projectsChanged) parts.push('projects highlighted');
+    if (summary.certificationsChanged) parts.push('certifications added');
+    if (summary.awardsChanged) parts.push('awards showcased');
+    summary.description = parts.join(', ');
+  } else {
+    summary.description = 'No meaningful changes detected';
+  }
+
+  return summary;
+}
+
+/**
  * Build a merged resume snapshot by overlaying the AI-tailored result onto the
  * original resume, respecting the user's enabled-section toggles and per-bullet
  * rejections. Used by both the "Apply Changes" flow (which persists a new
