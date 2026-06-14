@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Search, User, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, AlertCircle, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Search, User, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, AlertCircle, RefreshCw, SlidersHorizontal, Plus } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
