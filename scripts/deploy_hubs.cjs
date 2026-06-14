@@ -22,7 +22,7 @@ loadEnvFile('.env.deploy');
 const ROOT = process.cwd();
 const APPWRITE_MANIFEST_PATH = path.join(ROOT, 'appwrite.json');
 const SOURCE_HASHES_PATH = path.join(ROOT, 'src', 'lib', 'devkit', 'sourceHashes.generated.json');
-const DEFAULT_RUNTIME = 'node-18.0';
+const DEFAULT_RUNTIME = 'node-22.0';
 const DEFAULT_TIMEOUT = 30;
 const DEPLOY_POLL_INTERVAL_MS = 2000;
 const DEPLOY_POLL_ATTEMPTS = 120;
