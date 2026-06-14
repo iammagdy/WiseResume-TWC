@@ -2,6 +2,156 @@
 
 ---
 
+## Session Log - 2026-06-14 (QA Fixes: Tailoring Hub, Portfolio, Dashboard)
+
+### Overview
+
+Frontend QA regression fixes. Fixed Tailoring Hub generation failure, Public Portfolio crashes, added Dashboard "New Resume" CTA, `/tailoring` redirect, and defensive data normalization. Appwrite `ai-gateway` function updated and deployed. All changes committed and pushed to `main`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — Tailoring Hub generation failed with "No meaningful changes detected"
+
+- **Root cause**: `tailor-resume` feature in `appwrite-hubs/ai-gateway/src/main.js` used a generic structured AI prompt that only instructed the AI to "Return ONLY valid JSON matching this schema" without telling it to actually tailor/rewrite the resume content. The AI received resume + job description but wasn't instructed to rewrite.
+- **Fix**: Added dedicated `tailor-resume` branch in `buildMessages()` before the generic `STRUCTURED_AI_FEATURES` handler. New prompt explicitly instructs AI to: rewrite professional summary for target job, optimize skills with relevant keywords, improve experience bullets with action verbs and metrics, align education/projects, and generate meaningful `keyChanges` with before/after comparisons.
+- **Schema compatibility**: Verified `normalizeStructuredFeatureData()` handles all expected fields (`summary`, `skills`, `experience`, `education`, `projects`, `certifications`, `awards`, `keyChanges`, `overallScore`, etc.).
+- **Tests added**: `tests/hubs/ai-gateway-routing.test.cjs` — 5 tests verifying dedicated branch exists, precedes generic handler, contains explicit tailoring instructions, schema compatibility, and `extracted_prompts.json` consistency.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `appwrite-hubs/ai-gateway/src/extracted_prompts.json`
+
+---
+
+#### F2 — Public Portfolio crashed with `TypeError: xe.filter is not a function`
+
+- **Root cause**: Appwrite occasionally returns `null`, `undefined`, or objects instead of arrays for optional resume fields (`experience`, `education`, `skills`, `projects`, etc.). Frontend called `.filter()` without `Array.isArray()` guards.
+- **Fix A**: Added `Array.isArray()` guards in `PublicSections.tsx` (9 locations: experience, education, testimonials, services, highlights, caseStudies, certifications, navSections, skills).
+- **Fix B**: Added guards in `PublicPortfolioPage.tsx` (3 locations: experience, education, skills/projects in `allSkills` calculation, navOrder).
+- **Fix C**: Added `normalizeArray<T>()` helper in `usePublicPortfolio.ts` to normalize all resume fields: returns `[]` for null/undefined/non-array, parses JSON strings that look like arrays, returns valid arrays as-is.
+- **Fix D**: Added guards in `skillCloud.ts` `computeSkillFrequencies()` for experience and projects parameters.
+- **Tests added**: `PublicSections.test.tsx` — 5 defensive tests for null/undefined/object handling; `usePublicPortfolio.test.tsx` — 1 test for `normalizeArray` with malformed data (null, object, JSON string).
+- **Files**: `src/components/portfolio/public/PublicSections.tsx`, `src/pages/PublicPortfolioPage.tsx`, `src/hooks/usePublicPortfolio.ts`, `src/lib/skillCloud.ts`
+
+---
+
+#### F3 — Dashboard missing visible "Create Resume" CTA when resumes exist
+
+- **Root cause**: Dashboard only showed "Create Resume" via `DashboardHero` when user had 0 resumes. No visible button when resumes already existed.
+- **Fix**: Added "New Resume" button with `Plus` icon in workspace toolbar (line 947-959 in `DashboardPage.tsx`). Uses `hidden sm:flex` for responsive visibility. Opens existing `CreateResumeDialog` via `setShowCreateDialog(true)`. Button has `aria-label="Create new resume"`.
+- **Tests added**: `src/pages/__tests__/DashboardPage-CTA.test.tsx` — 4 focused tests: button renders with accessible label, calls callback when clicked, has correct role, source contains implementation.
+- **File**: `src/pages/DashboardPage.tsx`
+
+---
+
+#### F4 — `/tailoring` route returned 404
+
+- **Root cause**: Canonical route is `/tailoring-hub`, but old links/tests referenced `/tailoring`. No redirect existed.
+- **Fix**: Added `<Route path="/tailoring" element={<Navigate to="/tailoring-hub" replace />} />` in `AppInterior.tsx` routes configuration.
+- **Tests added**: `src/pages/__tests__/TailoringRedirect.test.tsx` — 1 test verifying redirect to `/tailoring-hub`.
+- **File**: `src/AppInterior.tsx`
+
+---
+
+#### F5 — Old domain references in user-facing emails
+
+- **Root cause**: ErrorBoundary crash report emails still pointed to `contact@thewise.cloud`. WiseHire emails also had old domain.
+- **Classification**:
+  - `ErrorBoundary.tsx`: **USER_FACING_STALE** — changed to `contact@wiseresume.app` (2 occurrences)
+  - `WiseHireSubscriptionPage.tsx`: **BRAND/UMBRELLA** — reverted to `contact@thewise.cloud` pending brand ownership confirmation (3 occurrences)
+- **Files**: `src/components/ErrorBoundary.tsx`, `src/pages/wisehire/WiseHireSubscriptionPage.tsx`
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Added dedicated `tailor-resume` prompt handler with explicit rewrite instructions |
+| `appwrite-hubs/ai-gateway/src/extracted_prompts.json` | Updated for consistency |
+| `src/AppInterior.tsx` | `/tailoring` → `/tailoring-hub` redirect |
+| `src/components/ErrorBoundary.tsx` | Updated crash report email to `contact@wiseresume.app` |
+| `src/components/portfolio/public/PublicSections.tsx` | 9 `Array.isArray()` guards added |
+| `src/hooks/usePublicPortfolio.ts` | Added `normalizeArray<T>()` helper for malformed data |
+| `src/lib/devkit/sourceHashes.generated.json` | Hash updated (`ai-gateway`: `99ef900da5c8be27`) |
+| `src/lib/skillCloud.ts` | Safe array defaults for experience/projects |
+| `src/pages/DashboardPage.tsx` | "New Resume" CTA button added |
+| `src/pages/PublicPortfolioPage.tsx` | 3 `Array.isArray()` guards added |
+| `src/pages/wisehire/WiseHireSubscriptionPage.tsx` | Reverted to `contact@thewise.cloud` (pending confirmation) |
+| `src/components/portfolio/public/__tests__/PublicSections.test.tsx` | 5 defensive tests added |
+| `src/hooks/__tests__/usePublicPortfolio.test.tsx` | 1 normalization test added |
+| `src/pages/__tests__/DashboardPage-CTA.test.tsx` | **New** — 4 focused CTA tests |
+| `src/pages/__tests__/TailoringRedirect.test.tsx` | **New** — 1 redirect test |
+| `tests/hubs/ai-gateway-routing.test.cjs` | **New** — 5 AI gateway routing tests |
+
+---
+
+### Validation
+
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npx vitest run src/lib/__tests__/tailorMerge.test.ts` | ✓ 30/30 PASS |
+| `npx vitest run src/components/portfolio/public/__tests__/PublicSections.test.tsx` | ✓ 8/8 PASS |
+| `npx vitest run src/hooks/__tests__/usePublicPortfolio.test.tsx` | ✓ 28/28 PASS |
+| `npx vitest run src/pages/__tests__/TailoringRedirect.test.tsx src/pages/__tests__/DashboardPage-CTA.test.tsx` | ✓ 5/5 PASS |
+| `node tests/hubs/ai-gateway-routing.test.cjs` | ✓ 5/5 PASS |
+| `node --check appwrite-hubs/ai-gateway/src/main.js` | ✓ PASS |
+| `npm run build` | ✓ PASS (41.75s) |
+| `git diff --check` | ✓ PASS (LF→CRLF warning only) |
+
+**Total tests**: 76 passing
+
+---
+
+### Commits created (this session)
+
+| Commit | SHA | Message |
+|--------|-----|---------|
+| QA fixes | `379293cf` | `fix(qa): stabilize tailoring, portfolio, and dashboard regression issues` |
+
+15 files changed, 483 insertions(+), 37 deletions(-)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ✓ Ready | Auto-deploy from `main` push | Standard Vercel deployment |
+| Appwrite ai-gateway | ✓ Ready | GitHub Actions workflow dispatch | Workflow run `27509255948`, Job `81306179708`, 1m24s, commit `379293c`, hash `99ef900da5c8be27` |
+
+**Note**: Vercel alone does NOT update Appwrite Functions. Separate GitHub Actions workflow required and completed.
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Deployed from `379293c` — auto-deployed after push.
+- **Appwrite ai-gateway**: Deployed — function ID `6a2efe1a332f11ce6d7c`, source hash `99ef900da5c8be27`, all API keys updated.
+- **Local repo**: Synced with `origin/main` at `379293cfbc75bbc9f1c7829ccca842bb0b46bf94`.
+- **Working tree**: Clean.
+
+---
+
+### Where We Stopped
+
+All QA fixes committed, pushed, and deployed. Both Vercel (frontend) and Appwrite `ai-gateway` are ready.
+
+**Ready for TestSprite rerun** (after both deployments confirmed):
+- `Tailoring Hub: Generate a tailored resume from a job description`
+- `Tailoring Hub: Review tailored resume output`
+- `Tailoring Hub: Continue from tailored resume into preview`
+- `Portfolio: Public portfolio page renders for an existing username`
+- `Portfolio: Open a public portfolio link`
+- `Dashboard: Dashboard surfaces key resume actions`
+- `Portfolio: Public portfolio link format stays on the current domain`
+
+**Known follow-ups:**
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to this session.
+- WiseHire email domain (`thewise.cloud` vs `wiseresume.app`) pending brand ownership confirmation.
+
+---
+
 ## Session Log - 2026-06-14 (Dashboard Dynamic Import Fix, Tablet UI/UX, Accessibility)
 
 ### Overview
