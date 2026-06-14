@@ -10,7 +10,7 @@ import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { account as appwriteAccount, ID, databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { account as appwriteAccount, ID } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
@@ -34,6 +34,16 @@ export default function AuthPage() {
     if (isAuthenticated && !authLoading) navigate(redirectTo, { replace: true });
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
+  // Handle mode parameter from URL (?mode=signup or ?mode=login)
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'signup') {
+      setView('register');
+    } else if (mode === 'login' || !mode) {
+      setView('login');
+    }
+  }, [searchParams]);
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -43,20 +53,7 @@ export default function AuthPage() {
       toast.success('Logged in successfully!');
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed';
-      try {
-        const profileRes = await databases.listDocuments(DATABASE_ID, 'profiles', [
-          Query.equal('email', email)
-        ]);
-        if (profileRes.total > 0) {
-          toast.info('Account found! Since we updated our system, please set a new password.');
-          setView('claim-account');
-        } else {
-          toast.error('Invalid credentials. If you are new, please Sign Up.');
-        }
-      } catch {
-        toast.error(message);
-      }
+      toast.error('Invalid email or password. You can reset your password if needed.');
     } finally {
       setLoading(false);
     }
