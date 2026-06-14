@@ -5469,3 +5469,92 @@ Live:
   - `Loader/`
   - `reports/*.json`
 - If Email Studio still shows the old toast on production, the next step is to verify the frontend deploy cache has refreshed, not to reopen the Appwrite function logic by default.
+
+## Session Log - 2026-06-14 (Appwrite Hub Runtime Fix + TestSprite MCP Setup)
+
+### Summary
+
+Two independent tracks completed in this session:
+
+1. Fixed Appwrite hub deployment failures caused by an invalid Node.js runtime identifier.
+2. Integrated TestSprite MCP server for AI-powered testing.
+
+All fixes landed on `main`. Latest commit: `4101224`.
+
+---
+
+### 1. Appwrite Hub Deployment Failures
+
+#### Root cause
+
+The `deploy_hubs.cjs` script and `appwrite.json` both referenced `node-22.0` as the runtime identifier. Appwrite Cloud only accepts `node-22` (no `.0` suffix). Additionally, previous sessions had set the runtime to `node-18.0`, which is EOL (April 2025) and was causing VCS-triggered build failures on the Appwrite side.
+
+Two separate bugs:
+- Wrong format: `node-22.0` → must be `node-22`
+- Node 18 EOL: `node-18.0` set in both the deploy script default and `appwrite.json`
+
+The `DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true` flag in `deploy_hubs.cjs` ensures that when CI deploys hubs, it clears VCS integration fields (`installationId`, `providerRepositoryId`, `providerBranch`), permanently preventing Appwrite from triggering its own VCS builds.
+
+#### Workflow failure sequence
+
+1. First deploy attempt failed: `node-22.0` is not a valid Appwrite runtime value. Valid value is `node-22`.
+2. Second issue surfaced: `sourceHashes.generated.json` was stale — 4 hub source hashes had changed (`admin-devkit-data`, `admin-email`, `admin-deploy-hubs`, `email-service`). The CI step `Ensure source hash manifest is committed` runs `git diff --exit-code` and fails if the file is out of date.
+
+#### Files changed
+
+| File | Change |
+|------|--------|
+| `scripts/deploy_hubs.cjs` | `DEFAULT_RUNTIME`: `'node-18.0'` → `'node-22'` |
+| `appwrite.json` | All 20 function `runtime` fields: `"node-18.0"` → `"node-22"` |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated via `node scripts/compute-source-hashes.mjs` |
+| `.mcp.json` | Created — TestSprite MCP server config (see track 2) |
+| `testsprite.md` | Created — TestSprite testing brief (see track 2) |
+
+#### Commits / PRs
+
+| SHA | PR | Description |
+|-----|----|-------------|
+| `b9155ae` | #100 | Initial runtime + TestSprite changes (squash merged) |
+| `340505f` | #101 | Updated `sourceHashes.generated.json` after hash drift |
+| `4101224` | #102 | Corrected runtime from `node-22.0` to `node-22` |
+
+#### Deployment state
+
+The `deploy-appwrite-hubs.yml` GitHub Actions workflow (`workflow_dispatch`) must be **manually triggered** by the repo owner from:
+`https://github.com/iammagdy/WiseResume-TWC/actions/workflows/deploy-appwrite-hubs.yml`
+→ Run workflow → branch: `main` → target: `all`
+
+The GitHub MCP token does not have `actions: write` permission (returns HTTP 403 on `workflow_dispatch` trigger). This is a GitHub App scope limitation — it cannot be worked around from within Claude Code.
+
+**As of session end, the workflow has not been successfully triggered.** The last two manual trigger attempts by the user resulted in the errors documented above (now fixed). The next trigger will use correct inputs from `main` at `4101224`.
+
+---
+
+### 2. TestSprite MCP Integration
+
+#### What was done
+
+- Created `testsprite.md` — a structured testing brief covering: app description, all major pages/flows, success criteria, skip list (DevKit admin panel, billing, OAuth), and severity preferences.
+- Created `.mcp.json` at repo root — configures the TestSprite MCP server (`@testsprite/testsprite-mcp@latest`) using an environment variable reference for the API key (never committed in plaintext).
+
+#### Security note
+
+API key is stored in `.env` (gitignored) as `TESTSPRITE_API_KEY=...`. The `.mcp.json` file references it as `${TESTSPRITE_API_KEY}`. Never commit the actual key.
+
+#### Files
+
+| File | Status |
+|------|--------|
+| `testsprite.md` | Created |
+| `.mcp.json` | Created |
+| `.env` | Modified locally (gitignored, not committed) |
+
+---
+
+### Where We Stopped
+
+- Latest `origin/main` commit: `4101224` (`fix: correct node runtime from node-22.0 to node-22`)
+- Local `main` and `origin/main` are aligned after `git fetch`.
+- **Pending action (requires human):** Trigger `deploy-appwrite-hubs.yml` manually from `main` with `target: all`. This will redeploy all 20 hubs with `node-22` runtime and disable Appwrite VCS auto-deploy via `DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`.
+- TestSprite MCP is configured and ready. Run `/testsprite` in Claude Code once `TESTSPRITE_API_KEY` is set in your environment.
+- No product code, Appwrite function logic, environment variables, or Appwrite Console settings were changed during the documentation step.
