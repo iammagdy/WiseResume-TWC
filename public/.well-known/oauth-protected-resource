@@ -1,11 +1,11 @@
 {
-  "resource": "https://resume.thewise.cloud/api",
+  "resource": "https://wiseresume.app/api",
   "authorization_servers": [
     "https://thewisecloud.kinde.com"
   ],
   "bearer_methods_supported": ["header"],
   "scopes_supported": ["openid", "profile", "email", "offline"],
-  "resource_documentation": "https://resume.thewise.cloud/docs/api",
+  "resource_documentation": "https://wiseresume.app/docs/api",
   "resource_signing_alg_values_supported": ["RS256"],
   "resource_name": "WiseResume / WiseHire API"
 }

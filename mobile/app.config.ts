@@ -19,7 +19,7 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
 const BUNDLE_ID = process.env.EXPO_PUBLIC_BUNDLE_ID ?? 'com.wiseresume.app';
 const APP_NAME = process.env.EXPO_PUBLIC_APP_NAME ?? 'WiseResume';
 const SCHEME = process.env.EXPO_PUBLIC_SCHEME ?? 'wiseresume';
-const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://resume.thewise.cloud';
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://wiseresume.app';
 const VERSION = '1.0.0';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({

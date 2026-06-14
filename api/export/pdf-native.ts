@@ -43,7 +43,7 @@ const PDF_FORMATS = {
 } as const;
 
 const EXPORT_FOOTER_HEIGHT_PX = 44;
-const EXPORT_BRAND_URL = 'https://resume.thewise.cloud';
+const EXPORT_BRAND_URL = 'https://wiseresume.app';
 const DEFAULT_MIN_GAP_PX = 40;
 const SECTION_HEADING_GUARD_PX = 80;
 const NEAR_SECTION_TOP_PX = 24;

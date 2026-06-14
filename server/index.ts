@@ -69,7 +69,8 @@ app.use(
         origin.startsWith('https://localhost') ||
         /\.replit\.dev$/.test(origin) ||
         /\.replit\.app$/.test(origin) ||
-        origin === 'https://resume.thewise.cloud' ||
+        origin === 'https://resume.thewise.cloud' || // legacy domain — keep for backward compat
+        origin === 'https://wiseresume.app' ||
         origin === 'https://thewise.cloud';
       callback(null, allowed);
     },
@@ -88,7 +89,7 @@ const PDF_FORMATS = {
 } as const;
 
 const EXPORT_FOOTER_HEIGHT_PX = 44;
-const EXPORT_BRAND_URL = 'https://resume.thewise.cloud';
+const EXPORT_BRAND_URL = 'https://wiseresume.app';
 
 function extractHtmlParts(html: string): { head: string; body: string } {
   const head = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? '';

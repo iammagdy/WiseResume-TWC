@@ -582,7 +582,7 @@ async function ensureEmailServiceVariables() {
         ['RESEND_API_KEY', process.env.RESEND_API_KEY || await firstExistingVariableValue(emailVarSources, 'RESEND_API_KEY')],
         ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
         ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
-        ['FRONTEND_URL', process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
+        ['FRONTEND_URL', process.env.FRONTEND_URL || 'https://wiseresume.app'],
     ];
     for (const [key, value] of emailServiceVars) {
         await ensureVariable('email-service', key, value);

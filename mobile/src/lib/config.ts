@@ -37,7 +37,7 @@ export function getConfig(): MobileConfig {
     kindeDomain: require_('kindeDomain'),
     kindeClientId: require_('kindeClientId'),
     sentryDsn: read('sentryDsn'),
-    webUrl: read('webUrl') ?? 'https://resume.thewise.cloud',
+    webUrl: read('webUrl') ?? 'https://wiseresume.app',
   };
   return cached;
 }

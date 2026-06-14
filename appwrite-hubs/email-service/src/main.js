@@ -51,7 +51,7 @@
  *   RESEND_API_KEY        Resend API key (re_xxx)
  *   RESEND_FROM_EMAIL     Default sender e.g. noreply@thewise.cloud
  *   RESEND_FROM_NAME      Default sender name e.g. WiseResume
- *   FRONTEND_URL          e.g. https://resume.thewise.cloud
+ *   FRONTEND_URL          e.g. https://wiseresume.app
  *
  * ─── Appwrite Console → Function → Settings ──────────────────────────────────
  *   Execute access: Any  (send-password-reset is public; session/admin actions
@@ -63,7 +63,7 @@ const sdk = require('node-appwrite');
 
 const ENDPOINT    = (process.env.APPWRITE_ENDPOINT    || process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
 const PROJECT_ID  = process.env.APPWRITE_PROJECT_ID   || process.env.APPWRITE_FUNCTION_PROJECT_ID  || '69fd362b001eb325a192';
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://resume.thewise.cloud').replace(/\/$/, '');
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://wiseresume.app').replace(/\/$/, '');
 const RESEND_BASE  = 'https://api.resend.com';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -396,7 +396,7 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
               <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 18px auto;">
                 <tr>
                   <td align="center" width="72" style="width:72px;background-color:#121216;border:1px solid rgba(239,68,68,0.45);border-radius:18px;padding:17px;">
-                    <img src="https://resume.thewise.cloud/email-logo.png" width="38" height="38" alt="WiseResume" style="display:block;border:0;width:38px;height:38px;">
+                    <img src="https://wiseresume.app/email-logo.png" width="38" height="38" alt="WiseResume" style="display:block;border:0;width:38px;height:38px;">
                   </td>
                 </tr>
               </table>
@@ -440,9 +440,9 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
               <p style="margin:0;text-align:center;font-size:13px;">
                 <a href="mailto:contact@thewise.cloud" style="color:#8b8b94;text-decoration:none;">Support</a>
                 <span style="color:#3f3f46;margin:0 14px;">|</span>
-                <a href="https://resume.thewise.cloud/privacy-policy" style="color:#8b8b94;text-decoration:none;">Privacy</a>
+                <a href="https://wiseresume.app/privacy-policy" style="color:#8b8b94;text-decoration:none;">Privacy</a>
                 <span style="color:#3f3f46;margin:0 14px;">|</span>
-                <a href="https://resume.thewise.cloud/terms-of-service" style="color:#8b8b94;text-decoration:none;">Terms</a>
+                <a href="https://wiseresume.app/terms-of-service" style="color:#8b8b94;text-decoration:none;">Terms</a>
               </p>
 
             </td>
