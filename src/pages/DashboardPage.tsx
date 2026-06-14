@@ -886,7 +886,7 @@ function DashboardPageContent() {
                 />
               }
             >
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
               <DashboardWorkspaceToolbar userName={profile?.fullName} />
 
               <DashboardMetricsStrip
@@ -906,7 +906,7 @@ function DashboardPageContent() {
                 onTailorResume={handleTailorResume}
               />
 
-              <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
                 <div className="dashboard-recent-resumes-head flex w-full min-w-0 flex-col gap-2.5 mb-2.5 shrink-0">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
                     <Tabs
@@ -1021,7 +1021,7 @@ function DashboardPageContent() {
                   </div>
                 </div>
 
-                <div className="dashboard-resume-list-scroll w-full min-w-0 flex-1 min-h-0">
+                <div className="dashboard-resume-list-scroll w-full min-w-0 flex-1 overflow-y-auto overscroll-y-contain">
                 <motion.div
                   className="space-y-2 pb-1"
                   initial="hidden"
@@ -1093,7 +1093,7 @@ function DashboardPageContent() {
                 </motion.div>
                 </div>
 
-              <div className="dashboard-workspace-bottom shrink-0">
+              <div className="dashboard-workspace-bottom shrink-0 hidden lg:block">
               {!isLoading && <DashboardDiscoverySection compact className="shrink-0" />}
 
               {(showTrustBanner || showProfileBanner || showChecklist) && (
