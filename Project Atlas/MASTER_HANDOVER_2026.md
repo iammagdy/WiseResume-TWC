@@ -2,6 +2,102 @@
 
 ---
 
+## Session Log - 2026-06-15 (Claude Design Screenshot Extraction Pack)
+
+### Overview
+
+Read-only session. Captured 14 real UI screenshots from the local dev server for use as Claude Design redesign input. No app code, backend, routes, APIs, Appwrite functions, deployments, or git history were changed. All output is in `Project Atlas/claude-design-extraction/`.
+
+---
+
+### What was done
+
+#### Playwright setup
+- Confirmed `playwright@^1.59.1` and `puppeteer@^24.42.0` already in `package.json`.
+- Playwright Chromium browser (v1217, 179 MB) was not yet downloaded — installed via `npx playwright install chromium`. Dev-tool only, no app dependency added.
+- Dev server started from `Y:\WiseResume-TWC` (main project root, which holds `.env.local` and `node_modules`) on port 5000.
+
+#### Capture script
+- Created `Project Atlas/claude-design-extraction/capture.mjs` — a self-contained Playwright script.
+- Launches a visible (non-headless) Chromium window so the user can log in manually if needed.
+- Detects auth state automatically; pauses with a console prompt if login is required.
+- Navigates to the editor by clicking the real "Edit" button on the first resume card (to properly set Zustand state), then falls back to direct `/editor` navigation if the button is not visible at the current viewport.
+- Attempts to open AI enhance, export, and import dialogs by selector and role-based lookup; falls back to current page state if not reachable.
+- Captures at 2× device scale factor (retina quality PNG).
+- Desktop viewport: 1440×1100. Mobile viewport: 390×844.
+
+#### Files created (all under `Project Atlas/claude-design-extraction/`)
+
+| File | Purpose |
+|------|---------|
+| `capture.mjs` | Reusable Playwright capture script |
+| `screenshots/` | 14 PNG screenshots (see table below) |
+| `SCREENSHOT_INDEX.md` | Per-screenshot annotations and redesign notes for Claude Design |
+| `CLAUDE_DESIGN_BRIEF.md` | Full design brief: what WiseResume is, target feeling, what to redesign, constraints, priority order |
+
+---
+
+### Screenshot inventory
+
+| # | Filename | Size | Quality | Notes |
+|---|----------|------|---------|-------|
+| 01 | `01-dashboard-desktop.png` | 929 KB | ✓ Real data | Full dashboard layout, resume cards, AI panel |
+| 02 | `02-dashboard-mobile.png` | 234 KB | ✓ Real data | Mobile layout, stacked cards |
+| 03 | `03-settings-desktop.png` | 857 KB | ✓ Real data | Full settings page |
+| 04 | `04-settings-mobile.png` | 251 KB | ✓ Real data | Mobile settings |
+| 05 | `05-editor-desktop.png` | 693 KB | ✓ Real resume | Opened via card Edit button click |
+| 06 | `06-editor-mobile.png` | 223 KB | ✓ Real resume | Direct /editor nav (Zustand had resume from step 05) |
+| 07 | `07-tailoring-hub-desktop.png` | 556 KB | ✓ Real UI | Tailoring Hub input state |
+| 08 | `08-tailoring-hub-mobile.png` | 173 KB | ✓ Real UI | Mobile tailoring hub |
+| 09 | `09-tailoring-result-desktop.png` | 556 KB | ⚠ Placeholder | No prior tailoring result in session — shows Hub input |
+| 10 | `10-tailoring-result-mobile.png` | 172 KB | ⚠ Placeholder | Same |
+| 11 | `11-ai-enhance-popup-summary.png` | 705 KB | ✓ Panel open | AI enhance panel triggered from editor |
+| 12 | `12-ai-output-sheet.png` | 697 KB | ⚠ Editor state | AI output sheet not auto-reachable without live API call |
+| 13 | `13-export-popup.png` | 561 KB | ✓ Dialog open | Export/download dialog open |
+| 14 | `14-import-job-popup.png` | 905 KB | ✓ Dialog open | Import Job / Paste Job dialog open |
+
+---
+
+### Constraints respected
+
+- Zero app code changes.
+- Zero backend, route, API, state, AI logic, database, or Appwrite hub changes.
+- Zero commits, pushes, deploys, or environment variable changes.
+- Dev server run from main project root (`Y:\WiseResume-TWC`), not the worktree.
+- Playwright browser download is a local dev-tool install only (`~/.local/ms-playwright`).
+
+---
+
+### Known gaps / follow-up options
+
+1. **Screenshots 09 + 10 (Tailoring Result)** — Require a previously generated tailoring result to exist in the session. To re-capture: run one tailoring job manually, then re-run `capture.mjs` — the script will auto-detect the result URL from the dashboard.
+2. **Screenshot 12 (AI output sheet)** — The output state (after AI returns content) requires a live AI API call. Cannot be automated without triggering real AI. Capture manually after running an enhancement.
+3. **Placeholder script is reusable** — `capture.mjs` can be re-run at any time to refresh screenshots after UI changes. No setup required beyond the dev server being up.
+
+---
+
+### Current production/deployment state
+
+Unchanged — no deployments performed this session.
+
+- **Frontend (Vercel)**: `fe78e57c` — deployed by prior auth fix session.
+- **Appwrite ai-gateway**: hash `99ef900da5c8be27` — unchanged.
+- **Working tree**: Clean (no code changes this session).
+
+---
+
+### Where We Stopped
+
+Screenshot extraction pack complete — 14 PNGs in `Project Atlas/claude-design-extraction/screenshots/`, index and brief ready for Claude Design input. Auth false claim-account bug (prior session) is fixed and deployed.
+
+**Known follow-ups:**
+- TestSprite rerun (7 scenarios — Tailoring Hub, Portfolio, Dashboard).
+- Screenshots 09/10 (Tailoring Result) and 12 (AI output sheet) are placeholders — need a real tailoring result and live AI call respectively to recapture.
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to recent sessions.
+- WiseHire email domain (`thewise.cloud` vs `wiseresume.app`) pending brand ownership confirmation.
+
+---
+
 ## Session Log - 2026-06-15 (Auth: Fix False Claim-Account Login State)
 
 ### Overview
@@ -69,7 +165,6 @@ Fixed critical auth bug where failed login attempts incorrectly showed "Claim Yo
 
 - **Frontend (Vercel)**: Deployed from `fe78e57c` — auto-deployed after push.
 - **Appwrite Functions**: Unchanged.
-- **Local repo**: Synced with `origin/main` at `fe78e57c1ba08d84a9ee5f2a0a2f2a3f1b2c3d4e5`.
 - **Working tree**: Clean.
 
 ---
