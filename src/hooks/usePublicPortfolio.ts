@@ -112,39 +112,50 @@ function normalizeArray<T>(value: unknown, defaultValue: T[] = []): T[] {
 
 // ── Helper: map raw Appwrite profile document to PublicProfile ────────────────
 
+/** Parse a field that Appwrite may return as a JSON string or as an object */
+function parseExtras(raw: unknown): Record<string, unknown> {
+  if (raw === null || raw === undefined) return {};
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) as Record<string, unknown>; } catch { return {}; }
+  }
+  if (typeof raw === 'object') return raw as Record<string, unknown>;
+  return {};
+}
+
 function mapProfile(p: Record<string, unknown>): PublicProfile {
-  const extras = (p.portfolioExtras ?? {}) as Record<string, unknown>;
+  // Appwrite stores fields in snake_case. Fall back to camelCase for safety.
+  const extras = parseExtras(p.portfolio_extras ?? p.portfolioExtras);
   return {
     $id: p.$id as string,
     user_id: p.user_id as string,
     username: (p.username as string) ?? '',
-    fullName: (p.fullName as string | null) ?? null,
-    jobTitle: (p.jobTitle as string | null) ?? null,
-    avatarUrl: (p.avatarUrl as string | null) ?? null,
-    portfolioBio: (p.portfolioBio as string | null) ?? null,
-    portfolioEnabled: (p.portfolioEnabled as boolean) ?? false,
-    portfolioStyle: (p.portfolioStyle as string | null) ?? null,
-    portfolioLayout: (p.portfolioLayout as string | null) ?? null,
-    portfolioAccentColor: (p.portfolioAccentColor as string | null) ?? null,
-    portfolioFont: (p.portfolioFont as string | null) ?? null,
-    portfolioSections: (p.portfolioSections as PortfolioSections | null) ?? null,
-    portfolioMetaTitle: (p.portfolioMetaTitle as string | null) ?? null,
-    portfolioMetaDescription: (p.portfolioMetaDescription as string | null) ?? null,
-    metaTitle: (p.metaTitle as string | null) ?? null,
-    metaDescription: (p.metaDescription as string | null) ?? null,
-    theme: (p.theme as string | null) ?? null,
-    githubUrl: (p.githubUrl as string | null) ?? null,
-    linkedinUrl: (p.linkedinUrl as string | null) ?? null,
-    twitterUrl: (p.twitterUrl as string | null) ?? null,
-    websiteUrl: (p.websiteUrl as string | null) ?? null,
-    contactEmail: (p.contactEmail as string | null) ?? null,
-    openToWork: (p.openToWork as boolean) ?? false,
+    fullName: ((p.full_name ?? p.fullName) as string | null) ?? null,
+    jobTitle: ((p.job_title ?? p.jobTitle) as string | null) ?? null,
+    avatarUrl: ((p.avatar_url ?? p.avatarUrl) as string | null) ?? null,
+    portfolioBio: ((p.portfolio_bio ?? p.portfolioBio) as string | null) ?? null,
+    portfolioEnabled: ((p.portfolio_enabled ?? p.portfolioEnabled) as boolean) ?? false,
+    portfolioStyle: ((p.portfolio_style ?? p.portfolioStyle) as string | null) ?? null,
+    portfolioLayout: ((p.portfolio_layout ?? p.portfolioLayout) as string | null) ?? null,
+    portfolioAccentColor: ((p.portfolio_accent_color ?? p.portfolioAccentColor) as string | null) ?? null,
+    portfolioFont: ((p.portfolio_font ?? p.portfolioFont) as string | null) ?? null,
+    portfolioSections: ((p.portfolio_sections ?? p.portfolioSections) as PortfolioSections | null) ?? null,
+    portfolioMetaTitle: ((p.portfolio_meta_title ?? p.portfolioMetaTitle) as string | null) ?? null,
+    portfolioMetaDescription: ((p.portfolio_meta_description ?? p.portfolioMetaDescription) as string | null) ?? null,
+    metaTitle: ((p.meta_title ?? p.metaTitle) as string | null) ?? null,
+    metaDescription: ((p.meta_description ?? p.metaDescription) as string | null) ?? null,
+    theme: ((p.portfolio_theme ?? p.theme) as string | null) ?? null,
+    githubUrl: ((p.github_url ?? p.githubUrl) as string | null) ?? null,
+    linkedinUrl: ((p.linkedin_url ?? p.linkedinUrl) as string | null) ?? null,
+    twitterUrl: ((p.twitter_url ?? p.twitterUrl) as string | null) ?? null,
+    websiteUrl: ((p.website_url ?? p.websiteUrl) as string | null) ?? null,
+    contactEmail: ((p.contact_email ?? p.contactEmail) as string | null) ?? null,
+    openToWork: ((p.open_to_work ?? p.openToWork) as boolean) ?? false,
     availabilityStatus: (extras.availabilityStatus as string | null) ?? null,
-    availabilityHeadline: (p.availabilityHeadline as string | null) ?? null,
+    availabilityHeadline: ((p.availability_headline ?? p.availabilityHeadline) as string | null) ?? null,
     location: (p.location as string | null) ?? null,
     industry: (p.industry as string | null) ?? null,
-    seoNoindex: (p.seoNoindex as boolean) ?? false,
-    lastActiveAt: (p.lastActiveAt as string | null) ?? null,
+    seoNoindex: ((p.seo_noindex ?? p.seoNoindex) as boolean) ?? false,
+    lastActiveAt: ((p.last_active_at ?? p.lastActiveAt) as string | null) ?? null,
     portfolioTranslations: (extras.portfolioTranslations as Record<string, Record<string, unknown>> | null) ?? null,
     testimonials: (extras.testimonials as PublicProfile['testimonials']) ?? null,
     services: (extras.services as PublicProfile['services']) ?? null,
@@ -158,7 +169,7 @@ function mapProfile(p: Record<string, unknown>): PublicProfile {
     schedulingUrl: (extras.schedulingUrl as string | null) ?? null,
     abChallengerTheme: (extras.abChallengerTheme as string | null) ?? null,
     portfolioCertifications: (extras.portfolioCertifications as PublicProfile['portfolioCertifications']) ?? null,
-    githubProjectsCache: (p.githubProjectsCache as unknown[] | null) ?? null,
+    githubProjectsCache: ((p.github_projects_cache ?? p.githubProjectsCache) as unknown[] | null) ?? null,
     portfolioPrimaryLanguage: (extras.portfolioPrimaryLanguage as string | null) ?? null,
     portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string | null) ?? null,
     contactFormEnabled: typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true,
@@ -184,11 +195,11 @@ export function usePortfolioGate(username: string | undefined) {
       ]);
       if (res.total === 0) return { passwordEnabled: false, accentColor: '#e84545', exists: false };
       const p = res.documents[0] as Record<string, unknown>;
-      const extras = (p.portfolioExtras ?? {}) as Record<string, unknown>;
+      const extras = parseExtras(p.portfolio_extras ?? p.portfolioExtras);
       return {
         passwordEnabled: !!(extras.passwordEnabled),
-        accentColor: (p.portfolioAccentColor as string) || '#e84545',
-        exists: !!(p.portfolioEnabled),
+        accentColor: ((p.portfolio_accent_color ?? p.portfolioAccentColor) as string) || '#e84545',
+        exists: !!(p.portfolio_enabled ?? p.portfolioEnabled),
       };
     },
     enabled: !!username,
@@ -215,10 +226,11 @@ export function usePublicPortfolio(
       if (profileRes.total === 0) return null;
 
       const rawProfile = profileRes.documents[0] as Record<string, unknown>;
-      const extras = (rawProfile.portfolioExtras ?? {}) as Record<string, unknown>;
+      const extras = parseExtras(rawProfile.portfolio_extras ?? rawProfile.portfolioExtras);
 
       // If the owner hasn't published their portfolio, treat it as not found.
-      if (!rawProfile.portfolioEnabled) return null;
+      const portfolioEnabled = rawProfile.portfolio_enabled === true || rawProfile.portfolioEnabled === true;
+      if (!portfolioEnabled) return null;
 
       // Password verification — compare SHA-256 hashes client-side.
       // The hash is stored in portfolioExtras.passwordHash (written by the editor).
