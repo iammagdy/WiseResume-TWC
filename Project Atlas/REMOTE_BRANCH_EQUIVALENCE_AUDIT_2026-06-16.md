@@ -458,3 +458,69 @@ These were **not** in the remote audit list (no `origin/` ref):
 ## 9. Recommended next prompt
 
 > "Delete the 2 SAFE_DELETE_PROVEN remote branches from the remote equivalence audit, then batch-delete the 12 LIKELY_SAFE_BUT_OWNER_CONFIRM branches after spot-checking `appwrite-hubs/`, workflows, and schema scripts on `main`. Do not delete NEEDS_REVIEW_UNMERGED branches or `awesome-ride` until local worktree review is complete."
+
+---
+
+## Follow-up: SAFE_DELETE_PROVEN remote deletion
+
+**Date/time:** 2026-06-16 (UTC ~20:00)
+
+### Preconditions verified
+
+- `main` at `fa7c426a2822aa15b3d12099af40beb4a7c59b66` equals `origin/main`
+- Working tree clean on `main`
+- Open PRs: **0**
+
+### Evidence reconfirmed before deletion
+
+#### `origin/claude/cv-tailoring-selection-g8qnC`
+
+| Check | Result |
+|-------|--------|
+| Commits ahead | 1 (`eb674974`) |
+| Cherry `+` | 1 |
+| Diff | `appShellLayout.ts` (+6), `appwrite-functions.ts` (+12/−3) |
+| Risky paths | None (`appwrite-hubs/`, workflows, schema scripts absent) |
+| Equivalence | `/auth` and `/sign-in` in `FIXED_FOOTER_ROUTE_PREFIXES` on `main` |
+| PR | #71 MERGED |
+
+#### `origin/claude/teleport-session-recovery-i4XxZ`
+
+| Check | Result |
+|-------|--------|
+| Commits ahead | 1 (`bba28840`) |
+| Cherry `+` | 1 |
+| Diff | `Project Atlas/CHANGELOG.md` only (+23 lines) |
+| Risky paths | None |
+| Equivalence | Multiple `2026-05-18` CHANGELOG entries already on `main` |
+| PRs | #54, #55 MERGED |
+
+### Branches deleted (2)
+
+| Branch | Command | Result |
+|--------|---------|--------|
+| `claude/cv-tailoring-selection-g8qnC` | `git push origin --delete` | Deleted |
+| `claude/teleport-session-recovery-i4XxZ` | `git push origin --delete` | Deleted |
+
+### Final remote branch count
+
+| Scope | Count |
+|-------|------:|
+| Non-`main` remotes before this follow-up | 17 |
+| Deleted in this follow-up | 2 |
+| **Non-`main` remotes remaining** | **15** |
+
+### Branches intentionally not deleted
+
+| Category | Count | Branches |
+|----------|------:|----------|
+| LIKELY_SAFE_BUT_OWNER_CONFIRM | 12 | `app-audit-report`, `app-unit-tests-report`, `atlas-onboarding-GqwrK/jTBF9/mnWBQ`, `gallant-darwin`, `gallant-lovelace`, `pensive-wright`, `read-project-docs`, `read-project-rules-5x3PH/YuLHJ`, `fix/ai-credits-schema` |
+| NEEDS_REVIEW_UNMERGED | 3 | `bolt-import-slim`, `find-atlas-design-system-y4KJ7`, `fix-plan-upgrade-sync-d2dUM` |
+| DELETE_ONLY_AFTER_LOCAL_BRANCH_REVIEW | 1 | `claude/awesome-ride-7faf3b` |
+
+### Confirmations
+
+- **No other remote branches** were deleted.
+- **No local branches** were deleted.
+- **No product code** was changed.
+- **No deployments** were run.
