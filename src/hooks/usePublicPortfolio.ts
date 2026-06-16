@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query, functions } from '@/lib/appwrite';
-import { ExecutionMethod } from 'appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { functions } from '@/lib/appwrite';
+import type { ExecutionMethod } from 'appwrite';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -22,58 +21,48 @@ export interface PortfolioSections {
 }
 
 export interface PublicProfile {
-  $id: string;
-  user_id: string;
   username: string;
-  fullName: string | null;
-  jobTitle: string | null;
+  fullName: string;
+  jobTitle: string;
+  bio: string;
+  location: string;
   avatarUrl: string | null;
-  portfolioBio: string | null;
-  portfolioEnabled: boolean;
-  portfolioStyle: string | null;
-  portfolioLayout: string | null;
-  portfolioAccentColor: string | null;
-  portfolioFont: string | null;
-  portfolioSections: PortfolioSections | null;
-  portfolioMetaTitle: string | null;
-  portfolioMetaDescription: string | null;
+  accentColor: string;
+  font: string;
+  style: string;
+  layout: string;
+  sections: PortfolioSections;
   metaTitle: string | null;
   metaDescription: string | null;
-  theme: string | null;
-  githubUrl: string | null;
-  linkedinUrl: string | null;
-  twitterUrl: string | null;
-  websiteUrl: string | null;
-  contactEmail: string | null;
+  social: {
+    github: string | null;
+    website: string | null;
+    twitter: string | null;
+    linkedin: string | null;
+  };
   openToWork: boolean;
-  availabilityStatus: string | null;
   availabilityHeadline: string | null;
-  location: string | null;
-  industry: string | null;
-  seoNoindex: boolean;
-  lastActiveAt: string | null;
-  portfolioTranslations: Record<string, Record<string, unknown>> | null;
-  // portfolioExtras fields surfaced directly
-  testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle: string }> | null;
-  services: Array<{ id: string; title: string; description: string; category: string }> | null;
-  caseStudies: Array<{ id: string; title: string; challenge: string; outcome: string }> | null;
-  highlights: Array<{ id: string; value: string; label: string }> | null;
-  portfolioSummary: string | null;
-  sectionOrder: string[] | null;
-  pinnedProject: { title: string; description: string; url: string } | null;
-  scrollEffect: string | null;
-  videoIntroUrl: string | null;
-  schedulingUrl: string | null;
-  abChallengerTheme: string | null;
-  portfolioCertifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }> | null;
-  githubProjectsCache: unknown[] | null;
-  portfolioPrimaryLanguage: string | null;
-  portfolioSecondaryLanguage: string | null;
-  contactFormEnabled: boolean;
+  extras: {
+    caseStudies: Array<{ id: string; title: string; challenge: string; outcome: string }>;
+    services: Array<{ id: string; title: string; description: string; category: string }>;
+    testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle: string }>;
+    highlights: Array<{ id: string; value: string; label: string }>;
+    portfolioSummary: string;
+    sectionOrder: string[];
+    availabilityStatus: string;
+    scrollEffect: string;
+    videoIntroUrl: string | null;
+    schedulingUrl: string | null;
+    certifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>;
+    primaryLanguage: string;
+    secondaryLanguage: string | null;
+    translations: Record<string, Record<string, unknown>> | null;
+    customDomain: string | null;
+    contactFormEnabled: boolean;
+  };
 }
 
 export interface PublicResume {
-  $id: string;
   summary: string | null;
   experience: Array<{ id?: string; position: string; company: string; startDate?: string; endDate?: string; description?: string; current?: boolean }>;
   education: Array<{ id?: string; institution: string; degree: string; startDate?: string; endDate?: string; gpa?: string }>;
@@ -85,140 +74,48 @@ export interface PublicResume {
   volunteering: Array<{ id?: string; role: string; organization: string; startDate?: string; endDate?: string; description?: string }>;
 }
 
-// ── Helper: SHA-256 hash in hex ───────────────────────────────────────────────
-
-async function sha256Hex(text: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(text));
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+export interface PublicPortfolio {
+  profile: PublicProfile;
+  resume: PublicResume | null;
+  sessionToken?: string;
 }
-
-// ── Helper: normalize possibly malformed array data from Appwrite ─────────────
-
-function normalizeArray<T>(value: unknown, defaultValue: T[] = []): T[] {
-  if (Array.isArray(value)) return value as T[];
-  if (value === null || value === undefined) return defaultValue;
-  // Handle case where Appwrite returns JSON string that should be parsed
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed as T[];
-    } catch {
-      // Fall through to default
-    }
-  }
-  return defaultValue;
-}
-
-// ── Helper: map raw Appwrite profile document to PublicProfile ────────────────
-
-/** Parse a field that Appwrite may return as a JSON string or as an object */
-function parseExtras(raw: unknown): Record<string, unknown> {
-  if (raw === null || raw === undefined) return {};
-  if (typeof raw === 'string') {
-    try { return JSON.parse(raw) as Record<string, unknown>; } catch { return {}; }
-  }
-  if (typeof raw === 'object') return raw as Record<string, unknown>;
-  return {};
-}
-
-function mapProfile(p: Record<string, unknown>): PublicProfile {
-  // Appwrite stores fields in snake_case. Fall back to camelCase for safety.
-  const extras = parseExtras(p.portfolio_extras ?? p.portfolioExtras);
-  return {
-    $id: p.$id as string,
-    user_id: p.user_id as string,
-    username: (p.username as string) ?? '',
-    fullName: ((p.full_name ?? p.fullName) as string | null) ?? null,
-    jobTitle: ((p.job_title ?? p.jobTitle) as string | null) ?? null,
-    avatarUrl: ((p.avatar_url ?? p.avatarUrl) as string | null) ?? null,
-    portfolioBio: ((p.portfolio_bio ?? p.portfolioBio) as string | null) ?? null,
-    portfolioEnabled: ((p.portfolio_enabled ?? p.portfolioEnabled) as boolean) ?? false,
-    portfolioStyle: ((p.portfolio_style ?? p.portfolioStyle) as string | null) ?? null,
-    portfolioLayout: ((p.portfolio_layout ?? p.portfolioLayout) as string | null) ?? null,
-    portfolioAccentColor: ((p.portfolio_accent_color ?? p.portfolioAccentColor) as string | null) ?? null,
-    portfolioFont: ((p.portfolio_font ?? p.portfolioFont) as string | null) ?? null,
-    portfolioSections: ((p.portfolio_sections ?? p.portfolioSections) as PortfolioSections | null) ?? null,
-    portfolioMetaTitle: ((p.portfolio_meta_title ?? p.portfolioMetaTitle) as string | null) ?? null,
-    portfolioMetaDescription: ((p.portfolio_meta_description ?? p.portfolioMetaDescription) as string | null) ?? null,
-    metaTitle: ((p.meta_title ?? p.metaTitle) as string | null) ?? null,
-    metaDescription: ((p.meta_description ?? p.metaDescription) as string | null) ?? null,
-    theme: ((p.portfolio_theme ?? p.theme) as string | null) ?? null,
-    githubUrl: ((p.github_url ?? p.githubUrl) as string | null) ?? null,
-    linkedinUrl: ((p.linkedin_url ?? p.linkedinUrl) as string | null) ?? null,
-    twitterUrl: ((p.twitter_url ?? p.twitterUrl) as string | null) ?? null,
-    websiteUrl: ((p.website_url ?? p.websiteUrl) as string | null) ?? null,
-    contactEmail: ((p.contact_email ?? p.contactEmail) as string | null) ?? null,
-    openToWork: ((p.open_to_work ?? p.openToWork) as boolean) ?? false,
-    availabilityStatus: (extras.availabilityStatus as string | null) ?? null,
-    availabilityHeadline: ((p.availability_headline ?? p.availabilityHeadline) as string | null) ?? null,
-    location: (p.location as string | null) ?? null,
-    industry: (p.industry as string | null) ?? null,
-    seoNoindex: ((p.seo_noindex ?? p.seoNoindex) as boolean) ?? false,
-    lastActiveAt: ((p.last_active_at ?? p.lastActiveAt) as string | null) ?? null,
-    portfolioTranslations: (extras.portfolioTranslations as Record<string, Record<string, unknown>> | null) ?? null,
-    testimonials: (extras.testimonials as PublicProfile['testimonials']) ?? null,
-    services: (extras.services as PublicProfile['services']) ?? null,
-    caseStudies: (extras.caseStudies as PublicProfile['caseStudies']) ?? null,
-    highlights: (extras.highlights as PublicProfile['highlights']) ?? null,
-    portfolioSummary: (extras.portfolioSummary as string | null) ?? null,
-    sectionOrder: (extras.sectionOrder as string[] | null) ?? null,
-    pinnedProject: (extras.pinnedProject as PublicProfile['pinnedProject']) ?? null,
-    scrollEffect: (extras.scrollEffect as string | null) ?? null,
-    videoIntroUrl: (extras.videoIntroUrl as string | null) ?? null,
-    schedulingUrl: (extras.schedulingUrl as string | null) ?? null,
-    abChallengerTheme: (extras.abChallengerTheme as string | null) ?? null,
-    portfolioCertifications: (extras.portfolioCertifications as PublicProfile['portfolioCertifications']) ?? null,
-    githubProjectsCache: ((p.github_projects_cache ?? p.githubProjectsCache) as unknown[] | null) ?? null,
-    portfolioPrimaryLanguage: (extras.portfolioPrimaryLanguage as string | null) ?? null,
-    portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string | null) ?? null,
-    contactFormEnabled: typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true,
-  };
-}
-
-// ── Gate check — lightweight, no password hash exposed ───────────────────────
 
 export interface PortfolioGateInfo {
+  exists: boolean;
+  portfolioEnabled: boolean;
   passwordEnabled: boolean;
   accentColor: string;
-  exists: boolean;
 }
+
+// ── Gate check — uses server function, NO browser reads of portfolio_settings ──
 
 export function usePortfolioGate(username: string | undefined) {
   return useQuery<PortfolioGateInfo | null>({
     queryKey: ['portfolio-gate', username],
     queryFn: async () => {
       if (!username) return null;
-      const res = await databases.listDocuments(DATABASE_ID, 'profiles', [
-        Query.equal('username', username.toLowerCase()),
-        Query.limit(1),
-      ]);
-      if (res.total === 0) return { passwordEnabled: false, accentColor: '#e84545', exists: false };
-      const p = res.documents[0] as Record<string, unknown>;
-
-      // Read password from portfolio_settings (source of truth) — fixes split-brain
-      let passwordEnabled = false;
-      try {
-        const settingsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
-          Query.equal('user_id', p.user_id as string),
-          Query.limit(1),
-        ]);
-        if (settingsRes.total > 0) {
-          const settings = settingsRes.documents[0] as Record<string, unknown>;
-          passwordEnabled = !!(settings.password_enabled ?? settings.passwordEnabled);
-        }
-      } catch {
-        // Fallback to profile extras if settings read fails
-        const extras = parseExtras(p.portfolio_extras ?? p.portfolioExtras);
-        passwordEnabled = !!(extras.passwordEnabled);
+      
+      // SECURITY: Use server function instead of direct DB read
+      // This prevents exposing password_hash to browser
+      const res = await functions.createExecution(
+        'portfolio-gate',
+        JSON.stringify({ username: username.toLowerCase() }),
+        false,
+        '/',
+        'POST' as ExecutionMethod,
+      );
+      
+      const result = JSON.parse(res.responseBody || '{}');
+      
+      if (!result.success && !result.exists) {
+        return { exists: false, portfolioEnabled: false, passwordEnabled: false, accentColor: '#e84545' };
       }
-
+      
       return {
-        passwordEnabled,
-        accentColor: ((p.portfolio_accent_color ?? p.portfolioAccentColor) as string) || '#e84545',
-        exists: !!(p.portfolio_enabled ?? p.portfolioEnabled),
+        exists: result.exists ?? false,
+        portfolioEnabled: result.portfolioEnabled ?? false,
+        passwordEnabled: result.passwordEnabled ?? false,
+        accentColor: result.accentColor || '#e84545',
       };
     },
     enabled: !!username,
@@ -226,118 +123,63 @@ export function usePortfolioGate(username: string | undefined) {
   });
 }
 
-// ── Full portfolio fetch ───────────────────────────────────────────────────────
+// ── Full portfolio fetch — uses server function, NO browser reads ───────────────
 
 export function usePublicPortfolio(
   username: string | undefined,
   contentEnabled = true,
   submittedPassword: string | null = null,
+  sessionToken?: string,
 ) {
-  return useQuery({
-    queryKey: ['public-portfolio', username, contentEnabled, submittedPassword],
+  return useQuery<PublicPortfolio | null>({
+    queryKey: ['public-portfolio', username, contentEnabled, submittedPassword, sessionToken],
     queryFn: async () => {
       if (!username) return null;
 
-      const profileRes = await databases.listDocuments(DATABASE_ID, 'profiles', [
-        Query.equal('username', username.toLowerCase()),
-        Query.limit(1),
-      ]);
-      if (profileRes.total === 0) return null;
-
-      const rawProfile = profileRes.documents[0] as Record<string, unknown>;
-      const extras = parseExtras(rawProfile.portfolio_extras ?? rawProfile.portfolioExtras);
-
-      // If the owner hasn't published their portfolio, treat it as not found.
-      const portfolioEnabled = rawProfile.portfolio_enabled === true || rawProfile.portfolioEnabled === true;
-      if (!portfolioEnabled) return null;
-
-      // Password verification — use server-side function to avoid exposing hash
-      // SECURITY: Never read password_hash in browser; verify via server function
-      let passwordEnabled = false;
-      try {
-        const settingsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
-          Query.equal('user_id', rawProfile.user_id as string),
-          Query.limit(1),
-        ]);
-        if (settingsRes.total > 0) {
-          const settings = settingsRes.documents[0] as Record<string, unknown>;
-          passwordEnabled = !!(settings.password_enabled ?? settings.passwordEnabled);
-        }
-      } catch {
-        // Fallback to legacy location in portfolio_extras (only for enabled flag, NOT hash)
-        passwordEnabled = !!(extras.passwordEnabled);
+      // SECURITY: Use server function for ALL portfolio data
+      // - No direct reads of profiles, resumes, or portfolio_settings
+      // - Password verification happens server-side
+      // - Only sanitized public data is returned
+      const payload: Record<string, string> = { username: username.toLowerCase() };
+      if (submittedPassword) {
+        payload.password = submittedPassword;
       }
-
-      if (passwordEnabled) {
-        if (!submittedPassword) {
-          // Content should not be loaded yet; gate check should have caught this.
-          return null;
-        }
-        // Server-side password verification via function
-        const verifyRes = await functions.createExecution(
-          'verify-portfolio-password',
-          JSON.stringify({ username: username!.toLowerCase(), password: submittedPassword }),
-          false,
-          '/',
-          ExecutionMethod.POST,
-        );
-        const verifyResult = JSON.parse(verifyRes.responseBody || '{}');
-        if (!verifyResult.success || !verifyResult.verified) {
+      if (sessionToken) {
+        payload.sessionToken = sessionToken;
+      }
+      
+      const res = await functions.createExecution(
+        'get-public-portfolio',
+        JSON.stringify(payload),
+        false,
+        '/',
+        'POST' as ExecutionMethod,
+      );
+      
+      const result = JSON.parse(res.responseBody || '{}');
+      
+      if (!result.success) {
+        if (result.error === 'Invalid password') {
           throw new Error('invalid_password');
         }
+        if (result.protected && result.gate) {
+          // Return gate info for protected portfolio
+          throw new Error('password_required');
+        }
+        return null;
       }
-
-      const profile = mapProfile(rawProfile);
-
-      // Use portfolio_resume_id to fetch the selected resume — fixes wrong resume bug
-      const portfolioResumeId = rawProfile.portfolio_resume_id ?? rawProfile.portfolioResumeId;
-      let resumeQuery;
-      if (portfolioResumeId) {
-        resumeQuery = [
-          Query.equal('$id', portfolioResumeId as string),
-          Query.limit(1),
-        ];
-      } else {
-        // Fallback: fetch any resume by user (legacy behavior)
-        resumeQuery = [
-          Query.equal('user_id', rawProfile.user_id as string),
-          Query.limit(1),
-        ];
-      }
-      const resumeRes = await databases.listDocuments(DATABASE_ID, 'resumes', resumeQuery);
-      const rawResume = resumeRes.documents[0] as Record<string, unknown> | undefined;
-      const resume: PublicResume = rawResume
-        ? {
-            $id: rawResume.$id as string,
-            summary: (rawResume.summary as string | null) ?? null,
-            experience: normalizeArray<PublicResume['experience'][number]>(rawResume.experience),
-            education: normalizeArray<PublicResume['education'][number]>(rawResume.education),
-            skills: normalizeArray<PublicResume['skills'][number]>(rawResume.skills),
-            projects: normalizeArray<PublicResume['projects'][number]>(rawResume.projects),
-            certifications: normalizeArray<PublicResume['certifications'][number]>(rawResume.certifications),
-            awards: normalizeArray<PublicResume['awards'][number]>(rawResume.awards),
-            publications: normalizeArray<PublicResume['publications'][number]>(rawResume.publications),
-            volunteering: normalizeArray<PublicResume['volunteering'][number]>(rawResume.volunteering),
-          }
-        : {
-            $id: '',
-            summary: null,
-            experience: [],
-            education: [],
-            skills: [],
-            projects: [],
-            certifications: [],
-            awards: [],
-            publications: [],
-            volunteering: [],
-          };
-
-      return { profile, resume };
+      
+      return {
+        profile: result.profile,
+        resume: result.resume,
+        sessionToken: result.sessionToken,
+      };
     },
     enabled: !!username && contentEnabled,
     staleTime: 60_000,
     retry: (failureCount, error) => {
       if ((error as Error)?.message === 'invalid_password') return false;
+      if ((error as Error)?.message === 'password_required') return false;
       return failureCount < 2;
     },
   });

@@ -1,0 +1,9 @@
+{
+  "name": "get-public-portfolio",
+  "version": "1.0.0",
+  "description": "Returns sanitized public portfolio with password protection",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^17.2.0"
+  }
+}

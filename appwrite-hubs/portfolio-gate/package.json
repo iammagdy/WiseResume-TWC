@@ -1,0 +1,9 @@
+{
+  "name": "portfolio-gate",
+  "version": "1.0.0",
+  "description": "Returns safe portfolio gate info without exposing password hash",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^17.2.0"
+  }
+}

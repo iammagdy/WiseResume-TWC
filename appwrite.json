@@ -175,6 +175,24 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
+      "functionId": "portfolio-gate",
+      "name": "Portfolio Gate",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/portfolio-gate",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "get-public-portfolio",
+      "name": "Get Public Portfolio",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/get-public-portfolio",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "resume-section-ai",
       "name": "Resume Section AI Hub",
       "runtime": "node-22",
