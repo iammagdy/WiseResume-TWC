@@ -524,3 +524,82 @@ These were **not** in the remote audit list (no `origin/` ref):
 - **No local branches** were deleted.
 - **No product code** was changed.
 - **No deployments** were run.
+
+---
+
+## Follow-up: likely-safe remote branch deletion
+
+**Date/time:** 2026-06-16 (UTC ~20:10)
+
+### Preconditions verified
+
+- `main` at `6d58f3c0de7889af6446b09a9e99562defa94bce` equals `origin/main`
+- Working tree clean; open PRs: **0**
+
+### Pre-deletion confirmation table
+
+| Branch | Related PR | Diff summary | Sensitive paths | Result | Decision |
+|--------|------------|--------------|-----------------|--------|----------|
+| `claude/app-audit-report-y0dzO` | #74 MERGED | 18 files — admin/sentry hubs, admin UI | Yes (`appwrite-hubs/`, `ai-gateway`) | `admin-sentry` on `main` `appwrite.json` | DELETE_CONFIRMED |
+| `claude/app-unit-tests-report-r7gPa` | #82 MERGED | 8 files — test report + test fixes | No | `UNIT-TEST-REPORT-2026-06-06.md` on `main` | DELETE_CONFIRMED |
+| `claude/atlas-onboarding-GqwrK` | #70 MERGED | 12 files — email system, deploy workflow | Yes (workflow, email hubs) | Email/deploy integrated on `main` | DELETE_CONFIRMED |
+| `claude/atlas-onboarding-jTBF9` | #66 MERGED | 3 files — AI gateway, portfolio chat | Yes (`ai-gateway`) | DeepSeek/AI fixes on `main` | DELETE_CONFIRMED |
+| `claude/atlas-onboarding-mnWBQ` | #67, #68 MERGED | 6 files — email HTML templates | Yes (email-templates) | Templates exist on `main` | DELETE_CONFIRMED |
+| `claude/gallant-darwin-6j9w9u` | #96, #97 MERGED | 6 files — hubs, workflows, hashes | Yes (hubs, workflow) | Hub runtime/security on `main` | DELETE_CONFIRMED |
+| `claude/gallant-lovelace-zgwv00` | #99 MERGED | 16 files — DevKit audit, schema scripts | Yes (workflow, 9 schema scripts) | All schema scripts on `main` | DELETE_CONFIRMED |
+| `claude/pensive-wright-i20soz` | #100 MERGED | 4 files — TestSprite, MCP, runtime | No | `testsprite.md` on `main` | DELETE_CONFIRMED |
+| `claude/read-project-docs-JEUkC` | #52, #53 MERGED | 4 files — job-import, consent banner | Yes (`job-import` hub) | `job-import` hub on `main` | DELETE_CONFIRMED |
+| `claude/read-project-rules-5x3PH` | #63, #64 MERGED (#65 closed) | 5 files — PDF export | Yes (`api/export/pdf-native.ts`) | **`main` supersedes branch** — more advanced PDF pipeline (JWT, SSRF guards, page-cut logic) | DELETE_CONFIRMED |
+| `claude/read-project-rules-YuLHJ` | #58 MERGED | 7 files — DevKit deploy fix | Yes (`admin-devkit-data`) | DevKit fixes on `main` | DELETE_CONFIRMED |
+| `fix/ai-credits-schema` | #98 MERGED | 9 files — schema, security hubs | Yes (workflow, schema, hubs) | `setup_ai_credits_schema.cjs` on `main` | DELETE_CONFIRMED |
+
+**Branches skipped:** 0
+
+### Sensitive path spot-check summary
+
+All 12 branches touched sensitive paths in their `git diff origin/main...branch` output. Equivalence confirmed because:
+
+- Every branch has at least one **merged** GitHub PR
+- Key artifacts (hubs, schema scripts, templates, test reports, PDF pipeline) exist on `main` at equal or **newer** sophistication
+- Unique `git cherry` `+` patches are squash/hash drift only — no open PRs
+
+### Branches deleted (12)
+
+All `git push origin --delete` succeeded:
+
+1. `claude/app-audit-report-y0dzO`
+2. `claude/app-unit-tests-report-r7gPa`
+3. `claude/atlas-onboarding-GqwrK`
+4. `claude/atlas-onboarding-jTBF9`
+5. `claude/atlas-onboarding-mnWBQ`
+6. `claude/gallant-darwin-6j9w9u`
+7. `claude/gallant-lovelace-zgwv00`
+8. `claude/pensive-wright-i20soz`
+9. `claude/read-project-docs-JEUkC`
+10. `claude/read-project-rules-5x3PH`
+11. `claude/read-project-rules-YuLHJ`
+12. `fix/ai-credits-schema`
+
+### Final remote branch count
+
+| Scope | Count |
+|-------|------:|
+| Non-`main` remotes before this follow-up | 15 |
+| Deleted in this follow-up | 12 |
+| **Non-`main` remotes remaining** | **3** (+ `awesome-ride` = 4 total) |
+
+### Branches intentionally still kept
+
+| Branch | Reason |
+|--------|--------|
+| `origin/bolt-import-slim` | NEEDS_REVIEW — orphan history, no merge base |
+| `origin/claude/find-atlas-design-system-y4KJ7` | NEEDS_REVIEW — PR #57 closed, never merged |
+| `origin/claude/fix-plan-upgrade-sync-d2dUM` | NEEDS_REVIEW — no PR, DevKit v2.1 overhaul |
+| `origin/claude/awesome-ride-7faf3b` | Local worktree review required first |
+
+### Confirmations
+
+- **No other remote branches** were deleted beyond the 12 listed.
+- **No local branches** were deleted.
+- **No product code** was changed.
+- **No deployments** were run.
