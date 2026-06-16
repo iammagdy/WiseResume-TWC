@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Zap } from 'lucide-react';
 import { useAICredits } from '@/hooks/useAICredits';
+import { useMe } from '@/hooks/useMe';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
+import type { PlanKey } from '@/lib/planConfig';
 import { CreditRing } from '@/components/ai/CreditRing';
 import { CreditUsageSheet } from '@/components/ai/CreditUsageSheet';
 import { haptics } from '@/lib/haptics';
@@ -12,13 +15,17 @@ import {
 
 export function AICreditsIndicator() {
   const { data: credits, isBYOK, isActiveTrial, trialPlan, trialDaysLeft } = useAICredits();
+  const { data: meData } = useMe();
   const [showSheet, setShowSheet] = useState(false);
   const [showPopover, setShowPopover] = useState(false);
 
   if (!credits) return null;
 
   const used = credits.daily_usage ?? 0;
-  const limit = credits.daily_limit ?? 20;
+  // Derive limit from plan if not set — never hardcode 20
+  const effectivePlan = (meData?.subscription?.effective_plan ?? 'free') as PlanKey;
+  const fallbackLimit = PLAN_CREDIT_LIMITS[effectivePlan] ?? PLAN_CREDIT_LIMITS.free;
+  const limit = credits.daily_limit ?? fallbackLimit;
   const remaining = Math.max(0, limit - used);
   const isUnlimited = !isFinite(limit);
   const isExhausted = !isUnlimited && remaining === 0;

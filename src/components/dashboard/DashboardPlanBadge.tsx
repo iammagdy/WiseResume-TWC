@@ -60,11 +60,13 @@ export const DashboardPlanBadge = memo(function DashboardPlanBadge({
     );
   }
 
+  // Pro plan (non-trial)
   return (
     <span
       className={cn(
         'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium',
-        'border border-border/70 bg-muted/30 text-muted-foreground',
+        'border border-blue-200/70 bg-blue-50/60 text-blue-800/90',
+        'dark:border-blue-500/30 dark:bg-blue-950/30 dark:text-blue-200/90',
         className,
       )}
       aria-label="Pro plan active"

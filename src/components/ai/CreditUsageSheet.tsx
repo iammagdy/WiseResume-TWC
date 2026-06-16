@@ -2,6 +2,9 @@ import { memo, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Zap, Clock, Eye } from 'lucide-react';
 import { useAICredits } from '@/hooks/useAICredits';
+import { useMe } from '@/hooks/useMe';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
+import type { PlanKey } from '@/lib/planConfig';
 import { useQuery } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
@@ -64,9 +67,13 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
 }: CreditUsageSheetProps) {
   const { user } = useAuth();
   const { data: credits, isBYOK, isActiveTrial, trialDaysLeft } = useAICredits();
+  const { data: meData } = useMe();
 
   const used = credits?.daily_usage ?? 0;
-  const limit = credits?.daily_limit ?? 20;
+  // Derive limit from plan if not set — never hardcode 20
+  const effectivePlan = (meData?.subscription?.effective_plan ?? 'free') as PlanKey;
+  const fallbackLimit = PLAN_CREDIT_LIMITS[effectivePlan] ?? PLAN_CREDIT_LIMITS.free;
+  const limit = credits?.daily_limit ?? fallbackLimit;
   const isUnlimited = !isFinite(limit);
   const totalLifetime = credits?.total_usage ?? 0;
 
