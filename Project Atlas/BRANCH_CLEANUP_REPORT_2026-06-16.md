@@ -167,3 +167,78 @@ To finish single-branch cleanup later:
 2. Remove unused worktrees: `git worktree list` → `git worktree remove <path>`.
 3. Delete remaining local branches with `git branch -d <branch>`.
 4. Delete reviewed remotes with `git push origin --delete <branch>`.
+
+---
+
+## Follow-up: local worktree cleanup
+
+**Date/time:** 2026-06-16 (UTC ~19:42–19:47)
+
+### Preconditions verified
+
+- `main` at `2e3a9ef9b6fa5a3c52345f9bdb178b4d4372baf0` equals `origin/main`
+- Working tree clean on `main`
+- Open PRs: 0
+- All six target branches confirmed merged: `git merge-base --is-ancestor <branch> main` and empty `git log main..<branch>`
+
+### Worktrees removed (4)
+
+| Worktree path | Branch | Result |
+|---------------|--------|--------|
+| `.claude/worktrees/bold-bhaskara-70e2ee` | `claude/bold-bhaskara-70e2ee` | `git worktree remove` succeeded |
+| `.claude/worktrees/jolly-mestorf-626ad9` | `claude/jolly-mestorf-626ad9` | `git worktree remove` succeeded |
+| `.claude/worktrees/upbeat-borg-aadc15` | `claude/upbeat-borg-aadc15` | `git worktree remove` succeeded |
+| `.claude/worktrees/zen-herschel-d10996` | `claude/zen-herschel-d10996` | `git worktree remove` succeeded |
+
+### Worktrees not removed (2) — blocked by local changes
+
+| Worktree path | Branch | Blocker | Recommended next step |
+|---------------|--------|---------|----------------------|
+| `.claude/worktrees/kind-hodgkin-685acc` | `claude/kind-hodgkin-685acc` | Untracked `appwrite-hubs/revenuecat-webhook/package-lock.json` | Owner: discard or stash untracked file, then `git worktree remove` |
+| `.claude/worktrees/serene-booth-dc1c57` | `claude/serene-booth-dc1c57` | Modified tracked files (`src/AppInterior.tsx`, `AppWorkspaceSidebar.tsx`, `BottomTabBar.tsx`, `CoverLetterNewPage.tsx`) | Owner: commit, stash, or discard changes in worktree, then remove |
+
+`--force` was **not** used per safety policy.
+
+### Local branches deleted (4)
+
+| Branch | Command | Result |
+|--------|---------|--------|
+| `claude/bold-bhaskara-70e2ee` | `git branch -d` | Deleted (was `6565d545`) |
+| `claude/jolly-mestorf-626ad9` | `git branch -d` | Deleted (was `d9928660`) |
+| `claude/upbeat-borg-aadc15` | `git branch -d` | Deleted (was `ac3fb513`) |
+| `claude/zen-herschel-d10996` | `git branch -d` | Deleted (was `4a4efed5`) |
+
+### Local branches kept (5)
+
+| Branch | Reason |
+|--------|--------|
+| `claude/awesome-ride-7faf3b` | Not merged — requires owner review |
+| `claude/ecstatic-jones-e24c9d` | Not merged — requires owner review |
+| `claude/frosty-ramanujan-26b957` | Not merged — requires owner review |
+| `claude/kind-hodgkin-685acc` | Merged into `main` but worktree has untracked files |
+| `claude/serene-booth-dc1c57` | Merged into `main` but worktree has modified tracked files |
+
+### Final local branch list (after follow-up)
+
+- `main` (current)
+- `claude/awesome-ride-7faf3b`
+- `claude/ecstatic-jones-e24c9d`
+- `claude/frosty-ramanujan-26b957`
+- `claude/kind-hodgkin-685acc`
+- `claude/serene-booth-dc1c57`
+
+### Worktrees remaining (5)
+
+- `Y:/WiseResume-TWC` → `main`
+- `.claude/worktrees/awesome-ride-7faf3b`
+- `.claude/worktrees/ecstatic-jones-e24c9d`
+- `.claude/worktrees/frosty-ramanujan-26b957`
+- `.claude/worktrees/kind-hodgkin-685acc`
+- `.claude/worktrees/serene-booth-dc1c57`
+
+### Confirmations
+
+- **No remote branches** were deleted in this follow-up.
+- **No product code** on `main` was changed.
+- **No deployments** were run.
+- **17 remote branches** still require separate owner review (unchanged from initial cleanup).
