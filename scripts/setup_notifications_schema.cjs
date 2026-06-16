@@ -9,7 +9,7 @@
  *   type      (str 64,   optional, default "info") — notification type
  *   title     (str 256,  required) — notification title
  *   message   (str 2048, required) — notification body
- *   is_read   (bool,     required, default false) — read/unread state
+ *   is_read   (bool,     optional, default false) — read/unread state
  *
  * Run once with:
  *   APPWRITE_API_KEY=<key> node scripts/setup_notifications_schema.cjs
@@ -88,7 +88,7 @@ async function main() {
   await ensureStringAttr(COLL_ID, 'type', 64, false, 'info');
   await ensureStringAttr(COLL_ID, 'title', 256, true);
   await ensureStringAttr(COLL_ID, 'message', 2048, true);
-  await ensureBoolAttr(COLL_ID, 'is_read', true, false);
+  await ensureBoolAttr(COLL_ID, 'is_read', false, false);
 
   await ensureIndex(COLL_ID, 'user_id_idx', 'key', ['user_id']);
   await ensureIndex(COLL_ID, 'is_read_idx', 'key', ['is_read']);
