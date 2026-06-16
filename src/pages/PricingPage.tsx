@@ -1,5 +1,5 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { Check, Crown, Gem, Sparkles, ChevronDown, ArrowRight } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import triggerHaptic from '@/lib/haptics';
@@ -78,8 +78,11 @@ export default function PricingPage() {
             <PricingButton onClick={() => handlePerPlanCTA('free')} variant="outline" disabled={isCurrentPlan('free')}>{ctaLabel('free')}</PricingButton>
           </div>
 
-          {/* Pro */}
-          <div className="flex flex-col rounded-2xl p-7 bg-primary text-primary-foreground">
+          {/* Pro — recommended */}
+          <div className="flex flex-col rounded-2xl p-7 bg-primary text-primary-foreground ring-2 ring-primary/40 shadow-lg scale-[1.02] sm:scale-100 relative">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wider bg-background text-primary px-3 py-1 rounded-full border border-primary/20">
+              Recommended
+            </span>
             <h2 className="text-base font-bold mb-4">Pro</h2>
             <div className="text-4xl font-extrabold mb-6">$9<span className="text-sm font-normal opacity-70">/mo</span></div>
             <ul className="space-y-3 mb-8 flex-1">
@@ -98,6 +101,17 @@ export default function PricingPage() {
             <PricingButton onClick={() => handlePerPlanCTA('premium')} variant="outline">{ctaLabel('premium')}</PricingButton>
           </div>
         </div>
+
+        <section className="max-w-2xl mx-auto" aria-labelledby="pricing-faq-heading">
+          <h2 id="pricing-faq-heading" className="text-2xl font-bold text-center mb-8">
+            Frequently asked questions
+          </h2>
+          <div className="rounded-2xl border border-border bg-card px-5">
+            {faqItems.map((item) => (
+              <FAQItem key={item.q} q={item.q} a={item.a} />
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );
