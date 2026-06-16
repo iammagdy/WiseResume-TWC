@@ -210,3 +210,63 @@ All three worktrees: **clean** (no modified tracked files, no untracked files).
 - Branch metrics unchanged: awesome-ride (2 ahead, cherry+2), ecstatic-jones (5 ahead, cherry+3), frosty-ramanujan (1 ahead, cherry+1)
 - All three worktrees still clean (no porcelain output)
 - Classifications unchanged; no branches deleted in this pass
+
+---
+
+## Follow-up: safe local branch deletion
+
+**Date/time:** 2026-06-16 (UTC ~20:30)
+
+### Evidence reconfirmed
+
+| Branch | PR(s) | Worktree | Result |
+|--------|-------|----------|--------|
+| `claude/awesome-ride-7faf3b` | #62 MERGED | Clean | dd-trace absent from `main`; local = remote `a2349cde` |
+| `claude/ecstatic-jones-e24c9d` | #75–#77 MERGED | Clean | `main` supersedes branch; no remote ref |
+
+Open PRs: **0**
+
+### Worktrees removed (2)
+
+| Path | Method | Notes |
+|------|--------|-------|
+| `.claude/worktrees/awesome-ride-7faf3b` | `git worktree remove` | Succeeded |
+| `.claude/worktrees/ecstatic-jones-e24c9d` | `git worktree remove` failed (permission denied); orphaned folder removed via filesystem delete after `git worktree prune` | Directory was no longer registered |
+
+### Local branches deleted (2)
+
+| Branch | Command | Result |
+|--------|---------|--------|
+| `claude/awesome-ride-7faf3b` | `git branch -d` | Deleted (`a2349cde`) |
+| `claude/ecstatic-jones-e24c9d` | `git branch -D` | Deleted (`0fd40512`) — `-d` refused (not fully merged); safe per merged PRs #75–#77 and audit |
+
+### Remote branch deleted (1)
+
+| Branch | Command | Result |
+|--------|---------|--------|
+| `claude/awesome-ride-7faf3b` | `git push origin --delete` | Deleted |
+
+### Final local branch state
+
+- `main` (current)
+- `claude/frosty-ramanujan-26b957` (kept — `OWNER_REVIEW_REQUIRED`)
+
+### Final worktree state
+
+- `Y:/WiseResume-TWC` → `main`
+- `.claude/worktrees/frosty-ramanujan-26b957` → `claude/frosty-ramanujan-26b957`
+
+### Branches intentionally kept
+
+| Branch | Reason |
+|--------|--------|
+| `claude/frosty-ramanujan-26b957` | Owner review required — no merged PR |
+| `origin/bolt-import-slim` | NEEDS_REVIEW — orphan history |
+| `origin/claude/find-atlas-design-system-y4KJ7` | NEEDS_REVIEW — PR #57 closed |
+| `origin/claude/fix-plan-upgrade-sync-d2dUM` | NEEDS_REVIEW — no PR |
+
+### Confirmations
+
+- **No other** local or remote branches deleted.
+- **No product code** changed.
+- **No deployments** run.

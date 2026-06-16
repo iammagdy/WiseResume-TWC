@@ -329,3 +329,17 @@ Nothing from either worktree was committed to `main`.
 - **No product code** changed on `main`.
 - **No deployments** run.
 - **17 remote branches** still need separate owner review.
+
+---
+
+## Follow-up: safe local branch deletion (2026-06-16)
+
+Per `LOCAL_UNMERGED_BRANCH_AUDIT_2026-06-16.md`, two audit-approved local branches were removed:
+
+- **Deleted local:** `claude/awesome-ride-7faf3b`, `claude/ecstatic-jones-e24c9d`
+- **Deleted remote:** `claude/awesome-ride-7faf3b` only
+- **Worktrees removed:** `awesome-ride-7faf3b`, `ecstatic-jones-e24c9d`
+
+**Final local branches:** `main`, `claude/frosty-ramanujan-26b957`  
+**Final non-main remotes:** `bolt-import-slim`, `find-atlas-design-system-y4KJ7`, `fix-plan-upgrade-sync-d2dUM`  
+**Remaining worktree:** `frosty-ramanujan-26b957` only (besides main repo)
