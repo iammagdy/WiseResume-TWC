@@ -111,6 +111,13 @@ function findLowAcceptanceSections(c: AcceptanceCounts): string[] {
 }
 
 type Step = 'welcome' | 'choice' | 'cv' | 'linkedin' | 'manual' | 'celebration' | 'whatsnext';
+
+function onboardingProgressLabel(step: Step): { current: number; label: string } {
+  if (step === 'welcome') return { current: 1, label: 'Welcome' };
+  if (step === 'choice') return { current: 2, label: 'Choose path' };
+  if (step === 'cv' || step === 'linkedin' || step === 'manual') return { current: 3, label: 'Review' };
+  return { current: 4, label: 'Done' };
+}
 type LinkedInOption = null | 'paste' | 'wizard' | 'pdf' | 'url';
 
 export default function OnboardingPage() {
@@ -501,6 +508,23 @@ export default function OnboardingPage() {
             </Button>
           )}
         </div>
+        {step !== 'celebration' && step !== 'whatsnext' && (
+          <div className="flex items-center justify-center gap-2 pb-3" aria-label="Onboarding progress">
+            {[1, 2, 3, 4].map((n) => {
+              const { current } = onboardingProgressLabel(step);
+              return (
+                <span
+                  key={n}
+                  className={cn(
+                    'h-1.5 rounded-full transition-all',
+                    n === current ? 'w-8 bg-primary' : n < current ? 'w-4 bg-primary/40' : 'w-4 bg-muted',
+                  )}
+                />
+              );
+            })}
+            <span className="sr-only">Step {onboardingProgressLabel(step).current} of 4: {onboardingProgressLabel(step).label}</span>
+          </div>
+        )}
       </div>
 
       {/* Content */}

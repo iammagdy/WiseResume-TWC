@@ -78,6 +78,11 @@
   box-shadow: 0 1px 3px hsl(var(--foreground) / 0.06), 0 0 0 1px hsl(var(--border) / 0.6);
 }
 
+.portfolio-tab-strip--fade {
+  position: relative;
+  mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent);
+}
+
 .portfolio-editor-quick-action {
   border-radius: 1rem;
   border: 1px solid hsl(var(--border) / 0.75);

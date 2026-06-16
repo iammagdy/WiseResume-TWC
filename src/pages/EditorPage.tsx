@@ -1353,49 +1353,6 @@ export default function EditorPage() {
                 </button>
               ))}
             </div>
-            {/* Current-section navigator: ‹ Name › — only in edit mode */}
-            {mobileEditorTab === 'editor' && (
-              <>
-                <div className="w-px h-5 bg-border shrink-0" />
-                <div className="flex-1 min-w-0 flex items-center gap-0.5 px-1">
-                  <button
-                    onClick={() => {
-                      const idx = steps.findIndex(s => s.id === activeTab);
-                      if (idx > 0) { handleTabChange(steps[idx - 1].id); haptics.light(); }
-                    }}
-                    disabled={steps.findIndex(s => s.id === activeTab) === 0}
-                    aria-label="Previous section"
-                    className={cn(
-                      'p-1.5 rounded-lg transition-all touch-manipulation active:scale-95 shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center',
-                      steps.findIndex(s => s.id === activeTab) === 0
-                        ? 'text-muted-foreground/25 cursor-not-allowed'
-                        : 'text-muted-foreground hover:bg-muted'
-                    )}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="flex-1 text-center text-sm font-medium text-foreground truncate select-none">
-                    {steps.find(s => s.id === activeTab)?.label ?? 'Section'}
-                  </span>
-                  <button
-                    onClick={() => {
-                      const idx = steps.findIndex(s => s.id === activeTab);
-                      if (idx < steps.length - 1) { handleTabChange(steps[idx + 1].id); haptics.light(); }
-                    }}
-                    disabled={steps.findIndex(s => s.id === activeTab) === steps.length - 1}
-                    aria-label="Next section"
-                    className={cn(
-                      'p-1.5 rounded-lg transition-all touch-manipulation active:scale-95 shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center',
-                      steps.findIndex(s => s.id === activeTab) === steps.length - 1
-                        ? 'text-muted-foreground/25 cursor-not-allowed'
-                        : 'text-muted-foreground hover:bg-muted'
-                    )}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </>
-            )}
           </div>
 
           <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
