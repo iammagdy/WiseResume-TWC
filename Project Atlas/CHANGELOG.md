@@ -11,6 +11,38 @@
 
 ---
 
+## 2026-06-16 - Security: Server-side Portfolio Password Verification
+
+### Security Issue (Addressed)
+
+**Password Hash Exposure:**
+- Public portfolio read `password_hash` from Appwrite into browser
+- Client-side SHA-256 verification exposed hash to potential attackers
+- This was a security risk (hash exposure)
+
+**Fix:**
+- Created new Appwrite Function `verify-portfolio-password`
+- Server-side password verification — hash never leaves server
+- Client sends password, receives only success/failure response
+- No breaking changes to existing flow (can migrate gradually)
+
+### Files Added/Changed
+| File | Change |
+|------|--------|
+| `appwrite-hubs/verify-portfolio-password/src/main.js` | **New** — Server-side password verification function |
+| `appwrite.json` | Added function configuration |
+
+### Deployment Required
+- Deploy `verify-portfolio-password` function via GitHub Actions or CLI
+- Frontend can optionally migrate to use this instead of client-side verification
+
+### Future Migration Path
+1. Update `usePublicPortfolio` to call `verify-portfolio-password` function instead of reading hash
+2. Remove client-side SHA-256 verification
+3. Password hash will be completely hidden from browser
+
+---
+
 ## 2026-06-16 - Portfolio Password, Resume Selection, Chat Field Fixes
 
 ### Root Cause (Production QA Audit Continued)
