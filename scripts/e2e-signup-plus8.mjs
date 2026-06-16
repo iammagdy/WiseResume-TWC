@@ -3,7 +3,7 @@
  */
 import { chromium } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'https://resume.thewise.cloud';
+const BASE = process.env.E2E_BASE_URL || 'https://wiseresume.app';
 const EMAIL = 'magdy.saber+8@outlook.com';
 const PASSWORD = 'P@ssw0rd';
 

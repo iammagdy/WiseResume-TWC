@@ -32,7 +32,7 @@ if (!email) {
 
 const ENDPOINT = (process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
 const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://resume.thewise.cloud').replace(/\/$/, '');
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://wiseresume.app').replace(/\/$/, '');
 const apiKey = process.env.APPWRITE_API_KEY;
 const resendKey = process.env.RESEND_API_KEY;
 

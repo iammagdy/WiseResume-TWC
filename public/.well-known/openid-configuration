@@ -1,16 +1,18 @@
-{
+﻿{
   "issuer": "https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192",
-  "authorization_endpoint": "https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/google",
+  "authorization_endpoint": "https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/{provider}",
   "token_endpoint": "https://fra.cloud.appwrite.io/v1/account/sessions/token",
   "userinfo_endpoint": "https://fra.cloud.appwrite.io/v1/account",
-  "jwks_uri": "https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192/.well-known/jwks.json",
+  "jwks_uri": "https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192/jwks",
+  "end_session_endpoint": "https://fra.cloud.appwrite.io/v1/account/sessions/current",
   "response_types_supported": ["code"],
   "subject_types_supported": ["public"],
   "id_token_signing_alg_values_supported": ["RS256"],
   "scopes_supported": ["openid", "profile", "email"],
-  "token_endpoint_auth_methods_supported": ["client_secret_post"],
+  "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
   "claims_supported": ["sub", "iss", "aud", "exp", "iat", "name", "email", "email_verified"],
   "code_challenge_methods_supported": ["S256"],
-  "grant_types_supported": ["authorization_code"],
-  "service_documentation": "https://appwrite.io/docs"
+  "grant_types_supported": ["authorization_code", "refresh_token"],
+  "request_parameter_supported": false,
+  "service_documentation": "https://appwrite.io/docs/products/auth"
 }

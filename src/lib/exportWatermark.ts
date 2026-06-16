@@ -1,5 +1,5 @@
 const BRAND_LABEL = 'Wise Resume';
-const BRAND_URL = 'https://resume.thewise.cloud';
+const BRAND_URL = 'https://wiseresume.app';
 
 export function appendImageWatermark(source: HTMLCanvasElement): HTMLCanvasElement {
   const footerHeight = Math.max(72, Math.round(source.width * 0.035));

@@ -1,12 +1,19 @@
 import { Info, Activity } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useAICredits } from '@/hooks/useAICredits';
+import { useMe } from '@/hooks/useMe';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
+import type { PlanKey } from '@/lib/planConfig';
 import { cn } from '@/lib/utils';
 
 export default function AICreditsRow({ onOpenAISettings }: { onOpenAISettings: () => void }) {
     const { data: credits } = useAICredits();
+    const { data: meData } = useMe();
     const used = credits?.daily_usage || 0;
-    const limit = credits?.daily_limit || 20;
+    // Derive limit from plan if not set — never hardcode 20
+    const effectivePlan = (meData?.subscription?.effective_plan ?? 'free') as PlanKey;
+    const fallbackLimit = PLAN_CREDIT_LIMITS[effectivePlan] ?? PLAN_CREDIT_LIMITS.free;
+    const limit = credits?.daily_limit ?? fallbackLimit;
     const percentage = Math.min((used / limit) * 100, 100);
 
     const progressColor = percentage > 80

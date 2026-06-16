@@ -4,6 +4,8 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { useAIHealth } from '@/hooks/useAIHealth';
 import { useAICredits } from '@/hooks/useAICredits';
 import { useMe } from '@/hooks/useMe';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
+import type { PlanKey } from '@/lib/planConfig';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
@@ -26,8 +28,11 @@ export function DashboardStatusPopover() {
   const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
   const isActiveTrial = !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt) > new Date();
 
+  // Derive limit from plan if not set — never hardcode 20
+  const effectivePlan = (meData?.subscription?.effective_plan ?? 'free') as PlanKey;
+  const fallbackLimit = PLAN_CREDIT_LIMITS[effectivePlan] ?? PLAN_CREDIT_LIMITS.free;
   const used = credits?.daily_usage ?? 0;
-  const limit = credits?.daily_limit ?? 20;
+  const limit = credits?.daily_limit ?? fallbackLimit;
   const remaining = Math.max(0, isFinite(limit) ? limit - used : Infinity);
   const isLow = isFinite(remaining) && remaining <= 3;
 

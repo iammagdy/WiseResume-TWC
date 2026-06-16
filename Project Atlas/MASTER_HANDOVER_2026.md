@@ -2,2017 +2,960 @@
 
 ---
 
-## Session Log - 2026-06-12 (Final Local Sync to GitHub)
+## Session Log - 2026-06-16 (AI Credits, Pro Badge, Portfolio Save Fixes)
 
 ### Overview
+Fixed critical production bugs discovered during QA audit:
+1. **AI Credits**: Pro users saw 20 credits instead of 50 due to hardcoded fallbacks
+2. **Pro Badge**: Rendered as muted gray instead of blue
+3. **Portfolio Save**: CRITICAL — all portfolio fields were silently dropped due to whitelist filter
 
-Owner requested that all remaining local changes be pushed so the GitHub repository fully matches the local folder. Remaining local work was committed as `637a4ed1` after the WiseResume Classic commit `3f462765`. Detailed log: `Project Atlas/05-Migration to Appwrite/36-Session-Log-2026-06-12-Final-Local-Sync.md`.
+### Root Causes & Fixes
 
----
-
-### Current State
-
-| Item | State |
-|---|---|
-| Branch | `main` |
-| Latest local commits | `3f462765` WiseResume Classic, `637a4ed1` security/DevKit remediation |
-| Manual Vercel deploy | Not run locally |
-| Manual Appwrite deploy | Not run locally |
-| Env changes | None made locally |
-
----
-
-### Validation
-
-| Check | Result |
-|---|---|
-| WiseResume Classic focused tests | Passed |
-| Template audit Vitest | Passed |
-| Security/DevKit focused Vitest | 26 passed |
-| Changed Appwrite hub `node --check` | OK |
-| `npx tsc --noEmit` | OK |
-| `npm run build` | OK before final security sync commit |
-
----
-
-### Where We Stopped (authoritative)
-
-1. All local code/documentation changes have been committed locally.
-2. Push to `origin/main` is the final sync step.
-3. After push, check GitHub/Vercel automation and perform manual QA before production sign-off.
-
----
-
-## Session Log - 2026-06-12 (WiseResume Classic Default Template)
-
-### Overview
-
-Local `main` session adding `wiseresume-classic` as the default resume template. The template is implemented and verified locally, but no commit, push, deployment, branch creation, or environment-variable change was performed. Detailed log: `Project Atlas/05-Migration to Appwrite/35-Session-Log-2026-06-12-WiseResume-Classic-Template.md`.
-
----
-
-### What Changed (summary)
-
-| # | Area | Key fix |
-|---|---|---|
-| 1 | Template | Added WiseResume Classic 816x1056 px Letter layout with header, summary, competencies, experience, education, projects, and per-page footer. |
-| 2 | Defaults | New blank resumes now default to `wiseresume-classic` instead of `modern`. |
-| 3 | Registry | Added template id to `TemplateId`, template registry, migration allowlist, template picker, thumbnails, and test mocks. |
-| 4 | Preview/export | Added template dimension helper so Classic uses 816x1056 px while legacy templates keep existing dimensions. |
-| 5 | Sample | Updated preview sample data to Magdy Saber content with grouped competencies. |
-
----
-
-### Validation
-
-| Check | Result |
-|---|---|
-| Focused WiseResume Classic Vitest | 2 passed |
-| Template audit Vitest | 32 passed |
-| `npx tsc --noEmit` | OK |
-| `git diff --check` | OK, line-ending warnings only |
-| `npm run build` | OK |
-| Browser visual check | `/templates` shows WiseResume Classic first; sample renders 2 pages; footers and visible email links verified. |
-
----
-
-### Deployment / Schema
-
-| Item | State |
-|---|---|
-| Vercel deploy | **Not run** |
-| Appwrite deploy | Not required |
-| Schema/env changes | None |
-
----
-
-### Where We Stopped (authoritative)
-
-1. WiseResume Classic is implemented locally, verified, and documented.
-2. Work is uncommitted and undeployed.
-3. User should review the visible browser preview.
-4. Next action requires owner approval before commit, push, or Vercel deploy.
-5. Prior uncommitted security/DevKit remediation work is still present in the same working tree.
-
----
-
-## Session Log - 2026-06-12 (DevKit Admin Panel Full Audit & Fix — Phases 1–4)
-
-### Overview
-
-Remote `claude/gallant-lovelace-zgwv00` session. Full audit of the DevKit admin panel identified 21 issues: 6 hardcoded backend stubs, 4 frontend/backend mismatches, 11 missing Appwrite collections, plus phantom health-check entries, a wrong function ID, and a capped counter. All 21 fixed across 4 phases. Detailed log: `Project Atlas/05-Migration to Appwrite/34-Session-Log-2026-06-12-DevKit-Full-Audit-Fix.md`.
-## Session Log - 2026-06-12 (Security & DevKit Remediation)
-
-### Overview
-
-Local `main` session implementing the approved security and DevKit remediation plan. No deploy, commit, push, branch creation, or environment-variable changes were performed. Detailed log: `Project Atlas/05-Migration to Appwrite/34-Session-Log-2026-06-12-Security-DevKit-Remediation.md`.
-
----
-
-### What Changed (summary)
-
-| # | Area | Root Cause | Fix |
-|---|------|------------|-----|
-| 1 | `handlePurgeOrphans` | One-line stub | Real paginated cursor scan, dry-run guard, audit log on delete |
-| 2 | `handleListAuditLogs` | No offset/date params | Added `offset`, `date_from`, `date_to` server-side filtering |
-| 3 | `handleGlobalStats.activeToday` | Hard-capped at 500 events → always 0 | Paginated `countUniqueTodayVisitors` helper (up to 5k/day) |
-| 4 | `handleLiveActivity user_content_stats` | Wrong field names, `cover_letters` never queried, `planHistory` always `[]` | Fixed field to `credits_charged`; added cover_letters; real plan history from `admin_audit_logs` |
-| 5 | `handleListAiGatewayActivity` | Queried phantom `ai_usage_logs` | Switched to real `ai_request_logs` |
-| 6 | `handleAnalytics` | All hardcoded zeros/empty arrays | Real heatmap (7×24), top referrers, new vs returning, AI credits, signups-per-day |
-| 7 | `AuditLogPanel.tsx` | Filters not forwarded to backend; double-fetch on mount | Server-side category/date; single consolidated useEffect |
-| 8 | Health-check list | Phantom `'audit_logs'` entry caused permanent false alarm | Removed from `requiredCollections` |
-| 9 | `appwrite.json` admin-sentry | Numeric ID `6a0760710000ff231048` instead of slug | Changed to `"admin-sentry"` |
-| 10–18 | 9 missing collections | Never created | 9 idempotent setup scripts; all added to CI pipeline |
-
----
+| Bug | Root Cause | Fix |
+|-----|------------|-----|
+| Pro showing 20 credits | `const limit = credits?.daily_limit ?? 20` in 4 components | Derive from `effective_plan` using `PLAN_CREDIT_LIMITS` |
+| Pro badge gray | `DashboardPlanBadge` default styling was muted/gray | Explicit blue styling for Pro plan |
+| Portfolio save broken | `LIVE_PROFILE_ATTRIBUTES` excluded all portfolio fields | Added 18 portfolio fields to whitelist |
 
 ### Files Changed
-
-**Backend:** `appwrite-hubs/admin-devkit-data/src/main.js`
-**Frontend:** `src/components/dev-kit/AuditLogPanel.tsx`
-**Config:** `appwrite.json`
-**CI:** `.github/workflows/deploy-appwrite-hubs.yml` (+9 schema steps)
-**Scripts (new):** `setup_discount_codes_schema.cjs`, `setup_feature_flags_schema.cjs`, `setup_wisehire_collections_schema.cjs`, `setup_ai_routing_config_schema.cjs`, `setup_contact_requests_schema.cjs`, `setup_audit_logs_schema.cjs`, `setup_notifications_schema.cjs`, `setup_edge_function_logs_schema.cjs`, `setup_error_log_schema.cjs`
-| # | Area | Key fix |
-|---|------|---------|
-| 1 | Public fetch SSRF | Manual redirect loop, per-hop URL/DNS private-range validation, response size cap |
-| 2 | PDF SSRF | Shared default-deny Puppeteer request guard before all `setContent` paths |
-| 3 | WiseHire auth | Access guard for recruiter actions; candidate/role reads require owner/company scope |
-| 4 | DevKit tokens | 1-hour TTL, token `jti`, no impersonation secret fallback |
-| 5 | Act As revoke | Server-side nonce storage/revocation via `admin_impersonation_sessions`; client sends impersonation token |
-| 6 | Email privacy | Verification status requires current-user JWT, self-only, no email response |
-| 7 | Portfolio passwords | Persistent username + hashed-IP throttling |
-| 8 | DevKit drift | AI Radar wired; `admin-sentry` added; effective-plan stats; visitor analytics 5k cap |
-| 9 | AI tests | Catalogue expectations updated to 16 current tools |
-
----
-
-### Validation
-
-| Check | Result |
-|---|---|
-| `node --check admin-devkit-data/src/main.js` | OK |
-| `tsc --noEmit` | OK |
-| `npm run build` | OK (exit 0) |
-| Vercel preview | Ready (all commits) |
-| Appwrite `ai-gateway` preview | Ready (all commits) |
-
----
-
-### Commits / Deployments
-
-| Item | State |
-|---|---|
-| Commits | `1960fa8` (Ph 1-3) · `026165c` (Ph 4) · `d739333` (Atlas) |
-| PR | [#99](https://github.com/iammagdy/WiseResume-TWC/pull/99) — Draft, all CI green |
-| `admin-devkit-data` production | **NOT redeployed** — requires CI after merge |
-| Appwrite collections production | **NOT created** — requires CI after merge |
-| Vercel production | **NOT deployed** — requires Vercel deploy after merge |
-| Focused security/DevKit Vitest suite | 26 passed |
-| `node --check` changed hubs | OK |
-| `npx tsc --noEmit` | OK |
-| Source hashes | Regenerated |
-
----
-
-### Deployment / Schema
-
-| Item | State |
-|---|---|
-| Appwrite deploy | **Not run** |
-| Vercel deploy | **Not run** |
-| Required hub deploy targets later | `wisehire-gateway`, `admin-devkit-data`, `admin-impersonate`, `email-service`, `admin-deploy-hubs`, `admin-visitor-analytics` |
-| Required env/schema before hub deploy | `IMPERSONATION_HMAC_SECRET`; `admin_impersonation_sessions`; confirm `portfolio_session_rate_limits`; confirm WiseHire membership fields if non-owner recruiters are expected |
-
----
-
-### Where We Stopped (authoritative)
-
-1. **Merge PR #99** — all code complete, all checks green.
-2. **Trigger `deploy-appwrite-hubs.yml`** (target: `all`) after merge — creates 9 missing Appwrite collections + redeploys all functions including `admin-devkit-data`.
-3. **Trigger Vercel production deploy** after merge — picks up `AuditLogPanel.tsx` changes.
-4. **Carry-forward from 2026-06-11:** ~60 uncommitted local product files (maintenance mode, avatar, auth, Deploy All, visitor panel, dashboard fix) still need commit + Vercel deploy + env vars. See session log #33.
-1. Implementation is local, uncommitted, and undeployed.
-2. Need final validation pass: `git diff --check`, focused tests, `npx tsc --noEmit`, and any owner-requested broader suites.
-3. Need owner approval for schema/env actions before Appwrite deploy.
-4. Need owner approval before commit/push/deploy.
-5. Manual QA still pending: URL import SSRF, PDF export, WiseHire auth, DevKit login, Act As revoke, email verification, public portfolio password throttling, AI Radar.
-
----
-
-## Session Log - 2026-06-11 (DevKit Stabilization, Maintenance Mode, Portfolio/Auth, Visitor Analytics)
-
-### Overview
-
-Local `main` session — **uncommitted** product work. DevKit/moderation reliability, crash-report dedupe, Deploy All progress, Growth & Traffic `dashboard` action, maintenance mode via `/api/app-settings`, profile avatar public read, `/portfolio` AuthProvider + hooks fixes. Detailed log: `Project Atlas/05-Migration to Appwrite/33-Session-Log-2026-06-11-DevKit-Stabilization-Maintenance-Portfolio-Avatar.md`.
-
----
-
-### What Changed (summary)
-
-| # | Area | Why | Root cause | Key fix |
-|---|------|-----|------------|---------|
-| 1 | Crash reports / moderation | Inbox empty; email flood | DB save failed; no dedupe | `ai-gateway` schema-safe save + dedupe; ErrorBoundary dedupe |
-| 2 | Dashboard crash | Page white-screen | Stale `isLoading` JSX | `authBootstrapping` in `DashboardPage.tsx` |
-| 3 | Moderation queue DevKit | `list_moderation_queue` failed | Prod schema missing `status` | `fix-moderation-queue-schema.cjs` |
-| 4 | Portfolio rename toast | `[object Object]` | Object errors in toast | `formatDevKitErrorMessage`; backend string errors |
-| 5 | Deploy All hubs | No deploy; no progress | Single 15min call vs 90s timeout | Sequential deploy + progress in `DeployHubsPanel.tsx` |
-| 6 | Growth & Traffic | Slow / stuck skeleton | 8 parallel full collection scans | `dashboard` action; 2-call client fetch |
-| 7 | Maintenance mode | App stayed online | Client cannot read server-only `app_settings` | `/api/app-settings` + hook rewrite |
-| 8 | Profile avatar | Initials after upload | Storage file private; sidebar no image | `avatarStorage.ts` + `Role.any()` read |
-| 9 | `/portfolio` auth crash | `useAuth` outside provider | Duplicate `AuthContext` from code-split | `AuthProvider` hoisted to `App.tsx` |
-| 10 | `/portfolio` hooks crash | Rules of Hooks violation | `savingDraft` after early returns | Move state to top of `PortfolioEditorPage.tsx` |
-
----
-
-### Files Changed (product — uncommitted)
-
-See session log #33 for full table. Hubs: `ai-gateway`, `admin-visitor-analytics`, `admin-portfolio-usernames`, `admin-deploy-hubs`. Frontend: `App.tsx`, `AppInterior.tsx`, `useAppSettings.ts`, `api/app-settings.ts`, `server/appSettingsFetch.ts`, `DeployHubsPanel.tsx`, `VisitorsPanel.tsx`, `PortfolioEditorPage.tsx`, `avatarStorage.ts`, DevKit panels, crash-report libs, moderation scripts.
-
----
-
-### Validation
-
-| Check | Result |
-|---|---|
-| `useAppSettings.test.tsx` | 3 passed |
-| `avatarStorage.test.ts` | 2 passed |
-| `test-visitor-dashboard.cjs` | dashboard 200, ~400ms; `visitor_events` 0 |
-| `tsc --noEmit` | OK (auth/portfolio fixes) |
-| Auth / ProtectedRoute vitest | OK |
-| `PortfolioEditorPage.test.tsx` | Pre-existing mock failure (unrelated) |
-
----
-
-### Commits / Deployments
-
-| Item | State |
-|---|---|
-| Session product commits | **None** — uncommitted at session close |
-| Last commit | `32e0d4bc` — CI single-hub deploy fix |
-| Docs commit | This session (after log write) |
-| Appwrite hubs redeployed | `ai-gateway`, `admin-visitor-analytics`, `admin-portfolio-usernames` |
-| Vercel frontend | **Not deployed** this session (maintenance, avatar, auth, deploy panel, visitor UI) |
-| Production DB | `moderation_queue` schema repaired via script |
-
----
-
-### Where We Stopped (authoritative)
-
-1. **Commit + push** — ~60+ modified/new files uncommitted. Await user approval.
-2. **Vercel deploy** — required for maintenance mode (`/api/app-settings`), avatar UI, AuthProvider hoist, Deploy All progress, visitor panel, dashboard fix.
-3. **Vercel env:** `APPWRITE_API_KEY`, `APPWRITE_PROJECT_ID` for app-settings route.
-4. **Manual QA:** maintenance toggle; profile re-upload; `/portfolio`; Deploy All progress; Growth & Traffic empty state.
-5. **Optional:** redeploy remaining hubs via DevKit sequential Deploy All or CI.
-6. **Prior session follow-ups still open if overlapping:** Sentry CSP, cover letter bundle QA — see 2026-06-10 logs.
-
----
-
-## Session Log - 2026-06-10 (Cover Letter Bundle, PDF Dialog Desktop, Preview Crash, ErrorBoundary, Observability)
-
-### Overview
-
-Local `main` session — **uncommitted** product work after docs commit `e7aba0b7`. **Tailor result ↔ cover letter round-trip** (prefill, linked letter on result, bundle downloads), **PDF export dialog desktop polish**, **PreviewPage `lazy` crash fix**, **production ErrorBoundary** + auto email crash reports, **observability audit** (Sentry blocked by CSP; `send-contact-email` is inside `ai-gateway`; user added `RESEND_API_KEY`; Datadog deferred). Detailed log: `Project Atlas/05-Migration to Appwrite/32-Session-Log-2026-06-10-Cover-Letter-Bundle-Preview-Crash-Observability.md`.
-
----
-
-### What Changed (summary)
-
-| # | Area | Why | Root cause | Key fix |
-|---|------|-----|------------|---------|
-| 1 | Cover letter bundle | Empty form; no return to tailor result | Wrong resume id field; JD not persisted | `tailorJobContext.ts`, result panels, round-trip nav |
-| 2 | PDF dialog desktop | Too narrow; wrong page count; bad filename | Stack layout; break count mismatch | Spread preview, `defaultBreakSection`, editable filename |
-| 3 | Preview crash | Raw stack shown to users | `lazy` not imported | `PreviewPage.tsx` React import fix |
-| 4 | ErrorBoundary | Technical errors exposed in prod | Dev-oriented fallback UI | Friendly UI + auto `sendFeedback` email |
-| 5 | Observability | Sentry/email seemed dead | CSP blocks Sentry; email is ai-gateway route | Audit only; `RESEND_API_KEY` added; CSP fix pending |
-
----
-
-### Files Changed (product — uncommitted)
-
-Primary paths: `src/lib/tailorJobContext.ts`, `TailoringHubResultPage.tsx`, `CoverLetterNewPage.tsx`, `TailorResultCoverLetterPanel.tsx`, `TailorResultExportPanel.tsx`, `TailorQuickPdfExportDialog.tsx`, `ExportPageBreakSetup.tsx`, `PreviewPage.tsx`, `ErrorBoundary.tsx`. Plus all files from session #31 still uncommitted.
-
----
-
-### Validation
-
-| Check | Result |
-|---|---|
-| Preview route smoke | OK |
-| Production Sentry DSN in bundle | OK |
-| Sentry events reaching dashboard | **Blocked by CSP** until `connect-src` updated |
-| `RESEND_API_KEY` on ai-gateway | User added in Console |
-
----
-
-### Commits / Deployments
-
-| Item | State |
-|---|---|
-| Last docs commit | `e7aba0b7` — session log #31 |
-| Product commits | **None** this session |
-| Vercel / Appwrite hub redeploy | **Not deployed** (env var only for Resend) |
-
----
-
-### Where We Stopped (authoritative)
-
-1. **Uncommitted product work** — this session + session #31 + dashboard/AI Studio changes in same tree. Commit/push when user approves.
-2. **CSP:** Add `https://*.ingest.sentry.io` to `vite.config.ts` + `vercel.json`, redeploy for Sentry.
-3. **Email crash reports:** Should work with `RESEND_API_KEY` on `ai-gateway` — verify with test error.
-4. **Datadog:** Deferred (stubbed in ai-gateway code).
-5. **Manual QA:** cover letter bundle flow, PDF dialog desktop, preview from tailor result.
-
----
-
-## Session Log - 2026-06-10 (Tailoring Hub Compare, PDF Export Dialog, Local PDF Server, Cover Letter Route)
-
-### Overview
-
-Local `main` session — **uncommitted** product work. Tailoring **result compare** (projects/skills/experience fidelity, section-by-section mode), **in-page Download PDF** with streamlined page-break UI, **local PDF export** reliability (Appwrite config + dev scripts), **custom page break** export alignment, and **Create cover letter** 404 fix from tailor result. Detailed log: `Project Atlas/05-Migration to Appwrite/31-Session-Log-2026-06-10-Tailoring-Hub-Compare-Export-Cover-Letter.md`.
-
----
-
-### What Changed (summary)
-
-| # | Area | Why | Root cause | Key fix |
-|---|------|-----|------------|---------|
-| 1 | Tailor compare/merge | Missing projects, bad highlights, duped bullets | Weak list merge + diff normalization | `tailorMerge`, `tailorSanitize`, `tailorCompareHighlights`, section compare UI, gateway prompts |
-| 2 | Download PDF on result | New tab instead of in-page flow | `window.open` to preview | `TailorQuickPdfExportDialog` + `TailorResultExportPanel` |
-| 3 | PDF dialog UX | Crowded page-break UI | Monolithic default layout | `ExportPageBreakSetup` `variant="streamlined"`, CSS shell |
-| 4 | PDF “temporarily unavailable” | Download failed locally | PDF API on `:5001` not running | `dev:pdf-server`, `dev:full`, `dev-with-api.mjs` |
-| 5 | PDF “Server configuration error” | Download failed locally | Server lacked `APPWRITE_PROJECT_ID`; `.env.local` not loaded | `resolveAppwriteServerConfig()` + `dev-pdf-server.mjs` env load |
-| 6 | 4-page PDF vs 2-page preview | Custom breaks ignored | Offscreen export vs dialog template mismatch | `resolveExportBreakPositions`, export from live template |
-| 7 | Cover letter 404 | Create cover letter broken | Route `/cover-letter` undefined | `/cover-letter/new` + prefill + legacy redirect |
-
----
-
-### Files Changed (product — uncommitted)
-
-See session log for full table. Primary paths: `src/components/job-match/Tailor*.tsx`, `TailorQuickPdfExportDialog.tsx`, `ExportPageBreakSetup.tsx`, `src/lib/tailor*.ts`, `pdfUtils.ts`, `exportResumePdf.ts`, `server/index.ts`, `scripts/dev-pdf-server.mjs`, `TailoringHubResultPage.tsx`, `CoverLetterNewPage.tsx`, `AppInterior.tsx`.
-
----
-
-### Validation
-
-| Check | Result |
-|---|---|
-| `npx tsc --noEmit` | OK |
-| `npx vitest run src/lib/__tests__/pdfUtils.test.ts src/lib/exportResumePdf.test.ts` | OK (31 tests) |
-| `npm run build:server` | OK |
-| Local PDF health `:5001/api/health` | 200 when server running |
-| `npm run build` / full vitest | Not re-run end-of-session |
-
----
-
-### Commits / Deployments
-
-| Item | State |
-|---|---|
-| Product commits | **None** — uncommitted on local `main` |
-| Last pushed | `f1bfc492` |
-| Vercel / Appwrite | **Not deployed** this session |
-
----
-
-### Where We Stopped
-
-1. **Superseded** by 2026-06-10 cover-letter bundle / preview crash session above — see authoritative section there for current stop point.
-2. Items below still apply until committed/deployed: section compare QA, local PDF via `dev:full`, re-tailor for merge fixes.
-
----
-
-## Session Log - 2026-06-10 (Dashboard UX, Workspace Search, AI Studio Route Sync, Portfolio & Public UX Fixes)
-
-### Overview
-
-Local `main` session (post–PR #97/#98 merge). Pulled remote; no new commits for product work yet — all changes below are **uncommitted** in the working tree. Focus: dashboard resume filtering, global workspace search, AI Studio UX polish, Tailoring Hub layout/credits, route-aware overlay dismiss, portfolio resume picker bug, public-portfolio cookie banner removal, dashboard stale search fix.
-
----
-
-### What Changed
-
-#### 1. Dashboard resume tabs (All / Normal / Tailored)
-- **Why:** Tailored CVs did not appear in a dedicated tab; user requested All / Normal / Tailored filtering.
-- **Root cause:** No tab UI; tailored detection relied only on `parent_resume_id`, which legacy saves never set.
-- **Fix:** Three-tab filter with counts; shared `resumeLineage` helper (parent ID, tailor history IDs, title patterns); save flows now persist `parent_resume_id` and pass `tailoredResumeId` into local tailor history.
-
-#### 2. Global workspace search (Cmd+K + dashboard top bar)
-- **Why:** Dashboard top search did not open a global results popup with highlights.
-- **Root cause:** Top bar was decorative / local-only; no unified search registry.
-- **Fix:** `workspaceSearch` registry + `openWorkspaceSearch()`; CommandPalette searches resumes, tools, navigation with `SearchHighlight`; top command bar opens dialog; local list search remains separate.
-
-#### 3. Sidebar label — "Wise AI" → "AI Tools"
-- **Why:** User rename request for workspace sidebar clarity.
-- **Fix:** `appSidebarNav.ts` label update only.
-
-#### 4. AI Studio workflow cards — denser layout
-- **Why:** Cards too large; user wanted denser grid.
-- **Fix:** Compact 3-column grid on lg, reduced padding/shadows, line-clamped descriptions in `AIStudioPage.tsx`.
-
-#### 5. Sidebar premium membership card — light theme
-- **Why:** Premium card looked wrong on light theme (dark gradient on light shell).
-- **Root cause:** `--paid` / `--premium` tokens used dark-theme gold gradient globally.
-- **Fix:** Light gold gradient under `:root`; dark styles scoped under `.dark`; sidebar card Active badge + Manage billing polish.
-
-#### 6. Tailoring Hub layout
-- **Why:** Empty space below content; page felt basic.
-- **Fix:** 3-step strip, resume panel header, job textarea fills column, footer CTA inline in grid, settings expanded on lg, right column scroll unified.
-
-#### 7. Tailoring Hub footer credit hint
-- **Why:** Footer showed 1 credit; canonical tailor cost is 2; Premium should show unlimited.
-- **Root cause:** `JobMatchStickyFooter` hardcoded `creditCost = 1`.
-- **Fix:** `getAICost('tailor')` (2); Premium/unlimited → "No credits used".
-
-#### 8. AI Studio route sync on sheet dismiss
-- **Why:** Dismissing AI Enhance (click outside) left URL at `/ai-studio/enhance`; page became unclickable; same pattern needed app-wide for route-driven overlays.
-- **Root cause:** Sheets called `setShow*(false)` only; `activatedToolRef` blocked re-open; URL stayed on `:tool` segment.
-- **Fix:** `useRouteOverlaySync` + `createRouteOverlayOpenChange`; all AI Studio tool sheets navigate to `/ai-studio` on dismiss; `toolParam` clear closes all sheets and resets ref; tool switch closes previous sheet first.
-
-#### 9. Portfolio editor — "Resume to display" select broken
-- **Why:** Select showed concatenated titles ("Select a resumeJohn Duo…"); user could not pick a resume.
-- **Root cause:** `useResumes()` returns Appwrite docs with `$id`; UI used `r.id` (undefined) → all `SelectItem` values empty → Radix treated all items as selected.
-- **Fix:** Normalize `id: doc.$id` in `PortfolioEditorPage`; `SetupTab` uses `getResumeDocumentId()` defensively.
-
-#### 10. Cookie consent banner on public portfolios
-- **Why:** Published profile visitors (non-platform users) saw WiseResume analytics cookie banner.
-- **Root cause:** `ConsentBanner` rendered on all routes except `/auth`; public `/p/*`, `/share/*`, `/l/*` included.
-- **Fix:** Hide banner when `isPublicStandalone`; disable platform `useVisitorTracking` on those routes (portfolio uses separate analytics).
-
-#### 11. Dashboard stale list search on return
-- **Why:** Returning to dashboard showed full-page "No resumes match 'w'" from old search.
-- **Root cause:** `wr-dash-search` persisted in `sessionStorage`; empty filter replaced entire dashboard chrome.
-- **Fix:** Remove sessionStorage persistence; one-time key cleanup; show filter-empty state inside list area only; inline Clear search.
-
----
-
-### Files Changed (product — uncommitted)
-
-| Area | Files |
-|---|---|
-| Dashboard tabs / search | `src/pages/DashboardPage.tsx`, `src/lib/resumeLineage.ts`, `src/lib/__tests__/resumeLineage.test.ts` |
-| Global search | `src/lib/workspaceSearch.ts`, `src/lib/workspaceSearchEvents.ts`, `src/lib/__tests__/workspaceSearch.test.ts`, `src/components/ui/SearchHighlight.tsx`, `src/components/layout/CommandPalette.tsx`, `src/components/dashboard/DashboardTopCommandBar.tsx`, `src/components/layout/ShellCommandSearch.tsx`, `src/components/ui/command.tsx` |
-| Sidebar | `src/components/layout/appSidebarNav.ts`, `src/components/layout/AppWorkspaceSidebar.tsx`, `src/index.css` |
-| AI Studio | `src/pages/AIStudioPage.tsx`, `src/pages/__tests__/AIStudioPage.test.tsx`, `src/hooks/useRouteOverlaySync.ts`, `src/hooks/__tests__/useRouteOverlaySync.test.ts` |
-| Tailoring Hub | `src/pages/TailoringHubPage.tsx`, `src/components/job-match/*`, `src/components/editor/TailorSheet.tsx`, `src/pages/TailorPage.tsx`, `src/components/dashboard/CreateResumeDialog.tsx` |
-| Portfolio | `src/pages/PortfolioEditorPage.tsx`, `src/components/portfolio/editor/SetupTab.tsx`, `src/components/portfolio/editor/__tests__/SetupTab.test.tsx` |
-| Public / consent | `src/AppInterior.tsx`, `src/components/layout/ConsentBanner.tsx`, `src/hooks/useVisitorTracking.ts` |
-
----
-
-### Validation
-
-| Check | Result |
-|---|---|
-| `npx tsc --noEmit` | OK (multiple runs during session) |
-| `npx vitest run src/lib/__tests__/resumeLineage.test.ts` | OK |
-| `npx vitest run src/lib/__tests__/workspaceSearch.test.ts` | OK |
-| `npx vitest run src/pages/__tests__/AIStudioPage.test.tsx src/hooks/__tests__/useRouteOverlaySync.test.ts` | OK |
-| `npx vitest run src/components/portfolio/editor/__tests__/SetupTab.test.tsx` | OK |
-| `npm run build` | Not re-run this session |
-| Appwrite deploy | Not triggered |
-| Vercel | No push — production unchanged |
-
----
-
-### Commits / PRs (this session)
-
-| Item | State |
-|---|---|
-| Product changes above | **Uncommitted** on local `main` |
-| Last pushed commit | `4505b6b2` — `docs(atlas): session log — backend security audit + ai_credits schema fix (2026-06-10)` |
-| PRs | None opened this session |
-
----
-
-### Deployment State
-
-| Layer | State |
-|---|---|
-| Vercel (frontend) | Production at last merge (`5804510c` / `4505b6b2` on `main`). Session UI fixes **not deployed** until committed and pushed. |
-| Appwrite Functions | **Unchanged from prior session.** `deploy-appwrite-hubs` still not manually triggered; `ai_credits` collection still missing in prod; AI tools still 503 until workflow runs. |
-| `VITE_TURNSTILE_SITE_KEY` | Still marked Sensitive in Vercel — CAPTCHA may not bake into bundle. Ops fix still pending. |
-
----
-
-### Where We Stopped
-
-1. **Superseded** by 2026-06-10 Tailoring Hub compare/export session above — see authoritative section there.
-2. Uncommitted dashboard/AI Studio/product changes remain in working tree alongside tailoring work.
-
----
-
-## Session Log - 2026-06-10 (Backend Security Audit + AI Credits Schema — Root Cause Fix for All AI Tool Failures)
-
-### Overview
-
-Full backend health audit across all 20 Appwrite Functions. Found and fixed: Node 18 EOL across all functions, IP spoofing in rate limiter, impersonation token signing fallback, WiseHire provider ordering. Discovered and fixed the root cause of all AI tool failures — the `ai_credits` Appwrite collection never existed, blocking every AI call at the credit check layer. Removed stale FTP frontend deploy workflow. Two PRs merged to `main`. Deployment workflow must be triggered manually to apply the `ai_credits` collection fix in production.
-
----
-
-### What Changed
-
-#### 1. Node.js Runtime Upgraded (All 20 Functions) — `appwrite.json`
-- **Root cause:** All 20 Appwrite Functions were configured with `"runtime": "node-18.0"`. Node 18 reached EOL April 2025; security patches stopped.
-- **Fix:** Changed `"runtime"` from `"node-18.0"` to `"node-20.0"` for all 20 functions in `appwrite.json`.
-
-#### 2. IP Spoofing in Rate Limiter — `appwrite-hubs/ai-gateway/src/main.js`
-- **Root cause:** `xff.split(',')[0].trim()` reads the leftmost `X-Forwarded-For` value, which is client-controlled. An attacker could send `X-Forwarded-For: 1.2.3.4` to rotate IPs and bypass rate limits.
-- **Fix:** Changed to read the rightmost value (`xff.split(',').at(-1)?.trim()`), which is appended by the trusted proxy and cannot be spoofed by the client.
-
-#### 3. Impersonation Token Signing Key Fallback — `appwrite-hubs/admin-impersonate/src/main.js`
-- **Root cause:** `getImpersonationSecret()` fell back to `process.env.APPWRITE_API_KEY` if `IMPERSONATION_HMAC_SECRET` was unset. This silently degrades security — tokens would be signed with the admin API key, which is a different secret with broader scope.
-- **Fix:** Removed the fallback entirely. Now throws a clear configuration error if `IMPERSONATION_HMAC_SECRET` is missing.
-- **Note:** `IMPERSONATION_HMAC_SECRET` is already configured in Appwrite Console; no breakage expected.
-
-#### 4. WiseHire AI Provider Pool Ordering — `appwrite-hubs/wisehire-gateway/src/main.js`
-- **Root cause:** DeepSeek (best quality/cost) was not first in the WiseHire provider pool.
-- **Fix:** Reordered `providerPool()` to: DeepSeek → Groq → OpenRouter → NVIDIA.
-
-#### 5. Stale Frontend Deploy Workflow — `.github/workflows/deploy-frontend.yml`
-- **Root cause:** An FTP-based GitHub Actions workflow for deploying the frontend was still committed. Vercel handles all frontend deploys automatically on push to main.
-- **Fix:** Deleted the file entirely.
-
-#### 6. Missing `ai_credits` Collection — Critical Root Cause of ALL AI Tool Failures
-- **Root cause:** Both `ai-gateway` and `resume-section-ai` call `loadCreditState()` before every single AI request. This function calls `db.listDocuments('main', 'ai_credits', ...)`. If the collection does not exist, the query throws, `loadCreditState()` returns `{ blocked: true }`, and the hub returns a 503 immediately — no LLM call is ever made. The `ai_credits` collection was never created by any setup script and did not exist in Appwrite. This caused 100% of AI tool calls to fail.
-- **Fix:**
-  - Created `scripts/setup_ai_credits_schema.cjs` — idempotent script that creates the `ai_credits` collection with all required attributes (`user_id` str-36 required, `daily_usage` int required default 0, `total_usage` int required default 0, `usage_date` str-10 required, `daily_limit` int optional) and a `user_id` ASC index.
-  - Added a new step to `.github/workflows/deploy-appwrite-hubs.yml` to run `setup_ai_credits_schema.cjs` before hub deployment, guaranteeing the collection exists.
-
----
-
-### Files Changed
-
-| File | Change | PR |
-|---|---|---|
-| `appwrite.json` | All 20 functions: `node-18.0` → `node-20.0` | #97 |
-| `appwrite-hubs/ai-gateway/src/main.js` | XFF rightmost-value fix (rate limiter IP spoofing) | #97 |
-| `appwrite-hubs/admin-impersonate/src/main.js` | Remove HMAC secret fallback; require explicit config | #97 |
-| `appwrite-hubs/wisehire-gateway/src/main.js` | DeepSeek-first provider pool ordering | #97 |
-| `.github/workflows/deploy-frontend.yml` | **Deleted** — Vercel handles deploys | #97 |
-| `src/lib/devkit/sourceHashes.generated.json` | Regenerated after hub code changes | #97 |
-| `scripts/setup_ai_credits_schema.cjs` | **New** — creates `ai_credits` Appwrite collection | #98 |
-| `.github/workflows/deploy-appwrite-hubs.yml` | Added `Ensure AI credits schema` step | #98 |
-| `src/lib/devkit/sourceHashes.generated.json` | Regenerated again after PR #97 merge conflict resolved | #98 |
-
----
-
-### Validation
-
-- `node --check appwrite-hubs/ai-gateway/src/main.js` → OK
-- `node --check appwrite-hubs/admin-impersonate/src/main.js` → OK
-- `node --check appwrite-hubs/wisehire-gateway/src/main.js` → OK
-- `node --check scripts/setup_ai_credits_schema.cjs` → OK
-- `node scripts/compute-source-hashes.mjs` → regenerated cleanly
-- `npx tsc --noEmit` → OK (no errors)
-- `npm run build` → OK
-- Vercel preview deploy: ✅ Ready on both PRs
-- Supabase: ✅ Skipped (no DB changes)
-
----
-
-### Commits / PRs
-
-| PR | Branch | Commits | Status |
-|---|---|---|---|
-| #97 | `fix/backend-audit-june-2026` | Multiple (Node 20, XFF fix, HMAC fix, provider ordering, remove old workflow, sourceHashes) | Merged to `main` |
-| #98 | `fix/ai-credits-schema` | Squashed → `5804510c` — `fix: add missing ai_credits schema (root cause of all AI tool failures)` | Merged to `main` |
-
----
-
-### Deployment State
-
-| Layer | State |
-|---|---|
-| Vercel (frontend) | Auto-deployed on merge of both PRs. Production is current. |
-| Appwrite Functions | **NOT yet redeployed with session changes.** Code is merged to `main` but the `deploy-appwrite-hubs` workflow has not been triggered. Production still runs pre-audit builds. |
-| `ai_credits` collection | **Does NOT exist yet in Appwrite.** Will be created when `deploy-appwrite-hubs` workflow runs. Until then, ALL AI tools continue to fail with 503. |
-
----
-
-### Ops Actions Required Before AI Tools Work
-
-1. **Trigger `deploy-appwrite-hubs` GitHub Actions workflow** manually:
-   - GitHub → Actions → `Deploy Appwrite Hubs` → `Run workflow` → branch `main`
-   - This creates the `ai_credits` collection AND redeploys all 20 functions with Node 20, updated routing, and security fixes.
-   - Estimated time: ~5–10 minutes.
-
-2. **Fix `VITE_TURNSTILE_SITE_KEY` in Vercel** — currently marked as "Sensitive", which prevents Vite from baking it into the JS bundle at build time. The CAPTCHA widget will not render until this variable is re-added **without** the Sensitive flag, followed by a redeploy.
-
----
-
-### Where We Stopped
-
-- PR #97 and PR #98 are both merged to `main`.
-- Appwrite deploy workflow has **not been triggered** — user must trigger it manually.
-- `ai_credits` collection does not exist in production yet — all AI tools remain broken until the workflow runs.
-- `VITE_TURNSTILE_SITE_KEY` is in Vercel but marked Sensitive — CAPTCHA not rendering. Needs re-add without Sensitive flag + redeploy.
-- No further code changes are needed. Both pending items are ops-only.
-
----
-
-## Session Log - 2026-06-10 (DeepSeek Routing, Prompt Slimming Timeout Fix, PDF Export, & Responsive Desktop Layout)
-
-### Overview
-Addressed the silent tailoring failure, Appwrite function timeouts, PDF export crashes, and vertical stretching of the loading progress overlay on desktop. Slimmed down the tailoring prompt schema by removing ~56 lines of non-essential metadata (ATS analysis, missing skills, etc.) to keep DeepSeek execution comfortably under Appwrite's 30-second execution wall. Reverted the temporary Groq-only hotfix to ensure DeepSeek remains the primary provider for all features. Redesigned the loading progress overlay into a desktop-native responsive grid layout to resolve vertical top-clipping and stretch. Aligned the dev-pdf-server port locally and optimized the headless chromium launch configurations in production (Vercel) to resolve PDF generation errors. Fixed job description caching on reload by excluding it from localStorage store persistence.
-
----
-
-### What Changed
-
-#### AI Gateway Hub — `appwrite-hubs/ai-gateway/src/main.js`
-- **DeepSeek Primary Routing**: Reverted the temporary Groq-only hotfix to ensure DeepSeek is used as the primary provider for all features, including `tailor-resume` and `resume-section-ai`, with fallback providers.
-- **Output Schema Slimming**: Removed non-essential metadata fields (`sectionScores`, `missingSkills`, `boostableSkills`, `jobParsed`, `atsAnalysis`, `interviewTalkingPoints`, `strengthsAnalysis`) from the tailoring prompt to drastically reduce token output size and prevent 30-second Appwrite gateway timeouts.
-- **Rules Enforcement**:
-  - Enforced STAR method achievement rewrites.
-  - Enforced ID preservation for experience, education, projects, certifications, and awards to prevent database alignment errors.
-  - Enforced honest pre/after match scores.
-- **Custom System Prompt**: Maintained distinct optimization guidelines for `light`, `moderate`, and `aggressive` tailoring intensities.
-- **Extended Token and Time Limits**:
-  - Set tailoring token limit to 4000 to keep responses prompt and lightweight.
-  - Extended tiered timeout logic to grant `tailor-resume` 28,000ms on all gateway attempts.
-
-#### PDF Export & Server — `api/export/pdf-native.ts` & `scripts/dev-pdf-server.mjs`
-- **Port Alignment**: Changed the default port in `dev-pdf-server.mjs` from `5003` to `5001` to align with the application's local API expectations (`VITE_API_URL`) and resolve local `PDFServerUnavailableError` failures.
-- **Chromium Launch Configurations**: Replaced hardcoded `headless: true` and `defaultViewport: null` in `pdf-native.ts` with helper properties `headless: chromium.headless` and `defaultViewport: chromium.defaultViewport` from `@sparticuz/chromium`. This prevents launcher crashes in newer Chromium packages deployed on Linux containers (Vercel).
-
-#### Frontend UI — `src/components/` & `src/store/`
-- **TailorProgress Grid Redesign**: Restructured `TailorProgress.tsx` to use a responsive grid: on desktop viewports (`min-width: 1024px`), the layout splits into two side-by-side columns (left: circular progress, message, estimated time, progress bar, rotating fun-fact box; right: progress checklist, stats preview, cancel button). This avoids the narrow single-column mobile layout stretching vertically on desktop.
-- **Progress Card Width Increase**: Updated `JobMatchProgressStage.tsx` and `job-match-workspace.css` to increase the progress card's maximum width from `32rem` to `52rem` on desktop screens.
-- **Responsive Desktop Layout**: Wrapped the Tailoring Hub workspace elements in left and right column divs, displaying them side-by-side in a responsive grid on desktop (`@media (min-width: 1024px)`) to resolve the narrow mobile-only appearance and make full use of screen real estate.
-- **Widened Result Page**: Increased `.jmw-result-content` max-width to `80rem` and adjusted column sizes to `minmax(0, 1fr) 24rem` on desktop for a cleaner and more readable layout.
-- **Centered Sticky CTA**: Centered the CTA primary button and capped its width to `32rem` on desktop to avoid stretching.
-- **Job Description Cache Fix**: Excluded `jobDescription` from `partialize` in `resumeStore.ts` to prevent the job description from being cached in localStorage across page refreshes and sessions.
-- **Progress Overlay Improvements**:
-  - Restructured `JobMatchProgressStage.tsx` to handle responsive sizing.
-  - Replaced the `my-auto` centering class with `mt-10 mb-20 shrink-0` to resolve vertical top-clipping issues.
-  - Swapped `text-warning-foreground` for `text-warning` in `TailorProgress.tsx` to fix contrast in dark mode.
-  - Unified history list in `JobMatchHistoryList.tsx` by merging Appwrite db logs with the local Zustand store.
-
----
-
-### Validation
-- Syntax check: `node --check appwrite-hubs/ai-gateway/src/main.js` -> OK
-- Routing unit tests: `node tests/hubs/ai-gateway-routing.test.cjs` -> ALL TESTS PASSED
-- TypeScript: `npx tsc --noEmit` -> OK (No errors)
-- Unit tests: `npm run test` -> Checked and passed locally
-- Build check: `npm run build` -> OK
-- Regenerated source hashes manifest to update `ai-gateway` hash representation.
-
----
+| File | Change |
+|------|--------|
+| `src/components/editor/ai/AICreditsIndicator.tsx` | Derive limit from plan |
+| `src/components/ai/CreditUsageSheet.tsx` | Derive limit from plan |
+| `src/components/settings/sections/AICreditsRow.tsx` | Derive limit from plan |
+| `src/components/dashboard/DashboardStatusPopover.tsx` | Derive limit from plan |
+| `src/components/dashboard/DashboardPlanBadge.tsx` | Blue styling for Pro |
+| `src/hooks/useProfile.ts` | Whitelist all portfolio fields |
+| `Project Atlas/CHANGELOG.md` | Added entry |
+| `Project Atlas/MASTER_HANDOVER_2026.md` | Added session log |
 
 ### Commits
-- Branch: `main`
-- Commits created in this session:
-  - `e420146e` — `fix(tailor): fix PDF export failures and redesign progress overlay layout for desktop`
-  - `12d2928e` — `docs(atlas): Sync Project Atlas with latest DeepSeek routing and responsive grid desktop layout changes`
-  - `fcec9e8b` — `fix(tailor): Premium side-by-side desktop layout and fix JD caching`
-  - `47025e6a` — `fix(tailor): Slim prompt schema for 30s limit + desktop layout breakpoints`
-  - `ddec17f5` — `fix(routing): DeepSeek as primary provider for ALL features, remove Groq-only hotfix`
-  - `52a06a9d` — `fix(tailor): Force groq routing for tailor-resume and fix progress overlay clipping`
-  - `69fe9bba` — `fix(tailoring): resolve gateway timeouts, overlay clipping, and missing history`
-  - `30b5487a` — `feat(ai-gateway): implement dedicated prompt pipeline and timeout for resume tailoring`
+- `1d9765c7` — fix(ai,portfolio): credit limits, Pro badge, portfolio save
+
+### Validation
+- `npx tsc --noEmit` — ✓ PASS
+- `npm run build` — ✓ PASS (49s)
 
 ---
 
-### Where We Stopped
-- Implementation, UI redesign, PDF export fixes, and DB history integration completed and verified locally.
-- Verified that all unit tests pass and compilation contains zero errors.
-- **Next steps for validation**:
-  - Deploy frontend to Vercel/production and verify PDF export function resolves successfully end-to-end.
-  - Trigger manual deployment for `ai-gateway` in GitHub Actions to make the DeepSeek schema changes and token limits live in production.
-  - Verify Tailoring Hub and progress screen layout responsiveness across mobile and desktop.
-
----
-
-## Session Log - 2026-06-08 (Project Atlas Visual Refactor — Editor, Upload, Tailoring Hub)
+## Session Log - 2026-06-16 (Resume Editor Autosave Persistence Fix)
 
 ### Overview
 
-Controlled visual refactor across three product surfaces, executed in one focused PR on branch `visual/project-atlas-editor-upload-tailor`. No backend, Appwrite, AI gateway, routing, or state management changes.
-
-Design system sources: `Project Atlas/design-system/production/` (tokens, component library, implementation guide). Visual reference: `Project Atlas/design-system/visual-reference/screens/` (upload.html, editor.html, tailor-results.html).
+Fixed TestSprite-reported bug where Professional Summary edits were not persisting after reload. The issue was that `SummarySection` only set `touched=true` on blur without triggering a cloud save, and the debounced autosave (1.5s-3s) could miss data on quick navigation. Created `EditorSaveContext` to expose `flushSave()` to child components, enabling immediate save on blur.
 
 ---
 
-### What Changed
+### Root causes identified and fixed
 
-#### Resume Editor — `editor-workspace.css`
+#### F1 — Professional Summary edits lost on reload
 
-| Element | Change |
-|---|---|
-| Section cards | Added `transition` for smooth hover; hover → deeper shadow + slightly stronger border |
-| Section card headers | Hover background shift for perceived depth |
-| Active nav rail indicator | Width 2px → 3px; added `box-shadow` glow on the primary left accent bar |
-| Preview paper | Layered 4-stop shadow for stronger document canvas depth |
-| Scroll container | Top padding 1.25→1.5rem; section gap 1rem→0.875rem (tighter, more document-like) |
+- **Root cause**: `SummarySection` called `updateResume({ summary: value })` on every change (updating Zustand), but `onBlur` only set `touched=true` without triggering cloud save. The debounced autosave in `useEditorAutosave` waited 1500ms (first save) or 3000ms (subsequent), allowing data loss if user navigated/reloaded immediately after editing.
+- **Fix**: 
+  - Created `EditorSaveContext` to expose `flushSave()` to descendant components
+  - Added `flushSave()` function to `useEditorAutosave` that clears debounce and saves immediately
+  - `SummarySection` now calls `editorSave.flushSave()` on blur
+  - `EditorPage` wraps content with `EditorSaveProvider`
+- **Impact**: Summary edits are flushed to Appwrite immediately on blur, preventing data loss while maintaining debounced autosave for normal typing flow.
 
-#### Upload Flow — `UploadPage.tsx`
+---
 
-| Element | Change |
-|---|---|
-| Desktop hero | Added eyebrow pill + h1 + sub-copy above upload zone (hidden on mobile via `lg:flex`) |
-| Upload zone icon | Circle → `rounded-2xl` with crimson glow shadow; spring rotation on drag |
-| Format chips | `PDF / Word / Image / JSON / HTML` chips replace plain text list |
-| Headline copy | "Upload your resume" → "Upload your resume" (kept) with `text-lg font-bold tracking-tight` |
-| URL import card | Icon-labeled header (`div.w-7.h-7.rounded-lg.bg-primary/10`), improved helper copy |
-| Tips section | Sparkles icon header; list uses `array.map` instead of duplicate JSX |
-| Desktop layout | `lg:py-10` page container; content column `lg:max-w-lg lg:mx-auto` |
+### Changed files (this session)
 
-#### Tailoring Hub — `job-match-workspace.css`
-
-| Element | Change |
-|---|---|
-| Result page background | Stronger two-stop radial gradient for success atmosphere |
-| Download format buttons | `rounded-1rem`, `translateY(-1px)` lift on hover, press scale, richer active ring |
-| History items | `rounded-1rem`; `::before` left accent bar animates in on hover |
-| Progress overlay card | `rounded-1.5rem`; deeper 4-stop shadow; inset top highlight |
-| Download studio header | Stronger inset border + layered shadow |
+| File | Change |
+|------|--------|
+| `src/contexts/EditorSaveContext.tsx` | **New** — Context providing `flushSave()` to editor child components |
+| `src/hooks/useEditorAutosave.ts` | Added `flushSave()` and `onRegisterFlush` callback |
+| `src/pages/EditorPage.tsx` | Wrapped editor with `EditorSaveProvider`; registered flush function |
+| `src/components/editor/SummarySection.tsx` | Calls `flushSave()` on blur to persist changes |
+| `Project Atlas/CHANGELOG.md` | Added changelog entry |
+| `Project Atlas/MASTER_HANDOVER_2026.md` | Added session log (this entry) |
 
 ---
 
 ### Validation
 
-- `npx tsc --noEmit` — clean (no errors)
-- `npm run build` — succeeded (49s, same pre-existing chunk size warnings)
-- `npx vitest run ...useCompanyBriefingLibrary.test.ts` — 3/3 passed
-- No new lint errors introduced
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npm run build` | ✓ PASS (1m 3s) |
+
+---
+
+### Commits created (this session)
+
+(To be filled after commit)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ⏳ Pending | Auto-deploy from `main` push | No Appwrite Hub changes |
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Uncommitted changes on `main` — awaiting deployment.
+- **Appwrite Functions**: Unchanged.
+- **Local repo**: Uncommitted changes on `main`.
+
+---
+
+### Where We Stopped
+
+Resume Editor autosave persistence fix complete. TypeScript passing, build successful. Summary edits now flush to cloud on blur. Ready to commit and push.
+
+**To complete:**
+1. Commit and push changes for Vercel auto-deploy
+2. Re-run TestSprite editor test to verify fix
+
+---
+
+## Session Log - 2026-06-16 (Portfolio Security Remediation & Appwrite Hubs Deployment Fix)
+
+### Overview
+
+Completed comprehensive security remediation for public portfolio feature and fixed GitHub Actions deployment workflow to enable proper function deployment.
+
+**Security Remediation:**
+1. Eliminated browser-side `password_hash` exposure risk
+2. Moved all portfolio data reads to server-side Appwrite functions
+3. Fixed fail-open security behavior (now fails closed)
+4. Implemented timing-safe token comparison
+5. Restored backward-compatible API response shapes
+
+**Deployment Workflow Fix:**
+1. Added missing functions to `scripts/compute-source-hashes.mjs` HUBS array
+2. Added missing functions to `scripts/deploy_hubs.cjs` HUBS array
+3. Added `PORTFOLIO_JWT_SECRET` to GitHub Actions env vars
+4. Added variable provisioning for new functions
+
+---
+
+### Root Causes & Fixes
+
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| **Password hash exposure** | `usePublicPortfolio.ts` directly read `portfolio_settings` collection | Created `portfolio-gate` and `get-public-portfolio` server functions |
+| **Fail-open security** | Settings read errors defaulted `passwordEnabled = false` | Changed to `passwordEnabled = true` (fail closed) |
+| **UI breaking change** | New server function returned different profile shape | Restored old `PublicProfile` interface with camelCase fields |
+| **Resume null crashes** | `resume` could be `null` | Return `emptyResume` default object instead |
+| **Workflow failure** | New functions not in `HUBS` arrays, causing hash manifest mismatch | Added to both `compute-source-hashes.mjs` and `deploy_hubs.cjs` |
+| **Missing env vars** | `PORTFOLIO_JWT_SECRET` not in workflow | Added to `.github/workflows/deploy-appwrite-hubs.yml` |
 
 ---
 
 ### Files Changed
 
-| File | Type |
-|---|---|
-| `src/components/editor/editor-workspace.css` | CSS only |
-| `src/components/job-match/job-match-workspace.css` | CSS only |
-| `src/pages/UploadPage.tsx` | JSX visual changes only (no logic/state/handler changes) |
-| `Project Atlas/CHANGELOG.md` | Docs |
-| `Project Atlas/MASTER_HANDOVER_2026.md` | Docs |
+| File | Change |
+|------|--------|
+| `appwrite-hubs/portfolio-gate/src/main.js` | New function — safe gate info without password hash exposure |
+| `appwrite-hubs/get-public-portfolio/src/main.js` | New function — sanitized portfolio with password protection, fail-closed security |
+| `appwrite-hubs/verify-portfolio-password/src/main.js` | New function — server-side password verification |
+| `appwrite-hubs/portfolio-gate/package.json` | Standard node-appwrite dependency |
+| `appwrite-hubs/get-public-portfolio/package.json` | Standard node-appwrite dependency |
+| `appwrite-hubs/verify-portfolio-password/package.json` | Standard node-appwrite dependency |
+| `appwrite.json` | Function definitions for 3 new portfolio functions |
+| `src/hooks/usePublicPortfolio.ts` | Rewritten to use server functions only, no direct DB reads |
+| `.github/workflows/deploy-appwrite-hubs.yml` | Added `PORTFOLIO_JWT_SECRET` env var |
+| `scripts/compute-source-hashes.mjs` | Added `portfolio-gate`, `get-public-portfolio`, `verify-portfolio-password` to HUBS array |
+| `scripts/deploy_hubs.cjs` | Added 3 functions to HUBS array + `ensurePortfolioGateVariables()`, `ensureGetPublicPortfolioVariables()`, `ensureVerifyPortfolioPasswordVariables()` |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated with new function hashes |
 
 ---
 
-### Deployment
+### Commits Created
 
-- **Vercel**: auto-deploys on merge (frontend-only change; preview URL available on PR)
-- **Appwrite**: NOT deployed, NOT triggered
-- **AI Gateway**: unchanged
-- **Backend/auth/routing**: unchanged
-
----
-
-### Manual Visual QA Needed (after PR merge)
-
-1. **Resume Editor**: Review section card hover states, nav rail active indicator, preview paper depth on both light and dark themes
-2. **Upload Page**: Check desktop hero layout on ≥1024px; confirm upload zone icon looks good on both light/dark; confirm format chips render correctly
-3. **Tailoring Hub**: Check history item left accent bar; check download format button hover/active states; check result page atmosphere
-4. **Mobile**: All three screens — ensure no layout regressions on small viewports
+| Commit | SHA | Message |
+|--------|-----|---------|
+| Portfolio Security | `7cf50a5b` | security: complete server-side portfolio security |
+| Fail-Closed Fix | `eb6d2f20` | security: fix fail-open behavior - assume password protected if settings read fails |
+| Deployment Workflow | `ec404dc3` | ci: fix Appwrite Hubs deployment workflow for new portfolio functions |
 
 ---
 
-### Future QA Still Pending (from prior sessions)
+### Validation
 
-- Company Briefing Save — blocked until `setup_company_briefings_schema.cjs` is run with API key
-- Tailoring Hub exports (PDF/ATS/DOCX) — fixed in PR #83, needs manual end-to-end QA
-- Tailoring lineage/history — needs `setup_tailoring_lineage_schema.cjs` applied
+| Check | Result |
+|-------|--------|
+| `node --check deploy_hubs.cjs` | ✅ PASS |
+| `node --check portfolio-gate/src/main.js` | ✅ PASS |
+| `node --check get-public-portfolio/src/main.js` | ✅ PASS |
+| `node --check verify-portfolio-password/src/main.js` | ✅ PASS |
+| `node --check public-share/src/main.js` | ✅ PASS |
+| `npx tsc --noEmit` | ✅ PASS |
+| `npm run build` | ✅ PASS |
 
 ---
 
-### Commits / PRs
+### Current Deployment State
 
-- Commit `7b088c1` — `refactor(ui): apply Project Atlas editor upload and tailoring polish`
-- Branch: `visual/project-atlas-editor-upload-tailor`
-- **PR #86 merged to `main`** after visual review approval
-- Vercel production redeployed automatically on merge
+**Vercel (Frontend):**
+- Status: Auto-deployed from `main`
+- Commit: `ec404dc3`
 
-### CI Results (PR #86)
+**Appwrite Functions:**
+- Status: Not yet deployed (workflow ready)
+- Missing functions: `portfolio-gate`, `get-public-portfolio`, `verify-portfolio-password`
+- To deploy: Run GitHub Actions workflow `Deploy Appwrite Hubs` with target `portfolio-gate,get-public-portfolio,verify-portfolio-password`
 
-| Check | Status |
-|---|---|
-| Vercel | ✅ Ready |
-| Appwrite | ✅ Ready (AI Gateway Hub built) |
-| Supabase | ✅ Skipped (no DB changes) |
+---
 
 ### Where We Stopped
 
-- **PR #86 merged to `main`**.  Visual refactor is live in production.
-- No further action needed on this change.
-- Next priority: apply Appwrite schema scripts (see post-tailoring-hub session below).
+Portfolio security remediation and deployment workflow fixes complete. All code committed and pushed.
+
+**Prerequisites for Appwrite function deployment:**
+1. Add `PORTFOLIO_JWT_SECRET` to GitHub repository secrets (required by `get-public-portfolio`)
+2. Run workflow `Deploy Appwrite Hubs` with target: `portfolio-gate,get-public-portfolio,verify-portfolio-password`
+
+**Post-deployment QA required:**
+- Public portfolio (logged out) — password gate should appear if protected
+- Protected portfolio — correct password should unlock, wrong password should reject
+- Network tab — verify no `password_hash` or `portfolio_settings` in responses
+- AI credits — verify plan-based limits (Free=5, Pro=50)
+- Editor autosave — verify flush on blur
 
 ---
 
-## Session Log - 2026-06-08 (Post-Tailoring-Hub cleanup — Company Briefing save + Tailoring lineage schema)
+## Session Log - 2026-06-16 (E2E Fixes: Tailoring Result Route)
 
 ### Overview
 
-Post-merge cleanup after PR #83 (PreviewPage auto-export fix, merged to `main` at commit `d28b81781542af2b817b8edb36f89969f7e00f50`). This session prepared the two remaining Appwrite schema blockers as idempotent scripts, wired them into the deploy workflow, fixed frontend error detection for the live permission error, and updated project documentation.
-
-**No Appwrite schema was applied in this session** (no `APPWRITE_API_KEY` available in this environment). The schema scripts are ready; they auto-run on the next manual `deploy-appwrite-hubs` workflow dispatch.
+Fixed E2E test failure where `/tailor/result/:id` returned 404. Added route alias so both `/tailoring-hub/result/:id` and `/tailor/result/:id` resolve to `TailoringHubResultPage`. Created test fixtures for public portfolio E2E tests. Frontend-only fix — no Appwrite Hub deployment required.
 
 ---
 
-### What was fixed (production impact)
+### Root causes identified and fixed
 
-#### Frontend error detection — Company Briefing Save
+#### F1 — `/tailor/result/:id` returned 404
 
-- **File**: `src/hooks/useCompanyBriefingLibrary.ts`
-- **Problem**: The live error `No permissions provided for action 'create'` was not matched by the existing keyword list, so users saw a generic "Failed to save briefing" toast with no actionable guidance.
-- **Fix**: Extended `toCompanyBriefingSaveErrorMessage` to detect permission-class errors (`no permissions provided`, `not authorized`, `missing scope`, `permission`). Now maps to the schema help message with instructions to apply the setup script.
-- **Also**: Added explicit per-document owner permissions (`Permission.read/update/delete(Role.user(userId))`) to the `createDocument` call so each saved briefing is immediately readable and deletable by the owner after the collection-level create permission is granted.
-- **Also**: `Permission` and `Role` are now exported from `src/lib/appwrite.ts`.
+- **Root cause**: The route was defined as `/tailoring-hub/result/:resumeId` but the E2E test (and user bookmarks/links) accessed `/tailor/result/:id`.
+- **Fix**: Added `/tailor/result/:resumeId` as a route alias in `AppInterior.tsx` pointing to the same `TailoringHubResultPage` component.
+- **Impact**: Both URLs now work; existing `/tailoring-hub/result/:id` links remain valid.
 
-#### Test coverage
+#### F2 — Missing public portfolio test fixtures
 
-- **File**: `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
-- Added test: `maps the live create-permission error to the schema action message` (2 cases: `No permissions provided for action 'create'` and `The current user is not authorized...`).
-- Total: 3 tests, all passing.
-
----
-
-### What was only prepared (not applied — schema NOT yet in Appwrite)
-
-#### 1. `scripts/setup_company_briefings_schema.cjs`
-
-Idempotent script for the `company_briefings` collection (collection already exists, do not recreate):
-
-- Attributes (all non-required for migration safety): `user_id` (string 36), `company_name` (string 256), `briefing` (string 65535)
-- Index: `user_id_idx` key on `['user_id']` ASC — required by `Query.equal('user_id', ...)` in `useCompanyBriefingLibrary`
-- Permission update: adds `Permission.create(Role.users())` + `documentSecurity: true` if absent, preserving existing permissions
-
-**To apply**: `APPWRITE_API_KEY=<key> node scripts/setup_company_briefings_schema.cjs`
-
-#### 2. `scripts/setup_tailoring_lineage_schema.cjs`
-
-Idempotent script for `tailor_history` and `resumes` collections (both already exist):
-
-- `tailor_history`: `tailored_resume_id` (string 36, not required) + `tailored_resume_id_idx` index — actively queried in `TailoringHubResultPage.tsx`
-- `resumes`: optional lineage fields — `parent_resume_id` (str 36), `is_master` (bool), `target_job_title` (str 256), `target_company` (str 256), `job_url` (str 2048), `job_match_score` (int) — all non-required, not written by current write path, can be added safely
-
-**To apply**: `APPWRITE_API_KEY=<key> node scripts/setup_tailoring_lineage_schema.cjs`
-
-#### 3. `.github/workflows/deploy-appwrite-hubs.yml`
-
-Added two steps before "Deploy Appwrite hubs" that run the above scripts. Workflow stays `workflow_dispatch`-only — these steps did NOT run and will NOT run on PR merge. They auto-run on the next manual dispatch.
+- **Root cause**: E2E tests for public portfolios had no test data — no public usernames/passwords existed in the database.
+- **Fix**: Created `portfolio-test-fixtures.ts` seed script to create three test portfolios:
+  - `testportfolio` — public portfolio (no password)
+  - `testprotected` — password-protected (password: `testpass123`)
+  - `testedgecase` — portfolio with unusual/malformed data for defensive testing
 
 ---
 
-### Validation performed
-
-- `node --check scripts/setup_company_briefings_schema.cjs` — OK
-- `node --check scripts/setup_tailoring_lineage_schema.cjs` — OK
-- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts` — 3/3 passed
-- `npx tsc --noEmit` — clean
-- `npm run build` — succeeded
-- `git diff` — only the 7 files listed below; no secrets present
-
----
-
-### Files changed
+### Changed files (this session)
 
 | File | Change |
-|---|---|
-| `scripts/setup_company_briefings_schema.cjs` | NEW — idempotent schema script |
-| `scripts/setup_tailoring_lineage_schema.cjs` | NEW — idempotent schema script |
-| `.github/workflows/deploy-appwrite-hubs.yml` | Wire both scripts into dispatch workflow |
-| `src/lib/appwrite.ts` | Export `Permission`, `Role` |
-| `src/hooks/useCompanyBriefingLibrary.ts` | Extend error detection; add document permissions |
-| `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts` | Add permission-error test |
-| `Project Atlas/CHANGELOG.md` | Add dated entry |
+|------|--------|
+| `src/AppInterior.tsx` | Added `/tailor/result/:resumeId` route alias |
+| `Project Atlas/CHANGELOG.md` | Added changelog entry |
+| `Project Atlas/MASTER_HANDOVER_2026.md` | Added session log |
+| `tests/e2e/fixtures/portfolio-test-fixtures.ts` | **New** — Test fixture seed script for public portfolios |
+| `tests/e2e/fixtures/.env.test.example` | **New** — Environment template for fixture script |
+| `tests/e2e/fixtures/README.md` | **New** — Documentation for test fixtures |
 
 ---
 
-### Deployment state after this session
+### Validation
 
-- **Vercel (frontend)**: auto-deploys on merge. The frontend error-handling improvement is the only runtime change; no export or AI behavior change.
-- **Appwrite Functions**: NOT deployed. Schema scripts not applied. Will auto-run on next manual `deploy-appwrite-hubs` dispatch.
-- **Hubs workflow**: NOT triggered. Stays `workflow_dispatch`-only.
-
----
-
-### Future testing (after schema is applied)
-
-1. Apply `setup_company_briefings_schema.cjs` with valid API key; verify attributes/index/permissions in Appwrite Console.
-2. Apply `setup_tailoring_lineage_schema.cjs`; verify in Console.
-3. Company Briefing: generate briefing → save → confirm appears in library → delete.
-4. Tailoring Hub: submit tailoring job → result page → Designed PDF / ATS PDF / Word DOCX buttons (fresh tab + modal).
-5. Confirm `tailor_history` doc has `tailored_resume_id` populated for new jobs.
-6. Regression: AI Gateway unchanged; resume CRUD unchanged.
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npm run build` | ✓ PASS (1m 51s) |
 
 ---
 
-### Commits / PRs
+### Commits created (this session)
 
-- Commit `cdad933` — `fix(appwrite): prepare Company Briefing save + Tailoring lineage schema (#84)`
-- Branch: `fix/company-briefing-lineage-schema`
-- **PR #84 merged to `main`**
+| Commit | SHA | Message |
+|--------|-----|---------|
+| E2E fixes | `ddbd946a` | `fix(e2e): add /tailor/result route alias and portfolio test fixtures` |
+
+6 files changed, 551 insertions(+), 1 deletion(-)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ✓ Ready | Auto-deploy from `main` push | No Appwrite Hub changes |
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Deployed from `ddbd946a` — auto-deployed after push.
+- **Appwrite Functions**: Unchanged.
+- **Local repo**: Synced with `origin/main` at `ddbd946a`.
+- **Working tree**: Clean.
+
+---
 
 ### Where We Stopped
 
-- PR #84 merged. Schema scripts prepared but **not yet applied** (no API key in session).
-- Immediately after merge, a separate hotfix was required (see PR #85 below).
-- Schema application and post-schema QA remain as the top priority for the next session.
+**Tailoring result route:**
+- Route alias `/tailor/result/:resumeId` added to `AppInterior.tsx`
+- Commit `ddbd946a` pushed, Vercel auto-deploy triggered
+- Both `/tailoring-hub/result/:id` and `/tailor/result/:id` now work
+
+**Public Portfolio test fixtures:**
+- Created seed script in `tests/e2e/fixtures/portfolio-test-fixtures.ts`
+- **Next step**: Run `npx tsx tests/e2e/fixtures/portfolio-test-fixtures.ts` with production Appwrite credentials to seed test data
+- E2E tests can then use:
+  - `testportfolio` — public portfolio (no password)
+  - `testprotected` — password-protected (password: `testpass123`)
+  - `testedgecase` — unusual/malformed data
+
+**To complete:**
+1. Run fixture seed script against production database (requires `APPWRITE_API_KEY`)
+2. Update E2E tests to use fixture credentials from `TEST_FIXTURES`
+3. Re-run E2E test suite to verify fixes
 
 ---
 
-## Session Log - 2026-06-08 (Hub Deploy Hotfix — MariaDB Index Key-Length Soft-Fail)
+## Session Log - 2026-06-15 (Claude Design Screenshot Extraction Pack)
 
 ### Overview
 
-After PR #84 merged, the `deploy-appwrite-hubs` workflow was triggered manually and failed. Root cause diagnosed and fixed as a separate hotfix PR (#85) on branch `fix/appwrite-hub-index-softfail`.
+Read-only session. Captured 14 real UI screenshots from the local dev server for use as Claude Design redesign input. No app code, backend, routes, APIs, Appwrite functions, deployments, or git history were changed. All output is in `Project Atlas/claude-design-extraction/`.
 
 ---
 
-### Root Cause
+### What was done
 
-Appwrite 1.9.x uses MariaDB InnoDB COMPACT row format which has a **767-byte index key limit**. The `briefing` attribute was set to `string(65535)`, meaning `65535 × 4 bytes/char (utf8mb4) = 262 KB`, which exceeds the limit by an extreme margin. When the hub workflow ran `setup_company_briefings_schema.cjs`, Appwrite returned error type `index_invalid` (code 400) and the script called `process.exit(1)`, failing the entire deploy step.
+#### Playwright setup
+- Confirmed `playwright@^1.59.1` and `puppeteer@^24.42.0` already in `package.json`.
+- Playwright Chromium browser (v1217, 179 MB) was not yet downloaded — installed via `npx playwright install chromium`. Dev-tool only, no app dependency added.
+- Dev server started from `Y:\WiseResume-TWC` (main project root, which holds `.env.local` and `node_modules`) on port 5000.
+
+#### Capture script
+- Created `Project Atlas/claude-design-extraction/capture.mjs` — a self-contained Playwright script.
+- Launches a visible (non-headless) Chromium window so the user can log in manually if needed.
+- Detects auth state automatically; pauses with a console prompt if login is required.
+- Navigates to the editor by clicking the real "Edit" button on the first resume card (to properly set Zustand state), then falls back to direct `/editor` navigation if the button is not visible at the current viewport.
+- Attempts to open AI enhance, export, and import dialogs by selector and role-based lookup; falls back to current page state if not reachable.
+- Captures at 2× device scale factor (retina quality PNG).
+- Desktop viewport: 1440×1100. Mobile viewport: 390×844.
+
+#### Files created (all under `Project Atlas/claude-design-extraction/`)
+
+| File | Purpose |
+|------|---------|
+| `capture.mjs` | Reusable Playwright capture script |
+| `screenshots/` | 14 PNG screenshots (see table below) |
+| `SCREENSHOT_INDEX.md` | Per-screenshot annotations and redesign notes for Claude Design |
+| `CLAUDE_DESIGN_BRIEF.md` | Full design brief: what WiseResume is, target feeling, what to redesign, constraints, priority order |
 
 ---
 
-### What Changed
+### Screenshot inventory
+
+| # | Filename | Size | Quality | Notes |
+|---|----------|------|---------|-------|
+| 01 | `01-dashboard-desktop.png` | 929 KB | ✓ Real data | Full dashboard layout, resume cards, AI panel |
+| 02 | `02-dashboard-mobile.png` | 234 KB | ✓ Real data | Mobile layout, stacked cards |
+| 03 | `03-settings-desktop.png` | 857 KB | ✓ Real data | Full settings page |
+| 04 | `04-settings-mobile.png` | 251 KB | ✓ Real data | Mobile settings |
+| 05 | `05-editor-desktop.png` | 693 KB | ✓ Real resume | Opened via card Edit button click |
+| 06 | `06-editor-mobile.png` | 223 KB | ✓ Real resume | Direct /editor nav (Zustand had resume from step 05) |
+| 07 | `07-tailoring-hub-desktop.png` | 556 KB | ✓ Real UI | Tailoring Hub input state |
+| 08 | `08-tailoring-hub-mobile.png` | 173 KB | ✓ Real UI | Mobile tailoring hub |
+| 09 | `09-tailoring-result-desktop.png` | 556 KB | ⚠ Placeholder | No prior tailoring result in session — shows Hub input |
+| 10 | `10-tailoring-result-mobile.png` | 172 KB | ⚠ Placeholder | Same |
+| 11 | `11-ai-enhance-popup-summary.png` | 705 KB | ✓ Panel open | AI enhance panel triggered from editor |
+| 12 | `12-ai-output-sheet.png` | 697 KB | ⚠ Editor state | AI output sheet not auto-reachable without live API call |
+| 13 | `13-export-popup.png` | 561 KB | ✓ Dialog open | Export/download dialog open |
+| 14 | `14-import-job-popup.png` | 905 KB | ✓ Dialog open | Import Job / Paste Job dialog open |
+
+---
+
+### Constraints respected
+
+- Zero app code changes.
+- Zero backend, route, API, state, AI logic, database, or Appwrite hub changes.
+- Zero commits, pushes, deploys, or environment variable changes.
+- Dev server run from main project root (`Y:\WiseResume-TWC`), not the worktree.
+- Playwright browser download is a local dev-tool install only (`~/.local/ms-playwright`).
+
+---
+
+### Known gaps / follow-up options
+
+1. **Screenshots 09 + 10 (Tailoring Result)** — Require a previously generated tailoring result to exist in the session. To re-capture: run one tailoring job manually, then re-run `capture.mjs` — the script will auto-detect the result URL from the dashboard.
+2. **Screenshot 12 (AI output sheet)** — The output state (after AI returns content) requires a live AI API call. Cannot be automated without triggering real AI. Capture manually after running an enhancement.
+3. **Placeholder script is reusable** — `capture.mjs` can be re-run at any time to refresh screenshots after UI changes. No setup required beyond the dev server being up.
+
+---
+
+### Current production/deployment state
+
+Unchanged — no deployments performed this session.
+
+- **Frontend (Vercel)**: `fe78e57c` — deployed by prior auth fix session.
+- **Appwrite ai-gateway**: hash `99ef900da5c8be27` — unchanged.
+- **Working tree**: Clean (no code changes this session).
+
+---
+
+### Where We Stopped
+
+Screenshot extraction pack complete — 14 PNGs in `Project Atlas/claude-design-extraction/screenshots/`, index and brief ready for Claude Design input. Auth false claim-account bug (prior session) is fixed and deployed.
+
+**Known follow-ups:**
+- TestSprite rerun (7 scenarios — Tailoring Hub, Portfolio, Dashboard).
+- Screenshots 09/10 (Tailoring Result) and 12 (AI output sheet) are placeholders — need a real tailoring result and live AI call respectively to recapture.
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to recent sessions.
+- WiseHire email domain (`thewise.cloud` vs `wiseresume.app`) pending brand ownership confirmation.
+
+---
+
+## Session Log - 2026-06-15 (Auth: Fix False Claim-Account Login State)
+
+### Overview
+
+Fixed critical auth bug where failed login attempts incorrectly showed "Claim Your Account" for normal users. Removed client-side profile email lookup during login error handling. Added proper URL mode parameter handling for signup/login view switching. Frontend-only fix — no Appwrite Hub deployment required.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — False "Claim Your Account" state on normal login failure
+
+- **Root cause**: `handleLogin` in `AuthPage.tsx` caught any failed `createEmailPasswordSession()` and queried the `profiles` collection by email. If a profile existed, it switched to `claim-account` view with message "Account found! Since we updated our system, please set a new password."
+- **Why this was wrong**: A profile existing by email does NOT prove the account is migrated or needs claiming. Normal working accounts could hit temporary login failures (typo, session issue, Appwrite issue) and then be shown the claim-account screen incorrectly.
+- **Security concern**: Client-side email enumeration via profiles query — allowed checking if any email had a profile in the database.
+- **Fix**: Removed the entire `profiles` collection query from login error handling. Login failures now show clear message: "Invalid email or password. You can reset your password if needed." User stays on login form with Forgot Password link available.
+- **Fix**: Removed unused imports (`databases`, `DATABASE_ID`, `Query`) from appwrite import.
+- **Note**: `claim-account` view UI was kept in code (not triggered) in case a proper backend signal is added later for true migration cases.
+
+---
+
+#### F2 — Missing URL mode parameter handling
+
+- **Root cause**: `/auth?mode=signup` and `/auth?mode=login` did not automatically switch views. The page always defaulted to login view regardless of URL parameter.
+- **Fix**: Added `useEffect` that reads `mode` from `searchParams` and sets view accordingly: `mode=signup` → register view, `mode=login` or missing → login view.
+
+---
+
+### Changed files (this session)
 
 | File | Change |
-|---|---|
-| `scripts/setup_company_briefings_schema.cjs` | `ensureIndex()` now catches `index_invalid` errors and warns instead of exiting; `briefing` attribute size reduced 65535 → 16384 |
-| `scripts/setup_tailoring_lineage_schema.cjs` | Same defensive `ensureIndex()` soft-fail pattern applied |
+|------|--------|
+| `src/pages/AuthPage.tsx` | Removed false claim-account inference logic; removed profiles collection query; removed unused imports; added mode param handling useEffect |
 
-**Key code pattern added to both scripts:**
+---
 
-```js
-} catch (e) {
-  if (e.type === 'index_invalid' || String(e.message).toLowerCase().includes('index length')) {
-    console.warn(`⚠ index "${key}" skipped — ${e.message} (query still works, no index)`);
-    return;
-  }
-  throw e;
+### Validation
+
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npm run build` | ✓ PASS (2m 4s) |
+
+---
+
+### Commits created (this session)
+
+| Commit | SHA | Message |
+|--------|-----|---------|
+| Auth fix | `fe78e57c` | `fix(auth): prevent false claim-account login state` |
+
+1 file changed, 12 insertions(+), 15 deletions(-)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ✓ Ready | Auto-deploy from `main` push | No Appwrite Hub changes |
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Deployed from `fe78e57c` — auto-deployed after push.
+- **Appwrite Functions**: Unchanged.
+- **Working tree**: Clean.
+
+---
+
+### Where We Stopped
+
+Auth false claim-account bug fixed and deployed. Login flow now shows clear error message on failure. URL mode parameters work correctly for signup/login switching.
+
+**Auth flow status:**
+- Valid login: ✓ Works
+- Invalid password: ✓ Shows clear error, stays on login
+- `/auth?mode=signup`: ✓ Opens signup form
+- `/auth?mode=login`: ✓ Opens login form
+- `/sign-in`: ✓ Opens login form (route mapped in AppInterior.tsx)
+- Forgot password: ✓ Opens reset view
+- Reset password page: ✓ Validates userId/secret correctly
+- Email verification: ✓ Working (unchanged)
+- Protected routes: ✓ Redirects signed-out users to auth
+- Claim Account: Disabled (no false trigger)
+
+**Known follow-ups:**
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to auth.
+- WiseHire email domain (`thewise.cloud` vs `wiseresume.app`) still pending brand ownership confirmation.
+
+---
+
+## Session Log - 2026-06-14 (QA Fixes: Tailoring Hub, Portfolio, Dashboard)
+
+### Overview
+
+Frontend QA regression fixes. Fixed Tailoring Hub generation failure, Public Portfolio crashes, added Dashboard "New Resume" CTA, `/tailoring` redirect, and defensive data normalization. Appwrite `ai-gateway` function updated and deployed. All changes committed and pushed to `main`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — Tailoring Hub generation failed with "No meaningful changes detected"
+
+- **Root cause**: `tailor-resume` feature in `appwrite-hubs/ai-gateway/src/main.js` used a generic structured AI prompt that only instructed the AI to "Return ONLY valid JSON matching this schema" without telling it to actually tailor/rewrite the resume content. The AI received resume + job description but wasn't instructed to rewrite.
+- **Fix**: Added dedicated `tailor-resume` branch in `buildMessages()` before the generic `STRUCTURED_AI_FEATURES` handler. New prompt explicitly instructs AI to: rewrite professional summary for target job, optimize skills with relevant keywords, improve experience bullets with action verbs and metrics, align education/projects, and generate meaningful `keyChanges` with before/after comparisons.
+- **Schema compatibility**: Verified `normalizeStructuredFeatureData()` handles all expected fields (`summary`, `skills`, `experience`, `education`, `projects`, `certifications`, `awards`, `keyChanges`, `overallScore`, etc.).
+- **Tests added**: `tests/hubs/ai-gateway-routing.test.cjs` — 5 tests verifying dedicated branch exists, precedes generic handler, contains explicit tailoring instructions, schema compatibility, and `extracted_prompts.json` consistency.
+- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `appwrite-hubs/ai-gateway/src/extracted_prompts.json`
+
+---
+
+#### F2 — Public Portfolio crashed with `TypeError: xe.filter is not a function`
+
+- **Root cause**: Appwrite occasionally returns `null`, `undefined`, or objects instead of arrays for optional resume fields (`experience`, `education`, `skills`, `projects`, etc.). Frontend called `.filter()` without `Array.isArray()` guards.
+- **Fix A**: Added `Array.isArray()` guards in `PublicSections.tsx` (9 locations: experience, education, testimonials, services, highlights, caseStudies, certifications, navSections, skills).
+- **Fix B**: Added guards in `PublicPortfolioPage.tsx` (3 locations: experience, education, skills/projects in `allSkills` calculation, navOrder).
+- **Fix C**: Added `normalizeArray<T>()` helper in `usePublicPortfolio.ts` to normalize all resume fields: returns `[]` for null/undefined/non-array, parses JSON strings that look like arrays, returns valid arrays as-is.
+- **Fix D**: Added guards in `skillCloud.ts` `computeSkillFrequencies()` for experience and projects parameters.
+- **Tests added**: `PublicSections.test.tsx` — 5 defensive tests for null/undefined/object handling; `usePublicPortfolio.test.tsx` — 1 test for `normalizeArray` with malformed data (null, object, JSON string).
+- **Files**: `src/components/portfolio/public/PublicSections.tsx`, `src/pages/PublicPortfolioPage.tsx`, `src/hooks/usePublicPortfolio.ts`, `src/lib/skillCloud.ts`
+
+---
+
+#### F3 — Dashboard missing visible "Create Resume" CTA when resumes exist
+
+- **Root cause**: Dashboard only showed "Create Resume" via `DashboardHero` when user had 0 resumes. No visible button when resumes already existed.
+- **Fix**: Added "New Resume" button with `Plus` icon in workspace toolbar (line 947-959 in `DashboardPage.tsx`). Uses `hidden sm:flex` for responsive visibility. Opens existing `CreateResumeDialog` via `setShowCreateDialog(true)`. Button has `aria-label="Create new resume"`.
+- **Tests added**: `src/pages/__tests__/DashboardPage-CTA.test.tsx` — 4 focused tests: button renders with accessible label, calls callback when clicked, has correct role, source contains implementation.
+- **File**: `src/pages/DashboardPage.tsx`
+
+---
+
+#### F4 — `/tailoring` route returned 404
+
+- **Root cause**: Canonical route is `/tailoring-hub`, but old links/tests referenced `/tailoring`. No redirect existed.
+- **Fix**: Added `<Route path="/tailoring" element={<Navigate to="/tailoring-hub" replace />} />` in `AppInterior.tsx` routes configuration.
+- **Tests added**: `src/pages/__tests__/TailoringRedirect.test.tsx` — 1 test verifying redirect to `/tailoring-hub`.
+- **File**: `src/AppInterior.tsx`
+
+---
+
+#### F5 — Old domain references in user-facing emails
+
+- **Root cause**: ErrorBoundary crash report emails still pointed to `contact@thewise.cloud`. WiseHire emails also had old domain.
+- **Classification**:
+  - `ErrorBoundary.tsx`: **USER_FACING_STALE** — changed to `contact@wiseresume.app` (2 occurrences)
+  - `WiseHireSubscriptionPage.tsx`: **BRAND/UMBRELLA** — reverted to `contact@thewise.cloud` pending brand ownership confirmation (3 occurrences)
+- **Files**: `src/components/ErrorBoundary.tsx`, `src/pages/wisehire/WiseHireSubscriptionPage.tsx`
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `appwrite-hubs/ai-gateway/src/main.js` | Added dedicated `tailor-resume` prompt handler with explicit rewrite instructions |
+| `appwrite-hubs/ai-gateway/src/extracted_prompts.json` | Updated for consistency |
+| `src/AppInterior.tsx` | `/tailoring` → `/tailoring-hub` redirect |
+| `src/components/ErrorBoundary.tsx` | Updated crash report email to `contact@wiseresume.app` |
+| `src/components/portfolio/public/PublicSections.tsx` | 9 `Array.isArray()` guards added |
+| `src/hooks/usePublicPortfolio.ts` | Added `normalizeArray<T>()` helper for malformed data |
+| `src/lib/devkit/sourceHashes.generated.json` | Hash updated (`ai-gateway`: `99ef900da5c8be27`) |
+| `src/lib/skillCloud.ts` | Safe array defaults for experience/projects |
+| `src/pages/DashboardPage.tsx` | "New Resume" CTA button added |
+| `src/pages/PublicPortfolioPage.tsx` | 3 `Array.isArray()` guards added |
+| `src/pages/wisehire/WiseHireSubscriptionPage.tsx` | Reverted to `contact@thewise.cloud` (pending confirmation) |
+| `src/components/portfolio/public/__tests__/PublicSections.test.tsx` | 5 defensive tests added |
+| `src/hooks/__tests__/usePublicPortfolio.test.tsx` | 1 normalization test added |
+| `src/pages/__tests__/DashboardPage-CTA.test.tsx` | **New** — 4 focused CTA tests |
+| `src/pages/__tests__/TailoringRedirect.test.tsx` | **New** — 1 redirect test |
+| `tests/hubs/ai-gateway-routing.test.cjs` | **New** — 5 AI gateway routing tests |
+
+---
+
+### Validation
+
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npx vitest run src/lib/__tests__/tailorMerge.test.ts` | ✓ 30/30 PASS |
+| `npx vitest run src/components/portfolio/public/__tests__/PublicSections.test.tsx` | ✓ 8/8 PASS |
+| `npx vitest run src/hooks/__tests__/usePublicPortfolio.test.tsx` | ✓ 28/28 PASS |
+| `npx vitest run src/pages/__tests__/TailoringRedirect.test.tsx src/pages/__tests__/DashboardPage-CTA.test.tsx` | ✓ 5/5 PASS |
+| `node tests/hubs/ai-gateway-routing.test.cjs` | ✓ 5/5 PASS |
+| `node --check appwrite-hubs/ai-gateway/src/main.js` | ✓ PASS |
+| `npm run build` | ✓ PASS (41.75s) |
+| `git diff --check` | ✓ PASS (LF→CRLF warning only) |
+
+**Total tests**: 76 passing
+
+---
+
+### Commits created (this session)
+
+| Commit | SHA | Message |
+|--------|-----|---------|
+| QA fixes | `379293cf` | `fix(qa): stabilize tailoring, portfolio, and dashboard regression issues` |
+
+15 files changed, 483 insertions(+), 37 deletions(-)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ✓ Ready | Auto-deploy from `main` push | Standard Vercel deployment |
+| Appwrite ai-gateway | ✓ Ready | GitHub Actions workflow dispatch | Workflow run `27509255948`, Job `81306179708`, 1m24s, commit `379293c`, hash `99ef900da5c8be27` |
+
+**Note**: Vercel alone does NOT update Appwrite Functions. Separate GitHub Actions workflow required and completed.
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Deployed from `379293c` — auto-deployed after push.
+- **Appwrite ai-gateway**: Deployed — function ID `6a2efe1a332f11ce6d7c`, source hash `99ef900da5c8be27`, all API keys updated.
+- **Local repo**: Synced with `origin/main` at `379293cfbc75bbc9f1c7829ccca842bb0b46bf94`.
+- **Working tree**: Clean.
+
+---
+
+### Where We Stopped
+
+All QA fixes committed, pushed, and deployed. Both Vercel (frontend) and Appwrite `ai-gateway` are ready.
+
+**Ready for TestSprite rerun** (after both deployments confirmed):
+- `Tailoring Hub: Generate a tailored resume from a job description`
+- `Tailoring Hub: Review tailored resume output`
+- `Tailoring Hub: Continue from tailored resume into preview`
+- `Portfolio: Public portfolio page renders for an existing username`
+- `Portfolio: Open a public portfolio link`
+- `Dashboard: Dashboard surfaces key resume actions`
+- `Portfolio: Public portfolio link format stays on the current domain`
+
+**Known follow-ups:**
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to this session.
+- WiseHire email domain (`thewise.cloud` vs `wiseresume.app`) pending brand ownership confirmation.
+
+---
+
+## Session Log - 2026-06-14 (Dashboard Dynamic Import Fix, Tablet UI/UX, Accessibility)
+
+### Overview
+
+Dashboard routing and mobile/tablet UI fixes. No Appwrite Functions changed. No schema changes. No deployments triggered — local dev server only. All changes are uncommitted local working-tree changes on top of `main`.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — Dashboard `/dashboard` route failed to load with `TypeError: Failed to fetch dynamically imported module`
+
+- **Root cause**: Corrupted `node_modules` directory from a previous failed `npm ci` on Windows. The dynamic import for `DashboardUploadWidget.tsx` (loaded via `React.lazy` in `DashboardTopBar.tsx`) failed because dependencies were inconsistent.
+- **Fix**: Ran `npm install --ignore-scripts` to repair `node_modules` without triggering potentially failing postinstall scripts.
+- **Validation**: Dashboard route loads successfully; dynamic import resolves; resumes visible.
+
+---
+
+#### F2 — Dashboard not scrollable on iPad/tablet, resumes hidden behind AI panel
+
+- **Root cause**: Multiple nested `overflow-hidden` containers in `DashboardWorkspaceLayout` and `DashboardPage` prevented scrolling on tablet viewport sizes. The AI Workspace panel (`DashboardIntelligencePanel`) was not hidden on tablet, overlaying the resume list.
+- **Fix A**: Changed main content container in `DashboardWorkspaceLayout` from `overflow-hidden` to `overflow-y-auto overscroll-y-contain`.
+- **Fix B**: Added `hidden xl:block` to AI Workspace panel to hide it on viewports smaller than `xl` (tablet/mobile).
+- **Fix C**: Changed nested resume list containers in `DashboardPage` from `overflow-hidden` to scrollable (`overflow-y-auto overscroll-y-contain`).
+- **Fix D**: Hidden `DashboardDiscoverySection` ("Explore" section) on tablet/mobile with `hidden lg:block`.
+- **Files**: `src/components/dashboard/DashboardWorkspaceLayout.tsx`, `src/pages/DashboardPage.tsx`
+
+---
+
+#### F3 — Duplicate Import/Wise AI buttons in mobile toolbar
+
+- **Root cause**: `DashboardTopCommandBar` rendered mobile-specific Import and Wise AI buttons (in `lg:hidden` section) that duplicated the same buttons already present in the global `AppWorkspaceTopBar`.
+- **Fix**: Removed the duplicate Import and Wise AI buttons from `DashboardTopCommandBar` mobile toolbar. Removed unused imports (`Plus`, `MessageCircle`, `Button`, `haptics`).
+- **File**: `src/components/dashboard/DashboardTopCommandBar.tsx`
+
+---
+
+#### F4 — Radix UI Dialog accessibility warnings in console
+
+- **Root cause**: Multiple components using `DialogContent` without required `DialogTitle` for screen reader accessibility. Console errors: `"DialogContent requires a DialogTitle for the component to be accessible"`.
+- **Fix A**: Added `DialogTitle` to Command Palette (`command.tsx`) — hidden with `sr-only` class.
+- **Fix B**: Added `SheetTitle` to mobile sidebar sheet (`AppMobileSidebarSheet.tsx`) — hidden with `sr-only` class.
+- **Fix C**: Removed red focus ring/border from mobile sidebar by adding `focus:outline-none focus:ring-0` and CSS overrides.
+- **Files**: `src/components/ui/command.tsx`, `src/components/layout/AppMobileSidebarSheet.tsx`, `src/index.css`
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `src/components/dashboard/DashboardTopCommandBar.tsx` | Removed duplicate Import/Wise AI buttons from mobile toolbar; removed unused imports |
+| `src/components/dashboard/DashboardWorkspaceLayout.tsx` | Fixed scroll (`overflow-y-auto`), hid AI panel on tablet (`hidden xl:block`) |
+| `src/pages/DashboardPage.tsx` | Fixed nested scroll containers, hid DiscoverySection on tablet (`hidden lg:block`) |
+| `src/components/ui/command.tsx` | Added `DialogTitle` for accessibility |
+| `src/components/layout/AppMobileSidebarSheet.tsx` | Added `SheetTitle`, removed borders/focus rings |
+| `src/index.css` | Mobile CSS to hide red active indicator bar, remove sidebar borders |
+| `.github/workflows/deploy-appwrite-hubs.yml` | FRONTEND_URL updated to `https://wiseresume.app` |
+| `package.json` | Moved `@testing-library/dom` to devDependencies |
+
+---
+
+### Validation
+
+- `npx tsc --noEmit` — exit code 0.
+- Dashboard loads on `/dashboard` — dynamic import resolves.
+- Scroll functional on iPad/tablet viewport sizes.
+- Mobile sidebar opens without accessibility console errors.
+
+---
+
+### Commits created (this session)
+
+None — all changes remain uncommitted in working tree.
+
+---
+
+### Deployments performed
+
+None — local dev server only (`npm run dev` on port 5000).
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Unchanged — last deploy at `14d6037` (2026-06-13).
+- **Local dev server**: Running on `http://localhost:5000` with uncommitted fixes.
+- **Appwrite Functions**: Unchanged.
+- **Appwrite schema**: Unchanged.
+
+---
+
+### Where We Stopped
+
+All dashboard fixes and mobile UI improvements are in local working tree, uncommitted. Codebase is in a `tsc`-passing state.
+
+**Next steps before deploy:**
+1. Commit changes with message: `fix(dashboard): repair dynamic import, tablet scroll, mobile UI, accessibility`
+2. Push to `main` — Vercel will auto-deploy.
+3. Verify dashboard on production `/dashboard` route.
+
+**Remaining known follow-ups:**
+- Pre-existing lint in `AppInterior.tsx` lines 156/165 (`Property 'profile' does not exist on type 'never'`) — unrelated to this session.
+- Other Dialog/Sheet components may still have missing titles (non-blocking console warnings only).
+
+---
+
+Four discrete fix clusters committed and pushed to `main` in sequence. No Appwrite Functions changed. No Appwrite schema changes. No Vercel deployments triggered manually — Vercel auto-deployed from `main` after each push.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — `wiseresume.app/dashboard` showed "Portfolio not found for this domain"
+
+- **Root cause**: `isAppHostname()` in `src/hooks/usePublicPortfolio.ts` used `Array.some(h => hostname.includes(h))` with `'thewise.cloud'` in the list. `wiseresume.app` does not contain `thewise.cloud`, so it fell through and was treated as an unknown custom domain. `AppInterior.tsx` then routed it to `CustomDomainPortfolioWrapper`, which returned the "not found" page.
+- **Secondary risk**: The old `includes()` approach would also have accepted `fakewiseresume.app` and `mywiseresume.app` as first-party if those strings had been in the list — a false-positive security concern.
+- **Fix**: Rewrote `isAppHostname()` to use exact `===` equality for specific hostnames and `endsWith()` for wildcard subdomain patterns. Added `wiseresume.app` and `www.wiseresume.app` explicitly. Added `wiseresume.app` to the `validateCustomDomain()` reserved list.
+- **File**: `src/hooks/usePublicPortfolio.ts`
+
+```ts
+export function isAppHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === 'thewise.cloud' ||
+    h.endsWith('.thewise.cloud') ||
+    h === 'wiseresume.app' ||
+    h === 'www.wiseresume.app' ||
+    h.endsWith('.replit.dev') ||
+    h.endsWith('.replit.co')
+  );
 }
 ```
 
-- The permission update step (adding `create` for `users`) is unaffected — it does not create indexes.
-- Existing queries that rely on the index (`Query.equal('user_id', ...)`) degrade to a full collection scan but continue to function correctly until the index can be created via a future, smaller attribute.
+- **Tests added**: `src/hooks/__tests__/usePublicPortfolio.test.tsx` — 10 `isAppHostname` cases, 7 `validateCustomDomain` cases, 5 `portfolioUrl` helper cases (27 total, all passing).
+- **Commit**: `7fbd10d` — `fix(portfolio): treat WiseResume app domain as first-party host`
 
 ---
 
-### Validation
-
-- `node --check scripts/setup_company_briefings_schema.cjs` — OK
-- `node --check scripts/setup_tailoring_lineage_schema.cjs` — OK
-- `npx tsc --noEmit` — clean
-- `npm run build` — succeeded
-
----
-
-### Commits / PRs
-
-- Commit `c2b739f` — `fix(appwrite): soft-fail index creation on MariaDB key-length limit (#85)`
-- Branch: `fix/appwrite-hub-index-softfail`
-- **PR #85 merged to `main`**
-
-### Where We Stopped
-
-- PR #85 merged. Hub deploy scripts are now safe to run on next manual `deploy-appwrite-hubs` dispatch.
-- Schema still NOT applied (no API key in session); will auto-run on next dispatch.
-
----
-
-## Session Log - 2026-06-08 (PreviewPage Auto-Export Fix - Tailoring Hub Export Blocker)
-
-### Overview
-
-Focused fix for the Tailoring Hub export blocker. No AI gateway changes. No Appwrite deployments. Frontend-only change.
-
----
-
-### Root Cause
-
-`PreviewPage` was calling `setSearchParams` **immediately** after the auto-export effect fired (to remove `?action` from the URL). Because `searchParams` was in the effect's dependency array, React detected the change, ran the effect cleanup (`clearTimeout`), and cancelled the 800ms export timer before it could fire. The export never started.
-
-This was the root cause of:
-- Designed PDF button (result page) → no download
-- ATS PDF button (result page) → no download
-- Word DOCX button (result page) → no download
-- Fresh-tab `/preview?id=<tailoredResumeId>&action=download` → no download
-- Fresh-tab `/preview?id=<tailoredResumeId>&action=ats-pdf` → no download
-- Fresh-tab `/preview?id=<tailoredResumeId>&action=docx` → no download
-
----
-
-### Fix Applied
-
-#### Files changed
-
-- `src/pages/PreviewPage.tsx`
-- `src/pages/__tests__/PreviewPage.test.tsx`
-
-#### What changed in `PreviewPage.tsx`
-
-1. **`initialAutoExportAction` ref**: action value is captured once at mount time from `searchParams` (via IIFE in `useRef` initializer). Subsequent calls to `setSearchParams` do not affect this captured value.
-
-2. **`autoExportTimerRef` ref**: the export timer is stored in a ref instead of being returned from the effect cleanup. React's effect lifecycle cannot cancel it when deps change. It is cancelled only in a separate unmount-only effect.
-
-3. **`setSearchParams` moved inside the timer callback**: URL cleanup happens after the export is triggered (not before). This eliminates the premature re-render that was causing the cleanup cancellation.
-
-4. **Fallback CTA banner**: if the browser cannot auto-trigger the download (e.g., `resumeRef` not yet attached to the DOM when the timer fires), a visible banner appears with an action-specific button:
-   - "Download PDF"
-   - "Download ATS PDF"
-   - "Download DOCX"
-
-5. **Unmount cleanup**: a separate `useEffect(() => { return cleanup; }, [])` cancels the timer if the component unmounts before it fires.
-
-#### What changed in `PreviewPage.test.tsx`
-
-Added 5 new tests (total: 8 tests, all pass):
-- `action=docx` does not export before bootstrap, calls `generateAndDownloadDOCX` after.
-- `action=download` does not export before bootstrap, calls `generateNativePDF` and `downloadFile` after.
-- `action=ats-pdf` does not export before bootstrap, calls `generateNativePDF` with `atsMode: true` and `downloadFile` after.
-- Action is not executed before the 800ms timer fires.
-- Normal `/preview?id=<id>` without `action` does not trigger auto-export.
-
-Added mocks: `@/lib/nativePdfGenerator`, `@/lib/downloadUtils`, `@/components/editor/PreviewScaledWrapper`.
-
----
-
-### Validation
-
-- `npx vitest run src/pages/__tests__/PreviewPage.test.tsx` — 8/8 passed.
-- `npx tsc --noEmit` — clean.
-- `npm run build` — succeeded.
-
----
-
-### Behavior After Fix
-
-- `/preview?id=<tailoredResumeId>&action=download` → bootstrap completes → 800ms timer fires → PDF export triggered → download starts.
-- `/preview?id=<tailoredResumeId>&action=ats-pdf` → same, ATS PDF.
-- `/preview?id=<tailoredResumeId>&action=docx` → same, DOCX.
-- If browser blocks auto-download (rare, fresh tab restriction): fallback CTA banner shows with specific download button.
-- `/preview?id=<tailoredResumeId>` without action → preview loads normally, no auto-export.
-- `/preview` without id → existing Zustand-based behavior preserved.
-
----
-
-### Deployment Required
-
-- **Frontend (Vercel) deployment required** — `src/pages/PreviewPage.tsx` changed.
-- **Appwrite deployment NOT required** — no Appwrite function files changed.
-- **No manual Appwrite schema changes** required for this fix.
-
----
-
-### Current Production / Deployment State
-
-- Production still reflects commit `55265550` (this fix is not yet deployed).
-- Appwrite `ai-gateway` is live with hash `b156e066754d6ed6` — unchanged.
-- Company Briefing Save is still blocked (Appwrite schema/permissions not yet added).
-
----
-
-### Remaining Blockers After This Fix
-
-- Company Briefing Save is still blocked until Appwrite schema/permissions are added:
-  - `company_briefings`: add `company_name`, `briefing`, create permission, `user_id` ASC index
-  - `tailor_history`: add `tailored_resume_id` + ASC key index
-  - `resumes`: optional lineage fields (code is guarded, not blocking)
-
----
-
-### Where We Stopped
-
-- Fix implemented and tested locally.
-- Not yet committed, pushed, or deployed.
-- Awaiting owner approval to commit and push.
-- Once pushed to `main`, Vercel will auto-deploy. Appwrite does not need a new deploy.
-
----
-
-## Session Log - 2026-06-08 (Session Closeout - AI Gateway Stabilization, Tailoring Hub QA, Company Briefing Save, Remaining Export Blocker)
-
-### Overview
-
-This session covered:
-
-- `ai-gateway` DeepSeek-first stabilization and post-deploy live verification
-- targeted `ai-gateway` structured-output hardening for:
-  - `optimize-for-linkedin`
-  - `generate-question-bank`
-  - `company-briefing`
-- Tailoring Hub reliability fixes
-- Company Briefing save failure investigation
-- production deployment verification for both Vercel and Appwrite
-- post-deploy production QA
-
-The session was closed due to Codex limit. No further implementation was performed after the final production QA pass.
-
----
-
-### Commits created in this session
-
-- `f48c000a` - `Fix appwrite source hash manifest drift`
-- `736a6e57` - `fix(ai): make gateway DeepSeek-first and harden structured tools`
-- `b9debefa` - `fix(ai): harden gateway structured output contracts`
-- `55265550` - `fix(tailoring): support fresh-tab exports and clarify briefing save schema`
-
----
-
-### AI Gateway reliability
-
-#### What changed
-
-- `ai-gateway` was moved to DeepSeek-first routing while preserving fallback behavior.
-- Structured-output hardening was added for:
-  - `optimize-for-linkedin`
-  - `generate-question-bank`
-  - `company-briefing`
-- Targeted retries / normalization were added so thin or malformed responses no longer pass as superficially successful output for the affected tools.
-
-#### Why it changed
-
-Production verification showed the remaining AI instability was concentrated in `ai-gateway`, not `resume-section-ai`.
-
-#### Root causes fixed
-
-- `optimize-for-linkedin` accepted weak payloads, including empty `experienceRewrites`, even when resume experience existed.
-- `generate-question-bank` accepted incomplete category sets.
-- `company-briefing` and `generate-question-bank` were too close to the DeepSeek primary timeout budget, making aborts/fallbacks more likely than necessary.
-
-#### Files changed
-
-- `appwrite-hubs/ai-gateway/src/main.js`
-- `appwrite-hubs/admin-devkit-data/src/main.js`
-- `src/lib/devkit/aiToolsCatalogue.ts`
-- `src/lib/devkit/aiToolsCatalogue.test.ts`
-- `tests/hubs/ai-gateway-routing.test.cjs`
-- `src/lib/devkit/sourceHashes.generated.json`
-
-#### Validation
-
-- `node --check appwrite-hubs/ai-gateway/src/main.js`
-- `node --check appwrite-hubs/admin-devkit-data/src/main.js`
-- `node tests/hubs/ai-gateway-routing.test.cjs`
-- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
-- `npx tsc --noEmit`
-- `node scripts/compute-source-hashes.mjs`
-
-All passed locally before push.
-
-#### Deployments performed
-
-- Commit `736a6e57` was pushed to `main`
-- GitHub Actions deployed `ai-gateway`
-- Commit `b9debefa` was then pushed for the follow-up hardening pass
-- GitHub Actions deployed `ai-gateway` again
-
-#### Verified live production state
-
-- DeepSeek-first `ai-gateway` rollout was deployed and verified.
-- Deployment verified live:
-  - deployment ID: `6a26594a4dde0db83eca`
-  - status: `ready`
-  - active: `true`
-  - created: `2026-06-08T05:55:22.571Z`
-  - source hash: `ai-gateway: 6057ca5dc51e8daa`
-- `optimize-for-linkedin` is fixed live:
-  - `experienceRewrites` is now non-empty when resume experience exists
-- `generate-question-bank` improved live:
-  - final output includes required categories:
-    - `company`
-    - `technical`
-    - `behavioral`
-    - `curveball`
-  - DeepSeek can still intermittently return malformed JSON, but fallback produced usable output
-- `company-briefing` improved live:
-  - usable structured output confirmed
-  - some provider variability remains, but user-facing output was usable
-- regression checks passed live:
-  - `tailor-resume`
-  - `parse-job`
-  - `wise-ai-chat`
-- credit deductions were verified:
-  - no double charging observed
-
-#### Decision
-
-- `ai-gateway` reliability is no longer the main production blocker
-- backlog item remains: improve DeepSeek-only stability for longer structured outputs
-
----
-
-### Tailoring Hub + Company Briefing save pass
-
-#### What changed
-
-- Added `PreviewPage` resume bootstrap from `/preview?id=<resumeId>`
-- hardened Tailoring Hub result/history fallback when `tailor_history` is missing or delayed
-- hardened tailored merge behavior when AI output omits item ids
-- added clearer Company Briefing save schema/setup messaging
-
-#### Why it changed
-
-Production behavior showed:
-
-- fresh-tab Tailoring Hub preview/export paths were broken
-- tailored experience merges could fail silently when AI output omitted ids
-- result/history behavior leaned too heavily on `tailor_history`
-- Company Briefing Save failed because Appwrite persistence was incomplete
-
-#### Root causes fixed or partially fixed
-
-- Fresh-tab Tailoring Hub preview/export was broken because `PreviewPage.tsx` only trusted Zustand state, while `TailoringHubResultPage.tsx` opened `/preview?id=...` in a new tab without priming Zustand.
-- Tailored experience merges could silently fail because `tailorMerge.ts` matched by `id` only, while AI output did not always preserve original IDs.
-- `tailor_history` persistence was best-effort, but result/history fallback previously relied too much on it.
-- Company Briefing Save failed because `company_briefings` existed but only had `user_id`; it was missing `company_name`, `briefing`, create permissions, and a useful `user_id` index.
-
-#### Files changed in commit `55265550`
-
-- `appwrite-hubs/ai-gateway/src/main.js`
-- `src/hooks/useCompanyBriefingLibrary.ts`
-- `src/lib/tailorMerge.ts`
-- `src/pages/PreviewPage.tsx`
-- `src/pages/TailoringHubPage.tsx`
-- `src/pages/TailoringHubResultPage.tsx`
-- `tests/hubs/ai-gateway-routing.test.cjs`
-- `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
-- `src/lib/__tests__/tailorMerge.test.ts`
-- `src/pages/__tests__/PreviewPage.test.tsx`
-- `src/pages/__tests__/TailoringHubResultPage.test.ts`
-- `src/lib/devkit/sourceHashes.generated.json`
-- `Project Atlas/CHANGELOG.md`
-- `Project Atlas/MASTER_HANDOVER_2026.md`
-
-#### Validation performed before commit `55265550`
-
-- `node --check appwrite-hubs/ai-gateway/src/main.js`
-- `npx vitest run tests/hubs/ai-gateway-routing.test.cjs src/lib/__tests__/tailorMerge.test.ts src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts`
-- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts tests/hubs/ai-gateway-routing.test.cjs src/lib/__tests__/tailorMerge.test.ts src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts`
-- `npx tsc --noEmit`
-- `npm run build`
-- `node scripts/compute-source-hashes.mjs`
-
-All passed locally before push.
-
-#### Deployments performed
-
-- commit `55265550` was pushed to `main`
-- Vercel/frontend deployment completed successfully for `55265550`
-- Appwrite `ai-gateway` was redeployed after `55265550`
-
-Verified live Appwrite deployment after `55265550`:
-
-- deployment ID: `6a2668371ca7426f76f1`
-- status: `ready`
-- created: `2026-06-08T06:59:03Z`
-- live deployed hash:
-  - `ai-gateway: b156e066754d6ed6`
-
-Tailor Resume id-preservation normalization is live:
-
-- live authenticated `tailor-resume` execution preserved non-empty experience IDs
-- sample execution: `6a266fe10461bfb97522`
-- result: `nonEmptyExpIds: 11/11`
-
----
-
-### Production QA after commit `55265550`
-
-#### Tailoring Hub
-
-- existing Tailoring Hub result page opens: `PASS`
-- result page refresh with no `tailor_history`: `PASS`
-- direct `/preview?id=<tailoredResumeId>` loads tailored resume: `PASS`
-- no redirect to dashboard: `PASS`
-- no fallback to source/master resume by mistake: `PASS`
-- Designed PDF button: `FAIL`
-- ATS PDF button: `FAIL`
-- Word DOCX button: `FAIL`
-- fresh-tab `/preview?id=<tailoredResumeId>&action=download`: `FAIL`
-- fresh-tab `/preview?id=<tailoredResumeId>&action=ats-pdf`: `FAIL`
-- fresh-tab `/preview?id=<tailoredResumeId>&action=docx`: `FAIL`
-
-#### Tailor merge / generation findings
-
-- direct authenticated `tailor-resume` execution still routes through `ai-gateway`
-- no browser/provider direct AI call path was reintroduced
-- no BYOK/localStorage provider behavior was reintroduced
-- direct authenticated `tailor-resume` charged exactly once per execution
-- result-page / preview bootstrap fix is live
-- the already-existing tailored resume `6a264d0800289a9b5a62` loads correctly in result and preview flows
-- however, the actual export action path is still broken
-
-Focused live Tailor finding:
-
-- the tailored resume bootstrap works
-- the page loads the correct tailored resume from `?id`
-- the `action` query parameter is stripped, cleared, or ignored before the actual export action fires
-- this is now a focused `PreviewPage` auto-export trigger bug
-
-#### Company Briefing
-
-- generation works
-- save is still blocked by Appwrite schema and permissions
-- exact user-side Appwrite error from live authenticated create attempt:
-  - `No permissions provided for action 'create'`
-- additional missing schema:
-  - `company_briefings.company_name`
-  - `company_briefings.briefing`
-- current code now fails gracefully with a clearer schema/setup message, but save will not work until Appwrite schema/permissions are fixed
-
-#### AI regressions rechecked
-
-- `optimize-for-linkedin`: usable output confirmed
-- `parse-job`: usable output confirmed
-- `wise-ai-chat`: usable output confirmed
-
----
-
-### Current production / deployment state
-
-- production reflects commit `55265550`
-- Vercel/frontend is live
-- Appwrite `ai-gateway` is live with source hash `b156e066754d6ed6`
-- Tailor Resume id-preservation normalization is live
-- Tailoring Hub result refresh and direct preview bootstrap work
-- Tailoring Hub export/download actions are still broken
-- Company Briefing Save is still blocked until Appwrite schema/permissions are added
-
----
-
-### Manual Appwrite schema actions still required
-
-- `company_briefings`
-  - add attribute `company_name`
-  - add attribute `briefing`
-  - add create permission for authenticated users / users according to the current app security model
-  - add `user_id` ASC index
-- `tailor_history`
-  - add attribute `tailored_resume_id`
-  - add `tailored_resume_id` ASC key index
-- `resumes`
-  - optional but recommended lineage fields:
-    - `parent_resume_id`
-    - `is_master`
-    - `target_job_title`
-    - `target_company`
-    - `job_url`
-    - `job_match_score`
-  - code is guarded and does not write unsupported `resumes` fields
-
----
-
-### Remaining blockers
-
-- Tailoring Hub export action path is still broken
-- result page buttons open the tailored preview popup, but no download starts
-- fresh-tab URLs load preview correctly but no export starts:
-  - `/preview?id=<tailoredResumeId>&action=download`
-  - `/preview?id=<tailoredResumeId>&action=ats-pdf`
-  - `/preview?id=<tailoredResumeId>&action=docx`
-- Company Briefing save is still blocked by Appwrite permissions + schema
-
----
-
-### Where We Stopped
-
-- production reflects commit `55265550`
-- Vercel/frontend is live
-- Appwrite `ai-gateway` is live and active
-- deployed hash includes:
-  - `ai-gateway: b156e066754d6ed6`
-- Tailor Resume id-preservation normalization is live and working
-- direct authenticated `tailor-resume` execution preserved non-empty experience IDs
-- Tailoring Hub result refresh now works even when `tailor_history` is missing
-- direct `/preview?id=<tailoredResumeId>` now loads the tailored resume correctly
-- it does not redirect to dashboard
-- it does not fall back to the source/master resume
-- remaining production blocker:
-  - export actions still do not fire
-  - result page buttons open the tailored preview popup, but no download starts
-  - fresh-tab URLs load preview correctly but no export starts:
-    - `/preview?id=<tailoredResumeId>&action=download`
-    - `/preview?id=<tailoredResumeId>&action=ats-pdf`
-    - `/preview?id=<tailoredResumeId>&action=docx`
-  - the page appears to load the tailored resume and then strip/clear the `action` param before triggering the export
-- Company Briefing Save is still blocked until Appwrite schema/permissions are added
-- Codex limit was reached, so no further implementation was performed
-
----
-
-### Exact next prompt for the next agent
-
-```txt
-We are continuing the WiseResume Tailoring Hub production QA follow-up.
-
-Current production status after commit `55265550`:
-- Frontend/Vercel is live.
-- Appwrite `ai-gateway` is live and active.
-- `ai-gateway` deployed hash includes:
-  - `ai-gateway: b156e066754d6ed6`
-- Tailor Resume id-preservation normalization is live and working.
-- Direct authenticated `tailor-resume` execution preserved non-empty experience IDs.
-- Tailoring Hub result refresh now works even when `tailor_history` is missing.
-- Direct `/preview?id=<tailoredResumeId>` now loads the tailored resume correctly.
-- It does not redirect to dashboard.
-- It does not fall back to the source/master resume.
-
-Remaining production blocker:
-- Export actions still do not fire.
-- Result page buttons open the tailored preview popup, but no download starts.
-- Fresh-tab URLs load preview correctly but no export starts:
-  - `/preview?id=<tailoredResumeId>&action=download`
-  - `/preview?id=<tailoredResumeId>&action=ats-pdf`
-  - `/preview?id=<tailoredResumeId>&action=docx`
-- The page appears to load the tailored resume and then strip/clear the `action` param before triggering the export.
-
-Task:
-Fix only the `/preview?id=...&action=...` auto-export path.
-
-Strict constraints:
-- Do not change AI provider routing.
-- Do not change `tailor-resume` gateway behavior unless absolutely required.
-- Do not touch Company Briefing generation/routing.
-- Do not rewrite PreviewPage architecture broadly.
-- Do not reintroduce BYOK/localStorage provider keys.
-- Do not call AI providers directly from browser.
-- Do not deploy, push, or commit until approved.
-
-Required inspect:
-1. Inspect `src/pages/PreviewPage.tsx`.
-2. Inspect the export/download handlers used by:
-   - Designed PDF
-   - ATS PDF
-   - DOCX
-3. Inspect how `action` query param is read, consumed, and removed.
-4. Inspect why the action is stripped before the export starts.
-5. Inspect whether the export effect depends on `currentResume`, URL-loaded resume state, loading state, template state, or popup/new-tab behavior.
-
-Required fix:
-- Ensure `PreviewPage` waits until the URL-id resume bootstrap is fully complete before running any auto-export action.
-- Ensure action runs exactly once after:
-  - resume loaded
-  - currentResume is set
-  - selected template is set
-  - preview/export handlers are ready
-- Do not clear or strip the `action` query param until after the export action has been triggered successfully or intentionally failed with a visible error.
-- Support all actions:
-  - `download`
-  - `ats-pdf`
-  - `docx`
-- If browser restrictions prevent automatic download in a fresh tab, show a clear fallback CTA on the preview page:
-  - “Download PDF”
-  - “Download ATS PDF”
-  - “Download DOCX”
-  and explain in code/comments why this fallback exists.
-- Preserve existing `/preview` behavior when there is no `?id` and no `action`.
-- Preserve the new behavior where `/preview?id=<resumeId>` loads the resume from Appwrite/Zustand bootstrap.
-
-Tests required:
-Add or update focused tests for:
-1. `/preview?id=<resumeId>&action=download` waits for resume load before triggering export.
-2. `/preview?id=<resumeId>&action=ats-pdf` waits for resume load before triggering export.
-3. `/preview?id=<resumeId>&action=docx` waits for resume load before triggering export.
-4. `action` is not cleared before export trigger.
-5. `/preview?id=<resumeId>` without action still loads preview normally.
-6. `/preview` without id preserves existing Zustand-based behavior.
-
-Validation:
-Run:
-- `npx vitest run src/pages/__tests__/PreviewPage.test.tsx`
-- `npx tsc --noEmit`
-- `npm run build`
-
-Also rerun any existing targeted tests touched by the previous pass if necessary.
-
-Return:
-- root cause summary
-- exact files changed
-- tests added/updated
-- validation output
-- whether frontend deployment is required
-- whether Appwrite deployment is required
-- whether manual Appwrite schema action is still required
-
-Do not deploy, push, or commit until I approve.
+#### F2 — AI Tools page blank after Vercel deploy; stale job description in Tailoring Hub
+
+- **Root cause (AI Tools blank)**: `AIStudioPage.tsx` line 382 returned `null` while `planLoading` was true. During the brief plan-loading window (auth resolving → `useMe` query settling), the entire page content was unmounted, producing a completely blank screen.
+- **Fix**: `if (planLoading) return <AIStudioSkeleton />;` — page shows a skeleton frame instead of nothing.
+- **File**: `src/pages/AIStudioPage.tsx`
+
+- **Root cause (stale JD)**: `TailoringHubPage` persisted `jobDescription` in Zustand (backed by `localStorage`). No session boundary was enforced, so the last job description always rehydrated on any new visit — even days later.
+- **Fix**: Session-marker pattern using `sessionStorage`. On first mount within a browser session, if no JD was passed via URL param or preloaded context, `setJobDescription('')` clears the stale value.
+- **File**: `src/pages/TailoringHubPage.tsx`
+
+```ts
+useEffect(() => {
+  const SESSION_MARKER = 'wr_tailoring_session';
+  const isNewSession = !sessionStorage.getItem(SESSION_MARKER);
+  if (isNewSession) {
+    sessionStorage.setItem(SESSION_MARKER, '1');
+    if (!preloadedDesc && !jobIdParam) { setJobDescription(''); }
+  }
+}, []);
 ```
 
----
-
-## Session Log - 2026-06-08 (Tailoring Hub Bug Fix Pass - Preview Bootstrap, Tailor Merge IDs, History Reliability)
-
-### Overview
-
-Focused bug-fix pass on the Tailoring Hub flow after confirming the current architecture is:
-
-- `TailoringHubPage` -> `tailorResumeWithProgress`
-- `aiTailor.ts` -> `appwriteFunctions.invoke('tailor-resume')`
-- Appwrite bridge -> `ai-gateway`
-- `ai-gateway` DeepSeek-first route for `tailor-resume`
-
-No deployment, push, or commit was performed in this pass.
+- **Commit**: `4c49319` — `fix(ai-studio+tailoring): show skeleton while plan loads; clear stale JD on new session`
 
 ---
 
-### Root causes identified
+#### F3 — Plan badge flashed "free" on every page load for paid users
 
-#### F1 - Fresh-tab preview/export was broken
+- **Root cause**: `usePlan()` returned `isLoading: true` / plan `'free'` during two back-to-back loading windows: (1) `useAuth()` auth-loading phase, (2) `useMe()` query settling after auth. Total window: ~300–800 ms on fast connections, longer on mobile. All UI consumers rendered the free-plan state during this window.
+- **Fix**: `src/lib/planCache.ts` — new module; reads/writes a `wr_plan_cache` localStorage entry with 15-minute TTL. `usePlan()` returns cached plan data during both loading windows (stale-while-revalidate pattern). Cache is cleared on sign-out and on user-switch.
+- **New file**: `src/lib/planCache.ts`
+- **Changed files**: `src/hooks/usePlan.ts`, `src/contexts/AuthContext.tsx`
 
-- **Root cause**: `TailoringHubResultPage` opens `/preview?id=...&action=...` in a new tab without priming Zustand on purpose, but `PreviewPage` only trusted `currentResume` from Zustand and redirected after `150ms` when it was empty.
-- **Fix**: `PreviewPage` now supports `?id=<resumeId>` as a real bootstrap path. It loads the resume through the existing Appwrite resume data path, hydrates Zustand with `dbToResumeData()`, sets the template, and blocks redirect/export until the URL-based load settles.
-- **Files**: `src/pages/PreviewPage.tsx`, `src/pages/__tests__/PreviewPage.test.tsx`
+Cache shape:
+```ts
+interface PlanCacheEntry {
+  plan: PlanName;
+  trialPlan: string | null;
+  trialExpiresAt: string | null;
+  cachedAt: number; // Date.now()
+}
+```
 
-#### F2 - Tailored experience could silently fail to merge
+Cache TTL: 15 minutes. Cache key: `wr_plan_cache`. Cleared by `clearPlanCache()` in `AuthContext` `signOut` and user-switch `useEffect`.
 
-- **Root cause**: `buildMergedResume()` matched tailored experience by `id` only, while `ai-gateway` did not strongly preserve ids for tailored list items.
-- **Fix**:
-  - `ai-gateway` `tailor-resume` prompt/schema now explicitly requires preserving original ids for `experience`, `education`, `projects`, `certifications`, and `awards`.
-  - `ai-gateway` normalization now restores missing ids from the original resume by content match and index fallback.
-  - `buildMergedResume()` now matches experience by id first, then `company + position`, then same index when lengths match. Education got the same defensive pattern.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `src/lib/tailorMerge.ts`, `tests/hubs/ai-gateway-routing.test.cjs`, `src/lib/__tests__/tailorMerge.test.ts`
-
-#### F3 - Result/history behavior depended too much on delayed history persistence
-
-- **Root cause**: `TailoringHubPage` navigated before writing `tailor_history`, and the save was fire-and-forget. The result page also attempted an Appwrite history lookup that could fail when history storage is missing or delayed.
-- **Fix**:
-  - `TailoringHubResultPage` now safely swallows Appwrite history lookup failures so the page remains usable from the resume document alone.
-  - Extracted a deterministic result-state resolver and added focused test coverage for the missing/delayed-history case.
-  - `TailoringHubPage` now shows a non-blocking warning toast if history persistence fails, without affecting the successful tailored-resume result/export flow.
-- **Files**: `src/pages/TailoringHubPage.tsx`, `src/pages/TailoringHubResultPage.tsx`, `src/pages/__tests__/TailoringHubResultPage.test.ts`
-
-#### F4 - Live Appwrite schema still lacks the metadata/history fields this flow wanted to rely on
-
-- **Verified live schema finding**:
-  - `resumes` does **not** currently expose:
-    - `parent_resume_id`
-    - `is_master`
-    - `target_job_title`
-    - `target_company`
-    - `job_url`
-    - `job_match_score`
-  - `tailor_history` does **not** currently expose:
-    - `tailored_resume_id`
-    - matching `tailored_resume_id` key index
-- **Fix / adaptation**:
-  - Did **not** force unsupported metadata fields into resume creation.
-  - Hardened Tailoring Hub master-resume auto-select to use persisted `tailor_history` ids when available, plus a `(Tailored)` title heuristic as a last resort, so tailored copies are less likely to be treated as masters after refresh while the schema is incomplete.
-- **Files**: `src/pages/TailoringHubPage.tsx`
-
-#### F5 - Company Briefing "Save" fails because the live save schema is incomplete
-
-- **Root cause**: The save flow in `CompanyBriefingSheet` uses `useSaveCompanyBriefing()` which writes to the `company_briefings` collection with:
-  - `user_id`
-  - `company_name`
-  - `briefing`
-- **Verified live schema finding**:
-  - `company_briefings` exists
-  - but it currently exposes only `user_id`
-  - `company_name` and `briefing` are missing, so Appwrite rejects the save with an invalid document structure / unknown attribute error
-- **Fix**:
-  - did not force unsupported writes into a different storage path
-  - added a graceful, explicit schema/setup error message for this exact save failure so the user gets a clear manual-action explanation instead of a vague generic failure toast
-  - added focused test coverage for the error mapping
-- **Files**: `src/hooks/useCompanyBriefingLibrary.ts`, `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
+- **Commit**: `ab2dada` — `fix(plan): eliminate free-plan flash with localStorage cache`
 
 ---
 
-### Files changed
+#### F4 — All user-facing portfolio links referenced `resume.thewise.cloud` instead of `wiseresume.app`
 
-- `appwrite-hubs/ai-gateway/src/main.js`
-- `src/hooks/useCompanyBriefingLibrary.ts`
-- `src/lib/tailorMerge.ts`
-- `src/pages/PreviewPage.tsx`
-- `src/pages/TailoringHubPage.tsx`
-- `src/pages/TailoringHubResultPage.tsx`
-- `tests/hubs/ai-gateway-routing.test.cjs`
-- `src/hooks/__tests__/useCompanyBriefingLibrary.test.ts`
-- `src/lib/__tests__/tailorMerge.test.ts`
-- `src/pages/__tests__/PreviewPage.test.tsx`
-- `src/pages/__tests__/TailoringHubResultPage.test.ts`
-- `src/lib/devkit/sourceHashes.generated.json`
+- **Root cause**: `wiseresume.app` became the primary app domain but the entire codebase still referenced `resume.thewise.cloud` in copy buttons, QR code URLs, Career Cards, PDF/export watermarks, canonical SEO URLs, "not found" CTAs, admin views, DNS copy, and the portfolio URL utility.
+- **Fix**: Complete migration across 16 files. `resume.thewise.cloud` backward-compatible — existing shared links still resolve correctly (domain kept in `DOMAIN_MAP` and `isAppHostname` allowlist).
 
----
+Central utility (`src/lib/portfolioUrl.ts`) rewritten:
+```ts
+export const PRIMARY_PORTFOLIO_DOMAIN = 'https://wiseresume.app';
+export const PORTFOLIO_DOMAIN = resolveDomain(); // runtime hostname lookup via DOMAIN_MAP
+export const getPortfolioUrl = (username: string) => `${PORTFOLIO_DOMAIN}/p/${username}`;
+export const getPortfolioCanonicalUrl = (username: string) => `${PRIMARY_PORTFOLIO_DOMAIN}/p/${username}`;
+export const getPortfolioDisplayUrl = (username: string) => `wiseresume.app/p/${username}`;
+export const getAppUrl = () => PRIMARY_PORTFOLIO_DOMAIN;
+```
 
-### Verification
+Custom domain section in `MoreTab.tsx` updated:
+- CNAME target changed: `resume.thewise.cloud` → `cname.vercel-dns.com`
+- Apex domain: A record to Vercel IP (not CNAME — technically correct)
+- Added "Manual Setup Required (Beta)" amber banner — honest about end-to-end status
+- **Audit finding**: `usePublicPortfolioByDomain` is completely stubbed (`queryFn: async () => null`). `customDomain` is stored inside a `portfolioExtras` JSON blob, which cannot be queried by Appwrite `Query.equal()` without a top-level indexed attribute. Custom domain feature is not functional end-to-end; UI now communicates this honestly.
 
-- `node --check appwrite-hubs/ai-gateway/src/main.js`
-- `npx vitest run src/hooks/__tests__/useCompanyBriefingLibrary.test.ts tests/hubs/ai-gateway-routing.test.cjs src/lib/__tests__/tailorMerge.test.ts src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts`
-- `npx tsc --noEmit`
-- `npm run build`
-- `node scripts/compute-source-hashes.mjs`
-
-All passed locally.
-
-Updated source hash:
-- `ai-gateway: b156e066754d6ed6`
+- **Commit**: `14d6037` — `feat(portfolio): migrate primary domain to wiseresume.app`
 
 ---
 
-### Manual Appwrite action needed
+### Changed files (this session)
 
-This pass confirmed the code can be made more defensive, but the live Appwrite schema still needs manual provisioning if the product is expected to persist tailored lineage and query history server-side:
+| File | Change |
+|------|--------|
+| `src/hooks/usePublicPortfolio.ts` | `isAppHostname` exact matching; `validateCustomDomain` reserved list |
+| `src/hooks/__tests__/usePublicPortfolio.test.tsx` | 27 tests — hostname classification, domain validation, URL helpers |
+| `src/lib/portfolioUrl.ts` | Full rewrite — `PRIMARY_PORTFOLIO_DOMAIN`, `PORTFOLIO_DOMAIN`, `getPortfolioCanonicalUrl`, `getPortfolioDisplayUrl`, `getAppUrl` |
+| `src/lib/planCache.ts` | **New** — localStorage plan cache with 15-min TTL |
+| `src/hooks/usePlan.ts` | Stale-while-revalidate via `planCache`; `isLoading` path returns cached plan |
+| `src/contexts/AuthContext.tsx` | `clearPlanCache()` on sign-out and user-switch |
+| `src/pages/AIStudioPage.tsx` | `planLoading` → `<AIStudioSkeleton />` instead of `null` |
+| `src/pages/TailoringHubPage.tsx` | Session-marker JD clear on new session |
+| `src/components/portfolio/editor/MoreTab.tsx` | CNAME target → `cname.vercel-dns.com`; Beta banner |
+| `src/components/portfolio/editor/SetupTab.tsx` | Display label → `getPortfolioDisplayUrl()` |
+| `src/pages/PortfolioEditorPage.tsx` | Canonical URL → `getPortfolioCanonicalUrl()` |
+| `src/components/portfolio/CareerCardSheet.tsx` | "Made with WiseResume" href → `wiseresume.app` |
+| `src/components/portfolio/VisitorsPanel.tsx` | `BASE_URL` → `wiseresume.app` |
+| `src/components/portfolio/editor/VisitorsTab.tsx` | `canonicalBase` prop → `wiseresume.app` |
+| `src/components/dev-kit/UserDetailDrawer.tsx` | Admin portfolio URL display → `wiseresume.app` |
+| `src/lib/exportWatermark.ts` | `BRAND_URL` → `https://wiseresume.app` |
+| `src/lib/nativePdfGenerator.ts` | `BRANDING_URL` → `https://wiseresume.app` |
+| `src/lib/portfolioPrintLayout.ts` | Footer text → `wiseresume.app` |
+| `src/lib/companyBriefingPdf.ts` | Footer text → `wiseresume.app` |
+| `src/hooks/usePortfolioSEO.ts` | JSON-LD `url` field → `getPortfolioCanonicalUrl()` |
+| `src/pages/PublicPortfolioPage.tsx` | "Not Found" CTA + footer link → `wiseresume.app` |
+| `src/lib/exportWatermark.test.ts` | Test assertion URL → `https://wiseresume.app` |
 
-- `resumes` collection attributes:
-  - `parent_resume_id`
-  - `is_master`
-  - `target_job_title`
-  - `target_company`
-  - `job_url`
-  - `job_match_score`
-- `tailor_history` collection attribute:
-  - `tailored_resume_id`
-- `tailor_history` index:
-  - key: `tailored_resume_id`
-  - order: `ASC`
+---
 
-This pass also confirmed the Company Briefing save library still needs manual schema provisioning:
+### New files
 
-- `company_briefings` collection attributes:
-  - `company_name`
-  - `briefing`
+| File | Purpose |
+|------|---------|
+| `src/lib/planCache.ts` | localStorage plan cache — eliminates free-plan flash during auth/me loading window |
 
-Recommended supporting index for library reads:
-- `company_briefings` key index:
-  - `user_id`
-  - order: `ASC`
+---
+
+### Validation
+
+- `npx tsc --noEmit` — exit code 0 after each commit cluster.
+- `npx vitest run` — all tests passing, including 27 new tests in `usePublicPortfolio.test.tsx`.
+
+---
+
+### Commits created (this session)
+
+| SHA | Message |
+|-----|---------|
+| `7fbd10d` | `fix(portfolio): treat WiseResume app domain as first-party host` |
+| `4c49319` | `fix(ai-studio+tailoring): show skeleton while plan loads; clear stale JD on new session` |
+| `ab2dada` | `fix(plan): eliminate free-plan flash with localStorage cache` |
+| `14d6037` | `feat(portfolio): migrate primary domain to wiseresume.app` |
+
+All four commits pushed to `main`. Vercel auto-deployed.
+
+---
+
+### Deployments performed
+
+Vercel auto-deployed from `main` after each push. No manual Vercel deployments triggered. No Appwrite Hubs deployed.
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Live at `14d6037`. All four fix clusters deployed.
+- **Primary domain**: `wiseresume.app` — app + portfolio routes.
+- **Legacy domain**: `resume.thewise.cloud` — still connected to Vercel, backward-compatible, existing links resolve.
+- **Appwrite Functions**: Unchanged.
+- **Appwrite schema**: Unchanged.
+- **Custom domain feature**: UI updated to honest "Beta / Manual Setup Required" state. `usePublicPortfolioByDomain` remains stubbed — end-to-end custom domain routing is not functional.
 
 ---
 
 ### Where We Stopped
 
-- Tailoring Hub code fixes are implemented locally and validated.
-- Company Briefing save now fails gracefully with a clear schema/setup message instead of a vague generic error.
-- No deploy, push, or commit was performed in this pass.
-- Deployment is required for the `PreviewPage` / Tailoring Hub frontend changes, the Company Briefing save UX fix, and the `ai-gateway` tailored-id preservation changes to affect production.
-- Recommended deployment targets, if approved later:
-  - frontend/Vercel for the page changes and Company Briefing save UX fix
-  - `ai-gateway` for the Tailor Resume normalization change
+All four fix clusters committed, pushed, and deployed. Codebase is in a clean, `tsc`-passing state on `main` at `14d6037`.
 
----
+Remaining known follow-ups:
 
-## Session Log - 2026-06-08 (AI Gateway Targeted Hardening - LinkedIn Contract + Longer Structured DeepSeek Paths)
-
-### Overview
-
-Follow-up stabilization pass after the live `ai-gateway` DeepSeek-first rollout. This session focused only on the three remaining weak spots from production verification:
-
-- `optimize-for-linkedin`
-- `company-briefing`
-- `generate-question-bank`
-
-No deployment was performed. No changes were made to `resume-section-ai`.
-
----
-
-### Root causes identified and fixed
-
-#### F1 - LinkedIn Optimizer still accepted incomplete output
-
-- **Root cause**: `normalizeLinkedInPayload()` only required "some usable content" somewhere in the payload. That allowed a response with headlines/about/tips but empty `experienceRewrites` to pass even when the input resume had real experience entries.
-- **Fix**: Tightened the LinkedIn contract so resumes with experience must return non-empty `experienceRewrites`. The structured repair path now also receives the original resume input so a repair attempt can fill missing rewrites without fabricating facts.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
-
-#### F2 - Question Bank still accepted incomplete category sets
-
-- **Root cause**: `normalizeQuestionBankPayload()` treated any non-empty category list as success, even if the output was missing required categories.
-- **Fix**: Tightened the normalizer so the final payload must contain all required categories: `company`, `technical`, `behavioral`, and `curveball`. The repair path now also receives the original job input context.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
-
-#### F3 - Company Briefing and Question Bank were too close to the primary timeout budget
-
-- **Root cause**: Both are longer structured outputs, but the generic first-attempt timeout was only `10s`. Production evidence already showed DeepSeek could succeed for Question Bank at roughly the edge of that budget, which made aborts/fallbacks more likely than necessary.
-- **Fix**: Added a narrow feature-specific first-attempt timeout lift for `company-briefing` and `generate-question-bank`, plus a same-provider retry for the first DeepSeek attempt when it aborts or times out. Cross-provider fallback remains unchanged.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
-
-#### F4 - Company Briefing normalization was too light
-
-- **Root cause**: The company-briefing parser only required `companySnapshot` to exist. Thin but parseable payloads could still pass without a fully normalized response shape.
-- **Fix**: Added explicit company-briefing normalization for `companySnapshot`, the list sections, and array fields so the returned structure is stable before it reaches the frontend.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`
-
-#### F5 - Source hash manifest required refresh
-
-- **Root cause**: `ai-gateway` changed again in this pass, so the source hash manifest had to be recomputed to keep GitHub Actions deploy guards happy.
-- **Fix**: Ran `node scripts/compute-source-hashes.mjs`.
-- **Files**: `src/lib/devkit/sourceHashes.generated.json`
-
----
-
-### Files changed
-
-- `appwrite-hubs/ai-gateway/src/main.js`
-- `tests/hubs/ai-gateway-routing.test.cjs`
-- `src/lib/devkit/sourceHashes.generated.json`
-
----
-
-### Verification
-
-- `node --check appwrite-hubs/ai-gateway/src/main.js`
-- `node tests/hubs/ai-gateway-routing.test.cjs`
-- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
-- `npx tsc --noEmit`
-- `node scripts/compute-source-hashes.mjs`
-
-All passed locally.
-
-Updated source hash:
-- `ai-gateway: 6057ca5dc51e8daa`
-
----
-
-### Where We Stopped
-
-- The targeted fixes are implemented locally and validated.
-- No deploy, push, or commit was performed in this pass.
-- `resume-section-ai` remains unchanged.
-- If approved, the next deployment target should be `ai-gateway` only.
-
----
-
-## Session Log - 2026-06-07 (AI Gateway Stabilization Pass - DeepSeek First + Structured Output Hardening)
-
-### Overview
-
-Focused stabilization pass on the remaining production AI failures after `resume-section-ai` was fixed. No work was done on `resume-section-ai` in this session. The goal was to make `ai-gateway` prefer the currently verified DeepSeek route first, keep fallback behavior intact, and harden the two product-level failure points that were still returning unusable output: LinkedIn Optimizer and Question Bank.
-
-No deployment was performed. All changes remain local working-tree changes on top of `main`.
-
----
-
-### Root causes identified and fixed
-
-#### F1 - `ai-gateway` still preferred providers already proven flaky in production
-
-- **Root cause**: Several production tools still routed first to providers that had already failed in live testing:
-  - NVIDIA-first: `tailor-resume`, `generate-cover-letter`, `recruiter-simulation`
-  - OpenRouter-first: `parse-resume`, `parse-job`, `optimize-for-linkedin`, `generate-question-bank`
-  - Groq-first: multiple chat/editor/content tools even though the owner requested a DeepSeek-first stabilization pass
-- **Fix**: Updated `FEATURE_ROUTES` in `appwrite-hubs/ai-gateway/src/main.js` so the requested main tools now prefer `deepseek-chat` first while preserving the existing fallback pool logic.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `src/lib/devkit/aiToolsCatalogue.ts`, `appwrite-hubs/admin-devkit-data/src/main.js`
-
-#### F2 - LinkedIn Optimizer could succeed with unusable structured payloads
-
-- **Root cause**: The existing structured parser accepted any object-shaped JSON for `optimize-for-linkedin`, even when headline/about/skills/tips sections were effectively empty or useless.
-- **Fix**: Added feature-specific normalization and validation that now requires usable LinkedIn content, plus stronger structured-output instructions and a one-time JSON repair retry if the first response is malformed.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
-
-#### F3 - Question Bank could return HTTP 200 with empty/malformed category data
-
-- **Root cause**: The existing structured parser accepted weak `generate-question-bank` payloads without ensuring there were usable categories and questions.
-- **Fix**: Added feature-specific normalization that requires real categories/questions, expanded the schema prompt and instructions, and added the same one-time JSON repair retry path used for LinkedIn Optimizer.
-- **Files**: `appwrite-hubs/ai-gateway/src/main.js`, `tests/hubs/ai-gateway-routing.test.cjs`
-
-#### F4 - DevKit/admin route mirrors drifted from the new production route map
-
-- **Root cause**: `src/lib/devkit/aiToolsCatalogue.ts` and `appwrite-hubs/admin-devkit-data/src/main.js` still mirrored the previous NVIDIA/Groq/OpenRouter-first defaults, which would make tests and DevKit route displays disagree with `ai-gateway`.
-- **Fix**: Updated both mirrors to reflect the new DeepSeek-first defaults for the same production tool set.
-- **Files**: `src/lib/devkit/aiToolsCatalogue.ts`, `src/lib/devkit/aiToolsCatalogue.test.ts`, `appwrite-hubs/admin-devkit-data/src/main.js`
-
-#### F5 - Hub source hash manifest needed refresh after gateway/admin changes
-
-- **Root cause**: Any Appwrite hub source edit requires `src/lib/devkit/sourceHashes.generated.json` to be recomputed, or the deploy workflow will fail at the source-hash guard.
-- **Fix**: Ran `node scripts/compute-source-hashes.mjs` after finishing the hub edits.
-- **Files**: `src/lib/devkit/sourceHashes.generated.json`
-
----
-
-### Exact route changes
-
-The following `ai-gateway` features now prefer:
-
-- **Provider**: `deepseek`
-- **Model**: `deepseek-chat`
-
-Affected features:
-- `tailor-resume`
-- `generate-cover-letter`
-- `recruiter-simulation`
-- `agentic-chat`
-- `wise-ai-chat`
-- `editor-ai`
-- `detect-and-humanize`
-- `smart-fit-rewrite`
-- `career-assessment`
-- `generate-portfolio-bio`
-- `generate-resignation-letter`
-- `validate-tailor`
-- `suggest-template`
-- `analyze-resume`
-- `generate-fix-suggestions`
-- `parse-resume`
-- `parse-job`
-- `optimize-for-linkedin`
-- `generate-question-bank`
-- `company-briefing`
-- `ask-portfolio`
-
-Unchanged by design:
-- `resume-section-ai` remains on its existing standalone function path and was not edited in this session.
-
-Fallback behavior remains intact through the existing pool/candidate logic:
-- DeepSeek primary
-- Groq fallback
-- OpenRouter fallback
-- NVIDIA fallback/standby when available in the pool
-
----
-
-### Files changed
-
-- `appwrite-hubs/ai-gateway/src/main.js`
-- `appwrite-hubs/admin-devkit-data/src/main.js`
-- `src/lib/devkit/aiToolsCatalogue.ts`
-- `src/lib/devkit/aiToolsCatalogue.test.ts`
-- `src/lib/devkit/sourceHashes.generated.json`
-- `tests/hubs/ai-gateway-routing.test.cjs` (new)
-
----
-
-### Verification
-
-- `node --check appwrite-hubs/ai-gateway/src/main.js`
-- `node tests/hubs/ai-gateway-routing.test.cjs`
-- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
-- `npx tsc --noEmit`
-- `node scripts/compute-source-hashes.mjs`
-
-All passed locally.
-
-Updated source hashes now include:
-- `ai-gateway: bc67549bd0524177`
-- `admin-devkit-data: 50aa4dfd898f12ca`
-
----
-
-### Where We Stopped
-
-- The route/default changes are complete locally and validated.
-- No deploy, push, or commit was performed in this session.
-- `resume-section-ai` remains fixed separately and was not touched.
-- The remaining production step for this work is an Appwrite deployment targeting `ai-gateway`.
-- After that deployment, the highest-priority live re-tests are:
-  1. `tailor-resume`
-  2. `generate-cover-letter`
-  3. `parse-job`
-  4. `parse-resume`
-  5. `optimize-for-linkedin`
-  6. `generate-question-bank`
-  7. `company-briefing`
-  8. `ask-portfolio`
-
----
-
-## Session Log - 2026-06-07 (Public Portfolio Access Audit, Fixes, and Deployment Drift Check)
-
-### Overview
-
-Full audit and fix pass for the broken public-portfolio/manual-QA reports affecting premium-account testing, shared-password behavior, custom domains, OG images, and native PDF export. The main frontend/security-header posture was re-checked against production. No deployment was performed. All changes remain uncommitted local working-tree changes on top of `main` at `cc6dee7c`.
-
----
-
-### Root causes identified and fixed
-
-#### F1 - Public portfolio access depended on browser Appwrite permissions/session state
-
-- **Root cause**: `usePublicPortfolio` queried `profiles` and `resumes` directly from the browser. Public visitors could fail on collection permissions or session state, while authenticated premium sessions masked the problem.
-- **Fix**: Added `api/public-portfolio.ts` as a server-side public portfolio endpoint using `node-appwrite`, then rewired the frontend hook to fetch through that endpoint.
-- **Files**: `api/public-portfolio.ts` (new), `src/hooks/usePublicPortfolio.ts`
-
-#### F2 - Shared password flow was implemented against the wrong source of truth
-
-- **Root cause**: The browser validated the password client-side against `portfolioExtras.passwordHash`, but the real server-side portfolio configuration lives in `portfolio_settings`. This made the gate logic fragile and confusing.
-- **Fix**: Moved password-gate checks and password verification to `api/public-portfolio.ts`, reading from `portfolio_settings` server-side and returning only the public portfolio payload after successful verification.
-- **Files**: `api/public-portfolio.ts` (new), `src/hooks/usePublicPortfolio.ts`
-
-#### F3 - Custom-domain public portfolios were hard-broken in code
-
-- **Root cause**: `usePublicPortfolioByDomain()` returned `null`, so custom-domain portfolio resolution never actually loaded a portfolio.
-- **Fix**: Implemented domain lookup through the new server-side endpoint by scanning profile `portfolio_extras.customDomain` and resolving the portfolio by username.
-- **Files**: `api/public-portfolio.ts` (new), `src/hooks/usePublicPortfolio.ts`
-
-#### F4 - OG image generation depended on `VITE_API_URL`
-
-- **Root cause**: `usePortfolioSEO` only emitted `og:image` / `twitter:image` when `VITE_API_URL` was defined, which is unsafe for same-origin Vercel production.
-- **Fix**: Added shared API-base helpers and switched SEO image generation to an absolute same-origin-safe base.
-- **Files**: `src/lib/publicApiBase.ts` (new), `src/hooks/usePortfolioSEO.ts`, `src/hooks/usePortfolioSEO.test.tsx` (new)
-
-#### F5 - Native PDF export used brittle API/project-ID resolution
-
-- **Root cause A**: `nativePdfGenerator` depended too directly on `VITE_API_URL`, risking export calls to the wrong host.
-- **Root cause B**: `api/export/pdf-native.ts` required `APPWRITE_PROJECT_ID` only, even though other project-ID env names already exist in this codebase and deployment footprint.
-- **Fix**: Switched frontend export calls to the shared API-base helper and broadened the server-side project-ID fallback chain.
-- **Files**: `src/lib/publicApiBase.ts` (new), `src/lib/nativePdfGenerator.ts`, `api/export/pdf-native.ts`
-
-#### F6 - Deployment/documentation drift was contributing to diagnosis confusion
-
-- **Root cause**: The Atlas still contains Hostinger/FTP language in `DEPLOYMENT_GUIDE.md`, while the live frontend is being served by Vercel and already returns CSP/HSTS headers from production.
-- **Fix**: Re-verified live headers on `https://resume.thewise.cloud` and documented the drift here for cleanup in a follow-up doc pass.
-- **Files**: documentation follow-up pending
-
----
-
-### Production facts re-checked during this session
-
-- `https://resume.thewise.cloud` currently returns `Content-Security-Policy` and `Strict-Transport-Security` headers on the main response.
-- The latest Atlas deployment drift still matters: frontend code on GitHub/main is ahead of the last known Appwrite hub deployment, so hub-specific failures can still be caused by live backend drift even when frontend code is corrected locally.
-- The startup validation message in `ai-gateway` still references generic provider env names (`OPENROUTER_API_KEY`, etc.) while the actual pool loader uses indexed keys (`OPENROUTER_KEY_1`, etc.). This looks misleading, but it was not the strongest verified root cause for the reported public-portfolio/PDF failures.
-- Live AI provider ping from `admin-devkit-data` confirmed all 4 providers are configured and reachable from production.
-- Live authenticated `ai-gateway` tests confirmed `company-briefing`, `tailor-resume`, and `parse-resume` still succeed in production, but `tailor-resume` is falling back from NVIDIA after `404` responses and `parse-resume` is falling back from OpenRouter after `429` responses.
-- Live authenticated `resume-section-ai` failed with `503 ai_credit_check_failed`, proving that this function is missing the Appwrite credentials it needs for session/credit checks.
-
----
-
-### Files changed
-
-- `api/export/pdf-native.ts`
-- `api/public-portfolio.ts` (new)
-- `appwrite-hubs/admin-devkit-data/src/main.js`
-- `appwrite-hubs/ai-gateway/src/main.js`
-- `appwrite-hubs/wisehire-gateway/src/main.js`
-- `scripts/deploy_hubs.cjs`
-- `src/components/dev-kit/AIRoutingSwitcher.tsx`
-- `src/hooks/__tests__/usePublicPortfolio.test.tsx`
-- `src/hooks/usePortfolioSEO.test.tsx` (new)
-- `src/hooks/usePortfolioSEO.ts`
-- `src/hooks/usePublicPortfolio.ts`
-- `src/lib/devkit/aiToolsCatalogue.ts`
-- `src/lib/nativePdfGenerator.ts`
-- `src/lib/publicApiBase.ts` (new)
-
----
-
-### Verification
-
-- `npm test -- src/hooks/__tests__/usePublicPortfolio.test.tsx src/hooks/usePortfolioSEO.test.tsx`
-- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts`
-- `npx tsc --noEmit`
-- `npm run build`
-- `node --check scripts/deploy_hubs.cjs`
-- `node --check appwrite-hubs/ai-gateway/src/main.js`
-- `node --check appwrite-hubs/admin-devkit-data/src/main.js`
-- `node --check appwrite-hubs/wisehire-gateway/src/main.js`
-
-All passed locally.
-
----
-
-### Where We Stopped
-
-- `main` is at `cc6dee7c`. Working tree is dirty with the local fixes above and Atlas documentation updates from this session.
-- No branch was created. No commit, push, or deployment was performed.
-- The public portfolio access path, custom-domain lookup path, OG image generation path, and native PDF export path are fixed locally but not yet live.
-- The Appwrite deploy script is now patched locally so `resume-section-ai` will receive the Appwrite credentials it needs on the next hub deploy.
-- The NVIDIA default route target is updated locally to a current model string; live production is still on the old routing until the next hub deploy.
-- Production header state on the main site was re-checked: CSP and HSTS are present on the homepage response.
-- The known deployment drift from the previous session still needs resolution: Appwrite hubs may still be running older code until the hub deploy workflow is executed and verified.
-- `Project Atlas/DEPLOYMENT_GUIDE.md` is stale relative to the current Vercel-first frontend deployment model and should be cleaned up in a separate documentation pass.
-
-**Next recommended step**
-
-1. Redeploy the frontend so the public-portfolio / OG / PDF fixes reach production.
-2. Redeploy the Appwrite hubs so `resume-section-ai` receives `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, and `APPWRITE_PROJECT_ID`, and so the updated NVIDIA route target reaches production.
-3. Verify a real authenticated `resume-section-ai` request immediately after hub deploy; this is the clearest regression check for the AI editor path.
-4. Verify the live public portfolio flow anonymously and through a password-gated portfolio.
-5. Re-check parse-heavy routes if needed: OpenRouter `429` fallback was observed live, so provider-level quota pressure may still require operational follow-up even after deploy.
-
----
-
-## Session Log - 2026-06-07 (Workflow Failure Follow-up: Source Hash Manifest Drift)
-
-### Overview
-
-Investigated the failed `Deploy Appwrite Hubs` GitHub Actions run after the latest `main` push. The workflow did not fail on Appwrite deploy, secrets, or the `resume-section-ai` target. It failed early at the source-hash guard step because the committed manifest no longer matched the changed hub sources.
-
----
-
-### Root cause identified
-
-#### F1 - `sourceHashes.generated.json` was stale relative to changed hub files
-
-- **Root cause**: The latest pushed code changed:
-  - `appwrite-hubs/ai-gateway/src/main.js`
-  - `appwrite-hubs/admin-devkit-data/src/main.js`
-  - `appwrite-hubs/wisehire-gateway/src/main.js`
-  but `src/lib/devkit/sourceHashes.generated.json` was not regenerated before push.
-- **Evidence**: GitHub Actions run `27098541686` failed at `Ensure source hash manifest is committed` after recomputing hashes in CI.
-- **Fix**: Ran `node scripts/compute-source-hashes.mjs` locally to refresh the committed manifest.
-- **File**: `src/lib/devkit/sourceHashes.generated.json`
-
----
-
-### Verification
-
-- `node scripts/compute-source-hashes.mjs`
-
-Updated hash values now include:
-- `ai-gateway: c4206a033df33a59`
-- `admin-devkit-data: 0470c45425c9ab4a`
-- `wisehire-gateway: cd99c96473afd639`
-
----
-
-### Where We Stopped
-
-- The workflow failure cause is verified: stale hash manifest, not Appwrite deployment logic.
-- Next step is to push the manifest-sync commit, then rerun `Deploy Appwrite Hubs` with target `resume-section-ai`.
-
----
+- **Custom domain end-to-end**: To make custom domains functional — (1) add top-level indexed `customDomain` attribute to Appwrite `profiles` collection, (2) implement `usePublicPortfolioByDomain` resolver with `Query.equal('customDomain', domain)`, (3) integrate Vercel domain registration API (requires explicit approval before implementation).
+- **`src/components/job-match/` → `src/components/tailoring-hub/` rename** — deferred from 2026-06-06 session, large churn, no functional impact.
+- **`tailor-resume` Appwrite Function returning `overallScore: null`** — deferred from 2026-06-06 session.
+- **Pre-existing lint in `AppInterior.tsx` lines 156/165** (`Property 'profile' does not exist on type 'never'`) — pre-existing, unrelated to this session.
 
 ---
 
@@ -7286,577 +6229,91 @@ Live:
   - `reports/*.json`
 - If Email Studio still shows the old toast on production, the next step is to verify the frontend deploy cache has refreshed, not to reopen the Appwrite function logic by default.
 
----
+## Session Log - 2026-06-14 (Appwrite Hub Runtime Fix + TestSprite MCP Setup)
 
-## Session Log - 2026-06-07 (Full Security Audit — 4 Batches + Deploy Readiness)
+### Summary
 
-### Overview
+Two independent tracks completed in this session:
 
-Implemented, reviewed, and merged a 26-issue security audit covering the full WiseResume-TWC codebase. Work proceeded in five sub-phases: 4 fix batches, a post-fix audit, a cleanup pass, a final pre-commit audit, then merge + post-merge deploy readiness fixes. All changes are on `main` at `484791a`.
+1. Fixed Appwrite hub deployment failures caused by an invalid Node.js runtime identifier.
+2. Integrated TestSprite MCP server for AI-powered testing.
 
----
-
-### Security Fixes — 26 Issues Across 4 Batches
-
-#### Batch 1 — Public runtime blockers (C-1, C-3, H-5, H-8, H-9, H-10, M-6/M-7, L-3)
-
-| Issue | Root cause | Fix | File(s) |
-|---|---|---|---|
-| C-1 | Puppeteer PDF endpoint had no auth gate | Added `requireAppwriteJWT` middleware | `api/export/pdf-native.ts` |
-| C-3 | Puppeteer allowed any URL (SSRF risk) | `isPuppeteerUrlAllowed()` blocks file://, RFC1918, loopback, .local | `api/export/pdf-native.ts` |
-| H-5 | TLS `rejectUnauthorized: false` in `server/db.ts` | Set to `true` | `server/db.ts` |
-| H-8 | No HSTS header | Added `Strict-Transport-Security: max-age=31536000; includeSubDomains` | `vercel.json` |
-| H-9 | Vulnerable transitive deps (`serialize-javascript`, `esbuild`, `path-to-regexp`) | Added `overrides` in `package.json` | `package.json` |
-| H-10 | `x-forwarded-for` used directly for IP (spoofable) | `requireAppwriteJWT` uses `req.ip` | `api/export/pdf-native.ts` |
-| M-6/M-7 | Express server had no CORS enforcement | `PRODUCTION_ORIGINS` Set + `buildExtraOriginSet()` from `ALLOWED_ORIGINS` env var | `server/index.ts` |
-| L-3 | Puppeteer `--no-sandbox` undocumented | Added accepted-risk comment at both launch sites | `server/index.ts`, `api/export/pdf-native.ts` |
-
-#### Batch 2 — Admin identity and impersonation (C-2, H-2, H-3, H-11, M-9, L-2)
-
-| Issue | Root cause | Fix | File(s) |
-|---|---|---|---|
-| C-2 | Admin check used email string comparison (spoofable) | Switched to `user.labels.includes('admin')` | `src/hooks/useIsAdmin.ts`, `src/contexts/AuthContext.tsx` |
-| H-2 | Impersonation token was unverified URL hash, activated client-side only | HMAC-SHA256 signed tokens; `ActAs.tsx` calls `admin-impersonate verify` action server-side before activating | `src/pages/ActAs.tsx`, `appwrite-hubs/admin-impersonate/src/main.js` |
-| H-3 | DevKit password compared with `===` (timing attack) | `timingSafeStringEqual()` via HMAC-nonce pattern in all 9 admin hubs | All admin hub `src/main.js` files |
-| H-11 | Impersonation nonce stored in sessionStorage with no risk note | Added security note to JSDoc | `src/lib/impersonationStore.ts` |
-| M-9 | Hardcoded Appwrite project ID fallback `|| '69fd362b...'` in executable code | Removed from all hubs and `src/lib/appwrite.ts` | 11 hub files + `src/lib/appwrite.ts` |
-| L-2 | `Math.random()` used for ID generation in `admin-testmail` | Replaced with `crypto.randomBytes(4).toString('hex')` | `appwrite-hubs/admin-testmail/src/main.js` |
-
-#### Batch 3 — Data protection, CORS, config hygiene (H-1, H-4, H-6, H-7, M-5, M-8)
-
-| Issue | Root cause | Fix | File(s) |
-|---|---|---|---|
-| H-1 | Share passwords stored and compared in plaintext | Frontend hashes with `SHA-256` prefixed `sha256:`; server verifies hash; legacy plaintext auto-upgrades on first use | `src/hooks/useResumeShares.ts`, `appwrite-hubs/public-share/src/main.js` |
-| H-4 | Public share password returned in API response | `Query.select` excludes `password` field from public share queries | `src/hooks/useResumeShares.ts` |
-| H-6 | Replit domains in portfolio allowlists | Removed `replit.dev`, `repl.co`, `replit.app` from all allowlists | `src/hooks/usePublicPortfolio.ts` |
-| H-7 | DevKit client token sent as plain query param | Switched to `Authorization: Bearer` header | `src/lib/devkit/devKitClient.ts` |
-| M-5 | `requireAppwriteJWT` middleware missing from OG image and track-portfolio routes | Added middleware to both routes | `server/index.ts` |
-| M-8 | Hardcoded project ID in `src/lib/appwrite.ts` | Fallback removed; `VITE_APPWRITE_PROJECT_ID` required | `src/lib/appwrite.ts` |
-
-#### Batch 4 — AI credits, rate limits, CSP, prompt injection (M-1, M-2, M-3, M-4, L-1)
-
-| Issue | Root cause | Fix | File(s) |
-|---|---|---|---|
-| M-1 | CSP missing `frame-ancestors`, `upgrade-insecure-requests`; `connect-src` too broad | Tightened CSP in `public/_headers` (connect-src Appwrite-only, added both directives) | `public/_headers` |
-| M-2 | AI credit write had no concurrency protection | Optimistic locking: re-read doc before write, compare `$updatedAt`, apply delta to fresh base if changed | `appwrite-hubs/ai-gateway/src/main.js` |
-| M-3 | Rate limits in-memory only (cold-start unsafe) | Persistent rate limiting via `ai_request_logs` collection (cross-instance, 60-second window) | `appwrite-hubs/ai-gateway/src/main.js` |
-| M-4 | IP extraction trusted `x-forwarded-for` directly | `getClientIp()` helper: `cf-connecting-ip` → `x-real-ip` → `req.ip` fallback (same pattern added to `server/index.ts` as `getServerClientIp()`) | `appwrite-hubs/ai-gateway/src/main.js`, `server/index.ts` |
-| L-1 | User-supplied content in AI system prompts (prompt injection) | Added `[USER INPUT]` / `[END USER INPUT]` delimiters; moved profile data and job description to `user` role in all 7 feature paths | `appwrite-hubs/ai-gateway/src/main.js` |
-
-#### Cleanup pass (post-audit gaps)
-
-- `server/index.ts` OG image + track-portfolio routes still used `x-forwarded-for` directly → added `getServerClientIp()` helper, applied to both routes.
-- `smol-toml` DoS vulnerability via `@vercel/node` transitive dep → added `"smol-toml": ">=1.6.1"` to `package.json` overrides.
-- Residual risk documentation added to JSDoc for H-11 (`impersonationStore.ts`), M-1 (`public/_headers`), L-3 (Puppeteer launch sites).
+All fixes landed on `main`. Latest commit: `4101224`.
 
 ---
 
-### Residual / accepted risks (documented, not fixed)
+### 1. Appwrite Hub Deployment Failures
 
-| ID | What | Why deferred |
-|---|---|---|
-| H-11 | sessionStorage XSS exposes `{ userId, email }` | Nonce not replayable; full fix requires memory-only state + mandatory reload — UX trade-off |
-| M-1 | CSP `unsafe-inline` remains | Vite SPA; nonce/hash injection requires HTML-serving layer changes |
-| M-2 | Optimistic lock narrows but doesn't eliminate credit race | Appwrite has no atomic increment operator |
-| L-3 | Puppeteer `--no-sandbox` | Required in containerised/serverless environments; SSRF guard + auth are primary mitigations |
+#### Root cause
 
----
+The `deploy_hubs.cjs` script and `appwrite.json` both referenced `node-22.0` as the runtime identifier. Appwrite Cloud only accepts `node-22` (no `.0` suffix). Additionally, previous sessions had set the runtime to `node-18.0`, which is EOL (April 2025) and was causing VCS-triggered build failures on the Appwrite side.
 
-### Validation before commit
+Two separate bugs:
+- Wrong format: `node-22.0` → must be `node-22`
+- Node 18 EOL: `node-18.0` set in both the deploy script default and `appwrite.json`
 
-- `npx tsc --noEmit` — CLEAN
-- `npm run build` — EXIT 0, no source maps
-- `node --check` on all 11 modified hub JS files — ALL PASS
-- 10/10 security-relevant unit tests pass (`Auth-D3.test.tsx`, `ProtectedRoute.test.tsx`)
-- `npm audit` — 7 vulns, all pre-existing `@vercel/node` transitives (undici, minimatch); fix requires semver-major `@vercel/node@3.0.1` upgrade, deferred
+The `DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true` flag in `deploy_hubs.cjs` ensures that when CI deploys hubs, it clears VCS integration fields (`installationId`, `providerRepositoryId`, `providerBranch`), permanently preventing Appwrite from triggering its own VCS builds.
 
----
+#### Workflow failure sequence
 
-### Commits created (this session)
+1. First deploy attempt failed: `node-22.0` is not a valid Appwrite runtime value. Valid value is `node-22`.
+2. Second issue surfaced: `sourceHashes.generated.json` was stale — 4 hub source hashes had changed (`admin-devkit-data`, `admin-email`, `admin-deploy-hubs`, `email-service`). The CI step `Ensure source hash manifest is committed` runs `git diff --exit-code` and fails if the file is out of date.
 
-| SHA | Message |
-|---|---|
-| `e41cf61` | `security: fix 26 audit issues across 4 batches + cleanup pass` |
-| `09480b7` | `Merge branch 'claude/inspiring-mayer-6PTJP': security fixes (26 issues, 4 batches)` |
-| `8ea5f9c` | `chore(security): fix post-merge deploy readiness gaps` |
-| `484791a` | `chore(deploy): regenerate hub source hash manifest after security fixes` |
-
----
-
-### Post-merge verification findings
-
-After merging to `main` and Vercel deploying, a read-only verification pass found:
-
-1. **Vercel deployment READY** — `dpl_DnXpM7NwfGFtxg3CrWsabB7ixsKA`, production URL `https://resume.thewise.cloud`.
-2. **CSP not live as HTTP header** — `public/_headers` CSP was never served under the Vercel rewrite config (`vercel.json` catch-all rewrites prevent `_headers` processing). The only active CSP was the meta tag injected by Vite's `cspPlugin()` in `vite.config.ts`, which has a wider `connect-src`.
-3. **IMPERSONATION_HMAC_SECRET** — not in the deploy workflow env block. Deploy script falls back to `APPWRITE_API_KEY` via `getImpersonationSecret()`, so impersonation is functional but without a dedicated secret.
-4. **`ai_request_logs`** — setup script was missing 3 attributes (`is_idempotency_hit`, `credits_charged`, `idempotency_key`) and 2 indexes (`user_id_idx`, `created_at_idx`) required by `checkPersistentRateLimit`.
-5. **`idempotency_cache`** — no setup script existed; collection would have been created only by hand.
-6. **Deploy workflow source hash check failed** — `compute-source-hashes.mjs` was never re-run after the 17 hub files changed in `e41cf61`, causing step 6 (`Ensure source hash manifest is committed`) to fail on the first deploy attempt.
-
----
-
-### Deploy readiness fixes (commit `8ea5f9c`)
-
-#### Fix 1 — CSP in `vercel.json`
-
-**Root cause**: `vercel.json` has a catch-all rewrite `/((?!api/).*) → /index.html`. Vercel does not process `_headers` files when rewrite rules are active. The CSP in `public/_headers` was committed but never served.
-
-**Fix**: Added `Content-Security-Policy` HTTP header directly to the `vercel.json` headers block, matching the `vite.config.ts` meta CSP value exactly plus `upgrade-insecure-requests`. The meta CSP (from Vite's `cspPlugin`) and the HTTP CSP are now identical — no regression risk.
-
-**File**: `vercel.json`
-
-#### Fix 2 — IMPERSONATION_HMAC_SECRET deploy propagation
-
-**Root cause**: `deploy_hubs.cjs` handles `admin-impersonate` via `ensureSharedAdminVariables`, which sets the shared vars (`DEVKIT_PASSWORD`, `APPWRITE_API_KEY`, etc.) but not the new secret. The GitHub Actions workflow also did not pass it.
-
-**Fix**: Added `IMPERSONATION_HMAC_SECRET: ${{ secrets.IMPERSONATION_HMAC_SECRET }}` to the workflow env block; added `ensureVariable('admin-impersonate', 'IMPERSONATION_HMAC_SECRET', ...)` in `syncVariablesForHubs`. Fallback to `APPWRITE_API_KEY` remains in `admin-impersonate/src/main.js` but is no longer the expected production path.
-
-**Note**: The `IMPERSONATION_HMAC_SECRET` GitHub Secret must be created in the repository before the next hub deploy. Without it, deploy continues (uses `APPWRITE_API_KEY` fallback) but impersonation uses a weaker shared secret.
-
-**Files**: `.github/workflows/deploy-appwrite-hubs.yml`, `scripts/deploy_hubs.cjs`
-
-#### Fix 3 — `ai_request_logs` missing attributes and indexes
-
-**Root cause**: `setup_ai_logs_schema.cjs` was written before the idempotency and credit tracking fields were added to `safeLogAiRequest()` in the ai-gateway. Three attributes written by the function were absent from the schema: `is_idempotency_hit` (bool), `credits_charged` (int), `idempotency_key` (str 64). Two indexes required by `checkPersistentRateLimit`'s `Query.equal('user_id')` + `Query.greaterThanEqual('created_at')` were also missing.
-
-**Fix**: Added the 3 missing attributes and `user_id_idx` / `created_at_idx` indexes to the setup script.
-
-**File**: `scripts/setup_ai_logs_schema.cjs`
-
-#### Fix 4 — `idempotency_cache` had no setup script
-
-**Root cause**: No `setup_idempotency_schema.cjs` existed. The ai-gateway degrades gracefully when the collection is absent (logs a one-time warning), but dedup protection is inactive until the collection exists.
-
-**Fix**: Created `scripts/setup_idempotency_schema.cjs` with full schema (8 attributes + `key_idx` index). Added `Ensure idempotency cache schema` step to the deploy workflow, running before the hub deploy step.
-
-**Files**: `scripts/setup_idempotency_schema.cjs` (new), `.github/workflows/deploy-appwrite-hubs.yml`
-
----
-
-### Deploy workflow fix (commit `484791a`)
-
-**Root cause**: `compute-source-hashes.mjs` hashes each hub's `src/main.js`. The security commit `e41cf61` modified 17 hub files, but the hash manifest `src/lib/devkit/sourceHashes.generated.json` was not regenerated. The deploy workflow recomputes hashes in CI and then runs `git diff --exit-code` to enforce that the committed manifest matches. This check failed, aborting the workflow.
-
-**Fix**: Ran `node scripts/compute-source-hashes.mjs` locally; committed the updated manifest. 17 hub hashes updated.
-
-**File**: `src/lib/devkit/sourceHashes.generated.json`
-
----
-
-### Files changed (full session)
-
-**Security fixes (`e41cf61`)** — 32 files:
-
-- `api/export/pdf-native.ts`
-- `appwrite-hubs/admin-deploy-hubs/src/main.js`
-- `appwrite-hubs/admin-devkit-data/src/main.js`
-- `appwrite-hubs/admin-email/src/main.js`
-- `appwrite-hubs/admin-feature-flags/src/main.js`
-- `appwrite-hubs/admin-impersonate/src/main.js`
-- `appwrite-hubs/admin-moderation/src/main.js`
-- `appwrite-hubs/admin-onboarding-funnel/src/main.js`
-- `appwrite-hubs/admin-portfolio-usernames/src/main.js`
-- `appwrite-hubs/admin-testmail/src/main.js`
-- `appwrite-hubs/admin-visitor-analytics/src/main.js`
-- `appwrite-hubs/ai-gateway/src/main.js`
-- `appwrite-hubs/coupons/src/main.js`
-- `appwrite-hubs/email-service/src/main.js`
-- `appwrite-hubs/inspect-ai-keys/src/main.js`
-- `appwrite-hubs/public-share/src/main.js`
-- `appwrite-hubs/wisehire-gateway/src/main.js`
-- `package-lock.json`, `package.json`
-- `public/_headers`
-- `server/db.ts`, `server/index.ts`
-- `src/contexts/AuthContext.tsx`
-- `src/hooks/useIsAdmin.ts`, `src/hooks/usePublicPortfolio.ts`, `src/hooks/useResumeShares.ts`
-- `src/lib/appwrite.ts`, `src/lib/devkit/devKitClient.ts`, `src/lib/impersonationStore.ts`, `src/lib/nativePdfGenerator.ts`
-- `src/pages/ActAs.tsx`
-- `vercel.json`
-
-**Deploy readiness (`8ea5f9c`)** — 5 files:
-
-- `.github/workflows/deploy-appwrite-hubs.yml`
-- `scripts/deploy_hubs.cjs`
-- `scripts/setup_ai_logs_schema.cjs`
-- `scripts/setup_idempotency_schema.cjs` (new)
-- `vercel.json`
-
-**Source hash manifest (`484791a`)** — 1 file:
-
-- `src/lib/devkit/sourceHashes.generated.json`
-
----
-
-### Deployments performed
-
-| What | State | Notes |
-|---|---|---|
-| Vercel frontend | READY | Auto-triggered by each push to `main`. CSP HTTP header live from `8ea5f9c`. |
-| Appwrite Functions | **NOT deployed** | `deploy-appwrite-hubs.yml` is `workflow_dispatch` only. First attempt failed (source hash check). Hash manifest fixed in `484791a`. Ready to deploy. |
-
----
-
-### Where We Stopped
-
-- `main` is at `484791a`. Local and `origin/main` are aligned.
-- Vercel production (`https://resume.thewise.cloud`) is live at `484791a`.
-- Appwrite Functions are still running the **pre-security-fix code** (last deployed `2026-06-03` at `3c70bce3`). All 17 changed hubs are queued for deploy.
-- `sourceHashes.generated.json` is up to date; the deploy workflow hash check will now pass.
-
-**Next step — trigger the Appwrite hub deploy:**
-
-1. Create the `IMPERSONATION_HMAC_SECRET` GitHub Secret in the repository (if not already set). Value should be a random 32-byte secret, distinct from `APPWRITE_API_KEY`.
-2. Go to GitHub → Actions → `Deploy Appwrite Hubs` → `Run workflow` → branch `main` → target `all`.
-3. The workflow will:
-   - Run `setup_ai_logs_schema.cjs` (adds missing attributes + indexes to `ai_request_logs`)
-   - Run `setup_idempotency_schema.cjs` (creates `idempotency_cache`)
-   - Deploy all 17 changed hubs
-   - Set `IMPERSONATION_HMAC_SECRET` on `admin-impersonate`
-   - Run smoke checks on deployed functions
-4. After deploy: verify in Appwrite Console that `admin-impersonate` has `IMPERSONATION_HMAC_SECRET` set.
-5. Run manual QA:
-   - PDF export (SSRF guard + JWT auth)
-   - OG image generation
-   - Share password (test legacy plaintext → SHA-256 upgrade path)
-   - AI credits + idempotency (submit same request twice within 5-min window)
-   - Public portfolio chat
-   - Admin DevKit (all panels)
-   - Act As impersonation (new-tab flow with HMAC token verification)
-   - CORS / HSTS / CSP headers (DevTools → Network → response headers on `resume.thewise.cloud`)
-
-**Pending manual Vercel env var verification** (cannot be done programmatically):
-
-- `VITE_APPWRITE_PROJECT_ID`
-- `APPWRITE_PROJECT_ID`
-- `APPWRITE_ENDPOINT`
-
-Confirm these exist in the Vercel dashboard before signing off QA.
-
----
-
-## SESSION LOG — 2026-06-08 AI Routing & DevKit Audit
-
-### Branch
-`claude/atlas-handover-review-pv67uk`
-
-### Objective
-Full Phase 0–9 AI routing and DevKit audit: verify DeepSeek-primary routing end-to-end, structured output normalizers, credits/auth/idempotency, env var pool, and all DevKit panels. Implement minimal safe fixes for verified issues only.
-
----
-
-### Audit Results
-
-#### Phase 1 — DeepSeek-primary routing ✅ PASS
-
-| Check | Status |
-|---|---|
-| `FEATURE_ROUTES` in ai-gateway — all 21 tools DeepSeek-first (except resume-section-ai Groq) | ✅ |
-| `TOOL_GATEWAY_DEFAULTS` in aiToolsCatalogue.ts — exact match | ✅ |
-| `STATIC_DEFAULTS` in admin-devkit-data handleListRoutes — exact match | ✅ |
-| `score-resume` has no dedicated route (pool fallback) | ✅ |
-| Fallback providers (Groq, OpenRouter, NVIDIA) remain in pool | ✅ |
-| Dynamic DB override via `ai_routing_config` collection (1-min TTL cache) | ✅ |
-
-#### Phase 2 — Structured output normalizers ✅ PASS
-
-| Normalizer | Validation enforced |
-|---|---|
-| `normalizeLinkedInPayload` | Rejects empty `experienceRewrites` when resume has experience; rejects empty headlines/about |
-| `normalizeQuestionBankPayload` | Requires all 4 categories: company, technical, behavioral, curveball |
-| `normalizeCompanyBriefingPayload` | Requires `companySnapshot.name` |
-| `normalizeTailorResumeCollections` | Preserves original IDs via company+position match, index fallback |
-
-All normalizer tests pass: `node tests/hubs/ai-gateway-routing.test.cjs` → ALL TESTS PASSED.
-
-#### Phase 3 — Credits, auth, idempotency ✅ PASS (code-level)
-
-- `validateUserSession()` gates all user-facing tools ✅
-- `publicPortfolioAuth` gates ask-portfolio ✅
-- Admin test nonce bypasses credit deduction ✅
-- Idempotency cache: 5-min TTL window, Appwrite `idempotency_cache` collection ✅
-- Credit recording with 3-tier retry backoffs (100ms → 500ms → 2000ms) ✅
-- `invalidate-ai-credit-queries.ts` wired at call sites ✅
-
-#### Phase 4 — Env var / key pool ✅ PASS (after Fix #1)
-
-- `buildPool()` reads correct names: `GROQ_KEY_1-3`, `OPENROUTER_KEY_1-3`, `DEEPSEEK_KEY`, `NVIDIA_KEY_1-3` ✅
-- `inspect-ai-keys` reads correct names ✅
-- `AI_KEY_SLOT_MAP` correctly shows `deepseek:[1]` only ✅
-- **BUG FIXED**: `performStartupValidation()` was checking old names (see fixes below)
-
-#### Phase 5 — DevKit panels ✅ PASS (after Fix #2)
-
-| Panel | Status |
-|---|---|
-| MissionControlPanel — ping-providers, mission-control, fn-drift | ✅ Wired |
-| DeployHubsPanel — listing, drift detection, redeploy, logs | ✅ Wired |
-| AIKeysPanel — inspect-ai-keys slot display | ✅ Wired |
-| AIRadarPanel — list-ai-gateway-activity | ✅ Wired |
-| AICommandCenterPanel — 3-tab (overview/keys/routing) | ✅ Wired |
-| AIRoutingSwitcher — Probe Routes, test call, DB overrides | ✅ Wired; **Smart Defaults** now aligned |
-
----
-
-### Fixes Implemented
-
-#### Fix #1 — ai-gateway startup validation used wrong env var names
-
-**File**: `appwrite-hubs/ai-gateway/src/main.js` lines 126-128
-
-**Before**:
-```js
-const hasAnyAiKey = [
-  'OPENROUTER_API_KEY', 'GROQ_API_KEY', 'DEEPSEEK_API_KEY', 'NVIDIA_API_KEY',
-].some(k => !!process.env[k]);
-```
-
-**After**:
-```js
-const hasAnyAiKey = [
-  'GROQ_KEY_1', 'OPENROUTER_KEY_1', 'DEEPSEEK_KEY', 'NVIDIA_KEY_1',
-].some(k => !!process.env[k]);
-```
-
-**Impact of bug**: False-positive `[ALERT] No AI provider API keys found` logged every cold-start even when `DEEPSEEK_KEY` was configured. Pool routing was unaffected (pool logic correct). Fix eliminates the false-positive.
-
-**Impact of fix**: After Appwrite re-deploy, cold-start logs will only show the alert if `GROQ_KEY_1`, `OPENROUTER_KEY_1`, `DEEPSEEK_KEY`, and `NVIDIA_KEY_1` are ALL absent.
-
-#### Fix #2 — AIRoutingSwitcher "Smart Defaults" recommended stale/dangerous providers
-
-**File**: `src/components/dev-kit/AIRoutingSwitcher.tsx` — `FEATURE_METADATA` object
-
-**Before**: `recommendedProvider` pointed to:
-- NVIDIA for `tailor-resume`, `generate-cover-letter`, `generate-portfolio-bio`, `optimize-for-linkedin` (NVIDIA documented 404 failures)
-- OpenRouter for `parse-resume`, `parse-job`, `generate-question-bank` (OpenRouter documented 429 failures)
-- Groq for most tools currently routing DeepSeek-first
-
-**After**: All 21 non-`resume-section-ai` features set to `deepseek/deepseek-chat`. `resume-section-ai` stays `groq/llama-3.3-70b-versatile` (intentional — routes via the separate `resume-section-ai` Appwrite Function, not ai-gateway).
-
-**Impact of bug**: Admin clicking "Apply Smart Defaults" would have overridden stable DeepSeek-first routing with unreliable providers.
-
-**Impact of fix**: "Apply Smart Defaults" now writes DB overrides that match the existing stable FEATURE_ROUTES. Functionally a no-op (current routing already matches), but safe instead of dangerous.
-
-#### Source hash update
-
-`sourceHashes.generated.json`: `ai-gateway` hash: `b156e066754d6ed6` → `b53aadc3bf84d1be`
-
----
-
-### Validation
-
-```
-node --check appwrite-hubs/ai-gateway/src/main.js         → OK
-node --check appwrite-hubs/admin-devkit-data/src/main.js  → OK
-node tests/hubs/ai-gateway-routing.test.cjs               → ALL TESTS PASSED
-npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts    → 9/9 passed
-npx tsc --noEmit                                           → clean (no errors)
-```
-
----
-
-### Commits and PR
-
-| Item | Value |
-|---|---|
-| Feature branch commit | `b8583b91` (`claude/atlas-handover-review-pv67uk`) |
-| PR | [#88](https://github.com/iammagdy/WiseResume-TWC/pull/88) — merged |
-| Merge commit | `7afbab59c922d3c949a071c47296910e117001c2` → `main` |
-
-### Deployment
-
-| Item | Value |
-|---|---|
-| GitHub Actions run | `27169666319` — `completed / success` (2026-06-08T21:59–22:01Z) |
-| Run URL | https://github.com/iammagdy/WiseResume-TWC/actions/runs/27169666319 |
-| Target | `ai-gateway` only (`--only="ai-gateway"`) |
-| Schema steps | All 6 passed (observability, app-settings, ai-logs, idempotency, company-briefings, tailoring-lineage) |
-| Source hash check | "Ensure source hash manifest is committed" → `git diff --exit-code` clean → hash `b53aadc3bf84d1be` confirmed ✅ |
-| Appwrite deployment ID | UNKNOWN — GHA log URL blocked by network policy; confirm in Appwrite Console |
-
-### Live State After This Session
-
-| Item | State |
-|---|---|
-| Vercel frontend | READY — `AIRoutingSwitcher.tsx` fix shipped with PR #88 merge → Vercel auto-deploy |
-| ai-gateway (Appwrite) | **DEPLOYED** — GHA run `27169666319` succeeded; hash `b53aadc3bf84d1be` live |
-| `ai-gateway` source hash | `b53aadc3bf84d1be` ✅ matches committed manifest |
-| All other hubs | Unchanged |
-| `main` | At merge commit `7afbab59` |
-
-### Where We Stopped
-
-- All code changes from this session are merged to `main` and deployed.
-- No pending commits or open PRs.
-- Vercel auto-deployed on merge (AIRoutingSwitcher.tsx fix is live in the frontend).
-- ai-gateway Appwrite deployment completed via GHA workflow `27169666319`.
-
-### Remaining Manual QA (requires Appwrite Console / browser — not automatable)
-
-| Check | How | Priority |
-|---|---|---|
-| Cold-start ALERT gone | Appwrite Console → Functions → ai-gateway → Executions → trigger a test execution → confirm no `[ALERT] No AI provider API keys found` | High — confirms Bug #1 fix is live |
-| Appwrite deployment ID + active status | Appwrite Console → Functions → ai-gateway → Deployments → confirm new deployment is Active | Medium |
-| Probe Routes shows DeepSeek primary | DevKit → AI Command Center → Probe Routes | Medium |
-| Smart Defaults safe to click | DevKit → AI Routing → Apply Smart Defaults → confirm writes `deepseek/deepseek-chat` | Medium |
-| Tailor resume end-to-end | Submit a tailor request; verify structured JSON output returned | Low (normalizer tests already pass) |
-| Question bank 4 categories | Run generate-question-bank; verify company/technical/behavioral/curveball all present | Low |
-| Company briefing | Run company-briefing; verify `companySnapshot.name` populated | Low |
-| LinkedIn optimizer | Run optimize-for-linkedin with a resume that has experience; verify experienceRewrites non-empty | Low |
-
----
-
-## Session Log — 2026-06-09 (Security Remediation Deploy + Deploy Script Repair)
-
-### Overview
-
-This session completed the deployment of the Antigravity security audit remediation (PR #91) and fixed a chain of failures in the GHA `Deploy Appwrite Hubs` workflow that prevented the remediation from reaching production.
-
----
-
-### What Was Done
-
-#### 1. PR #91 — Security Remediation Merged to `main`
-
-PR `wr-security-remediation-review` → `main` merged as `95dc718f`.
-
-Included fixes:
-- **M-1**: `timingSafeEqual` in `api/public-portfolio.ts` for constant-time password comparison
-- **M-2**: Server-side honeypot enforcement in `ai-gateway/src/main.js`
-- **M-3**: Plan variable scope fix in `ai-gateway/src/main.js`
-- **L-1**: `TURNSTILE_SECRET_KEY` startup warning in `ai-gateway/src/main.js`
-- `IMPERSONATION_HMAC_SECRET` provisioned for `admin-devkit-data` in `scripts/deploy_hubs.cjs`
-- `scripts/setup-security-collections.cjs` — new script to create 5 Appwrite collections required by the remediation
-- `src/pages/PortfolioEditorPage.tsx` — restored from `cde4dfc` after full-file `?` character corruption from mojibake repair
-
-#### 2. `sourceHashes.generated.json` Stale — PR #92
-
-**Root cause**: PR #91 modified `ai-gateway/src/main.js` and `admin-devkit-data/src/main.js` without updating the hash manifest. GHA step 6 (`git diff --exit-code -- src/lib/devkit/sourceHashes.generated.json`) failed because the committed manifest was stale.
-
-**Fix**: Ran `node scripts/compute-source-hashes.mjs` locally, committed updated hashes, opened PR #92 from `fix/source-hashes-post-pr91`.
-
-| Hub | Old hash | New hash |
-|-----|----------|----------|
-| `ai-gateway` | `2bc26ba21049b5d2...` | `20e05909f31769ea...` |
-| `admin-devkit-data` | (already correct) | `7c6a71a1f4f555b2...` |
-
-Merged as `1adba431`.
-
-#### 3. `IndexType` Undefined — PR #93
-
-**Root cause**: `scripts/setup-security-collections.cjs` imported `IndexType` from `node-appwrite`, but the package exports it as `DatabasesIndexType`. `IndexType` was `undefined` at runtime; any call to `IndexType.Key` threw `Cannot read properties of undefined (reading 'Key')`.
-
-**Fix**: Changed import line:
-```js
-// Before
-const { Client, Databases, IndexType } = require('node-appwrite');
-// After
-const { Client, Databases, DatabasesIndexType: IndexType } = require('node-appwrite');
-```
-
-Merged as `b70f890`.
-
-#### 4. `defaultVal` on Required Attributes — PR #94
-
-**Root cause**: Three integer attributes (`email_rate_limits.count`, `portfolio_session_rate_limits.count`, `portfolio_daily_usage.question_count`) were declared `required: true` with `defaultVal: 0`. Appwrite rejects required attributes that also carry a default value.
-
-**Fix**: Removed `defaultVal: 0` from all three attribute definitions.
-
-Merged as `7a554ff`.
-
-#### 5. `null` Default Still Sent + Partial Collection Recovery — PR #95
-
-**Root cause 1**: After removing explicit `defaultVal: 0`, the destructuring default `defaultVal = null` remained. The Appwrite Node SDK includes `default` in the API payload only when the value is `!== undefined` — passing `null` still triggered the rejection.
-
-**Root cause 2**: `email_rate_limits` was created as an empty collection in run #3 (before the error). The old `ensureCollection` skipped the entire collection (including attribute creation) if it already existed, leaving a permanently broken empty collection.
-
-**Fix**: Rewrote `ensureCollection` to:
-- Changed `defaultVal = null` → `defaultVal = undefined` so the SDK omits `default` from the payload
-- Always attempts attribute/index creation regardless of whether the collection exists
-- Catches 409 duplicate errors per-item instead of skipping the whole collection
-- Fully idempotent: safe to run against any partial state
-
-Merged as `8f0f8d2`.
-
----
-
-### Files Changed
+#### Files changed
 
 | File | Change |
-|---|---|
-| `api/public-portfolio.ts` | M-1: timingSafeEqual for password comparison |
-| `appwrite-hubs/ai-gateway/src/main.js` | M-2 honeypot, M-3 plan var, L-1 Turnstile warning |
-| `scripts/deploy_hubs.cjs` | IMPERSONATION_HMAC_SECRET provisioned for admin-devkit-data |
-| `scripts/setup-security-collections.cjs` | New script (FIX-16); patched 3× for IndexType, defaultVal, idempotency |
-| `scripts/setup-security-collections.cjs` | `DatabasesIndexType` alias (PR #93) |
-| `scripts/setup-security-collections.cjs` | Remove `defaultVal` from required attrs (PR #94) |
-| `scripts/setup-security-collections.cjs` | Full idempotency rewrite (PR #95) |
-| `src/pages/PortfolioEditorPage.tsx` | Restored from `cde4dfc` + encoding substitutions re-applied |
-| `src/lib/devkit/sourceHashes.generated.json` | Updated hashes for `ai-gateway` and `admin-devkit-data` |
-| `.github/workflows/deploy-appwrite-hubs.yml` | Added `setup-security-collections.cjs` step + new secrets |
+|------|--------|
+| `scripts/deploy_hubs.cjs` | `DEFAULT_RUNTIME`: `'node-18.0'` → `'node-22'` |
+| `appwrite.json` | All 20 function `runtime` fields: `"node-18.0"` → `"node-22"` |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated via `node scripts/compute-source-hashes.mjs` |
+| `.mcp.json` | Created — TestSprite MCP server config (see track 2) |
+| `testsprite.md` | Created — TestSprite testing brief (see track 2) |
+
+#### Commits / PRs
+
+| SHA | PR | Description |
+|-----|----|-------------|
+| `b9155ae` | #100 | Initial runtime + TestSprite changes (squash merged) |
+| `340505f` | #101 | Updated `sourceHashes.generated.json` after hash drift |
+| `4101224` | #102 | Corrected runtime from `node-22.0` to `node-22` |
+
+#### Deployment state
+
+The `deploy-appwrite-hubs.yml` GitHub Actions workflow (`workflow_dispatch`) must be **manually triggered** by the repo owner from:
+`https://github.com/iammagdy/WiseResume-TWC/actions/workflows/deploy-appwrite-hubs.yml`
+→ Run workflow → branch: `main` → target: `all`
+
+The GitHub MCP token does not have `actions: write` permission (returns HTTP 403 on `workflow_dispatch` trigger). This is a GitHub App scope limitation — it cannot be worked around from within Claude Code.
+
+**As of session end, the workflow has not been successfully triggered.** The last two manual trigger attempts by the user resulted in the errors documented above (now fixed). The next trigger will use correct inputs from `main` at `4101224`.
 
 ---
 
-### Commits (chronological)
+### 2. TestSprite MCP Integration
 
-| SHA | Message |
-|-----|---------|
-| `dfcff77` | fix(build): restore missing ternary ? deleted during mojibake repair |
-| `5a6e948` | fix(build): restore PortfolioEditorPage syntax after mojibake repair |
-| `e118573` | fix(deploy): propagate impersonation secret to admin devkit hub |
-| `95dc718` | Security remediation for Antigravity audit findings (#91) — merge commit |
-| `1adba43` | chore(deploy): update source hash manifest after PR #91 security remediation |
-| `b70f890` | fix(deploy): use DatabasesIndexType alias for node-appwrite compat |
-| `7a554ff` | fix(deploy): remove defaultVal from required integer attributes in security collections |
-| `8f0f8d2` | fix(deploy): make setup-security-collections fully idempotent |
+#### What was done
 
----
+- Created `testsprite.md` — a structured testing brief covering: app description, all major pages/flows, success criteria, skip list (DevKit admin panel, billing, OAuth), and severity preferences.
+- Created `.mcp.json` at repo root — configures the TestSprite MCP server (`@testsprite/testsprite-mcp@latest`) using an environment variable reference for the API key (never committed in plaintext).
 
-### PRs
+#### Security note
 
-| PR | Branch | Merged as | Purpose |
-|----|--------|-----------|---------|
-| #91 | `wr-security-remediation-review` | `95dc718` | Full security remediation |
-| #92 | `fix/source-hashes-post-pr91` | `1adba43` | Fix stale source hash manifest |
-| #93 | `fix/setup-security-collections-indextype` | `b70f890` | Fix `IndexType` undefined |
-| #94 | `fix/setup-security-collections-defaults` | `7a554ff` | Fix defaultVal on required attrs |
-| #95 | `fix/setup-security-collections-idempotent` | `8f0f8d2` | Full idempotency rewrite |
+API key is stored in `.env` (gitignored) as `TESTSPRITE_API_KEY=...`. The `.mcp.json` file references it as `${TESTSPRITE_API_KEY}`. Never commit the actual key.
 
----
+#### Files
 
-### Deployment State
-
-| Item | State |
-|---|---|
-| Vercel frontend | READY — `95dc718` deployed to production |
-| `main` | At `8f0f8d2` |
-| Appwrite hubs | **NOT YET DEPLOYED** — `Deploy Appwrite Hubs` workflow has been fixed and is ready to run |
-| Security collections | **NOT YET CREATED** — `setup-security-collections.cjs` is fixed; collections will be created on next successful workflow run |
+| File | Status |
+|------|--------|
+| `testsprite.md` | Created |
+| `.mcp.json` | Created |
+| `.env` | Modified locally (gitignored, not committed) |
 
 ---
 
 ### Where We Stopped
 
-- All deploy-script fixes are merged to `main` (`8f0f8d2`).
-- The `Deploy Appwrite Hubs` GHA workflow (`deploy-appwrite-hubs.yml`) has been run 3× this session and failed each time due to the script bugs above. All known bugs are now fixed.
-- **Next action required**: Trigger `Deploy Appwrite Hubs` workflow from `main` → `all`. This is the first run that should complete successfully end-to-end.
-- After a successful workflow run, manually verify in Appwrite Console:
-  1. Collections created: `admin_audit_log`, `email_rate_limits`, `portfolio_session_rate_limits`, `portfolio_daily_usage`, `credit_locks`
-  2. `email_rate_limits` has both `count` (integer) and `reset_at` (string) attributes — it was partially created in a failed run and the fixed script should recover it
-  3. Active deployment IDs updated for `ai-gateway` and `admin-devkit-data`
-  4. No `[ALERT]` in `ai-gateway` cold-start logs for missing secrets
-
----
-
-### New Appwrite Collections (created by `setup-security-collections.cjs`)
-
-| Collection | Attributes | Purpose |
-|---|---|---|
-| `admin_audit_log` | `action`, `target_user_id`, `target_email`, `nonce`, `expires_at`, `created_at` | Admin impersonation audit trail (FIX-08) |
-| `email_rate_limits` | `count` (int), `reset_at` (string) | Per-IP email rate limiting (FIX-10) |
-| `portfolio_session_rate_limits` | `count` (int), `reset_at` (string) | Per-IP portfolio chat session caps (FIX-09) |
-| `portfolio_daily_usage` | `owner_user_id`, `date`, `question_count` (int) | Per-portfolio daily AI question counters (FIX-09) |
-| `credit_locks` | `locked_at`, `lock_expires_at` | Mutex for credit check-and-deduct (FIX-12) |
-
-Note: `admin_audit_log` was successfully created (with all attributes and indexes) in an earlier failed run and will be skipped on the next run.
-
+- Latest `origin/main` commit: `4101224` (`fix: correct node runtime from node-22.0 to node-22`)
+- Local `main` and `origin/main` are aligned after `git fetch`.
+- **Pending action (requires human):** Trigger `deploy-appwrite-hubs.yml` manually from `main` with `target: all`. This will redeploy all 20 hubs with `node-22` runtime and disable Appwrite VCS auto-deploy via `DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`.
+- TestSprite MCP is configured and ready. Run `/testsprite` in Claude Code once `TESTSPRITE_API_KEY` is set in your environment.
+- No product code, Appwrite function logic, environment variables, or Appwrite Console settings were changed during the documentation step.

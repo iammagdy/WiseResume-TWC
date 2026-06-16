@@ -591,7 +591,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
                     {this.state.reportStatus === 'error' && (
                       <p className="text-xs text-destructive text-center">
-                        Failed to send. Please email contact@thewise.cloud directly.
+                        Failed to send. Please email contact@wiseresume.app directly.
                       </p>
                     )}
                   </>

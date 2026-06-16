@@ -8,9 +8,13 @@ const DB_ID = 'main';
 const SESSION_TTL_MS = 60 * 60 * 1000;
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://resume.thewise.cloud';
+const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://wiseresume.app';
 const IMPERSONATION_SESSIONS_COLLECTION = 'admin_impersonation_sessions';
-// â”€â”€â”€ Phase-4: Cold-start startup validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
+// No hard-coded fallback: when absent, admin-only paths fail closed.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+
+// ─── Phase-4: Cold-start startup validation ───────────────────────────────────
 (function performStartupValidation() {
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
   if (!apiKey) {
@@ -364,7 +368,7 @@ async function handleDiagnostics(log, error) {
 
   try {
     const site = await axios.get(PRODUCTION_URL, { timeout: 8000, validateStatus: () => true });
-    items.push(item('Production', 'production-url', 'Production URL', site.status < 400 ? 'healthy' : 'warning', `${PRODUCTION_URL} returned HTTP ${site.status}.`, 'Default is resume.thewise.cloud.'));
+    items.push(item('Production', 'production-url', 'Production URL', site.status < 400 ? 'healthy' : 'warning', `${PRODUCTION_URL} returned HTTP ${site.status}.`, 'Default is wiseresume.app.'));
   } catch (e) {
     items.push(item('Production', 'production-url', 'Production URL', 'broken', `${PRODUCTION_URL} is unreachable.`, e.message));
   }
@@ -1294,7 +1298,7 @@ function planUpgradeEmailHtml(userEmail, planLabel, durationLabel) {
     <h2 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;">${heading}</h2>
     ${body}
     <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p>
-    <a href="https://resume.thewise.cloud/dashboard" style="display:inline-block;background:#9E1B22;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>`;
+    <a href="https://wiseresume.app/dashboard" style="display:inline-block;background:#9E1B22;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WiseResume</title></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
@@ -1484,7 +1488,7 @@ async function sendPlanChangeEmail({ userId, previousPlan, newPlan, changeType, 
         heading: copy.heading,
         bodyHtml: copy.bodyHtml,
         ctaLabel: 'Go to Dashboard',
-        ctaUrl: 'https://resume.thewise.cloud/dashboard',
+        ctaUrl: 'https://wiseresume.app/dashboard',
       }),
     });
     log(`sendPlanChangeEmail: sent to ${email} (${previousPlan} -> ${newPlan}, ${changeType})`);
@@ -1796,7 +1800,6 @@ async function handleGetIdentity(body, log) {
   return {
     auth_email: authUser?.email || profile?.email || null,
     contact_email: profile?.contact_email || null,
-    kinde_sub: null, kinde_email: null, kinde_email_status: 'not_needed',
     last_exchange_at: null,
     signed_up_at: authUser?.$createdAt || profile?.$createdAt || null,
     last_sign_in_at: authUser?.accessedAt || null,
@@ -1836,7 +1839,7 @@ async function handleWisehireResetUser(body, log) {
   } catch (e) { warnings.push(`Could not delete wisehire account: ${e.message}`); }
   await auditLog(databases, 'wisehire-reset-user', { target_user_id, actor_email });
   log(`wisehire-reset-user: ${target_user_id}`);
-  return { kinde_deleted: false, invite_tokens_reset: 0, warnings };
+  return { invite_tokens_reset: 0, warnings };
 }
 
 async function handleLiveActivity(body, log) {

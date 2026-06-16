@@ -78,6 +78,8 @@ const PRODUCTION_ORIGINS = new Set([
   'https://resume.thewise.cloud',
   'https://thewise.cloud',
   'https://www.thewise.cloud',
+  'https://wiseresume.app',
+  'https://www.wiseresume.app',
 ]);
 
 function buildExtraOriginSet(): Set<string> {
@@ -90,6 +92,10 @@ app.use(
     origin: (origin, callback) => {
       if (!origin) return callback(null, true); // same-origin / server-to-server
       if (PRODUCTION_ORIGINS.has(origin)) return callback(null, true);
+      // Replit preview deployments
+      if (/\.replit\.dev$/.test(origin) || /\.replit\.app$/.test(origin) || /\.replit\.co$/.test(origin)) {
+        return callback(null, true);
+      }
       // Localhost allowed only outside production to support local dev.
       if (process.env.NODE_ENV !== 'production' &&
           (origin.startsWith('http://localhost') || origin.startsWith('https://localhost'))) {
@@ -124,7 +130,7 @@ const PDF_FORMATS = {
 } as const;
 
 const EXPORT_FOOTER_HEIGHT_PX = 44;
-const EXPORT_BRAND_URL = 'https://resume.thewise.cloud';
+const EXPORT_BRAND_URL = 'https://wiseresume.app';
 
 function extractHtmlParts(html: string): { head: string; body: string } {
   const head = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? '';

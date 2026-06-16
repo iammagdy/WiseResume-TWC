@@ -6,7 +6,7 @@ import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { resolvePublicApiBase } from '@/lib/publicApiBase';
 
-const BRANDING_URL = 'https://resume.thewise.cloud';
+const BRANDING_URL = 'https://wiseresume.app';
 
 /**
  * Thrown when the server-side PDF renderer is unavailable.

@@ -1,5 +1,5 @@
 import { Menu } from 'lucide-react';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { AppWorkspaceSidebar } from '@/components/layout/AppWorkspaceSidebar';
 import { useAppSidebarStore } from '@/store/appSidebarStore';
 import { haptics } from '@/lib/haptics';
@@ -51,8 +51,9 @@ export function AppMobileSidebarSheet(props: AppMobileSidebarSheetProps) {
         <SheetContent
           side="left"
           hideCloseButton
-          className="overflow-hidden !w-[min(var(--app-sidebar-width),86vw)] !max-w-[min(var(--app-sidebar-width),86vw)] !rounded-r-none border-r border-border/50 bg-background p-0 [&>div:first-child]:h-full [&>div:first-child]:min-h-0"
+          className="overflow-hidden !w-[min(var(--app-sidebar-width),86vw)] !max-w-[min(var(--app-sidebar-width),86vw)] !rounded-r-none border-r-0 bg-background p-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>div:first-child]:h-full [&>div:first-child]:min-h-0"
         >
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
           <div className="h-full flex flex-col min-h-0">
             <AppWorkspaceSidebar
               {...props}

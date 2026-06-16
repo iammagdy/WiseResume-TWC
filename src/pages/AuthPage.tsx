@@ -11,7 +11,7 @@ import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { account as appwriteAccount, ID, databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { account as appwriteAccount, ID } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { upsertProfileIdentity } from '@/lib/profileSeed';
 
@@ -30,6 +30,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
@@ -37,29 +38,29 @@ export default function AuthPage() {
     if (isAuthenticated && !authLoading) navigate(redirectTo, { replace: true });
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
+  // Handle mode parameter from URL (?mode=signup or ?mode=login)
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'signup') {
+      setView('register');
+    } else if (mode === 'login' || !mode) {
+      setView('login');
+    }
+  }, [searchParams]);
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError(null);
     try {
       await appwriteAccount.createEmailPasswordSession(email, password);
       await refreshSession();
       toast.success('Logged in successfully!');
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed';
-      try {
-        const profileRes = await databases.listDocuments(DATABASE_ID, 'profiles', [
-          Query.equal('email', email)
-        ]);
-        if (profileRes.total > 0) {
-          toast.info('Account found! Since we updated our system, please set a new password.');
-          setView('claim-account');
-        } else {
-          toast.error('Invalid credentials. If you are new, please Sign Up.');
-        }
-      } catch {
-        toast.error(message);
-      }
+      const msg = 'Invalid email or password. You can reset your password if needed.';
+      setLoginError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -160,7 +161,10 @@ export default function AuthPage() {
 
           {view === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              {loginError && (
+                <p role="alert" className="text-sm text-red-400 text-center px-1">{loginError}</p>
+              )}
+              <Input type="email" placeholder="Email" value={email} onChange={e => { setEmail(e.target.value); setLoginError(null); }} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
               <div className="space-y-1">
                 <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
                 <div className="flex justify-end">

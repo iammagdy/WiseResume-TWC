@@ -22,7 +22,7 @@ loadEnvFile('.env.deploy');
 const ROOT = process.cwd();
 const APPWRITE_MANIFEST_PATH = path.join(ROOT, 'appwrite.json');
 const SOURCE_HASHES_PATH = path.join(ROOT, 'src', 'lib', 'devkit', 'sourceHashes.generated.json');
-const DEFAULT_RUNTIME = 'node-18.0';
+const DEFAULT_RUNTIME = 'node-22';
 const DEFAULT_TIMEOUT = 30;
 const DEPLOY_POLL_INTERVAL_MS = 2000;
 const DEPLOY_POLL_ATTEMPTS = 120;
@@ -59,6 +59,9 @@ const HUBS = [
     { id: 'admin-deploy-hubs', name: 'Admin Deploy Hubs', file: 'admin-deploy-hubs.tar.gz' },
     { id: 'admin-sentry', functionId: '6a0760710000ff231048', name: 'Admin Sentry Hub', file: 'admin-sentry.tar.gz' },
     { id: 'email-service', name: 'Email Service Hub', file: 'email-service.tar.gz' },
+    { id: 'portfolio-gate', name: 'Portfolio Gate', file: 'portfolio-gate.tar.gz' },
+    { id: 'get-public-portfolio', name: 'Get Public Portfolio', file: 'get-public-portfolio.tar.gz' },
+    { id: 'verify-portfolio-password', name: 'Verify Portfolio Password', file: 'verify-portfolio-password.tar.gz' },
 ];
 
 const SAFE_SMOKE_CHECKS = new Map([
@@ -602,7 +605,7 @@ async function ensureEmailServiceVariables() {
         ['RESEND_API_KEY', process.env.RESEND_API_KEY || await firstExistingVariableValue(emailVarSources, 'RESEND_API_KEY')],
         ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
         ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
-        ['FRONTEND_URL', process.env.FRONTEND_URL || 'https://resume.thewise.cloud'],
+        ['FRONTEND_URL', process.env.FRONTEND_URL || 'https://wiseresume.app'],
     ];
     for (const [key, value] of emailServiceVars) {
         await ensureVariable('email-service', key, value);
@@ -625,6 +628,37 @@ async function ensureJobsCreatePermission() {
         }
     } catch (e) {
         console.warn(`  Could not update jobs collection permissions: ${e.message}`);
+    }
+}
+
+async function ensurePortfolioGateVariables() {
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+    ]) {
+        await ensureVariable('portfolio-gate', key, value);
+    }
+}
+
+async function ensureGetPublicPortfolioVariables() {
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+        ['PORTFOLIO_JWT_SECRET', process.env.PORTFOLIO_JWT_SECRET],
+    ]) {
+        await ensureVariable('get-public-portfolio', key, value);
+    }
+}
+
+async function ensureVerifyPortfolioPasswordVariables() {
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+    ]) {
+        await ensureVariable('verify-portfolio-password', key, value);
     }
 }
 
@@ -675,6 +709,11 @@ async function syncVariablesForHubs(hubIds) {
 
     if (selected.has('admin-deploy-hubs')) await ensureAdminDeployHubsVariables();
     if (selected.has('email-service')) await ensureEmailServiceVariables();
+
+    // Portfolio functions
+    if (selected.has('portfolio-gate')) await ensurePortfolioGateVariables();
+    if (selected.has('get-public-portfolio')) await ensureGetPublicPortfolioVariables();
+    if (selected.has('verify-portfolio-password')) await ensureVerifyPortfolioPasswordVariables();
 }
 
 function resolveRequestedHubs(requestedIds) {

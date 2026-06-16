@@ -209,10 +209,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const [identityData, setIdentityData] = useState<{
     auth_email: string | null;
     contact_email: string | null;
-    kinde_sub: string | null;
-    kinde_email: string | null;
-    kinde_email_status: 'found' | 'lookup_failed' | 'not_needed' | 'credentials_missing';
-    last_exchange_at: string | null;
     signed_up_at: string | null;
     last_sign_in_at: string | null;
     is_collision: boolean;
@@ -405,10 +401,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         const result = unwrapAdminResponse<{
           auth_email?: string | null;
           contact_email?: string | null;
-          kinde_sub?: string | null;
-          kinde_email?: string | null;
-          kinde_email_status?: 'found' | 'lookup_failed' | 'not_needed' | 'credentials_missing';
-          last_exchange_at?: string | null;
           signed_up_at?: string | null;
           last_sign_in_at?: string | null;
           is_collision?: boolean;
@@ -416,10 +408,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         setIdentityData({
           auth_email: result.auth_email ?? null,
           contact_email: result.contact_email ?? null,
-          kinde_sub: result.kinde_sub ?? null,
-          kinde_email: result.kinde_email ?? null,
-          kinde_email_status: result.kinde_email_status ?? 'not_needed',
-          last_exchange_at: result.last_exchange_at ?? null,
           signed_up_at: result.signed_up_at ?? null,
           last_sign_in_at: result.last_sign_in_at ?? null,
           is_collision: result.is_collision ?? false,
@@ -773,7 +761,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         },
       });
       const result = unwrapAdminResponse<{
-        kinde_deleted: boolean;
         invite_tokens_reset: number;
         warnings: string[];
       }>(tuple, 'admin-devkit-data');
@@ -788,7 +775,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         });
       } else {
         toast.success('WiseHire user fully reset', {
-          description: `Deleted from Appwrite${result.kinde_deleted ? ' & legacy identity provider' : ''}, ${result.invite_tokens_reset} invite token(s) revoked.`,
+          description: `Deleted from Appwrite, ${result.invite_tokens_reset} invite token(s) revoked.`,
           duration: 7000,
         });
       }
@@ -889,7 +876,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Provider</span>
                   <span className="text-xs">
-                    {identityData?.kinde_sub ? 'Kinde (SSO)' : 'Email / password'}
+                    {'Email / password (Appwrite)'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -1208,27 +1195,12 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <div>
                       <p className="font-medium">Identity collision detected</p>
-                      <p className="opacity-80 mt-0.5">This is a Kinde shadow account. The real email ({user.contact_email || identityData?.contact_email || '…'}) belongs to an orphaned legacy account. Use "Fix identity" below to merge them.</p>
+                      <p className="opacity-80 mt-0.5">The real email ({user.contact_email || identityData?.contact_email || '…'}) belongs to an orphaned legacy account. Use "Fix identity" below to merge them.</p>
                     </div>
                   </div>
                 )}
 
                 <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                  {/* Real Kinde email — shown when available or when lookup was attempted */}
-                  {(identityLoading || identityData?.kinde_email || (identityData?.kinde_email_status && identityData.kinde_email_status !== 'not_needed')) && (
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-xs text-muted-foreground font-medium shrink-0">Kinde email</span>
-                      {identityLoading ? (
-                        <span className="font-mono text-[10px] text-right break-all">…</span>
-                      ) : identityData?.kinde_email ? (
-                        <span className="font-mono text-[10px] text-right break-all">{identityData.kinde_email}</span>
-                      ) : identityData?.kinde_email_status === 'lookup_failed' ? (
-                        <span className="text-[10px] text-right text-destructive italic">Lookup failed — check M2M credentials</span>
-                      ) : identityData?.kinde_email_status === 'credentials_missing' ? (
-                        <span className="text-[10px] text-right text-muted-foreground italic">M2M credentials not configured</span>
-                      ) : null}
-                    </div>
-                  )}
                   {/* Contact email (from profiles.contact_email) */}
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-muted-foreground font-medium shrink-0">Contact email</span>
@@ -1236,14 +1208,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       {identityLoading ? '…' : (identityData?.contact_email ?? user.contact_email ?? '—')}
                     </span>
                   </div>
-                  {/* Auth email (internal Appwrite Auth record — may be a placeholder) */}
+                  {/* Auth email (Appwrite Auth record) */}
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs text-muted-foreground font-medium shrink-0">Auth email (internal)</span>
+                    <span className="text-xs text-muted-foreground font-medium shrink-0">Auth email</span>
                     <span className="font-mono text-[10px] text-right break-all">
                       {identityLoading ? '…' : (identityData?.auth_email ?? user.email ?? '—')}
-                      {(identityData?.auth_email ?? user.email ?? '').endsWith('@kinde.placeholder') && (
-                        <span className="ml-1 text-amber-600">(placeholder)</span>
-                      )}
                     </span>
                   </div>
                   {/* Sign-up date */}
@@ -1262,18 +1231,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       <span className="text-[10px] text-muted-foreground">
                         {identityLoading ? '…' : (identityData?.last_sign_in_at ? formatDate(identityData.last_sign_in_at) : '—')}
                       </span>
-                    </div>
-                  )}
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs text-muted-foreground font-medium shrink-0">Kinde sub</span>
-                    <span className="font-mono text-[10px] text-right break-all max-w-[200px] truncate" title={identityData?.kinde_sub ?? ''}>
-                      {identityLoading ? '…' : (identityData?.kinde_sub ?? '—')}
-                    </span>
-                  </div>
-                  {identityData?.last_exchange_at && (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground font-medium shrink-0">Last token exchange</span>
-                      <span className="text-[10px] text-muted-foreground">{formatDate(identityData.last_exchange_at)}</span>
                     </div>
                   )}
                 </div>
@@ -1398,7 +1355,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <span>
-                      The old portfolio URL <span className="font-mono">resume.thewise.cloud/p/{usernameChangedOldValue}</span> will no longer work. The user has been sent an in-app notification about this change.
+                      The old portfolio URL <span className="font-mono">wiseresume.app/p/{usernameChangedOldValue}</span> will no longer work. The user has been sent an in-app notification about this change.
                     </span>
                   </div>
                 )}
@@ -1732,14 +1689,10 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-400 space-y-1.5">
               <p className="font-semibold">This will:</p>
               <ul className="list-disc list-inside space-y-0.5 pl-1 opacity-90">
-	                <li>Delete <strong>{user.email}</strong> from Appwrite and related app data</li>
-	                <li>Clear legacy identity-provider references when present</li>
+                <li>Delete <strong>{user.email}</strong> from Appwrite and related app data</li>
                 <li>Revoke &amp; un-mark all WiseHire invite tokens for this email</li>
                 <li>Write an audit log entry (<code className="font-mono text-[10px]">wisehire_test_reset</code>)</li>
               </ul>
-              <p className="pt-0.5 opacity-80">
-                If Kinde M2M credentials are not configured, a warning will be shown and you must delete the Kinde user manually.
-              </p>
             </div>
 
             <div className="space-y-1.5">

@@ -144,6 +144,7 @@ function stringifyJsonField(value: Record<string, unknown> | null): string | nul
 }
 
 const LIVE_PROFILE_ATTRIBUTES = new Set([
+  // Core profile fields
   'user_id',
   'email',
   'full_name',
@@ -163,6 +164,28 @@ const LIVE_PROFILE_ATTRIBUTES = new Set([
   'country',
   'is_suspended',
   'suspension_reason',
+  // Portfolio fields — CRITICAL: these must be whitelisted or portfolio saves are silently dropped
+  'portfolio_resume_id',
+  'portfolio_sections',
+  'portfolio_meta_title',
+  'portfolio_meta_description',
+  'portfolio_style',
+  'portfolio_layout',
+  'portfolio_accent_color',
+  'portfolio_font',
+  'open_to_work',
+  'availability_headline',
+  'portfolio_sync_mode',
+  'portfolio_extras',
+  'github_url',
+  'website_url',
+  'twitter_url',
+  'contact_email',
+  'portfolio_draft',
+  'portfolio_draft_saved_at',
+  'phone_number',
+  'digest_enabled',
+  'hired_at',
 ]);
 
 function filterProfilePayload(data: Record<string, unknown>): Record<string, unknown> {

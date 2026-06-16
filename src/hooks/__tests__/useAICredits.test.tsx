@@ -51,7 +51,7 @@ describe('useAICredits', () => {
     };
 
     vi.mocked(useMeHook.useMe).mockReturnValue({
-      data: { userId: 'uuid-123', kinde_sub: null, profile: null, preferences: null, subscription: null, ai_credits: mockAICredits },
+      data: { userId: 'uuid-123', profile: null, preferences: null, subscription: null, ai_credits: mockAICredits },
       isLoading: false,
       error: null,
       refetch: vi.fn(),
@@ -70,7 +70,7 @@ describe('useAICredits', () => {
     vi.mocked(useAuthHook.useAuth).mockReturnValue({ user: { id: 'user-123' }, isAuthenticated: true } as ReturnType<typeof useAuthHook.useAuth>);
 
     vi.mocked(useMeHook.useMe).mockReturnValue({
-      data: { userId: 'uuid-123', kinde_sub: null, profile: null, preferences: null, subscription: null, ai_credits: null },
+      data: { userId: 'uuid-123', profile: null, preferences: null, subscription: null, ai_credits: null },
       isLoading: false,
       error: null,
       refetch: vi.fn(),

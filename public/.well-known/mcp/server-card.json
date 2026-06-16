@@ -8,16 +8,16 @@
     "name": "The Wise Cloud",
     "url": "https://thewise.cloud"
   },
-  "homepage": "https://resume.thewise.cloud",
-  "documentation": "https://resume.thewise.cloud/docs/api",
+  "homepage": "https://wiseresume.app",
+  "documentation": "https://wiseresume.app/docs/api",
   "icons": [
     {
-      "src": "https://resume.thewise.cloud/icons/icon-192x192.png",
+      "src": "https://wiseresume.app/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://resume.thewise.cloud/icons/icon-512x512.png",
+      "src": "https://wiseresume.app/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
@@ -26,17 +26,17 @@
   "transports": [],
   "authorization": {
     "type": "oauth2",
-    "metadata_url": "https://resume.thewise.cloud/.well-known/oauth-protected-resource",
-    "authorization_servers": ["https://thewisecloud.kinde.com"]
+    "metadata_url": "https://wiseresume.app/.well-known/oauth-protected-resource",
+    "authorization_servers": ["https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192"]
   },
   "capabilities": {
     "tools": {
       "discovery": "webmcp",
-      "discovery_url": "https://resume.thewise.cloud/"
+      "discovery_url": "https://wiseresume.app/"
     },
     "resources": {
-      "api_catalog": "https://resume.thewise.cloud/.well-known/api-catalog",
-      "agent_skills": "https://resume.thewise.cloud/.well-known/agent-skills/index.json"
+      "api_catalog": "https://wiseresume.app/.well-known/api-catalog",
+      "agent_skills": "https://wiseresume.app/.well-known/agent-skills/index.json"
     }
   },
   "contact": {

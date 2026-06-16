@@ -203,7 +203,7 @@ jobs:
           RESEND_FROM_NAME: ${{ secrets.RESEND_FROM_NAME }}
           GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN }}
           GITHUB_REPO: iammagdy/WiseResume-TWC
-          FRONTEND_URL: https://resume.thewise.cloud
+          FRONTEND_URL: https://wiseresume.app
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -213,6 +213,7 @@ jobs:
           SENTRY_WEBHOOK_SECRET: ${{ secrets.SENTRY_WEBHOOK_SECRET }}
           JINA_READER_API_KEY: ${{ secrets.JINA_READER_API_KEY }}
           JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
+          PORTFOLIO_JWT_SECRET: ${{ secrets.PORTFOLIO_JWT_SECRET }}
           HUB_TARGET: ${{ github.event.inputs.target || 'all' }}
         run: |
           if [ "${HUB_TARGET}" = "all" ]; then

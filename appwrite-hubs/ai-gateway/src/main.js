@@ -2340,6 +2340,80 @@ function buildMessages(featureName, opts) {
     ];
   }
 
+  // Dedicated tailor-resume handler with explicit instructions to actually tailor content
+  if (featureName === 'tailor-resume') {
+    const resume = isRecord(opts.resume) ? opts.resume : {};
+    const jobDescription = asString(opts.jobDescription);
+    const intensity = asString(opts.intensity) || 'moderate';
+    const userInstructions = asString(opts.userInstructions);
+
+    // Build experience summary for the prompt
+    const experienceSummary = Array.isArray(resume.experience)
+      ? resume.experience.slice(0, 5).map((e) => {
+          const pos = asString(e.position || e.title || e.role);
+          const comp = asString(e.company);
+          const desc = asString(e.description);
+          const ach = Array.isArray(e.achievements) ? e.achievements.join('; ') : '';
+          return `- ${pos}${comp ? ` at ${comp}` : ''}: ${desc}${ach ? ` | Achievements: ${ach}` : ''}`;
+        }).join('\n')
+      : 'No experience listed';
+
+    const currentSkills = Array.isArray(resume.skills)
+      ? resume.skills.slice(0, 20).map(s => typeof s === 'string' ? s : (s && s.name) || '').filter(Boolean).join(', ')
+      : 'No skills listed';
+
+    const intensityGuidance = {
+      light: 'Make minimal changes: lightly rephrase the professional summary and adjust 3-5 skills to better match the job. Keep experience bullets mostly unchanged.',
+      moderate: 'Make meaningful changes: rewrite the professional summary to align with the role, optimize skills section with relevant keywords, and improve 2-3 key experience bullets with stronger action verbs and metrics where implied.',
+      aggressive: 'Make substantial changes: completely rewrite the professional summary for this specific role, significantly restructure skills to match job requirements, and transform most experience bullets to highlight relevant achievements with strong metrics and outcomes.',
+    }[intensity] || intensityGuidance.moderate;
+
+    const schema = schemaPrompt(featureName, opts);
+
+    return [
+      {
+        role: 'system',
+        content: `You are an expert resume tailoring AI. Your task is to rewrite a candidate's resume to better match a specific job description while remaining 100% truthful to their actual experience.
+
+CRITICAL RULES:
+1. NEVER fabricate experience, skills, companies, or achievements the candidate does not have.
+2. ONLY reframe and rephrase existing experience to highlight relevance to THIS specific job.
+3. If a skill is implied by their experience but not explicitly stated, you may add it ONLY if reasonably inferred.
+4. Preserve all dates, company names, and job titles exactly as provided.
+5. Intensity level: ${intensity}
+${intensityGuidance}
+
+OUTPUT FORMAT:
+Return ONLY valid JSON matching this exact schema (no markdown, no prose outside JSON):
+${schema}
+
+KEY FIELDS TO POPULATE:
+- summary: A rewritten professional summary (1-3 sentences) that speaks directly to this job's requirements
+- skills: An optimized skills array with relevant keywords from the job description that the candidate actually has or can reasonably claim based on their experience
+- experience: Rewritten experience entries with improved bullet points that use action verbs, quantify results where possible, and highlight relevance to this job
+- keyChanges: An array describing what specific changes were made
+- overallScore: before/after match scores (0-100) estimating how well the resume matches the job before and after tailoring`,
+      },
+      {
+        role: 'user',
+        content: `TAILOR THIS RESUME TO THE JOB BELOW:
+
+=== CANDIDATE'S CURRENT RESUME ===
+Professional Summary: ${asString(resume.summary).slice(0, 500)}
+
+Skills: ${currentSkills.slice(0, 500)}
+
+Experience:\n${experienceSummary.slice(0, 2000)}
+
+=== TARGET JOB DESCRIPTION ===
+${jobDescription.slice(0, 8000)}${userInstructions ? `\n\n=== USER CUSTOM INSTRUCTIONS ===\n${userInstructions.slice(0, 1000)}` : ''}
+
+=== TASK ===
+Rewrite the resume to better match this job description. Return valid JSON with the tailored resume content.`,
+      },
+    ];
+  }
+
   if (STRUCTURED_AI_FEATURES.has(featureName)) {
     return [
       {

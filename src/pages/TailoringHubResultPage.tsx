@@ -33,6 +33,7 @@ import {
   saveLinkedCoverLetterForTailoredResume,
 } from '@/lib/tailorJobContext';
 import type { SuperTailorResult, TailorSectionId } from '@/types/resume';
+import type { ChangeSummary } from '@/lib/tailorMerge';
 import '@/components/job-match/job-match-workspace.css';
 
 interface ResultState {
@@ -43,6 +44,7 @@ interface ResultState {
   appliedSections?: string[];
   intensity?: string;
   coverLetterId?: string;
+  changeSummary?: ChangeSummary;
 }
 
 export function resolveTailoringResultState(params: {
@@ -369,7 +371,7 @@ export default function JobMatchResultPage() {
             <span className="jmw-result-topbar__eyebrow">Tailored CV ready</span>
           </div>
           <h1 className="jmw-result-topbar__title truncate">
-            {isLoading ? 'Loading…' : dbResume?.title ?? 'Tailored CV'}
+            {isLoading ? 'Loadingâ€¦' : dbResume?.title ?? 'Tailored CV'}
           </h1>
         </div>
 
@@ -379,7 +381,7 @@ export default function JobMatchResultPage() {
               <span className="jmw-result-topbar__job truncate">
                 <Briefcase className="w-3.5 h-3.5 shrink-0" aria-hidden />
                 {effectiveState.jobTitle}
-                {effectiveState.company ? ` · ${effectiveState.company}` : ''}
+                {effectiveState.company ? ` Â· ${effectiveState.company}` : ''}
               </span>
             )}
             {effectiveState.scoreBeforeAfter && (
@@ -416,7 +418,7 @@ export default function JobMatchResultPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" aria-hidden />
-            <p className="text-sm text-muted-foreground">Loading your tailored CV…</p>
+            <p className="text-sm text-muted-foreground">Loading your tailored CVâ€¦</p>
           </div>
         ) : !resume ? (
           <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">

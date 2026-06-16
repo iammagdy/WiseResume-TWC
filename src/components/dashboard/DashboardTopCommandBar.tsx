@@ -1,6 +1,5 @@
 import { lazy, memo, Suspense } from 'react';
-import { Search, Plus, MessageCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { openWorkspaceSearch } from '@/lib/workspaceSearchEvents';
 import { cn } from '@/lib/utils';
@@ -51,7 +50,7 @@ export const DashboardTopCommandBar = memo(function DashboardTopCommandBar({
         </kbd>
       </div>
 
-      {/* Mobile: shell has tabs in bottom bar; duplicate key actions here */}
+      {/* Mobile: upload widget only; Import and Wise AI are in AppWorkspaceTopBar */}
       <div className="flex items-center gap-1.5 shrink-0 lg:hidden">
         <Suspense
           fallback={
@@ -60,30 +59,6 @@ export const DashboardTopCommandBar = memo(function DashboardTopCommandBar({
         >
           <DashboardUploadWidget variant="toolbar" />
         </Suspense>
-        <Button
-          size="sm"
-          className="h-9 px-3 rounded-xl text-sm font-medium shadow-none"
-          onClick={() => {
-            haptics.light();
-            onImportJob();
-          }}
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          Import
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            haptics.light();
-            onOpenWiseAI();
-          }}
-          className="h-9 px-3 rounded-xl text-sm font-medium shadow-none gap-1.5 border-primary/30"
-          aria-label="Ask Wise AI"
-        >
-          <MessageCircle className="w-4 h-4 text-primary shrink-0" aria-hidden />
-          Wise AI
-        </Button>
       </div>
     </div>
   );

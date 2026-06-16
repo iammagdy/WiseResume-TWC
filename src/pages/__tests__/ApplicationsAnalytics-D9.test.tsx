@@ -112,9 +112,7 @@ const authenticatedAuth = (): AuthContextType => ({
   isImpersonating: false,
   authSettled: true,
   authAvailable: true,
-  kindeUser: { id: "u1", email: "test@example.com" } as any,
   signOut: vi.fn(),
-  getKindeToken: vi.fn().mockResolvedValue(null),
 });
 
 describe("ApplicationsAnalytics (D9) — stats display", () => {

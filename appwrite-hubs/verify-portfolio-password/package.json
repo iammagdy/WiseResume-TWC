@@ -1,0 +1,9 @@
+{
+  "name": "verify-portfolio-password",
+  "version": "1.0.0",
+  "description": "Server-side portfolio password verification",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^17.2.0"
+  }
+}

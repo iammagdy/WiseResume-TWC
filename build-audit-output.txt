@@ -1,0 +1,678 @@
+﻿
+> wise-resume@4.7.3 prebuild
+> node scripts/copy-pdf-ocr-assets.mjs
+
+[copy-pdf-ocr-assets] StartingΓÇª
+[copy-pdf-ocr-assets] pdf.js cmaps: 0 new/updated ΓåÆ public/pdfjs/cmaps/
+[copy-pdf-ocr-assets] pdf.js fonts: 0 new/updated ΓåÆ public/pdfjs/standard_fonts/
+[copy-pdf-ocr-assets] tesseract worker: unchanged ΓåÆ public/tesseract/worker.min.js
+[copy-pdf-ocr-assets] tesseract core: 0 of 19 new/updated ΓåÆ public/tesseract/core/
+[copy-pdf-ocr-assets] verifying eng.traineddata.gz (sha256 ed350f3752f81ee8ΓÇª) ΓÇª
+[copy-pdf-ocr-assets] tesseract lang: unchanged ΓåÆ public/tesseract/lang/eng.traineddata.gz
+[copy-pdf-ocr-assets] Done.
+
+> wise-resume@4.7.3 build
+> tsc --noEmit && vite build && node scripts/check-no-sourcemaps.mjs
+
+vite v6.4.2 building for production...
+transforming...
+node.exe : [plugin vite:resolve] Module "crypto" has been externalized for browser compatibility, imported by 
+"Y:/WiseResume-TWC/node_modules/bcryptjs/dist/bcrypt.js". See 
+https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([plugin vite:re...r more details.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Γ£ô 5716 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/prefetch-5611e2e1.js                                    0.59 kB
+dist/assets/space-grotesk-vietnamese-700-normal-DMty7AZE.woff2      4.20 kB
+dist/assets/space-grotesk-vietnamese-600-normal-DUi7WF5p.woff2      4.31 kB
+dist/assets/inter-vietnamese-400-normal-DMkecbls.woff2              4.97 kB
+dist/assets/inter-vietnamese-600-normal-Cc8MFFhd.woff2              5.10 kB
+dist/assets/inter-vietnamese-700-normal-DlLaEgI2.woff2              5.10 kB
+dist/assets/inter-vietnamese-500-normal-DOriooB6.woff2              5.11 kB
+dist/assets/inter-vietnamese-800-normal-Cm7tD1pz.woff2              5.18 kB
+dist/assets/fira-code-greek-ext-700-normal-DcoM8WV0.woff2           5.24 kB
+dist/assets/inter-greek-ext-400-normal-DGGRlc-M.woff2               5.26 kB
+dist/assets/fira-code-symbols2-700-normal-Dxk4DK3p.woff             5.36 kB
+dist/assets/fira-code-greek-ext-400-normal-DR7mBgIM.woff2           5.36 kB
+dist/assets/fira-code-symbols2-400-normal-_QEZCEwe.woff             5.37 kB
+dist/assets/inter-greek-ext-500-normal-C4iEst2y.woff2               5.43 kB
+dist/assets/inter-greek-ext-600-normal-DRtmH8MT.woff2               5.43 kB
+dist/assets/inter-greek-ext-700-normal-qfdV9bQt.woff2               5.44 kB
+dist/assets/inter-greek-ext-800-normal-B--PVpEC.woff2               5.55 kB
+dist/assets/space-grotesk-vietnamese-700-normal-Duxec5Rn.woff       5.59 kB
+dist/assets/space-grotesk-vietnamese-600-normal-D6zpsUhD.woff       5.70 kB
+dist/assets/inter-vietnamese-400-normal-Bbgyi5SW.woff               6.50 kB
+dist/assets/inter-vietnamese-500-normal-mJboJaSs.woff               6.60 kB
+dist/assets/inter-vietnamese-700-normal-BZaoP0fm.woff               6.63 kB
+dist/assets/inter-vietnamese-600-normal-BuLX-rYi.woff               6.64 kB
+dist/assets/fira-code-cyrillic-700-normal-BzkQsJe8.woff2            6.64 kB
+dist/assets/inter-vietnamese-800-normal-DDlpr_Ee.woff               6.64 kB
+dist/assets/fira-code-cyrillic-400-normal-UC0NFL4U.woff2            6.68 kB
+dist/assets/inter-greek-ext-400-normal-KugGGMne.woff                7.06 kB
+dist/assets/fira-code-greek-ext-700-normal-BcbEreju.woff            7.07 kB
+dist/assets/inter-greek-ext-500-normal-2j5mBUwD.woff                7.19 kB
+dist/assets/inter-greek-ext-800-normal-DUe57HfS.woff                7.20 kB
+dist/assets/inter-greek-ext-600-normal-B8X0CLgF.woff                7.21 kB
+dist/assets/inter-greek-ext-700-normal-BoQ6DsYi.woff                7.22 kB
+dist/assets/fira-code-greek-ext-400-normal-DSPUheWg.woff            7.23 kB
+dist/assets/inter-cyrillic-400-normal-obahsSVq.woff2                7.71 kB
+dist/assets/fira-code-latin-ext-700-normal-HGNx6xyT.woff2           7.74 kB
+dist/assets/inter-greek-400-normal-B4URO6DV.woff2                   7.78 kB
+dist/assets/fira-code-greek-400-normal-B2Gh_Y8s.woff2               7.83 kB
+dist/assets/fira-code-latin-ext-400-normal-KSMg0QLl.woff2           7.86 kB
+dist/assets/fira-code-greek-700-normal-Dxn_KKZg.woff2               7.88 kB
+dist/assets/inter-greek-800-normal-CLIouy3y.woff2                   7.89 kB
+dist/assets/inter-cyrillic-500-normal-BasfLYem.woff2                7.90 kB
+dist/assets/inter-cyrillic-700-normal-CjBOestx.woff2                7.90 kB
+dist/assets/inter-greek-500-normal-BIZE56-Y.woff2                   7.92 kB
+dist/assets/inter-greek-700-normal-C3JjAnD8.woff2                   7.92 kB
+dist/assets/inter-greek-600-normal-plRanbMR.woff2                   7.94 kB
+dist/assets/inter-cyrillic-600-normal-CWCymEST.woff2                7.97 kB
+dist/assets/inter-cyrillic-800-normal-C7MGvYyJ.woff2                7.99 kB
+dist/assets/fira-code-cyrillic-400-normal-dc1q3VD7.woff             8.46 kB
+dist/assets/fira-code-cyrillic-700-normal-DkT5a-Ry.woff             8.50 kB
+dist/index.html                                                     9.61 kB Γöé gzip:   3.38 kB
+dist/assets/inter-cyrillic-400-normal-HOLc17fK.woff                 9.78 kB
+dist/assets/inter-cyrillic-700-normal-DrXBdSj3.woff                 9.91 kB
+dist/assets/inter-greek-400-normal-q2sYcFCs.woff                    9.92 kB
+dist/assets/inter-cyrillic-600-normal-4D_pXhcN.woff                 9.94 kB
+dist/assets/inter-cyrillic-500-normal-CxZf_p3X.woff                 9.94 kB
+dist/assets/inter-cyrillic-800-normal-CCHyn08d.woff                 9.94 kB
+dist/assets/inter-greek-800-normal-BU00tryP.woff                    9.96 kB
+dist/assets/inter-greek-500-normal-Xzm54t5V.woff                    9.98 kB
+dist/assets/inter-greek-700-normal-BUv2fZ6O.woff                    9.98 kB
+dist/assets/fira-code-greek-400-normal-DobhaxvF.woff                9.99 kB
+dist/assets/inter-greek-600-normal-BZpKdvQh.woff                   10.03 kB
+dist/assets/fira-code-greek-700-normal-ts8qC0PK.woff               10.08 kB
+dist/assets/inter-cyrillic-ext-400-normal-BQZuk6qB.woff2           10.23 kB
+dist/assets/inter-cyrillic-ext-500-normal-B0yAr1jD.woff2           10.43 kB
+dist/assets/inter-cyrillic-ext-800-normal-BZOjs1Xv.woff2           10.44 kB
+dist/assets/inter-cyrillic-ext-600-normal-Dfes3d0z.woff2           10.48 kB
+dist/assets/inter-cyrillic-ext-700-normal-BjwYoWNd.woff2           10.50 kB
+dist/assets/fira-code-latin-ext-700-normal-kCHYeqKo.woff           10.58 kB
+dist/assets/fira-code-latin-ext-400-normal-DG73JjOf.woff           10.61 kB
+dist/assets/wiseresume-logo-dark-Dp2ZUvdx.webp                     11.60 kB
+dist/assets/fira-code-cyrillic-ext-700-normal-DoLWcase.woff2       11.76 kB
+dist/assets/fira-code-cyrillic-ext-400-normal-txZ9Fk_1.woff2       11.96 kB
+dist/assets/space-grotesk-latin-ext-700-normal-BQnZhY3m.woff2      11.99 kB
+dist/assets/space-grotesk-latin-ext-600-normal-DxxdqCpr.woff2      12.29 kB
+dist/assets/wiseresume-logo-light-BmMvfCAM.webp                    12.59 kB
+dist/assets/space-grotesk-latin-700-normal-RjhwGPKo.woff2          12.84 kB
+dist/assets/space-grotesk-latin-600-normal-DjKNqYRj.woff2          13.28 kB
+dist/assets/inter-cyrillic-ext-400-normal-DQukG94-.woff            13.34 kB
+dist/assets/inter-cyrillic-ext-700-normal-LO58E6JB.woff            13.41 kB
+dist/assets/inter-cyrillic-ext-500-normal-BmqWE9Dz.woff            13.45 kB
+dist/assets/inter-cyrillic-ext-600-normal-Bcila6Z-.woff            13.46 kB
+dist/assets/inter-cyrillic-ext-800-normal-Ca-gJeZY.woff            13.48 kB
+dist/assets/fira-code-cyrillic-ext-700-normal-CEq74Wgj.woff        15.02 kB
+dist/assets/fira-code-cyrillic-ext-400-normal-Buh61xzB.woff        15.10 kB
+dist/assets/space-grotesk-latin-700-normal-CwsQ-cCU.woff           16.42 kB
+dist/assets/space-grotesk-latin-ext-700-normal-HVCqSBdx.woff       16.46 kB
+dist/assets/space-grotesk-latin-ext-600-normal-VcznFIpX.woff       16.73 kB
+dist/assets/space-grotesk-latin-600-normal-BflQw4A9.woff           16.88 kB
+dist/assets/fira-code-latin-700-normal-aa0XcSUK.woff2              23.04 kB
+dist/assets/fira-code-latin-400-normal-DGosTW8U.woff2              23.31 kB
+dist/assets/inter-latin-400-normal-C38fXH4l.woff2                  23.66 kB
+dist/assets/inter-latin-500-normal-Cerq10X2.woff2                  24.27 kB
+dist/assets/inter-latin-700-normal-Yt3aPRUw.woff2                  24.36 kB
+dist/assets/inter-latin-800-normal-BYj_oED-.woff2                  24.40 kB
+dist/assets/inter-latin-600-normal-LgqL8muc.woff2                  24.45 kB
+dist/assets/fira-code-latin-700-normal-CbIf1Tvd.woff               29.61 kB
+dist/assets/fira-code-latin-400-normal-C-QZfXAs.woff               29.84 kB
+dist/assets/inter-latin-400-normal-CyCys3Eg.woff                   30.70 kB
+dist/assets/inter-latin-600-normal-CiBQ2DWP.woff                   31.26 kB
+dist/assets/inter-latin-500-normal-BL9OpVg8.woff                   31.28 kB
+dist/assets/inter-latin-800-normal-D1mf63XC.woff                   31.30 kB
+dist/assets/inter-latin-700-normal-BLAVimhd.woff                   31.32 kB
+dist/assets/inter-latin-ext-400-normal-C1nco2VV.woff2              35.00 kB
+dist/assets/inter-latin-ext-500-normal-CV4jyFjo.woff2              36.02 kB
+dist/assets/inter-latin-ext-800-normal-DZJjya6U.woff2              36.13 kB
+dist/assets/inter-latin-ext-700-normal-Ca8adRJv.woff2              36.24 kB
+dist/assets/inter-latin-ext-600-normal-D2bJ5OIk.woff2              36.26 kB
+dist/assets/part-sep-CCwKiviK.png                                  45.21 kB
+dist/assets/inter-latin-ext-400-normal-77YHD8bZ.woff               47.56 kB
+dist/assets/inter-latin-ext-500-normal-BxGbmqWO.woff               48.49 kB
+dist/assets/inter-latin-ext-800-normal-BOMpwxm3.woff               48.59 kB
+dist/assets/inter-latin-ext-700-normal-TidjK2hL.woff               48.63 kB
+dist/assets/inter-latin-ext-600-normal-CIVaiw4L.woff               48.67 kB
+dist/assets/part-text-BC6OYQ7p.png                                 51.99 kB
+dist/assets/wiseresume-logo-dark-wvXiSMYj.png                     156.96 kB
+dist/assets/part-w-CFD3iwGu.png                                   162.93 kB
+dist/assets/developer-photo-Mn69Z6Vl.png                          187.94 kB
+dist/assets/part-badge-DcCW0iz_.png                               393.60 kB
+dist/assets/pdf.worker.min-Cxz3sAdt.js                          1,325.96 kB
+dist/assets/AuroraBackground-Dww-4alG.css                           0.04 kB Γöé gzip:   0.06 kB
+dist/assets/ScrollStack-Ctau79oI.css                                0.72 kB Γöé gzip:   0.32 kB
+dist/assets/GlassSurface-LS3V0iEa.css                               0.96 kB Γöé gzip:   0.33 kB
+dist/assets/AIStudioPage-Cut8oziP.css                               1.04 kB Γöé gzip:   0.47 kB
+dist/assets/PortfolioEditorPage-BMpxZh-J.css                        2.18 kB Γöé gzip:   0.73 kB
+dist/assets/SettingsPage-DiEhoS7-.css                               3.66 kB Γöé gzip:   1.21 kB
+dist/assets/doc-export-jbZ-vUrX.css                                 6.22 kB Γöé gzip:   1.30 kB
+dist/assets/ProfileCard-Bv9ucCZC.css                                8.65 kB Γöé gzip:   2.42 kB
+dist/assets/TailorPage-CnU-QqOO.css                                 9.34 kB Γöé gzip:   2.16 kB
+dist/assets/EditorPage-DJppd0wS.css                                10.15 kB Γöé gzip:   2.26 kB
+dist/assets/Index-DD2plXac.css                                     25.04 kB Γöé gzip:   5.29 kB
+dist/assets/job-match-workspace-DKTCvUUH.css                       51.00 kB Γöé gzip:   8.05 kB
+dist/assets/index-DknRuGN2.css                                    307.43 kB Γöé gzip:  54.21 kB
+dist/assets/editorLogger-FVSm1HX2.js                                0.05 kB Γöé gzip:   0.07 kB
+dist/assets/wiseresume-logo-light-DHfzmeGD.js                       0.07 kB Γöé gzip:   0.09 kB
+dist/assets/constructNow-DIc2Wfrm.js                                0.09 kB Γöé gzip:   0.10 kB
+dist/assets/collapsible-C1avMjzA.js                                 0.11 kB Γöé gzip:   0.11 kB
+dist/assets/portfolioUrl-CGmbmIRU.js                                0.13 kB Γöé gzip:   0.12 kB
+dist/assets/useThemeLogo-D3O_n-q1.js                                0.15 kB Γöé gzip:   0.15 kB
+dist/assets/invalidate-ai-credit-queries-GLHMzYzw.js                0.16 kB Γöé gzip:   0.13 kB
+dist/assets/isYesterday-zvHJUUir.js                                 0.19 kB Γöé gzip:   0.15 kB
+dist/assets/educationFormat-CljemkwP.js                             0.22 kB Γöé gzip:   0.16 kB
+dist/assets/templateDimensions-zcq7x_Js.js                          0.22 kB Γöé gzip:   0.17 kB
+dist/assets/useRedactedResume-BBl266G8.js                           0.23 kB Γöé gzip:   0.20 kB
+dist/assets/useBackNavigation-BaMDKB10.js                           0.24 kB Γöé gzip:   0.20 kB
+dist/assets/useAIApplyEffects-C9uRyT2J.js                           0.25 kB Γöé gzip:   0.22 kB
+dist/assets/haptics-BHls8Mip.js                                     0.26 kB Γöé gzip:   0.19 kB
+dist/assets/resumeSectionAiFlag-CtU7uBQ2.js                         0.26 kB Γöé gzip:   0.17 kB
+dist/assets/workspaceSearchEvents-CjgA4Fv6.js                       0.27 kB Γöé gzip:   0.20 kB
+dist/assets/subDays-DtjOrun9.js                                     0.28 kB Γöé gzip:   0.21 kB
+dist/assets/minus-Bi3BPh-Y.js                                       0.29 kB Γöé gzip:   0.24 kB
+dist/assets/endOfMonth-B-38ZmLG.js                                  0.29 kB Γöé gzip:   0.20 kB
+dist/assets/circle-BNmad02v.js                                      0.29 kB Γöé gzip:   0.24 kB
+dist/assets/chevron-down-DK4XSbrv.js                                0.30 kB Γöé gzip:   0.24 kB
+dist/assets/chevron-up-Cva2YAuU.js                                  0.30 kB Γöé gzip:   0.25 kB
+dist/assets/play-iMLx4rjc.js                                        0.30 kB Γöé gzip:   0.25 kB
+dist/assets/envUtils-CmYjcc-D.js                                    0.31 kB Γöé gzip:   0.21 kB
+dist/assets/job-match-workspace-BHwzLCwU.js                         0.31 kB Γöé gzip:   0.26 kB
+dist/assets/square-CdftA3Dr.js                                      0.32 kB Γöé gzip:   0.25 kB
+dist/assets/cloud-BUOAJcfz.js                                       0.33 kB Γöé gzip:   0.27 kB
+dist/assets/arrow-up-DFEjR0PQ.js                                    0.33 kB Γöé gzip:   0.26 kB
+dist/assets/bookmark-XsWwzWFc.js                                    0.33 kB Γöé gzip:   0.27 kB
+dist/assets/arrow-right-Cga8UFyX.js                                 0.33 kB Γöé gzip:   0.26 kB
+dist/assets/arrow-down-6L9OpKiI.js                                  0.33 kB Γöé gzip:   0.26 kB
+dist/assets/arrow-up-right-D7TPmusU.js                              0.33 kB Γöé gzip:   0.26 kB
+dist/assets/search-D1B92r7l.js                                      0.34 kB Γöé gzip:   0.27 kB
+dist/assets/circle-check-D64cg29L.js                                0.34 kB Γöé gzip:   0.27 kB
+dist/assets/gauge-DhVfX8-I.js                                       0.35 kB Γöé gzip:   0.27 kB
+dist/assets/clock-CSNFUSAN.js                                       0.35 kB Γöé gzip:   0.27 kB
+dist/assets/message-square-C0WH2sJD.js                              0.35 kB Γöé gzip:   0.27 kB
+dist/assets/check-check-BtaABoo0.js                                 0.35 kB Γöé gzip:   0.27 kB
+dist/assets/circle-play-D40xQgvV.js                                 0.36 kB Γöé gzip:   0.27 kB
+dist/assets/circle-check-big-B8zcykb2.js                            0.36 kB Γöé gzip:   0.28 kB
+dist/assets/kanban-C9FN0ILE.js                                      0.36 kB Γöé gzip:   0.27 kB
+dist/assets/align-left-D_0iW1EK.js                                  0.36 kB Γöé gzip:   0.27 kB
+dist/assets/label-ZvMCNzKk.js                                       0.36 kB Γöé gzip:   0.27 kB
+dist/assets/skip-forward-DPL-pJdP.js                                0.37 kB Γöé gzip:   0.29 kB
+dist/assets/LoadingButton-D9C_Lstc.js                               0.37 kB Γöé gzip:   0.28 kB
+dist/assets/smartphone-YmiokZz0.js                                  0.37 kB Γöé gzip:   0.29 kB
+dist/assets/rotate-ccw-iVJ_l5Ng.js                                  0.37 kB Γöé gzip:   0.29 kB
+dist/assets/trending-up-Ckus72Uu.js                                 0.37 kB Γöé gzip:   0.28 kB
+dist/assets/lock-CKA5dYpf.js                                        0.38 kB Γöé gzip:   0.29 kB
+dist/assets/credit-card-CKh77NrV.js                                 0.38 kB Γöé gzip:   0.29 kB
+dist/assets/undo-2-CVCXBIIS.js                                      0.38 kB Γöé gzip:   0.28 kB
+dist/assets/trending-down-qUvjMNCu.js                               0.38 kB Γöé gzip:   0.28 kB
+dist/assets/code-xml-BPLuS5vd.js                                    0.38 kB Γöé gzip:   0.28 kB
+dist/assets/bookmark-check-DjkZVI1V.js                              0.38 kB Γöé gzip:   0.29 kB
+dist/assets/bell-DR1KFT_d.js                                        0.38 kB Γöé gzip:   0.29 kB
+dist/assets/infinity-D_SwOkxo.js                                    0.38 kB Γöé gzip:   0.29 kB
+dist/assets/mail-BURtP60C.js                                        0.38 kB Γöé gzip:   0.30 kB
+dist/assets/contentLibraryStore-DJcb3TPh.js                         0.39 kB Γöé gzip:   0.25 kB
+dist/assets/dollar-sign-B_y_Ii5c.js                                 0.39 kB Γöé gzip:   0.30 kB
+dist/assets/briefcase-B3HoPZTl.js                                   0.39 kB Γöé gzip:   0.30 kB
+dist/assets/target-CQ0sRCZD.js                                      0.39 kB Γöé gzip:   0.26 kB
+dist/assets/aiHealthStore-HEkxYb3V.js                               0.39 kB Γöé gzip:   0.23 kB
+dist/assets/ellipsis-Ch38PlNr.js                                    0.39 kB Γöé gzip:   0.26 kB
+dist/assets/square-check-big-uvKm2rLB.js                            0.39 kB Γöé gzip:   0.29 kB
+dist/assets/ellipsis-vertical-oxWb7LMU.js                           0.40 kB Γöé gzip:   0.27 kB
+dist/assets/separator-DguM-ThI.js                                   0.40 kB Γöé gzip:   0.28 kB
+dist/assets/circle-help-DSkrYGbH.js                                 0.40 kB Γöé gzip:   0.30 kB
+dist/assets/activity-BUEXU6Ss.js                                    0.40 kB Γöé gzip:   0.30 kB
+dist/assets/pen-b1asOCf_.js                                         0.40 kB Γöé gzip:   0.31 kB
+dist/assets/history-3QMd18gB.js                                     0.41 kB Γöé gzip:   0.30 kB
+dist/assets/headphones-Cms2ixfv.js                                  0.41 kB Γöé gzip:   0.28 kB
+dist/assets/heart-CK-yMDO7.js                                       0.41 kB Γöé gzip:   0.31 kB
+dist/assets/link-2-C0eSGq3A.js                                      0.41 kB Γöé gzip:   0.31 kB
+dist/assets/globe-CwIhW85b.js                                       0.41 kB Γöé gzip:   0.29 kB
+dist/assets/database-Crb53CI5.js                                    0.41 kB Γöé gzip:   0.30 kB
+dist/assets/type-D0UZ4tA2.js                                        0.41 kB Γöé gzip:   0.29 kB
+dist/assets/piiRedact-oleQz8NV.js                                   0.42 kB Γöé gzip:   0.22 kB
+dist/assets/camera-Bj6fh8_1.js                                      0.42 kB Γöé gzip:   0.31 kB
+dist/assets/video-C2zBRdUF.js                                       0.42 kB Γöé gzip:   0.32 kB
+dist/assets/chart-column-RkhNU5eK.js                                0.42 kB Γöé gzip:   0.30 kB
+dist/assets/external-link-Btswy7td.js                               0.42 kB Γöé gzip:   0.30 kB
+dist/assets/eye-mqXtI1RS.js                                         0.42 kB Γöé gzip:   0.30 kB
+dist/assets/compass-ktsZDeoV.js                                     0.42 kB Γöé gzip:   0.31 kB
+dist/assets/map-pin-DzyyPDLO.js                                     0.42 kB Γöé gzip:   0.32 kB
+dist/assets/user-check--fk1VLFR.js                                  0.42 kB Γöé gzip:   0.32 kB
+dist/assets/archive-vJXWi4AJ.js                                     0.42 kB Γöé gzip:   0.31 kB
+dist/assets/message-square-plus-Dl63Uh8A.js                         0.42 kB Γöé gzip:   0.30 kB
+dist/assets/link-Dfp3jm_a.js                                        0.43 kB Γöé gzip:   0.29 kB
+dist/assets/search-x-BKUfgJAd.js                                    0.43 kB Γöé gzip:   0.30 kB
+dist/assets/upload-BGtjgJkV.js                                      0.43 kB Γöé gzip:   0.32 kB
+dist/assets/chart-no-axes-column-Dygl2CaN.js                        0.43 kB Γöé gzip:   0.29 kB
+dist/assets/calendar-CT8HsCSz.js                                    0.43 kB Γöé gzip:   0.30 kB
+dist/assets/monitor-DpWNsOWn.js                                     0.43 kB Γöé gzip:   0.31 kB
+dist/assets/log-in-CENVuHsZ.js                                      0.43 kB Γöé gzip:   0.32 kB
+dist/assets/zap-B5x_5_KA.js                                         0.43 kB Γöé gzip:   0.31 kB
+dist/assets/download-CA-eDYCb.js                                    0.43 kB Γöé gzip:   0.32 kB
+dist/assets/mic-C0B--44T.js                                         0.44 kB Γöé gzip:   0.32 kB
+dist/assets/shield-CO734I2H.js                                      0.44 kB Γöé gzip:   0.33 kB
+dist/assets/award-Cni8F7qq.js                                       0.44 kB Γöé gzip:   0.33 kB
+dist/assets/pencil-DFKzLxoW.js                                      0.45 kB Γöé gzip:   0.32 kB
+dist/assets/skeleton-DJLwVGLT.js                                    0.45 kB Γöé gzip:   0.30 kB
+dist/assets/pen-line-BVMjlxwY.js                                    0.45 kB Γöé gzip:   0.33 kB
+dist/assets/book-open-Nf78Jc2k.js                                   0.45 kB Γöé gzip:   0.31 kB
+dist/assets/flame-U_Izq5N2.js                                       0.45 kB Γöé gzip:   0.33 kB
+dist/assets/git-compare-B6A061B6.js                                 0.45 kB Γöé gzip:   0.31 kB
+dist/assets/useScrollFade-Ct9IP5bd.js                               0.45 kB Γöé gzip:   0.30 kB
+dist/assets/aiCostEstimates-NdqCQmGL.js                             0.45 kB Γöé gzip:   0.30 kB
+dist/assets/layout-template-Dh4KP8gF.js                             0.45 kB Γöé gzip:   0.30 kB
+dist/assets/authEmailCallbackParams-CjirEX8-.js                     0.45 kB Γöé gzip:   0.27 kB
+dist/assets/lightbulb-sGq7HTdZ.js                                   0.46 kB Γöé gzip:   0.32 kB
+dist/assets/message-square-quote-curruafE.js                        0.46 kB Γöé gzip:   0.31 kB
+dist/assets/folder-open-OzZDukVb.js                                 0.46 kB Γöé gzip:   0.32 kB
+dist/assets/linkedin-BF2APFjN.js                                    0.46 kB Γöé gzip:   0.33 kB
+dist/assets/hash--BN5QRKz.js                                        0.47 kB Γöé gzip:   0.30 kB
+dist/assets/cloud-off-6hxX02gk.js                                   0.47 kB Γöé gzip:   0.33 kB
+dist/assets/users-BARVBbUS.js                                       0.47 kB Γöé gzip:   0.32 kB
+dist/assets/user-x-DrPb0MsN.js                                      0.47 kB Γöé gzip:   0.33 kB
+dist/assets/scissors-CTE3fXGe.js                                    0.48 kB Γöé gzip:   0.32 kB
+dist/assets/flask-conical-BE3ZoEE0.js                               0.48 kB Γöé gzip:   0.34 kB
+dist/assets/progress-Dyz1HeEa.js                                    0.48 kB Γöé gzip:   0.33 kB
+dist/assets/user-plus-MO1Zn7MT.js                                   0.48 kB Γöé gzip:   0.33 kB
+dist/assets/file-search-BqxSg3o0.js                                 0.49 kB Γöé gzip:   0.34 kB
+dist/assets/tag-CIE8cZu7.js                                         0.50 kB Γöé gzip:   0.35 kB
+dist/assets/bot-8bREPdoc.js                                         0.50 kB Γöé gzip:   0.33 kB
+dist/assets/scan-line-D1wZkMq3.js                                   0.50 kB Γöé gzip:   0.32 kB
+dist/assets/graduation-cap-c_d6ZFqN.js                              0.50 kB Γöé gzip:   0.35 kB
+dist/assets/file-text-CMOkYmMQ.js                                   0.50 kB Γöé gzip:   0.32 kB
+dist/assets/offlineSyncStore-CxIwZhlW.js                            0.50 kB Γöé gzip:   0.29 kB
+dist/assets/contact-DssUII1O.js                                     0.50 kB Γöé gzip:   0.34 kB
+dist/assets/jszip.min-CQkfXcQ_.js                                   0.51 kB Γöé gzip:   0.37 kB
+dist/assets/useChangelogBadge-BHe7pfMV.js                           0.51 kB Γöé gzip:   0.34 kB
+dist/assets/layout-grid-DZ1OfIKM.js                                 0.51 kB Γöé gzip:   0.30 kB
+dist/assets/sanitizeContent-D81x_sAN.js                             0.52 kB Γöé gzip:   0.32 kB
+dist/assets/pin-CjngdDOT.js                                         0.52 kB Γöé gzip:   0.34 kB
+dist/assets/useIsDark-CfSITOh2.js                                   0.52 kB Γöé gzip:   0.35 kB
+dist/assets/share-2-BJq2v9o6.js                                     0.52 kB Γöé gzip:   0.33 kB
+dist/assets/key-round-Dy8oIUHP.js                                   0.52 kB Γöé gzip:   0.36 kB
+dist/assets/gift-DrgNzqPW.js                                        0.53 kB Γöé gzip:   0.36 kB
+dist/assets/trash-2-DBoT5Dqf.js                                     0.53 kB Γöé gzip:   0.35 kB
+dist/assets/layout-list-9-YsDA3E.js                                 0.53 kB Γöé gzip:   0.32 kB
+dist/assets/sanitizeFileName-Cs1mxPVM.js                            0.53 kB Γöé gzip:   0.36 kB
+dist/assets/layers-DNF2uF7c.js                                      0.53 kB Γöé gzip:   0.34 kB
+dist/assets/grip-vertical-B4n9JS2R.js                               0.53 kB Γöé gzip:   0.30 kB
+dist/assets/file-pen-DkqQoP3j.js                                    0.54 kB Γöé gzip:   0.36 kB
+dist/assets/git-compare-arrows-iQ5urSOc.js                          0.54 kB Γöé gzip:   0.35 kB
+dist/assets/scan-search-CzLwBX69.js                                 0.56 kB Γöé gzip:   0.35 kB
+dist/assets/package-B7bGptO0.js                                     0.56 kB Γöé gzip:   0.36 kB
+dist/assets/isBefore-Cuuub_vk.js                                    0.56 kB Γöé gzip:   0.32 kB
+dist/assets/file-pen-line-Kci1Ci3s.js                               0.56 kB Γöé gzip:   0.37 kB
+dist/assets/phone-DRbnTYL7.js                                       0.56 kB Γöé gzip:   0.36 kB
+dist/assets/useInView-DAxy6Fob.js                                   0.56 kB Γöé gzip:   0.34 kB
+dist/assets/BackButton-CSxrFftb.js                                  0.57 kB Γöé gzip:   0.39 kB
+dist/assets/github-D6BfH0va.js                                      0.57 kB Γöé gzip:   0.40 kB
+dist/assets/clipboard-list-B8zrskG7.js                              0.58 kB Γöé gzip:   0.36 kB
+dist/assets/map-D7gT4qTN.js                                         0.59 kB Γöé gzip:   0.38 kB
+dist/assets/eye-off-dPutehxS.js                                     0.60 kB Γöé gzip:   0.38 kB
+dist/assets/useNetworkStatus-BK0N-c6F.js                            0.60 kB Γöé gzip:   0.32 kB
+dist/assets/useAIDraft-BECOkNWA.js                                  0.60 kB Γöé gzip:   0.33 kB
+dist/assets/building-2-BGRIsXth.js                                  0.61 kB Γöé gzip:   0.35 kB
+dist/assets/DragHandle-w34gl7df.js                                  0.62 kB Γöé gzip:   0.40 kB
+dist/assets/rocket-56iYyEXu.js                                      0.62 kB Γöé gzip:   0.41 kB
+dist/assets/wifi-off-h2OpMf-0.js                                    0.63 kB Γöé gzip:   0.38 kB
+dist/assets/heart-handshake-BM3cnJob.js                             0.63 kB Γöé gzip:   0.41 kB
+dist/assets/exportDomUtils-BX5jS6-w.js                              0.63 kB Γöé gzip:   0.35 kB
+dist/assets/trophy-CimI92qQ.js                                      0.63 kB Γöé gzip:   0.39 kB
+dist/assets/pen-tool-C3T7yTSK.js                                    0.64 kB Γöé gzip:   0.40 kB
+dist/assets/star-CSd6Eys4.js                                        0.64 kB Γöé gzip:   0.40 kB
+dist/assets/AICostBadge-C3SwA1mG.js                                 0.65 kB Γöé gzip:   0.38 kB
+dist/assets/calendar-days-DeSXAxp6.js                               0.66 kB Γöé gzip:   0.37 kB
+dist/assets/useExportProgress-hq0V5Z0V.js                           0.66 kB Γöé gzip:   0.40 kB
+dist/assets/cpu-YLQkjawN.js                                         0.67 kB Γöé gzip:   0.36 kB
+dist/assets/wand-sparkles-CcxdQTVW.js                               0.68 kB Γöé gzip:   0.40 kB
+dist/assets/info-C4sk89v6.js                                        0.69 kB Γöé gzip:   0.32 kB
+dist/assets/textarea-DJpqbTjM.js                                    0.72 kB Γöé gzip:   0.43 kB
+dist/assets/exportLayoutMetrics-BBwqJnTj.js                         0.72 kB Γöé gzip:   0.40 kB
+dist/assets/AITrustBadge-DLOwGKzU.js                                0.72 kB Γöé gzip:   0.46 kB
+dist/assets/useExpandedEntryRestore-CIYUr2qY.js                     0.72 kB Γöé gzip:   0.41 kB
+dist/assets/tablet-B77_KjvR.js                                      0.73 kB Γöé gzip:   0.37 kB
+dist/assets/sliders-horizontal-BOMBiKvO.js                          0.75 kB Γöé gzip:   0.37 kB
+dist/assets/checkbox-D7scfta-.js                                    0.76 kB Γöé gzip:   0.43 kB
+dist/assets/resumeLineage-Cd-M9gx1.js                               0.76 kB Γöé gzip:   0.50 kB
+dist/assets/contactUtils-DkMAemNo.js                                0.77 kB Γöé gzip:   0.35 kB
+dist/assets/WallpaperPage-CrxELaOm.js                               0.77 kB Γöé gzip:   0.49 kB
+dist/assets/fingerprint-Cxo52X8V.js                                 0.77 kB Γöé gzip:   0.45 kB
+dist/assets/palette-DdfHk-uj.js                                     0.78 kB Γöé gzip:   0.44 kB
+dist/assets/Breadcrumb-D-kyHQ7k.js                                  0.79 kB Γöé gzip:   0.48 kB
+dist/assets/input-e7ZWw4Fn.js                                       0.79 kB Γöé gzip:   0.46 kB
+dist/assets/slider-CB87PLp0.js                                      0.79 kB Γöé gzip:   0.45 kB
+dist/assets/qr-code-D4d1D3e6.js                                     0.82 kB Γöé gzip:   0.41 kB
+dist/assets/popover-DwdlpOj0.js                                     0.82 kB Γöé gzip:   0.44 kB
+dist/assets/bug-BL9y7af1.js                                         0.84 kB Γöé gzip:   0.47 kB
+dist/assets/exportWatermark-BnTOWHND.js                             0.86 kB Γöé gzip:   0.46 kB
+dist/assets/UnsavedChangesDialog-Dbpody0O.js                        0.89 kB Γöé gzip:   0.51 kB
+dist/assets/settings-Bb2XKZek.js                                    0.89 kB Γöé gzip:   0.45 kB
+dist/assets/brain-D8QHqAdI.js                                       0.90 kB Γöé gzip:   0.46 kB
+dist/assets/scroll-area-CjOCXRdv.js                                 0.90 kB Γöé gzip:   0.46 kB
+dist/assets/guidesStore-Dtxp2_Ak.js                                 0.92 kB Γöé gzip:   0.47 kB
+dist/assets/WiseHireEarlyAccessPage-CDflWNs4.js                     0.92 kB Γöé gzip:   0.56 kB
+dist/assets/qr-utils-NzO6Vkw-.js                                    0.93 kB Γöé gzip:   0.54 kB
+dist/assets/skeleton-card-BqSExSFo.js                               0.95 kB Γöé gzip:   0.47 kB
+dist/assets/alert-B_ECkE5b.js                                       0.95 kB Γöé gzip:   0.49 kB
+dist/assets/brain-circuit-w4InXPVr.js                               0.97 kB Γöé gzip:   0.50 kB
+dist/assets/AIProviderBadge-CUErfZN5.js                             1.00 kB Γöé gzip:   0.51 kB
+dist/assets/card-D7P1I35h.js                                        1.04 kB Γöé gzip:   0.40 kB
+dist/assets/WiseHireSignupPage-c7YK5TEI.js                          1.04 kB Γöé gzip:   0.61 kB
+dist/assets/aiFallbackToast-C40oUlVI.js                             1.07 kB Γöé gzip:   0.57 kB
+dist/assets/CloudSyncBadge-C6guRRws.js                              1.08 kB Γöé gzip:   0.54 kB
+dist/assets/accordion-BVD93Fe-.js                                   1.09 kB Γöé gzip:   0.55 kB
+dist/assets/SlowConnectionBanner-C-Vx1CKm.js                        1.12 kB Γöé gzip:   0.64 kB
+dist/assets/MiniTemplateThumbnail-CpWgqnaw.js                       1.17 kB Γöé gzip:   0.62 kB
+dist/assets/useBiasMode-ByRTetWA.js                                 1.22 kB Γöé gzip:   0.67 kB
+dist/assets/AuroraLayer-DThLN0QK.js                                 1.22 kB Γöé gzip:   0.70 kB
+dist/assets/tabs-C-31YYXU.js                                        1.23 kB Γöé gzip:   0.51 kB
+dist/assets/AISheetErrorBoundary-D1i4FYBl.js                        1.28 kB Γöé gzip:   0.69 kB
+dist/assets/GuestSaveBanner-DFQwumJa.js                             1.44 kB Γöé gzip:   0.75 kB
+dist/assets/OfflineBanner-Lds4jLxY.js                               1.46 kB Γöé gzip:   0.67 kB
+dist/assets/useClients-CqVFws7X.js                                  1.46 kB Γöé gzip:   0.67 kB
+dist/assets/useCoverLetters-DGv2KhtA.js                             1.49 kB Γöé gzip:   0.68 kB
+dist/assets/toggle-group-BO5Ehf8j.js                                1.49 kB Γöé gzip:   0.66 kB
+dist/assets/useJobApplications-CqrMa98G.js                          1.50 kB Γöé gzip:   0.65 kB
+dist/assets/useAIAction-C5fTUi6E.js                                 1.56 kB Γöé gzip:   0.81 kB
+dist/assets/useScorecardTemplates-C87gdtwD.js                       1.56 kB Γöé gzip:   0.67 kB
+dist/assets/useInterviewReportToken-Xf-oD2QQ.js                     1.56 kB Γöé gzip:   0.82 kB
+dist/assets/usePlanUpgradeCelebration-FwLdreDY.js                   1.62 kB Γöé gzip:   0.82 kB
+dist/assets/AuthCallbackPage-BkdT-3ag.js                            1.62 kB Γöé gzip:   0.85 kB
+dist/assets/SoftDivider--w4yXHAy.js                                 1.63 kB Γöé gzip:   0.68 kB
+dist/assets/rateLimiter-BeX5xaWM.js                                 1.67 kB Γöé gzip:   0.67 kB
+dist/assets/BiometricTimeoutSheet-DgdI0Quf.js                       1.70 kB Γöé gzip:   0.85 kB
+dist/assets/useResignationLetters-dyZCl7uY.js                       1.72 kB Γöé gzip:   0.72 kB
+dist/assets/useResumeVersions-Uz3dkRvO.js                           1.74 kB Γöé gzip:   0.76 kB
+dist/assets/InviteRedirectPage-Cn6EhKaN.js                          1.74 kB Γöé gzip:   0.93 kB
+dist/assets/downloadUtils-BV1A7wZr.js                               1.79 kB Γöé gzip:   0.72 kB
+dist/assets/diffUtils-DiU0FGhd.js                                   1.80 kB Γöé gzip:   0.81 kB
+dist/assets/SearchPage-Dg40rSk6.js                                  1.83 kB Γöé gzip:   0.97 kB
+dist/assets/useShareComments-DSf7Sage.js                            1.87 kB Γöé gzip:   0.78 kB
+dist/assets/useNotifications-CK-jGk6i.js                            1.91 kB Γöé gzip:   0.65 kB
+dist/assets/tailorJobContext-DLwG4NJf.js                            1.93 kB Γöé gzip:   0.79 kB
+dist/assets/useJDs--lwbWiYq.js                                      1.93 kB Γöé gzip:   0.76 kB
+dist/assets/ActAs-CcL-EvOj.js                                       2.01 kB Γöé gzip:   0.94 kB
+dist/assets/pdfGenerator-BdWTq01O.js                                2.05 kB Γöé gzip:   1.10 kB
+dist/assets/WiseHireClosingCTA-CJKr3rOR.js                          2.10 kB Γöé gzip:   1.08 kB
+dist/assets/alert-dialog-B_iKiE8J.js                                2.10 kB Γöé gzip:   0.80 kB
+dist/assets/PublicScorecardPage-BQIgQ2A8.js                         2.14 kB Γöé gzip:   0.95 kB
+dist/assets/index-B9FtpOgM.js                                       2.18 kB Γöé gzip:   1.00 kB
+dist/assets/AccountStatsCard-D8YGqh8s.js                            2.18 kB Γöé gzip:   1.13 kB
+dist/assets/ShortLinkPage-DR32hdgm.js                               2.19 kB Γöé gzip:   1.06 kB
+dist/assets/formatDistanceToNow-CQQu2y0g.js                         2.19 kB Γöé gzip:   0.93 kB
+dist/assets/NotFound-HwjD262X.js                                    2.22 kB Γöé gzip:   0.98 kB
+dist/assets/Footer-B2cJaxt1.js                                      2.44 kB Γöé gzip:   0.94 kB
+dist/assets/MonthYearPicker-XHIi0II0.js                             2.50 kB Γöé gzip:   1.11 kB
+dist/assets/WiseHireFeatureTicker-BpU5VXJy.js                       2.52 kB Γöé gzip:   1.12 kB
+dist/assets/SignInPromptDialog-DkKKFuk1.js                          2.57 kB Γöé gzip:   1.36 kB
+dist/assets/DeleteDataDialog-DvXh2qxJ.js                            2.59 kB Γöé gzip:   1.25 kB
+dist/assets/pull-to-refresh-ZWx1FCsM.js                             2.66 kB Γöé gzip:   1.22 kB
+dist/assets/PublicBriefPage-DgKtfM0u.js                             2.68 kB Γöé gzip:   1.17 kB
+dist/assets/inviteTokenClient-BPUIpCGG.js                           2.74 kB Γöé gzip:   0.92 kB
+dist/assets/UpgradeWall-zkRshnCV.js                                 2.87 kB Γöé gzip:   0.96 kB
+dist/assets/TrackerDemo-CxRtygVk.js                                 2.94 kB Γöé gzip:   1.24 kB
+dist/assets/AvatarCropSheet-1CKRwC2f.js                             2.96 kB Γöé gzip:   1.45 kB
+dist/assets/ProgressBar-C4SW-M-2.js                                 3.06 kB Γöé gzip:   1.47 kB
+dist/assets/select-Br1uN92G.js                                      3.09 kB Γöé gzip:   1.12 kB
+dist/assets/PageCutHint-D-TSKS5u.js                                 3.12 kB Γöé gzip:   1.50 kB
+dist/assets/AppLanding-C77B4C_1.js                                  3.14 kB Γöé gzip:   1.24 kB
+dist/assets/html2canvasRetry-BQE6QCwO.js                            3.30 kB Γöé gzip:   1.50 kB
+dist/assets/exportResumePdf-BNr6I-lr.js                             3.32 kB Γöé gzip:   1.54 kB
+dist/assets/ATSScanSheet-DJoCmeSI.js                                3.36 kB Γöé gzip:   1.40 kB
+dist/assets/ScoreRing-BRJ1taoD.js                                   3.38 kB Γöé gzip:   1.53 kB
+dist/assets/useAccountType-CnX5F8C5.js                              3.50 kB Γöé gzip:   1.30 kB
+dist/assets/zustand-BZEXBI_A.js                                     3.54 kB Γöé gzip:   1.64 kB
+dist/assets/BriefViewPage-MzVYZg3p.js                               3.55 kB Γöé gzip:   1.66 kB
+dist/assets/dropdown-menu-QkAyWZcI.js                               3.60 kB Γöé gzip:   0.98 kB
+dist/assets/useResumeShares-DGrPj5GP.js                             3.68 kB Γöé gzip:   1.31 kB
+dist/assets/qr-presets-Czaf8XGJ.js                                  3.68 kB Γöé gzip:   0.77 kB
+dist/assets/LegalTemplate-8XxYgyP9.js                               3.69 kB Γöé gzip:   1.23 kB
+dist/assets/AuthResetPasswordPage-Dfd3jdjL.js                       3.71 kB Γöé gzip:   1.63 kB
+dist/assets/BiometricSetupSheet-CicQ-xdi.js                         3.72 kB Γöé gzip:   1.60 kB
+dist/assets/MarketingTemplate-BU0BegHp.js                           3.73 kB Γöé gzip:   1.27 kB
+dist/assets/ResumePhotoSheet-ByZxX7Ov.js                            3.73 kB Γöé gzip:   1.44 kB
+dist/assets/PricingPage-CSxid__7.js                                 3.75 kB Γöé gzip:   1.25 kB
+dist/assets/LanguagesSection-C9AqRvun.js                            3.76 kB Γöé gzip:   1.47 kB
+dist/assets/FederalTemplate-C_8hAI1G.js                             3.76 kB Γöé gzip:   1.24 kB
+dist/assets/PortfolioDemo-zpO38mDi.js                               3.76 kB Γöé gzip:   1.47 kB
+dist/assets/FollowUpEmailSheet-By3ei9n-.js                          3.79 kB Γöé gzip:   1.76 kB
+dist/assets/CleanTemplate-DuRv1Fcf.js                               3.80 kB Γöé gzip:   1.22 kB
+dist/assets/HobbiesSection-JSTaPROk.js                              3.82 kB Γöé gzip:   1.43 kB
+dist/assets/OfferTrackerDemo-CwjKz62j.js                            3.85 kB Γöé gzip:   1.55 kB
+dist/assets/BankingTemplate-BCTXrKa8.js                             3.88 kB Γöé gzip:   1.26 kB
+dist/assets/MinimalTemplate-w79kAuSY.js                             3.89 kB Γöé gzip:   1.26 kB
+dist/assets/DataScienceTemplate-DpOctQSR.js                         3.90 kB Γöé gzip:   1.30 kB
+dist/assets/DevOpsTemplate-vgwh3uqL.js                              3.93 kB Γöé gzip:   1.32 kB
+dist/assets/SwissTemplate-dlilC3yH.js                               3.94 kB Γöé gzip:   1.22 kB
+dist/assets/ConsultingTemplate-CcfADawi.js                          3.95 kB Γöé gzip:   1.25 kB
+dist/assets/DesignerTemplate-BDDqIN5H.js                            3.96 kB Γöé gzip:   1.34 kB
+dist/assets/PipelineDemo-DX_Ld7m-.js                                3.97 kB Γöé gzip:   1.52 kB
+dist/assets/ProductTemplate-CeYwdNfl.js                             3.97 kB Γöé gzip:   1.27 kB
+dist/assets/WiseHireTrustSection-D2JVBY0e.js                        3.99 kB Γöé gzip:   1.74 kB
+dist/assets/JDDemo-DJH3q3Fw.js                                      4.02 kB Γöé gzip:   1.69 kB
+dist/assets/ProfessionalTemplate-Dlp5hIgY.js                        4.04 kB Γöé gzip:   1.29 kB
+dist/assets/ClassicTemplate-CNZoQ7y9.js                             4.05 kB Γöé gzip:   1.27 kB
+dist/assets/tailorMerge-7FtWl6GM.js                                 4.09 kB Γöé gzip:   1.45 kB
+dist/assets/applyAIResult-gNaJLF9w.js                               4.11 kB Γöé gzip:   1.50 kB
+dist/assets/TailoringDemo-CHLKsIEr.js                               4.12 kB Γöé gzip:   1.53 kB
+dist/assets/ModernTemplate-Xt9QhHmC.js                              4.14 kB Γöé gzip:   1.29 kB
+dist/assets/ExecutiveTemplate-BCj1-yad.js                           4.22 kB Γöé gzip:   1.39 kB
+dist/assets/FeatureRequestDialog-D7oOIZnd.js                        4.27 kB Γöé gzip:   1.82 kB
+dist/assets/companyBriefingPdf-BLC3FnyU.js                          4.28 kB Γöé gzip:   1.93 kB
+dist/assets/PortfolioTemplate-UXjbeEHl.js                           4.31 kB Γöé gzip:   1.43 kB
+dist/assets/BrutalistTemplate-UvqQuLW1.js                           4.37 kB Γöé gzip:   1.38 kB
+dist/assets/BoldTypeTemplate-CnvJMcTM.js                            4.45 kB Γöé gzip:   1.40 kB
+dist/assets/CoverLetterPreview-CXUKaByx.js                          4.45 kB Γöé gzip:   1.41 kB
+dist/assets/InterviewDemo-D8YcqQUC.js                               4.50 kB Γöé gzip:   1.75 kB
+dist/assets/JobUrlParser-C5FM2o0k.js                                4.51 kB Γöé gzip:   1.93 kB
+dist/assets/TalentPoolDemo-wH25mMYu.js                              4.52 kB Γöé gzip:   1.73 kB
+dist/assets/BentoTemplate-HbeTeJi3.js                               4.53 kB Γöé gzip:   1.40 kB
+dist/assets/CompactTemplate-DpKfc04I.js                             4.56 kB Γöé gzip:   1.32 kB
+dist/assets/pageContext-_8b5PcyA.js                                 4.57 kB Γöé gzip:   1.66 kB
+dist/assets/GlassSurface-7334H-tH.js                                4.60 kB Γöé gzip:   2.02 kB
+dist/assets/BulkScreeningDemo-CO68t91I.js                           4.66 kB Γöé gzip:   1.69 kB
+dist/assets/AcademicTemplate-CBLd3Svz.js                            4.89 kB Γöé gzip:   1.47 kB
+dist/assets/form-field-BBvMsi_C.js                                  4.90 kB Γöé gzip:   1.68 kB
+dist/assets/VersionHistorySheet-BpapxR1g.js                         4.92 kB Γöé gzip:   2.01 kB
+dist/assets/StoreScreenshotsPage-DKW4iVVF.js                        4.95 kB Γöé gzip:   2.13 kB
+dist/assets/BriefSkeleton-4MmoNxpv.js                               4.95 kB Γöé gzip:   1.72 kB
+dist/assets/aiTailor-BuPKz60a.js                                    5.08 kB Γöé gzip:   2.38 kB
+dist/assets/usePipeline-CLTYj-WN.js                                 5.11 kB Γöé gzip:   1.73 kB
+dist/assets/ElegantTemplate-BOvDQOky.js                             5.14 kB Γöé gzip:   1.58 kB
+dist/assets/SalesTemplate-BLbLX2JA.js                               5.16 kB Γöé gzip:   1.80 kB
+dist/assets/nativePdfGenerator-CObiCcw9.js                          5.20 kB Γöé gzip:   2.51 kB
+dist/assets/BriefDemo-BE8OWBea.js                                   5.26 kB Γöé gzip:   1.73 kB
+dist/assets/TemplateSelector-BDQSWudn.js                            5.27 kB Γöé gzip:   2.26 kB
+dist/assets/AwardsSection-DjaEeyGH.js                               5.29 kB Γöé gzip:   1.86 kB
+dist/assets/useScorecards-Bsof8iIK.js                               5.32 kB Γöé gzip:   1.98 kB
+dist/assets/HealthcareTemplate-C2QUzA5r.js                          5.33 kB Γöé gzip:   1.56 kB
+dist/assets/ContactInquiryDialog-D54CHruV.js                        5.36 kB Γöé gzip:   2.16 kB
+dist/assets/shareUtils-CSABP9bG.js                                  5.36 kB Γöé gzip:   2.10 kB
+dist/assets/latexGenerator-DkJxpNWV.js                              5.36 kB Γöé gzip:   1.91 kB
+dist/assets/WiseHireFeatures-D0uiTWXW.js                            5.37 kB Γöé gzip:   2.12 kB
+dist/assets/GuidesPage-BkbOduwJ.js                                  5.42 kB Γöé gzip:   1.99 kB
+dist/assets/interviewSummaryPdfGenerator-DYD5Nlan.js                5.45 kB Γöé gzip:   2.52 kB
+dist/assets/dataExport-5q7SQCSP.js                                  5.56 kB Γöé gzip:   2.05 kB
+dist/assets/CertificationsSection-D7wx-FCZ.js                       5.63 kB Γöé gzip:   1.90 kB
+dist/assets/CreativeTemplate-D7HYMiUV.js                            5.66 kB Γöé gzip:   1.70 kB
+dist/assets/NotificationsPage--BoqWDzE.js                           5.67 kB Γöé gzip:   2.37 kB
+dist/assets/EditorDemo-BFc2_MHw.js                                  5.73 kB Γöé gzip:   2.02 kB
+dist/assets/PublicationsSection-gdgk6RNg.js                         5.79 kB Γöé gzip:   1.96 kB
+dist/assets/DataExportSheet-DtjqAV9X.js                             5.82 kB Γöé gzip:   2.09 kB
+dist/assets/WiseHireHero-CbdDGSZ1.js                                5.82 kB Γöé gzip:   2.27 kB
+dist/assets/AuroraBackground-Df40qV2e.js                            5.93 kB Γöé gzip:   2.68 kB
+dist/assets/ScreenshotsGalleryPage-DVJYdvrI.js                      5.96 kB Γöé gzip:   2.61 kB
+dist/assets/urlUtils-CiK0yYDU.js                                    5.97 kB Γöé gzip:   1.81 kB
+dist/assets/SummarySection-CecIJGXA.js                              5.99 kB Γöé gzip:   2.84 kB
+dist/assets/ResignationLettersPage-DlXH1D4z.js                      6.04 kB Γöé gzip:   2.31 kB
+dist/assets/ProfileCard-Bl8r84tN.js                                 6.05 kB Γöé gzip:   2.49 kB
+dist/assets/dateUtils-pE-JTRdh.js                                   6.07 kB Γöé gzip:   2.54 kB
+dist/assets/ContentLibrarySheet-B01lPQlR.js                         6.07 kB Γöé gzip:   2.44 kB
+dist/assets/PortfolioContactForm-Dj_BR9r0.js                        6.18 kB Γöé gzip:   2.12 kB
+dist/assets/ATSScoreBreakdown-BZCx9WuH.js                           6.18 kB Γöé gzip:   2.28 kB
+dist/assets/ReferencesSection-C9JJGwlG.js                           6.22 kB Γöé gzip:   2.04 kB
+dist/assets/VolunteeringSection-fd_Dwfos.js                         6.25 kB Γöé gzip:   2.08 kB
+dist/assets/GuidePage-yPHgyARy.js                                   6.49 kB Γöé gzip:   2.47 kB
+dist/assets/QrScanPage-BPNF5gsj.js                                  6.52 kB Γöé gzip:   2.45 kB
+dist/assets/DeveloperTemplate-DUOZgHVV.js                           6.53 kB Γöé gzip:   1.88 kB
+dist/assets/WiseHirePricing-Dnfkj6Dk.js                             6.67 kB Γöé gzip:   2.37 kB
+dist/assets/WiseHireDemoSection-Bvt1Q9pO.js                         6.68 kB Γöé gzip:   2.80 kB
+dist/assets/WiseHireSettingsPage-CuBxqwM5.js                        6.72 kB Γöé gzip:   2.50 kB
+dist/assets/InterviewReportPage-CTHVYbmF.js                         6.80 kB Γöé gzip:   2.10 kB
+dist/assets/AnimatedSplash-CdlMLJ7E.js                              6.87 kB Γöé gzip:   3.22 kB
+dist/assets/docxGenerator-wM7prTWa.js                               7.01 kB Γöé gzip:   1.93 kB
+dist/assets/JobAnalysisSheet-DOLsO9JJ.js                            7.03 kB Γöé gzip:   2.57 kB
+dist/assets/AuthPage-BHhykFbl.js                                    7.07 kB Γöé gzip:   2.35 kB
+dist/assets/QrBatchPage-nx5vEjyy.js                                 7.15 kB Γöé gzip:   2.98 kB
+dist/assets/portfolioPrintLayout-DiJmJniB.js                        7.15 kB Γöé gzip:   2.53 kB
+dist/assets/SkillsGapSheet-BLAR9NX5.js                              7.21 kB Γöé gzip:   2.67 kB
+dist/assets/HelpSheet-Bh-tCeWm.js                                   7.22 kB Γöé gzip:   2.97 kB
+dist/assets/registry-a5Bjf8-H.js                                    7.22 kB Γöé gzip:   1.52 kB
+dist/assets/WiseHireShell-BtFSBQl_.js                               7.34 kB Γöé gzip:   2.51 kB
+dist/assets/templateComponentMap-CX2uo1BB.js                        7.35 kB Γöé gzip:   1.71 kB
+dist/assets/pdfUtils-DZhwMj39.js                                    7.35 kB Γöé gzip:   3.09 kB
+dist/assets/briefPdfExport-DTTUSmTN.js                              7.40 kB Γöé gzip:   3.18 kB
+dist/assets/ATSScoreTrendChart-3G-aqSXK.js                          7.71 kB Γöé gzip:   2.96 kB
+dist/assets/en-US-CzOlUShG.js                                       7.73 kB Γöé gzip:   2.71 kB
+dist/assets/ShareSheet-Doh7-v0F.js                                  7.74 kB Γöé gzip:   2.73 kB
+dist/assets/TailorProgress-Dolgd23l.js                              7.78 kB Γöé gzip:   2.93 kB
+dist/assets/ReferralPage-BdyXQTAt.js                                7.83 kB Γöé gzip:   3.17 kB
+dist/assets/ResumeSnapshotsSheet-DHAVD3fi.js                        7.88 kB Γöé gzip:   2.94 kB
+dist/assets/ChatWidget-0QZ0HRe9.js                                  7.90 kB Γöé gzip:   3.11 kB
+dist/assets/AchievementsPage-BNV9WmlQ.js                            8.01 kB Γöé gzip:   2.68 kB
+dist/assets/BoostAllExperienceSheet-CtkSAJ6H.js                     8.27 kB Γöé gzip:   3.66 kB
+dist/assets/BugReportDialog-Bz8WPYWD.js                             8.54 kB Γöé gzip:   3.08 kB
+dist/assets/CoverLetterEditPage-qjk7bu4F.js                         8.65 kB Γöé gzip:   3.37 kB
+dist/assets/TermsPage-CTpiPibf.js                                   8.67 kB Γöé gzip:   2.67 kB
+dist/assets/HelpPage-26onT8xC.js                                    8.70 kB Γöé gzip:   3.49 kB
+dist/assets/TemplateThumbnail-Dk_sP-tm.js                           8.75 kB Γöé gzip:   2.30 kB
+dist/assets/ClientsPage-C81iJDo1.js                                 8.76 kB Γöé gzip:   3.05 kB
+dist/assets/SharePage-BPimPh9Y.js                                   8.78 kB Γöé gzip:   2.89 kB
+dist/assets/BriefGeneratorPage-DWTCm4B7.js                          8.81 kB Γöé gzip:   3.48 kB
+dist/assets/useProfile-DWz8J0oP.js                                  8.81 kB Γöé gzip:   2.84 kB
+dist/assets/useResumeNudges-Ev5B4Ap0.js                             9.01 kB Γöé gzip:   3.29 kB
+dist/assets/PrivacyPage-B-L45zPm.js                                 9.01 kB Γöé gzip:   2.66 kB
+dist/assets/coverLetterPdfGenerator-CscGzaTE.js                     9.14 kB Γöé gzip:   3.10 kB
+dist/assets/JobDetailPage-CP9b8qkM.js                               9.41 kB Γöé gzip:   3.30 kB
+dist/assets/WiseHireSubscriptionPage-Cw0MabvZ.js                    9.44 kB Γöé gzip:   3.57 kB
+dist/assets/atsValidationChecks-Bwo4HSFf.js                         9.44 kB Γöé gzip:   3.83 kB
+dist/assets/ScorecardTemplatesPage-CdbntWp5.js                      9.51 kB Γöé gzip:   3.34 kB
+dist/assets/WiseHireTermsPage-CZSp6PBY.js                           9.54 kB Γöé gzip:   3.60 kB
+dist/assets/ResignationLetterEditPage-CujWmvdw.js                   9.97 kB Γöé gzip:   4.12 kB
+dist/assets/AnalyticsPage-BovUjNzH.js                              10.07 kB Γöé gzip:   3.21 kB
+dist/assets/TemplatesPage-DlXRhYtu.js                              10.44 kB Γöé gzip:   3.43 kB
+dist/assets/ResumeABCompareSheet-B4gYpG-f.js                       10.56 kB Γöé gzip:   3.45 kB
+dist/assets/AnalyzeJobSheet-zudirI3N.js                            10.61 kB Γöé gzip:   3.64 kB
+dist/assets/CareerPathSheet-FoWbGmIC.js                            10.62 kB Γöé gzip:   3.30 kB
+dist/assets/AuthVerifyEmailPage-DfM4yYjt.js                        10.74 kB Γöé gzip:   3.22 kB
+dist/assets/SkillsSection-DIfb3Hx7.js                              10.91 kB Γöé gzip:   4.31 kB
+dist/assets/onboardingProfile-Bbt8HR6s.js                          10.97 kB Γöé gzip:   3.54 kB
+dist/assets/ExtraSections-CQ-3mPId.js                              11.61 kB Γöé gzip:   2.78 kB
+dist/assets/ScorecardPage-DAfHA3Zr.js                              11.91 kB Γöé gzip:   4.54 kB
+dist/assets/WiseHirePrivacyPage-B_ejAVnv.js                        12.00 kB Γöé gzip:   3.85 kB
+dist/assets/LandingMotionStage-Czccl4Fb.js                         12.05 kB Γöé gzip:   3.97 kB
+dist/assets/EducationSection-C5vPz4R9.js                           12.14 kB Γöé gzip:   4.40 kB
+dist/assets/templateData-DUlLIPB_.js                               12.22 kB Γöé gzip:   4.16 kB
+dist/assets/CoverLettersPage-BTiWnK9Q.js                           12.40 kB Γöé gzip:   4.42 kB
+dist/assets/AIDetectorSheet-mU9CAZdX.js                            12.47 kB Γöé gzip:   3.95 kB
+dist/assets/resolvePageBreakTemplate-DMBiqBxj.js                   12.84 kB Γöé gzip:   4.62 kB
+dist/assets/format-Ig6tuuiL.js                                     13.05 kB Γöé gzip:   3.47 kB
+dist/assets/ATSParserPreview-SDy1EiHX.js                           13.13 kB Γöé gzip:   4.41 kB
+dist/assets/QuickTailorSheet-DB7HWQo6.js                           13.61 kB Γöé gzip:   4.91 kB
+dist/assets/ExamplesPage-CA9IBwCM.js                               13.62 kB Γöé gzip:   4.37 kB
+dist/assets/WiseResumeClassicTemplate-Byt77jPb.js                  13.62 kB Γöé gzip:   3.81 kB
+dist/assets/CoverLetterNewPage-CLZtMifR.js                         13.63 kB Γöé gzip:   4.82 kB
+dist/assets/DashboardUploadWidget-Bf5VCjZ8.js                      13.67 kB Γöé gzip:   3.97 kB
+dist/assets/WaitlistPage-sGGFYm4p.js                               13.93 kB Γöé gzip:   4.01 kB
+dist/assets/resumeStore-CNnqe4so.js                                13.94 kB Γöé gzip:   4.48 kB
+dist/assets/LinkedInOptimizerSheet-DW7gpXJk.js                     14.06 kB Γöé gzip:   4.28 kB
+dist/assets/RolesPage-hsME895W.js                                  14.45 kB Γöé gzip:   4.69 kB
+dist/assets/SubscriptionPage-BTzMMo4a.js                           14.52 kB Γöé gzip:   4.59 kB
+dist/assets/WiseHireOnboardingPage-BewaSCOU.js                     14.71 kB Γöé gzip:   4.77 kB
+dist/assets/ResumeDetailPage-dLUv4_bp.js                           14.75 kB Γöé gzip:   5.01 kB
+dist/assets/JDWriterPage-t_vaAaYi.js                               14.80 kB Γöé gzip:   5.08 kB
+dist/assets/WiseResumeContent-CGeBX15v.js                          14.83 kB Γöé gzip:   4.82 kB
+dist/assets/ApplicationTrackerPage-DUEOB3Sd.js                     14.92 kB Γöé gzip:   4.61 kB
+dist/assets/WaitlistModal-0cQ1ViQP.js                              14.95 kB Γöé gzip:   4.23 kB
+dist/assets/TalentPoolPage-fmZqsT66.js                             15.22 kB Γöé gzip:   5.23 kB
+dist/assets/RecruiterSimSheet-DAL88w-9.js                          15.49 kB Γöé gzip:   5.05 kB
+dist/assets/AIPrivacyDisclosureProvider-C1AFqxrV.js                15.64 kB Γöé gzip:   4.87 kB
+dist/assets/BulkScreenPage-CFle6JPw.js                             15.67 kB Γöé gzip:   5.68 kB
+dist/assets/KeywordHighlighterSheet-gcf5DU3y.js                    15.88 kB Γöé gzip:   4.91 kB
+dist/assets/ProjectsSection-BXspsyri.js                            16.16 kB Γöé gzip:   5.49 kB
+dist/assets/index-C8mPuaDO.js                                      16.26 kB Γöé gzip:   5.11 kB
+dist/assets/CandidateMaskingPage-DHBOcofb.js                       17.06 kB Γöé gzip:   6.05 kB
+dist/assets/EditProfileSheet-5T4DOC2B.js                           17.77 kB Γöé gzip:   5.52 kB
+dist/assets/WhatsNewPage-Cd7vRYhf.js                               19.45 kB Γöé gzip:   6.65 kB
+dist/assets/ExportOptionsSheet-B94SBCdf.js                         19.54 kB Γöé gzip:   6.61 kB
+dist/assets/WiseHireAnalyticsPage-DFAamH9x.js                      19.80 kB Γöé gzip:   6.12 kB
+dist/assets/WiseHireDashboardPage-MGhzvHNP.js                      20.05 kB Γöé gzip:   5.56 kB
+dist/assets/MockScreens-BuAwlc5Y.js                                20.47 kB Γöé gzip:   5.00 kB
+dist/assets/UploadPage-B7BYaGsX.js                                 21.30 kB Γöé gzip:   7.42 kB
+dist/assets/ProfilePage-BxxQiR6d.js                                21.75 kB Γöé gzip:   6.88 kB
+dist/assets/QrCodePage-DgKb4Ied.js                                 22.31 kB Γöé gzip:   6.38 kB
+dist/assets/CreateResumeDialog-DcsQTbNh.js                         22.49 kB Γöé gzip:   6.63 kB
+dist/assets/CommandPalette-B8zat_rd.js                             23.11 kB Γöé gzip:   8.48 kB
+dist/assets/Index-Sd8SEZn-.js                                      24.78 kB Γöé gzip:   8.14 kB
+dist/assets/CompanyBriefingSheet-DwsYthvw.js                       24.86 kB Γöé gzip:   7.48 kB
+dist/assets/AIEnhanceSheet-BalNPqsz.js                             25.04 kB Γöé gzip:   7.88 kB
+dist/assets/ScrollStack-BKUottvV.js                                25.11 kB Γöé gzip:   7.54 kB
+dist/assets/TailorPreviewSheet-C5wlC6HA.js                         25.16 kB Γöé gzip:   8.18 kB
+dist/assets/EnterprisePage-riEW68wE.js                             26.20 kB Γöé gzip:   6.20 kB
+dist/assets/ResumeListCard-CTEZmjDr.js                             28.76 kB Γöé gzip:   8.16 kB
+dist/assets/drawer-CwlnyD3d.js                                     29.44 kB Γöé gzip:   9.12 kB
+dist/assets/PageSkeletons-CgqQrr1W.js                              29.86 kB Γöé gzip:   5.64 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: 
+https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+dist/assets/PreviewPage-BYEGnRtr.js                                30.49 kB Γöé gzip:  10.14 kB
+dist/assets/AIStudioPage-BU_WUFJz.js                               30.97 kB Γöé gzip:  10.54 kB
+dist/assets/PipelinePage-BK6KqvkV.js                               38.11 kB Γöé gzip:  11.00 kB
+dist/assets/TailoringHubResultPage-C8XbSsCk.js                     39.11 kB Γöé gzip:  11.84 kB
+dist/assets/OnboardingPage-wLPOvJ1X.js                             39.73 kB Γöé gzip:  11.42 kB
+dist/assets/useResumeUpload-C_6V32CH.js                            39.83 kB Γöé gzip:  11.82 kB
+dist/assets/PublicPortfolioPage-gXknEqzi.js                        40.13 kB Γöé gzip:  12.54 kB
+dist/assets/LinkedInImportSheet-BPaPMtiZ.js                        40.23 kB Γöé gzip:   8.63 kB
+dist/assets/ogl-GlFcswsc.js                                        44.40 kB Γöé gzip:  12.93 kB
+dist/assets/pdfParser-sza5n2o0.js                                  45.11 kB Γöé gzip:  15.61 kB
+dist/assets/ResignationLetterNewPage-KsAXBUjC.js                   45.33 kB Γöé gzip:  14.36 kB
+dist/assets/SmartFitWizardSheet-pTo8k952.js                        47.61 kB Γöé gzip:  15.30 kB
+dist/assets/react-query-tVCEkh1-.js                                48.21 kB Γöé gzip:  14.87 kB
+dist/assets/ExperienceSection-9GUpT5U4.js                          49.79 kB Γöé gzip:  14.65 kB
+dist/assets/SettingsPage-DKq1JngH.js                               50.77 kB Γöé gzip:  14.82 kB
+dist/assets/TailoringHubPage-CJWdjSuH.js                           53.12 kB Γöé gzip:  15.31 kB
+dist/assets/CareerPage-DLHC_523.js                                 56.08 kB Γöé gzip:  15.05 kB
+dist/assets/PublicSections-D1NO5kup.js                             57.41 kB Γöé gzip:  13.05 kB
+dist/assets/TailorPage-CGObrY5M.js                                 58.45 kB Γöé gzip:  16.94 kB
+dist/assets/AgenticChatSheet-BBfglsYI.js                           59.21 kB Γöé gzip:  17.67 kB
+dist/assets/ContactSection-sd1JIWbN.js                             62.04 kB Γöé gzip:  15.57 kB
+dist/assets/DashboardPage-CbwCXNiG.js                              98.26 kB Γöé gzip:  28.43 kB
+dist/assets/appwrite-BvH-8VMu.js                                   99.16 kB Γöé gzip:  26.54 kB
+dist/assets/InterviewPage-BaEk-Jfi.js                             100.13 kB Γöé gzip:  26.44 kB
+dist/assets/markdown-CpfXIOaM.js                                  117.59 kB Γöé gzip:  36.17 kB
+dist/assets/TailorSheet-hBJw_Rcb.js                               123.61 kB Γöé gzip:  34.47 kB
+dist/assets/jsQR-D9LwIzNZ.js                                      130.72 kB Γöé gzip:  47.46 kB
+dist/assets/ApplicationsPage-DhXLl1Q6.js                          134.27 kB Γöé gzip:  39.43 kB
+dist/assets/framer-8EFe-vHQ.js                                    136.95 kB Γöé gzip:  45.64 kB
+dist/assets/AppInterior-D3mkOMy6.js                               137.87 kB Γöé gzip:  39.56 kB
+dist/assets/index-DzrwK1ox.js                                     163.50 kB Γöé gzip:  54.44 kB
+dist/assets/PortfolioEditorPage-Dvk1eILK.js                       204.01 kB Γöé gzip:  57.15 kB
+dist/assets/EditorPage-C-Ht0ZVm.js                                248.33 kB Γöé gzip:  68.26 kB
+dist/assets/radix-IY0pec0r.js                                     290.33 kB Γöé gzip:  92.31 kB
+dist/assets/charts-AKWpsn4T.js                                    431.18 kB Γöé gzip: 114.81 kB
+dist/assets/monitoring-D2uz66BX.js                                463.37 kB Γöé gzip: 153.43 kB
+dist/assets/DevToolsPage-Bx1yn4l3.js                              506.70 kB Γöé gzip: 118.13 kB
+dist/assets/ocr-DJbmFfYo.js                                     1,018.99 kB Γöé gzip: 261.73 kB
+dist/assets/doc-export-CvxyPcnN.js                              1,471.86 kB Γöé gzip: 473.90 kB
+Γ£ô built in 51.08s
+[check-no-sourcemaps] OK: no *.map files in dist/.

@@ -870,7 +870,7 @@ function UserRow({
   onNewLimitChange, onBonusCreditsChange, onNoteTextChange, onSendVerificationEmail,
 }: UserRowProps) {
   const isTrialActive = user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date();
-  const isCollision = (user.email ?? '').endsWith('@collision.kinde.placeholder');
+  const isCollision = user.has_id_conflict ?? false;
   const planSaving = savingPlanId === user.user_id;
   const trialSaving = savingTrialId === user.user_id;
   const suspendSaving = savingSuspendId === user.user_id;
@@ -1142,7 +1142,7 @@ function UserRow({
                 View Resumes &amp; Full Profile
               </button>
 
-              {/* Merge Identity — shown for all accounts, critical for Kinde collision accounts */}
+              {/* Merge Identity — shown for accounts with identity collision */}
               {mergeConfirming ? (
                 <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 space-y-1.5">
                   <p className="text-[10px] text-amber-400 font-semibold">Confirm identity merge?</p>

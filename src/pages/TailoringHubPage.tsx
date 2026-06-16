@@ -16,7 +16,7 @@ import { useAppwriteTailoredIds } from '@/hooks/useTailorHistory';
 import { isTailoredResume } from '@/lib/resumeLineage';
 import { useQueryClient } from '@tanstack/react-query';
 import { tailorResumeWithProgress, type TailorIntensity } from '@/lib/aiTailor';
-import { buildMergedResume } from '@/lib/tailorMerge';
+import { buildMergedResume, hasMeaningfulChanges, type ChangeSummary } from '@/lib/tailorMerge';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
@@ -163,6 +163,21 @@ export default function JobMatchWorkspacePage() {
     if (target) setCurrentResumeId(target.$id);
    
   }, [allResumes, currentResumeId, isLikelyTailoredResume, persistedTailoredIds, setCurrentResumeId]);
+
+  // Clear stale persisted JD from a previous browser session.
+  // sessionStorage is wiped when the tab/browser closes, so absence of the
+  // marker means this is a fresh session — any JD in localStorage is stale.
+  useEffect(() => {
+    const SESSION_MARKER = 'wr_tailoring_session';
+    const isNewSession = !sessionStorage.getItem(SESSION_MARKER);
+    if (isNewSession) {
+      sessionStorage.setItem(SESSION_MARKER, '1');
+      if (!preloadedDesc && !jobIdParam) {
+        setJobDescription('');
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pre-fill job description/info from query params
   useEffect(() => {
@@ -348,19 +363,41 @@ export default function JobMatchWorkspacePage() {
         ...originalResume.education.map((e) => `${e.degree} ${e.field} ${e.institution}`),
         ...originalResume.skills,
       ].filter(Boolean).join(' ');
-      const scoreBefore = computeMatch(jobDescription, resumeTextBefore).score;
 
       // Build merged resume
       const merged = buildMergedResume(originalResume, tailorResult as SuperTailorResult, enabledSections);
-      const resumeTextAfter = [
+
+      // Validate that tailoring produced meaningful changes (F-1: guardrail against unchanged AI output)
+      const changeSummary = hasMeaningfulChanges(originalResume, merged, enabledSections);
+      const aiReturnedScore = (tailorResult as SuperTailorResult).overallScore;
+      const computedScoreBefore = computeMatch(jobDescription, resumeTextBefore).score;
+      const scoreBefore = aiReturnedScore?.before ?? computedScoreBefore;
+      const scoreAfter = aiReturnedScore?.after ?? computeMatch(jobDescription, [
         merged.summary,
         ...merged.experience.map(
           (e) => `${e.position} ${e.company} ${e.description} ${e.achievements.join(' ')}`,
         ),
         ...merged.education.map((e) => `${e.degree} ${e.field} ${e.institution}`),
         ...merged.skills,
-      ].filter(Boolean).join(' ');
-      const scoreAfter = computeMatch(jobDescription, resumeTextAfter).score;
+      ].filter(Boolean).join(' ')).score;
+
+      // Detect zero-change scenarios: both AI output validation and score validation
+      const hasZeroScore = scoreBefore === 0 && scoreAfter === 0;
+      const hasEqualScoreWithNoContentChanges = scoreBefore === scoreAfter && !changeSummary.hasChanges;
+      const appearsUnchanged = !changeSummary.hasChanges || hasZeroScore || hasEqualScoreWithNoContentChanges;
+
+      if (appearsUnchanged) {
+        setIsTailoring(false);
+        setProgress(null);
+        setTailorError('No meaningful changes were detected. The AI may not have tailored the resume, or the job description may not be specific enough. Try a more detailed job description or retry tailoring.');
+        haptics.error();
+        toast.error('No meaningful changes detected', {
+          description: 'Try a more specific job description or retry tailoring.',
+          duration: 6000,
+        });
+        return; // Do not navigate, do not save, do not show false success
+      }
+
       const jobTitle = parsedJobInfo?.title ?? 'Job';
       const company = parsedJobInfo?.company ?? '';
 
@@ -387,13 +424,8 @@ export default function JobMatchWorkspacePage() {
       );
       const newResumeId = (doc as { $id: string }).$id;
 
-      // Persist tailor history
-      // Prefer AI-computed overallScore; fall back to keyword-overlap scores if null.
-      const resultScore = (tailorResult as SuperTailorResult).overallScore;
-      const scoreBeforeAfter = {
-        before: resultScore?.before ?? scoreBefore,
-        after: resultScore?.after ?? scoreAfter,
-      };
+      // Persist tailor history with validated change data
+      const scoreBeforeAfter = { before: scoreBefore, after: scoreAfter };
       addTailorHistory(
         {
           jobTitle,
@@ -426,6 +458,7 @@ export default function JobMatchWorkspacePage() {
           scoreBeforeAfter,
           appliedSections: enabledSections,
           intensity,
+          changeSummary,
         },
       });
 

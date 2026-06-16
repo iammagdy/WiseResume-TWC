@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Search, User, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, AlertCircle, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Search, User, Sparkles, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, AlertCircle, RefreshCw, SlidersHorizontal, Plus } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -885,7 +885,7 @@ function DashboardPageContent() {
                 onTailorResume={handleTailorResume}
               />
 
-              <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
                 <div className="dashboard-recent-resumes-head flex w-full min-w-0 flex-col gap-2.5 mb-2.5 shrink-0">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
                     <Tabs
@@ -935,6 +935,19 @@ function DashboardPageContent() {
                       </TabsList>
                     </Tabs>
                   <div className="flex items-center gap-1.5 sm:ml-auto">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-8 px-3 text-xs rounded-lg gap-1.5 hidden sm:flex"
+                      onClick={() => {
+                        haptics.light();
+                        setShowCreateDialog(true);
+                      }}
+                      aria-label="Create new resume"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      New Resume
+                    </Button>
                     <div className="relative min-w-0 sm:w-52">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                       <Input
@@ -1012,7 +1025,7 @@ function DashboardPageContent() {
                   </div>
                 </div>
 
-                <div className="dashboard-resume-list-scroll w-full min-w-0 flex-1 min-h-0">
+                <div className="dashboard-resume-list-scroll w-full min-w-0 flex-1 overflow-y-auto overscroll-y-contain">
                 <motion.div
                   className="space-y-2 pb-1"
                   initial="hidden"
@@ -1103,8 +1116,8 @@ function DashboardPageContent() {
                 </motion.div>
                 </div>
 
-              <div className="dashboard-workspace-bottom shrink-0">
-              <DashboardDiscoverySection compact className="shrink-0" />
+              <div className="dashboard-workspace-bottom shrink-0 hidden lg:block">
+              {!resumesBootstrapping && <DashboardDiscoverySection compact className="shrink-0" />}
 
               {(showTrustBanner || showProfileBanner || showChecklist) && (
                 <div className="dashboard-workspace-footer mt-2 space-y-1.5 pb-1">

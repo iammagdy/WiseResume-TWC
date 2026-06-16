@@ -1,72 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://resume.thewise.cloud/</loc>
+    <loc>https://wiseresume.app/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/enterprises</loc>
+    <loc>https://wiseresume.app/enterprises</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/enterprise</loc>
+    <loc>https://wiseresume.app/enterprise</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/pricing</loc>
+    <loc>https://wiseresume.app/pricing</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/examples</loc>
+    <loc>https://wiseresume.app/examples</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/guides</loc>
+    <loc>https://wiseresume.app/guides</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/whats-new</loc>
+    <loc>https://wiseresume.app/whats-new</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/waitlist</loc>
+    <loc>https://wiseresume.app/waitlist</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/wisehire/signup</loc>
+    <loc>https://wiseresume.app/wisehire/signup</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/auth</loc>
+    <loc>https://wiseresume.app/auth</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/sign-in</loc>
+    <loc>https://wiseresume.app/sign-in</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/privacy-policy</loc>
+    <loc>https://wiseresume.app/privacy-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/terms-of-service</loc>
+    <loc>https://wiseresume.app/terms-of-service</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://resume.thewise.cloud/docs/api</loc>
+    <loc>https://wiseresume.app/docs/api</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>

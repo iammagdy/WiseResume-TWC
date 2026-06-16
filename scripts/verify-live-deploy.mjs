@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 
-const SITE = process.env.LIVE_SITE_URL || 'https://resume.thewise.cloud';
+const SITE = process.env.LIVE_SITE_URL || 'https://wiseresume.app';
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const expectedVersion = `v${pkg.version}`;
 

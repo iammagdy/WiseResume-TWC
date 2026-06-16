@@ -25,6 +25,7 @@ import {
   type AiStudioToolEntry,
   type AiStudioWorkflowEntry,
 } from "@/lib/aiStudioTools";
+import { AIStudioSkeleton } from "@/components/layout/PageSkeletons";
 
 const AI_STUDIO_BASE_PATH = "/ai-studio";
 
@@ -307,7 +308,7 @@ export default function AIStudioPage() {
     localStorage.setItem(TIP_DISMISSED_KEY, "1");
   }, []);
 
-  if (planLoading) return null;
+  if (planLoading) return <AIStudioSkeleton />;
 
   if (!isPro) {
     return (

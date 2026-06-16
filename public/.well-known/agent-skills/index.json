@@ -11,7 +11,7 @@
       "name": "Start a new resume",
       "description": "Open the WiseResume builder so the user can create a new AI-tailored resume from a job description.",
       "version": "0.1.0",
-      "url": "https://resume.thewise.cloud/.well-known/agent-skills/start-resume.json",
+      "url": "https://wiseresume.app/.well-known/agent-skills/start-resume.json",
       "sha256": "52649dab109c62434bd52e9bacda4b2becb6bb4ef44d09921d119aa0cf5c07ff"
     }
   ]

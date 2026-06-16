@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "Open the WiseResume builder so the user can create a new AI-tailored resume from a job description.",
   "license": "proprietary",
-  "entrypoint": "https://resume.thewise.cloud/?tailor=1",
+  "entrypoint": "https://wiseresume.app/?tailor=1",
   "method": "GET",
   "input_schema": {
     "type": "object",

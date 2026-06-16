@@ -423,8 +423,8 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   
   const show = (key: keyof PortfolioSections) => !sections || sections[key] !== false;
 
-  const validExperience = resume.experience?.filter(e => (e.position?.trim() || e.company?.trim())) || [];
-  const validEducation = resume.education?.filter(e => (e.institution?.trim() || e.degree?.trim())) || [];
+  const validExperience = Array.isArray(resume.experience) ? resume.experience.filter(e => (e.position?.trim() || e.company?.trim())) : [];
+  const validEducation = Array.isArray(resume.education) ? resume.education.filter(e => (e.institution?.trim() || e.degree?.trim())) : [];
 
   const allSkills = Array.from(new Set([
     ...(resume.skills || []).map(portfolioSkillLabel),
@@ -468,10 +468,9 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   const navOrder = sectionOrder && sectionOrder.length > 0
     ? [...sectionOrder.filter(k => k in NAV_SECTION_MAP), ...NAV_DEFAULT_ORDER.filter(k => !sectionOrder.includes(k))]
     : NAV_DEFAULT_ORDER;
-  const navSections = navOrder
-    .map(k => NAV_SECTION_MAP[k])
-    .filter(s => s && s.check)
-    .map(s => ({ id: s.id, label: s.label }));
+  const navSections = Array.isArray(navOrder)
+    ? navOrder.map(k => NAV_SECTION_MAP[k]).filter(s => s && s.check).map(s => ({ id: s.id, label: s.label }))
+    : [];
 
   return (
     <div className={`relative z-[1] pf-theme pf-theme-${pStyle} min-h-screen text-[--pf-fg] selection:bg-[--pf-accent] selection:text-white pb-safe overflow-x-hidden max-w-full`} style={rootStyle}>

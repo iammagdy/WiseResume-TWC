@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { PublicProfile } from '@/hooks/usePublicPortfolio';
 import { resolveAbsolutePublicApiBase } from '@/lib/publicApiBase';
-import { getPortfolioUrl } from '@/lib/portfolioUrl';
+import { getPortfolioCanonicalUrl } from '@/lib/portfolioUrl';
 
 export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
   useEffect(() => {
@@ -73,7 +73,7 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       };
       if (profile.jobTitle) jsonLdData.jobTitle = profile.jobTitle;
       if (profile.portfolioBio) jsonLdData.description = profile.portfolioBio;
-      if (profile.username) jsonLdData.url = getPortfolioUrl(profile.username);
+      if (profile.username) jsonLdData.url = getPortfolioCanonicalUrl(profile.username);
       if (profile.linkedinUrl) jsonLdData.sameAs = [profile.linkedinUrl];
       if (profile.githubUrl) {
         jsonLdData.sameAs = [...((jsonLdData.sameAs as string[]) ?? []), profile.githubUrl];

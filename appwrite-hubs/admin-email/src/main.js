@@ -457,8 +457,8 @@ async function handleEmailAction(action, body) {
     case 'send_test_template': {
       const template = String(body.template || 'welcome').trim();
       const displayName = String(body.name || 'Tester').trim() || 'Tester';
-      const previewVerificationUrl = 'https://resume.thewise.cloud/auth/verify-email?userId=test&secret=TEST_TOKEN_PREVIEW';
-      const previewResetUrl = 'https://resume.thewise.cloud/auth/reset-password?userId=test&secret=TEST_TOKEN_PREVIEW';
+      const previewVerificationUrl = 'https://wiseresume.app/auth/verify-email?userId=test&secret=TEST_TOKEN_PREVIEW';
+      const previewResetUrl = 'https://wiseresume.app/auth/reset-password?userId=test&secret=TEST_TOKEN_PREVIEW';
 
       switch (template) {
         case 'verification':
@@ -590,7 +590,7 @@ function welcomeEmailHtml(name = 'there') {
       Your WiseResume account is active and ready to go. Build AI-powered resumes tailored for modern hiring — smarter, faster, and built to impress.
     </p>
     <div style="margin:24px 0;">
-      <a href="https://resume.thewise.cloud/dashboard" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Go to Dashboard</a>
+      <a href="https://wiseresume.app/dashboard" style="display:inline-block;background:#9E1B22;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Go to Dashboard</a>
     </div>
     <p style="font-size:13px;color:#6b7280;">This is a preview-only test render sent from the DevKit email studio.</p>
   `);
