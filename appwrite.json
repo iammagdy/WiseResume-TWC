@@ -166,6 +166,15 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
+      "functionId": "verify-portfolio-password",
+      "name": "Verify Portfolio Password",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/verify-portfolio-password",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "resume-section-ai",
       "name": "Resume Section AI Hub",
       "runtime": "node-22",
