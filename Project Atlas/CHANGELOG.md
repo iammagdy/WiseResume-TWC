@@ -11,6 +11,41 @@
 
 ---
 
+## 2026-06-16 - Portfolio Password, Resume Selection, Chat Field Fixes
+
+### Root Cause (Production QA Audit Continued)
+
+**Portfolio Password Split-Brain:**
+- Editor wrote `password_enabled`/`password_hash` to `portfolio_settings` collection
+- Public hooks (`usePortfolioGate`, `usePublicPortfolio`) read from `profiles.portfolio_extras`
+- Result: Password protection appeared configured but never worked publicly
+
+**Wrong Resume Bug:**
+- `usePublicPortfolio` fetched resume by `user_id` + `limit(1)` instead of using `portfolio_resume_id`
+- Users with multiple resumes saw random resume instead of selected one
+
+**Portfolio Chat Field Mismatch:**
+- `public-share` function used camelCase (`portfolioEnabled`, `fullName`, `jobTitle`)
+- Appwrite raw documents use snake_case (`portfolio_enabled`, `full_name`, `job_title`)
+- Result: Chat couldn't find published portfolios or build context
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `src/hooks/usePublicPortfolio.ts` | `usePortfolioGate` now reads password state from `portfolio_settings` (source of truth) with fallback to legacy `portfolio_extras` |
+| `src/hooks/usePublicPortfolio.ts` | `usePublicPortfolio` reads password hash from `portfolio_settings` with fallback; uses `portfolio_resume_id` to fetch selected resume |
+| `appwrite-hubs/public-share/src/main.js` | `getPortfolioProfile` uses `portfolio_enabled` (snake_case); `getResumeForPortfolio` uses selected resume ID; `buildProfileContext` handles snake_case fields with camelCase fallback; safely parses JSON `portfolio_extras` |
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+- `npm run build` — successful (44s).
+
+### Deployment Required
+- Frontend deploys automatically via Vercel on next push.
+- Appwrite Function `public-share` requires manual deploy via `appwrite-push` or CLI.
+
+---
+
 ## 2026-06-16 - AI Credits / Pro Badge / Portfolio Save Fixes
 
 ### Root Cause (Production QA Audit)
