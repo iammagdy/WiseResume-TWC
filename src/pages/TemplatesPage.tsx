@@ -54,7 +54,7 @@ export default function TemplatesPage() {
     const { currentResumeId } = useResumeStore.getState();
     setSelectedTemplate(templateId);
     if (currentResumeId) {
-      updateResume({ templateId, customization: customization as any });
+      updateResume({ templateId, customization });
       navigate('/editor');
     } else {
       navigate('/dashboard?action=create');
@@ -109,7 +109,7 @@ export default function TemplatesPage() {
               className="relative p-2.5 rounded-2xl border-2 border-border hover:border-primary/50 hover:scale-[1.02] hover:shadow-xl transition-all text-left touch-manipulation active:scale-[0.98]"
               aria-label={`Preview ${tmpl.name} template`}
             >
-              <TemplateThumbnail templateId={tmpl.id} resume={sampleResumeData as any} />
+              <TemplateThumbnail templateId={tmpl.id} resume={sampleResumeData} />
               <div className="mt-2">
                 <p className="font-semibold text-sm text-foreground">{tmpl.name}</p>
                 <p className="text-xs text-muted-foreground line-clamp-1">{tmpl.description}</p>
@@ -168,7 +168,7 @@ export default function TemplatesPage() {
                       <p className="text-sm">Preview unavailable for this resume.</p>
                     </div>
                   }>
-                    <TemplateThumbnail templateId={previewTemplate.id} resume={(previewWithMyData && myResumeData ? myResumeData : sampleResumeData) as any} />
+                    <TemplateThumbnail templateId={previewTemplate.id} resume={previewWithMyData && myResumeData ? myResumeData : sampleResumeData} />
                   </ErrorBoundary>
                 </div>
                 <p className="text-muted-foreground text-sm">{previewTemplate.description}</p>

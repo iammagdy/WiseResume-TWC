@@ -12,6 +12,7 @@ import type { ResumeData } from '@/types/resume';
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
 import { databases, DATABASE_ID, Query, ID, account } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { upsertProfileIdentity } from '@/lib/profileSeed';
 
 export interface OnboardingExperience {
   id: string;
@@ -355,7 +356,10 @@ export async function saveOnboardingProfile({
     user_id: userId,
     email: profileEmail,
   };
-  if (!hasResumeContent) profilePayload.onboarding_completed = true;
+  if (!hasResumeContent) {
+    profilePayload.onboarding_completed = true;
+    profilePayload.profile_completed = true;
+  }
   if (selectedProfile.fullName) profilePayload.full_name = selectedProfile.fullName;
   if (selectedProfile.jobTitle) profilePayload.job_title = selectedProfile.jobTitle;
   if (selectedProfile.location) profilePayload.location = selectedProfile.location;
@@ -486,7 +490,7 @@ export async function saveOnboardingProfile({
         DATABASE_ID,
         COLLECTIONS.profiles,
         profileDocId,
-        { onboarding_completed: true },
+        { onboarding_completed: true, profile_completed: true },
       );
     }
   } catch (err) {

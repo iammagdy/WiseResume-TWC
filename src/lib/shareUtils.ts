@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
 import { databases, DATABASE_ID, account } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
-import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
+import { CANONICAL_PORTFOLIO_ORIGIN } from '@/lib/portfolioUrl';
 
 export async function shareAsPDF(blob: Blob, fileName: string): Promise<boolean> {
   const file = new File([blob], fileName, { type: 'application/pdf' });
@@ -59,7 +59,7 @@ export async function createShortUrl(targetPath: string, label?: string): Promis
           click_count: 0,
           portfolio_id: null,
         });
-        return `${PORTFOLIO_DOMAIN}/l/${slug}`;
+        return `${CANONICAL_PORTFOLIO_ORIGIN}/l/${slug}`;
       } catch (err: unknown) {
         // Appwrite throws 409 on duplicate document ID — retry with new slug
         const isConflict =

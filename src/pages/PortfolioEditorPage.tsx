@@ -1167,12 +1167,8 @@ export default function PortfolioEditorPage() {
     }
   };
 
-  // Display URL - always show resume.thewise.cloud (never thewise.cloud)
   const portfolioDisplayUrl = username ? getPortfolioDisplayUrl(username) : '';
-  // Canonical URL for copy/share/QR - always uses resume.thewise.cloud so shared links
-  // always point to the primary domain regardless of which domain the editor is loaded on.
-  const portfolioCanonicalUrl = username ? `https://resume.thewise.cloud/p/${username}` : '';
-  // Navigation URL - uses the current domain so it works in any environment
+  const portfolioCanonicalUrl = username ? getPortfolioUrl(username) : '';
   const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {

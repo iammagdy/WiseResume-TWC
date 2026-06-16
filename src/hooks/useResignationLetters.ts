@@ -13,6 +13,7 @@ export interface ResignationLetter {
   company: string | null;
   job_title: string | null;
   effective_date: string | null;
+  checklist_progress?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +34,7 @@ export interface ResignationLetterUpdates {
   company?: string | null;
   job_title?: string | null;
   effective_date?: string | null;
+  checklist_progress?: string[];
 }
 
 function docToLetter(doc: Record<string, unknown>): ResignationLetter {
@@ -45,6 +47,9 @@ function docToLetter(doc: Record<string, unknown>): ResignationLetter {
     company: (doc.company as string | null) ?? null,
     job_title: (doc.job_title as string | null) ?? null,
     effective_date: (doc.effective_date as string | null) ?? null,
+    checklist_progress: Array.isArray(doc.checklist_progress)
+      ? (doc.checklist_progress as string[])
+      : undefined,
     created_at: doc.$createdAt as string,
     updated_at: doc.$updatedAt as string,
   };

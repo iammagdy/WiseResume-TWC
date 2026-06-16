@@ -37,7 +37,7 @@ export default function AnalyticsPage() {
     // Resume with content completeness
     const completionScores = resumes.map(r => {
       let filled = 0;
-      let total = 5;
+      const total = 5;
       if (r.summary) filled++;
       if ((r.experience as unknown as unknown[])?.length > 0) filled++;
       if ((r.education as unknown as unknown[])?.length > 0) filled++;

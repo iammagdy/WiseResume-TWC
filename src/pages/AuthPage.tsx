@@ -6,12 +6,14 @@ import { motion } from 'framer-motion';
 
 
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { account as appwriteAccount, ID, databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { upsertProfileIdentity } from '@/lib/profileSeed';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
 
@@ -21,6 +23,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, loading: authLoading, refreshSession } = useAuth();
+  const queryClient = useQueryClient();
 
   const [view, setView] = useState<View>('login');
   const [email, setEmail] = useState('');
@@ -104,7 +107,17 @@ export default function AuthPage() {
     try {
       await appwriteAccount.create(ID.unique(), email, password, name);
       await appwriteAccount.createEmailPasswordSession(email, password);
-      await refreshSession();
+      const sessionUser = await refreshSession();
+      try {
+        await upsertProfileIdentity({
+          userId: sessionUser?.id ?? (await appwriteAccount.get()).$id,
+          email,
+          fullName: name,
+        });
+        await queryClient.invalidateQueries({ queryKey: ['profile'] });
+      } catch (seedErr) {
+        console.warn('[AuthPage] profile seed after signup failed:', seedErr);
+      }
       let emailSent = true;
       try {
         // Send branded verification email via email-service function (bypasses Appwrite template).

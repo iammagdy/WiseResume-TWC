@@ -18,7 +18,9 @@ import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { LinkedInImportSheet } from '@/components/settings/LinkedInImportSheet';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { useResumeStore } from '@/store/resumeStore';
+import type { ProfileData } from '@/components/settings/ProfileImportSheet';
 import { dbToResumeData, useResumeMutations } from '@/hooks/useResumes';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -59,11 +61,14 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
   if (isLoading) return <ProfileSkeleton />;
   if (!user) return null;
 
-  const completion = calculateProfileCompletion(profile);
+  const completion = calculateProfileCompletion(
+    profile ? { ...profile, fullName: profile.fullName ?? user.name ?? null } : null,
+  );
+  const displayName = profile?.fullName ?? user.name ?? null;
 
   const getInitials = () => {
-    if (profile?.fullName) {
-      return profile.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    if (displayName) {
+      return displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
     }
     return user.email?.charAt(0).toUpperCase() || 'U';
   };
@@ -73,7 +78,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
     if (resume) {
       setCurrentResume(dbToResumeData(resume));
       setCurrentResumeId(id);
-      setSelectedTemplate(resume.template_id as any);
+      setSelectedTemplate(migrateTemplateId(resume.template_id));
       navigate('/editor');
     }
   };
@@ -94,7 +99,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
     const url = getPortfolioUrl(profile.username);
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url });
+        await navigator.share({ title: `${displayName || 'My'} Portfolio`, url });
       } catch { /* Sharing failed or cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
@@ -118,8 +123,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
     }
   };
 
-  const handleLinkedInImport = (data: any) => {
-    void data;
+  const handleLinkedInImport = (_data: ProfileData) => {
     toast.success('Profile imported — open the editor to use your data');
     haptics.success();
   };
@@ -200,7 +204,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
             showLabel
           />
            <div>
-            <h2 className="text-2xl font-bold text-foreground">{profile?.fullName || 'Your Name'}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{displayName || 'Your Name'}</h2>
             {profile?.jobTitle &&
             <p className="text-sm font-medium text-muted-foreground">{profile.jobTitle}</p>
             }

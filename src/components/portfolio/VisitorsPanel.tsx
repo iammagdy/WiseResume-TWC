@@ -19,6 +19,7 @@ import { haptics } from '@/lib/haptics';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
 import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
+import { CANONICAL_PORTFOLIO_HOST } from '@/lib/portfolioUrl';
 
 // ── Country → flag emoji ──────────────────────────────────────────────────────
 function countryToFlag(country: string | null): string {
@@ -111,7 +112,7 @@ function getEngagementTier(seconds: number | null, sectionCount: number): Engage
 }
 
 // ── Short link base URL ───────────────────────────────────────────────────────
-const BASE_URL = 'resume.thewise.cloud';
+const BASE_URL = CANONICAL_PORTFOLIO_HOST;
 function shortUrl(id: string) { return `${BASE_URL}/l/${id}`; }
 function fullShortUrl(id: string) { return `https://${BASE_URL}/l/${id}`; }
 
@@ -780,7 +781,7 @@ export function VisitorsPanel({ username, userId, portfolioEnabled, portfolioSty
                 </div>
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <ChevronRight className="w-3 h-3" />
-                  Creates a short link like <span className="font-mono text-foreground">resume.thewise.cloud/l/xK9mR</span>
+                  Creates a short link like <span className="font-mono text-foreground">{CANONICAL_PORTFOLIO_HOST}/l/xK9mR</span>
                 </p>
               </div>
             </motion.div>

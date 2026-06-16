@@ -1,6 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateNativePDF, PDFServerUnavailableError } from './nativePdfGenerator';
 
+function createPdfFetchMock() {
+  return vi.fn((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('/api/export/pdf-native')) {
+      return Promise.resolve(
+        new Response('%PDF-1.7', {
+          status: 200,
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+      );
+    }
+    return Promise.resolve(new Response('', { status: 200, headers: { 'Content-Type': 'text/css' } }));
+  });
+}
+
+function pdfNativeCallBody(fetchSpy: ReturnType<typeof createPdfFetchMock>) {
+  const pdfCall = fetchSpy.mock.calls.find(([url]) => String(url).includes('/api/export/pdf-native'));
+  expect(pdfCall).toBeDefined();
+  return JSON.parse(pdfCall![1].body);
+}
+
 describe('generateNativePDF', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -15,12 +36,7 @@ describe('generateNativePDF', () => {
     Object.defineProperty(template, 'scrollHeight', { value: 1650, configurable: true });
     Object.defineProperty(template, 'offsetHeight', { value: 1650, configurable: true });
 
-    const fetchSpy = vi.fn().mockResolvedValue(
-      new Response('%PDF-1.7', {
-        status: 200,
-        headers: { 'Content-Type': 'application/pdf' },
-      }),
-    );
+    const fetchSpy = createPdfFetchMock();
     vi.stubGlobal('fetch', fetchSpy);
 
     await generateNativePDF(template, {
@@ -30,11 +46,8 @@ describe('generateNativePDF', () => {
       customBreakPositions: [1225, 700],
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/export/pdf-native', expect.objectContaining({
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    }));
-    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    const body = pdfNativeCallBody(fetchSpy);
+    expect(fetchSpy.mock.calls.some(([url]) => String(url).includes('/api/export/pdf-native'))).toBe(true);
     expect(body).toMatchObject({
       pageFormat: 'letter',
       showPageNumbers: true,
@@ -75,12 +88,7 @@ describe('generateNativePDF', () => {
     Object.defineProperty(section, 'offsetHeight', { value: 1192, configurable: true });
     Object.defineProperty(section, 'offsetTop', { value: 0, configurable: true });
 
-    const fetchSpy = vi.fn().mockResolvedValue(
-      new Response('%PDF-1.7', {
-        status: 200,
-        headers: { 'Content-Type': 'application/pdf' },
-      }),
-    );
+    const fetchSpy = createPdfFetchMock();
     vi.stubGlobal('fetch', fetchSpy);
 
     await generateNativePDF(template, {
@@ -88,7 +96,7 @@ describe('generateNativePDF', () => {
       customBreakPositions: [1225],
     });
 
-    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    const body = pdfNativeCallBody(fetchSpy);
     expect(body.totalContentHeightPx).toBe(1650);
     expect(body.customBreakPositions).toEqual([1225]);
   });

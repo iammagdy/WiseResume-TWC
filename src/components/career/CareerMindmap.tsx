@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
+import { getAppUrl, CANONICAL_PORTFOLIO_HOST } from '@/lib/portfolioUrl';
 import { tagSvgDimensions, convertSvgsToImages, captureWithRetry } from '@/lib/html2canvasRetry';
 
 interface Props {
@@ -366,7 +366,7 @@ export function CareerMindmap({ careerMap }: Props) {
 
           {/* Branded Footer */}
           <a
-            href={PORTFOLIO_DOMAIN}
+            href={getAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-white/10 no-underline hover:opacity-80 transition-opacity"
@@ -376,7 +376,7 @@ export function CareerMindmap({ careerMap }: Props) {
               WiseResume AI
             </span>
             <span className="text-[10px] text-white/20">•</span>
-            <span className="text-[10px] text-white/30">{PORTFOLIO_DOMAIN.replace('https://', '')}</span>
+            <span className="text-[10px] text-white/30">{CANONICAL_PORTFOLIO_HOST}</span>
           </a>
         </div>
       </CardContent>

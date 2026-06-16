@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ interface PortfolioContactFormProps {
 type FormStatus = 'idle' | 'sending' | 'success' | 'error';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_MESSAGE_LENGTH = 4;
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 export function PortfolioContactForm({ username, accentColor, ownerName }: PortfolioContactFormProps) {
@@ -37,11 +38,29 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
   const [status, setStatus] = useState<FormStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileStatus, setTurnstileStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+    TURNSTILE_SITE_KEY ? 'loading' : 'ready',
+  );
   const turnstileContainerRef = useRef<HTMLDivElement>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
 
-  const isValid = name.trim().length > 0 && EMAIL_RE.test(email.trim()) && message.trim().length >= 10;
+  const isValid = name.trim().length > 0 && EMAIL_RE.test(email.trim()) && message.trim().length >= MIN_MESSAGE_LENGTH;
   const isTurnstileReady = !TURNSTILE_SITE_KEY || !!turnstileToken;
+
+  const submitBlockedReason = useMemo(() => {
+    if (status === 'sending') return null;
+    if (!name.trim()) return 'Enter your name to send.';
+    if (!EMAIL_RE.test(email.trim())) return 'Enter a valid email address.';
+    if (message.trim().length < MIN_MESSAGE_LENGTH) {
+      return `Message must be at least ${MIN_MESSAGE_LENGTH} characters.`;
+    }
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      if (turnstileStatus === 'error') return 'Security check failed to load. Refresh the page and try again.';
+      if (turnstileStatus === 'loading') return 'Complete the security check below.';
+      return 'Complete the security check below.';
+    }
+    return null;
+  }, [status, name, email, message, turnstileToken, turnstileStatus]);
 
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return;
@@ -51,10 +70,20 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
         theme: 'dark',
-        callback: (token: string) => setTurnstileToken(token),
-        'expired-callback': () => setTurnstileToken(null),
-        'error-callback': () => setTurnstileToken(null),
+        callback: (token: string) => {
+          setTurnstileToken(token);
+          setTurnstileStatus('ready');
+        },
+        'expired-callback': () => {
+          setTurnstileToken(null);
+          setTurnstileStatus('loading');
+        },
+        'error-callback': () => {
+          setTurnstileToken(null);
+          setTurnstileStatus('error');
+        },
       });
+      setTurnstileStatus('loading');
     };
     if (window.turnstile) {
       renderWidget();
@@ -68,7 +97,11 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         document.head.appendChild(script);
       }
     }
+    const timeoutId = window.setTimeout(() => {
+      setTurnstileStatus((current) => (current === 'loading' ? 'error' : current));
+    }, 12_000);
     return () => {
+      window.clearTimeout(timeoutId);
       if (window.turnstile && turnstileWidgetIdRef.current) {
         window.turnstile.remove(turnstileWidgetIdRef.current);
         turnstileWidgetIdRef.current = null;
@@ -269,7 +302,25 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         )}
 
         {TURNSTILE_SITE_KEY && (
-          <div ref={turnstileContainerRef} className="flex justify-center" />
+          <div className="space-y-2">
+            <div ref={turnstileContainerRef} className="flex justify-center min-h-[65px]" />
+            {turnstileStatus === 'loading' && (
+              <p className="text-[11px] text-center" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                Loading security check…
+              </p>
+            )}
+            {turnstileStatus === 'error' && (
+              <p className="text-[11px] text-center text-amber-400">
+                Security check could not load. Refresh the page or disable ad blockers, then try again.
+              </p>
+            )}
+          </div>
+        )}
+
+        {submitBlockedReason && (
+          <p className="text-[11px] text-center" style={{ color: 'var(--pf-muted, #9ca3af)' }} role="status">
+            {submitBlockedReason}
+          </p>
         )}
 
         <button

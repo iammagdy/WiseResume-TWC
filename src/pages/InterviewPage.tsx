@@ -394,7 +394,7 @@ function InterviewPageContent() {
         resume_id: currentResumeId ?? undefined,
         interview_type: activeInterviewTypeRef.current,
         job_description: activeJobDescriptionRef.current,
-        messages: transcript as any,
+        messages: transcript,
         overall_score: parsedSummary.overallScore,
         strengths: parsedSummary.strengths,
         improvements: parsedSummary.improvements,

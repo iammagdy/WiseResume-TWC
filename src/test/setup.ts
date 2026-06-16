@@ -34,11 +34,13 @@ if (typeof window !== "undefined") {
 }
 
 if (typeof global !== "undefined") {
-  global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }));
+  class ResizeObserverMock {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+    constructor(_callback: ResizeObserverCallback) {}
+  }
+  global.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
   // DOMMatrix is required by pdfjs-dist but not available in jsdom
   if (!global.DOMMatrix) {

@@ -3,7 +3,7 @@ import { Check, Crown, Gem, Sparkles, ChevronDown, ArrowRight } from 'lucide-rea
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import triggerHaptic from '@/lib/haptics';
-import { useState } from 'react';
+import { useState, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import { PLAN_FEATURE_LABELS } from '@/lib/planConfig';
 
 const pricingFeatures = PLAN_FEATURE_LABELS;
@@ -53,9 +53,9 @@ export default function PricingPage() {
           <Link to="/" className="font-bold text-primary">WiseResume</Link>
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
-              <Button onClick={() => navigate('/dashboard')} size="sm">Dashboard</Button>
+              <PricingButton onClick={() => navigate('/dashboard')}>Dashboard</PricingButton>
             ) : (
-              <Button onClick={() => navigate('/auth?mode=signup')} size="sm">Get Started Free</Button>
+              <PricingButton onClick={() => navigate('/auth?mode=signup')}>Get Started Free</PricingButton>
             )}
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function PricingPage() {
             <ul className="space-y-3 mb-8 flex-1">
               {pricingFeatures.free.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14}/> {f}</li>)}
             </ul>
-            <Button onClick={() => handlePerPlanCTA('free')} variant="outline" disabled={isCurrentPlan('free')}>{ctaLabel('free')}</Button>
+            <PricingButton onClick={() => handlePerPlanCTA('free')} variant="outline" disabled={isCurrentPlan('free')}>{ctaLabel('free')}</PricingButton>
           </div>
 
           {/* Pro */}
@@ -95,7 +95,7 @@ export default function PricingPage() {
             <ul className="space-y-3 mb-8 flex-1">
               {pricingFeatures.premium.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14} className="text-amber-500"/> {f}</li>)}
             </ul>
-            <Button onClick={() => handlePerPlanCTA('premium')} variant="outline">{ctaLabel('premium')}</Button>
+            <PricingButton onClick={() => handlePerPlanCTA('premium')} variant="outline">{ctaLabel('premium')}</PricingButton>
           </div>
         </div>
       </main>
@@ -103,11 +103,23 @@ export default function PricingPage() {
   );
 }
 
-function Button({ children, onClick, variant = 'default', size = 'md', className, disabled }: any) {
+function PricingButton({
+  children,
+  onClick,
+  variant = 'default',
+  className,
+  disabled,
+}: {
+  children: ReactNode;
+  onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick'];
+  variant?: 'default' | 'outline';
+  className?: string;
+  disabled?: boolean;
+}) {
   const base = "px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50";
-  const variants: any = {
+  const variants: Record<'default' | 'outline', string> = {
     default: "bg-primary text-primary-foreground hover:bg-primary/90",
     outline: "border border-border hover:bg-muted"
   };
-  return <button onClick={onClick} className={`${base} ${variants[variant]} ${className}`} disabled={disabled}>{children}</button>;
+  return <button onClick={onClick} className={`${base} ${variants[variant]} ${className ?? ''}`} disabled={disabled}>{children}</button>;
 }

@@ -506,8 +506,9 @@ export default function TailorPage() {
         } catch {
           // Non-fatal — pre-validation is advisory only
         } finally {
-          if (resumeIdRef.current !== capturedResumeId) return;
-          setIsPreValidating(false);
+          if (resumeIdRef.current === capturedResumeId) {
+            setIsPreValidating(false);
+          }
         }
       })();
     } catch (error) {

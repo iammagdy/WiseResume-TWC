@@ -27,6 +27,10 @@ vi.mock('../CompanyBriefingSheet', () => ({
   CompanyBriefingSheet: () => null,
 }));
 
+vi.mock('../QuestionBankSheet', () => ({
+  QuestionBankSheet: () => null,
+}));
+
 const baseProps = {
   hasResume: true,
   speechSupported: true,

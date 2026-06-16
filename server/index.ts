@@ -768,6 +768,112 @@ app.post('/api/track-portfolio-view', async (req: Request, res: Response) => {
   res.status(204).end();
 });
 
+// ── Portfolio interest (anonymous lead capture) ───────────────────────────────
+const INTEREST_USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
+const INTEREST_TOKEN_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const _interestRateLimits = new Map<string, { count: number; resetAt: number }>();
+
+function checkInterestRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = _interestRateLimits.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    _interestRateLimits.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= 20) return false;
+  entry.count++;
+  return true;
+}
+
+app.post('/api/portfolio-interest', async (req: Request, res: Response) => {
+  const apiKey = process.env.APPWRITE_API_KEY;
+  const appwriteProjectId = process.env.APPWRITE_PROJECT_ID || process.env.VITE_APPWRITE_PROJECT_ID || '';
+  if (!apiKey || !appwriteProjectId) {
+    res.status(500).json({ error: 'config_error', message: 'Portfolio interest API is not configured.' });
+    return;
+  }
+
+  const ip = getServerClientIp(req);
+  if (!checkInterestRateLimit(ip)) {
+    res.status(429).json({ error: 'rate_limited' });
+    return;
+  }
+
+  const body = req.body as Record<string, unknown>;
+  const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
+  const token = typeof body.token === 'string' ? body.token.trim() : '';
+
+  if (!username || !INTEREST_USERNAME_PATTERN.test(username)) {
+    res.status(400).json({ error: 'bad_request', message: 'Missing username' });
+    return;
+  }
+  if (!token || !INTEREST_TOKEN_PATTERN.test(token)) {
+    res.status(400).json({ error: 'bad_request', message: 'Invalid token' });
+    return;
+  }
+
+  let referrerHostname: string | null = null;
+  if (typeof body.referrer === 'string' && body.referrer.trim()) {
+    try {
+      referrerHostname = new URL(body.referrer).hostname.slice(0, 200);
+    } catch { /* ignore */ }
+  }
+
+  const profileRes = await fetch(
+    `https://fra.cloud.appwrite.io/v1/databases/main/collections/profiles/documents?queries[]=${encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'username', values: [username] }))}&queries[]=${encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'portfolio_enabled', values: [true] }))}&queries[]=${encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }))}`,
+    {
+      headers: {
+        'X-Appwrite-Project': appwriteProjectId,
+        'X-Appwrite-Key': apiKey,
+      },
+    },
+  );
+  if (!profileRes.ok) {
+    res.status(500).json({ error: 'server_error' });
+    return;
+  }
+  const profileJson = await profileRes.json() as { documents?: unknown[] };
+  if (!profileJson.documents?.length) {
+    res.status(404).json({ error: 'not_found' });
+    return;
+  }
+
+  const data: Record<string, string> = {
+    token,
+    portfolio_username: username,
+    interaction_type: 'interested',
+  };
+  if (referrerHostname) data.referrer_hostname = referrerHostname;
+
+  try {
+    const createRes = await fetch(
+      'https://fra.cloud.appwrite.io/v1/databases/main/collections/portfolio_interactions/documents',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Appwrite-Project': appwriteProjectId,
+          'X-Appwrite-Key': apiKey,
+        },
+        body: JSON.stringify({ documentId: 'unique()', data }),
+      },
+    );
+    if (createRes.ok) {
+      res.status(200).json({ ok: true });
+      return;
+    }
+    const errText = await createRes.text();
+    if (/unique|duplicate|already exists/i.test(errText)) {
+      res.status(200).json({ ok: true, duplicate: true });
+      return;
+    }
+    res.status(500).json({ error: 'server_error' });
+  } catch {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ── Fetch-URL proxy ───────────────────────────────────────────────────────────
 // Fetches a remote URL server-side and returns the HTML body, bypassing
 // browser CORS restrictions. Used by UploadPage and onboardingProfile to

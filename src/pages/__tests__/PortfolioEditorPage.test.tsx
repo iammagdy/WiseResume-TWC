@@ -1,10 +1,28 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import PortfolioEditorPage from "../PortfolioEditorPage";
 import { mockProfile, mockResumes } from "../../test/mocks/data";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
+
+vi.mock("bcryptjs", () => ({
+  default: {
+    hash: vi.fn(async () => "hashed"),
+    compare: vi.fn(async () => true),
+    hashSync: vi.fn(() => "hashed"),
+    compareSync: vi.fn(() => true),
+  },
+}));
+
+vi.mock("@/components/portfolio/CareerCardSheet", () => ({
+  CareerCardSheet: () => null,
+}));
+
+vi.mock("@/components/portfolio/qr/QRGeneratorSheet", () => ({
+  QRGeneratorSheet: () => null,
+}));
+
+import PortfolioEditorPage from "../PortfolioEditorPage";
 
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { $id: "user-123", id: "user-123" }, isAuthenticated: true }),
@@ -25,6 +43,8 @@ vi.mock("@/hooks/useResumes", () => ({
     isLoading: false,
     resumes: mockResumes,
   }),
+  getResumeDocumentId: (doc: { $id?: string; id?: string } | null | undefined) =>
+    doc?.$id ?? doc?.id,
 }));
 
 vi.mock("@/hooks/usePlan", () => ({

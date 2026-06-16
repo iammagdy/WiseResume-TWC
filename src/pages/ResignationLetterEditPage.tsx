@@ -58,7 +58,7 @@ export default function ResignationLetterEditPage() {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       if (id) {
-        updateLetter.mutate({ id, content: newContent } as any);
+        updateLetter.mutate({ id, updates: { content: newContent } });
         setHasUnsavedChanges(false);
       }
     }, 2000);
@@ -67,7 +67,7 @@ export default function ResignationLetterEditPage() {
   const handleSave = useCallback(() => {
     if (!id || !content.trim()) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    updateLetter.mutate({ id, content } as any);
+    updateLetter.mutate({ id, updates: { content } });
     setHasUnsavedChanges(false);
     haptics.light();
     toast.success('Saved');
@@ -163,7 +163,7 @@ export default function ResignationLetterEditPage() {
     setChecklistProgress(prev => {
       const next = prev.includes(itemId) ? prev.filter(i => i !== itemId) : [...prev, itemId];
       if (id) {
-        updateLetter.mutate({ id, checklist_progress: next } as any);
+        updateLetter.mutate({ id, updates: { checklist_progress: next } });
       }
       return next;
     });

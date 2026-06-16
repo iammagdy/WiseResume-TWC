@@ -130,7 +130,7 @@ export default function GuidesPage() {
             {filtered.map((guide) => {
               const isRead = readSlugs.includes(guide.slug);
               const isBookmarked = bookmarkedSlugs.includes(guide.slug);
-              const preview = guide.content.replace(/^#.*\n+/, '').replace(/[#*`>\[\]]/g, '').trim().slice(0, 80);
+              const preview = guide.content.replace(/^#.*\n+/, '').replace(/[#*`>\u005B\u005D]/g, '').trim().slice(0, 80);
               return (
                 <button
                   key={guide.slug}

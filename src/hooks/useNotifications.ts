@@ -41,7 +41,8 @@ export function useUnreadNotificationCount() {
         Query.equal('user_id', user.id),
         Query.equal('is_read', false)
       ]);
-      return response.total;
+      const unreadTotal = response.total;
+      return unreadTotal;
     },
     enabled: !!user,
   });

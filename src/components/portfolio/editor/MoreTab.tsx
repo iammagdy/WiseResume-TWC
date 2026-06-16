@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { CollapsibleCard } from './shared';
 import { haptics } from '@/lib/haptics';
 import { normalizeUrl } from '@/lib/urlUtils';
+import { CANONICAL_PORTFOLIO_HOST } from '@/lib/portfolioUrl';
 
 export interface MoreTabProps {
   // History
@@ -459,7 +460,7 @@ export function MoreTab(props: MoreTabProps) {
               </p>
               <div className="font-mono text-[11px] bg-background rounded-md px-2 py-1.5 border border-border space-y-0.5">
                 <p><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.split('.').slice(0, -2).join('.') || '@'}</span></p>
-                <p><span className="text-muted-foreground">Value:</span> <span className="text-foreground">resume.thewise.cloud</span></p>
+                <p><span className="text-muted-foreground">Value:</span> <span className="text-foreground">{CANONICAL_PORTFOLIO_HOST}</span></p>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 3. Save the portfolio — DNS changes may take up to 48 hours to propagate.

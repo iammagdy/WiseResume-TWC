@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Globe, Users, TrendingUp, Share2, Eye, Monitor, Smartphone, Tablet, Building2, FlaskConical, Trophy, Link2, Plus, Copy, Trash2, Check, ChevronRight } from 'lucide-react';
 import { usePortfolioAnalytics, useShortLinks, useCreateShortLink, useDeleteShortLink, type ShortLink } from '@/hooks/usePortfolioAnalytics';
+import { CANONICAL_PORTFOLIO_ORIGIN } from '@/lib/portfolioUrl';
 import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -307,7 +308,7 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
                   link={link}
                   userId={userId}
                   visitCount={sourceCounts[link.id] ?? 0}
-                  canonicalBase="https://resume.thewise.cloud"
+                  canonicalBase={CANONICAL_PORTFOLIO_ORIGIN}
                   onDelete={(id) => {
                     queryClient.setQueryData<ShortLink[]>(['short-links', userId], old => old?.filter(l => l.id !== id) ?? []);
                   }}
@@ -455,7 +456,7 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
                   link={link}
                   userId={userId}
                   visitCount={sourceCounts[link.id] ?? 0}
-                  canonicalBase="https://resume.thewise.cloud"
+                  canonicalBase={CANONICAL_PORTFOLIO_ORIGIN}
                   onDelete={(id) => {
                     queryClient.setQueryData<ShortLink[]>(['short-links', userId], old => old?.filter(l => l.id !== id) ?? []);
                   }}

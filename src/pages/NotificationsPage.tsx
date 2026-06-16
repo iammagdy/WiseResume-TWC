@@ -73,7 +73,7 @@ export default function NotificationsPage() {
           <h1 className="text-page-title flex-1">Notifications</h1>
           <div className="flex items-center gap-1">
             {notifications.some(n => !n.is_read) && (
-              <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate(undefined as any, { onSuccess: () => toast.success('All notifications marked as read') })} className="gap-1 text-xs">
+              <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate(undefined, { onSuccess: () => toast.success('All notifications marked as read') })} className="gap-1 text-xs">
                 <CheckCheck className="w-3.5 h-3.5" /> Read all
               </Button>
             )}

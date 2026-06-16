@@ -19,6 +19,7 @@ import { unwrapAdminResponse, tryUnwrapAdminResponse, formatEdgeError } from '@/
 import type { AdminUser } from './AdminUsersPanel';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
+import { getPortfolioDisplayUrl, CANONICAL_PORTFOLIO_HOST } from '@/lib/portfolioUrl';
 
 
 interface UserDetailDrawerProps {
@@ -1440,7 +1441,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       <p className="text-[10px] text-green-600 mt-0.5">Username is available</p>
                     )}
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      Portfolio URL: <span className="font-mono">resume.thewise.cloud/p/{profileUsername || '…'}</span>
+                      Portfolio URL: <span className="font-mono">{profileUsername ? getPortfolioDisplayUrl(profileUsername) : `${CANONICAL_PORTFOLIO_HOST}/p/…`}</span>
                     </p>
                   </div>
 

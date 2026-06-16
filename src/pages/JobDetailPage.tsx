@@ -40,8 +40,15 @@ export default function JobDetailPage() {
   const { createApplication } = useJobApplicationMutations();
   const [showApply, setShowApply] = useState(false);
 
-  // Auth guard handled by ProtectedRoute
-  // Suspense fallback already shows DetailSkeleton; avoid double skeleton
+  const primaryResume = useMemo(
+    () => (resumes && resumes.length > 0 ? dbToResumeData(resumes[0]) : null),
+    [resumes],
+  );
+  const { score: matchScore, missing: missingSkills } = useMemo(
+    () => computeMatch(job?.requirements ?? '', primaryResume?.skills ?? []),
+    [job?.requirements, primaryResume?.skills],
+  );
+
   if (isLoading) return <DetailSkeleton />;
   if (!job) return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -49,12 +56,6 @@ export default function JobDetailPage() {
       <p className="text-muted-foreground font-medium">Job not found</p>
       <Button variant="ghost" className="mt-4" onClick={() => navigate('/applications')}>Go back</Button>
     </div>
-  );
-
-  const primaryResume = resumes && resumes.length > 0 ? dbToResumeData(resumes[0]) : null;
-  const { score: matchScore, missing: missingSkills } = useMemo(
-    () => computeMatch(job.requirements, primaryResume?.skills ?? []),
-    [job.requirements, primaryResume?.skills]
   );
 
   const handleToggleSave = () => {

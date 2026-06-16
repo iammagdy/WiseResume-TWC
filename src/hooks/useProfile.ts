@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { upsertProfileIdentity } from '@/lib/profileSeed';
 import {
   PORTFOLIO_DRAFT_EXTRAS_KEY,
   PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY,
@@ -65,10 +67,13 @@ export interface ProfileCompletionFields {
   industry?: string | null;
   careerLevel?: string | null;
   location?: string | null;
+  profileCompleted?: boolean;
+  onboarding_completed?: boolean;
 }
 
 export function calculateProfileCompletion(profile: ProfileCompletionFields | null): number {
   if (!profile) return 0;
+  if (profile.profileCompleted || profile.onboarding_completed) return 100;
   const fields: (keyof ProfileCompletionFields)[] = ['fullName', 'jobTitle', 'industry', 'careerLevel', 'location'];
   const filled = fields.filter(f => !!profile[f]).length;
   return (filled / fields.length) * 100;
@@ -186,11 +191,14 @@ export function useProfile(userId: string | undefined) {
       const draftFields = readPortfolioDraftFromProfileDoc(doc as Record<string, unknown>);
       const localDraftFields = readLocalPortfolioDraft(userId);
 
+      const mappedFullName = (doc.full_name as string | null) ?? null;
+      const mappedDisplayName = (doc.display_name as string | null) ?? null;
+
       return {
         id: doc.$id as string,
         user_id: doc.user_id as string,
         email: (doc.email as string | null) ?? null,
-        fullName: (doc.full_name as string | null) ?? null,
+        fullName: mappedFullName ?? mappedDisplayName,
         avatarUrl: (doc.avatar_url as string | null) ?? null,
         jobTitle: (doc.job_title as string | null) ?? null,
         industry: (doc.industry as string | null) ?? null,
@@ -233,6 +241,35 @@ export function useProfile(userId: string | undefined) {
     },
     enabled: !!userId,
   });
+
+  useEffect(() => {
+    if (!userId || loading || !profile?.id) return;
+
+    const accountName = user?.name?.trim();
+    if (!profile.fullName?.trim() && accountName) {
+      void upsertProfileIdentity({ userId, email: user?.email, fullName: accountName })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['profile', userId] }))
+        .catch(() => {});
+      return;
+    }
+
+    if (profile.onboarding_completed && !profile.profileCompleted) {
+      void databases
+        .updateDocument(DATABASE_ID, COLLECTIONS.profiles, profile.id, { profile_completed: true })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['profile', userId] }))
+        .catch(() => {});
+    }
+  }, [
+    userId,
+    user?.name,
+    user?.email,
+    profile?.id,
+    profile?.fullName,
+    profile?.onboarding_completed,
+    profile?.profileCompleted,
+    loading,
+    queryClient,
+  ]);
 
   const updateProfile = async (updates: ProfileUpdates): Promise<void> => {
     if (!userId) throw new Error('Identity not settled');

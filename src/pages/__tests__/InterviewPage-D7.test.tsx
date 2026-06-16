@@ -2,6 +2,7 @@
  * D7 — Interview & Voice Features
  * T063–T067: Full interview flow — setup phase, SpeechRecognition stubs, fallbacks
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mocks */
 import React from "react";
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";

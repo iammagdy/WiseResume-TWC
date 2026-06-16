@@ -30,12 +30,15 @@ function detectContent(raw: string): ParsedResult {
 }
 
 async function decodeQR(file: File): Promise<string | null> {
-  // Try BarcodeDetector first
-  if ('BarcodeDetector' in window) {
+  type BarcodeDetectorResult = { rawValue: string };
+  type BarcodeDetectorInstance = { detect: (source: ImageBitmap) => Promise<BarcodeDetectorResult[]> };
+  type BarcodeDetectorConstructor = new (options: { formats: string[] }) => BarcodeDetectorInstance;
+  const BarcodeDetectorCtor = (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
+
+  if (BarcodeDetectorCtor) {
     try {
       const bitmap = await createImageBitmap(file);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+      const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
       const results = await detector.detect(bitmap);
       if (results.length > 0) return results[0].rawValue;
     } catch { /* fall through to jsQR */ }

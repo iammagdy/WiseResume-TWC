@@ -23,7 +23,7 @@ export default function ReferralPage() {
   // QR code
   useEffect(() => {
     if (!qrRef.current) return;
-    let qr: any;
+    let qr: import('qr-code-styling').default | undefined;
     import('qr-code-styling').then(({ default: QRCodeStyling }) => {
       qr = new QRCodeStyling({
         width: 160,
@@ -60,7 +60,7 @@ export default function ReferralPage() {
           text: 'Build professional resumes with AI! Use my invite code: ' + inviteCode,
           url: inviteLink,
         });
-      } catch { }
+    } catch { /* share cancelled */ }
     } else {
       handleCopy();
     }

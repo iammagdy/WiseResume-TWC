@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CollapsibleCard } from './shared';
+import { getPortfolioDisplayUrl, CANONICAL_PORTFOLIO_HOST } from '@/lib/portfolioUrl';
 import { getResumeDocumentId } from '@/hooks/useResumes';
 import type { PortfolioSections } from './ContentVisibilitySection';
 import { SECTION_LABELS } from './ContentVisibilitySection';
@@ -89,7 +90,7 @@ export function SetupTab(props: SetupTabProps) {
       {/* Username */}
       <div className="space-y-1">
         <label className="text-xs font-medium text-foreground">Username</label>
-        <p className="text-[11px] text-muted-foreground font-mono">resume.thewise.cloud/p/{username || 'your-name'}</p>
+        <p className="text-[11px] text-muted-foreground font-mono">{username ? getPortfolioDisplayUrl(username) : `${CANONICAL_PORTFOLIO_HOST}/p/your-name`}</p>
         <div className="relative">
           <Input
             value={username}

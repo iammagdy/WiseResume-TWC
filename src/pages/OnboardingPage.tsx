@@ -15,6 +15,7 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { upsertProfileIdentity } from '@/lib/profileSeed';
 import {
   fromResumeData, fromProfileData, saveOnboardingProfile,
   probeLinkedInUrl, emptyProfile, reconcileOnboardingCompletion,
@@ -132,6 +133,11 @@ export default function OnboardingPage() {
   const [manualName, setManualName] = useState('');
   const [manualJobTitle, setManualJobTitle] = useState('');
   const [isSavingManual, setIsSavingManual] = useState(false);
+
+  useEffect(() => {
+    if (manualName.trim() || !user?.name?.trim()) return;
+    setManualName(user.name.trim());
+  }, [user?.name, manualName]);
 
   // CV path
   const cvInputRef = useRef<HTMLInputElement>(null);
@@ -433,6 +439,11 @@ export default function OnboardingPage() {
     logAudit('onboarding', 'skipped', { step, method: methodRef.current });
     if (user?.id) {
       try {
+        await upsertProfileIdentity({
+          userId: user.id,
+          email: user.email,
+          fullName: user.name,
+        });
         const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
           Query.equal('user_id', user.id),
           Query.select(['$id']),
@@ -441,6 +452,7 @@ export default function OnboardingPage() {
         if (profileRes.documents.length > 0) {
           await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileRes.documents[0].$id, {
             onboarding_completed: true,
+            profile_completed: true,
           });
         }
         queryClient.invalidateQueries({ queryKey: ['profile'] });

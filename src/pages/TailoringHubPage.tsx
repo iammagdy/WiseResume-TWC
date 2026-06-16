@@ -161,7 +161,7 @@ export default function JobMatchWorkspacePage() {
     const masters = allResumes.filter((r: DatabaseResume) => !isLikelyTailoredResume(r, tailoredIds));
     const target = sortByRecent(masters)[0] ?? sortByRecent(allResumes)[0];
     if (target) setCurrentResumeId(target.$id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [allResumes, currentResumeId, isLikelyTailoredResume, persistedTailoredIds, setCurrentResumeId]);
 
   // Pre-fill job description/info from query params

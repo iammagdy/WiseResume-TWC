@@ -604,8 +604,8 @@ export default function AIStudioPage() {
                 resumeData
                   ? {
                       summary: resumeData.summary ?? undefined,
-                      experience: (resumeData.experience as any) ?? undefined,
-                      skills: (resumeData.skills as any) ?? undefined,
+                      experience: resumeData.experience ?? undefined,
+                      skills: resumeData.skills ?? undefined,
                     }
                   : undefined
               }

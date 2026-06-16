@@ -2,6 +2,7 @@
  * D10 — Settings & BYOK
  * T077: Data export — clicking "Manage Exports" triggers the export sheet callback
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mocks */
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";

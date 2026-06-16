@@ -1,4 +1,4 @@
-import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
+import { getAppUrl } from '@/lib/portfolioUrl';
 
 interface QRBrandedFrameProps {
   /** When true, renders as a plain div (for html2canvas capture). Otherwise renders a clickable link. */
@@ -33,7 +33,7 @@ export function QRBrandedFrame({ isCapture = false }: QRBrandedFrameProps) {
 
   return (
     <a
-      href={PORTFOLIO_DOMAIN}
+      href={getAppUrl()}
       target="_blank"
       rel="noopener noreferrer"
       className="block active:scale-95 transition-transform touch-manipulation"

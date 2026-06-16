@@ -32,12 +32,19 @@ export function AppWorkspaceLayout({ children, onImportJob, onHelp }: AppWorkspa
     syncSidebarForRoute(location.pathname);
   }, [location.pathname]);
 
+  const effectiveProfile = profile
+    ? { ...profile, fullName: profile.fullName ?? user?.name ?? null }
+    : null;
+  const profileCompletionPct = effectiveProfile
+    ? calculateProfileCompletion(effectiveProfile)
+    : undefined;
+
   const sidebarProps = {
-    userName: profile?.fullName,
+    userName: profile?.fullName ?? user?.name ?? null,
     userEmail: user?.email,
     avatarUrl: withAvatarCacheBust(profile?.avatarUrl, profile?.updatedAt),
     plan,
-    profileCompletion: profile ? calculateProfileCompletion(profile) : undefined,
+    profileCompletion: profileCompletionPct,
     onManageAccount: () => navigate('/profile'),
     onSettings: () => navigate('/settings'),
     onAdminPanel: isAdmin ? () => navigate('/devkit') : undefined,

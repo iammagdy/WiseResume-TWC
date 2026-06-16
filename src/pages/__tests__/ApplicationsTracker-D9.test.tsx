@@ -2,6 +2,7 @@
  * D9 — Application Tracker
  * T072: Status transitions — updateApplication called with new status
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mocks */
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";

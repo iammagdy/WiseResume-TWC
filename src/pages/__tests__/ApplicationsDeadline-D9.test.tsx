@@ -2,6 +2,7 @@
  * D9 — Application Tracker
  * T073: Overdue indicators — application with past deadline shows "overdue" marker
  */
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mocks */
 import React from "react";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";

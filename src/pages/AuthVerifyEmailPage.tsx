@@ -83,7 +83,7 @@ export default function AuthVerifyEmailPage() {
       // Non-fatal
     });
     setTimeout(() => {
-      try { sessionStorage.removeItem('wr_auth_user'); } catch {}
+      try { sessionStorage.removeItem('wr_auth_user'); } catch { /* ignore */ }
       window.location.replace('/dashboard');
     }, 2200);
   }, [persistVerifiedSession, queryClient, refetchMe]);
@@ -224,7 +224,7 @@ export default function AuthVerifyEmailPage() {
         return;
       }
       toast.success('Verification email sent — check your inbox.');
-      try { localStorage.setItem('wr_verify_resend_ts', String(Date.now())); } catch {}
+      try { localStorage.setItem('wr_verify_resend_ts', String(Date.now())); } catch { /* ignore */ }
       startCooldown(60);
     } catch (err) {
       const msg =

@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { getAppUrl } from '@/lib/portfolioUrl';
 import { StickyHeader } from '@/components/portfolio/public/StickyHeader';
 import { useActiveStatus } from '@/hooks/useActiveStatus';
 import { getThemeById, buildThemeCSSVars } from '@/lib/portfolioThemes';
@@ -19,8 +20,7 @@ import { usePortfolioSEO } from '@/hooks/usePortfolioSEO';
 
 // Direct import for above-the-fold content
 import { PublicHero } from '@/components/portfolio/public/PublicHero';
-import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { sendPortfolioInterest } from '@/lib/portfolioInterest';
 
 // Lazy load below-the-fold heavy sections
 const PublicSections = lazyWithRetry(() => import('@/components/portfolio/public/PublicSections').then(m => ({ default: m.PublicSections })));
@@ -39,6 +39,15 @@ function hexToRgb(hex: string): string {
 
 function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${hexToRgb(hex)}, ${alpha})`;
+}
+
+function portfolioSkillLabel(skill: string | { name?: string }): string {
+  return typeof skill === 'string' ? skill : (skill.name ?? '');
+}
+
+function optionalSkills(item: object): string[] {
+  const skills = (item as { skills?: unknown }).skills;
+  return Array.isArray(skills) ? skills.filter((s): s is string => typeof s === 'string') : [];
 }
 
 const fadeUp = {
@@ -115,7 +124,7 @@ function NotFound() {
         <SearchX className="w-16 h-16 mx-auto mb-4 text-white/60" />
         <h1 className="text-3xl font-bold text-white">Portfolio Not Found</h1>
         <p className="text-white/60">This portfolio doesn't exist or isn't public yet.</p>
-        <a href="https://resume.thewise.cloud" className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
+        <a href={getAppUrl()} className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
           Create your free portfolio with WiseResume →
         </a>
       </div>
@@ -261,11 +270,11 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     }
 
     try {
-      await databases.createDocument(DATABASE_ID, COLLECTIONS.portfolio_interactions, ID.unique(), {
-        action: 'portfolio_interest',
-        username,
-        token,
-      });
+      const result = await sendPortfolioInterest(username, token);
+      if (!result.ok) {
+        toast.error('Could not send interest — please try again.');
+        return;
+      }
       setInterestSent(true);
       localStorage.setItem(`portfolio-interest-sent:${username}`, '1');
       toast.success('Your interest has been sent to the portfolio owner!');
@@ -418,9 +427,9 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   const validEducation = resume.education?.filter(e => (e.institution?.trim() || e.degree?.trim())) || [];
 
   const allSkills = Array.from(new Set([
-    ...(resume.skills || []).map(s => typeof s === 'string' ? s : (s as any).name),
-    ...(resume.experience || []).flatMap(e => (e as any).skills || []),
-    ...(resume.projects || []).flatMap(p => (p as any).skills || [])
+    ...(resume.skills || []).map(portfolioSkillLabel),
+    ...(resume.experience || []).flatMap((e) => optionalSkills(e)),
+    ...(resume.projects || []).flatMap((p) => optionalSkills(p)),
   ])).filter(Boolean);
 
   const isTwoCol = (pLayout as string) === 'two-col' || (pLayout as string) === 'two-column';
@@ -669,7 +678,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
           )}
           <div>
             <a
-              href="https://resume.thewise.cloud/"
+              href={getAppUrl()}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80 underline decoration-1 underline-offset-2 cursor-pointer"

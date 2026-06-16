@@ -100,7 +100,7 @@ export default function SettingsPage() {
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   // Dynamic changelog
-  const [changelogData, setChangelogData] = useState<any[]>([]);
+  const [changelogData, setChangelogData] = useState<{ version: string }[]>([]);
   const [changelogLoading, setChangelogLoading] = useState(false);
   const [changelogError, setChangelogError] = useState(false);
   const changelogFetchedAt = useRef<number>(0);
@@ -115,7 +115,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     getChangelog().then((data) => {
-      setChangelogData(data as typeof changelogData);
+      setChangelogData(data);
       changelogFetchedAt.current = Date.now();
     });
   }, []);
@@ -145,7 +145,7 @@ export default function SettingsPage() {
   const handleDataDeleted = useCallback(async () => {
     try {
       await signOut();
-    } catch {}
+    } catch { /* sign-out after delete is best-effort */ }
     toast.success('All data deleted');
     window.location.replace('/');
   }, [signOut]);
@@ -158,12 +158,12 @@ export default function SettingsPage() {
     };
     haptics.light();
     if (navigator.share) {
-      try { await navigator.share(shareData); } catch {}
+      try { await navigator.share(shareData); } catch { /* user cancelled share */ }
     } else {
       try {
         await navigator.clipboard.writeText(shareData.url);
         toast.success('Link copied to clipboard');
-      } catch {}
+      } catch { /* clipboard unavailable */ }
     }
   }, []);
 

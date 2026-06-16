@@ -11,18 +11,9 @@ const CSP_BASE = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://fra.cloud.appwrite.io https://api.resend.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io",
-  // Web Workers must be allowed from the same origin AND blob: URLs.
-  // Tesseract.js v7 (and many other libs) wrap their worker script in
-  // a Blob and call `new Worker(URL.createObjectURL(blob))`. Without
-  // this directive iOS WebKit rejects worker spawn with
-  // "SecurityError: The operation is insecure" — which is what broke
-  // iPhone CV uploads (PDF / image OCR). We have also set
-  // `workerBlobURL: false` in src/lib/pdf/ocrExtractor.ts so the
-  // Tesseract worker loads as a same-origin script, but this directive
-  // protects any other future blob: worker we (or a dep) might add.
+  "connect-src 'self' https://fra.cloud.appwrite.io https://api.resend.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io https://challenges.cloudflare.com",
   "worker-src 'self' blob:",
-  "frame-src 'none'",
+  "frame-src https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",
 ];
@@ -31,7 +22,7 @@ const CSP_BASE = [
 // Note: frame-ancestors is included here for defense-in-depth, but meta-tag
 // CSP does not enforce frame-ancestors in all browsers — the _headers file
 // provides the authoritative HTTP header for frame-ancestors enforcement.
-const CSP = [...CSP_BASE, "script-src 'self' 'unsafe-inline'", "frame-ancestors 'none'"].join('; ');
+const CSP = [...CSP_BASE, "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com", "frame-ancestors 'none'"].join('; ');
 
 function cspPlugin(): Plugin {
   return {
