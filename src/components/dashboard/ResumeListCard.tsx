@@ -459,8 +459,9 @@ export const ResumeListCard = memo(function ResumeListCard({
               </Button>
               {onTailor && (
                 <Button
+                  variant="outline"
                   size="sm"
-                  className="resume-workspace-action resume-workspace-action--primary h-8 px-2.5 rounded-lg text-xs font-medium shadow-none"
+                  className="resume-workspace-action h-8 px-2.5 rounded-lg text-xs font-medium shadow-none border-border/80 hover:border-primary/40 hover:bg-primary/5"
                   onClick={() => {
                     haptics.light();
                     onTailor(resume.$id);
@@ -569,8 +570,9 @@ export const ResumeListCard = memo(function ResumeListCard({
               </Button>
               {onTailor && (
                 <Button
+                  variant="outline"
                   size="sm"
-                  className="h-10 rounded-xl min-w-[5.25rem] flex-1 sm:flex-none font-medium shadow-none"
+                  className="h-10 rounded-xl min-w-[5.25rem] flex-1 sm:flex-none font-medium border-border/80 hover:border-primary/40 hover:bg-primary/5"
                   onClick={() => {
                     haptics.light();
                     onTailor(resume.$id);

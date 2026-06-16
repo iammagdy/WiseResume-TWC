@@ -11,11 +11,14 @@ import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { account as appwriteAccount, ID } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { upsertProfileIdentity } from '@/lib/profileSeed';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
+
+const SIGNUP_PLAN_KEY = 'signup_plan_intent';
 
 type View = 'login' | 'register' | 'claim-account' | 'forgot-password';
 
@@ -31,8 +34,19 @@ export default function AuthPage() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [signupPlanIntent, setSignupPlanIntent] = useState<string | null>(
+    () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(SIGNUP_PLAN_KEY) : null),
+  );
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
+
+  useEffect(() => {
+    const planParam = searchParams.get('plan');
+    if (planParam) {
+      sessionStorage.setItem(SIGNUP_PLAN_KEY, planParam);
+      setSignupPlanIntent(planParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) navigate(redirectTo, { replace: true });
@@ -55,6 +69,8 @@ export default function AuthPage() {
     try {
       await appwriteAccount.createEmailPasswordSession(email, password);
       await refreshSession();
+      sessionStorage.removeItem(SIGNUP_PLAN_KEY);
+      setSignupPlanIntent(null);
       toast.success('Logged in successfully!');
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
@@ -131,6 +147,11 @@ export default function AuthPage() {
       } else {
         toast.warning('Account created! We had trouble sending the verification email — you can resend it from the next page.');
       }
+      const planIntent = sessionStorage.getItem(SIGNUP_PLAN_KEY);
+      if (planIntent) {
+        const label = planIntent.charAt(0).toUpperCase() + planIntent.slice(1);
+        toast.message(`You're signing up for the ${label} plan. Choose your subscription after verifying email.`);
+      }
       navigate('/auth/verify-email', { replace: true });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
@@ -162,11 +183,15 @@ export default function AuthPage() {
           {view === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               {loginError && (
-                <p role="alert" className="text-sm text-red-400 text-center px-1">{loginError}</p>
+                <p id="login-error" role="alert" className="text-sm text-red-400 text-center px-1">{loginError}</p>
               )}
-              <Input type="email" placeholder="Email" value={email} onChange={e => { setEmail(e.target.value); setLoginError(null); }} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              <div className="space-y-1.5">
+                <Label htmlFor="login-email" className="sr-only">Email</Label>
+                <Input id="login-email" type="email" placeholder="Email" autoComplete="email" value={email} onChange={e => { setEmail(e.target.value); setLoginError(null); }} required aria-describedby={loginError ? 'login-error' : undefined} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              </div>
               <div className="space-y-1">
-                <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                <Label htmlFor="login-password" className="sr-only">Password</Label>
+                <Input id="login-password" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required aria-describedby={loginError ? 'login-error' : undefined} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
                 <div className="flex justify-end">
                   <button
                     type="button"
@@ -194,7 +219,10 @@ export default function AuthPage() {
               <p className="text-sm text-white/60 text-center">
                 Enter your email and we'll send you a link to reset your password.
               </p>
-              <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              <div className="space-y-1.5">
+                <Label htmlFor="forgot-email" className="sr-only">Email</Label>
+                <Input id="forgot-email" type="email" placeholder="Email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              </div>
               <Button type="submit" className="w-full h-11" disabled={loading}>
                 {loading ? <MiniSpinner size={18} className="mr-2" /> : 'Send Reset Link'}
               </Button>
@@ -219,10 +247,23 @@ export default function AuthPage() {
 
           {view === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
-              <Input placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
-              <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              {signupPlanIntent && (
+                <p className="text-sm text-center text-primary/90 px-1" role="status">
+                  You&apos;re signing up for the{' '}
+                  <span className="font-semibold capitalize">{signupPlanIntent}</span> plan
+                </p>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="register-name" className="sr-only">Full Name</Label>
+                <Input id="register-name" placeholder="Full Name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="register-email" className="sr-only">Email</Label>
+                <Input id="register-email" type="email" placeholder="Email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+              </div>
               <div>
-                <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
+                <Label htmlFor="register-password" className="sr-only">Password</Label>
+                <Input id="register-password" type="password" placeholder="Password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
                 <p className="text-xs text-white/40 mt-1">At least 8 characters.</p>
               </div>
               <Button type="submit" className="w-full h-11" disabled={loading}>
