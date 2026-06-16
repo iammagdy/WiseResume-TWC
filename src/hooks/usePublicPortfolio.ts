@@ -3,6 +3,8 @@ import { functions } from '@/lib/appwrite';
 import type { ExecutionMethod } from 'appwrite';
 
 // ── Public types ──────────────────────────────────────────────────────────────
+// NOTE: These interfaces match what the existing Public Portfolio UI expects.
+// Any changes here require updating PublicPortfolioPage.tsx and child components.
 
 export interface PortfolioSections {
   about?: boolean;
@@ -21,48 +23,58 @@ export interface PortfolioSections {
 }
 
 export interface PublicProfile {
+  $id: string;
+  user_id: string;
   username: string;
-  fullName: string;
-  jobTitle: string;
-  bio: string;
-  location: string;
+  fullName: string | null;
+  jobTitle: string | null;
   avatarUrl: string | null;
-  accentColor: string;
-  font: string;
-  style: string;
-  layout: string;
-  sections: PortfolioSections;
+  portfolioBio: string | null;
+  portfolioEnabled: boolean;
+  portfolioStyle: string | null;
+  portfolioLayout: string | null;
+  portfolioAccentColor: string | null;
+  portfolioFont: string | null;
+  portfolioSections: PortfolioSections | null;
+  portfolioMetaTitle: string | null;
+  portfolioMetaDescription: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
-  social: {
-    github: string | null;
-    website: string | null;
-    twitter: string | null;
-    linkedin: string | null;
-  };
+  theme: string | null;
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  twitterUrl: string | null;
+  websiteUrl: string | null;
+  contactEmail: string | null;
   openToWork: boolean;
+  availabilityStatus: string | null;
   availabilityHeadline: string | null;
-  extras: {
-    caseStudies: Array<{ id: string; title: string; challenge: string; outcome: string }>;
-    services: Array<{ id: string; title: string; description: string; category: string }>;
-    testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle: string }>;
-    highlights: Array<{ id: string; value: string; label: string }>;
-    portfolioSummary: string;
-    sectionOrder: string[];
-    availabilityStatus: string;
-    scrollEffect: string;
-    videoIntroUrl: string | null;
-    schedulingUrl: string | null;
-    certifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>;
-    primaryLanguage: string;
-    secondaryLanguage: string | null;
-    translations: Record<string, Record<string, unknown>> | null;
-    customDomain: string | null;
-    contactFormEnabled: boolean;
-  };
+  location: string | null;
+  industry: string | null;
+  seoNoindex: boolean;
+  lastActiveAt: string | null;
+  portfolioTranslations: Record<string, Record<string, unknown>> | null;
+  // portfolioExtras fields surfaced directly
+  testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle: string }> | null;
+  services: Array<{ id: string; title: string; description: string; category: string }> | null;
+  caseStudies: Array<{ id: string; title: string; challenge: string; outcome: string }> | null;
+  highlights: Array<{ id: string; value: string; label: string }> | null;
+  portfolioSummary: string | null;
+  sectionOrder: string[] | null;
+  pinnedProject: { title: string; description: string; url: string } | null;
+  scrollEffect: string | null;
+  videoIntroUrl: string | null;
+  schedulingUrl: string | null;
+  abChallengerTheme: string | null;
+  portfolioCertifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }> | null;
+  githubProjectsCache: unknown[] | null;
+  portfolioPrimaryLanguage: string | null;
+  portfolioSecondaryLanguage: string | null;
+  contactFormEnabled: boolean;
 }
 
 export interface PublicResume {
+  $id: string;
   summary: string | null;
   experience: Array<{ id?: string; position: string; company: string; startDate?: string; endDate?: string; description?: string; current?: boolean }>;
   education: Array<{ id?: string; institution: string; degree: string; startDate?: string; endDate?: string; gpa?: string }>;
@@ -76,15 +88,14 @@ export interface PublicResume {
 
 export interface PublicPortfolio {
   profile: PublicProfile;
-  resume: PublicResume | null;
+  resume: PublicResume;
   sessionToken?: string;
 }
 
 export interface PortfolioGateInfo {
-  exists: boolean;
-  portfolioEnabled: boolean;
   passwordEnabled: boolean;
   accentColor: string;
+  exists: boolean;
 }
 
 // ── Gate check — uses server function, NO browser reads of portfolio_settings ──

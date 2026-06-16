@@ -7,7 +7,9 @@ const DB_ID = 'main';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
 const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
-const JWT_SECRET = process.env.PORTFOLIO_JWT_SECRET || 'dev-secret-change-in-production';
+
+// SECURITY: Fail closed if JWT secret is not configured
+const JWT_SECRET = process.env.PORTFOLIO_JWT_SECRET;
 
 const PROFILES_COLLECTION_ID = 'profiles';
 const RESUMES_COLLECTION_ID = 'resumes';
@@ -35,7 +37,21 @@ function sha256Hex(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
+// Timing-safe signature comparison
+function timingSafeCompare(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 function signSessionToken(username, userId) {
+  // SECURITY: Fail if JWT secret not configured
+  if (!JWT_SECRET) {
+    throw new Error('JWT secret not configured');
+  }
   const payload = JSON.stringify({
     username,
     userId,
@@ -48,11 +64,14 @@ function signSessionToken(username, userId) {
 
 function verifySessionToken(token) {
   try {
+    // SECURITY: Fail if JWT secret not configured
+    if (!JWT_SECRET) return null;
     const [payloadB64, signature] = token.split('.');
     if (!payloadB64 || !signature) return null;
     const payload = Buffer.from(payloadB64, 'base64').toString();
     const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(payload).digest('base64');
-    if (signature !== expectedSig) return null;
+    // Timing-safe comparison
+    if (!timingSafeCompare(signature, expectedSig)) return null;
     const data = JSON.parse(payload);
     if (Date.now() > data.exp) return null;
     return data;
@@ -69,6 +88,20 @@ function parseJsonField(raw) {
   } catch {
     return {};
   }
+}
+
+function normalizeArray(value, defaultValue = []) {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined) return defaultValue;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // Fall through
+    }
+  }
+  return defaultValue;
 }
 
 async function verifyPassword(db, username, password) {
@@ -118,52 +151,77 @@ async function buildPublicPortfolio(db, username, sessionToken) {
   // Parse extras safely
   const extras = parseJsonField(rawProfile.portfolio_extras || rawProfile.portfolioExtras);
   
-  // Build sanitized public profile (NO private fields)
+  // Build sanitized public profile with OLD SHAPE for backward compatibility
+  // Fields must match what PublicPortfolioPage and child components expect
   const publicProfile = {
-    username: rawProfile.username,
-    fullName: rawProfile.full_name || rawProfile.fullName || '',
-    jobTitle: rawProfile.job_title || rawProfile.jobTitle || '',
-    bio: rawProfile.portfolio_bio || rawProfile.portfolioBio || extras.portfolioSummary || '',
-    location: rawProfile.location || '',
+    $id: rawProfile.$id,
+    user_id: rawProfile.user_id,
+    username: rawProfile.username || '',
+    fullName: rawProfile.full_name || rawProfile.fullName || null,
+    jobTitle: rawProfile.job_title || rawProfile.jobTitle || null,
     avatarUrl: rawProfile.avatar_url || rawProfile.avatarUrl || null,
-    accentColor: rawProfile.portfolio_accent_color || rawProfile.portfolioAccentColor || '#e84545',
-    font: rawProfile.portfolio_font || rawProfile.portfolioFont || 'inter',
-    style: rawProfile.portfolio_style || rawProfile.portfolioStyle || 'modern',
-    layout: rawProfile.portfolio_layout || rawProfile.portfolioLayout || 'standard',
-    sections: rawProfile.portfolio_sections || rawProfile.portfolioSections || {},
+    portfolioBio: rawProfile.portfolio_bio || rawProfile.portfolioBio || null,
+    portfolioEnabled: true,
+    portfolioStyle: rawProfile.portfolio_style || rawProfile.portfolioStyle || 'modern',
+    portfolioLayout: rawProfile.portfolio_layout || rawProfile.portfolioLayout || 'standard',
+    portfolioAccentColor: rawProfile.portfolio_accent_color || rawProfile.portfolioAccentColor || '#e84545',
+    portfolioFont: rawProfile.portfolio_font || rawProfile.portfolioFont || 'inter',
+    portfolioSections: rawProfile.portfolio_sections || rawProfile.portfolioSections || {},
+    portfolioMetaTitle: rawProfile.portfolio_meta_title || rawProfile.portfolioMetaTitle || null,
+    portfolioMetaDescription: rawProfile.portfolio_meta_description || rawProfile.portfolioMetaDescription || null,
     metaTitle: rawProfile.portfolio_meta_title || rawProfile.portfolioMetaTitle || null,
     metaDescription: rawProfile.portfolio_meta_description || rawProfile.portfolioMetaDescription || null,
-    social: {
-      github: rawProfile.github_url || rawProfile.githubUrl || null,
-      website: rawProfile.website_url || rawProfile.websiteUrl || null,
-      twitter: rawProfile.twitter_url || rawProfile.twitterUrl || null,
-      linkedin: rawProfile.linkedin_url || rawProfile.linkedinUrl || null,
-    },
-    openToWork: rawProfile.open_to_work || rawProfile.openToWork || false,
+    theme: rawProfile.portfolio_style || rawProfile.portfolioStyle || 'modern',
+    githubUrl: rawProfile.github_url || rawProfile.githubUrl || null,
+    linkedinUrl: rawProfile.linkedin_url || rawProfile.linkedinUrl || null,
+    twitterUrl: rawProfile.twitter_url || rawProfile.twitterUrl || null,
+    websiteUrl: rawProfile.website_url || rawProfile.websiteUrl || null,
+    contactEmail: rawProfile.contact_email || rawProfile.contactEmail || null,
+    openToWork: !!(rawProfile.open_to_work || rawProfile.openToWork),
+    availabilityStatus: extras.availabilityStatus || 'not-looking',
     availabilityHeadline: rawProfile.availability_headline || rawProfile.availabilityHeadline || null,
-    extras: {
-      caseStudies: extras.caseStudies || [],
-      services: extras.services || [],
-      testimonials: extras.testimonials || [],
-      highlights: extras.highlights || [],
-      portfolioSummary: extras.portfolioSummary || '',
-      sectionOrder: extras.sectionOrder || [],
-      availabilityStatus: extras.availabilityStatus || 'not-looking',
-      scrollEffect: extras.scrollEffect || 'none',
-      videoIntroUrl: extras.videoIntroUrl || null,
-      schedulingUrl: extras.schedulingUrl || null,
-      certifications: extras.portfolioCertifications || [],
-      primaryLanguage: extras.portfolioPrimaryLanguage || 'English',
-      secondaryLanguage: extras.portfolioSecondaryLanguage || null,
-      translations: extras.portfolioTranslations || null,
-      customDomain: extras.customDomain || null,
-      contactFormEnabled: extras.contactFormEnabled ?? true,
-    },
+    location: rawProfile.location || null,
+    industry: rawProfile.industry || null,
+    seoNoindex: !!(rawProfile.seo_noindex || rawProfile.seoNoindex),
+    lastActiveAt: rawProfile.last_active_at || rawProfile.lastActiveAt || null,
+    portfolioTranslations: extras.portfolioTranslations || null,
+    // extras fields surfaced directly for backward compatibility
+    testimonials: extras.testimonials || [],
+    services: extras.services || [],
+    caseStudies: extras.caseStudies || [],
+    highlights: extras.highlights || [],
+    portfolioSummary: extras.portfolioSummary || null,
+    sectionOrder: extras.sectionOrder || [],
+    pinnedProject: extras.pinnedProject || null,
+    scrollEffect: extras.scrollEffect || 'none',
+    videoIntroUrl: extras.videoIntroUrl || null,
+    schedulingUrl: extras.schedulingUrl || null,
+    abChallengerTheme: extras.abChallengerTheme || null,
+    portfolioCertifications: extras.portfolioCertifications || [],
+    githubProjectsCache: rawProfile.github_projects_cache || rawProfile.githubProjectsCache || null,
+    portfolioPrimaryLanguage: extras.portfolioPrimaryLanguage || 'English',
+    portfolioSecondaryLanguage: extras.portfolioSecondaryLanguage || null,
+    contactFormEnabled: typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true,
   };
   
   // Get selected resume with ownership verification
   const portfolioResumeId = rawProfile.portfolio_resume_id || rawProfile.portfolioResumeId;
-  let publicResume = null;
+  
+  // Default empty resume (never null for backward compatibility)
+  const emptyResume = {
+    $id: '',
+    summary: null,
+    experience: [],
+    education: [],
+    skills: [],
+    projects: [],
+    certifications: [],
+    awards: [],
+    publications: [],
+    volunteering: [],
+  };
+  
+  let publicResume = emptyResume;
   
   if (portfolioResumeId) {
     try {
@@ -175,30 +233,31 @@ async function buildPublicPortfolio(db, username, sessionToken) {
       
       if (resumeRes.total > 0) {
         const rawResume = resumeRes.documents[0];
-        // Verify ownership
+        // SECURITY: Verify ownership before returning
         if (rawResume.user_id === rawProfile.user_id) {
           publicResume = {
+            $id: rawResume.$id,
             summary: rawResume.summary || null,
-            experience: Array.isArray(rawResume.experience) ? rawResume.experience : [],
-            education: Array.isArray(rawResume.education) ? rawResume.education : [],
-            skills: Array.isArray(rawResume.skills) ? rawResume.skills : [],
-            projects: Array.isArray(rawResume.projects) ? rawResume.projects : [],
-            certifications: Array.isArray(rawResume.certifications) ? rawResume.certifications : [],
-            awards: Array.isArray(rawResume.awards) ? rawResume.awards : [],
-            publications: Array.isArray(rawResume.publications) ? rawResume.publications : [],
-            volunteering: Array.isArray(rawResume.volunteering) ? rawResume.volunteering : [],
+            experience: normalizeArray(rawResume.experience),
+            education: normalizeArray(rawResume.education),
+            skills: normalizeArray(rawResume.skills),
+            projects: normalizeArray(rawResume.projects),
+            certifications: normalizeArray(rawResume.certifications),
+            awards: normalizeArray(rawResume.awards),
+            publications: normalizeArray(rawResume.publications),
+            volunteering: normalizeArray(rawResume.volunteering),
           };
         }
       }
     } catch {
-      // Resume fetch failed, return null
+      // Resume fetch failed, use empty resume
     }
   }
   
   return {
     profile: publicProfile,
     resume: publicResume,
-    sessionToken, // Return token for protected portfolios
+    sessionToken,
   };
 }
 
