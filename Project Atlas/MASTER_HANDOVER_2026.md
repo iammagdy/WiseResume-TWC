@@ -52,7 +52,11 @@ Fixed E2E test failure where `/tailor/result/:id` returned 404. Added route alia
 
 ### Commits created (this session)
 
-(To be filled after commit)
+| Commit | SHA | Message |
+|--------|-----|---------|
+| E2E fixes | `ddbd946a` | `fix(e2e): add /tailor/result route alias and portfolio test fixtures` |
+
+6 files changed, 551 insertions(+), 1 deletion(-)
 
 ---
 
@@ -66,9 +70,10 @@ Fixed E2E test failure where `/tailor/result/:id` returned 404. Added route alia
 
 ### Current production/deployment state
 
-- **Frontend (Vercel)**: Awaiting deployment from next `main` push.
+- **Frontend (Vercel)**: Deployed from `ddbd946a` — auto-deployed after push.
 - **Appwrite Functions**: Unchanged.
-- **Local repo**: Uncommitted changes on `main`.
+- **Local repo**: Synced with `origin/main` at `ddbd946a`.
+- **Working tree**: Clean.
 
 ---
 
@@ -76,18 +81,21 @@ Fixed E2E test failure where `/tailor/result/:id` returned 404. Added route alia
 
 **Tailoring result route:**
 - Route alias `/tailor/result/:resumeId` added to `AppInterior.tsx`
-- TypeScript passing, build successful
-- Ready to commit and push for Vercel auto-deploy
+- Commit `ddbd946a` pushed, Vercel auto-deploy triggered
+- Both `/tailoring-hub/result/:id` and `/tailor/result/:id` now work
 
 **Public Portfolio test fixtures:**
-- Created seed script in `tests/e2e/fixtures/`
-- Run `npx tsx tests/e2e/fixtures/portfolio-test-fixtures.ts` to seed test data
-- E2E tests can now use `testportfolio`, `testprotected` (password: `testpass123`), `testedgecase`
+- Created seed script in `tests/e2e/fixtures/portfolio-test-fixtures.ts`
+- **Next step**: Run `npx tsx tests/e2e/fixtures/portfolio-test-fixtures.ts` with production Appwrite credentials to seed test data
+- E2E tests can then use:
+  - `testportfolio` — public portfolio (no password)
+  - `testprotected` — password-protected (password: `testpass123`)
+  - `testedgecase` — unusual/malformed data
 
 **To complete:**
-1. Commit and push changes for Vercel deploy
-2. Run fixture seed script against production database
-3. Update E2E tests to use fixture credentials
+1. Run fixture seed script against production database (requires `APPWRITE_API_KEY`)
+2. Update E2E tests to use fixture credentials from `TEST_FIXTURES`
+3. Re-run E2E test suite to verify fixes
 
 ---
 
