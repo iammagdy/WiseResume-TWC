@@ -242,3 +242,90 @@ To finish single-branch cleanup later:
 - **No product code** on `main` was changed.
 - **No deployments** were run.
 - **17 remote branches** still require separate owner review (unchanged from initial cleanup).
+
+---
+
+## Follow-up: blocked worktree resolution
+
+**Date/time:** 2026-06-16 (UTC ~19:50–19:56)
+
+### Inspection summary
+
+#### `claude/kind-hodgkin-685acc` (`.claude/worktrees/kind-hodgkin-685acc`)
+
+| Check | Result |
+|-------|--------|
+| Merged into `main` | Yes (`git merge-base --is-ancestor`, empty `git log main..branch`) |
+| Untracked files | `appwrite-hubs/revenuecat-webhook/package-lock.json` only |
+| Tracked diffs | None |
+| On `main` | No `package-lock.json` at that path (generated artifact, not committed) |
+| Valuable unique work | None |
+
+**Decision:** **A — Safe to discard.** Generated lockfile from a stale `npm install` in the worktree; branch commits already on `main`.
+
+#### `claude/serene-booth-dc1c57` (`.claude/worktrees/serene-booth-dc1c57`)
+
+| File | Worktree change | vs `main` |
+|------|-----------------|-----------|
+| `src/AppInterior.tsx` | Added unused `toast` import | `main` already has `toast` import and usage |
+| `src/components/layout/AppWorkspaceSidebar.tsx` | `effectiveCollapsed` for mobile sheet | **Already on `main`** (UI/UX audit merge) |
+| `src/components/layout/BottomTabBar.tsx` | Portfolio nav item + slice index tweak | **Obsolete** — file **deleted on `main`** (Phase 6 orphan nav cleanup) |
+| `src/pages/CoverLetterNewPage.tsx` | `isDownloadingPdf` spinner on PDF button | **Already on `main`** |
+
+| Check | Result |
+|-------|--------|
+| Merged into `main` | Yes |
+| Uncommitted worktree edits | Stale WIP superseded by PR #103 / later `main` |
+| Valuable unique work | None |
+
+**Decision:** **A — Safe to discard.** All meaningful changes exist on `main` or target deleted files.
+
+### Actions taken
+
+| Worktree | Cleanup | Remove worktree | Delete branch |
+|----------|---------|-----------------|---------------|
+| `kind-hodgkin-685acc` | `git restore .` + `git clean -fd` (removed untracked lockfile) | `git worktree remove` succeeded | `git branch -d` → deleted (`44f55eb3`) |
+| `serene-booth-dc1c57` | `git restore .` + `git clean -fd` | `git worktree remove` failed (permission denied); orphaned folder removed manually after branch delete | `git branch -d` → deleted (`7c28f2a9`) |
+
+`--force` was **not** used on `git worktree remove`. Orphaned `serene-booth-dc1c57` directory removed with filesystem delete after branch deletion and `git worktree prune` (directory was no longer registered).
+
+### Discarded changes (why safe)
+
+1. **Untracked `package-lock.json`** — regenerable; never part of `main`; no source logic.
+2. **Serene-booth uncommitted edits** — duplicate of merged UI fixes or edits to `BottomTabBar.tsx` which no longer exists on `main`.
+
+Nothing from either worktree was committed to `main`.
+
+### Local branches deleted (2)
+
+- `claude/kind-hodgkin-685acc`
+- `claude/serene-booth-dc1c57`
+
+### Local branches kept (3)
+
+| Branch | Reason |
+|--------|--------|
+| `claude/awesome-ride-7faf3b` | Not merged — owner review |
+| `claude/ecstatic-jones-e24c9d` | Not merged — owner review |
+| `claude/frosty-ramanujan-26b957` | Not merged — owner review |
+
+### Final local branch list
+
+- `main` (current)
+- `claude/awesome-ride-7faf3b`
+- `claude/ecstatic-jones-e24c9d`
+- `claude/frosty-ramanujan-26b957`
+
+### Final worktree list
+
+- `Y:/WiseResume-TWC` → `main`
+- `.claude/worktrees/awesome-ride-7faf3b`
+- `.claude/worktrees/ecstatic-jones-e24c9d`
+- `.claude/worktrees/frosty-ramanujan-26b957`
+
+### Confirmations
+
+- **No remote branches** deleted.
+- **No product code** changed on `main`.
+- **No deployments** run.
+- **17 remote branches** still need separate owner review.
