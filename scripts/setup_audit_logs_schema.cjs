@@ -49,6 +49,24 @@ async function ensureStringAttr(collId, key, size, required, defaultVal) {
   await sleep(500);
 }
 
+async function ensureIndex(collId, key, type, attributes, orders) {
+  if (await indexExists(collId, key)) {
+    console.log(`  ✓ index ${key} already exists`);
+    return;
+  }
+  try {
+    await databases.createIndex(DB_ID, collId, key, type, attributes, orders);
+    console.log(`  ✓ created index on ${attributes.join(', ')}`);
+  } catch (e) {
+    // Large string attrs (metadata 4096) exceed MariaDB's 767-byte index key limit.
+    if (e.type === 'index_invalid' || String(e.message).toLowerCase().includes('index length')) {
+      console.warn(`  ⚠ index "${key}" skipped — ${e.message} (query still works, no index)`);
+      return;
+    }
+    throw e;
+  }
+}
+
 async function main() {
   console.log(`Setting up admin_audit_logs schema — project=${PROJECT_ID} db=${DB_ID}`);
 
@@ -66,24 +84,9 @@ async function main() {
   await ensureStringAttr(COLL_ID, 'metadata', 4096, false, '');
   await ensureStringAttr(COLL_ID, 'details', 1024, false, '');
 
-  if (!(await indexExists(COLL_ID, 'user_id_idx'))) {
-    await databases.createIndex(DB_ID, COLL_ID, 'user_id_idx', 'key', ['user_id']);
-    console.log('  ✓ created index on user_id');
-  } else {
-    console.log('  ✓ index user_id_idx already exists');
-  }
-  if (!(await indexExists(COLL_ID, 'category_idx'))) {
-    await databases.createIndex(DB_ID, COLL_ID, 'category_idx', 'key', ['category']);
-    console.log('  ✓ created index on category');
-  } else {
-    console.log('  ✓ index category_idx already exists');
-  }
-  if (!(await indexExists(COLL_ID, 'created_at_desc'))) {
-    await databases.createIndex(DB_ID, COLL_ID, 'created_at_desc', 'key', ['$createdAt']);
-    console.log('  ✓ created index on $createdAt');
-  } else {
-    console.log('  ✓ index created_at_desc already exists');
-  }
+  await ensureIndex(COLL_ID, 'user_id_idx', 'key', ['user_id']);
+  await ensureIndex(COLL_ID, 'category_idx', 'key', ['category']);
+  await ensureIndex(COLL_ID, 'created_at_desc', 'key', ['$createdAt']);
 
   console.log('\n✅ admin_audit_logs schema ready');
 }

@@ -55,6 +55,24 @@ async function ensureBoolAttr(collId, key, required, defaultVal) {
   await sleep(500);
 }
 
+async function ensureIndex(collId, key, type, attributes, orders) {
+  if (await indexExists(collId, key)) {
+    console.log(`  ✓ index ${key} already exists`);
+    return;
+  }
+  try {
+    await databases.createIndex(DB_ID, collId, key, type, attributes, orders);
+    console.log(`  ✓ created index on ${attributes.join(', ')}`);
+  } catch (e) {
+    // message (2048) exceeds MariaDB's 767-byte index key limit for the collection.
+    if (e.type === 'index_invalid' || String(e.message).toLowerCase().includes('index length')) {
+      console.warn(`  ⚠ index "${key}" skipped — ${e.message} (query still works, no index)`);
+      return;
+    }
+    throw e;
+  }
+}
+
 async function main() {
   console.log(`Setting up notifications schema — project=${PROJECT_ID} db=${DB_ID}`);
 
@@ -72,18 +90,8 @@ async function main() {
   await ensureStringAttr(COLL_ID, 'message', 2048, true);
   await ensureBoolAttr(COLL_ID, 'is_read', true, false);
 
-  if (!(await indexExists(COLL_ID, 'user_id_idx'))) {
-    await databases.createIndex(DB_ID, COLL_ID, 'user_id_idx', 'key', ['user_id']);
-    console.log('  ✓ created index on user_id');
-  } else {
-    console.log('  ✓ index user_id_idx already exists');
-  }
-  if (!(await indexExists(COLL_ID, 'is_read_idx'))) {
-    await databases.createIndex(DB_ID, COLL_ID, 'is_read_idx', 'key', ['is_read']);
-    console.log('  ✓ created index on is_read');
-  } else {
-    console.log('  ✓ index is_read_idx already exists');
-  }
+  await ensureIndex(COLL_ID, 'user_id_idx', 'key', ['user_id']);
+  await ensureIndex(COLL_ID, 'is_read_idx', 'key', ['is_read']);
 
   console.log('\n✅ notifications schema ready');
 }
