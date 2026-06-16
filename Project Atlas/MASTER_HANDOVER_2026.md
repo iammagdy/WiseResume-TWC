@@ -115,6 +115,113 @@ Resume Editor autosave persistence fix complete. TypeScript passing, build succe
 
 ---
 
+## Session Log - 2026-06-16 (Portfolio Security Remediation & Appwrite Hubs Deployment Fix)
+
+### Overview
+
+Completed comprehensive security remediation for public portfolio feature and fixed GitHub Actions deployment workflow to enable proper function deployment.
+
+**Security Remediation:**
+1. Eliminated browser-side `password_hash` exposure risk
+2. Moved all portfolio data reads to server-side Appwrite functions
+3. Fixed fail-open security behavior (now fails closed)
+4. Implemented timing-safe token comparison
+5. Restored backward-compatible API response shapes
+
+**Deployment Workflow Fix:**
+1. Added missing functions to `scripts/compute-source-hashes.mjs` HUBS array
+2. Added missing functions to `scripts/deploy_hubs.cjs` HUBS array
+3. Added `PORTFOLIO_JWT_SECRET` to GitHub Actions env vars
+4. Added variable provisioning for new functions
+
+---
+
+### Root Causes & Fixes
+
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| **Password hash exposure** | `usePublicPortfolio.ts` directly read `portfolio_settings` collection | Created `portfolio-gate` and `get-public-portfolio` server functions |
+| **Fail-open security** | Settings read errors defaulted `passwordEnabled = false` | Changed to `passwordEnabled = true` (fail closed) |
+| **UI breaking change** | New server function returned different profile shape | Restored old `PublicProfile` interface with camelCase fields |
+| **Resume null crashes** | `resume` could be `null` | Return `emptyResume` default object instead |
+| **Workflow failure** | New functions not in `HUBS` arrays, causing hash manifest mismatch | Added to both `compute-source-hashes.mjs` and `deploy_hubs.cjs` |
+| **Missing env vars** | `PORTFOLIO_JWT_SECRET` not in workflow | Added to `.github/workflows/deploy-appwrite-hubs.yml` |
+
+---
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `appwrite-hubs/portfolio-gate/src/main.js` | New function — safe gate info without password hash exposure |
+| `appwrite-hubs/get-public-portfolio/src/main.js` | New function — sanitized portfolio with password protection, fail-closed security |
+| `appwrite-hubs/verify-portfolio-password/src/main.js` | New function — server-side password verification |
+| `appwrite-hubs/portfolio-gate/package.json` | Standard node-appwrite dependency |
+| `appwrite-hubs/get-public-portfolio/package.json` | Standard node-appwrite dependency |
+| `appwrite-hubs/verify-portfolio-password/package.json` | Standard node-appwrite dependency |
+| `appwrite.json` | Function definitions for 3 new portfolio functions |
+| `src/hooks/usePublicPortfolio.ts` | Rewritten to use server functions only, no direct DB reads |
+| `.github/workflows/deploy-appwrite-hubs.yml` | Added `PORTFOLIO_JWT_SECRET` env var |
+| `scripts/compute-source-hashes.mjs` | Added `portfolio-gate`, `get-public-portfolio`, `verify-portfolio-password` to HUBS array |
+| `scripts/deploy_hubs.cjs` | Added 3 functions to HUBS array + `ensurePortfolioGateVariables()`, `ensureGetPublicPortfolioVariables()`, `ensureVerifyPortfolioPasswordVariables()` |
+| `src/lib/devkit/sourceHashes.generated.json` | Regenerated with new function hashes |
+
+---
+
+### Commits Created
+
+| Commit | SHA | Message |
+|--------|-----|---------|
+| Portfolio Security | `7cf50a5b` | security: complete server-side portfolio security |
+| Fail-Closed Fix | `eb6d2f20` | security: fix fail-open behavior - assume password protected if settings read fails |
+| Deployment Workflow | `ec404dc3` | ci: fix Appwrite Hubs deployment workflow for new portfolio functions |
+
+---
+
+### Validation
+
+| Check | Result |
+|-------|--------|
+| `node --check deploy_hubs.cjs` | ✅ PASS |
+| `node --check portfolio-gate/src/main.js` | ✅ PASS |
+| `node --check get-public-portfolio/src/main.js` | ✅ PASS |
+| `node --check verify-portfolio-password/src/main.js` | ✅ PASS |
+| `node --check public-share/src/main.js` | ✅ PASS |
+| `npx tsc --noEmit` | ✅ PASS |
+| `npm run build` | ✅ PASS |
+
+---
+
+### Current Deployment State
+
+**Vercel (Frontend):**
+- Status: Auto-deployed from `main`
+- Commit: `ec404dc3`
+
+**Appwrite Functions:**
+- Status: Not yet deployed (workflow ready)
+- Missing functions: `portfolio-gate`, `get-public-portfolio`, `verify-portfolio-password`
+- To deploy: Run GitHub Actions workflow `Deploy Appwrite Hubs` with target `portfolio-gate,get-public-portfolio,verify-portfolio-password`
+
+---
+
+### Where We Stopped
+
+Portfolio security remediation and deployment workflow fixes complete. All code committed and pushed.
+
+**Prerequisites for Appwrite function deployment:**
+1. Add `PORTFOLIO_JWT_SECRET` to GitHub repository secrets (required by `get-public-portfolio`)
+2. Run workflow `Deploy Appwrite Hubs` with target: `portfolio-gate,get-public-portfolio,verify-portfolio-password`
+
+**Post-deployment QA required:**
+- Public portfolio (logged out) — password gate should appear if protected
+- Protected portfolio — correct password should unlock, wrong password should reject
+- Network tab — verify no `password_hash` or `portfolio_settings` in responses
+- AI credits — verify plan-based limits (Free=5, Pro=50)
+- Editor autosave — verify flush on blur
+
+---
+
 ## Session Log - 2026-06-16 (E2E Fixes: Tailoring Result Route)
 
 ### Overview
