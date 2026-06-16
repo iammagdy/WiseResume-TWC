@@ -6,6 +6,7 @@ import {
   Briefcase,
   TrendingUp,
   ExternalLink,
+  FileDown,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { templates } from '@/lib/templateData';
 import { TemplateId } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { haptics } from '@/lib/haptics';
 import { TailorResumeCompare } from '@/components/job-match/TailorResumeCompare';
 import { ScaledResumePage } from '@/components/job-match/ScaledResumePage';
 import { TailorResultExportPanel } from '@/components/job-match/TailorResultExportPanel';
@@ -371,7 +373,7 @@ export default function JobMatchResultPage() {
             <span className="jmw-result-topbar__eyebrow">Tailored CV ready</span>
           </div>
           <h1 className="jmw-result-topbar__title truncate">
-            {isLoading ? 'Loadingâ€¦' : dbResume?.title ?? 'Tailored CV'}
+            {isLoading ? 'Loading…' : dbResume?.title ?? 'Tailored CV'}
           </h1>
         </div>
 
@@ -381,7 +383,7 @@ export default function JobMatchResultPage() {
               <span className="jmw-result-topbar__job truncate">
                 <Briefcase className="w-3.5 h-3.5 shrink-0" aria-hidden />
                 {effectiveState.jobTitle}
-                {effectiveState.company ? ` Â· ${effectiveState.company}` : ''}
+                {effectiveState.company ? ` · ${effectiveState.company}` : ''}
               </span>
             )}
             {effectiveState.scoreBeforeAfter && (
@@ -414,11 +416,38 @@ export default function JobMatchResultPage() {
         )}
       </header>
 
+      {(effectiveState.jobTitle || effectiveState.scoreBeforeAfter) && (
+        <div className="jmw-result-mobile-meta flex sm:hidden" aria-label="Job match summary">
+          {effectiveState.jobTitle && (
+            <span className="jmw-result-mobile-meta__job truncate">
+              <Briefcase className="w-3.5 h-3.5 shrink-0" aria-hidden />
+              {effectiveState.jobTitle}
+              {effectiveState.company ? ` · ${effectiveState.company}` : ''}
+            </span>
+          )}
+          {effectiveState.scoreBeforeAfter && (
+            <span className="jmw-result-mobile-meta__score">
+              <span className="text-muted-foreground">{effectiveState.scoreBeforeAfter.before}</span>
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" aria-hidden />
+              <span className={cn(
+                'font-bold',
+                effectiveState.scoreBeforeAfter.after >= 70 ? 'text-emerald-500' : 'text-foreground',
+              )}>
+                {effectiveState.scoreBeforeAfter.after}
+              </span>
+              {scoreDelta > 0 && (
+                <span className="jmw-score-delta jmw-score-delta--compact">+{scoreDelta}</span>
+              )}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="jmw-result-body jmw-result-body--compare">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" aria-hidden />
-            <p className="text-sm text-muted-foreground">Loading your tailored CVâ€¦</p>
+            <p className="text-sm text-muted-foreground">Loading your tailored CV…</p>
           </div>
         ) : !resume ? (
           <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
@@ -490,6 +519,27 @@ export default function JobMatchResultPage() {
           </div>
         )}
       </div>
+
+      {!isLoading && resume && (
+        <div className="jmw-result-mobile-actions sm:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 min-h-[44px]"
+            onClick={() => { haptics.light(); navigate('/tailoring-hub'); }}
+          >
+            Back to Hub
+          </Button>
+          <Button
+            type="button"
+            className="flex-1 min-h-[44px]"
+            onClick={() => { haptics.light(); handleDesignedPDF(); }}
+          >
+            <FileDown className="w-4 h-4 mr-1.5" aria-hidden />
+            Export PDF
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

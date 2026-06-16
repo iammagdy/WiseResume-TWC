@@ -1,3 +1,4 @@
+import { useCallback, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 
 export type PortfolioEditorTab = 'setup' | 'content' | 'design' | 'more' | 'visitors';
@@ -17,6 +18,17 @@ interface PortfolioTabStripProps {
 }
 
 export function PortfolioTabStrip({ activeTab, onTabChange, className }: PortfolioTabStripProps) {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const nextIndex =
+      e.key === 'ArrowRight'
+        ? (index + 1) % TABS.length
+        : (index - 1 + TABS.length) % TABS.length;
+    onTabChange(TABS[nextIndex].id);
+    document.getElementById(`portfolio-tab-${TABS[nextIndex].id}`)?.focus();
+  }, [onTabChange]);
+
   return (
     <nav
       id="portfolio-tab-strip"
@@ -25,19 +37,28 @@ export function PortfolioTabStrip({ activeTab, onTabChange, className }: Portfol
         className,
       )}
       aria-label="Portfolio sections"
+      role="tablist"
     >
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          id={`portfolio-tab-${tab.id}`}
-          type="button"
-          data-active={activeTab === tab.id ? 'true' : 'false'}
-          onClick={() => onTabChange(tab.id)}
-          className="portfolio-editor-tab min-h-[44px] touch-manipulation snap-start shrink-0 whitespace-nowrap"
-        >
-          {tab.label}
-        </button>
-      ))}
+      {TABS.map((tab, index) => {
+        const selected = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            id={`portfolio-tab-${tab.id}`}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            aria-controls={`portfolio-panel-${tab.id}`}
+            tabIndex={selected ? 0 : -1}
+            data-active={selected ? 'true' : 'false'}
+            onClick={() => onTabChange(tab.id)}
+            onKeyDown={(e) => handleKeyDown(e, index)}
+            className="portfolio-editor-tab min-h-[44px] touch-manipulation snap-start shrink-0 whitespace-nowrap"
+          >
+            {tab.label}
+          </button>
+        );
+      })}
     </nav>
   );
 }

@@ -89,9 +89,8 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
             }}
             className={cn(
               'inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 h-9 lg:h-10 rounded-xl text-sm font-semibold',
-              'bg-gradient-to-br from-primary to-[hsl(340,68%,52%)] text-primary-foreground',
-              'shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.55)]',
-              'hover:brightness-[1.03] active:scale-[0.98] transition-all touch-manipulation',
+              'border border-border/80 bg-card/80 text-foreground',
+              'hover:bg-muted/60 active:scale-[0.98] transition-all touch-manipulation',
             )}
             aria-label="Import a job"
           >

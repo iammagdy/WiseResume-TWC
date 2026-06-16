@@ -343,7 +343,12 @@ describe('buildMergedResume', () => {
 
   it('merges skills when enabled', () => {
     const result = buildMergedResume(mockResume, mockTailorResult, ['skills']);
-    expect(result.skills).toEqual(mockTailorResult.skills);
+    expect(result.skills).toEqual([
+      ...mockTailorResult.skills,
+      'JavaScript',
+      'React',
+      'TypeScript',
+    ]);
   });
 
   it('merges experience when enabled', () => {

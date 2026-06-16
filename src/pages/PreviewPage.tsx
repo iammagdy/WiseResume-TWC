@@ -2,10 +2,16 @@ import { useState, useRef, useEffect, useMemo, useCallback, Suspense, lazy } fro
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, Check, FileText, Mic, FolderDown, Palette, FileDown } from 'lucide-react';
+import { Download, Share2, Check, FileText, Mic, FolderDown, Palette, FileDown, MoreHorizontal, Pencil } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useResumeStore } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
@@ -735,12 +741,13 @@ export default function PreviewPage() {
             onClick={() => setShowExportSheet(true)}
             disabled={isGenerating}>
               <FileDown className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              Export Options
+              <span className="sm:hidden">Export PDF</span>
+              <span className="hidden sm:inline">Export Options</span>
             </Button>
             <Button
             size="default"
             variant="outline"
-            className="h-10 sm:h-12 px-3 sm:px-4 touch-manipulation gap-1.5"
+            className="hidden sm:inline-flex h-10 sm:h-12 px-3 sm:px-4 touch-manipulation gap-1.5"
             onClick={handleQuickDownload}
             disabled={isGenerating}
             title="Quick PDF download">
@@ -753,9 +760,45 @@ export default function PreviewPage() {
                 </>
               )}
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="default"
+                  variant="outline"
+                  className="sm:hidden h-10 w-10 px-0 touch-manipulation shrink-0"
+                  aria-label="More actions"
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => navigate('/editor')}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                {isIOS && (
+                  <DropdownMenuItem onClick={handleSaveToFiles} disabled={isGenerating}>
+                    <FolderDown className="w-4 h-4 mr-2" />
+                    Save to Files
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => navigate('/interview')}>
+                  <Mic className="w-4 h-4 mr-2" />
+                  Interview
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowShareSheet(true)}>
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleQuickDownload} disabled={isGenerating}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Quick PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          <div className="flex gap-1.5 sm:gap-2">
+          <div className="hidden sm:flex gap-1.5 sm:gap-2">
             <Button
             variant="outline"
             size="sm"

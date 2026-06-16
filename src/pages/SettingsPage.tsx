@@ -48,6 +48,8 @@ import { NotificationsSection } from '@/components/settings/sections/Notificatio
 import { PrivacySection } from '@/components/settings/sections/PrivacySection';
 import { AboutSection } from '@/components/settings/sections/AboutSection';
 import { DangerZoneSection } from '@/components/settings/sections/DangerZoneSection';
+import { ChangelogDialog } from '@/components/settings/ChangelogDialog';
+import { AboutDialog } from '@/components/settings/AboutDialog';
 
 function UserIdCard({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);
@@ -347,6 +349,9 @@ export default function SettingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ChangelogDialog open={changelogOpen} onOpenChange={setChangelogOpen} />
+      <AboutDialog open={aboutDialogOpen} onOpenChange={setAboutDialogOpen} appVersion={appVersion} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # AuthPage
 
-  **Last verified:** 2026-05-13
+  **Last verified:** 2026-06-16 (UI/UX audit fixes: field labels, `?plan=` signup intent via sessionStorage)
   **Type:** reference card
   **Sources:**
   - `src/pages/AuthPage.tsx`

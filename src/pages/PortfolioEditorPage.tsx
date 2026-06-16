@@ -16,7 +16,9 @@ import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { useNavigate } from 'react-router-dom';
 import bcrypt from 'bcryptjs';
-import { Smartphone } from 'lucide-react';
+import { Smartphone, Maximize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
@@ -183,6 +185,7 @@ export default function PortfolioEditorPage() {
 
   // Mobile preview toggle (local UI state only - not persisted)
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
 
   // -- Unsaved changes tracking --
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string>('');
@@ -1388,6 +1391,18 @@ export default function PortfolioEditorPage() {
           )}
         </PortfolioPreviewPanel>
 
+        {portfolioEnabled && portfolioCanonicalUrl && (
+          <Button
+            type="button"
+            variant="outline"
+            className="lg:hidden w-full min-h-[44px] rounded-xl"
+            onClick={() => { haptics.light(); setFullPreviewOpen(true); }}
+          >
+            <Maximize2 className="w-4 h-4 mr-2" aria-hidden />
+            Full preview
+          </Button>
+        )}
+
         <PortfolioQuickActions
           onQrCode={() => {
             haptics.light();
@@ -1399,7 +1414,7 @@ export default function PortfolioEditorPage() {
           generatingSEO={generatingSEO}
         />
 
-        <PortfolioTabStrip activeTab={activeTab} onTabChange={handleTabChange} />
+        <PortfolioTabStrip activeTab={activeTab} onTabChange={handleTabChange} className="portfolio-tab-strip--fade" />
 
         {/* Completion Score Bar */}
         <CompletionScoreBar score={weightedScore} items={completionItems} />
@@ -1408,6 +1423,9 @@ export default function PortfolioEditorPage() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={activeTab}
+            id={`portfolio-panel-${activeTab}`}
+            role="tabpanel"
+            aria-labelledby={`portfolio-tab-${activeTab}`}
             initial={reducedMotion ? false : { x: directionRef.current * 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={reducedMotion ? undefined : { x: directionRef.current * -20, opacity: 0 }}
@@ -1586,6 +1604,21 @@ export default function PortfolioEditorPage() {
       
 
       {/* Sheets */}
+      <Sheet open={fullPreviewOpen} onOpenChange={setFullPreviewOpen}>
+        <SheetContent side="bottom" className="h-[90dvh] p-0 flex flex-col">
+          <SheetHeader className="px-4 py-3 border-b border-border shrink-0">
+            <SheetTitle>Portfolio preview</SheetTitle>
+          </SheetHeader>
+          {portfolioCanonicalUrl && (
+            <iframe
+              src={portfolioCanonicalUrl}
+              title="Full portfolio preview"
+              sandbox="allow-scripts allow-same-origin"
+              className="flex-1 w-full border-0 bg-background"
+            />
+          )}
+        </SheetContent>
+      </Sheet>
       <QRGeneratorSheet
         open={showQR}
         onOpenChange={setShowQR}

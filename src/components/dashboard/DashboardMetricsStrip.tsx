@@ -35,24 +35,24 @@ type MetricTone = 'ats' | 'tailored' | 'matches' | 'jobs';
 
 const TONE_STYLES: Record<MetricTone, { value: string; icon: string; iconBg: string }> = {
   ats: {
-    value: 'text-amber-400',
-    icon: 'text-amber-400/90',
-    iconBg: 'bg-amber-500/12 border-amber-500/20',
+    value: 'text-primary',
+    icon: 'text-primary/90',
+    iconBg: 'bg-primary/10 border-primary/20',
   },
   tailored: {
-    value: 'text-rose-400',
-    icon: 'text-rose-400/90',
-    iconBg: 'bg-rose-500/12 border-rose-500/20',
+    value: 'text-foreground',
+    icon: 'text-muted-foreground',
+    iconBg: 'bg-muted/50 border-border/60',
   },
   matches: {
-    value: 'text-violet-400',
-    icon: 'text-violet-400/90',
-    iconBg: 'bg-violet-500/12 border-violet-500/20',
+    value: 'text-foreground',
+    icon: 'text-muted-foreground',
+    iconBg: 'bg-muted/50 border-border/60',
   },
   jobs: {
-    value: 'text-sky-400',
-    icon: 'text-sky-400/90',
-    iconBg: 'bg-sky-500/12 border-sky-500/20',
+    value: 'text-foreground',
+    icon: 'text-muted-foreground',
+    iconBg: 'bg-muted/50 border-border/60',
   },
 };
 

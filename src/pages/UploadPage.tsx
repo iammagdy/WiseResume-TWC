@@ -348,6 +348,16 @@ export default function UploadPage() {
         </div>
       </header>
 
+      <div className="lg:hidden shrink-0 px-4 pt-4 pb-2 text-center">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-primary mb-2 px-3 py-1 rounded-full bg-primary/8 border border-primary/12">
+          <Upload className="w-3 h-3" aria-hidden />
+          Resume Import
+        </span>
+        <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+          Upload any format — we&apos;ll parse, structure, and score it automatically
+        </p>
+      </div>
+
       {lowConfidenceFields.length > 0 && !isProcessing && !showImportReview && (
         <div className="mx-4 mt-4 p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />

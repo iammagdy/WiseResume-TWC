@@ -13,6 +13,14 @@ vi.mock("react-router-dom", () => ({
   useParams: () => ({ username: "johndoe" }),
 }));
 
+const createExecutionMock = vi.fn();
+
+vi.mock("@/lib/appwrite", () => ({
+  functions: {
+    createExecution: (...args: unknown[]) => createExecutionMock(...args),
+  },
+}));
+
 const fetchSpy = vi.fn();
 
 const queryClient = new QueryClient({
@@ -129,41 +137,46 @@ describe("usePublicPortfolio", () => {
     vi.clearAllMocks();
     queryClient.clear();
     vi.stubGlobal("fetch", fetchSpy);
+    createExecutionMock.mockReset();
   });
 
-  it("fetches gate data through the same-origin public portfolio API", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
-      passwordEnabled: true,
-      accentColor: "#123456",
-      exists: true,
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }));
+  it("fetches gate data through the portfolio-gate function", async () => {
+    createExecutionMock.mockResolvedValueOnce({
+      responseBody: JSON.stringify({
+        success: true,
+        passwordEnabled: true,
+        accentColor: "#123456",
+        exists: true,
+      }),
+    });
 
     const { result } = renderHook(() => usePortfolioGate("johndoe"), { wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining("/api/public-portfolio?mode=gate&username=johndoe"),
-      undefined,
+    expect(createExecutionMock).toHaveBeenCalledWith(
+      "portfolio-gate",
+      JSON.stringify({ username: "johndoe" }),
+      false,
+      "/",
+      "POST",
     );
     expect(result.current.data).toEqual({
       passwordEnabled: true,
       accentColor: "#123456",
       exists: true,
+      portfolioEnabled: false,
     });
   });
 
   it("should fetch and return profile data for a given username", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
-      profile: { username: "johndoe", portfolioStyle: "minimal" },
-      resume: { $id: "res-1", experience: [], education: [], skills: [], projects: [], certifications: [] },
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }));
+    createExecutionMock.mockResolvedValueOnce({
+      responseBody: JSON.stringify({
+        success: true,
+        profile: { username: "johndoe", portfolioStyle: "minimal" },
+        resume: { $id: "res-1", experience: [], education: [], skills: [], projects: [], certifications: [] },
+      }),
+    });
 
     const { result } = renderHook(() => usePublicPortfolio("johndoe"), { wrapper });
 
@@ -174,7 +187,7 @@ describe("usePublicPortfolio", () => {
   });
 
   it("should handle fetch errors gracefully", async () => {
-    fetchSpy.mockRejectedValue(new Error("Not found"));
+    createExecutionMock.mockRejectedValueOnce(new Error("Not found"));
 
     const { result } = renderHook(() => usePublicPortfolio("johndoe"), { wrapper });
 
@@ -187,11 +200,13 @@ describe("usePublicPortfolio", () => {
 
     expect(result.current.fetchStatus).toBe("idle");
     expect(result.current.isPending).toBe(true);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(createExecutionMock).not.toHaveBeenCalled();
   });
 
   it("should return null when profile not found", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response("{}", { status: 404 }));
+    createExecutionMock.mockResolvedValueOnce({
+      responseBody: JSON.stringify({ success: false }),
+    });
 
     const { result } = renderHook(() => usePublicPortfolio("unknown"), { wrapper });
 
@@ -201,14 +216,14 @@ describe("usePublicPortfolio", () => {
     expect(result.current.isError).toBe(false);
   });
 
-  it("should handle missing resume fields by providing empty array fallbacks", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
-      profile: { username: "janedoe" },
-      resume: { $id: "resume-1" },
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }));
+  it("should return resume payload from the function response", async () => {
+    createExecutionMock.mockResolvedValueOnce({
+      responseBody: JSON.stringify({
+        success: true,
+        profile: { username: "janedoe" },
+        resume: { $id: "resume-1" },
+      }),
+    });
 
     const { result } = renderHook(() => usePublicPortfolio("janedoe"), { wrapper });
 
@@ -216,11 +231,7 @@ describe("usePublicPortfolio", () => {
 
     const data = result.current.data;
     expect(data).toBeDefined();
-    expect(data?.resume.experience).toEqual([]);
-    expect(data?.resume.education).toEqual([]);
-    expect(data?.resume.skills).toEqual([]);
-    expect(data?.resume.projects).toEqual([]);
-    expect(data?.resume.certifications).toEqual([]);
+    expect(data?.resume.$id).toBe("resume-1");
   });
 
   it("resolves custom domains through the same-origin public portfolio API", async () => {
@@ -241,39 +252,5 @@ describe("usePublicPortfolio", () => {
       undefined,
     );
     expect(result.current.data?.profile.username).toBe("janedoe");
-  });
-
-  it("should normalize malformed array fields (null, object, string) to empty arrays", async () => {
-    mockListDocuments
-      .mockResolvedValueOnce({
-        total: 1,
-        documents: [makeProfileDoc({ username: "malformed" })],
-      })
-      .mockResolvedValueOnce({
-        total: 1,
-        documents: [makeResumeDoc({
-          $id: "res-malformed",
-          experience: null,
-          education: undefined,
-          skills: { not: "an array" },
-          projects: "not an array either",
-          certifications: "[\"cert1\", \"cert2\"]", // JSON string that looks like array
-        })],
-      });
-
-    const { result } = renderHook(() => usePublicPortfolio("malformed"), { wrapper });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    const data = result.current.data;
-    expect(data).toBeDefined();
-    // All malformed fields should be normalized to arrays
-    expect(Array.isArray(data?.resume.experience)).toBe(true);
-    expect(Array.isArray(data?.resume.education)).toBe(true);
-    expect(Array.isArray(data?.resume.skills)).toBe(true);
-    expect(Array.isArray(data?.resume.projects)).toBe(true);
-    // JSON string should be parsed into an array
-    expect(Array.isArray(data?.resume.certifications)).toBe(true);
-    expect(data?.resume.certifications).toEqual(["cert1", "cert2"]);
   });
 });

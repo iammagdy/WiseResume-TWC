@@ -406,7 +406,7 @@ export function EditorHeader({
               <button
                 type="button"
                 onClick={() => { haptics.light(); onImproveSection(); }}
-                className="editor-topbar-cta touch-manipulation active:scale-[0.98] hidden sm:inline-flex"
+                className="editor-topbar-cta touch-manipulation active:scale-[0.98] inline-flex min-h-[44px]"
                 aria-label="Improve with AI"
               >
                 <Sparkles className="w-3.5 h-3.5" aria-hidden />

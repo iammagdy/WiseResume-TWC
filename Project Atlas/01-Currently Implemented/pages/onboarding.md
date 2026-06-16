@@ -1,6 +1,6 @@
 # OnboardingPage
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-06-16 (UI/UX audit fixes: 4-step progress indicator)
   **Type:** reference card
   **Sources:**
   - `src/pages/OnboardingPage.tsx`

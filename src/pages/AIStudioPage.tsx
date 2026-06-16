@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, lazy, Suspense, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { ArrowRight, Clock, FileSearch, Lightbulb, Sparkles, X } from "lucide-react";
+import { ArrowRight, Clock, FileSearch, Lightbulb, Sparkles, X, Send } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ResumePickerSheet } from "@/components/shared/ResumePickerSheet";
 import { useResumeStore } from "@/store/resumeStore";
 import { useResume, useResumes, dbToResumeData } from "@/hooks/useResumes";
@@ -134,6 +136,14 @@ export default function AIStudioPage() {
   const [showABCompare, setShowABCompare] = useState(false);
   const [showCompanyBriefing, setShowCompanyBriefing] = useState(false);
   const [showSkillsGap, setShowSkillsGap] = useState(false);
+  const [composerText, setComposerText] = useState("");
+  const [showStudioTour, setShowStudioTour] = useState(false);
+
+  useEffect(() => {
+    if (!hasSeenAIStudioTour && isPro && !planLoading) {
+      setShowStudioTour(true);
+    }
+  }, [hasSeenAIStudioTour, isPro, planLoading]);
 
   const [searchParams] = useSearchParams();
   const activatedToolRef = useRef<string | null>(null);
@@ -332,6 +342,7 @@ export default function AIStudioPage() {
   const renderWorkflowCard = (workflow: AiStudioWorkflowEntry, compact = false) => {
     const Icon = workflow.icon;
     const primaryTool = getAiStudioToolById(workflow.primaryAction.toolId);
+    const isPrimary = !compact;
     const backingTools = workflow.backingTools
       .map((toolId) => getAiStudioToolById(toolId))
       .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool && tool.visibility !== "hidden" && tool.visibility !== "excluded"))
@@ -341,19 +352,21 @@ export default function AIStudioPage() {
       <article
         key={workflow.id}
         className={cn(
-          "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/85 backdrop-blur-sm",
+          "group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card/85 backdrop-blur-sm",
           "transition-colors duration-200 hover:border-primary/25 hover:bg-card",
+          isPrimary ? "border-primary/25 shadow-soft-sm" : "border-border/60",
           compact ? "p-3" : "p-3.5 sm:p-4",
         )}
       >
         <div className="flex items-start gap-3">
           <div
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-xl border border-border/50 bg-muted/25",
+              "flex shrink-0 items-center justify-center rounded-xl border border-border/50",
+              isPrimary ? "bg-primary/10" : "bg-muted/25",
               compact ? "h-9 w-9" : "h-10 w-10",
             )}
           >
-            <Icon className={cn(compact ? "h-4 w-4" : "h-[18px] w-[18px]", workflow.color)} />
+            <Icon className={cn(compact ? "h-4 w-4" : "h-[18px] w-[18px]", isPrimary ? "text-primary" : "text-muted-foreground")} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
@@ -415,7 +428,7 @@ export default function AIStudioPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(190,24,93,0.12),transparent_28%),linear-gradient(180deg,rgba(12,12,15,1),rgba(11,11,14,1))] pb-28 sm:pb-20 lg:pb-8">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto dashboard-workspace-os-bg pb-28 sm:pb-20 lg:pb-8">
       <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -472,6 +485,30 @@ export default function AIStudioPage() {
             </div>
           )}
 
+          <div className="sticky top-0 z-30 pb-4 pt-1 -mx-1 px-1 bg-background/80 backdrop-blur-md lg:static lg:bg-transparent lg:backdrop-blur-none">
+            <form
+              className="flex gap-2 items-center rounded-2xl border border-border/70 bg-card/90 p-2 shadow-soft-sm"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const message = composerText.trim();
+                if (!message) return;
+                setComposerText("");
+                openChatWithMessage(message);
+              }}
+            >
+              <Input
+                value={composerText}
+                onChange={(e) => setComposerText(e.target.value)}
+                placeholder={PLACEHOLDER_EXAMPLES[placeholderIdx]}
+                className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 min-h-[44px]"
+                aria-label="Ask Wise AI"
+              />
+              <Button type="submit" size="sm" className="min-h-[44px] min-w-[44px] px-3 rounded-xl shrink-0" aria-label="Send message">
+                <Send className="w-4 h-4" />
+              </Button>
+            </form>
+          </div>
+
           {recentTools.length > 0 && (
             <div className="pb-5">
               <div className="mb-2 px-1 flex items-center gap-1.5">
@@ -485,7 +522,7 @@ export default function AIStudioPage() {
                     onClick={() => handleToolAction(tool)}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0"
                   >
-                    <tool.icon className={cn("w-4 h-4", tool.color)} />
+                    <tool.icon className={cn("w-4 h-4", "text-primary")} />
                     <span className="text-sm font-medium whitespace-nowrap">{tool.label}</span>
                   </button>
                 ))}
@@ -617,6 +654,29 @@ export default function AIStudioPage() {
           )}
         </Suspense>
       </ErrorBoundary>
+
+      <Dialog open={showStudioTour} onOpenChange={(open) => {
+        setShowStudioTour(open);
+        if (!open) setHasSeenAIStudioTour(true);
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Welcome to Wise AI Workspace</DialogTitle>
+            <DialogDescription>
+              Use the prompt bar to ask Wise AI anything, or pick a workflow card to tailor your resume, prep for interviews, and more.
+            </DialogDescription>
+          </DialogHeader>
+          <Button
+            className="w-full"
+            onClick={() => {
+              setHasSeenAIStudioTour(true);
+              setShowStudioTour(false);
+            }}
+          >
+            Got it
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

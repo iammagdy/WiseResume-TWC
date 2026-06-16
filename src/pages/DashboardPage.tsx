@@ -936,7 +936,7 @@ function DashboardPageContent() {
                     </Tabs>
                   <div className="flex items-center gap-1.5 sm:ml-auto">
                     <Button
-                      variant="default"
+                      variant="outline"
                       size="sm"
                       className="h-8 px-3 text-xs rounded-lg gap-1.5 hidden sm:flex"
                       onClick={() => {

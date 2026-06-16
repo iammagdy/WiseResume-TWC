@@ -277,8 +277,13 @@ export default function ApplicationsPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 pb-4">
-      {/* Header */}
+    <div className="flex-1 flex flex-col min-h-0 pb-4 applications-workspace">
+      <header className="dashboard-workspace-greeting px-4 sm:px-6 pt-4 pb-2 hidden lg:block">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">Workspace</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground mt-1">Application Tracker</h1>
+        <p className="text-sm text-muted-foreground mt-1 max-w-xl">Track saved jobs, applications, and follow-ups in one place.</p>
+      </header>
+      {/* Mobile header */}
       <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between lg:max-w-none mx-auto w-full">
           <div className="flex items-center gap-2">

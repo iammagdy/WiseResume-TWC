@@ -139,7 +139,7 @@ function AppShellInner() {
           id="main-content"
           className={cn(
             'flex-1 flex flex-col min-h-0 overflow-hidden',
-            useGlobalSidebar && 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0',
+            useGlobalSidebar && 'lg:pb-0',
           )}
         >
           {useGlobalSidebar ? (

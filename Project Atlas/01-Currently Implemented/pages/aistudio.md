@@ -1,6 +1,6 @@
 # AIStudioPage
 
-**Last verified:** 2026-06-09
+**Last verified:** 2026-06-16 (UI/UX audit fixes: sticky composer, first-run tour, dashboard OS background)
 **Type:** reference card
 **Sources:**
 - `src/pages/AIStudioPage.tsx`
