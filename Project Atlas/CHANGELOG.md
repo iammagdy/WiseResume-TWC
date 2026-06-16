@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-05-27
+**Last verified:** 2026-06-16
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,25 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-16 - Tailoring Result Route Fix (E2E)
+
+### Root Cause (from E2E Test Report)
+E2E test `Routing and Error Handling: Tailoring result survives refresh` accessed `/tailor/result/:id` but received 404. The route was defined as `/tailoring-hub/result/:resumeId` in `AppInterior.tsx` but the test (and user expectations) expected `/tailor/result/:id`.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `src/AppInterior.tsx` | Added `/tailor/result/:resumeId` route alias pointing to `TailoringHubResultPage` |
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+- Route now supports both `/tailoring-hub/result/:id` and `/tailor/result/:id`
+
+### Deployment Required
+- Frontend deploys automatically via Vercel on next push.
 
 ---
 

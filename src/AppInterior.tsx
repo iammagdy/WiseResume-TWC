@@ -379,6 +379,7 @@ function AppRoutes() {
                  <Route path="/tailor/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense></RouteEB>} />
                  <Route path="/tailoring-hub" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailoringHubPage /></Suspense></RouteEB>} />
                  <Route path="/tailoring-hub/result/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailoringHubResultPage /></Suspense></RouteEB>} />
+                 <Route path="/tailor/result/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailoringHubResultPage /></Suspense></RouteEB>} />
               </Route>
              </Route>
            </Route>

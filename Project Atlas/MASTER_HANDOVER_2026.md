@@ -2,6 +2,95 @@
 
 ---
 
+## Session Log - 2026-06-16 (E2E Fixes: Tailoring Result Route)
+
+### Overview
+
+Fixed E2E test failure where `/tailor/result/:id` returned 404. Added route alias so both `/tailoring-hub/result/:id` and `/tailor/result/:id` resolve to `TailoringHubResultPage`. Created test fixtures for public portfolio E2E tests. Frontend-only fix — no Appwrite Hub deployment required.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — `/tailor/result/:id` returned 404
+
+- **Root cause**: The route was defined as `/tailoring-hub/result/:resumeId` but the E2E test (and user bookmarks/links) accessed `/tailor/result/:id`.
+- **Fix**: Added `/tailor/result/:resumeId` as a route alias in `AppInterior.tsx` pointing to the same `TailoringHubResultPage` component.
+- **Impact**: Both URLs now work; existing `/tailoring-hub/result/:id` links remain valid.
+
+#### F2 — Missing public portfolio test fixtures
+
+- **Root cause**: E2E tests for public portfolios had no test data — no public usernames/passwords existed in the database.
+- **Fix**: Created `portfolio-test-fixtures.ts` seed script to create three test portfolios:
+  - `testportfolio` — public portfolio (no password)
+  - `testprotected` — password-protected (password: `testpass123`)
+  - `testedgecase` — portfolio with unusual/malformed data for defensive testing
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `src/AppInterior.tsx` | Added `/tailor/result/:resumeId` route alias |
+| `Project Atlas/CHANGELOG.md` | Added changelog entry |
+| `Project Atlas/MASTER_HANDOVER_2026.md` | Added session log |
+| `tests/e2e/fixtures/portfolio-test-fixtures.ts` | **New** — Test fixture seed script for public portfolios |
+| `tests/e2e/fixtures/.env.test.example` | **New** — Environment template for fixture script |
+| `tests/e2e/fixtures/README.md` | **New** — Documentation for test fixtures |
+
+---
+
+### Validation
+
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npm run build` | ✓ PASS (1m 51s) |
+
+---
+
+### Commits created (this session)
+
+(To be filled after commit)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ✓ Ready | Auto-deploy from `main` push | No Appwrite Hub changes |
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Awaiting deployment from next `main` push.
+- **Appwrite Functions**: Unchanged.
+- **Local repo**: Uncommitted changes on `main`.
+
+---
+
+### Where We Stopped
+
+**Tailoring result route:**
+- Route alias `/tailor/result/:resumeId` added to `AppInterior.tsx`
+- TypeScript passing, build successful
+- Ready to commit and push for Vercel auto-deploy
+
+**Public Portfolio test fixtures:**
+- Created seed script in `tests/e2e/fixtures/`
+- Run `npx tsx tests/e2e/fixtures/portfolio-test-fixtures.ts` to seed test data
+- E2E tests can now use `testportfolio`, `testprotected` (password: `testpass123`), `testedgecase`
+
+**To complete:**
+1. Commit and push changes for Vercel deploy
+2. Run fixture seed script against production database
+3. Update E2E tests to use fixture credentials
+
+---
+
 ## Session Log - 2026-06-15 (Claude Design Screenshot Extraction Pack)
 
 ### Overview
