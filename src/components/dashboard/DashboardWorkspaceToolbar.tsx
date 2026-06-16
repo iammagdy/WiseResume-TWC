@@ -23,9 +23,6 @@ export const DashboardWorkspaceToolbar = memo(function DashboardWorkspaceToolbar
     <header className={cn('dashboard-workspace-greeting mb-3', className)}>
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">
         {firstName ? `${greeting}, ${firstName}` : greeting}
-        <span className="ml-1.5" aria-hidden>
-          👋
-        </span>
       </h1>
       <p className="text-sm text-muted-foreground mt-1 max-w-xl leading-snug">
         Here&apos;s what to improve next across your resumes and applications.

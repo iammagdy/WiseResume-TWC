@@ -846,6 +846,55 @@
   padding: 0.15rem 0.4rem;
 }
 
+.jmw-result-mobile-meta {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.45);
+  background: hsl(var(--muted) / 0.25);
+}
+
+.jmw-result-mobile-meta__job {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  min-width: 0;
+  flex: 1;
+}
+
+.jmw-result-mobile-meta__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.jmw-result-mobile-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  border-top: 1px solid hsl(var(--border) / 0.55);
+  background: hsl(var(--card) / 0.95);
+  backdrop-filter: blur(12px);
+}
+
+@media (max-width: 639px) {
+  .jmw-result-body--compare {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 .jmw-result-body--compare {
   padding-bottom: 1.25rem;
 }
