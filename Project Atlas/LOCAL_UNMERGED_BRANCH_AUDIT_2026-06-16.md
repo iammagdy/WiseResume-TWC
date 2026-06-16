@@ -21,8 +21,8 @@
 | Check | Result |
 |-------|--------|
 | Current branch | `main` |
-| Local HEAD | `24c265d40309cffb6791912e8cee048c5e412873` |
-| `origin/main` HEAD | `24c265d40309cffb6791912e8cee048c5e412873` |
+| Local HEAD | `2f2df25b5e555e6e35adc409612ea18571584246` (includes this audit commit) |
+| `origin/main` HEAD | `2f2df25b5e555e6e35adc409612ea18571584246` |
 | HEAD equals `origin/main` | Yes |
 | Working tree | Clean |
 | Open PR count | 0 |
@@ -31,7 +31,7 @@
 
 | Path | Branch | SHA |
 |------|--------|-----|
-| `Y:/WiseResume-TWC` | `main` | `24c265d4` |
+| `Y:/WiseResume-TWC` | `main` | `2f2df25b` |
 | `.claude/worktrees/awesome-ride-7faf3b` | `claude/awesome-ride-7faf3b` | `a2349cde` |
 | `.claude/worktrees/ecstatic-jones-e24c9d` | `claude/ecstatic-jones-e24c9d` | `0fd40512` |
 | `.claude/worktrees/frosty-ramanujan-26b957` | `claude/frosty-ramanujan-26b957` | `bbbcafed` |
@@ -198,3 +198,15 @@ All three worktrees: **clean** (no modified tracked files, no untracked files).
 ## 9. Recommended next prompt
 
 > "Delete local worktrees and branches for `awesome-ride` and `ecstatic-jones` per the local unmerged branch audit. Also delete remote `claude/awesome-ride-7faf3b`. After owner confirms `frosty-ramanujan` hub diff is redundant, delete that worktree and local branch too."
+
+---
+
+## Re-verification (same session)
+
+**Date/time:** 2026-06-16 (follow-up pass)
+
+- `main` still equals `origin/main` at `2f2df25b`
+- Working tree clean; open PRs: **0**
+- Branch metrics unchanged: awesome-ride (2 ahead, cherry+2), ecstatic-jones (5 ahead, cherry+3), frosty-ramanujan (1 ahead, cherry+1)
+- All three worktrees still clean (no porcelain output)
+- Classifications unchanged; no branches deleted in this pass
