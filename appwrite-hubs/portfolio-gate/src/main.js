@@ -67,7 +67,8 @@ module.exports = async ({ req, res, error }) => {
     const accentColor = profile.portfolio_accent_color || profile.portfolioAccentColor || '#e84545';
 
     // Check password protection (server-side only, NO HASH EXPOSED)
-    let passwordEnabled = false;
+    // SECURITY: Default to true if settings read fails (fail closed)
+    let passwordEnabled = true;
     if (portfolioEnabled) {
       try {
         const settingsRes = await db.listDocuments(DB_ID, PORTFOLIO_SETTINGS_COLLECTION_ID, [
@@ -77,9 +78,13 @@ module.exports = async ({ req, res, error }) => {
         if (settingsRes.total > 0) {
           const settings = settingsRes.documents[0];
           passwordEnabled = !!(settings.password_enabled || settings.passwordEnabled);
+        } else {
+          // No settings document = no password protection
+          passwordEnabled = false;
         }
       } catch {
-        passwordEnabled = false;
+        // SECURITY: Fail closed - if we can't read settings, assume password protected
+        passwordEnabled = true;
       }
     }
 

@@ -292,7 +292,8 @@ module.exports = async ({ req, res, error }) => {
     }
 
     // Check password protection from portfolio_settings (server-side only)
-    let passwordEnabled = false;
+    // SECURITY: Default to true if settings read fails (fail closed)
+    let passwordEnabled = true;
     try {
       const settingsRes = await db.listDocuments(DB_ID, PORTFOLIO_SETTINGS_COLLECTION_ID, [
         sdk.Query.equal('user_id', profile.user_id),
@@ -301,9 +302,13 @@ module.exports = async ({ req, res, error }) => {
       if (settingsRes.total > 0) {
         const settings = settingsRes.documents[0];
         passwordEnabled = !!(settings.password_enabled || settings.passwordEnabled);
+      } else {
+        // No settings document = no password protection
+        passwordEnabled = false;
       }
     } catch {
-      passwordEnabled = false;
+      // SECURITY: Fail closed - if we can't read settings, assume password protected
+      passwordEnabled = true;
     }
 
     // If password protected, verify
