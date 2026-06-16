@@ -1,6 +1,6 @@
 # SettingsPage
 
-  **Last verified:** 2026-04-17
+  **Last verified:** 2026-06-16 (UI/UX audit fixes: About + What's New dialogs wired)
   **Type:** reference card
   **Sources:**
   - `src/pages/SettingsPage.tsx`
