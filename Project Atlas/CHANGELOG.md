@@ -11,6 +11,37 @@
 
 ---
 
+## 2026-06-16 - AI Credits / Pro Badge / Portfolio Save Fixes
+
+### Root Cause (Production QA Audit)
+
+**AI Credits Issues:**
+1. **Hardcoded `20` fallbacks**: 4 UI components (`AICreditsIndicator`, `CreditUsageSheet`, `AICreditsRow`, `DashboardStatusPopover`) had `const limit = credits?.daily_limit ?? 20` causing Pro users to see 20 credits instead of 50.
+2. **Pro badge styling**: `DashboardPlanBadge` rendered Pro plan with muted gray styling instead of blue, making Pro appear like Free.
+
+**Portfolio Save Issue:**
+1. **CRITICAL**: `LIVE_PROFILE_ATTRIBUTES` whitelist in `useProfile.ts` excluded all portfolio fields (`portfolio_resume_id`, `portfolio_sections`, `portfolio_extras`, etc.). `filterProfilePayload()` stripped these fields before Appwrite update, causing portfolio saves to persist only basic fields.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `src/components/editor/ai/AICreditsIndicator.tsx` | Import `useMe` and `PLAN_CREDIT_LIMITS`; derive fallback limit from `effective_plan` instead of hardcoded 20 |
+| `src/components/ai/CreditUsageSheet.tsx` | Import `useMe` and `PLAN_CREDIT_LIMITS`; derive fallback limit from `effective_plan` |
+| `src/components/settings/sections/AICreditsRow.tsx` | Import `useMe` and `PLAN_CREDIT_LIMITS`; derive fallback limit from `effective_plan` |
+| `src/components/dashboard/DashboardStatusPopover.tsx` | Import `useMe` and `PLAN_CREDIT_LIMITS`; derive fallback limit from `effective_plan` |
+| `src/components/dashboard/DashboardPlanBadge.tsx` | Fix Pro badge styling: blue-50/bg-blue-950 instead of muted gray |
+| `src/hooks/useProfile.ts` | **CRITICAL**: Add 18 portfolio fields to `LIVE_PROFILE_ATTRIBUTES` whitelist: `portfolio_resume_id`, `portfolio_sections`, `portfolio_meta_title`, `portfolio_meta_description`, `portfolio_style`, `portfolio_layout`, `portfolio_accent_color`, `portfolio_font`, `open_to_work`, `availability_headline`, `portfolio_sync_mode`, `portfolio_extras`, `github_url`, `website_url`, `twitter_url`, `contact_email`, `portfolio_draft`, `portfolio_draft_saved_at`, `phone_number`, `digest_enabled`, `hired_at` |
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+- `npm run build` — successful (49s).
+
+### Deployment Required
+- Frontend deploys automatically via Vercel on next push.
+- No backend/Appwrite changes required for these fixes.
+
+---
+
 ## 2026-06-16 - Resume Editor Autosave Persistence Fix (TestSprite)
 
 ### Root Cause (from TestSprite QA Report)

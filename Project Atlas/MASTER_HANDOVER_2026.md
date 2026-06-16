@@ -2,6 +2,43 @@
 
 ---
 
+## Session Log - 2026-06-16 (AI Credits, Pro Badge, Portfolio Save Fixes)
+
+### Overview
+Fixed critical production bugs discovered during QA audit:
+1. **AI Credits**: Pro users saw 20 credits instead of 50 due to hardcoded fallbacks
+2. **Pro Badge**: Rendered as muted gray instead of blue
+3. **Portfolio Save**: CRITICAL — all portfolio fields were silently dropped due to whitelist filter
+
+### Root Causes & Fixes
+
+| Bug | Root Cause | Fix |
+|-----|------------|-----|
+| Pro showing 20 credits | `const limit = credits?.daily_limit ?? 20` in 4 components | Derive from `effective_plan` using `PLAN_CREDIT_LIMITS` |
+| Pro badge gray | `DashboardPlanBadge` default styling was muted/gray | Explicit blue styling for Pro plan |
+| Portfolio save broken | `LIVE_PROFILE_ATTRIBUTES` excluded all portfolio fields | Added 18 portfolio fields to whitelist |
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `src/components/editor/ai/AICreditsIndicator.tsx` | Derive limit from plan |
+| `src/components/ai/CreditUsageSheet.tsx` | Derive limit from plan |
+| `src/components/settings/sections/AICreditsRow.tsx` | Derive limit from plan |
+| `src/components/dashboard/DashboardStatusPopover.tsx` | Derive limit from plan |
+| `src/components/dashboard/DashboardPlanBadge.tsx` | Blue styling for Pro |
+| `src/hooks/useProfile.ts` | Whitelist all portfolio fields |
+| `Project Atlas/CHANGELOG.md` | Added entry |
+| `Project Atlas/MASTER_HANDOVER_2026.md` | Added session log |
+
+### Commits
+- `1d9765c7` — fix(ai,portfolio): credit limits, Pro badge, portfolio save
+
+### Validation
+- `npx tsc --noEmit` — ✓ PASS
+- `npm run build` — ✓ PASS (49s)
+
+---
+
 ## Session Log - 2026-06-16 (Resume Editor Autosave Persistence Fix)
 
 ### Overview
