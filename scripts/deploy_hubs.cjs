@@ -116,8 +116,10 @@ const appwriteManifest = loadAppwriteManifest();
 const sourceHashes = loadSourceHashes();
 
 function manifestConfigForHub(hub) {
-    const fn = appwriteManifest.byFunctionId.get(functionIdForHub(hub));
-    if (!fn) throw new Error(`Missing appwrite.json entry for ${hub.id} (${functionIdForHub(hub)})`);
+    const fnId = functionIdForHub(hub);
+    const fn = appwriteManifest.byFunctionId.get(fnId)
+        || appwriteManifest.byFunctionId.get(hub.id);
+    if (!fn) throw new Error(`Missing appwrite.json entry for ${hub.id} (${fnId})`);
     return fn;
 }
 
