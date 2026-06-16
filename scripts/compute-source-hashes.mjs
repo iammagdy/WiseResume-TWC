@@ -39,6 +39,9 @@ const HUBS = [
   'public-share',
   'resume-section-ai',
   'wisehire-gateway',
+  'portfolio-gate',
+  'get-public-portfolio',
+  'verify-portfolio-password',
 ];
 
 const hashes = {};

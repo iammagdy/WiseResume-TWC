@@ -56,6 +56,9 @@ const HUBS = [
     { id: 'admin-deploy-hubs', name: 'Admin Deploy Hubs', file: 'admin-deploy-hubs.tar.gz' },
     { id: 'admin-sentry', functionId: '6a0760710000ff231048', name: 'Admin Sentry Hub', file: 'admin-sentry.tar.gz' },
     { id: 'email-service', name: 'Email Service Hub', file: 'email-service.tar.gz' },
+    { id: 'portfolio-gate', name: 'Portfolio Gate', file: 'portfolio-gate.tar.gz' },
+    { id: 'get-public-portfolio', name: 'Get Public Portfolio', file: 'get-public-portfolio.tar.gz' },
+    { id: 'verify-portfolio-password', name: 'Verify Portfolio Password', file: 'verify-portfolio-password.tar.gz' },
 ];
 
 const SAFE_SMOKE_CHECKS = new Map([
@@ -608,6 +611,37 @@ async function ensureJobsCreatePermission() {
     }
 }
 
+async function ensurePortfolioGateVariables() {
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+    ]) {
+        await ensureVariable('portfolio-gate', key, value);
+    }
+}
+
+async function ensureGetPublicPortfolioVariables() {
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+        ['PORTFOLIO_JWT_SECRET', process.env.PORTFOLIO_JWT_SECRET],
+    ]) {
+        await ensureVariable('get-public-portfolio', key, value);
+    }
+}
+
+async function ensureVerifyPortfolioPasswordVariables() {
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+    ]) {
+        await ensureVariable('verify-portfolio-password', key, value);
+    }
+}
+
 async function syncVariablesForHubs(hubIds) {
     const selected = new Set(hubIds);
     const hasAny = ids => ids.some(id => selected.has(id));
@@ -643,6 +677,11 @@ async function syncVariablesForHubs(hubIds) {
 
     if (selected.has('admin-deploy-hubs')) await ensureAdminDeployHubsVariables();
     if (selected.has('email-service')) await ensureEmailServiceVariables();
+
+    // Portfolio functions
+    if (selected.has('portfolio-gate')) await ensurePortfolioGateVariables();
+    if (selected.has('get-public-portfolio')) await ensureGetPublicPortfolioVariables();
+    if (selected.has('verify-portfolio-password')) await ensureVerifyPortfolioPasswordVariables();
 }
 
 function resolveRequestedHubs(requestedIds) {
