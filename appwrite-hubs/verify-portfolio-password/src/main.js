@@ -1,34 +1,49 @@
-/**
- * Verify Portfolio Password (Server-side)
- * 
- * Security fix: Prevents exposing password_hash to browser.
- * Client sends password, server returns success/failure only.
- */
+'use strict';
 
-const { sdk } = require('node-appwrite');
+const crypto = require('crypto');
+const sdk = require('node-appwrite');
 
 const DB_ID = 'main';
+const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+
 const PROFILES_COLLECTION_ID = 'profiles';
 const PORTFOLIO_SETTINGS_COLLECTION_ID = 'portfolio_settings';
 
-async function sha256Hex(password) {
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(password));
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+function getClient() {
+  return new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
 }
 
-module.exports = async function (req, res) {
-  const client = new sdk.Client()
-    .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-    .setKey(req.env['APPWRITE_API_KEY']);
+function getDatabases() {
+  return new sdk.Databases(getClient());
+}
 
-  const db = new sdk.Databases(client);
+function parseBody(req) {
+  if (typeof req.body !== 'string') {
+    return req.body && typeof req.body === 'object' ? req.body : {};
+  }
+  const raw = req.body.trim();
+  if (!raw) return {};
+  const parsed = JSON.parse(raw);
+  return parsed && typeof parsed === 'object' ? parsed : {};
+}
+
+function sha256Hex(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+module.exports = async ({ req, res, error }) => {
+  if (!API_KEY) {
+    return res.json({ success: false, error: 'Appwrite API key is not configured.' }, 500);
+  }
+
+  const db = getDatabases();
+  const body = parseBody(req);
 
   try {
-    const { username, password } = JSON.parse(req.payload || '{}');
+    const username = body.username;
+    const password = body.password;
     
     if (!username || !password) {
       return res.json({ success: false, error: 'Username and password required' }, 400);
@@ -66,7 +81,7 @@ module.exports = async function (req, res) {
     }
 
     // Server-side verification
-    const submittedHash = await sha256Hex(password);
+    const submittedHash = sha256Hex(password);
     const isValid = submittedHash === storedHash;
 
     if (!isValid) {

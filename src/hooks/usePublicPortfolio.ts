@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { databases, DATABASE_ID, Query, functions } from '@/lib/appwrite';
+import { ExecutionMethod } from 'appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -250,9 +251,8 @@ export function usePublicPortfolio(
       const portfolioEnabled = rawProfile.portfolio_enabled === true || rawProfile.portfolioEnabled === true;
       if (!portfolioEnabled) return null;
 
-      // Password verification — read hash from portfolio_settings (source of truth)
-      // This fixes the split-brain where editor writes to portfolio_settings but public reads from profiles
-      let passwordHash = '';
+      // Password verification — use server-side function to avoid exposing hash
+      // SECURITY: Never read password_hash in browser; verify via server function
       let passwordEnabled = false;
       try {
         const settingsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
@@ -262,21 +262,27 @@ export function usePublicPortfolio(
         if (settingsRes.total > 0) {
           const settings = settingsRes.documents[0] as Record<string, unknown>;
           passwordEnabled = !!(settings.password_enabled ?? settings.passwordEnabled);
-          passwordHash = (settings.password_hash ?? settings.passwordHash) as string;
         }
       } catch {
-        // Fallback to legacy location in portfolio_extras
+        // Fallback to legacy location in portfolio_extras (only for enabled flag, NOT hash)
         passwordEnabled = !!(extras.passwordEnabled);
-        passwordHash = extras.passwordHash as string;
       }
 
-      if (passwordEnabled && passwordHash) {
+      if (passwordEnabled) {
         if (!submittedPassword) {
           // Content should not be loaded yet; gate check should have caught this.
           return null;
         }
-        const submittedHash = await sha256Hex(submittedPassword);
-        if (submittedHash !== passwordHash) {
+        // Server-side password verification via function
+        const verifyRes = await functions.createExecution(
+          'verify-portfolio-password',
+          JSON.stringify({ username: username!.toLowerCase(), password: submittedPassword }),
+          false,
+          '/',
+          ExecutionMethod.POST,
+        );
+        const verifyResult = JSON.parse(verifyRes.responseBody || '{}');
+        if (!verifyResult.success || !verifyResult.verified) {
           throw new Error('invalid_password');
         }
       }
