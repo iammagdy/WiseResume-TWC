@@ -31,6 +31,8 @@ interface UseEditorAutosaveOptions {
   isSavingRef: React.MutableRefObject<boolean>;
   addPendingChange: (resumeId: string, updates: ResumeData) => void;
   isAILoadingRef?: React.MutableRefObject<boolean>;
+  /** Optional callback to register the flush function with a parent context */
+  onRegisterFlush?: (flushFn: () => Promise<void>) => void;
 }
 
 /**
@@ -55,10 +57,12 @@ export function useEditorAutosave({
   isSavingRef,
   addPendingChange,
   isAILoadingRef,
-}: UseEditorAutosaveOptions): { saveToCloud: () => Promise<void> } {
+  onRegisterFlush,
+}: UseEditorAutosaveOptions): { saveToCloud: () => Promise<void>; flushSave: () => Promise<void> } {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScoreTimeRef = useRef<number>(0);
   const isMountedRef = useRef(true);
+  const isFlushingRef = useRef(false);
   // Read latest auto-save toast preferences at emit-time via the store snapshot.
   // Preference shape: showAutoSaveToasts (master switch) + autoSaveToastMode
   // ('always' shows all autosave toasts; 'errors-only' suppresses non-error
@@ -75,7 +79,7 @@ export function useEditorAutosave({
   const resumeFromDbRef = useRef(resumeFromDb);
   resumeFromDbRef.current = resumeFromDb;
 
-  const saveToCloud = useCallback(async () => {
+  const saveToCloud = useCallback(async (options?: { skipDebounceClear?: boolean }) => {
     const resume = resumeRef.current;
     if (!user || !currentResumeId || !resume) return;
 
@@ -89,7 +93,14 @@ export function useEditorAutosave({
     }
 
     const currentResumeJson = JSON.stringify(resume);
-    if (currentResumeJson === lastSavedResumeRef.current) return;
+    if (currentResumeJson === lastSavedResumeRef.current) {
+      // Even if no changes, clear any pending timeout to reset debounce state
+      if (!options?.skipDebounceClear && saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      return;
+    }
 
     // Pre-save online conflict guard:
     // If another device has saved since we loaded, silently refresh baseline
@@ -180,8 +191,24 @@ export function useEditorAutosave({
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
+      isFlushingRef.current = false;
     }
   }, [user, currentResumeId, resumeRef, lastSavedResumeRef, updateResume, setIsSaving, setLastSavedAt, localLoadedAtRef, isSavingRef, addPendingChange]);
+
+  // Flush function: clears debounce and saves immediately
+  const flushSave = useCallback(async () => {
+    if (isFlushingRef.current) return; // Prevent concurrent flushes
+    isFlushingRef.current = true;
+
+    // Clear any pending debounced save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    // Execute save immediately
+    await saveToCloud({ skipDebounceClear: true });
+  }, [saveToCloud]);
 
   // Debounced auto-save effect — depends on the resume snapshot via resumeRef
   const currentResumeSnapshot = resumeRef.current;
@@ -259,5 +286,12 @@ export function useEditorAutosave({
     return () => window.removeEventListener('pagehide', onPageHide);
   }, [saveToCloud]);
 
-  return { saveToCloud };
+  // Register flush function with parent if callback provided
+  useEffect(() => {
+    if (onRegisterFlush) {
+      onRegisterFlush(flushSave);
+    }
+  }, [onRegisterFlush, flushSave]);
+
+  return { saveToCloud, flushSave };
 }

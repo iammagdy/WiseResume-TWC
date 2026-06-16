@@ -71,6 +71,7 @@ import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
 import { useEditorHydration } from '@/hooks/useEditorHydration';
 import { useEditorAutosave } from '@/hooks/useEditorAutosave';
+import { EditorSaveProvider } from '@/contexts/EditorSaveContext';
 import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 import { useEditorSheets } from '@/hooks/useEditorSheets';
 import { useATSSuggestions } from '@/hooks/useATSSuggestions';
@@ -663,7 +664,8 @@ export default function EditorPage() {
   // Hook 2: debounced cloud save, conflict guard, offline queue, ATS re-score, lifecycle flush
   const resumeRef = useRef(currentResume);
   resumeRef.current = currentResume;
-  const { saveToCloud } = useEditorAutosave({
+  const flushSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const { saveToCloud, flushSave } = useEditorAutosave({
     user,
     currentResumeId,
     resumeRef,
@@ -676,7 +678,18 @@ export default function EditorPage() {
     isSavingRef,
     addPendingChange,
     isAILoadingRef,
+    onRegisterFlush: (fn) => { flushSaveRef.current = fn; },
   });
+
+  // Expose flushSave via ref for the provider
+  const handleFlushSave = useCallback(async () => {
+    if (flushSaveRef.current) {
+      await flushSaveRef.current();
+    } else {
+      // Fallback: call directly if ref not yet set
+      await flushSave();
+    }
+  }, [flushSave]);
 
   // Background ATS scoring uses standalone function (no hook state to avoid re-render loops)
 
@@ -1180,6 +1193,7 @@ export default function EditorPage() {
 
   return (
     <TooltipProvider delayDuration={300} disableHoverableContent>
+    <EditorSaveProvider>
     <main className="editor-workspace-root flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden bg-background">
       {/* Header */}
       <EditorHeader
@@ -1845,6 +1859,7 @@ export default function EditorPage() {
         onCancel={unsavedGuard.cancel}
       />
     </main>
+    </EditorSaveProvider>
     </TooltipProvider>
   );
 }

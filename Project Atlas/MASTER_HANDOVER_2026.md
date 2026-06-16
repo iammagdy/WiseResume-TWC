@@ -2,6 +2,82 @@
 
 ---
 
+## Session Log - 2026-06-16 (Resume Editor Autosave Persistence Fix)
+
+### Overview
+
+Fixed TestSprite-reported bug where Professional Summary edits were not persisting after reload. The issue was that `SummarySection` only set `touched=true` on blur without triggering a cloud save, and the debounced autosave (1.5s-3s) could miss data on quick navigation. Created `EditorSaveContext` to expose `flushSave()` to child components, enabling immediate save on blur.
+
+---
+
+### Root causes identified and fixed
+
+#### F1 — Professional Summary edits lost on reload
+
+- **Root cause**: `SummarySection` called `updateResume({ summary: value })` on every change (updating Zustand), but `onBlur` only set `touched=true` without triggering cloud save. The debounced autosave in `useEditorAutosave` waited 1500ms (first save) or 3000ms (subsequent), allowing data loss if user navigated/reloaded immediately after editing.
+- **Fix**: 
+  - Created `EditorSaveContext` to expose `flushSave()` to descendant components
+  - Added `flushSave()` function to `useEditorAutosave` that clears debounce and saves immediately
+  - `SummarySection` now calls `editorSave.flushSave()` on blur
+  - `EditorPage` wraps content with `EditorSaveProvider`
+- **Impact**: Summary edits are flushed to Appwrite immediately on blur, preventing data loss while maintaining debounced autosave for normal typing flow.
+
+---
+
+### Changed files (this session)
+
+| File | Change |
+|------|--------|
+| `src/contexts/EditorSaveContext.tsx` | **New** — Context providing `flushSave()` to editor child components |
+| `src/hooks/useEditorAutosave.ts` | Added `flushSave()` and `onRegisterFlush` callback |
+| `src/pages/EditorPage.tsx` | Wrapped editor with `EditorSaveProvider`; registered flush function |
+| `src/components/editor/SummarySection.tsx` | Calls `flushSave()` on blur to persist changes |
+| `Project Atlas/CHANGELOG.md` | Added changelog entry |
+| `Project Atlas/MASTER_HANDOVER_2026.md` | Added session log (this entry) |
+
+---
+
+### Validation
+
+| Command | Result |
+|---------|--------|
+| `npx tsc --noEmit` | ✓ PASS |
+| `npm run build` | ✓ PASS (1m 3s) |
+
+---
+
+### Commits created (this session)
+
+(To be filled after commit)
+
+---
+
+### Deployments performed
+
+| Component | Status | Method | Details |
+|-----------|--------|--------|---------|
+| Frontend (Vercel) | ⏳ Pending | Auto-deploy from `main` push | No Appwrite Hub changes |
+
+---
+
+### Current production/deployment state
+
+- **Frontend (Vercel)**: Uncommitted changes on `main` — awaiting deployment.
+- **Appwrite Functions**: Unchanged.
+- **Local repo**: Uncommitted changes on `main`.
+
+---
+
+### Where We Stopped
+
+Resume Editor autosave persistence fix complete. TypeScript passing, build successful. Summary edits now flush to cloud on blur. Ready to commit and push.
+
+**To complete:**
+1. Commit and push changes for Vercel auto-deploy
+2. Re-run TestSprite editor test to verify fix
+
+---
+
 ## Session Log - 2026-06-16 (E2E Fixes: Tailoring Result Route)
 
 ### Overview

@@ -11,6 +11,41 @@
 
 ---
 
+## 2026-06-16 - Resume Editor Autosave Persistence Fix (TestSprite)
+
+### Root Cause (from TestSprite QA Report)
+TestSprite found that editing the Professional Summary did not persist after reload. The `SummarySection` component updated local Zustand state on change but only set `touched=true` on blur. The `useEditorAutosave` hook debounces cloud saves (1500ms first, 3000ms subsequent), meaning quick edits followed by immediate navigation/reload could lose data before the debounced save fired.
+
+### Bug Analysis
+1. **Missing blur flush**: SummarySection onBlur did not trigger a cloud save
+2. **Debounce window**: 1.5s-3s delay allowed data loss on quick navigation
+3. **Save visibility**: Relied solely on toast notifications (may be disabled in user settings)
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `src/contexts/EditorSaveContext.tsx` | **New** — React context providing `flushSave()` to child components, enabling immediate save on blur |
+| `src/hooks/useEditorAutosave.ts` | Added `flushSave` function that clears pending debounce and saves immediately; Added `onRegisterFlush` callback to expose flush to context; Returns `{ saveToCloud, flushSave }` |
+| `src/pages/EditorPage.tsx` | Wrapped editor content with `EditorSaveProvider`; Registered flush function with context |
+| `src/components/editor/SummarySection.tsx` | Added `useOptionalEditorSave()` hook; Calls `editorSave.flushSave()` on blur to prevent data loss |
+
+### How It Works
+1. User types in Summary field → Zustand state updates immediately (local)
+2. User blurs/clicks away → `flushSave()` triggers immediate cloud write (bypasses debounce)
+3. Save indicator in header shows "Saving…" → "Saved" status
+4. Page reload/refresh → `beforeunload` and `pagehide` handlers also flush pending saves
+
+### Verification
+- `npx tsc --noEmit` — zero errors.
+- `npm run build` — successful (1m 3s).
+- No breaking changes to debounce behavior for normal typing flow.
+
+### Deployment Required
+- Frontend deploys automatically via Vercel on next push.
+- No backend/Appwrite changes required.
+
+---
+
 ## 2026-06-16 - Tailoring Result Route Fix (E2E)
 
 ### Root Cause (from E2E Test Report)

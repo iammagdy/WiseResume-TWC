@@ -9,6 +9,7 @@ import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
 import { summaryExample } from '@/lib/emptyStateExamples';
 import { useSectionAITrigger } from '@/store/sectionAIBridge';
+import { useOptionalEditorSave } from '@/contexts/EditorSaveContext';
 
 export const SummarySection = memo(function SummarySection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
@@ -18,6 +19,7 @@ export const SummarySection = memo(function SummarySection() {
   const setPendingSummaryGeneration = useResumeStore(state => state.setPendingSummaryGeneration);
   const [touched, setTouched] = useState(false);
   const [started, setStarted] = useState(false);
+  const editorSave = useOptionalEditorSave();
 
   // Single source of truth for the Summary AI flow — registered by
   // `SectionAIAction` (the only owner of the AIEnhanceDialog for
@@ -111,7 +113,13 @@ export const SummarySection = memo(function SummarySection() {
         icon={<FileText className="w-4 h-4" />}
         value={summary}
         onChange={(value) => updateResume({ summary: value })}
-        onBlur={() => setTouched(true)}
+        onBlur={() => {
+          setTouched(true);
+          // Flush save immediately on blur to prevent data loss on quick navigation/reload
+          if (editorSave) {
+            void editorSave.flushSave();
+          }
+        }}
         placeholder="Write a brief professional summary highlighting your key qualifications, experience, and career goals..."
         rows={8}
         maxLength={500}
