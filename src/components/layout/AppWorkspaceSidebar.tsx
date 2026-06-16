@@ -11,6 +11,9 @@ import { DashboardWorkspaceProfileDialog } from '@/components/dashboard/Dashboar
 import { Button } from '@/components/ui/button';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan, type PlanName } from '@/hooks/usePlan';
+import { useMe } from '@/hooks/useMe';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
+import type { PlanKey } from '@/lib/planConfig';
 import { useAppSidebarStore } from '@/store/appSidebarStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -63,6 +66,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   const setMobileOpen = useAppSidebarStore((s) => s.setMobileOpen);
   const { data: credits, isLoading: creditsLoading, isActiveTrial, trialPlan } = useAICredits();
   const { plan: planFromHook, isPremium, isPro, isLoading: planLoading } = usePlan();
+  const { data: meData } = useMe();
   const plan = planProp ?? planFromHook;
 
   const planLabel =
@@ -91,7 +95,11 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
     if (hasUnlimitedPlan) return { unlimited: true as const, footer: null };
     if (!credits) return null;
     const used = credits.daily_usage ?? 0;
-    const safeLimit = credits.daily_limit > 0 ? credits.daily_limit : 20;
+    // Derive limit from plan if not set — never hardcode 20
+    const effectivePlan = (meData?.subscription?.effective_plan ?? 'free') as PlanKey;
+    const fallbackLimit = PLAN_CREDIT_LIMITS[effectivePlan] ?? PLAN_CREDIT_LIMITS.free;
+    const dailyLimit = credits?.daily_limit;
+    const safeLimit = typeof dailyLimit === 'number' && dailyLimit > 0 ? dailyLimit : fallbackLimit;
     return {
       unlimited: false as const,
       used,
@@ -99,7 +107,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
       remaining: Math.max(0, safeLimit - used),
       footer: 'Resets at midnight',
     };
-  }, [credits, creditsLoading, isPremium, isActiveTrial, trialPlan]);
+  }, [credits, creditsLoading, isPremium, isActiveTrial, trialPlan, meData]);
 
   const creditPct =
     creditDisplay && !creditDisplay.unlimited

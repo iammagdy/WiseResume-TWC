@@ -102,11 +102,23 @@ async function getPortfolioProfile(db, username) {
     sdk.Query.limit(1),
   ]);
   const profile = profileRes.documents?.[0] || null;
-  if (!profile || profile.portfolioEnabled !== true) return null;
+  // Use snake_case field from Appwrite (portfolio_enabled)
+  if (!profile || profile.portfolio_enabled !== true) return null;
   return profile;
 }
 
-async function getResumeByUserId(db, userId) {
+async function getResumeForPortfolio(db, profile, userId) {
+  // Use selected portfolio_resume_id if available, otherwise fallback to any resume by user
+  const selectedResumeId = profile.portfolio_resume_id || profile.portfolioResumeId;
+  if (selectedResumeId) {
+    try {
+      const resume = await db.getDocument(DB_ID, RESUMES_COLLECTION_ID, selectedResumeId);
+      if (resume) return resume;
+    } catch {
+      // Fall through to user_id query if selected resume not found
+    }
+  }
+  // Fallback: fetch any resume by user_id (legacy behavior)
   const resumeRes = await db.listDocuments(DB_ID, RESUMES_COLLECTION_ID, [
     sdk.Query.equal('user_id', userId),
     sdk.Query.limit(1),
@@ -136,13 +148,21 @@ function extractRecentRole(resume) {
 }
 
 function buildProfileContext(profile, resume) {
-  const extras = asRecord(profile.portfolioExtras);
+  // Parse portfolio_extras safely (stored as JSON string in Appwrite)
+  let extras = {};
+  try {
+    const rawExtras = profile.portfolio_extras || profile.portfolioExtras;
+    extras = typeof rawExtras === 'string' ? JSON.parse(rawExtras) : (rawExtras || {});
+  } catch {
+    extras = {};
+  }
   const portfolioSummary = asString(extras.portfolioSummary);
+  // Use snake_case fields from Appwrite raw documents
   return {
-    fullName: asString(profile.fullName) || 'this professional',
-    title: asString(profile.jobTitle) || undefined,
+    fullName: asString(profile.full_name || profile.fullName) || 'this professional',
+    title: asString(profile.job_title || profile.jobTitle) || undefined,
     location: asString(profile.location) || undefined,
-    bio: asString(profile.portfolioBio || portfolioSummary || resume?.summary || '').slice(0, 300) || undefined,
+    bio: asString(profile.portfolio_bio || profile.portfolioBio || portfolioSummary || resume?.summary || '').slice(0, 300) || undefined,
     skills: extractSkills(resume),
     recentRole: extractRecentRole(resume),
   };
@@ -263,7 +283,7 @@ async function handleAskPortfolio(db, body, res) {
     return res.json({ status: 'error', message: 'Portfolio chat is unavailable for this profile.' }, 404);
   }
 
-  const resume = await getResumeByUserId(db, sessionPayload.ownerUserId);
+  const resume = await getResumeForPortfolio(db, profile, sessionPayload.ownerUserId);
   const profileContext = buildProfileContext(profile, resume);
   const conversationHistory = sanitizeConversationHistory(body.conversationHistory);
 

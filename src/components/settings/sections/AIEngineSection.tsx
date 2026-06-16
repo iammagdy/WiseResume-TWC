@@ -4,6 +4,9 @@ import { Sparkles, Shield, Zap, Lock, ChevronRight } from 'lucide-react';
 import { AIEngineBadge } from '@/components/editor/ai/AIEngineBadge';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan } from '@/hooks/usePlan';
+import { useMe } from '@/hooks/useMe';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
+import type { PlanKey } from '@/lib/planConfig';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,9 +33,13 @@ export const AIEngineSection = memo(function AIEngineSection() {
   const navigate = useNavigate();
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPremium } = usePlan();
+  const { data: meData } = useMe();
 
   const used = credits?.daily_usage ?? 0;
-  const rawLimit = credits?.daily_limit ?? 20;
+  // Derive limit from plan if not set — never hardcode 20
+  const effectivePlan = (meData?.subscription?.effective_plan ?? 'free') as PlanKey;
+  const fallbackLimit = PLAN_CREDIT_LIMITS[effectivePlan] ?? PLAN_CREDIT_LIMITS.free;
+  const rawLimit = credits?.daily_limit ?? fallbackLimit;
   const isUnlimited = rawLimit === Infinity || rawLimit === -1;
   const limit = isUnlimited ? null : rawLimit;
   const usagePct = limit ? Math.min((used / limit) * 100, 100) : 0;

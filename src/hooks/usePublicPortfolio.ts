@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -195,9 +196,26 @@ export function usePortfolioGate(username: string | undefined) {
       ]);
       if (res.total === 0) return { passwordEnabled: false, accentColor: '#e84545', exists: false };
       const p = res.documents[0] as Record<string, unknown>;
-      const extras = parseExtras(p.portfolio_extras ?? p.portfolioExtras);
+
+      // Read password from portfolio_settings (source of truth) — fixes split-brain
+      let passwordEnabled = false;
+      try {
+        const settingsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
+          Query.equal('user_id', p.user_id as string),
+          Query.limit(1),
+        ]);
+        if (settingsRes.total > 0) {
+          const settings = settingsRes.documents[0] as Record<string, unknown>;
+          passwordEnabled = !!(settings.password_enabled ?? settings.passwordEnabled);
+        }
+      } catch {
+        // Fallback to profile extras if settings read fails
+        const extras = parseExtras(p.portfolio_extras ?? p.portfolioExtras);
+        passwordEnabled = !!(extras.passwordEnabled);
+      }
+
       return {
-        passwordEnabled: !!(extras.passwordEnabled),
+        passwordEnabled,
         accentColor: ((p.portfolio_accent_color ?? p.portfolioAccentColor) as string) || '#e84545',
         exists: !!(p.portfolio_enabled ?? p.portfolioEnabled),
       };
@@ -232,25 +250,55 @@ export function usePublicPortfolio(
       const portfolioEnabled = rawProfile.portfolio_enabled === true || rawProfile.portfolioEnabled === true;
       if (!portfolioEnabled) return null;
 
-      // Password verification — compare SHA-256 hashes client-side.
-      // The hash is stored in portfolioExtras.passwordHash (written by the editor).
-      if (extras.passwordEnabled && extras.passwordHash) {
+      // Password verification — read hash from portfolio_settings (source of truth)
+      // This fixes the split-brain where editor writes to portfolio_settings but public reads from profiles
+      let passwordHash = '';
+      let passwordEnabled = false;
+      try {
+        const settingsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
+          Query.equal('user_id', rawProfile.user_id as string),
+          Query.limit(1),
+        ]);
+        if (settingsRes.total > 0) {
+          const settings = settingsRes.documents[0] as Record<string, unknown>;
+          passwordEnabled = !!(settings.password_enabled ?? settings.passwordEnabled);
+          passwordHash = (settings.password_hash ?? settings.passwordHash) as string;
+        }
+      } catch {
+        // Fallback to legacy location in portfolio_extras
+        passwordEnabled = !!(extras.passwordEnabled);
+        passwordHash = extras.passwordHash as string;
+      }
+
+      if (passwordEnabled && passwordHash) {
         if (!submittedPassword) {
           // Content should not be loaded yet; gate check should have caught this.
           return null;
         }
         const submittedHash = await sha256Hex(submittedPassword);
-        if (submittedHash !== extras.passwordHash) {
+        if (submittedHash !== passwordHash) {
           throw new Error('invalid_password');
         }
       }
 
       const profile = mapProfile(rawProfile);
 
-      const resumeRes = await databases.listDocuments(DATABASE_ID, 'resumes', [
-        Query.equal('user_id', rawProfile.user_id as string),
-        Query.limit(1),
-      ]);
+      // Use portfolio_resume_id to fetch the selected resume — fixes wrong resume bug
+      const portfolioResumeId = rawProfile.portfolio_resume_id ?? rawProfile.portfolioResumeId;
+      let resumeQuery;
+      if (portfolioResumeId) {
+        resumeQuery = [
+          Query.equal('$id', portfolioResumeId as string),
+          Query.limit(1),
+        ];
+      } else {
+        // Fallback: fetch any resume by user (legacy behavior)
+        resumeQuery = [
+          Query.equal('user_id', rawProfile.user_id as string),
+          Query.limit(1),
+        ];
+      }
+      const resumeRes = await databases.listDocuments(DATABASE_ID, 'resumes', resumeQuery);
       const rawResume = resumeRes.documents[0] as Record<string, unknown> | undefined;
       const resume: PublicResume = rawResume
         ? {
