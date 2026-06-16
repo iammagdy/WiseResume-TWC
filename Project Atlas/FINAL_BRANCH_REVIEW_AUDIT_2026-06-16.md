@@ -233,3 +233,36 @@ After owner confirmation:
 3. Owner decides on `bolt-import-slim` (archive vs delete) and `find-atlas-design-system-y4KJ7` (closed PR review).
 
 If all four are confirmed redundant, the repository reaches **single-branch `main`** locally and on remote.
+
+---
+
+## Follow-up: owner-approved final deletion (closeout)
+
+**Date/time:** 2026-06-16 (UTC ~21:00)
+
+**Owner decision:** Approved deletion of all four remaining non-main branches after final safety verification.
+
+### Branches deleted (4)
+
+| Branch | Scope | Command | Notes |
+|--------|-------|---------|-------|
+| `claude/frosty-ramanujan-26b957` | Local | `git worktree remove` + `git branch -D` | `-d` refused (squash drift); owner-approved redundant |
+| `bolt-import-slim` | Remote | `git push origin --delete` | Orphan bolt.new snapshot |
+| `claude/find-atlas-design-system-y4KJ7` | Remote | `git push origin --delete` | PR #57 closed; superseded |
+| `claude/fix-plan-upgrade-sync-d2dUM` | Remote | `git push origin --delete` | DevKit v2.1 WIP superseded |
+
+### Final state
+
+| Scope | Branches |
+|-------|----------|
+| **Local** | `main` only |
+| **Remote** | `origin/main`, `origin/HEAD` only |
+| **Worktrees** | Main repo only |
+
+### Confirmations
+
+- Repository is **effectively single-branch `main`**.
+- All intended production code and documentation are on `main`.
+- **No product code** changed during cleanup.
+- **No deployments** run.
+- **No history rewrite** or force-push.
