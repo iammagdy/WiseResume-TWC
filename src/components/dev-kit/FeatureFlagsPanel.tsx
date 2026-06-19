@@ -201,7 +201,7 @@ function AppWideSettingsSection() {
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowMaintenanceConfirm(false); setConfirmTyped(''); }}
-                className="flex-1 py-2 rounded-xl text-xs font-bold uppercase border border-white/10 bg-white/5 text-white/50 hover:text-white transition-all"
+                className="flex-1 py-2 rounded-xl text-xs font-bold uppercase border border-border bg-muted text-muted-foreground hover:text-foreground transition-all"
               >
                 Cancel
               </button>
@@ -237,7 +237,7 @@ function AppWideSettingsSection() {
 
       {/* App-wide feature gates */}
       <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/15 flex flex-col gap-4">
-        <h4 className="font-bold text-base text-white flex items-center gap-2.5">
+        <h4 className="font-bold text-base text-foreground flex items-center gap-2.5">
           <Rocket size={18} className="text-blue-400" /> Feature Gates
         </h4>
         <div className="space-y-2">
@@ -246,8 +246,8 @@ function AppWideSettingsSection() {
             { key: 'feature_chat',      label: 'AI Chat & Assistant' },
             { key: 'feature_portfolio', label: 'Public Portfolios' },
           ] as const).map(({ key, label }) => (
-            <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/[0.06]">
-              <div className="flex items-center gap-2.5 text-white/80 text-sm font-medium">
+            <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted border border-border">
+              <div className="flex items-center gap-2.5 text-foreground text-sm font-medium">
                 <CheckCircle2 size={14} className="text-blue-400/70" />
                 {label}
               </div>
@@ -699,28 +699,28 @@ export function FeatureFlagsPanel() {
 
       {/* ── Feature flag delete confirmation ────────────────────────────── */}
       {deleteConfirmName && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-3xl border border-red-500/20 bg-[#0e0e0e] p-8 shadow-2xl space-y-5">
-            <div className="flex items-center gap-3 text-red-400">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-destructive/20 bg-card p-8 shadow-2xl space-y-5">
+            <div className="flex items-center gap-3 text-destructive">
               <AlertTriangle size={22} />
-              <h3 className="font-black text-white text-lg">Delete Feature Flag?</h3>
+              <h3 className="font-black text-foreground text-lg">Delete Feature Flag?</h3>
             </div>
-            <p className="text-sm text-white/50 leading-relaxed">
-              Delete flag <span className="font-mono font-bold text-white">{deleteConfirmName}</span>?
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Delete flag <span className="font-mono font-bold text-foreground">{deleteConfirmName}</span>?
               This cannot be undone and may break features that depend on it.
             </p>
             <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => setDeleteConfirmName(null)}
-                className="flex-1 rounded-2xl border-white/10 bg-white/5 text-white/60 hover:text-white"
+                className="flex-1 rounded-2xl border-border bg-muted text-muted-foreground hover:text-foreground"
               >
                 Cancel
               </Button>
               <Button
                 onClick={() => executeDelete(deleteConfirmName)}
                 disabled={deleting === deleteConfirmName}
-                className="flex-1 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-bold"
+                className="flex-1 rounded-2xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
               >
                 {deleting === deleteConfirmName
                   ? <MiniSpinner size={14} className="mr-2" />
@@ -735,16 +735,16 @@ export function FeatureFlagsPanel() {
       {/* ── App-wide gates section ──────────────────────────────────────── */}
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <h3 className="text-xs font-black uppercase tracking-widest text-white/40">App-Wide Gates</h3>
-          <div className="flex-1 h-px bg-white/5" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">App-Wide Gates</h3>
+          <div className="flex-1 h-px bg-border" />
         </div>
         <AppWideSettingsSection />
       </section>
 
       {/* ── Divider ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Feature Flags</h3>
-        <div className="flex-1 h-px bg-white/5" />
+        <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Feature Flags</h3>
+        <div className="flex-1 h-px bg-border" />
       </div>
 
       {/* ── Feature flags section ────────────────────────────────────────── */}

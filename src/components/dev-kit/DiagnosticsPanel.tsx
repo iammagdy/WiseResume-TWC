@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { devKitCall, type DevKitError } from '@/lib/devkit/devKitClient';
 import { DevKitErrorCard } from './DevKitErrorCard';
 import { cn } from '@/lib/utils';
+import { DevKitSection, DevKitStatusBadge, DevKitLoading, type DevKitStatusVariant } from './DevKitUI';
 
 type DiagnosticStatus = 'healthy' | 'warning' | 'broken' | 'not_configured';
 
@@ -25,27 +26,18 @@ interface DiagnosticsResponse {
   requestId?: string;
 }
 
-const STATUS_META: Record<DiagnosticStatus, { title: string; icon: ElementType; className: string }> = {
-  healthy: {
-    title: 'Healthy',
-    icon: CheckCircle2,
-    className: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400',
-  },
-  warning: {
-    title: 'Warning',
-    icon: AlertTriangle,
-    className: 'border-amber-500/20 bg-amber-500/5 text-amber-400',
-  },
-  broken: {
-    title: 'Broken',
-    icon: XCircle,
-    className: 'border-red-500/20 bg-red-500/5 text-red-400',
-  },
-  not_configured: {
-    title: 'Not Configured',
-    icon: CircleDashed,
-    className: 'border-white/10 bg-white/5 text-white/50',
-  },
+const STATUS_META: Record<DiagnosticStatus, { title: string; icon: ElementType }> = {
+  healthy:        { title: 'Healthy',        icon: CheckCircle2 },
+  warning:        { title: 'Warning',        icon: AlertTriangle },
+  broken:         { title: 'Broken',         icon: XCircle },
+  not_configured: { title: 'Not Configured', icon: CircleDashed },
+};
+
+const STATUS_VARIANT: Record<DiagnosticStatus, DevKitStatusVariant> = {
+  healthy: 'success',
+  warning: 'warning',
+  broken: 'error',
+  not_configured: 'neutral',
 };
 
 const GROUP_ICONS: Record<DiagnosticItem['group'], ElementType> = {
@@ -60,9 +52,9 @@ const GROUP_ICONS: Record<DiagnosticItem['group'], ElementType> = {
 function StatusPill({ status }: { status: DiagnosticStatus }) {
   const meta = STATUS_META[status];
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase', meta.className)}>
+    <span className={cn('inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-black uppercase text-muted-foreground')}>
       <meta.icon className="h-3 w-3" />
-      {meta.title}
+      <DevKitStatusBadge variant={STATUS_VARIANT[status]} label={meta.title} showDot={false} className="border-0 bg-transparent px-0" />
     </span>
   );
 }
@@ -104,14 +96,7 @@ export function DiagnosticsPanel() {
   }, [data]);
 
   if (loading && !data) {
-    return (
-      <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
-        <div className="flex items-center gap-3 text-white/60">
-          <MiniSpinner size={20} />
-          <span className="text-sm font-semibold">Running DevKit diagnostics</span>
-        </div>
-      </div>
-    );
+    return <DevKitLoading text="Running DevKit diagnostics…" />;
   }
 
   if (error && !data) {
@@ -127,27 +112,29 @@ export function DiagnosticsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <StatusPill status={data?.overallStatus ?? 'warning'} />
-            <h2 className="text-lg font-black text-white">DevKit Diagnostics</h2>
+      <DevKitSection
+        title="DevKit Diagnostics"
+        icon={ServerCog}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">{counts.healthy} healthy</span>
+            <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400">{counts.warning} warning</span>
+            <span className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400">{counts.broken} broken</span>
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">{counts.notConfigured} not configured</span>
+            <Button variant="outline" size="sm" onClick={runDiagnostics} disabled={loading}>
+              {loading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Refresh
+            </Button>
           </div>
-          <p className="text-xs text-white/45">
+        }
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <DevKitStatusBadge variant={STATUS_VARIANT[data?.overallStatus ?? 'warning']} label={STATUS_META[data?.overallStatus ?? 'warning'].title} />
+          <p className="text-xs text-muted-foreground">
             {data?.checkedAt ? `Last checked ${new Date(data.checkedAt).toLocaleString()}` : 'No completed diagnostic run yet'}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">{counts.healthy} healthy</span>
-          <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400">{counts.warning} warning</span>
-          <span className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400">{counts.broken} broken</span>
-          <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-white/45">{counts.notConfigured} not configured</span>
-          <Button variant="outline" size="sm" onClick={runDiagnostics} disabled={loading} className="rounded-xl">
-            {loading ? <MiniSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Refresh
-          </Button>
-        </div>
-      </div>
+      </DevKitSection>
 
       {error && data && (
         <DevKitErrorCard
@@ -163,31 +150,27 @@ export function DiagnosticsPanel() {
         {grouped.map(([group, items]) => {
           const GroupIcon = GROUP_ICONS[group];
           return (
-            <section key={group} className="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <div className="mb-4 flex items-center gap-2">
-                <GroupIcon className="h-4 w-4 text-blue-400" />
-                <h3 className="text-sm font-black uppercase tracking-wide text-white/80">{group}</h3>
-              </div>
+            <DevKitSection key={group} title={group} icon={GroupIcon}>
               <div className="space-y-3">
                 {items.map(item => (
-                  <div key={item.id} className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
+                  <div key={item.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-1">
-                        <p className="text-sm font-bold text-white">{item.label}</p>
-                        <p className="text-xs leading-relaxed text-white/55">{item.summary}</p>
+                        <p className="text-sm font-medium text-foreground">{item.label}</p>
+                        <p className="text-xs leading-relaxed text-muted-foreground">{item.summary}</p>
                       </div>
-                      <StatusPill status={item.status} />
+                      <DevKitStatusBadge variant={STATUS_VARIANT[item.status]} label={STATUS_META[item.status].title} />
                     </div>
-                    {item.detail && <p className="mt-2 rounded-lg bg-black/30 px-3 py-2 text-[11px] leading-relaxed text-white/45">{item.detail}</p>}
+                    {item.detail && <p className="mt-2 rounded-md bg-muted px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{item.detail}</p>}
                   </div>
                 ))}
               </div>
-            </section>
+            </DevKitSection>
           );
         })}
       </div>
 
-      <div className="flex items-center gap-2 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 text-xs text-blue-300">
+      <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-4 text-xs text-muted-foreground">
         <Clock className="h-4 w-4 shrink-0" />
         Diagnostics are read-only. Any cleanup or support action still requires a separate dry-run/confirmation step.
       </div>

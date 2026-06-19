@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { ArrowLeft, CheckCircle2, Cog, Lock, Menu, Search, ShieldCheck, Wrench, X } from 'lucide-react';
+import { ArrowLeft, Cog, Lock, Menu, Search, ShieldCheck, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -31,38 +31,42 @@ import { DeployHubsPanel } from '@/components/dev-kit/DeployHubsPanel';
 import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
 import { AIRoutingSwitcher } from '@/components/dev-kit/AIRoutingSwitcher';
 import { AIRadarPanel } from '@/components/dev-kit/AIRadarPanel';
-import { PANEL_GROUPS, DEVTOOLS_PANEL_ALIASES, allPanels, groupForPanel, statusShort, type PanelDef, type PanelStatus } from '@/lib/devkit/devToolsPanelConfig';
+import { PANEL_GROUPS, DEVTOOLS_PANEL_ALIASES, allPanels, groupForPanel, type PanelDef, type PanelStatus } from '@/lib/devkit/devToolsPanelConfig';
+import { DevKitNavItem, DevKitSidebarGroup, DevKitStatusBadge, DevKitSection, DevKitPanelHeader, type DevKitStatusVariant } from '@/components/dev-kit/DevKitUI';
 
-const STATUS_CLASSES: Record<PanelStatus, string> = {
-  Live: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
-  'Needs Appwrite Function': 'border-amber-500/20 bg-amber-500/10 text-amber-400',
-  'Needs Schema': 'border-blue-500/20 bg-blue-500/10 text-blue-400',
-  Planned: 'border-white/10 bg-white/5 text-white/35',
-};
+function panelStatusVariant(status: PanelStatus): DevKitStatusVariant {
+  switch (status) {
+    case 'Live': return 'live';
+    case 'Needs Appwrite Function': return 'needs-function';
+    case 'Needs Schema': return 'needs-schema';
+    case 'Planned': return 'planned';
+  }
+}
 
 function NotReadyPanel({ panel }: { panel: PanelDef }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-5">
-      <div className="flex items-center gap-3">
-        <panel.icon className="h-6 w-6 text-blue-400" />
-        <div>
-          <h2 className="text-xl font-black text-white">{panel.title}</h2>
-          <p className="text-xs text-white/45">This surface is visible in the DevKit but intentionally blocked from executing until its backend prerequisites are ready.</p>
-        </div>
-      </div>
-      <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase', STATUS_CLASSES[panel.status])}>{panel.status}</span>
+    <DevKitSection
+      title={panel.title}
+      description="This surface is visible in the DevKit but intentionally blocked from executing until its backend prerequisites are ready."
+      icon={panel.icon}
+      action={<DevKitStatusBadge variant={panelStatusVariant(panel.status)} label={panel.status} />}
+    >
       {panel.blockers && panel.blockers.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-black uppercase tracking-widest text-white/35">Blockers from live Appwrite audit</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Blockers from live Appwrite audit
+          </p>
           {panel.blockers.map(blocker => (
-            <div key={blocker} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/65">{blocker}</div>
+            <div key={blocker} className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              {blocker}
+            </div>
           ))}
         </div>
       )}
-      <p className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-xs leading-relaxed text-blue-300">
+      <p className="mt-4 rounded-lg border border-border bg-muted/50 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         The Diagnostics panel remains the source of truth for current deployment, schema, and environment readiness.
       </p>
-    </div>
+    </DevKitSection>
   );
 }
 
@@ -187,32 +191,32 @@ function DevToolsInner() {
 
   if (!isUnlocked) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-6">
-        <div className="w-full max-w-md space-y-8 text-center">
-          <div className="space-y-2 text-center">
-            <div className="mb-4 inline-flex rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4">
-              {isVerifying ? <MiniSpinner size={40} className="text-blue-500" /> : <ShieldCheck className="h-10 w-10 text-blue-500" />}
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md space-y-6 text-center">
+          <div className="space-y-3 text-center">
+            <div className="mx-auto inline-flex rounded-2xl border border-border bg-card p-4">
+              {isVerifying ? <MiniSpinner size={40} className="text-primary" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-white">DEV-KIT 2026</h1>
-            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">DevKit</h1>
+            <p className="text-xs text-muted-foreground">
               Verifying Appwrite admin session
             </p>
             {user?.email && (
-              <p className="text-sm text-white/45">
-                Signed in as <span className="font-mono text-blue-300">{user.email}</span>
+              <p className="text-sm text-muted-foreground">
+                Signed in as <span className="font-mono text-foreground">{user.email}</span>
               </p>
             )}
           </div>
           {unlockError ? (
             <div className="space-y-3">
-              <p className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 {unlockError}
-              </p>
+              </div>
               <Button
                 type="button"
                 onClick={() => void requestAdminSession(true)}
                 disabled={isVerifying}
-                className="h-12 w-full rounded-2xl bg-blue-600 text-sm font-bold text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500"
+                className="w-full"
               >
                 {isVerifying ? <MiniSpinner size={18} className="mr-2" /> : null}
                 Retry admin verification
@@ -221,14 +225,14 @@ function DevToolsInner() {
                 type="button"
                 variant="ghost"
                 onClick={() => navigate('/dashboard')}
-                className="h-12 w-full rounded-2xl text-white/65 hover:bg-white/10 hover:text-white"
+                className="w-full"
               >
                 Back to dashboard
               </Button>
             </div>
           ) : (
-            <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/45">
-              No password is required. Access requires the Appwrite <code className="text-white/60">admin</code> label on your account (or a matching <code className="text-white/60">ADMIN_EMAIL</code> on the function).
+            <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              No password is required. Access requires the Appwrite <code className="text-foreground">admin</code> label on your account (or a matching <code className="text-foreground">ADMIN_EMAIL</code> on the function).
             </p>
           )}
         </div>
@@ -240,129 +244,109 @@ function DevToolsInner() {
   const activeGroup = groupForPanel(activePanel);
 
   return (
-    <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[#050505] text-white lg:flex-row">
+    <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-background text-foreground lg:flex-row">
       {/* Mobile header */}
-      <div className="flex items-center justify-between border-b border-white/5 bg-black p-4 lg:hidden">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div>
-          <span className="text-lg font-black tracking-tighter">DEV-KIT</span>
-          {activePanel && <span className="text-sm text-white/40 font-medium truncate max-w-[120px]">{activeDef.title}</span>}
+      <div className="flex items-center justify-between border-b border-border bg-card p-4 lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Cog size={18} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold tracking-tight">DevKit</span>
+            <span className="text-xs text-muted-foreground">{activeDef.title}</span>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="rounded-xl">{isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</Button>
+        <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </Button>
       </div>
 
-      {/* Sidebar backdrop — tap to close on mobile */}
+      {/* Mobile sidebar backdrop */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
-      <aside className={cn('fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-white/5 bg-black/95 backdrop-blur-xl transition-all duration-300 lg:static lg:w-80 lg:translate-x-0 lg:bg-black/50', isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full')}>
-        <div className="hidden items-center justify-between border-b border-white/5 p-6 lg:flex">
+      <aside className={cn(
+        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-card transition-all duration-200 lg:static lg:translate-x-0',
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      )}>
+        <div className="hidden items-center justify-between border-b border-border p-4 lg:flex">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600"><Cog size={18} className="text-white" /></div>
-            <span className="text-xl font-black tracking-tighter">DEV-KIT</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Cog size={18} />
+            </div>
+            <span className="text-lg font-semibold tracking-tight">DevKit</span>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl"><ArrowLeft size={20} /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft size={20} />
+          </Button>
         </div>
 
-        <nav className="flex-1 space-y-6 overflow-y-auto p-4">
+        <nav className="flex-1 space-y-6 overflow-y-auto p-3">
           {PANEL_GROUPS.map(group => (
-            <div key={group.label} className="space-y-1">
-              <h3 className="px-4 py-1 text-[10px] font-black uppercase tracking-widest text-white/25 flex items-center gap-2">
-                {group.label === 'Developer Tools' && <Wrench size={10} className="text-white/20" />}
-                {group.label}
-              </h3>
+            <DevKitSidebarGroup key={group.label} label={group.label}>
               {group.panels.map(panel => {
                 const badgeCount = badgeCounts[panel.id] ?? 0;
                 const isActive = activePanel === panel.id;
                 return (
-                  <button
+                  <DevKitNavItem
                     key={panel.id}
+                    icon={panel.icon}
+                    label={panel.title}
+                    active={isActive}
                     onClick={() => navigatePanel(panel.id)}
-                    className={cn(
-                      'group flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all',
-                      isActive
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                        : 'text-white/50 hover:bg-white/5 hover:text-white',
-                    )}
-                  >
-                    <panel.icon
-                      size={18}
-                      className={cn(isActive ? 'text-white' : 'text-white/20 group-hover:text-white/40')}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-left text-sm font-bold">{panel.title}</span>
-                    {badgeCount > 0 ? (
-                      <span className="rounded-full bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 min-w-[18px] text-center leading-tight">
-                        {badgeCount}
-                      </span>
-                    ) : (
-                      <span className={cn(
-                        'rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase',
-                        isActive ? 'border-white/20 bg-white/10 text-white' : STATUS_CLASSES[panel.status],
-                      )}>
-                        {statusShort(panel.status)}
-                      </span>
-                    )}
-                  </button>
+                    badge={badgeCount > 0 ? badgeCount : undefined}
+                    status={badgeCount > 0 ? undefined : panelStatusVariant(panel.status)}
+                  />
                 );
               })}
-            </div>
+            </DevKitSidebarGroup>
           ))}
         </nav>
 
-        <div className="space-y-3 border-t border-white/5 p-4">
+        <div className="space-y-2 border-t border-border p-3">
           {secondsUntilLock !== null && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-mono uppercase tracking-widest text-white/35">
+            <div className="rounded-lg border border-border bg-muted px-3 py-2 text-[10px] font-mono text-muted-foreground">
               Auto-lock in {Math.ceil(secondsUntilLock / 60)}m
             </div>
           )}
           <button
+            type="button"
             onClick={() => { setCmdKOpen(true); setCmdKQuery(''); setCmdKIndex(0); }}
-            className="flex w-full items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-[11px] text-white/30 hover:border-white/15 hover:bg-white/5 hover:text-white/50 transition-all"
+            className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <span className="font-medium">Jump to panel…</span>
-            <kbd className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px]">⌘K</kbd>
+            <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[9px]">⌘K</kbd>
           </button>
-          <Button variant="ghost" className="w-full justify-start rounded-2xl text-red-400 hover:bg-red-400/10 hover:text-red-300" onClick={lock}>
+          <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10" onClick={lock}>
             <Lock size={18} className="mr-3" /> Terminate Session
           </Button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="h-full flex-1 overflow-x-hidden overflow-y-auto bg-black/20">
-        <div className="mx-auto max-w-6xl p-4 lg:p-12">
-          <header className="mb-8 flex flex-col justify-between gap-6 lg:mb-12 md:flex-row md:items-end">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-black tracking-tighter lg:text-4xl">{activeDef.title}</h1>
-                <span className={cn('rounded-full border px-2 py-1 text-[10px] font-black uppercase', STATUS_CLASSES[activeDef.status])}>
-                  {activeDef.status}
-                </span>
-              </div>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                {activeGroup} / {activeDef.title}
-              </p>
-            </div>
-            <div className="hidden items-center gap-3 md:flex">
-              <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                <span className="text-[10px] font-black uppercase text-emerald-500">Diagnostics Enabled</span>
-              </div>
-            </div>
-          </header>
+      <main className="h-full flex-1 overflow-x-hidden overflow-y-auto bg-background">
+        <div className="mx-auto max-w-7xl p-6 lg:p-10">
+          <DevKitPanelHeader
+            title={activeDef.title}
+            description={`${activeGroup} / ${activeDef.title}`}
+            className="mb-8"
+          >
+            <DevKitStatusBadge variant={panelStatusVariant(activeDef.status)} label={activeDef.status} />
+          </DevKitPanelHeader>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={activePanel}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
             >
               {renderPanel()}
             </motion.div>
@@ -394,28 +378,28 @@ function DevToolsInner() {
 
         return (
           <div
-            className="fixed inset-0 z-[100] flex items-start justify-center pt-6 sm:pt-24 bg-black/60 backdrop-blur-sm px-3 sm:px-0"
+            className="fixed inset-0 z-[100] flex items-start justify-center bg-background/60 backdrop-blur-sm px-3 pt-6 sm:pt-24"
             onClick={() => setCmdKOpen(false)}
           >
             <div
-              className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/80 overflow-hidden"
+              className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5">
-                <Search size={16} className="text-white/30 shrink-0" />
+              <div className="flex items-center gap-3 border-b border-border px-4 py-3.5">
+                <Search size={16} className="text-muted-foreground shrink-0" />
                 <input
                   autoFocus
                   value={cmdKQuery}
                   onChange={e => { setCmdKQuery(e.target.value); setCmdKIndex(0); }}
                   onKeyDown={handleKey}
                   placeholder="Jump to panel…"
-                  className="flex-1 bg-transparent text-sm font-medium text-white placeholder:text-white/25 focus:outline-none"
+                  className="flex-1 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none"
                 />
-                <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-white/30">ESC</kbd>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">ESC</kbd>
               </div>
               <div className="max-h-72 overflow-y-auto py-2">
                 {results.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-sm text-white/25">No panels match "{cmdKQuery}"</div>
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">No panels match &ldquo;{cmdKQuery}&rdquo;</div>
                 ) : results.map((p, i) => {
                   const Icon = p.icon;
                   const isHighlighted = i === cmdKIndex;
@@ -424,19 +408,19 @@ function DevToolsInner() {
                       key={p.id}
                       className={cn(
                         'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                        isHighlighted ? 'bg-blue-600/25 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white',
+                        isHighlighted ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                       )}
                       onClick={() => { navigatePanel(p.id); setCmdKOpen(false); }}
                       onMouseEnter={() => setCmdKIndex(i)}
                     >
-                      <Icon size={15} className={cn(isHighlighted ? 'text-blue-400' : 'text-white/25')} />
-                      <span className="flex-1 text-sm font-bold">{p.title}</span>
-                      <span className="text-[10px] font-mono text-white/25">{p.group}</span>
+                      <Icon size={16} className={cn(isHighlighted ? 'text-foreground' : 'text-muted-foreground/60')} />
+                      <span className="flex-1 text-sm font-medium">{p.title}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{p.group}</span>
                     </button>
                   );
                 })}
               </div>
-              <div className="border-t border-white/8 px-4 py-2 flex items-center gap-4 text-[10px] text-white/20">
+              <div className="flex items-center gap-4 border-t border-border px-4 py-2 text-[10px] text-muted-foreground">
                 <span><kbd className="font-mono">↑↓</kbd> navigate</span>
                 <span><kbd className="font-mono">↵</kbd> open</span>
                 <span><kbd className="font-mono">esc</kbd> close</span>
