@@ -6554,3 +6554,147 @@ API key is stored in `.env` (gitignored) as `TESTSPRITE_API_KEY=...`. The `.mcp.
 - **Pending action (requires human):** Trigger `deploy-appwrite-hubs.yml` manually from `main` with `target: all`. This will redeploy all 20 hubs with `node-22` runtime and disable Appwrite VCS auto-deploy via `DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`.
 - TestSprite MCP is configured and ready. Run `/testsprite` in Claude Code once `TESTSPRITE_API_KEY` is set in your environment.
 - No product code, Appwrite function logic, environment variables, or Appwrite Console settings were changed during the documentation step.
+
+---
+
+## Session Log - 2026-06-19 (WiseResume Recovery Session - DevKit Reliability, WiseHire Access, Stale Asset Recovery, DevKit Redesign Phase 1)
+
+### Final status
+
+**DEPLOYED_PENDING_MANUAL_VERIFICATION**
+
+This session is not marked `PRODUCTION_COMPLETE` because owner browser-session verification remains pending.
+
+### Why this session happened
+
+Four parallel IDE/agent sessions froze or hit rate limits while working on Lazy Call/Stale Asset recovery, DevKit Reliability, WiseHire Access, and DevKit Redesign Phase 1. The working tree had mixed local work across unrelated scopes.
+
+Codex audited the repo state, separated the scopes, protected `main` from a missing build dependency, completed the approved scoped recovery commits, performed targeted deployment/verification actions, and left this handover note for the next owner/agent.
+
+### Critical build hotfix
+
+`AdminUsersPanel.tsx`, `GrowthTrafficPanel.tsx`, and `OverviewPanel.tsx` imported `./DevKitUI`. `DevKitUI.tsx` existed locally but was missing from `origin/main`, which meant `main` could break without the locally staged file.
+
+| Item | Value |
+|------|-------|
+| Commit | `f3e987b7a05b6c2d8312cf0db3b870cfd1b942dc` |
+| Message | `fix(devkit): add missing DevKitUI dependency` |
+| File committed | `src/components/dev-kit/DevKitUI.tsx` |
+| Validation | `npx tsc --noEmit` passed; `npm run build` passed |
+| Deployment impact | Vercel only; no Appwrite deployment required |
+
+### Recovery commits created
+
+| Scope | Commit | Message | Notes |
+|-------|--------|---------|-------|
+| WiseHire access model | `04be56c6` | `fix(wisehire): normalize account type access model` | Normalized account types to `job_seeker | hr`; fixed `recruiter` usage; changed `appwrite-hubs/admin-devkit-data/src/main.js`; updated `src/lib/devkit/sourceHashes.generated.json`; validation passed with TypeScript, build, and `node --check`; targeted Appwrite deploy required. |
+| Stale asset recovery | `f722f101` | `fix(frontend): harden stale asset recovery` | Handles `Unable to preload CSS`, `Failed to fetch dynamically imported module`, and `ChunkLoadError`; ensures rendered lazy imports use `lazyWithRetry`; added `src/lib/staleAssetRecovery.ts` and `src/lib/__tests__/staleAssetRecovery.test.ts`; validation passed with TypeScript, build, and focused Vitest; Vercel only. |
+| DevKit redesign Phase 1 | `19d3b813` | `style(devkit): apply phase 1 Vercel-style shell` | Frontend-only Phase 1 shell work. Files committed: `src/components/dev-kit/AICommandCenterPanel.tsx`, `src/components/dev-kit/DiagnosticsPanel.tsx`, `src/components/dev-kit/EmailHubPanel.tsx`, `src/components/dev-kit/FeatureFlagsPanel.tsx`, `src/components/dev-kit/HomePanel.tsx`, `src/pages/DevToolsPage.tsx`; TypeScript and build passed; Vercel only; Phase 2 remains pending for deeper panel interiors. |
+
+### Final production verification results
+
+Repo state:
+- `main` synced with `origin/main`.
+- Final commit: `19d3b813eacd82bed12aeddbde901611fa821ee9`.
+- `cmd /c "npx tsc --noEmit"` passed.
+- `npm run build` passed.
+- Existing build warnings remained: browser crypto externalization from `bcryptjs` and large chunks.
+- Working tree was clean except known untracked notes/scripts listed below.
+
+Vercel:
+- Latest production deployment was live.
+- Deployed commit SHA: `19d3b813eacd82bed12aeddbde901611fa821ee9`.
+- Status: `READY`.
+- Deployment URL: `https://wise-resume-mn7mrngyi-iam-magdy.vercel.app`.
+- Includes frontend changes from `f722f101` and `19d3b813`.
+- No manual Vercel deployment was triggered.
+
+Appwrite:
+- Targeted deploy command used: `node scripts/deploy_hubs.cjs --only=admin-devkit-data`.
+- Deployed target: `admin-devkit-data`.
+- Deployment ID: `6a34a374004bf4825b6b`.
+- Result: success.
+- Safe smoke result: HTTP 200.
+- Timeout metadata: `admin-devkit-data = 300s`.
+- Source hash metadata: `fn_deployed_hashes.admin-devkit-data = 05140c7c7c10295d`, matching the expected prefix.
+- No all-hubs deployment was performed.
+
+WiseHire schema:
+- `profiles.account_type` was missing initially.
+- Approved migration was run once, then run a second time to confirm idempotency.
+- Final field: `account_type`.
+- Type: string.
+- Required: false.
+- Default: null.
+- Idempotency: verified.
+
+Magdy account:
+- Account: `magdy.saber@outlook.com`.
+- Before value: `null`.
+- After value: `hr`.
+
+WiseHire live test:
+- Live data and guard logic were verified.
+- Magdy HR access passes by live profile value `hr`.
+- Missing/null `account_type` resolves to `job_seeker` and the guard denies WiseHire access.
+- `job_seeker` guard logic denies WiseHire access, but no live `job_seeker` sample was found during verification.
+- Normal profile update whitelist excludes `account_type`, so normal user profile updates omit and preserve it by omission.
+- Owner browser-session verification is still recommended. Codex did not log in as Magdy.
+
+DevKit reliability verification:
+
+| Function | Timeout |
+|----------|---------|
+| `admin-devkit-data` | 300s |
+| `admin-visitor-analytics` | 300s |
+| `admin-onboarding-funnel` | 120s |
+| `admin-moderation` | 60s |
+| `admin-portfolio-usernames` | 60s |
+
+Smoke checks returned HTTP 200 for:
+- Data Integrity
+- Mission Control
+- Growth & Traffic -> Visitors
+- Growth & Traffic -> Analytics
+- Growth & Traffic -> Onboarding Funnel
+- Observability
+- Users
+- Database X-Ray
+- Moderation
+- Portfolios
+
+### Remaining local files
+
+Untracked only:
+- `scripts/execute_schema_migration.md`
+- `scripts/test_wisehire_access.md`
+- `scripts/update_magdy_account.md`
+- `status_check.txt`
+
+At session end there were no staged files and no tracked diffs. Do not delete these untracked files unless the owner approves.
+
+### Remaining risks and owner verification
+
+Owner still needs to verify WiseHire and DevKit in a real browser session. Codex verified live data, guard logic, function smoke responses, and timeout metadata, but not Magdy's actual logged-in browser experience.
+
+Manual checks still pending:
+1. Log in as `magdy.saber@outlook.com`.
+2. Confirm WiseHire opens successfully.
+3. Confirm DevKit tabs visually load in browser: Users, Growth & Traffic, Visitors, Observability, Data Integrity, Mission Control.
+4. Confirm no visual breakage from DevKit Phase 1.
+5. Confirm the stale asset issue does not reappear after Vercel deploy and hard refresh.
+
+### Future agent instructions
+
+- Do not redeploy all Appwrite hubs unless strictly required.
+- For Appwrite function source changes, update/check source hashes and deploy the smallest target only.
+- WiseHire account type model is `job_seeker | hr`; do not reintroduce `recruiter` as `account_type` unless schema and guards are intentionally changed.
+- `profiles.account_type` remains admin-controlled only; do not add it to normal user-facing profile update whitelists.
+- DevKit reliability is deployed, but owner browser smoke is still needed.
+- DevKit redesign is Phase 1 only; Phase 2 remains pending for deeper panel interiors.
+- Stale asset recovery is frontend-only through Vercel, not Appwrite.
+- Keep future fixes scoped; avoid mixing reliability, WiseHire, stale asset recovery, and visual redesign in one commit.
+
+### Short handover summary
+
+The recovery work separated a frozen mixed session into scoped commits, protected `main` with the missing `DevKitUI.tsx` dependency hotfix, deployed only the required `admin-devkit-data` Appwrite function, added the missing WiseHire `profiles.account_type` field, updated Magdy's account type to `hr`, confirmed Vercel production is live on `19d3b813`, and left only manual browser verification outstanding.
