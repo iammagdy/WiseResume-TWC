@@ -222,6 +222,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const [profileUsername, setProfileUsername] = useState('');
   const [profileUsernameLoaded, setProfileUsernameLoaded] = useState(false);
   const [profileEnabled, setProfileEnabled] = useState<boolean | null>(null);
+  const [profileAccountType, setProfileAccountType] = useState<'job_seeker' | 'hr'>(user.account_type || 'job_seeker');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -368,10 +369,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     }).then((tuple) => {
       if (cancelled) return;
       try {
-        const result = unwrapAdminResponse<{ profile?: { username?: string | null; portfolio_enabled?: boolean | null } | null }>(tuple, 'admin-devkit-data');
+        const result = unwrapAdminResponse<{ profile?: { username?: string | null; portfolio_enabled?: boolean | null; account_type?: string | null } | null }>(tuple, 'admin-devkit-data');
         const profileData = result.profile ?? null;
         setProfileUsername(profileData?.username ?? '');
         setProfileEnabled(profileData?.portfolio_enabled ?? false);
+        setProfileAccountType((profileData?.account_type as 'job_seeker' | 'hr') || 'job_seeker');
         setProfileUsernameLoaded(true);
       } catch (e) {
         const msg = formatEdgeError(e, 'Could not load portfolio profile fields');
@@ -489,6 +491,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           target_user_id: user.user_id,
           full_name: trimmedName || null,
           username: trimmedUsername || undefined,
+          account_type: profileAccountType,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
           admin_bypass_validation: true,
         },
@@ -511,6 +514,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       setUser(prev => ({
         ...prev,
         full_name: trimmedName || null,
+        account_type: profileAccountType,
       }));
       onUserUpdated();
     } catch (e) {
@@ -1416,6 +1420,31 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                         {profileEnabled ? 'Enabled' : 'Disabled'}
                       </Badge>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium">Account type</label>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 mb-1">Controls WiseHire access - HR users can access WiseHire features</p>
+                    <div className="flex gap-1 mt-1">
+                      {(['job_seeker', 'hr'] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setProfileAccountType(type)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize ${
+                            profileAccountType === type
+                              ? 'bg-blue-500/10 text-blue-700 border border-blue-500/20 dark:text-blue-400'
+                              : 'bg-muted text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {type === 'hr' ? 'HR' : 'Job Seeker'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {profileAccountType === 'hr' 
+                        ? 'HR accounts can access WiseHire features' 
+                        : 'Job seeker accounts can access resume features'}
+                    </p>
                   </div>
 
                   <Button

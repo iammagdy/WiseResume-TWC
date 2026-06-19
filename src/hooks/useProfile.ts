@@ -58,6 +58,9 @@ export interface Profile {
   lastLoginDate: string | null;
   digestEnabled: boolean;
   hiredAt: string | null;
+  // WiseHire access control - READ-ONLY for normal users
+  // Only admin DevKit functions can modify this field
+  accountType: 'job_seeker' | 'hr' | null;
 }
 
 /** Minimal shape accepted by the profile completion helpers — camelCase keys matching Profile */
@@ -260,6 +263,8 @@ export function useProfile(userId: string | undefined) {
         lastLoginDate: (doc.last_login_date as string | null) ?? null,
         digestEnabled: (doc.digest_enabled as boolean) ?? true,
         hiredAt: (doc.hired_at as string | null) ?? null,
+        // WiseHire access control - READ-ONLY mapping
+        accountType: (doc.account_type as 'job_seeker' | 'hr' | null) ?? null,
       };
     },
     enabled: !!userId,
