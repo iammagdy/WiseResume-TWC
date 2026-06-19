@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/wisehire/useAccountType';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { ContactUsLockout } from '@/components/wisehire/ContactUsLockout';
+import { useAdminStatus } from '@/hooks/useIsAdmin';
 
 const LOADING_TIMEOUT_MS = 12_000;
 
@@ -20,6 +21,7 @@ export function WiseHireGuard() {
   const { isAuthenticated, loading, authSettled } = useAuth();
   const { accountType, isLoading: accountTypeLoading } = useAccountType();
   const { data: whAccount, isLoading: whAccountLoading } = useWiseHireAccount();
+  const { isAdmin, isLoading: adminStatusLoading } = useAdminStatus();
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticatedRef = useRef(isAuthenticated);
@@ -57,12 +59,12 @@ export function WiseHireGuard() {
   }
 
   // Wait for account type to resolve (with timeout)
-  if (!loadingTimedOut && (!authSettled || accountTypeLoading)) {
+  if (!loadingTimedOut && (!authSettled || accountTypeLoading || adminStatusLoading)) {
     return <WiseHireLoadingSkeleton />;
   }
 
   // Wrong product — redirect job seekers back to their dashboard
-  if (accountType !== null && accountType !== 'hr') {
+  if (!isAdmin && accountType !== null && accountType !== 'hr') {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -74,7 +76,7 @@ export function WiseHireGuard() {
   // Trial expired + no paid plan → full-screen lockout
   // Allow access to /wisehire/subscription so they can apply a coupon
   const isSubscriptionPage = location.pathname === '/wisehire/subscription';
-  if (whAccount?.isExpiredWithNoPlan && !isSubscriptionPage) {
+  if (!isAdmin && whAccount?.isExpiredWithNoPlan && !isSubscriptionPage) {
     return <ContactUsLockout />;
   }
 

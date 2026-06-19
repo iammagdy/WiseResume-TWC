@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, LayoutDashboard, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 function useCountUp(target: number, prefersReduced: boolean | null, duration = 1400) {
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -87,6 +89,7 @@ function useWHTypewriter(words: string[], prefersReduced: boolean | null) {
 }
 
 interface WiseHireHeroProps {
+  isAuthenticated: boolean;
   onOpenWaitlist: () => void;
   mobileToggle?: ReactNode;
 }
@@ -119,10 +122,13 @@ function WhHeroDecor({ side }: { side: 'left' | 'right' }) {
   );
 }
 
-export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps) {
+export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: WiseHireHeroProps) {
+  const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
   const prefersReducedMotion = useReducedMotion();
   const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS, prefersReducedMotion);
   const waitlistCount = useCountUp(500, prefersReducedMotion);
+  const showDashboardCta = isAuthenticated && isAdmin;
 
   return (
     <section
@@ -232,14 +238,23 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
           gets a clearer hover/focus state. Tightened gap (12 → 10px). */}
       <div className="relative z-10 flex flex-col sm:flex-row items-center gap-2.5">
         <motion.button
-          onClick={onOpenWaitlist}
+          onClick={showDashboardCta ? () => navigate('/wisehire/dashboard') : onOpenWaitlist}
           className="wh-cta-primary h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
           whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.03 }}
           whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 400, damping: 22 }}
         >
-          Join the Waitlist
-          <ArrowRight className="w-4 h-4" />
+          {showDashboardCta ? (
+            <>
+              Go to Dashboard
+              <LayoutDashboard className="w-4 h-4" />
+            </>
+          ) : (
+            <>
+              Join the Waitlist
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
         </motion.button>
         <motion.button
           onClick={() => document.getElementById('wisehire-demo')?.scrollIntoView({ behavior: 'smooth' })}

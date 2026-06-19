@@ -85,6 +85,7 @@ export default function LandingMotionStage({
             <m.div variants={sectionItem} custom={0}>
               <Suspense fallback={<LpFallback minHeight={640} />}>
                 <WiseHireHero
+                  isAuthenticated={isAuthenticated}
                   onOpenWaitlist={onOpenWaitlist}
                   mobileToggle={
                     <div className="sm:hidden relative z-10 flex justify-center mt-1 mb-6">
