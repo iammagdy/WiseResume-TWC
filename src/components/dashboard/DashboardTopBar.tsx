@@ -1,10 +1,11 @@
-import { lazy, memo, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { memo, Suspense } from 'react';
 import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
-const DashboardUploadWidget = lazy(() =>
+const DashboardUploadWidget = lazyWithRetry(() =>
   import('@/components/dashboard/DashboardUploadWidget').then((m) => ({
     default: m.DashboardUploadWidget,
   })),

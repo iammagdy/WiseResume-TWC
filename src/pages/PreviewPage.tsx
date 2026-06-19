@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -21,10 +22,10 @@ import { dbToResumeData, useResume } from '@/hooks/useResumes';
 import { templateComponentMap } from '@/lib/templateComponentMap';
 
 // Lazy-loaded sheets
-const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsSheet').then((m) => ({ default: m.ExportOptionsSheet })));
-const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then((m) => ({ default: m.ResumePhotoSheet })));
-const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/SmartFitWizardSheet').then((m) => ({ default: m.SmartFitWizardSheet })));
-const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then((m) => ({ default: m.ShareSheet })));
+const ExportOptionsSheet = lazyWithRetry(() => import('@/components/editor/ExportOptionsSheet').then((m) => ({ default: m.ExportOptionsSheet })));
+const ResumePhotoSheet = lazyWithRetry(() => import('@/components/editor/ResumePhotoSheet').then((m) => ({ default: m.ResumePhotoSheet })));
+const OnePageWizardSheet = lazyWithRetry(() => import('@/components/editor/ai/SmartFitWizardSheet').then((m) => ({ default: m.SmartFitWizardSheet })));
+const ShareSheet = lazyWithRetry(() => import('@/components/editor/ShareSheet').then((m) => ({ default: m.ShareSheet })));
 import { PdfGenerationError } from '@/lib/pdfUtils';
 import { PDFServerUnavailableError } from '@/lib/nativePdfGenerator';
 import { getTemplateConfig } from '@/lib/templateConfig';

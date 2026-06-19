@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { Suspense, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
@@ -17,19 +18,19 @@ import haptics from '@/lib/haptics';
 import type { SectionId } from '@/types/resume';
 import type { ATSSuggestion, DeepResult } from '@/hooks/useATSSuggestions';
 
-const ContactSection = lazy(() => import('@/components/editor/ContactSection').then(m => ({ default: m.ContactSection })));
-const SummarySection = lazy(() => import('@/components/editor/SummarySection').then(m => ({ default: m.SummarySection })));
-const ExperienceSection = lazy(() => import('@/components/editor/ExperienceSection').then(m => ({ default: m.ExperienceSection })));
-const EducationSection = lazy(() => import('@/components/editor/EducationSection').then(m => ({ default: m.EducationSection })));
-const SkillsSection = lazy(() => import('@/components/editor/SkillsSection').then(m => ({ default: m.SkillsSection })));
-const AwardsSection = lazy(() => import('@/components/editor/AwardsSection').then(m => ({ default: m.AwardsSection })));
-const ProjectsSection = lazy(() => import('@/components/editor/ProjectsSection').then(m => ({ default: m.ProjectsSection })));
-const PublicationsSection = lazy(() => import('@/components/editor/PublicationsSection').then(m => ({ default: m.PublicationsSection })));
-const VolunteeringSection = lazy(() => import('@/components/editor/VolunteeringSection').then(m => ({ default: m.VolunteeringSection })));
-const HobbiesSection = lazy(() => import('@/components/editor/HobbiesSection').then(m => ({ default: m.HobbiesSection })));
-const ReferencesSection = lazy(() => import('@/components/editor/ReferencesSection').then(m => ({ default: m.ReferencesSection })));
-const CertificationsSection = lazy(() => import('@/components/editor/CertificationsSection').then(m => ({ default: m.CertificationsSection })));
-const LanguagesSection = lazy(() => import('@/components/editor/LanguagesSection').then(m => ({ default: m.LanguagesSection })));
+const ContactSection = lazyWithRetry(() => import('@/components/editor/ContactSection').then(m => ({ default: m.ContactSection })));
+const SummarySection = lazyWithRetry(() => import('@/components/editor/SummarySection').then(m => ({ default: m.SummarySection })));
+const ExperienceSection = lazyWithRetry(() => import('@/components/editor/ExperienceSection').then(m => ({ default: m.ExperienceSection })));
+const EducationSection = lazyWithRetry(() => import('@/components/editor/EducationSection').then(m => ({ default: m.EducationSection })));
+const SkillsSection = lazyWithRetry(() => import('@/components/editor/SkillsSection').then(m => ({ default: m.SkillsSection })));
+const AwardsSection = lazyWithRetry(() => import('@/components/editor/AwardsSection').then(m => ({ default: m.AwardsSection })));
+const ProjectsSection = lazyWithRetry(() => import('@/components/editor/ProjectsSection').then(m => ({ default: m.ProjectsSection })));
+const PublicationsSection = lazyWithRetry(() => import('@/components/editor/PublicationsSection').then(m => ({ default: m.PublicationsSection })));
+const VolunteeringSection = lazyWithRetry(() => import('@/components/editor/VolunteeringSection').then(m => ({ default: m.VolunteeringSection })));
+const HobbiesSection = lazyWithRetry(() => import('@/components/editor/HobbiesSection').then(m => ({ default: m.HobbiesSection })));
+const ReferencesSection = lazyWithRetry(() => import('@/components/editor/ReferencesSection').then(m => ({ default: m.ReferencesSection })));
+const CertificationsSection = lazyWithRetry(() => import('@/components/editor/CertificationsSection').then(m => ({ default: m.CertificationsSection })));
+const LanguagesSection = lazyWithRetry(() => import('@/components/editor/LanguagesSection').then(m => ({ default: m.LanguagesSection })));
 
 const MORE_SECTION_COMPONENTS: Record<string, { icon: LucideIcon; title: string; hasAI: boolean; Component: React.LazyExoticComponent<React.ComponentType> }> = {
   awards: { icon: Trophy, title: 'Awards & Achievements', hasAI: true, Component: AwardsSection },

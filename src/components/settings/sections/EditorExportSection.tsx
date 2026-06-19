@@ -1,4 +1,5 @@
-import { memo, useState, Suspense, lazy } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { memo, useState, Suspense } from 'react';
 import { Download, Database, ChevronDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -9,7 +10,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
-const CloudSyncBadge = lazy(() => import('./CloudSyncBadge'));
+const CloudSyncBadge = lazyWithRetry(() => import('./CloudSyncBadge'));
 
 interface EditorExportSectionProps {
     isSignedIn: boolean;

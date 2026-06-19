@@ -1,4 +1,5 @@
-import { Suspense, lazy, type ReactNode, type RefObject } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { Suspense, type ReactNode, type RefObject } from 'react';
 import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import {
   SCATTER_WRAPPER_VARIANTS, SCATTER_SECTION_ITEM,
@@ -8,28 +9,28 @@ import { SoftDivider } from './SoftDivider';
 import { LandingToggle } from './LandingToggle';
 import { WiseResumeHero } from './WiseResumeHero';
 
-const WiseResumeContent = lazy(() =>
+const WiseResumeContent = lazyWithRetry(() =>
   import('./WiseResumeContent').then((m) => ({ default: m.WiseResumeContent }))
 );
-const WiseHireHero = lazy(() =>
+const WiseHireHero = lazyWithRetry(() =>
   import('./wisehire/WiseHireHero').then((m) => ({ default: m.WiseHireHero }))
 );
-const WiseHireFeatures = lazy(() =>
+const WiseHireFeatures = lazyWithRetry(() =>
   import('./wisehire/WiseHireFeatures').then((m) => ({ default: m.WiseHireFeatures }))
 );
-const WiseHirePricing = lazy(() =>
+const WiseHirePricing = lazyWithRetry(() =>
   import('./wisehire/WiseHirePricing').then((m) => ({ default: m.WiseHirePricing }))
 );
-const WiseHireDemoSection = lazy(() =>
+const WiseHireDemoSection = lazyWithRetry(() =>
   import('./wisehire/WiseHireDemoSection').then((m) => ({ default: m.WiseHireDemoSection }))
 );
-const WiseHireTrustSection = lazy(() =>
+const WiseHireTrustSection = lazyWithRetry(() =>
   import('./wisehire/WiseHireTrustSection').then((m) => ({ default: m.WiseHireTrustSection }))
 );
-const WiseHireFeatureTicker = lazy(() =>
+const WiseHireFeatureTicker = lazyWithRetry(() =>
   import('./wisehire/WiseHireFeatureTicker').then((m) => ({ default: m.WiseHireFeatureTicker }))
 );
-const WiseHireClosingCTA = lazy(() =>
+const WiseHireClosingCTA = lazyWithRetry(() =>
   import('./wisehire/WiseHireClosingCTA').then((m) => ({ default: m.WiseHireClosingCTA }))
 );
 

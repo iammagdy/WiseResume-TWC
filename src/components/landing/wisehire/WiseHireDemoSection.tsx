@@ -1,16 +1,17 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
 
 /* Phase 2: lazy-load each WiseHire demo component so they don't bloat
    the initial bundle. Mirrors the pattern in FeatureSection.tsx. */
-const BriefDemo = lazy(() => import('./BriefDemo').then((m) => ({ default: m.BriefDemo })));
-const PipelineDemo = lazy(() => import('./PipelineDemo').then((m) => ({ default: m.PipelineDemo })));
-const JDDemo = lazy(() => import('./JDDemo').then((m) => ({ default: m.JDDemo })));
-const BulkScreeningDemo = lazy(() => import('./BulkScreeningDemo').then((m) => ({ default: m.BulkScreeningDemo })));
-const TalentPoolDemo = lazy(() => import('./TalentPoolDemo').then((m) => ({ default: m.TalentPoolDemo })));
-const OfferTrackerDemo = lazy(() => import('./OfferTrackerDemo').then((m) => ({ default: m.OfferTrackerDemo })));
+const BriefDemo = lazyWithRetry(() => import('./BriefDemo').then((m) => ({ default: m.BriefDemo })));
+const PipelineDemo = lazyWithRetry(() => import('./PipelineDemo').then((m) => ({ default: m.PipelineDemo })));
+const JDDemo = lazyWithRetry(() => import('./JDDemo').then((m) => ({ default: m.JDDemo })));
+const BulkScreeningDemo = lazyWithRetry(() => import('./BulkScreeningDemo').then((m) => ({ default: m.BulkScreeningDemo })));
+const TalentPoolDemo = lazyWithRetry(() => import('./TalentPoolDemo').then((m) => ({ default: m.TalentPoolDemo })));
+const OfferTrackerDemo = lazyWithRetry(() => import('./OfferTrackerDemo').then((m) => ({ default: m.OfferTrackerDemo })));
 
 /* Phase 6: every demo slot is pinned to this exact height so the inner
    demo's animations (typing text, score counter, ranked-results reveal,

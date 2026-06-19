@@ -1,13 +1,14 @@
-import { lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { Suspense } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { Check } from 'lucide-react';
 
-const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
-const LazyPortfolioDemo = lazy(() => import('@/components/landing/PortfolioDemo').then((m) => ({ default: m.PortfolioDemo })));
-const LazyTailoringDemo = lazy(() => import('@/components/landing/TailoringDemo').then((m) => ({ default: m.TailoringDemo })));
-const LazyInterviewDemo = lazy(() => import('@/components/landing/InterviewDemo').then((m) => ({ default: m.InterviewDemo })));
-const LazyTrackerDemo = lazy(() => import('@/components/landing/TrackerDemo').then((m) => ({ default: m.TrackerDemo })));
+const LazyEditorDemo = lazyWithRetry(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
+const LazyPortfolioDemo = lazyWithRetry(() => import('@/components/landing/PortfolioDemo').then((m) => ({ default: m.PortfolioDemo })));
+const LazyTailoringDemo = lazyWithRetry(() => import('@/components/landing/TailoringDemo').then((m) => ({ default: m.TailoringDemo })));
+const LazyInterviewDemo = lazyWithRetry(() => import('@/components/landing/InterviewDemo').then((m) => ({ default: m.InterviewDemo })));
+const LazyTrackerDemo = lazyWithRetry(() => import('@/components/landing/TrackerDemo').then((m) => ({ default: m.TrackerDemo })));
 
 export type DemoKey = 'editor' | 'tailoring' | 'portfolio' | 'interview' | 'tracker';
 export type BandColor = 'dark1' | 'dark2' | 'dark3' | 'brand' | 'beige' | 'dark' | 'tint';

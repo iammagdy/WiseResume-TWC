@@ -9,6 +9,7 @@ import {
   buildCrashReportSubject,
 } from '@/lib/crashReportPayload';
 import { getCrashReporterContext } from '@/lib/crashReportContext';
+import { isStaleAssetError } from '@/lib/staleAssetRecovery';
 
 // Module-level auth user id store — populated by AuthContext on each auth
 // state change. Avoids hooks (impossible in a class component).
@@ -127,10 +128,7 @@ export class ErrorBoundary extends Component<Props, State> {
       source: 'ErrorBoundary.componentDidCatch',
     });
 
-    const isChunkError =
-      error.name === 'ChunkLoadError' ||
-      /Loading chunk .* failed/.test(error.message) ||
-      /Failed to fetch dynamically imported module/.test(error.message);
+    const isChunkError = isStaleAssetError(error);
 
     if (!isChunkError) {
       this.autoSendCrashReport(error, errorInfo);
@@ -286,10 +284,7 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleRetry = async () => {
-    const isChunkError = this.state.error?.message != null &&
-      (this.state.error.message.includes('dynamically imported module') ||
-       this.state.error.message.includes('Failed to fetch') ||
-       this.state.error.message.includes('Loading chunk'));
+    const isChunkError = isStaleAssetError(this.state.error);
 
     if (isChunkError) {
       window.location.reload();
@@ -379,10 +374,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      const isChunkError = this.state.error?.message != null &&
-        (this.state.error.message.includes('dynamically imported module') ||
-         this.state.error.message.includes('Failed to fetch') ||
-         this.state.error.message.includes('Loading chunk'));
+      const isChunkError = isStaleAssetError(this.state.error);
 
       const { showTechnicalDetails, autoReportStatus } = this.state;
 

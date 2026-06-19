@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,7 +35,7 @@ type OnboardingMethod =
   | 'linkedin-pdf'
   | 'manual';
 
-const ProfileImportSheet = lazy(() =>
+const ProfileImportSheet = lazyWithRetry(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
 );
 

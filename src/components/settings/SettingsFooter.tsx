@@ -1,10 +1,11 @@
-import { Suspense, lazy } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { Suspense } from 'react';
 import { AppIcon } from '@/components/brand/AppIcon';
 import developerPhoto from '@/assets/developer-photo.png';
 import { openExternal } from '@/lib/openExternal';
 import { cn } from '@/lib/utils';
 
-const ProfileCard = lazy(() => import('@/components/settings/ProfileCard'));
+const ProfileCard = lazyWithRetry(() => import('@/components/settings/ProfileCard'));
 
 interface SettingsFooterProps {
   appVersion: string;

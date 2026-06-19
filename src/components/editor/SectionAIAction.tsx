@@ -1,4 +1,5 @@
-import { memo, useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { memo, useState, useEffect, useRef, Suspense } from 'react';
 import { InlineAIButton, SectionType } from './InlineAIButton';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { useResumeStore } from '@/store/resumeStore';
@@ -11,7 +12,7 @@ import { useSectionAIBridge } from '@/store/sectionAIBridge';
 import { isSectionContentEmpty, isGenerativeAction, emptySectionToastMessage } from '@/lib/ai/sectionContentGuard';
 import { toast } from 'sonner';
 
-const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
+const SignInPromptDialog = lazyWithRetry(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 
 interface SectionAIActionProps {
   section: SectionType;

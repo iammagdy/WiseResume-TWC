@@ -1,4 +1,5 @@
-import { memo, Suspense, lazy, useCallback } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { memo, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Crown, Gift, KeyRound } from 'lucide-react';
@@ -15,7 +16,7 @@ import { openExternal } from '@/lib/openExternal';
 import { account } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 
-const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
+const AccountStatsCard = lazyWithRetry(() => import('./AccountStatsCard'));
 
 const OAUTH_SECURITY_URLS: Record<string, string> = {
     google: 'https://myaccount.google.com/security',

@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { Suspense } from 'react';
 import { useLocation } from 'react-router-dom';
 import { X, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -9,7 +10,7 @@ import { resolvePageContext } from '@/lib/wiseWorkspace/pageContext';
 import { WiseWorkspaceNavPane } from '@/components/wise-workspace/WiseWorkspaceNavPane';
 import { useIsLgViewport } from '@/lib/wiseWorkspace/drawerLayout';
 
-const WiseWorkspaceChat = lazy(() =>
+const WiseWorkspaceChat = lazyWithRetry(() =>
   import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.WiseWorkspaceChat })),
 );
 

@@ -1,11 +1,12 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useState, useEffect, Suspense } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Check, Clock, Zap } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
-const ProfileImportSheet = lazy(() =>
+const ProfileImportSheet = lazyWithRetry(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
 );
 import { v4 as uuidv4 } from 'uuid';

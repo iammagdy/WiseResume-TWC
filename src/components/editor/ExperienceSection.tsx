@@ -1,4 +1,5 @@
-import { useState, memo, useCallback, lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useState, memo, useCallback, Suspense } from 'react';
 
 import { Plus, Briefcase, Linkedin, Sparkles, MoreHorizontal, Bot } from 'lucide-react';
 import { useChatTriggerStore } from '@/store/chatTriggerStore';
@@ -26,8 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-const BoostAllExperienceSheet = lazy(() => import('./BoostAllExperienceSheet').then(m => ({ default: m.BoostAllExperienceSheet })));
-const LinkedInOptimizerSheet = lazy(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
+const BoostAllExperienceSheet = lazyWithRetry(() => import('./BoostAllExperienceSheet').then(m => ({ default: m.BoostAllExperienceSheet })));
+const LinkedInOptimizerSheet = lazyWithRetry(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
 
 export const ExperienceSection = memo(function ExperienceSection() {
   const experience = useResumeStore(state => state.currentResume?.experience);

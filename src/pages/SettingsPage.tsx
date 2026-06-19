@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { useNavigate } from 'react-router-dom';
 import { X, Check } from 'lucide-react';
@@ -32,12 +33,12 @@ import { SettingsFooter } from '@/components/settings/SettingsFooter';
 import '@/components/settings/settings-workspace.css';
 
 // Lazy-loaded sheets
-const EditProfileSheet = lazy(() => import('@/components/settings/EditProfileSheet').then((m) => ({ default: m.EditProfileSheet })));
-const DataExportSheet = lazy(() => import('@/components/settings/DataExportSheet').then((m) => ({ default: m.DataExportSheet })));
-const DeleteDataDialog = lazy(() => import('@/components/settings/DeleteDataDialog').then((m) => ({ default: m.DeleteDataDialog })));
-const BiometricSetupSheet = lazy(() => import('@/components/settings/BiometricSetupSheet').then((m) => ({ default: m.BiometricSetupSheet })));
-const BiometricTimeoutSheet = lazy(() => import('@/components/settings/BiometricTimeoutSheet').then((m) => ({ default: m.BiometricTimeoutSheet })));
-const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then((m) => ({ default: m.HelpSheet })));
+const EditProfileSheet = lazyWithRetry(() => import('@/components/settings/EditProfileSheet').then((m) => ({ default: m.EditProfileSheet })));
+const DataExportSheet = lazyWithRetry(() => import('@/components/settings/DataExportSheet').then((m) => ({ default: m.DataExportSheet })));
+const DeleteDataDialog = lazyWithRetry(() => import('@/components/settings/DeleteDataDialog').then((m) => ({ default: m.DeleteDataDialog })));
+const BiometricSetupSheet = lazyWithRetry(() => import('@/components/settings/BiometricSetupSheet').then((m) => ({ default: m.BiometricSetupSheet })));
+const BiometricTimeoutSheet = lazyWithRetry(() => import('@/components/settings/BiometricTimeoutSheet').then((m) => ({ default: m.BiometricTimeoutSheet })));
+const HelpSheet = lazyWithRetry(() => import('@/components/settings/HelpSheet').then((m) => ({ default: m.HelpSheet })));
 // Extracted section components
 import { TalentPoolDiscoverableCard } from '@/components/settings/TalentPoolDiscoverableCard';
 import { AccountSection } from '@/components/settings/sections/AccountSection';

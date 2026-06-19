@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useState, useEffect, useRef, useMemo, useDeferredValue, Suspense, useCallback } from 'react';
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
@@ -54,9 +55,9 @@ import { isNormalResume, isTailoredResume } from '@/lib/resumeLineage';
 import { OnboardingChecklist, ChecklistStep } from '@/components/dashboard/OnboardingChecklist';
 
 // Lazy-loaded dialogs
-const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
-const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImportSheet').then(m => ({ default: m.LinkedInImportSheet })));
-const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
+const CreateResumeDialog = lazyWithRetry(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
+const LinkedInImportSheet = lazyWithRetry(() => import('@/components/settings/LinkedInImportSheet').then(m => ({ default: m.LinkedInImportSheet })));
+const AnalyzeJobSheet = lazyWithRetry(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
 
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';

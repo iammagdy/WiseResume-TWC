@@ -1,3 +1,4 @@
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import './index-landing.css';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -12,7 +13,7 @@ import triggerHaptic from '@/lib/haptics';
 // `src/lib/usePrefersReducedMotion`. Result: framer-motion is excluded
 // from the landing entry chunk and only fetched once the motion stage
 // chunk arrives.
-import { useEffect, useState, useRef, useCallback, startTransition, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback, startTransition, Suspense } from 'react';
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -49,11 +50,11 @@ if (typeof window !== 'undefined') {
    landing entry chunk. The dialogs (WaitlistModal, QuickTailorSheet)
    are also lazy: they're invisible on first paint and only mount on
    user action. */
-const LandingMotionStage = lazy(() => import('@/components/landing/LandingMotionStage'));
-const WaitlistModal = lazy(() =>
+const LandingMotionStage = lazyWithRetry(() => import('@/components/landing/LandingMotionStage'));
+const WaitlistModal = lazyWithRetry(() =>
   import('@/components/landing/WaitlistModal').then((m) => ({ default: m.WaitlistModal }))
 );
-const QuickTailorSheet = lazy(() =>
+const QuickTailorSheet = lazyWithRetry(() =>
   import('@/components/landing/QuickTailorSheet').then((m) => ({ default: m.QuickTailorSheet }))
 );
 /* Task #15 (LCP fix): static hero shell rendered as the Suspense fallback

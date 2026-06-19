@@ -1,5 +1,6 @@
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { useLocation, useOutlet } from 'react-router-dom';
-import { useRef, useEffect, useState, lazy, Suspense } from 'react';
+import { useRef, useEffect, useState, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useBottomSheetOpen } from '@/context/BottomSheetContext';
 
@@ -14,9 +15,9 @@ import {
   useWiseWorkspaceGlobalEvents,
 } from '@/components/wise-workspace/WiseWorkspaceShell';
 
-const GuestSaveBanner = lazy(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
-const OfflineBanner = lazy(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
-const SlowConnectionBanner = lazy(() => import('./SlowConnectionBanner').then((m) => ({ default: m.SlowConnectionBanner })));
+const GuestSaveBanner = lazyWithRetry(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
+const OfflineBanner = lazyWithRetry(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
+const SlowConnectionBanner = lazyWithRetry(() => import('./SlowConnectionBanner').then((m) => ({ default: m.SlowConnectionBanner })));
 import { SwipeBackWrapper } from './SwipeBackWrapper';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useLayoutEffect, useState, lazy } from "react";
+import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,8 +9,8 @@ import { useShallow } from "zustand/react/shallow";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { isAppHostname } from "@/hooks/usePublicPortfolio";
 
-const WallpaperPage = lazy(() => import("./pages/WallpaperPage"));
-const ActAs = lazy(() => import("./pages/ActAs"));
+const WallpaperPage = lazyWithRetry(() => import("./pages/WallpaperPage"));
+const ActAs = lazyWithRetry(() => import("./pages/ActAs"));
 
 const AnimatedSplash = lazyWithRetry(() =>
   import("@/components/AnimatedSplash").then((m) => ({ default: m.AnimatedSplash }))

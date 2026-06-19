@@ -1,4 +1,5 @@
-import { useState, memo, lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useState, memo, Suspense } from 'react';
 
 import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar, ArrowUp, ArrowDown, MoreHorizontal, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-const LinkedInOptimizerSheet = lazy(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
+const LinkedInOptimizerSheet = lazyWithRetry(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
 
 export const EducationSection = memo(function EducationSection() {
   const education = useResumeStore(state => state.currentResume?.education);

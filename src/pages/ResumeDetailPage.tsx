@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, Zap, BarChart3, RefreshCw, Mic, MoreVertical, Sparkles } from 'lucide-react';
@@ -40,7 +40,7 @@ import { ChevronDown } from 'lucide-react';
 
 const ATSScoreTrendChart = lazyWithRetry(() => import('@/components/dashboard/ATSScoreTrendChart').then(m => ({ default: m.ATSScoreTrendChart })));
 
-const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
+const AIEnhanceSheet = lazyWithRetry(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
 
 export default function ResumeDetailPage() {
   const { id } = useParams<{ id: string }>();

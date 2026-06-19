@@ -32,6 +32,7 @@ import {
   setRealLastEventId,
 } from "./lib/captureErrorShim";
 import { activityTracker } from "./lib/activityTracker";
+import { clearStaleAssetRecoveryGuard } from "./lib/staleAssetRecovery";
 
 // Appwrite is configured to allow localhost during local development, but
 // not the numeric loopback host. Redirecting early avoids opaque browser
@@ -97,7 +98,7 @@ if (import.meta.env.DEV && window.location.hostname === "127.0.0.1") {
        later chunk fetch fails (e.g. the user kept the tab open across
        another deploy) we want it to be allowed to silent-reload again. */
     setTimeout(() => {
-      try { sessionStorage.removeItem('wr.chunk-reload-attempted'); } catch { /* private mode */ }
+      clearStaleAssetRecoveryGuard();
     }, 8000);
 
     /* Defer Sentry to idle so it doesn't compete with hero paint. The shim's

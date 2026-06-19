@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, lazy, Suspense, useCallback, useMemo } from "react";
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { useState, useEffect, useRef, Suspense, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { ArrowRight, Clock, FileSearch, Lightbulb, Sparkles, X, Send } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -31,15 +32,15 @@ import { AIStudioSkeleton } from "@/components/layout/PageSkeletons";
 
 const AI_STUDIO_BASE_PATH = "/ai-studio";
 
-const TailorSheet = lazy(() => import("@/components/editor/TailorSheet").then((m) => ({ default: m.TailorSheet })));
-const RecruiterSimSheet = lazy(() => import("@/components/editor/ai/RecruiterSimSheet").then((m) => ({ default: m.RecruiterSimSheet })));
-const AIDetectorSheet = lazy(() => import("@/components/editor/ai/AIDetectorSheet").then((m) => ({ default: m.AIDetectorSheet })));
-const LinkedInOptimizerSheet = lazy(() => import("@/components/editor/ai/LinkedInOptimizerSheet").then((m) => ({ default: m.LinkedInOptimizerSheet })));
-const OnePageWizardSheet = lazy(() => import("@/components/editor/ai/SmartFitWizardSheet").then((m) => ({ default: m.SmartFitWizardSheet })));
-const AgenticChatSheet = lazy(() => import("@/components/editor/AgenticChatSheet").then((m) => ({ default: m.AgenticChatSheet })));
-const AIEnhanceSheet = lazy(() => import("@/components/editor/ai/AIEnhanceSheet").then((m) => ({ default: m.AIEnhanceSheet })));
-const ResumeABCompareSheet = lazy(() => import("@/components/ai-studio/ResumeABCompareSheet"));
-const SkillsGapSheet = lazy(() => import("@/components/ai-studio/SkillsGapSheet"));
+const TailorSheet = lazyWithRetry(() => import("@/components/editor/TailorSheet").then((m) => ({ default: m.TailorSheet })));
+const RecruiterSimSheet = lazyWithRetry(() => import("@/components/editor/ai/RecruiterSimSheet").then((m) => ({ default: m.RecruiterSimSheet })));
+const AIDetectorSheet = lazyWithRetry(() => import("@/components/editor/ai/AIDetectorSheet").then((m) => ({ default: m.AIDetectorSheet })));
+const LinkedInOptimizerSheet = lazyWithRetry(() => import("@/components/editor/ai/LinkedInOptimizerSheet").then((m) => ({ default: m.LinkedInOptimizerSheet })));
+const OnePageWizardSheet = lazyWithRetry(() => import("@/components/editor/ai/SmartFitWizardSheet").then((m) => ({ default: m.SmartFitWizardSheet })));
+const AgenticChatSheet = lazyWithRetry(() => import("@/components/editor/AgenticChatSheet").then((m) => ({ default: m.AgenticChatSheet })));
+const AIEnhanceSheet = lazyWithRetry(() => import("@/components/editor/ai/AIEnhanceSheet").then((m) => ({ default: m.AIEnhanceSheet })));
+const ResumeABCompareSheet = lazyWithRetry(() => import("@/components/ai-studio/ResumeABCompareSheet"));
+const SkillsGapSheet = lazyWithRetry(() => import("@/components/ai-studio/SkillsGapSheet"));
 
 const RECENT_TOOLS_KEY = "wr-recent-ai-tools";
 const TIP_DISMISSED_KEY = "wr-ai-tip-dismissed";
