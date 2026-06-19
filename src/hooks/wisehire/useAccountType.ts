@@ -13,7 +13,7 @@ const ACCOUNT_TYPE_TIMEOUT_MS = 4_000;
  */
 export function useAccountType() {
   const { user } = useAuth();
-  const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile(user?.id);
+  const { profile, loading: profileLoading } = useProfile(user?.id);
   const [timedOut, setTimedOut] = useState(false);
 
   // Reset the timeout flag whenever the query becomes active again
@@ -38,9 +38,6 @@ export function useAccountType() {
   } else if (profileLoading) {
     // Still loading
     resolvedAccountType = null;
-  } else if (profileError) {
-    // Error loading profile
-    resolvedAccountType = 'job_seeker';
   } else {
     // Use the actual value, treating missing/null as job_seeker
     resolvedAccountType = rawAccountType ?? 'job_seeker';
@@ -51,7 +48,7 @@ export function useAccountType() {
     isHR: resolvedAccountType === 'hr',
     isJobSeeker: resolvedAccountType === 'job_seeker' || resolvedAccountType === null,
     isLoading: profileLoading,
-    isError: profileError,
+    isError: false,
     timedOut,
   };
 }

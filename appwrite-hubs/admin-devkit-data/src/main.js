@@ -1816,8 +1816,8 @@ async function handleUpdateProfile(body, log) {
   }
   if (account_type !== undefined) {
     const validTypes = ['job_seeker', 'hr'];
-    if (!validTypes.includes(account_type)) {
-      throw new Error(`Invalid account_type: ${account_type}. Must be one of: ${validTypes.join(', ')}`);
+    if (account_type !== null && !validTypes.includes(account_type)) {
+      throw new Error(`Invalid account_type: ${account_type}. Must be one of: ${validTypes.join(', ')} or null`);
     }
     if (account_type !== profile.account_type) {
       patch.account_type = account_type;
@@ -2113,8 +2113,8 @@ async function handleApproveWisehireWaitlist(body, log) {
   if (existingUserId) {
     const profile = await getProfileDoc(databases, existingUserId);
     if (profile) {
-      await databases.updateDocument(DB_ID, 'profiles', profile.$id, { account_type: 'recruiter' });
-      log(`approve-wisehire-waitlist: set account_type=recruiter on profile ${profile.$id}`);
+      await databases.updateDocument(DB_ID, 'profiles', profile.$id, { account_type: 'hr' });
+      log(`approve-wisehire-waitlist: set account_type=hr on profile ${profile.$id}`);
     } else {
       log(`approve-wisehire-waitlist: no profile found for ${existingUserId} â€” skipping account_type update`);
     }
