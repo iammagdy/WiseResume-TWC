@@ -80,7 +80,8 @@ function classifyAiEndpointResponse(data: unknown, error: unknown): HealthStatus
   const status = err.status;
   if (typeof status === 'number') {
     if (status === 404) return 'error';
-    if (status >= 400 && status < 500) return 'ok';
+    if (status === 401) return 'warn';
+    if (status >= 400 && status < 500) return 'warn';
     if (status >= 500) return 'error';
   }
   return 'error';
@@ -89,10 +90,6 @@ function classifyAiEndpointResponse(data: unknown, error: unknown): HealthStatus
 function extractAiErrMsg(data: unknown, error: unknown): string | undefined {
   const err = error as InvokeError;
   if (!err) return undefined;
-  const status = err.status;
-  if (typeof status === 'number' && status >= 400 && status < 500 && status !== 404) {
-    return undefined;
-  }
   if (err?.message) return err.message;
   const d = data as ResponseData;
   if (d?.error) return d.error;
@@ -371,7 +368,7 @@ export function LiveActivityPanel() {
       //   authorization header" entry into error_log via the outer catch.
       //   The outer catch is now AuthError-aware, but skipping these probes
       //   cleanly when unauthenticated keeps the DevKit health card honest.
-      const requiresUserSession = def.name === 'me' || def.name === 'agentic-chat' || def.name === 'analyze-resume' || def.name === 'generate-cover-letter' || def.name === 'parse-job' || def.name === 'resume-section-ai';
+      const requiresUserSession = def.name === 'me' || def.name === 'tailor-resume' || def.name === 'agentic-chat' || def.name === 'analyze-resume' || def.name === 'generate-cover-letter' || def.name === 'parse-job' || def.name === 'resume-section-ai';
       if (requiresUserSession && !isAuthenticated) {
         checkedResults.push({
           name: def.name,

@@ -5,7 +5,9 @@ import { User, Shield, Crown, Trash2, Search, FileText, ExternalLink, RefreshCw,
 import { ActAsDialog, type ActAsSession } from './ActAsDialog';
 import { UserDetailDrawer } from './UserDetailDrawer';
 import { DevKitErrorCard } from './DevKitErrorCard';
+import { DevKitLoading, DevKitMetricCard } from './DevKitUI';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { invokeWithRetry } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { Input } from '@/components/ui/input';
@@ -21,6 +23,7 @@ export interface AdminUser {
   email: string | null;
   full_name: string | null;
   contact_email: string | null;
+  account_type: 'job_seeker' | 'hr' | null;
   plan_name: 'free' | 'pro' | 'premium';
   plan_updated_at: string | null;
   is_suspended: boolean;
@@ -127,7 +130,7 @@ export const AdminUsersPanel = () => {
 
   const fetchGlobalStats = useCallback(async () => {
     try {
-      const tuple = await appwriteFunctions.invoke<GlobalStats>(
+      const tuple = await invokeWithRetry<GlobalStats>(
         'admin-devkit-data',
         {
           headers: devKitAuthHeaders(),
@@ -155,7 +158,7 @@ export const AdminUsersPanel = () => {
       // ai_credits join runs with the server API key and is not blocked by
       // Appwrite's document-level permissions (which prevent cross-user reads
       // when called from the client SDK).
-      const tuple = await appwriteFunctions.invoke<{ users?: AdminUser[]; total?: number }>(
+      const tuple = await invokeWithRetry<{ users?: AdminUser[]; total?: number }>(
         'admin-devkit-data',
         {
           headers: devKitAuthHeaders(),
@@ -506,12 +509,7 @@ export const AdminUsersPanel = () => {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   if (loading && users.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <MiniSpinner size={32} className="text-blue-500" />
-        <p className="text-sm text-muted-foreground font-mono">Loading Real-Time User Data…</p>
-      </div>
-    );
+    return <DevKitLoading text="Loading real-time user data…" />;
   }
 
   if (fetchError && users.length === 0) {
@@ -656,36 +654,56 @@ export const AdminUsersPanel = () => {
         </div>
       </div>
 
-      {/* Stats pills — global totals from Appwrite, not page-local */}
-      <div className="flex gap-2 flex-wrap">
-        {([
-          { label: 'Total', value: displayStats.total, icon: <User size={12} />, cls: 'text-white' },
-          { label: 'Premium', value: displayStats.premium, icon: <Crown size={12} />, cls: 'text-amber-400' },
-          { label: 'Pro', value: displayStats.pro, icon: <Shield size={12} />, cls: 'text-blue-400' },
-          { label: 'Suspended', value: displayStats.suspended, icon: <Ban size={12} />, cls: 'text-red-400' },
-          { label: 'Profile Updated Today', value: displayStats.activeToday, icon: <Activity size={12} />, cls: 'text-emerald-400' },
-        ] as const).map(s => (
-          <div key={s.label} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
-            <span className={s.cls}>{s.icon}</span>
-            <span className="text-[11px] text-white/40">{s.label}</span>
-            <span className={cn('text-sm font-bold', s.cls)}>{s.value.toLocaleString()}</span>
-          </div>
-        ))}
-        {globalStats === null && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10">
-            <MiniSpinner size={12} className="text-white/30" />
-            <span className="text-[11px] text-white/30">Loading global stats…</span>
-          </div>
-        )}
+      {/* Stats cards — global totals from Appwrite, not page-local */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        <DevKitMetricCard
+          icon={User}
+          label="Total"
+          value={displayStats.total.toLocaleString()}
+          subtext="All users"
+          loading={globalStats === null}
+        />
+        <DevKitMetricCard
+          icon={Crown}
+          label="Premium"
+          value={displayStats.premium.toLocaleString()}
+          status="warning"
+          subtext="Premium plan"
+          loading={globalStats === null}
+        />
+        <DevKitMetricCard
+          icon={Shield}
+          label="Pro"
+          value={displayStats.pro.toLocaleString()}
+          status="info"
+          subtext="Pro plan"
+          loading={globalStats === null}
+        />
+        <DevKitMetricCard
+          icon={Ban}
+          label="Suspended"
+          value={displayStats.suspended.toLocaleString()}
+          status={displayStats.suspended > 0 ? 'error' : 'success'}
+          subtext="Blocked users"
+          loading={globalStats === null}
+        />
+        <DevKitMetricCard
+          icon={Activity}
+          label="Active Today"
+          value={displayStats.activeToday.toLocaleString()}
+          status="success"
+          subtext="Profile updates today"
+          loading={globalStats === null}
+        />
       </div>
 
       {/* Search + filter tabs */}
       <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search by name, email, or ID…"
-            className="pl-9 bg-white/5 border-white/10 rounded-xl h-9 text-sm text-white placeholder:text-white/30 focus-visible:border-white/20"
+            className="pl-9 bg-card border-border rounded-xl h-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -698,8 +716,8 @@ export const AdminUsersPanel = () => {
               className={cn(
                 'px-3 py-1.5 text-[10px] font-black uppercase rounded-xl border transition-all',
                 filter === f
-                  ? 'bg-white text-black border-white'
-                  : 'bg-white/5 text-white/40 border-white/10 hover:border-white/20 hover:text-white/60',
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-muted text-muted-foreground border-border hover:border-border hover:text-foreground',
               )}
             >
               {f}
@@ -707,7 +725,7 @@ export const AdminUsersPanel = () => {
           ))}
           <button
             onClick={() => setSortBy(s => s === 'joined' ? 'active' : 'joined')}
-            className="px-2.5 py-1.5 text-[10px] font-black uppercase rounded-xl border border-white/10 bg-white/5 text-white/40 hover:text-white/60 flex items-center gap-1"
+            className="px-2.5 py-1.5 text-[10px] font-black uppercase rounded-xl border border-border bg-muted text-muted-foreground hover:text-foreground flex items-center gap-1"
             title={sortBy === 'active' ? 'Sorting by last profile update (proxy for activity)' : 'Sorting by join date'}
           >
             <SlidersHorizontal size={11} />
@@ -717,7 +735,7 @@ export const AdminUsersPanel = () => {
       </div>
 
       {/* Table header */}
-      <div className="hidden md:flex items-center gap-3 px-4 py-1.5 text-[10px] text-white/25 uppercase tracking-widest font-bold">
+      <div className="hidden md:flex items-center gap-3 px-4 py-1.5 text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
         <button onClick={toggleAll} className="w-4 flex-shrink-0 flex items-center justify-center">
           {allSelected ? <CheckSquare size={13} className="text-white/50" /> : <Square size={13} />}
         </button>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { devKitCall, toDevKitError } from '@/lib/devkit/devKitClient';
+import { useIsMounted } from '@/lib/devkit/hooks';
 import { DevKitErrorCard } from './DevKitErrorCard';
 import { SectionCard } from './analytics/SectionCard';
 import { KpiCard } from './analytics/KpiCard';
@@ -262,6 +263,7 @@ type VisitorsRange = 'today' | '7d' | '30d' | '90d';
 
 export function VisitorsPanel() {
   const { isUnlocked } = useDevKitSession();
+  const isMounted = useIsMounted();
   const [range, setRange] = useState<VisitorsRange>('7d');
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -310,32 +312,37 @@ export function VisitorsPanel() {
     setDataTruncated(!!data.meta?.truncated);
   }, []);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (isRetry = false) => {
     if (!isUnlocked) return;
     setLoading(true);
     setError(null);
-    setLoadStatus('Checking collection…');
+    setLoadStatus(isRetry ? 'Retrying…' : 'Checking collection…');
     try {
-      const liveResult = await devKitCall<{ liveCount: number; totalEvents?: number }>({
-        functionId: 'admin-visitor-analytics',
-        action: 'live-count',
-        timeoutMs: 30_000,
-      });
-      if (liveResult.ok && typeof liveResult.data.totalEvents === 'number') {
-        setEventCount(liveResult.data.totalEvents);
+      // live-count is a fast diagnostic call — isolate its failure so a
+      // cold-start or timeout there doesn't abort the main dashboard fetch.
+      try {
+        const liveResult = await devKitCall<{ liveCount: number; totalEvents?: number }>({
+          functionId: 'admin-visitor-analytics',
+          action: 'live-count',
+          timeoutMs: 30_000,
+        });
+        if (liveResult.ok && typeof liveResult.data.totalEvents === 'number') {
+          setEventCount(liveResult.data.totalEvents);
+        }
+        setLoadStatus(
+          liveResult.ok && (liveResult.data.totalEvents ?? 0) > 0
+            ? `Loading ${liveResult.data.totalEvents!.toLocaleString()} events for ${range}…`
+            : `Loading visitor data for ${range}…`,
+        );
+      } catch {
+        setLoadStatus(`Loading visitor data for ${range}…`);
       }
-
-      setLoadStatus(
-        liveResult.ok && (liveResult.data.totalEvents ?? 0) > 0
-          ? `Loading ${liveResult.data.totalEvents!.toLocaleString()} events for ${range}…`
-          : `Loading visitor data for ${range}…`,
-      );
 
       const dashboardResult = await devKitCall<DashboardData>({
         functionId: 'admin-visitor-analytics',
         action: 'dashboard',
         payload: { range, page_num: 0 },
-        timeoutMs: 180_000,
+        timeoutMs: 300_000,
       });
 
       if (!dashboardResult.ok) {
@@ -344,13 +351,26 @@ export function VisitorsPanel() {
 
       applyDashboard(dashboardResult.data);
     } catch (err) {
-      setError(toDevKitError(err, { functionId: 'admin-visitor-analytics', action: 'dashboard' }).message);
+      const devKitErr = toDevKitError(err, { functionId: 'admin-visitor-analytics', action: 'dashboard' });
+      // Auto-retry once on transient failures (cold-start, runtime timeout, network blip)
+      if (!isRetry && (devKitErr.code === 'NETWORK_ERROR' || devKitErr.code === 'FUNCTION_RUNTIME_FAILED')) {
+        setLoadStatus('Function timed out — retrying in 3s…');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        if (isMounted()) {
+          setLoading(false);
+          fetchAll(true);
+        }
+        return;
+      }
+      setError(devKitErr.message);
     } finally {
-      setLoading(false);
-      setInitialLoad(false);
-      setLoadStatus(null);
+      if (isMounted()) {
+        setLoading(false);
+        setInitialLoad(false);
+        setLoadStatus(null);
+      }
     }
-  }, [isUnlocked, range, applyDashboard]);
+  }, [isUnlocked, range, applyDashboard, isMounted]);
 
   useEffect(() => {
     if (isUnlocked) fetchAll();
@@ -412,7 +432,7 @@ export function VisitorsPanel() {
             onChange={(r) => setRange(r as VisitorsRange)}
             disabled={loading}
           />
-          <Button variant="outline" size="sm" onClick={fetchAll} disabled={loading} className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => fetchAll()} disabled={loading} className="flex items-center gap-2">
             {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
             Refresh
           </Button>
@@ -420,7 +440,7 @@ export function VisitorsPanel() {
       </div>
 
       {error && (
-        <DevKitErrorCard error={error} title="Couldn't load visitor data" context={{ panel: 'Visitors', function: 'admin-visitor-analytics' }} onRetry={fetchAll} />
+        <DevKitErrorCard error={error} title="Couldn't load visitor data" context={{ panel: 'Visitors', function: 'admin-visitor-analytics' }} onRetry={() => fetchAll()} />
       )}
 
       {loading && loadStatus && (
@@ -455,7 +475,7 @@ export function VisitorsPanel() {
           <p className="text-sm font-medium text-foreground">No visit data yet</p>
           {eventCount === 0 ? (
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-amber-500">visitor_events: 0 documents</span> — tracking activates only after users grant GDPR consent via the cookie banner.
+              <span className="font-medium text-amber-500">visitor_events: 0 documents</span> — no visits recorded yet. Page views are tracked automatically; country and detailed data appear after visitors grant GDPR consent.
             </p>
           ) : eventCount !== null && eventCount > 0 ? (
             <p className="text-xs text-muted-foreground">
@@ -475,7 +495,7 @@ export function VisitorsPanel() {
             <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
               <p className="font-medium">No visitor events recorded yet</p>
               <p className="mt-1 text-xs text-amber-200/90">
-                The <span className="font-mono">visitor_events</span> collection is empty. Analytics populate after visitors accept cookies in the GDPR banner — no consent means no tracking writes.
+                The <span className="font-mono">visitor_events</span> collection is empty. Page views are tracked automatically for all visitors. Country data and full session details appear after visitors accept the GDPR consent banner.
               </p>
             </div>
           )}
@@ -538,7 +558,7 @@ export function VisitorsPanel() {
             icon={Globe}
           >
             {topPages.length === 0
-              ? <EmptyState message="No page view data yet — tracking activates after GDPR consent" />
+              ? <EmptyState message="No page view data yet" />
               : <RankedList items={topPages} maxItems={15} />
             }
           </SectionCard>

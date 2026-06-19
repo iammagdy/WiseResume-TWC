@@ -719,18 +719,39 @@ async function handleObservability(body, log) {
 }
 
 async function handleOverviewStats(log) {
-  const auth = await listAllAuthUsers();
-  const authUserIds = auth.users.map(u => u.$id);
-  const resumeRes = await safeList(null, 'resumes', [sdk.Query.limit(1)]);
-  const activeUserOwnedResumes = await countDocumentsForUserIds('resumes', authUserIds);
+  // Hard cap at 500 users to avoid the per-user parallel DB fan-out timing out.
+  // listAllAuthUsers() with hundreds of users + countDocumentsForUserIds() with
+  // one query per user can exceed the Appwrite function timeout even at 300s.
+  const MAX_USERS = 500;
+  let authPage;
+  try {
+    authPage = await listUsers([sdk.Query.limit(MAX_USERS)]);
+  } catch (e) {
+    log(`[warn] handleOverviewStats: listUsers failed: ${e.message}`);
+    authPage = { users: [], total: 0 };
+  }
+  const users = authPage.users || [];
+  const total = authPage.total || users.length;
+  const truncated = total > MAX_USERS;
+
+  const authUserIds = users.map(u => u.$id);
+
+  // Use parallel single-count queries rather than one query per user.
+  const [resumeRes, activeUserOwnedResumes] = await Promise.all([
+    safeList(null, 'resumes', [sdk.Query.limit(1)]),
+    countDocumentsForUserIds('resumes', authUserIds),
+  ]);
+
   const orphanedResumes = Math.max(0, (resumeRes.total || 0) - activeUserOwnedResumes);
+  log(`handleOverviewStats: ${users.length}/${total} users checked (truncated=${truncated})`);
   return {
-    totalAuthUsers: auth.total,
-    verifiedUsers: auth.users.filter(u => u.emailVerification).length,
+    totalAuthUsers: total,
+    verifiedUsers: users.filter(u => u.emailVerification).length,
     totalResumes: activeUserOwnedResumes,
     rawResumeDocuments: resumeRes.total || 0,
     orphanedResumes,
-    unverifiedUsers: auth.users
+    truncated,
+    unverifiedUsers: users
       .filter(u => !u.emailVerification)
       .map(u => ({ user_id: u.$id, email: u.email || null, name: u.name || null, created_at: u.$createdAt }))
       .slice(0, 10),
@@ -787,7 +808,19 @@ async function handleListUsersPage(body, log) {
 
   let authPage;
   if (search || filterUnconfirmed) {
-    const all = await listAllAuthUsers();
+    // Cap at 2000 to prevent the unbounded pagination loop from hitting the
+    // function timeout on large user bases. Search/filter is client-side.
+    const MAX_SEARCH_USERS = 2000;
+    let all = { users: [], total: 0 };
+    let offset = 0;
+    while (all.users.length < MAX_SEARCH_USERS) {
+      const p = await listUsers([sdk.Query.limit(100), sdk.Query.offset(offset)]).catch(() => null);
+      if (!p || !p.users?.length) break;
+      all.users.push(...p.users);
+      all.total = p.total || all.users.length;
+      offset += 100;
+      if (all.users.length >= (p.total || 0)) break;
+    }
     let users = all.users || [];
     if (filterUnconfirmed) users = users.filter(u => !u.emailVerification);
     if (search) {
@@ -843,6 +876,7 @@ async function handleListUsersPage(body, log) {
         email: authUser.email || doc.email || null,
         full_name: doc.full_name || authUser.name || null,
         contact_email: doc.contact_email ?? null,
+        account_type: doc.account_type || 'job_seeker',
         plan_name: effective_plan,
         base_plan,
         effective_plan,
@@ -1757,11 +1791,11 @@ async function handleListUserContent(body, log) {
 
 async function handleUpdateProfile(body, log) {
   const { databases } = getClients();
-  const { target_user_id, profile_action, full_name, username, portfolio_enabled, actor_email } = body;
+  const { target_user_id, profile_action, full_name, username, portfolio_enabled, account_type, actor_email } = body;
   if (!target_user_id) throw new Error('Missing target_user_id');
   const profile = await getProfileDoc(databases, target_user_id);
   if (profile_action === 'get') {
-    return { profile: profile ? { username: profile.username || null, portfolio_enabled: profile.portfolio_enabled ?? false, full_name: profile.full_name || null } : null };
+    return { profile: profile ? { username: profile.username || null, portfolio_enabled: profile.portfolio_enabled ?? false, full_name: profile.full_name || null, account_type: profile.account_type || 'job_seeker' } : null };
   }
   if (!profile) throw new Error('Profile not found');
   const patch = {};
@@ -1778,6 +1812,16 @@ async function handleUpdateProfile(body, log) {
     if (portfolio_enabled !== profile.portfolio_enabled) {
       patch.portfolio_enabled = portfolio_enabled;
       changed_fields.portfolio_enabled = { old: profile.portfolio_enabled, new: portfolio_enabled };
+    }
+  }
+  if (account_type !== undefined) {
+    const validTypes = ['job_seeker', 'hr'];
+    if (!validTypes.includes(account_type)) {
+      throw new Error(`Invalid account_type: ${account_type}. Must be one of: ${validTypes.join(', ')}`);
+    }
+    if (account_type !== profile.account_type) {
+      patch.account_type = account_type;
+      changed_fields.account_type = { old: profile.account_type, new: account_type };
     }
   }
   if (Object.keys(patch).length > 0) {

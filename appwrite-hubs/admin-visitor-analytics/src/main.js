@@ -355,9 +355,19 @@ function countByCountry(arr) {
 
 async function handleLiveCount(databases) {
   const since = ago(LIVE_WINDOW_MS);
-  const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
-    sdk.Query.greaterThanEqual('$createdAt', since),
-  ]);
+
+  // Single bounded query — no need to paginate for a live-count.
+  // 500 events in a 5-minute window is more than enough for any real-time
+  // counter; using fetchAll here was spending most of the function budget
+  // iterating pages when the collection is large.
+  let docs = [];
+  try {
+    const page = await databases.listDocuments(DB_ID, COLLECTION_VISITOR_EVENTS, [
+      sdk.Query.greaterThanEqual('$createdAt', since),
+      sdk.Query.limit(500),
+    ]);
+    docs = page.documents || [];
+  } catch { /* ignore — collection may not exist yet */ }
 
   const anonIds = new Set(docs.map(d => d.anon_id || d.session_id).filter(Boolean));
   const topCountries = countByCountry(docs).slice(0, 5);

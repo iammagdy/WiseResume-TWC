@@ -3,6 +3,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useResumeStore } from "@/store/resumeStore";
+import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import { ConsentBanner } from "@/components/layout/ConsentBanner";
 
 const AuroraLayerLazy = lazyWithRetry(() =>
   import("@/components/landing/AuroraLayer").then((m) => ({ default: m.AuroraLayer }))
@@ -54,6 +56,8 @@ function LandingRoutes() {
     document.body.style.overflow = "";
   }, []);
 
+  useVisitorTracking({ userId: null });
+
   return (
     <>
       <Suspense fallback={null}>
@@ -64,6 +68,7 @@ function LandingRoutes() {
           <Index />
         </Suspense>
       </RouteEB>
+      <ConsentBanner />
     </>
   );
 }

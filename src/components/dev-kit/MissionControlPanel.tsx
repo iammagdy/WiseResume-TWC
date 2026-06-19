@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { client } from '@/lib/appwrite';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
-import { devKitCall } from '@/lib/devkit/devKitClient';
+import { devKitCall, invokeWithRetry } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/appwriteResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { cn } from '@/lib/utils';
@@ -285,7 +285,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      const tuple = await invokeWithRetry('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'mission-control' },
       });
@@ -308,7 +308,7 @@ export function MissionControlPanel({ onNavigate }: MissionControlPanelProps) {
     setEdgeDriftLoading(true);
     setEdgeDriftError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      const tuple = await invokeWithRetry('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'fn-drift' },
       });

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
+import { invokeWithRetry } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
@@ -74,7 +75,7 @@ export function OnboardingFunnelPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke(
+      const tuple = await invokeWithRetry(
         'admin-onboarding-funnel',
         { headers: devKitAuthHeaders(), body: { days, granularity } },
       );

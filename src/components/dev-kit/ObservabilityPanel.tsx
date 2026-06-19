@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { invokeWithRetry } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError, EdgeFunctionError } from '@/lib/devkit/edgeResponse';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
 import { useDevKitSession } from '@/contexts/DevKitSessionContext';
@@ -137,7 +138,7 @@ export function ObservabilityPanel() {
     setTelemetryLoading(true);
     setTelemetryError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      const tuple = await invokeWithRetry('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'observability', obs_action: 'get_telemetry' },
       });
@@ -169,7 +170,7 @@ export function ObservabilityPanel() {
     setErrorsError(null);
     try {
       const since = new Date(Date.now() - TIME_RANGE_MS[timeRange]).toISOString();
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      const tuple = await invokeWithRetry('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: {
           action: 'observability',

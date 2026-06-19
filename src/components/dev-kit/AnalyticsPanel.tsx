@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
+import { invokeWithRetry } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -59,7 +60,7 @@ export function AnalyticsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      const tuple = await invokeWithRetry('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'analytics', range: r },
       });

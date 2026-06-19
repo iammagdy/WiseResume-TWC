@@ -255,6 +255,36 @@ export async function devKitCall<T = unknown>({
   };
 }
 
+/**
+ * Wraps `appwriteFunctions.invoke` with a single automatic retry for transient
+ * failures: client-side timeout, network errors, and Appwrite function cold-start
+ * kills. Only use this for idempotent READ operations — never for mutations.
+ *
+ * Returns the same `{ data, error }` tuple as `appwriteFunctions.invoke`.
+ */
+export async function invokeWithRetry<T = unknown>(
+  fnName: string,
+  options: Parameters<typeof appwriteFunctions.invoke>[1],
+  retryDelayMs = 3000,
+): Promise<Awaited<ReturnType<typeof appwriteFunctions.invoke<T>>>> {
+  const result = await appwriteFunctions.invoke<T>(fnName, options);
+  if (!result.error) return result;
+
+  const msg = (result.error.message ?? '').toLowerCase();
+  const isTransient =
+    msg.includes('timed out') ||
+    msg.includes('timeout') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('network') ||
+    msg.includes('runtime failed') ||
+    (result.error.status !== undefined && result.error.status >= 500);
+
+  if (!isTransient) return result;
+
+  await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+  return appwriteFunctions.invoke<T>(fnName, options);
+}
+
 export async function devKitCallOrThrow<T = unknown>(options: DevKitCallOptions): Promise<T> {
   const result = await devKitCall<T>(options);
   if (!result.ok) {

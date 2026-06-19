@@ -3,6 +3,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Database, Search, Clock, Layout, User, RefreshCw } from 'lucide-react';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
+import { invokeWithRetry } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { DevKitErrorCard } from './DevKitErrorCard';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ export const DatabaseXRay = () => {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+      const tuple = await invokeWithRetry('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'list-all-resumes', limit: 20 },
       });
