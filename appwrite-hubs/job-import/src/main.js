@@ -71,6 +71,9 @@ const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
 
 function buildPool() {
   const pool = [];
+  if (process.env.DEEPSEEK_KEY) {
+    pool.push({ key: process.env.DEEPSEEK_KEY, url: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-chat' });
+  }
   for (let i = 1; i <= 3; i++) {
     const k = process.env[`GROQ_KEY_${i}`];
     if (k) pool.push({ key: k, url: GROQ_URL, model: 'llama-3.3-70b-versatile' });
@@ -78,9 +81,6 @@ function buildPool() {
   for (let i = 1; i <= 3; i++) {
     const k = process.env[`OPENROUTER_KEY_${i}`];
     if (k) pool.push({ key: k, url: OPENROUTER_URL, model: 'meta-llama/llama-3.3-70b-instruct:free' });
-  }
-  if (process.env.DEEPSEEK_KEY) {
-    pool.push({ key: process.env.DEEPSEEK_KEY, url: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-chat' });
   }
   return pool;
 }

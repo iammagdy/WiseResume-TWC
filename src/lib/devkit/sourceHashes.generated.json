@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T20:45:35.820Z",
+  "generatedAt": "2026-06-20T21:29:46.493Z",
   "hashes": {
     "ai-gateway": "e9c40b8f3096ad73e0bad7d7c2cf5a7cb8bf7a1933c836171f950049240ff27b",
     "admin-devkit-data": "045289d347b5524bac4bd81ced20b8ac8cd6a342528e5c592cbcfc76503d135a",
@@ -18,7 +18,7 @@
     "coupons": "76aae533a4543c4cc6907b868d3b585a08be4750862a2d9547566f5cd6a040ae",
     "email-service": "708cbafb594f178d96a9d735589dcc3328b992a365836f55834c351604e94aca",
     "email-templates": null,
-    "job-import": "ffdfc86493058437a48eaeffbef04d4cbcc6fe6d6344f53f1ee5940f7709a2a5",
+    "job-import": "c00d55c1f5ff8c8ed5bd6179d08928e6f81da4140cfa3e044b68e1b5fa964618",
     "public-share": "c35d751a2d60a3c088cf0e630d34a253691db934e9b859e32ac3771485207aab",
     "resume-section-ai": "a940b779e27c3a1ed756f656d510193c3183367a9ea5cb625eb4b27fee219fcc",
     "wisehire-gateway": "a705814c1177073bb25c1d0fa3ad9f45232767c733df5985679c73442963e150",
