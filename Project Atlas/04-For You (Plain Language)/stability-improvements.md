@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-05-11 (AI model lists updated for all four providers)
+**Last verified:** 2026-06-20 (DevKit visual refresh wiring checked)
+
+## Admin panel refresh now opens its shared sections reliably (2026-06-20)
+
+**What was the situation:** The refreshed admin panel shell was missing one shared building block that a few admin sections still needed.
+
+**What changed:** The shared building block was restored and matched to the new dark admin-panel look, so the refreshed shell and older sections use the same visual language.
+
+**What you'll notice:** The admin panel should open its user, overview, and traffic sections without a missing-screen crash, and those sections now feel more consistent with the refreshed DevKit design.
 
 ## Admin panel: AI model dropdowns reflect current models from all providers (2026-05-11)
 
