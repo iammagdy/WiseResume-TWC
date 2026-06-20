@@ -326,16 +326,18 @@ async function handleDiagnostics(log, error) {
   }
 
   const requiredFunctions = [
-    'admin-devkit-data', 'inspect-ai-keys', 'ai-gateway', 'admin-feature-flags',
-    'admin-email', 'admin-testmail', 'admin-visitor-analytics',
-    'admin-impersonate', 'admin-onboarding-funnel', 'admin-portfolio-usernames', 'admin-moderation',
-    'admin-sentry', 'coupons', 'wisehire-gateway', 'public-share',
+    { id: 'admin-devkit-data' }, { id: 'inspect-ai-keys' }, { id: 'ai-gateway' }, { id: 'admin-feature-flags' },
+    { id: 'admin-email' }, { id: 'admin-testmail' }, { id: 'admin-visitor-analytics' },
+    { id: 'admin-impersonate' }, { id: 'admin-onboarding-funnel' }, { id: 'admin-portfolio-usernames' }, { id: 'admin-moderation' },
+    { id: 'admin-sentry', functionId: '6a0760710000ff231048', aliases: ['Admin Sentry Hub'] },
+    { id: 'coupons' }, { id: 'wisehire-gateway' }, { id: 'public-share' },
   ];
   try {
     const fnPage = await listFunctions([sdk.Query.limit(200)]);
     for (const fn of requiredFunctions) {
-      const found = fnPage.functions.find(f => f.$id === fn || f.name === fn);
-      items.push(item('Functions', `fn-${fn}`, fn, found ? (found.enabled ? 'healthy' : 'warning') : 'broken', found ? `${fn} is deployed${found.enabled ? ' and enabled' : ' but disabled'}.` : `${fn} is not deployed.`, found ? `Runtime: ${found.runtime || 'unknown'}` : 'Deploy the Appwrite Function from appwrite-hubs.'));
+      const aliases = [fn.id, fn.functionId, ...(fn.aliases || [])].filter(Boolean);
+      const found = fnPage.functions.find(f => aliases.includes(f.$id) || aliases.includes(f.name));
+      items.push(item('Functions', `fn-${fn.id}`, fn.id, found ? (found.enabled ? 'healthy' : 'warning') : 'broken', found ? `${fn.id} is deployed${found.enabled ? ' and enabled' : ' but disabled'}.` : `${fn.id} is not deployed.`, found ? `Runtime: ${found.runtime || 'unknown'}` : 'Deploy the Appwrite Function from appwrite-hubs.'));
     }
   } catch (e) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
@@ -1728,16 +1730,52 @@ async function handleSaveNote(body, log) {
   return { note: { id: doc.$id, note_text, created_at: doc.$createdAt } };
 }
 
+async function deleteUserOwnedDocuments(databases, collectionId, userId) {
+  let deleted = 0;
+  while (true) {
+    const page = await safeList(databases, collectionId, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(100),
+    ]);
+    const docs = page.documents || [];
+    if (!docs.length) return { deleted, error: page.error || null };
+    for (const doc of docs) {
+      try {
+        await databases.deleteDocument(DB_ID, collectionId, doc.$id);
+        deleted += 1;
+      } catch (_) {}
+    }
+    if (docs.length < 100) return { deleted, error: page.error || null };
+  }
+}
+
+async function deleteAuthUser(users, userId) {
+  try {
+    await users.delete(userId);
+    return { deleted: true, alreadyMissing: false };
+  } catch (e) {
+    if (e.code === 404 || /not found|missing/i.test(e.message || '')) {
+      return { deleted: false, alreadyMissing: true };
+    }
+    throw e;
+  }
+}
+
 async function handleDeleteUser(body, log) {
   const { databases, users } = getClients();
   const { target_user_id, actor_email } = body;
   if (!target_user_id) throw new Error('Missing target_user_id');
   await auditLog(databases, 'delete-user', { target_user_id, actor_email });
+  const cleanup = {};
+  for (const collectionId of ['subscriptions', 'ai_credits', 'notifications']) {
+    cleanup[collectionId] = await deleteUserOwnedDocuments(databases, collectionId, target_user_id);
+  }
   const profile = await getProfileDoc(databases, target_user_id);
+  const profileDeleted = !!profile;
   if (profile) { try { await databases.deleteDocument(DB_ID, 'profiles', profile.$id); } catch (_) {} }
-  await users.delete(target_user_id);
-  log(`delete-user: ${target_user_id}`);
-  return { ok: true };
+  const authUser = await deleteAuthUser(users, target_user_id);
+  log(`delete-user: ${target_user_id} cleanup=${JSON.stringify(cleanup)}`);
+  return { ok: true, cleanup, profileDeleted, authUser };
 }
 
 async function handleMergeIdentity(body, log) {

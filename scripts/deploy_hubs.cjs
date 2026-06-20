@@ -567,6 +567,8 @@ async function ensureEmailHubVariables(fnIds) {
             ['RESEND_API_KEY', process.env.RESEND_API_KEY],
             ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL],
             ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME],
+            ['RESEND_SEGMENT_ALL_USERS', process.env.RESEND_SEGMENT_ALL_USERS],
+            ['RESEND_AUDIENCE_ALL_USERS', process.env.RESEND_AUDIENCE_ALL_USERS],
         ]) {
             await ensureVariable(fnId, key, value);
         }

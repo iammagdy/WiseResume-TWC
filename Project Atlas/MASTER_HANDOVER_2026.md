@@ -6619,6 +6619,25 @@ Appwrite:
 - Source hash metadata: `fn_deployed_hashes.admin-devkit-data = 05140c7c7c10295d`, matching the expected prefix.
 - No all-hubs deployment was performed.
 
+## 2026-06-20 DevKit live audit follow-up
+
+Closed the remaining DevKit live-audit defects after the visual shell refresh:
+- Email Automations now uses Resend Segments as the primary model and keeps legacy Audiences as fallback.
+- `RESEND_SEGMENT_ALL_USERS` and `RESEND_AUDIENCE_ALL_USERS` are now passed through the official Appwrite hub deployment path.
+- Diagnostics now recognizes the deployed Admin Sentry hub by its real Appwrite function id.
+- DevKit user delete now cleans owned subscription, credit, and notification rows before removing the profile/auth user.
+- The Appwrite Functions panel loader no longer carries the React hook dependency warning.
+
+Pre-deploy verification passed:
+- Appwrite hub syntax checks for `admin-email` and `admin-devkit-data`.
+- Targeted DevKit ESLint for Email Automations and Appwrite Functions panels.
+- Source hash regeneration.
+- Full production build.
+
+Next operational step:
+- Deploy only `admin-email` and `admin-devkit-data` through `.github/workflows/deploy-appwrite-hubs.yml`.
+- After deployment, re-run live diagnostics, Email Automations stats/sync, and seeded user-delete cleanup verification.
+
 WiseHire schema:
 - `profiles.account_type` was missing initially.
 - Approved migration was run once, then run a second time to confirm idempotency.

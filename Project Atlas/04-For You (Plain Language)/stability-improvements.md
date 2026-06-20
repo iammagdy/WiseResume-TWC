@@ -1273,6 +1273,25 @@ The net effect: smoother editing, less wasted AI quota, and lower hosting costs.
 
 We use multiple AI providers as a fallback chain — if one is down, we try the next one. The problem: when a provider was having an outage, *every single AI request* would still try the broken provider first and wait for it to fail before moving on. That added up to 30 seconds of waiting per request.
 
+## DevKit live audit fixes - 2026-06-20
+
+The admin DevKit had three remaining reliability issues after the live audit:
+
+- Email automation sync expected an older Resend setup value and could fail instead of showing a setup message.
+- Diagnostics thought the Admin Sentry backend was missing because it was deployed under a generated Appwrite id.
+- Deleting an audit-only user removed the login/profile but could leave related subscription, credit, or notification rows behind.
+
+The fix:
+
+- Email automations now use Resend Segments first and still support the older Audience value if needed.
+- The deployment workflow now passes the email segment values into Appwrite functions.
+- Diagnostics recognizes the real Admin Sentry deployment.
+- DevKit user deletion now cleans the related internal records before removing the user.
+
+What you'll notice: the admin panel should show clearer setup states, healthier diagnostics, and cleaner test-user cleanup during future audits.
+
+---
+
 The fix:
 
 - We now remember when a provider is broken and skip it for a minute, then try once to see if it's back. If you're using the platform during an AI outage, your requests now succeed in seconds instead of half a minute.

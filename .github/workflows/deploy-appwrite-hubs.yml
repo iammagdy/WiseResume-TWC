@@ -201,6 +201,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
           RESEND_FROM_NAME: ${{ secrets.RESEND_FROM_NAME }}
+          RESEND_SEGMENT_ALL_USERS: ${{ secrets.RESEND_SEGMENT_ALL_USERS }}
+          RESEND_AUDIENCE_ALL_USERS: ${{ secrets.RESEND_AUDIENCE_ALL_USERS }}
           GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN }}
           GITHUB_REPO: iammagdy/WiseResume-TWC
           FRONTEND_URL: https://wiseresume.app

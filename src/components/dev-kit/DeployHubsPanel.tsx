@@ -122,7 +122,7 @@ export function DeployHubsPanel() {
     return functions.filter(fn => fn.id.toLowerCase().includes(query) || fn.name.toLowerCase().includes(query));
   }, [functions, search]);
 
-  const loadFunctions = async (searchValue = search) => {
+  const loadFunctions = useCallback(async (searchValue: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -136,9 +136,7 @@ export function DeployHubsPanel() {
       setStatus(statusData);
       setFunctions(listData.functions ?? []);
       setSelectedIds(prev => prev.filter(id => (listData.functions ?? []).some(fn => fn.id === id)));
-      if (!selectedFunctionId && (listData.functions ?? []).length > 0) {
-        setSelectedFunctionId(listData.functions[0].id);
-      }
+      setSelectedFunctionId(prev => prev || (listData.functions ?? [])[0]?.id || '');
       if (hashTuple) {
         try {
           const hashData = unwrapAdminResponse<{ hashes: Record<string, string> }>(hashTuple, 'admin-devkit-data');
@@ -150,7 +148,7 @@ export function DeployHubsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const getDriftStatus = useCallback((hubId: string): DriftStatus => {
     const currentHash = SOURCE_HASHES[hubId];
@@ -211,7 +209,7 @@ export function DeployHubsPanel() {
 
   useEffect(() => {
     void loadFunctions('');
-  }, []);
+  }, [loadFunctions]);
 
   useEffect(() => {
     if (tab === 'logs' && selectedFunctionId) {

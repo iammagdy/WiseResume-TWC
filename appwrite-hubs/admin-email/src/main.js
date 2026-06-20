@@ -16,7 +16,14 @@
  *   APPWRITE_ENDPOINT        — e.g. https://fra.cloud.appwrite.io/v1
  *   APPWRITE_PROJECT_ID      — e.g. 69fd362b001eb325a192
  *
- * Optional audience variables (any subset may be set):
+ * Optional segment variables (preferred; any subset may be set):
+ *   RESEND_SEGMENT_ALL_USERS
+ *   RESEND_SEGMENT_PREMIUM_USERS
+ *   RESEND_SEGMENT_FREE_USERS
+ *   RESEND_SEGMENT_TRIAL_USERS
+ *   RESEND_SEGMENT_INACTIVE
+ *
+ * Legacy audience variables remain supported as fallback:
  *   RESEND_AUDIENCE_ALL_USERS
  *   RESEND_AUDIENCE_PREMIUM_USERS
  *   RESEND_AUDIENCE_FREE_USERS
@@ -45,6 +52,66 @@ const AUDIENCE_DEFS = [
   { key: 'TRIAL_USERS',   label: 'Trial Users',   trigger: 'On trial',     emails: ['Trial welcome', 'Expiry reminder'] },
   { key: 'INACTIVE',      label: 'Inactive',      trigger: 'On 30d inactivity', emails: ['Re-engagement email'] },
 ];
+
+function segmentKey(key) { return `RESEND_SEGMENT_${key}`; }
+function audienceKey(key) { return `RESEND_AUDIENCE_${key}`; }
+
+function defForKey(key) {
+  return AUDIENCE_DEFS.find(def => def.key === key);
+}
+
+function resolveResendList(keyOrEnvKey) {
+  const raw = String(keyOrEnvKey || '').trim();
+  const key = raw.replace(/^RESEND_(SEGMENT|AUDIENCE)_/, '');
+  const def = defForKey(key);
+  if (!def) return null;
+  const preferredKey = segmentKey(def.key);
+  const legacyKey = audienceKey(def.key);
+  const segmentId = process.env[preferredKey];
+  const audienceId = process.env[legacyKey];
+  if (segmentId) {
+    return {
+      key: def.key,
+      label: def.label,
+      id: segmentId,
+      type: 'segment',
+      configKey: preferredKey,
+      legacyAudienceKey: legacyKey,
+      configured: true,
+    };
+  }
+  if (audienceId) {
+    return {
+      key: def.key,
+      label: def.label,
+      id: audienceId,
+      type: 'audience',
+      configKey: legacyKey,
+      legacyAudienceKey: legacyKey,
+      configured: true,
+    };
+  }
+  return {
+    key: def.key,
+    label: def.label,
+    id: null,
+    type: 'segment',
+    configKey: preferredKey,
+    legacyAudienceKey: legacyKey,
+    configured: false,
+  };
+}
+
+function setupRequired(message) {
+  return {
+    setupRequired: true,
+    code: 'RESEND_SEGMENT_NOT_CONFIGURED',
+    message,
+    total: 0,
+    added: 0,
+    failed: 0,
+  };
+}
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -133,14 +200,71 @@ async function resendRequest(method, path, body) {
 
 // ─── Resend audience contact count ───────────────────────────────────────────
 
-async function getAudienceContactCount(audienceId) {
+function listPath(config) {
+  return config.type === 'segment'
+    ? `/segments/${encodeURIComponent(config.id)}/contacts`
+    : `/audiences/${encodeURIComponent(config.id)}/contacts`;
+}
+
+function detailPath(config) {
+  return config.type === 'segment'
+    ? `/segments/${encodeURIComponent(config.id)}`
+    : `/audiences/${encodeURIComponent(config.id)}`;
+}
+
+async function getAudienceContactCount(config) {
   try {
-    const res = await resendRequest('GET', `/audiences/${audienceId}/contacts`);
+    const res = await resendRequest('GET', listPath(config));
     const contacts = res.data || [];
     return contacts.length;
   } catch {
     return null;
   }
+}
+
+function splitName(fullName) {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || undefined,
+    lastName: parts.slice(1).join(' ') || undefined,
+  };
+}
+
+async function createGlobalContact(email, profile = {}) {
+  const name = splitName(profile.full_name || profile.name || '');
+  try {
+    await resendRequest('POST', '/contacts', {
+      email,
+      firstName: name.firstName,
+      lastName: name.lastName,
+      unsubscribed: false,
+    });
+  } catch (e) {
+    if (!/already|exist|duplicate/i.test(e.message || '')) throw e;
+  }
+}
+
+async function addContactToList(config, email, profile = {}) {
+  if (config.type === 'segment') {
+    await createGlobalContact(email, profile);
+    await resendRequest('POST', `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(config.id)}`);
+    return;
+  }
+  const name = splitName(profile.full_name || profile.name || '');
+  await resendRequest('POST', `/audiences/${encodeURIComponent(config.id)}/contacts`, {
+    email,
+    first_name: name.firstName,
+    last_name: name.lastName,
+    unsubscribed: false,
+  });
+}
+
+async function removeContactFromList(config, email) {
+  if (config.type === 'segment') {
+    await resendRequest('DELETE', `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(config.id)}`);
+    return;
+  }
+  await resendRequest('DELETE', `/audiences/${encodeURIComponent(config.id)}/contacts`, { email });
 }
 
 // ─── Module: resend-stats / action: stats ────────────────────────────────────
@@ -175,22 +299,32 @@ async function handleResendStats(days) {
     // Audience stats
     Promise.all(
       AUDIENCE_DEFS.map(async (def) => {
-        const envKey  = `RESEND_AUDIENCE_${def.key}`;
-        const id      = process.env[envKey] || null;
-        const configured = !!id;
-        const contactCount = configured ? await getAudienceContactCount(id) : null;
+        const config = resolveResendList(def.key);
+        const id = config.id;
+        const configured = config.configured;
+        const contactCount = configured ? await getAudienceContactCount(config) : null;
 
         let name;
         if (id) {
           try {
-            const r = await resendRequest('GET', `/audiences/${id}`);
+            const r = await resendRequest('GET', detailPath(config));
             name = r.name;
           } catch {
             name = undefined;
           }
         }
 
-        return { key: def.key, label: def.label, configured, id, contactCount, name };
+        return {
+          key: def.key,
+          label: def.label,
+          configured,
+          id,
+          contactCount,
+          name,
+          type: config.type,
+          configKey: config.configKey,
+          legacyAudienceKey: config.legacyAudienceKey,
+        };
       }),
     ),
 
@@ -265,7 +399,8 @@ function buildChecklist() {
   return AUDIENCE_DEFS.map(def => ({
     key:        def.key,
     name:       def.label,
-    audienceKey: `RESEND_AUDIENCE_${def.key}`,
+    audienceKey: segmentKey(def.key),
+    legacyAudienceKey: audienceKey(def.key),
     trigger:    def.trigger,
     emails:     def.emails,
   }));
@@ -279,10 +414,10 @@ async function handleLookup(email) {
   const foundIn = [];
   await Promise.all(
     AUDIENCE_DEFS.map(async (def) => {
-      const id = process.env[`RESEND_AUDIENCE_${def.key}`];
-      if (!id) return;
+      const config = resolveResendList(def.key);
+      if (!config?.configured) return;
       try {
-        const res = await resendRequest('GET', `/audiences/${id}/contacts`);
+        const res = await resendRequest('GET', listPath(config));
         const contacts = res.data || [];
         const found = contacts.some(c => (c.email || '').toLowerCase() === email.toLowerCase());
         if (found) foundIn.push(def.label);
@@ -298,32 +433,34 @@ async function handleLookup(email) {
 // ─── Module: resend-stats / action: add ──────────────────────────────────────
 
 async function handleAddContact(audienceKey, email) {
-  const id = process.env[audienceKey];
-  if (!id) throw new Error(`Audience variable ${audienceKey} is not configured`);
+  const config = resolveResendList(audienceKey);
+  if (!config?.configured) throw new Error(`Set ${config?.configKey || 'RESEND_SEGMENT_*'} or ${config?.legacyAudienceKey || 'RESEND_AUDIENCE_*'} first`);
   if (!email) throw new Error('email is required');
 
-  await resendRequest('POST', `/audiences/${id}/contacts`, { email });
+  await addContactToList(config, email);
   return { ok: true };
 }
 
 // ─── Module: resend-stats / action: remove ───────────────────────────────────
 
 async function handleRemoveContact(audienceKey, email) {
-  const id = process.env[audienceKey];
-  if (!id) throw new Error(`Audience variable ${audienceKey} is not configured`);
+  const config = resolveResendList(audienceKey);
+  if (!config?.configured) throw new Error(`Set ${config?.configKey || 'RESEND_SEGMENT_*'} or ${config?.legacyAudienceKey || 'RESEND_AUDIENCE_*'} first`);
   if (!email) throw new Error('email is required');
 
-  // Resend delete-by-email endpoint
-  await resendRequest('DELETE', `/audiences/${id}/contacts`, { email });
+  await removeContactFromList(config, email);
   return { ok: true };
 }
 
 // ─── Module: resend-sync ─────────────────────────────────────────────────────
 
 async function handleSync(databases) {
-  const audienceId = process.env.RESEND_AUDIENCE_ALL_USERS;
-  if (!audienceId) {
-    throw new Error('RESEND_AUDIENCE_ALL_USERS is not configured');
+  if (!process.env.RESEND_API_KEY) {
+    return setupRequired('RESEND_API_KEY is not configured on admin-email.');
+  }
+  const config = resolveResendList('ALL_USERS');
+  if (!config?.configured) {
+    return setupRequired('Set RESEND_SEGMENT_ALL_USERS on admin-email. RESEND_AUDIENCE_ALL_USERS is still accepted as a legacy fallback.');
   }
 
   // Fetch all profiles from Appwrite (page through all)
@@ -347,18 +484,13 @@ async function handleSync(databases) {
   let added = 0;
   let failed = 0;
 
-  // Upsert each profile into Resend audience
+  // Upsert each profile into the configured Resend segment or legacy audience.
   await Promise.all(
     profiles.map(async (profile) => {
       const email = profile.email || profile.contact_email;
       if (!email) { failed++; return; }
       try {
-        await resendRequest('POST', `/audiences/${audienceId}/contacts`, {
-          email,
-          first_name: (profile.full_name || '').split(' ')[0] || undefined,
-          last_name:  (profile.full_name || '').split(' ').slice(1).join(' ') || undefined,
-          unsubscribed: false,
-        });
+        await addContactToList(config, email, profile);
         added++;
       } catch {
         failed++;
@@ -366,7 +498,7 @@ async function handleSync(databases) {
     }),
   );
 
-  return { total: profiles.length, added, failed };
+  return { total: profiles.length, added, failed, type: config.type, configKey: config.configKey };
 }
 
 // ─── Module: email-actions / action: diagnose ────────────────────────────────

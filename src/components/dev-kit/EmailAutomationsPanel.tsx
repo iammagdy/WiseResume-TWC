@@ -15,12 +15,16 @@ interface AudienceStat {
   id: string | null;
   contactCount: number | null;
   name?: string;
+  type?: 'segment' | 'audience';
+  configKey?: string;
+  legacyAudienceKey?: string;
 }
 
 interface ChecklistItem {
   key: string;
   name: string;
   audienceKey: string;
+  legacyAudienceKey?: string;
   trigger: string;
   emails: readonly string[];
 }
@@ -66,7 +70,7 @@ function AudienceCard({
   onManualRemove: (audienceKey: string, audienceLabel: string) => void;
   actionLoading: string | null;
 }) {
-  const envKey = `RESEND_AUDIENCE_${audience.key}`;
+  const envKey = audience.configKey ?? `RESEND_SEGMENT_${audience.key}`;
   const isLoading = actionLoading === audience.key + '_add' || actionLoading === audience.key + '_remove';
 
   return (
@@ -87,7 +91,10 @@ function AudienceCard({
               {audience.name ?? audience.label}
             </span>
           </div>
-          <p className="text-[10px] font-mono text-muted-foreground mt-0.5 pl-6">{envKey}</p>
+          <p className="text-[10px] font-mono text-muted-foreground mt-0.5 pl-6">
+            {envKey}
+            {audience.type === 'audience' && <span className="ml-1">(legacy)</span>}
+          </p>
         </div>
         <div className="text-right shrink-0">
           {audience.configured ? (
@@ -147,7 +154,7 @@ function AudienceCard({
           >
             Appwrite Function Variables
           </a>{' '}
-          to enable this audience.
+          to enable this segment.
         </p>
       )}
     </div>
@@ -170,7 +177,7 @@ export function EmailAutomationsPanel() {
   const [inlinePrompt, setInlinePrompt] = useState<{ audienceKey: string; audienceLabel: string; action: 'add' | 'remove'; email: string } | null>(null);
 
   const [syncLoading, setSyncLoading] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ total: number; added: number; failed: number } | null>(null);
+  const [syncResult, setSyncResult] = useState<{ total: number; added: number; failed: number; setupRequired?: boolean; message?: string } | null>(null);
 
   const isMounted = useIsMounted();
 
@@ -241,7 +248,7 @@ export function EmailAutomationsPanel() {
     audienceLabel: string,
     email: string,
   ) => {
-    const loadingKey = audienceKey.replace('RESEND_AUDIENCE_', '') + '_' + action;
+    const loadingKey = audienceKey.replace(/^RESEND_(SEGMENT|AUDIENCE)_/, '') + '_' + action;
     setActionLoading(loadingKey);
     try {
       const result = await devKitCall({
@@ -266,11 +273,11 @@ export function EmailAutomationsPanel() {
   };
 
   const handleSyncAllUsers = async () => {
-    if (!confirm('Sync all existing users into the "All Users" Resend Audience? This may take a few seconds for large user bases.')) return;
+    if (!confirm('Sync all existing users into the "All Users" Resend Segment? This may take a few seconds for large user bases.')) return;
     setSyncLoading(true);
     setSyncResult(null);
     try {
-      const result = await devKitCall<{ total: number; added: number; failed: number }>({
+      const result = await devKitCall<{ total: number; added: number; failed: number; setupRequired?: boolean; message?: string }>({
         functionId: 'admin-email',
         action: 'sync',
         payload: { module: 'resend-sync' },
@@ -278,6 +285,10 @@ export function EmailAutomationsPanel() {
       if (!result.ok) throw result.error;
       if (!isMounted()) return;
       setSyncResult(result.data);
+      if (result.data.setupRequired) {
+        toast.warning(result.data.message || 'Resend segment setup is required before sync can run');
+        return;
+      }
       toast.success(`Sync complete: ${result.data.added} of ${result.data.total} contacts upserted`);
       fetchStats();
     } catch (e) {
@@ -326,11 +337,11 @@ export function EmailAutomationsPanel() {
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">
-              {loaded ? `${configuredCount} / ${stats.length} audiences configured` : 'Loading…'}
+              {loaded ? `${configuredCount} / ${stats.length} segments configured` : 'Loading…'}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Resend Audiences drive email automations without additional edge functions.{' '}
+            Resend Segments drive email automations without additional edge functions.{' '}
             <span className="text-muted-foreground/70">
               Note: Resend&apos;s REST API does not expose per-automation send metrics — view email send stats in the{' '}
               <a
@@ -396,7 +407,7 @@ export function EmailAutomationsPanel() {
             Contact Lookup
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Search for a contact across all audiences.
+            Search for a contact across all configured segments.
           </p>
         </div>
         <div className="flex gap-2">
@@ -430,7 +441,7 @@ export function EmailAutomationsPanel() {
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium">{lookupEmail}</span> was not found in any configured audience.
+                <span className="font-medium">{lookupEmail}</span> was not found in any configured segment.
               </p>
             )}
           </div>
@@ -446,8 +457,8 @@ export function EmailAutomationsPanel() {
               All-Users Backfill Sync
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Upserts every existing user into the "All Users" audience. New signups are synced automatically.
-              Run this once after setting up the <code className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded">RESEND_AUDIENCE_ALL_USERS</code> secret.
+              Upserts every existing user into the "All Users" segment. New signups are synced automatically.
+              Run this once after setting up the <code className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded">RESEND_SEGMENT_ALL_USERS</code> secret.
             </p>
           </div>
           <Button
@@ -464,7 +475,12 @@ export function EmailAutomationsPanel() {
             )}
           </Button>
         </div>
-        {syncResult && (
+        {syncResult && syncResult.setupRequired && (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+            {syncResult.message || 'Set RESEND_SEGMENT_ALL_USERS before running sync.'}
+          </div>
+        )}
+        {syncResult && !syncResult.setupRequired && (
           <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2.5 text-xs text-green-700 dark:text-green-400">
             Sync complete — {syncResult.added} upserted, {syncResult.failed} failed, {syncResult.total} total.
           </div>
@@ -568,7 +584,7 @@ export function EmailAutomationsPanel() {
           <div className="space-y-3">
             {checklist.map((item) => {
               const audienceStat = stats.find(
-                (a) => `RESEND_AUDIENCE_${a.key}` === item.audienceKey || a.key === item.audienceKey.replace('RESEND_AUDIENCE_', ''),
+                (a) => a.configKey === item.audienceKey || a.legacyAudienceKey === item.audienceKey || a.key === item.audienceKey.replace(/^RESEND_(SEGMENT|AUDIENCE)_/, ''),
               );
               const configured = audienceStat?.configured ?? false;
 
@@ -585,7 +601,7 @@ export function EmailAutomationsPanel() {
                     <span className="text-xs font-semibold text-foreground">{item.name}</span>
                     {!configured && (
                       <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
-                        audience not set
+                        segment not set
                       </span>
                     )}
                   </div>

@@ -1982,6 +1982,27 @@ The repo-side parser fix was not enough by itself because the browser calls the 
 - Verified local parser asset endpoint `http://localhost:5000/pdfjs/standard_fonts/FoxitFixed.pfb` returns `200`.
 
 ---
+## 2026-06-20 - DevKit live audit follow-up fixes
+
+### Summary
+Closed the remaining defects found during the DevKit live audit: Email Automations now handles Resend Segments, Diagnostics recognizes the deployed Admin Sentry hub, and destructive user-delete cleanup no longer leaves subscription/credit/notification residue.
+
+### What changed
+- `admin-email` now prefers `RESEND_SEGMENT_*` variables and keeps `RESEND_AUDIENCE_*` support as a legacy fallback.
+- Email Automations UI now shows segment wording, surfaces setup-required sync states cleanly, and passes the resolved segment/audience key to manual contact actions.
+- `admin-devkit-data` diagnostics now maps `admin-sentry` to the deployed Appwrite function id `6a0760710000ff231048`.
+- DevKit `delete-user` now deletes owned `subscriptions`, `ai_credits`, and `notifications` rows before profile/auth cleanup.
+- The Appwrite deploy workflow and deploy script now propagate `RESEND_SEGMENT_ALL_USERS` and `RESEND_AUDIENCE_ALL_USERS`.
+- DevKit source hashes were regenerated for the changed hubs.
+
+### Verification
+- `node --check appwrite-hubs/admin-email/src/main.js`
+- `node --check appwrite-hubs/admin-devkit-data/src/main.js`
+- `npx eslint src/components/dev-kit/DeployHubsPanel.tsx src/components/dev-kit/EmailAutomationsPanel.tsx`
+- `node scripts/compute-source-hashes.mjs`
+- `npm run build`
+
+---
 ## 2026-05-13 - Cross-device CV parsing stabilization
 
 ### Summary
