@@ -113,6 +113,10 @@ function setupRequired(message) {
   };
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 function base64url(input) {
@@ -247,6 +251,7 @@ async function createGlobalContact(email, profile = {}) {
 async function addContactToList(config, email, profile = {}) {
   if (config.type === 'segment') {
     await createGlobalContact(email, profile);
+    await sleep(250);
     try {
       await resendRequest('POST', `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(config.id)}`);
     } catch (e) {
@@ -494,20 +499,20 @@ async function handleSync(databases) {
   const failureReasons = {};
 
   // Upsert each profile into the configured Resend segment or legacy audience.
-  await Promise.all(
-    profiles.map(async (profile) => {
-      const email = profile.email || profile.contact_email;
-      if (!email) { failed++; return; }
-      try {
-        await addContactToList(config, email, profile);
-        added++;
-      } catch (e) {
-        failed++;
-        const reason = String(e.message || 'unknown').slice(0, 120);
-        failureReasons[reason] = (failureReasons[reason] || 0) + 1;
-      }
-    }),
-  );
+  // Keep this sequential to stay under Resend's contact/segment rate limits.
+  for (const profile of profiles) {
+    const email = profile.email || profile.contact_email;
+    if (!email) { failed++; continue; }
+    try {
+      await addContactToList(config, email, profile);
+      added++;
+    } catch (e) {
+      failed++;
+      const reason = String(e.message || 'unknown').slice(0, 120);
+      failureReasons[reason] = (failureReasons[reason] || 0) + 1;
+    }
+    await sleep(250);
+  }
 
   return { total: profiles.length, added, failed, failureReasons, type: config.type, configKey: config.configKey };
 }
