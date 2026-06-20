@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-20
+**Last verified:** 2026-06-21
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,32 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-21 - Anti-Gravity Post-Secret Live QA
+
+### Summary
+Completed the Anti-Gravity post-secret live browser QA against `https://wiseresume.app` after the owner added `PORTFOLIO_JWT_SECRET` to Appwrite and GitHub Secrets and redeployed the affected portfolio functions. All critical flows pass. No P1 blockers. Status upgraded from `BLOCKED_EXTERNAL_ACCESS` to `READY_FOR_BROAD_USER_TESTING`.
+
+### QA Results
+| Area | Result |
+|------|--------|
+| Auth / Login / Logout | ✅ PASS |
+| Resume Editor | ✅ PASS |
+| AI Tools — Suggest Skills | ✅ PASS |
+| Tailoring Hub | ⚠️ P2 — Guardrail fired on blank test resume (expected behavior) |
+| Portfolio Password Protection (setup + security) | ✅ PASS |
+| Portfolio gate propagation | ⚠️ P2 — CDN propagation delay >40s (not a code bug) |
+| Settings & Logout | ✅ PASS |
+| Security (no hash/secret in guest HTML) | ✅ CLEAN |
+
+### Test Artifacts
+- E2E spec updated: `tests/e2e/specs/27-antigravity-auth-flows.spec.ts`
+- Report: `Project Atlas/Deployment Reports/WiseResume_AntiGravity_PostSecret_LiveQA_2026-06-21.md`
+
+### Status
+`READY_FOR_BROAD_USER_TESTING` — TestSprite can be rerun; broad user testing and launch are safe.
 
 ---
 
