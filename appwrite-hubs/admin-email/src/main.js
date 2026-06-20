@@ -247,16 +247,24 @@ async function createGlobalContact(email, profile = {}) {
 async function addContactToList(config, email, profile = {}) {
   if (config.type === 'segment') {
     await createGlobalContact(email, profile);
-    await resendRequest('POST', `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(config.id)}`);
+    try {
+      await resendRequest('POST', `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(config.id)}`);
+    } catch (e) {
+      if (!/already|exist|duplicate/i.test(e.message || '')) throw e;
+    }
     return;
   }
   const name = splitName(profile.full_name || profile.name || '');
-  await resendRequest('POST', `/audiences/${encodeURIComponent(config.id)}/contacts`, {
-    email,
-    first_name: name.firstName,
-    last_name: name.lastName,
-    unsubscribed: false,
-  });
+  try {
+    await resendRequest('POST', `/audiences/${encodeURIComponent(config.id)}/contacts`, {
+      email,
+      first_name: name.firstName,
+      last_name: name.lastName,
+      unsubscribed: false,
+    });
+  } catch (e) {
+    if (!/already|exist|duplicate/i.test(e.message || '')) throw e;
+  }
 }
 
 async function removeContactFromList(config, email) {
