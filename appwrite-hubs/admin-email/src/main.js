@@ -491,6 +491,7 @@ async function handleSync(databases) {
 
   let added = 0;
   let failed = 0;
+  const failureReasons = {};
 
   // Upsert each profile into the configured Resend segment or legacy audience.
   await Promise.all(
@@ -500,13 +501,15 @@ async function handleSync(databases) {
       try {
         await addContactToList(config, email, profile);
         added++;
-      } catch {
+      } catch (e) {
         failed++;
+        const reason = String(e.message || 'unknown').slice(0, 120);
+        failureReasons[reason] = (failureReasons[reason] || 0) + 1;
       }
     }),
   );
 
-  return { total: profiles.length, added, failed, type: config.type, configKey: config.configKey };
+  return { total: profiles.length, added, failed, failureReasons, type: config.type, configKey: config.configKey };
 }
 
 // ─── Module: email-actions / action: diagnose ────────────────────────────────

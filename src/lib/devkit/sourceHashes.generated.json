@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-06-20T16:43:08.229Z",
+  "generatedAt": "2026-06-20T16:48:19.887Z",
   "hashes": {
     "ai-gateway": "1147686fcd64e214aa330b06544a0e3f734aa415261c59a7fe21b64c9138db7e",
     "admin-devkit-data": "045289d347b5524bac4bd81ced20b8ac8cd6a342528e5c592cbcfc76503d135a",
-    "admin-email": "1de1a15065cec9d6f6b1a08492b613e0db41db09d553610bf7e26fce1bc9a939",
+    "admin-email": "848abbdbe90b08cf2c4e446e089ff75b4b9272cd79c1acc248abd2e56eb59671",
     "inspect-ai-keys": "2b5eafee82326afb18be85e1913e26b4929c93e82fa262ce00448f2227c9ff26",
     "admin-deploy-hubs": "c0062754f4f9ba59f786a06f52447ed8197554312b806bf609adddcd956a2e99",
     "admin-feature-flags": "9e8719f8f0d70bb6fb506e33543e3ec3a7fd9302556f67e6b05244f29b85ee90",
