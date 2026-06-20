@@ -2,6 +2,54 @@
 
 ---
 
+## Session Log - 2026-06-20 (Portfolio Unlock and AI Routing Repair)
+
+### Overview
+
+Completed a scoped P0/P1/P2 fix pass on `main` for public portfolio password unlock, AI Gateway tailor identity preservation, DevKit AI route metadata, and stale Tailor navigation entry points.
+
+### What changed
+
+| Area | Result |
+|------|--------|
+| Portfolio password unlock | `get-public-portfolio` and `verify-portfolio-password` now verify bcrypt hashes written by the editor, while preserving legacy raw SHA-256 and `sha256:` hashes. Protected portfolios fail closed if protection is enabled but no hash exists. |
+| AI Gateway tailor output | Tailored structured items preserve existing IDs, match reordered experience entries by company/title before index fallback, append omitted originals, and keep the AI-returned order. |
+| DevKit AI map | `resume-section-ai` now matches the gateway DeepSeek default route. |
+| Tailor navigation | Dashboard checklist, workspace search, discovery cards, workspace context, and saved-job Tailor action prefer `/tailoring-hub`; legacy `/tailor` routes remain. |
+| Job import provider order | Inspected only. Tailoring Hub URL imports use `job-import`, whose provider pool is Groq -> OpenRouter -> DeepSeek, while `ai-gateway` `parse-job` is DeepSeek-first. No change made in this pass. |
+
+### Validation
+
+- `npx tsc --noEmit` - pass.
+- `npm run build` - pass; existing large chunk and Vite `bcryptjs` browser crypto warnings remain.
+- `node --check appwrite-hubs/ai-gateway/src/main.js` - pass.
+- `node --check appwrite-hubs/get-public-portfolio/src/main.js` - pass.
+- `node --check appwrite-hubs/verify-portfolio-password/src/main.js` - pass.
+- `node --check appwrite-hubs/portfolio-gate/src/main.js` - pass.
+- `node tests/hubs/portfolio-password-verification.test.cjs` - pass.
+- `node tests/hubs/ai-gateway-routing.test.cjs` - pass with expected local missing-env fail-closed alerts.
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts src/lib/__tests__/workspaceSearch.test.ts` - pass.
+- `node scripts/compute-source-hashes.mjs` - pass.
+- `git diff --check` - pass.
+
+Source hashes updated:
+- `ai-gateway`: `e9c40b8f3096ad73e0bad7d7c2cf5a7cb8bf7a1933c836171f950049240ff27b`
+- `get-public-portfolio`: `996397a6ef20065b3c7c872b0e2bd1349b61525b879fad6ccccbfa11e5f4f98f`
+- `verify-portfolio-password`: `ceae5b6a3bb0714b8bfd8bcf0c7ece96744e5d97f087fe22fb0158f6d8ce31a4`
+
+### Deployment and QA
+
+Vercel deploy required for frontend navigation and DevKit metadata. Appwrite Hub deploy required for `get-public-portfolio`, `verify-portfolio-password`, and `ai-gateway`; `portfolio-gate` was checked but not changed.
+
+Manual QA still needed:
+1. Unlock a newly saved bcrypt-protected public portfolio.
+2. Confirm legacy SHA protected portfolios still unlock.
+3. Confirm bad passwords stay locked.
+4. Confirm Tailoring Hub output keeps IDs correct after reordered experience tailoring.
+5. Confirm all user-facing Smart Tailor entry points land in Tailoring Hub.
+
+---
+
 ## Session Log - 2026-06-16 (Branch Cleanup Campaign — Single-Branch `main` Closeout)
 
 ### Overview

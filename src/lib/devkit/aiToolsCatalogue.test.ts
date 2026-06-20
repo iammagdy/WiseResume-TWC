@@ -61,6 +61,7 @@ describe('aiToolsCatalogue', () => {
       'generate-cover-letter',
       'agentic-chat',
       'wise-ai-chat',
+      'resume-section-ai',
       'editor-ai',
       'smart-fit-rewrite',
       'suggest-template',

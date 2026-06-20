@@ -13,7 +13,7 @@ const FEATURES = [
   {
     title: 'Smart Tailor',
     description: 'Paste a job description and auto-adapt your resume keywords to match.',
-    route: '/ai-studio/tailor',
+    route: '/tailoring-hub',
   },
   {
     title: 'Company Briefing',

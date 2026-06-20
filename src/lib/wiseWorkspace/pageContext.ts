@@ -61,7 +61,7 @@ const PAGE_REGISTRY: Array<{
   },
   {
     pageId: 'ai_studio',
-    routes: ['/ai-studio', '/tailor', '/interview', '/career'],
+    routes: ['/ai-studio', '/tailoring-hub', '/tailor', '/interview', '/career'],
     pageTitle: 'AI Tools',
     pageSummary: 'Tailor, interview prep, cover letters, and more.',
     contextFilter: 'activity',

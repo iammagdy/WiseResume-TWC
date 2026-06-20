@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const sdk = require('node-appwrite');
 
 const DB_ID = 'main';
@@ -33,7 +34,41 @@ function sha256Hex(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-module.exports = async ({ req, res, error }) => {
+function timingSafeCompare(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+async function verifyStoredPassword(password, storedHash) {
+  if (!password || !storedHash) return false;
+
+  const submittedSha = sha256Hex(password);
+  const normalizedHash = String(storedHash).trim();
+
+  try {
+    if (/^\$2[aby]\$\d{2}\$/.test(normalizedHash)) {
+      return await bcrypt.compare(password, normalizedHash);
+    }
+
+    if (normalizedHash.toLowerCase().startsWith('sha256:')) {
+      return timingSafeCompare(`sha256:${submittedSha}`, normalizedHash.toLowerCase());
+    }
+
+    if (/^[a-f0-9]{64}$/i.test(normalizedHash)) {
+      return timingSafeCompare(submittedSha, normalizedHash.toLowerCase());
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+async function handler({ req, res, error }) {
   if (!API_KEY) {
     return res.json({ success: false, error: 'Appwrite API key is not configured.' }, 500);
   }
@@ -76,13 +111,16 @@ module.exports = async ({ req, res, error }) => {
     const passwordEnabled = settings.password_enabled || settings.passwordEnabled;
     const storedHash = settings.password_hash || settings.passwordHash;
 
-    if (!passwordEnabled || !storedHash) {
+    if (!passwordEnabled) {
       return res.json({ success: true, protected: false }); // No password protection
     }
 
+    if (!storedHash) {
+      return res.json({ success: false, error: 'Portfolio password is not configured' }, 401);
+    }
+
     // Server-side verification
-    const submittedHash = sha256Hex(password);
-    const isValid = submittedHash === storedHash;
+    const isValid = await verifyStoredPassword(password, storedHash);
 
     if (!isValid) {
       return res.json({ success: false, error: 'Invalid password' }, 401);
@@ -99,4 +137,11 @@ module.exports = async ({ req, res, error }) => {
     console.error('Password verification error:', err);
     return res.json({ success: false, error: 'Verification failed' }, 500);
   }
+}
+
+module.exports = handler;
+module.exports.__test = {
+  sha256Hex,
+  timingSafeCompare,
+  verifyStoredPassword,
 };

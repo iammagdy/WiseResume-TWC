@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const sdk = require('node-appwrite');
 
 const DB_ID = 'main';
@@ -35,6 +36,31 @@ function parseBody(req) {
 
 function sha256Hex(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+async function verifyStoredPassword(password, storedHash) {
+  if (!password || !storedHash) return false;
+
+  const submittedSha = sha256Hex(password);
+  const normalizedHash = String(storedHash).trim();
+
+  try {
+    if (/^\$2[aby]\$\d{2}\$/.test(normalizedHash)) {
+      return await bcrypt.compare(password, normalizedHash);
+    }
+
+    if (normalizedHash.toLowerCase().startsWith('sha256:')) {
+      return timingSafeCompare(`sha256:${submittedSha}`, normalizedHash.toLowerCase());
+    }
+
+    if (/^[a-f0-9]{64}$/i.test(normalizedHash)) {
+      return timingSafeCompare(submittedSha, normalizedHash.toLowerCase());
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }
 
 // Timing-safe signature comparison
@@ -125,10 +151,10 @@ async function verifyPassword(db, username, password) {
   const passwordEnabled = settings.password_enabled || settings.passwordEnabled;
   const storedHash = settings.password_hash || settings.passwordHash;
   
-  if (!passwordEnabled || !storedHash) return { valid: true, userId };
+  if (!passwordEnabled) return { valid: true, userId };
+  if (!storedHash) return { valid: false };
   
-  const submittedHash = sha256Hex(password);
-  if (submittedHash !== storedHash) return { valid: false };
+  if (!(await verifyStoredPassword(password, storedHash))) return { valid: false };
   
   return { valid: true, userId };
 }
@@ -261,7 +287,7 @@ async function buildPublicPortfolio(db, username, sessionToken) {
   };
 }
 
-module.exports = async ({ req, res, error }) => {
+async function handler({ req, res, error }) {
   if (!API_KEY) {
     return res.json({ success: false, error: 'Appwrite API key is not configured.' }, 500);
   }
@@ -381,4 +407,11 @@ module.exports = async ({ req, res, error }) => {
     console.error('Get public portfolio error:', err);
     return res.json({ success: false, error: 'Failed to fetch portfolio' }, 500);
   }
+}
+
+module.exports = handler;
+module.exports.__test = {
+  sha256Hex,
+  timingSafeCompare,
+  verifyStoredPassword,
 };

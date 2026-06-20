@@ -1256,7 +1256,7 @@ function normalizeExperienceItem(item) {
     position = derivePositionFallback(item);
   }
   return {
-    id: '',
+    id: asOptionalString(item.id),
     company,
     position,
     account: asOptionalString(item.account),
@@ -1273,7 +1273,7 @@ function normalizeExperienceItem(item) {
 function normalizeEducationItem(item) {
   if (!isRecord(item)) return null;
   return {
-    id: '',
+    id: asOptionalString(item.id),
     institution: asString(item.institution),
     degree: asString(item.degree),
     field: asString(item.field),
@@ -1287,7 +1287,7 @@ function normalizeEducationItem(item) {
 function normalizeCertificationItem(item) {
   if (!isRecord(item)) return null;
   return {
-    id: '',
+    id: asOptionalString(item.id),
     name: asString(item.name),
     issuer: asString(item.issuer),
     date: asString(item.date),
@@ -1299,7 +1299,7 @@ function normalizeCertificationItem(item) {
 function normalizeAwardItem(item) {
   if (!isRecord(item)) return null;
   return {
-    id: '',
+    id: asOptionalString(item.id),
     title: asString(item.title),
     issuer: asString(item.issuer),
     date: asString(item.date),
@@ -1310,7 +1310,7 @@ function normalizeAwardItem(item) {
 function normalizeProjectItem(item) {
   if (!isRecord(item)) return null;
   return {
-    id: '',
+    id: asOptionalString(item.id),
     name: asString(item.name),
     role: asString(item.role),
     startDate: asString(item.startDate),
@@ -1580,21 +1580,6 @@ function mergeTailorItemsWithOriginals(parsedItems, originalItems, matcher) {
     if (merged.some((item) => hasMatch(original, item))) continue;
     merged.push({ ...original });
   }
-
-  const orderIndex = new Map();
-  originals.forEach((original, index) => {
-    const id = asString(original.id);
-    if (id) orderIndex.set(id, index);
-  });
-
-  merged.sort((a, b) => {
-    const ai = orderIndex.get(asString(a.id));
-    const bi = orderIndex.get(asString(b.id));
-    if (ai == null && bi == null) return 0;
-    if (ai == null) return 1;
-    if (bi == null) return -1;
-    return ai - bi;
-  });
 
   return merged;
 }
@@ -2185,6 +2170,7 @@ function buildTailorResumeSystemPrompt(opts) {
     '4. EXPERIENCE COVERAGE: Rewrite the description and at least one achievement bullet for EVERY experience entry — not only the most recent job.\n' +
     '5. NO DUPLICATE BULLETS: Never repeat the same achievement line twice under one job. Each achievements[] entry must be unique.\n' +
     '6. BULLET TRANSFORMATIONS: List every rewritten bullet in `bulletTransformations` AND put the final text in `experience[].achievements` — never duplicate original + rewritten versions.\n' +
+    'BULLET TRANSFORMATIONS LIMIT: Keep rewritten achievements concise and cap each experience entry at the same bullet count as the source entry unless the source has no bullets.\n' +
     '7. Every rewritten bullet should follow the STAR method: Action Verb + What was done + Result/Impact.\n' +
     '8. SKILLS: Reorder skills for the target role and add missing job keywords — do NOT silently drop most of the candidate\'s skills. Keep breadth; prioritize job-relevant skills first.\n' +
     '9. Weave critical job description keywords naturally throughout summary, skills, and experience - do not stuff.\n' +

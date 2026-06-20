@@ -36,7 +36,7 @@ const FEATURE_TIPS = [
 {
   title: 'Smart Tailor',
   description: 'Paste a job description and auto-adapt your resume keywords to match.',
-  route: '/ai-studio/tailor'
+  route: '/tailoring-hub'
 },
 {
   title: 'Company Briefing',
@@ -160,7 +160,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
         action: () => {
           setCurrentResumeId(best.$id);
           setCurrentResume(bestData);
-          navigate('/ai-studio/tailor');
+          navigate('/tailoring-hub');
         },
         color: 'text-primary',
         bgColor: 'bg-primary/10'

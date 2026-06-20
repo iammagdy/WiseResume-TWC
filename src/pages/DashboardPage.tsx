@@ -672,7 +672,7 @@ function DashboardPageContent() {
       { id: 'first-resume', label: 'Create your first resume', description: 'Build a professional resume to get started.', done: resumes.length > 0, href: '/dashboard?action=create' },
       { id: 'ats-check', label: 'Run an ATS check', description: 'See how well your resume scores with recruiters.', done: hasAnyScore, href: '/editor' },
       { id: 'export', label: 'Export your resume', description: 'Download your resume as PDF or PNG.', done: exportedChecked, href: '/editor' },
-      { id: 'target-job', label: 'Set a target job', description: 'Tailor your resume for specific roles.', done: hasTargetJob, href: '/tailor' },
+      { id: 'target-job', label: 'Set a target job', description: 'Tailor your resume for specific roles.', done: hasTargetJob, href: '/tailoring-hub' },
       { id: 'portfolio', label: 'View your portfolio', description: 'Share your professional portfolio online.', done: !!profile?.portfolioEnabled, href: '/portfolio' },
     ];
   }, [resumes, effectiveHealthScores, exportedChecked, profile?.portfolioEnabled]);

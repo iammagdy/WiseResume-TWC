@@ -4,6 +4,7 @@
   "description": "Server-side portfolio password verification",
   "main": "src/main.js",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "node-appwrite": "^17.2.0"
   }
 }

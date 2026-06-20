@@ -51,7 +51,7 @@ export const TOOL_GATEWAY_DEFAULTS: Record<string, { provider: ToolProvider; mod
   'tailor-resume':                 { provider: 'deepseek',   model: 'deepseek-chat' },
   'agentic-chat':                 { provider: 'deepseek',   model: 'deepseek-chat' },
   'wise-ai-chat':                 { provider: 'deepseek',   model: 'deepseek-chat' },
-  'resume-section-ai':            { provider: 'groq',       model: 'llama-3.3-70b-versatile' },
+  'resume-section-ai':            { provider: 'deepseek',   model: 'deepseek-chat' },
   'editor-ai':                    { provider: 'deepseek',   model: 'deepseek-chat' },
   'smart-fit-rewrite':            { provider: 'deepseek',   model: 'deepseek-chat' },
   'suggest-template':             { provider: 'deepseek',   model: 'deepseek-chat' },

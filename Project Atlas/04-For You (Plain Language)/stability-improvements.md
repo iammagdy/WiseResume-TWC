@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-06-20 (DevKit visual refresh wiring checked)
+**Last verified:** 2026-06-20 (portfolio unlock and tailoring routes checked)
+
+## Protected portfolio links unlock correctly again (2026-06-20)
+
+**What was the situation:** Password-protected portfolio links could reject the right password after the editor saved the password in the newer secure format.
+
+**What changed:** The public unlock services now understand the newer secure password format and still support older protected links. If a protected link is missing its password record, it stays locked instead of opening by mistake.
+
+**What you'll notice:** Visitors should be able to unlock protected portfolios with the correct password, while incorrect passwords and incomplete protection settings keep the portfolio private.
 
 ## Admin panel refresh now opens its shared sections reliably (2026-06-20)
 

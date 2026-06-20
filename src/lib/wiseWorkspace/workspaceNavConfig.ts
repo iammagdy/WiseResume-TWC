@@ -35,7 +35,7 @@ export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
     path: '/ai-studio',
     label: 'AI Tools',
     icon: Sparkles,
-    matchPaths: ['/ai-studio', '/tailor', '/career', '/cover-letter', '/cover-letters', '/interview'],
+    matchPaths: ['/ai-studio', '/tailoring-hub', '/tailor', '/career', '/cover-letter', '/cover-letters', '/interview'],
     proGated: true,
   },
   {

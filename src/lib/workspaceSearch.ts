@@ -50,7 +50,7 @@ const WORKSPACE_ITEMS: WorkspaceSearchItem[] = [
   { id: 'cover-letter', label: 'New Cover Letter', keywords: ['cover', 'letter', 'application'], path: '/cover-letter/new', icon: PenTool, group: 'actions' },
   { id: 'interview', label: 'Practice Interview', keywords: ['interview', 'mock', 'prep'], path: '/interview', icon: Mic, group: 'actions' },
   { id: 'ai-chat', label: 'Wise AI Chat', keywords: ['chat', 'assistant', 'ai', 'wise'], path: '/ai-studio/chat', icon: MessageSquare, group: 'ai' },
-  { id: 'tailor', label: 'Smart Tailor', keywords: ['tailor', 'job', 'match', 'ats'], path: '/ai-studio/tailor', icon: Wand2, group: 'ai' },
+  { id: 'tailor', label: 'Smart Tailor', keywords: ['tailor', 'job', 'match', 'ats'], path: '/tailoring-hub', icon: Wand2, group: 'ai' },
   { id: 'ab-compare', label: 'A/B Compare', keywords: ['compare', 'versions', 'ab'], path: '/ai-studio/ab-compare', icon: GitCompareArrows, group: 'ai' },
   { id: 'tailoring-hub', label: 'Tailoring Hub', keywords: ['tailoring', 'hub', 'job match'], path: '/tailoring-hub', icon: Target, group: 'ai' },
   { id: 'enhance', label: 'AI Enhance', keywords: ['enhance', 'improve', 'rewrite'], path: '/ai-studio/enhance', icon: Sparkles, group: 'ai' },

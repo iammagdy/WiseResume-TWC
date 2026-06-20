@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-16
+**Last verified:** 2026-06-20
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,60 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-20 - Portfolio Unlock, AI Routing Metadata, and Tailoring Hub Entry Fixes
+
+### Summary
+Fixed the P0 public portfolio unlock regression caused by bcrypt hashes being saved by the editor while public hubs only checked SHA-256. Also repaired AI Gateway tailor identity preservation, aligned DevKit AI route metadata, and moved user-facing Tailor entry points to Tailoring Hub.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/get-public-portfolio/src/main.js` | Added bcrypt password verification with legacy raw SHA-256 and `sha256:` support; fail-closed when protection is enabled but hash is missing; kept JWT secret checks fail-safe. |
+| `appwrite-hubs/verify-portfolio-password/src/main.js` | Matched the same bcrypt/SHA verification behavior and fail-closed missing-hash handling. |
+| `appwrite-hubs/*/package.json` | Added `bcryptjs` dependency for the two portfolio password hubs. |
+| `appwrite-hubs/ai-gateway/src/main.js` | Preserved returned structured IDs, matched reordered tailor items by identity, stopped re-sorting AI-returned order, and restored the bullet transformation limit prompt guardrail. |
+| `src/lib/devkit/aiToolsCatalogue.ts` / `.test.ts` | Aligned `resume-section-ai` with the gateway's DeepSeek default. |
+| Dashboard/search/navigation files | Updated user-facing Smart Tailor links to `/tailoring-hub` while preserving legacy `/tailor` routes. |
+| `tests/hubs/portfolio-password-verification.test.cjs` | Added bcrypt and legacy SHA password regression coverage. |
+
+### Job Import Provider Order
+Inspected only. `ImportJobSheet` uses `useImportJob`, which invokes the separate `job-import` hub for URL imports. That hub currently builds its provider pool as Groq -> OpenRouter -> DeepSeek, while `ai-gateway` routes `parse-job` through DeepSeek first. This is a production Tailoring Hub URL-import path and is a known provider-order mismatch, but no code change was made in this pass because it is separate from the P0/P1 fixes and should be changed with focused job-import validation.
+
+### Verification
+- `npx tsc --noEmit` - pass.
+- `npm run build` - pass; existing large chunk and Vite `bcryptjs` browser crypto warnings remain.
+- `node --check appwrite-hubs/ai-gateway/src/main.js` - pass.
+- `node --check appwrite-hubs/get-public-portfolio/src/main.js` - pass.
+- `node --check appwrite-hubs/verify-portfolio-password/src/main.js` - pass.
+- `node --check appwrite-hubs/portfolio-gate/src/main.js` - pass.
+- `node tests/hubs/portfolio-password-verification.test.cjs` - pass.
+- `node tests/hubs/ai-gateway-routing.test.cjs` - pass; env-missing alerts are expected locally and fail closed.
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts src/lib/__tests__/workspaceSearch.test.ts` - pass.
+- `node scripts/compute-source-hashes.mjs` - pass.
+- `git diff --check` - pass.
+
+### Source Hash Updates
+- `ai-gateway`: `e9c40b8f3096ad73e0bad7d7c2cf5a7cb8bf7a1933c836171f950049240ff27b`
+- `get-public-portfolio`: `996397a6ef20065b3c7c872b0e2bd1349b61525b879fad6ccccbfa11e5f4f98f`
+- `verify-portfolio-password`: `ceae5b6a3bb0714b8bfd8bcf0c7ece96744e5d97f087fe22fb0158f6d8ce31a4`
+
+### Deployment Required
+- Vercel frontend deploy required for dashboard/search/navigation and DevKit catalogue changes.
+- Appwrite Hub deploy required for:
+  - `get-public-portfolio`
+  - `verify-portfolio-password`
+  - `ai-gateway`
+- `portfolio-gate` did not change; syntax check only.
+
+### Manual QA Still Needed
+1. Publish a password-protected portfolio from the editor, then unlock it publicly with the same password.
+2. Confirm a legacy SHA-256 protected portfolio still unlocks.
+3. Confirm a protected portfolio with a bad password stays locked.
+4. Run a Tailoring Hub job flow and confirm reordered experience entries keep the correct original IDs.
+5. Open dashboard Smart Tailor, workspace search, feature discovery, and a saved job's Tailor Resume action; each should land in Tailoring Hub.
 
 ---
 

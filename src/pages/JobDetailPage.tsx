@@ -167,7 +167,15 @@ export default function JobDetailPage() {
           <Button
             variant="outline"
             className="flex-col h-auto py-3 gap-1.5 rounded-xl text-xs"
-            onClick={() => navigate('/tailor', { state: { jobDescription: job.description + '\n\nRequirements:\n' + job.requirements } })}
+            onClick={() => {
+              const params = new URLSearchParams({
+                mode: 'workspace',
+                job: `${job.description}\n\nRequirements:\n${job.requirements}`,
+                title: job.title,
+                company: job.company,
+              });
+              navigate(`/tailoring-hub?${params.toString()}`);
+            }}
           >
             <FileText className="w-4 h-4 text-primary" />
             Tailor Resume
