@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-21 - Final autonomous QA readiness
+
+- **Job Import**: updated `appwrite-hubs/job-import/src/main.js` so URL job imports prefer DeepSeek before Groq/OpenRouter fallbacks.
+- **Regression test**: added `tests/hubs/job-import-routing.test.cjs` to verify `job-import` remains DeepSeek-first.
+- **Source hashes**: updated `src/lib/devkit/sourceHashes.generated.json` with `job-import` hash `c00d55c1f5ff8c8ed5bd6179d08928e6f81da4140cfa3e044b68e1b5fa964618`.
+- **Deployment**: pushed commit `393ff9ae73d8fd4f80efd7c91fe87a8271a0d599`; Vercel production succeeded and official Appwrite workflow run `27884437136` deployed `job-import` as `6a37068e5b8ff5226838`.
+- **Readiness status**: recorded `BLOCKED_EXTERNAL_ACCESS` because `PORTFOLIO_JWT_SECRET` is missing from required live functions and safe test credentials were unavailable for authenticated browser QA.
+
 ## 2026-06-20 - Post-fix deployment readiness
 
 - **Production deployment**: pushed `ba523905b2e57dfe75cc6696a9277efeee51578f` to `origin/main` and verified the Vercel production deployment at `https://wise-resume-1hvl3wy6z-iam-magdy.vercel.app`.

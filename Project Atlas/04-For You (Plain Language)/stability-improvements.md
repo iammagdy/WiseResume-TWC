@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-06-20 (post-fix deployment readiness checked)
+**Last verified:** 2026-06-21 (final QA loop checked)
+
+## Job import now follows the same AI routing priority as the main tailoring flow (2026-06-21)
+
+**What was the situation:** One behind-the-scenes job import path could try fallback AI providers before the preferred AI provider used by the main tailoring flow.
+
+**What changed:** That job import path now tries the preferred provider first, with the previous providers still available as fallbacks.
+
+**What you'll notice:** Job URL import should behave more consistently with the main Tailoring Hub flow once a user is signed in. Final live testing is still blocked until the missing portfolio secret and safe test-account access are resolved.
 
 ## Portfolio unlock and tailoring fixes are deployed for final checking (2026-06-20)
 

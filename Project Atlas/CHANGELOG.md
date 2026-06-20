@@ -11,6 +11,42 @@
 
 ---
 
+## 2026-06-21 - Final Autonomous QA Loop
+
+### Summary
+Ran the final autonomous QA/fix/deploy loop. Local validation passed, public production routes loaded on `https://wiseresume.app`, and the remaining DeepSeek routing mismatch in `job-import` was fixed and deployed. Final status is `BLOCKED_EXTERNAL_ACCESS` because `PORTFOLIO_JWT_SECRET` is missing from the required live portfolio functions and no safe test credentials were available for authenticated browser QA.
+
+### Changes Applied
+| File | Change |
+|------|--------|
+| `appwrite-hubs/job-import/src/main.js` | Reordered the provider pool to prefer DeepSeek before Groq/OpenRouter fallbacks. |
+| `tests/hubs/job-import-routing.test.cjs` | Added a focused regression check for DeepSeek-first `job-import` provider order. |
+| `src/lib/devkit/sourceHashes.generated.json` | Updated the `job-import` source hash to `c00d55c1f5ff8c8ed5bd6179d08928e6f81da4140cfa3e044b68e1b5fa964618`. |
+
+### Deployment
+| Target | Result |
+|--------|--------|
+| Vercel production | Success for commit `393ff9ae73d8fd4f80efd7c91fe87a8271a0d599`; deployment `5136403494`. |
+| `job-import` | Official workflow run `27884437136`, deployment `6a37068e5b8ff5226838`, ready/active. |
+
+### Verification
+- `npx tsc --noEmit` - pass.
+- `npm run build` - pass.
+- Appwrite hub syntax checks for `ai-gateway`, `get-public-portfolio`, `verify-portfolio-password`, `portfolio-gate`, and `job-import` - pass.
+- `node tests/hubs/portfolio-password-verification.test.cjs` - pass.
+- `node tests/hubs/ai-gateway-routing.test.cjs` - pass.
+- `node tests/hubs/job-import-routing.test.cjs` - pass.
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts src/lib/__tests__/workspaceSearch.test.ts` - pass.
+- `node scripts/compute-source-hashes.mjs` - pass.
+- `git diff --check` - pass.
+
+### Remaining Blockers
+- `PORTFOLIO_JWT_SECRET` is missing from GitHub repository secrets and from Appwrite `get-public-portfolio` and `portfolio-gate` variables.
+- Authenticated browser QA is blocked without safe test credentials.
+- TestSprite rerun, broad user testing, and launch are not recommended until those external blockers are cleared.
+
+---
+
 ## 2026-06-20 - Post-Fix Production Deployment Readiness
 
 ### Summary

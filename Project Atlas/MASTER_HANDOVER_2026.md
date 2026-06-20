@@ -2,6 +2,50 @@
 
 ---
 
+## Session Log - 2026-06-21 (Final Autonomous QA Loop)
+
+### Overview
+
+Completed a final autonomous QA/fix/deploy loop from `main`. The loop fixed the remaining `job-import` DeepSeek provider-order mismatch, deployed that hub through the official targeted workflow, verified production deployment state, and documented the remaining external blockers.
+
+### What Changed
+
+| Area | Result |
+|------|--------|
+| Job import AI routing | `job-import` now prefers DeepSeek before Groq/OpenRouter fallbacks, matching the main `ai-gateway` `parse-job` route policy. |
+| Regression coverage | Added `tests/hubs/job-import-routing.test.cjs` to guard the DeepSeek-first ordering. |
+| Source hashes | Updated `job-import` hash to `c00d55c1f5ff8c8ed5bd6179d08928e6f81da4140cfa3e044b68e1b5fa964618`. |
+
+### Deployment
+
+| Area | Result |
+|------|--------|
+| Code commit | `393ff9ae73d8fd4f80efd7c91fe87a8271a0d599` pushed to `origin/main`. |
+| Vercel | Production deployment succeeded; GitHub deployment `5136403494`. |
+| Appwrite | Official `Deploy Appwrite Hubs` workflow run `27884437136` succeeded for `job-import` only. |
+| `job-import` | Deployment `6a37068e5b8ff5226838`, ready/active. |
+
+### Validation
+
+- `npx tsc --noEmit` - pass.
+- `npm run build` - pass with existing non-blocking warnings.
+- Hub syntax checks - pass.
+- Portfolio password regression - pass.
+- AI Gateway routing regression - pass.
+- Job import routing regression - pass.
+- DevKit/search Vitest suite - pass.
+- Source hash generation - pass.
+- `git diff --check` - pass.
+- Public unauthenticated routes on `https://wiseresume.app` loaded: `/`, `/pricing`, `/auth`, `/sign-in`, `/auth/verify-email`, `/auth/reset-password`.
+
+### Final Status
+
+`BLOCKED_EXTERNAL_ACCESS`.
+
+The remaining blocker is external configuration/access, not code: `PORTFOLIO_JWT_SECRET` is missing from GitHub repository secrets and from Appwrite `get-public-portfolio` and `portfolio-gate` variables. Authenticated browser QA is also blocked without safe test credentials. Do not rerun TestSprite, start broad user testing, or launch until those are cleared and protected portfolio plus authenticated smoke checks pass.
+
+---
+
 ## Session Log - 2026-06-20 (Post-Fix Deployment Readiness)
 
 ### Overview
