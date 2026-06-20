@@ -11,6 +11,33 @@
 
 ---
 
+## 2026-06-20 - Post-Fix Production Deployment Readiness
+
+### Summary
+Pushed post-fix commit `ba523905b2e57dfe75cc6696a9277efeee51578f` to `origin/main`, verified the Vercel production deployment, and ran the official targeted Appwrite hub deployment workflow for `get-public-portfolio`, `verify-portfolio-password`, and `ai-gateway`.
+
+### Deployment Results
+| Target | Result |
+|--------|--------|
+| Vercel production | Success at `https://wise-resume-1hvl3wy6z-iam-magdy.vercel.app`. |
+| `get-public-portfolio` | Appwrite workflow run `27883728138`, deployment `6a36ff71461f294e1ce4`, ready. |
+| `verify-portfolio-password` | Appwrite workflow run `27883728138`, deployment `6a36ff80ae087936f7bb`, ready. |
+| `ai-gateway` | Appwrite workflow run `27883728138`, deployment `6a36ff8e7cbdd33d3ea5`, ready; safe smoke returned HTTP 200. |
+
+### Verification
+- `npx tsc --noEmit` - pass.
+- `node tests/hubs/portfolio-password-verification.test.cjs` - pass.
+- `node tests/hubs/ai-gateway-routing.test.cjs` - pass.
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts src/lib/__tests__/workspaceSearch.test.ts` - pass.
+- `node scripts/compute-source-hashes.mjs` - pass.
+- `git diff --check` - pass.
+- `npm run build` - pass; existing Vite `bcryptjs` browser crypto and chunk-size warnings remain.
+
+### Final Status
+`DEPLOYED_PENDING_MANUAL_QA`. Browser/manual QA and TestSprite rerun remain required before broad user testing or launch. `PORTFOLIO_JWT_SECRET` was not present as a GitHub repository secret and was blank in the workflow environment, so live Appwrite variable presence remains unknown and must be verified by the owner.
+
+---
+
 ## 2026-06-20 - Portfolio Unlock, AI Routing Metadata, and Tailoring Hub Entry Fixes
 
 ### Summary

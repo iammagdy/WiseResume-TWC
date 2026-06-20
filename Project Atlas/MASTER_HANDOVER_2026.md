@@ -2,6 +2,42 @@
 
 ---
 
+## Session Log - 2026-06-20 (Post-Fix Deployment Readiness)
+
+### Overview
+
+Completed the deployment verification pass for the portfolio unlock, AI routing metadata, and Tailoring Hub entry fixes. The code commit `ba523905b2e57dfe75cc6696a9277efeee51578f` was pushed to `origin/main`, Vercel production deployment succeeded, and the official targeted Appwrite deployment workflow completed successfully.
+
+### Deployment Results
+
+| Area | Result |
+|------|--------|
+| Vercel | Production deployment succeeded at `https://wise-resume-1hvl3wy6z-iam-magdy.vercel.app`. |
+| Appwrite workflow | `Deploy Appwrite Hubs` run `27883728138`, job `82515530626`, completed successfully. |
+| `get-public-portfolio` | Deployment `6a36ff71461f294e1ce4`, ready. |
+| `verify-portfolio-password` | Deployment `6a36ff80ae087936f7bb`, ready. |
+| `ai-gateway` | Deployment `6a36ff8e7cbdd33d3ea5`, ready; safe smoke returned HTTP 200. |
+
+### Validation
+
+- `npx tsc --noEmit` - pass.
+- `node tests/hubs/portfolio-password-verification.test.cjs` - pass.
+- `node tests/hubs/ai-gateway-routing.test.cjs` - pass.
+- `npx vitest run src/lib/devkit/aiToolsCatalogue.test.ts src/lib/__tests__/workspaceSearch.test.ts` - pass.
+- `node scripts/compute-source-hashes.mjs` - pass.
+- `git diff --check` - pass.
+- `npm run build` - pass with existing non-blocking warnings.
+
+### Current Readiness
+
+Final status is `DEPLOYED_PENDING_MANUAL_QA`.
+
+Manual owner QA remains required for protected portfolio unlock, wrong-password rejection, legacy protected portfolio unlock, Tailoring Hub flow identity preservation, Tailoring Hub entry points, and DevKit AI views. TestSprite rerun should happen only after manual smoke checks pass.
+
+Important configuration risk: `PORTFOLIO_JWT_SECRET` was not present as a GitHub repository secret and was blank in the workflow environment. Because the deploy script skips blank variables, the live Appwrite function variable could not be proven from this environment. The owner should verify or add this value before broad testing.
+
+---
+
 ## Session Log - 2026-06-20 (Portfolio Unlock and AI Routing Repair)
 
 ### Overview

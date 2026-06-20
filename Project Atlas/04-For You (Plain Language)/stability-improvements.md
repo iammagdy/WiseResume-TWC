@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-06-20 (portfolio unlock and tailoring routes checked)
+**Last verified:** 2026-06-20 (post-fix deployment readiness checked)
+
+## Portfolio unlock and tailoring fixes are deployed for final checking (2026-06-20)
+
+**What was the situation:** The repair work for protected portfolio links and Tailoring Hub needed to be moved from code into the live production services.
+
+**What changed:** The website deployment completed, and the three behind-the-scenes services for public portfolio loading, password checking, and AI routing were updated successfully.
+
+**What you'll notice:** The live app is ready for owner smoke testing, but it should not be treated as launch-ready until protected portfolio unlock, wrong-password behavior, Tailoring Hub entry points, and the remaining secret setting are manually checked.
 
 ## Protected portfolio links unlock correctly again (2026-06-20)
 
