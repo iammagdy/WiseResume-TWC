@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/public/TypewriterText';
 import { isActiveWithin24h } from '@/hooks/useActiveStatus';
 import { getThemeById } from '@/lib/portfolioThemes';
-import { normalizeUrl } from '@/lib/urlUtils';
+import { safeHref } from '@/lib/urlUtils';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 
 export interface PublicHeroProps {
@@ -225,8 +225,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
 
             {(profile.linkedinUrl || profile.githubUrl || profile.websiteUrl || profile.twitterUrl) && (
               <div className={`flex items-center ${heroJustify} gap-2 mb-6`}>
-                {profile.linkedinUrl && (
-                  <a href={normalizeUrl(profile.linkedinUrl)} target="_blank" rel="noopener noreferrer"
+                {safeHref(profile.linkedinUrl) && (
+                  <a href={safeHref(profile.linkedinUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="LinkedIn"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
@@ -234,8 +234,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                     <Linkedin className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                   </a>
                 )}
-                {profile.githubUrl && (
-                  <a href={normalizeUrl(profile.githubUrl)} target="_blank" rel="noopener noreferrer"
+                {safeHref(profile.githubUrl) && (
+                  <a href={safeHref(profile.githubUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="GitHub"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
@@ -243,8 +243,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                     <Github className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                   </a>
                 )}
-                {profile.websiteUrl && (
-                  <a href={normalizeUrl(profile.websiteUrl)} target="_blank" rel="noopener noreferrer"
+                {safeHref(profile.websiteUrl) && (
+                  <a href={safeHref(profile.websiteUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="Website"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
@@ -252,8 +252,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                     <Globe className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                   </a>
                 )}
-                {profile.twitterUrl && (
-                  <a href={normalizeUrl(profile.twitterUrl)} target="_blank" rel="noopener noreferrer"
+                {safeHref(profile.twitterUrl) && (
+                  <a href={safeHref(profile.twitterUrl)} target="_blank" rel="noopener noreferrer"
                     aria-label="X / Twitter"
                     className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
@@ -286,9 +286,9 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                   </a>
                 );
               })()}
-              {schedulingUrl && (
+              {safeHref(schedulingUrl) && (
                 <a
-                  href={schedulingUrl}
+                  href={safeHref(schedulingUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 pf-cta-entrance"
@@ -334,7 +334,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
             ) : (
               /* Thumbnail fallback — click to open original URL */
               <a
-                href={videoIntroUrl}
+                href={safeHref(videoIntroUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center w-full h-full group relative"

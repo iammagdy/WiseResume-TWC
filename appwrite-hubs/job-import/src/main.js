@@ -2,8 +2,10 @@
 
 const axios = require('axios');
 const dns = require('dns');
+const crypto = require('crypto');
 const { URL } = require('url');
-const { Client, Account } = require('node-appwrite');
+const sdk = require('node-appwrite');
+const { Client, Account } = sdk;
 
 // â”€â”€â”€ SSRF protection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -65,6 +67,185 @@ async function authenticateRequest(body, req) {
 }
 
 // â”€â”€â”€ Provider pool â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+// ─── AI credit accounting + rate limit + idempotency ──────────────────────────
+// Ported from resume-section-ai so parse-job charges the same way the rest of
+// the AI surface does. Without this, job-import called the LLM for free with no
+// per-user throttle (credit/quota bypass). parse-job costs 1 credit (matches
+// the ai-gateway FEATURE_CREDIT_COSTS['parse-job'] policy).
+
+const DB_ID = 'main';
+const AI_CREDITS_COLLECTION_ID = 'ai_credits';
+const SUBSCRIPTIONS_COLLECTION_ID = 'subscriptions';
+const IDEMPOTENCY_CACHE_COLLECTION_ID = 'idempotency_cache';
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000;
+const IDEMPOTENCY_RESULT_MAX_BYTES = 60_000;
+const SERVER_RATE_LIMIT_WINDOW_MS = 60_000;
+const SERVER_RATE_LIMIT_MAX_REQUESTS = 20;
+const PARSE_JOB_CREDIT_COST = 1;
+const PLAN_DAILY_LIMITS = { free: 5, pro: 50, premium: -1 };
+const _serverRateLimits = new Map();
+let _idempotencyCollectionMissing = false;
+
+function getDbClient() {
+  const client = new Client()
+    .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
+    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID)
+    .setKey(process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY);
+  return new sdk.Databases(client);
+}
+
+function checkServerRateLimit(userId) {
+  const now = Date.now();
+  const key = `${userId}:parse-job`;
+  const current = _serverRateLimits.get(key);
+  if (!current || now > current.resetAt) {
+    _serverRateLimits.set(key, { count: 1, resetAt: now + SERVER_RATE_LIMIT_WINDOW_MS });
+    return { ok: true };
+  }
+  if (current.count >= SERVER_RATE_LIMIT_MAX_REQUESTS) {
+    return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)) };
+  }
+  current.count += 1;
+  return { ok: true };
+}
+
+function isTrialActive(subscription) {
+  const expiresAt = subscription?.trial_expires_at;
+  return !!(subscription?.trial_plan && expiresAt && new Date(expiresAt).getTime() > Date.now());
+}
+
+async function getEffectivePlan(db, userId) {
+  try {
+    const res = await db.listDocuments(DB_ID, SUBSCRIPTIONS_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    const subscription = res.documents?.[0];
+    const rawPlan = subscription?.effective_plan ||
+      (isTrialActive(subscription) ? subscription.trial_plan : subscription?.plan) ||
+      'free';
+    const plan = String(rawPlan).toLowerCase();
+    return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';
+  } catch {
+    return 'free';
+  }
+}
+
+function userCreditPermissions(userId) {
+  return [sdk.Permission.read(sdk.Role.user(userId))];
+}
+
+async function loadCreditState(db, userId, cost) {
+  const today = new Date().toISOString().slice(0, 10);
+  const plan = await getEffectivePlan(db, userId);
+  const planLimit = PLAN_DAILY_LIMITS[plan] ?? PLAN_DAILY_LIMITS.free;
+
+  let res;
+  try {
+    res = await db.listDocuments(DB_ID, AI_CREDITS_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+  } catch (err) {
+    return { blocked: true, status: 503, code: 'ai_credit_check_failed', message: 'AI credit tracking is not available.' };
+  }
+
+  let doc = res.documents?.[0];
+  if (!doc) {
+    doc = await db.createDocument(DB_ID, AI_CREDITS_COLLECTION_ID, sdk.ID.unique(), {
+      user_id: userId,
+      daily_usage: 0,
+      daily_limit: planLimit,
+      total_usage: 0,
+      usage_date: today,
+    }, userCreditPermissions(userId));
+  }
+
+  const dailyLimit = Number(doc.daily_limit ?? planLimit);
+  const effectiveLimit = Number.isFinite(dailyLimit) ? dailyLimit : planLimit;
+  const currentUsage = doc.usage_date === today ? Number(doc.daily_usage || 0) : 0;
+
+  if (effectiveLimit !== -1 && currentUsage + cost > effectiveLimit) {
+    return { blocked: true, status: 402, code: 'ai_credits_exhausted', message: 'Daily AI credit limit reached.', doc, dailyLimit: effectiveLimit, currentUsage, cost, today };
+  }
+  return { blocked: false, doc, dailyLimit: effectiveLimit, currentUsage, cost, today };
+}
+
+async function recordAiUsage(db, creditState) {
+  if (!creditState || creditState.blocked || creditState.cost <= 0 || !creditState.doc) return;
+  await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
+    daily_usage: creditState.currentUsage + creditState.cost,
+    daily_limit: creditState.dailyLimit,
+    total_usage: Number(creditState.doc.total_usage || 0) + creditState.cost,
+    usage_date: creditState.today,
+  });
+}
+
+function computeJobImportKey(userId, url) {
+  return crypto.createHash('sha256').update(JSON.stringify({ userId, feature: 'parse-job', url })).digest('hex');
+}
+
+async function checkIdempotencyCache(db, key) {
+  try {
+    const res = await db.listDocuments(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, [
+      sdk.Query.equal('key', [key]),
+      sdk.Query.limit(1),
+    ]);
+    const doc = res.documents?.[0];
+    if (!doc) return { hit: false };
+    if (Date.now() > new Date(doc.expires_at).getTime()) {
+      try { await db.deleteDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, doc.$id); } catch {}
+      return { hit: false };
+    }
+    if (doc.status === 'success' && doc.has_result && doc.cached_result) {
+      return { hit: true, status: 'success', result: JSON.parse(doc.cached_result), docId: doc.$id };
+    }
+    return { hit: false, docId: doc.$id, status: doc.status };
+  } catch (err) {
+    if (!_idempotencyCollectionMissing) {
+      _idempotencyCollectionMissing = true;
+      console.warn(`[job-import][warn] idempotency_cache unavailable: ${err.message}`);
+    }
+    return { hit: false };
+  }
+}
+
+async function createIdempotencyPending(db, key, userId) {
+  const docId = `ji_${key.slice(0, 32)}`;
+  try {
+    await db.createDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+      key,
+      user_id: userId,
+      status: 'pending',
+      expires_at: new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString(),
+      has_result: false,
+      cached_result: null,
+    });
+    return docId;
+  } catch {
+    // Conflict (concurrent duplicate) or collection unavailable — best-effort.
+    return docId;
+  }
+}
+
+async function updateIdempotencySuccess(db, docId, resultPayload) {
+  if (!docId) return;
+  try {
+    const resultStr = JSON.stringify(resultPayload);
+    const hasResult = resultStr.length <= IDEMPOTENCY_RESULT_MAX_BYTES;
+    await db.updateDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+      status: 'success',
+      has_result: hasResult,
+      cached_result: hasResult ? resultStr : null,
+    });
+  } catch {}
+}
+
+async function deleteIdempotencyDoc(db, docId) {
+  if (!docId) return;
+  try { await db.deleteDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId); } catch {}
+}
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_URL       = 'https://api.groq.com/openai/v1/chat/completions';
@@ -353,12 +534,41 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ ok: false, error: 'Invalid or blocked URL' }, 400);
   }
 
+  // ── Per-user rate limit (parse-job) ──────────────────────────────────────────
+  const rate = checkServerRateLimit(userId);
+  if (!rate.ok) {
+    return res.json({
+      ok: false,
+      code: 'rate_limited',
+      error: 'Too many job imports in a short time. Please wait a moment and try again.',
+      retryAfterSeconds: rate.retryAfterSeconds,
+    }, 429);
+  }
+
+  const db = getDbClient();
+
+  // ── Idempotency: a repeated import of the same URL within the TTL returns the
+  // cached result without re-running the LLM or re-charging. ───────────────────
+  const idemKey = computeJobImportKey(userId, url);
+  const cached = await checkIdempotencyCache(db, idemKey);
+  if (cached.hit && cached.status === 'success') {
+    return res.json({ ...cached.result, cached: true });
+  }
+
+  // ── Credit check BEFORE the expensive fetch/LLM. Charged only on success. ────
+  const creditState = await loadCreditState(db, userId, PARSE_JOB_CREDIT_COST);
+  if (creditState.blocked) {
+    return res.json({ ok: false, code: creditState.code, error: creditState.message }, creditState.status || 402);
+  }
+  const idemDocId = await createIdempotencyPending(db, idemKey, userId);
+
   // Fetch raw HTML (browser-like headers, redirects, reader proxy fallback)
   let html;
   try {
     html = await fetchJobPageHtml(url, log);
   } catch (err) {
     error(`Fetch failed for ${url}: ${err.message}`);
+    await deleteIdempotencyDoc(db, idemDocId); // fetch failed → do not charge
     return res.json({
       ok: false,
       code: 'fetch_blocked',
@@ -411,6 +621,7 @@ ${context}`,
     ], pool);
   } catch (err) {
     error(`LLM call failed: ${err.message}`);
+    await deleteIdempotencyDoc(db, idemDocId); // provider failure → do not charge
     return res.json({ ok: false, error: 'AI parsing failed. Please try again.' }, 500);
   }
 
@@ -424,6 +635,7 @@ ${context}`,
   }
 
   if (!parsed || !parsed.title) {
+    await deleteIdempotencyDoc(db, idemDocId); // no usable result → do not charge
     return res.json({ ok: false, error: 'Could not extract job details from this page.' }, 422);
   }
 
@@ -453,9 +665,24 @@ ${context}`,
     // Still return ok:true with the parsed data â€” frontend will attempt its own write
   }
 
-  return res.json({
+  // Successful parse → charge 1 credit and cache the result for idempotent retries.
+  const responsePayload = {
     ok: true,
     jobId: savedDoc?.$id || null,
     job: parsedJob,
-  });
+  };
+  try { await recordAiUsage(db, creditState); } catch (err) { error(`Credit charge failed: ${err.message}`); }
+  await updateIdempotencySuccess(db, idemDocId, responsePayload);
+
+  return res.json(responsePayload);
+};
+
+// Exposed for hub regression tests (tests/hubs/job-import-credit.test.cjs).
+module.exports.__test = {
+  checkServerRateLimit,
+  computeJobImportKey,
+  loadCreditState,
+  recordAiUsage,
+  PARSE_JOB_CREDIT_COST,
+  SERVER_RATE_LIMIT_MAX_REQUESTS,
 };

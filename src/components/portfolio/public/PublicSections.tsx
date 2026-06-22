@@ -16,6 +16,7 @@ import { ServiceCard } from '@/components/portfolio/public/cards/ServiceCard';
 import { TestimonialCard } from '@/components/portfolio/public/cards/TestimonialCard';
 import { SkillCloud } from '@/components/portfolio/public/SkillCloud';
 import { EducationCard } from '@/components/portfolio/public/cards/EducationCard';
+import { safeHref } from '@/lib/urlUtils';
 
 const SKILL_CLOUD_LIMIT = 15;
 
@@ -580,9 +581,9 @@ export const PublicSections = ({
                           />
                         )}
                         <div className="flex-1 min-w-0">
-                          {cert.credentialUrl ? (
+                          {safeHref(cert.credentialUrl) ? (
                             <a
-                              href={cert.credentialUrl}
+                              href={safeHref(cert.credentialUrl)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
@@ -665,8 +666,8 @@ export const PublicSections = ({
                   <motion.div key={pub.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
                     {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
                     <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                      {pub.url ? (
-                        <a href={pub.url} target="_blank" rel="noopener noreferrer"
+                      {safeHref(pub.url) ? (
+                        <a href={safeHref(pub.url)} target="_blank" rel="noopener noreferrer"
                           className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
                           style={{ color: 'var(--pf-fg, inherit)' }}>
                           {pub.title}
@@ -778,9 +779,9 @@ export const PublicSections = ({
                 {activeTrans?.pinnedProjectDescription || profile.pinnedProject.description}
               </p>
             )}
-            {profile.pinnedProject.url && (
+            {safeHref(profile.pinnedProject.url) && (
               <a
-                href={profile.pinnedProject.url}
+                href={safeHref(profile.pinnedProject.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-full transition-all hover:opacity-90 active:scale-95"

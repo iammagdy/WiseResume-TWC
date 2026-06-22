@@ -9,8 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
-import { databases, Query } from '@/lib/appwrite';
-import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { useIsMounted } from '@/lib/devkit/hooks';
@@ -462,14 +460,19 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     setCheckingUsername(true);
     usernameCheckRef.current = setTimeout(async () => {
       try {
-        // Use a direct profiles lookup instead of the full check_username_available
-        // RPC so length/character rules never block the admin's input.
-        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
-          Query.equal('username', val.trim().toLowerCase()),
-          Query.notEqual('user_id', user.user_id),
-          Query.limit(1),
-        ]);
-        setUsernameAvailable(res.total === 0);
+        // Server-side availability check via admin-devkit-data (no direct
+        // cross-user browser query). Bypasses length/character rules so the
+        // admin can force any value; only checks slug uniqueness.
+        const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+          headers: devKitAuthHeaders(),
+          body: {
+            action: 'check-username-availability',
+            username: val.trim().toLowerCase(),
+            target_user_id: user.user_id,
+          },
+        });
+        const result = unwrapAdminResponse<{ available?: boolean }>(tuple, 'admin-devkit-data');
+        setUsernameAvailable(result.available === true);
       } catch {
         setUsernameAvailable(null);
       } finally {

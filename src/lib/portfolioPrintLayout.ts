@@ -1,6 +1,7 @@
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
 import { getThemeById } from '@/lib/portfolioThemes';
+import { safeHref } from '@/lib/urlUtils';
 
 function esc(str: string | null | undefined): string {
   if (!str) return '';
@@ -52,9 +53,6 @@ export function generatePortfolioPrintHTML(
   const jobTitle = esc(profile.jobTitle || '');
   const location = esc(profile.location || '');
   const email = esc(profile.contactEmail || '');
-  const linkedin = esc(profile.linkedinUrl || '');
-  const github = esc(profile.githubUrl || '');
-  const website = esc(profile.websiteUrl || '');
   const bio = esc(profile.portfolioBio || profile.portfolioSummary || '');
   const accent = safeCssColor(profile.portfolioAccentColor, '#e84545');
   const theme = getThemeById(profile.portfolioStyle || profile.theme || 'minimal');
@@ -94,12 +92,20 @@ export function generatePortfolioPrintHTML(
       </div>`;
   }
 
+  // Only emit links whose scheme is safe (http/https/mailto/tel). safeHref
+  // returns undefined for javascript:/data:/etc., in which case we render the
+  // value as plain text instead of an unsafe anchor in the exported HTML.
+  const emailHref = email ? safeHref(`mailto:${profile.contactEmail || ''}`) : undefined;
+  const linkedinHref = safeHref(profile.linkedinUrl);
+  const githubHref = safeHref(profile.githubUrl);
+  const websiteHref = safeHref(profile.websiteUrl);
+
   const contactParts: string[] = [];
   if (location) contactParts.push(`<span>📍 ${location}</span>`);
-  if (email) contactParts.push(`<a href="mailto:${email}">${email}</a>`);
-  if (linkedin) contactParts.push(`<a href="${linkedin}">${linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>`);
-  if (github) contactParts.push(`<a href="${github}">${github.replace(/^https?:\/\/(www\.)?/, '')}</a>`);
-  if (website) contactParts.push(`<a href="${website}">${website.replace(/^https?:\/\/(www\.)?/, '')}</a>`);
+  if (email) contactParts.push(emailHref ? `<a href="${esc(emailHref)}">${email}</a>` : `<span>${email}</span>`);
+  if (linkedinHref) contactParts.push(`<a href="${esc(linkedinHref)}">${esc(linkedinHref.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);
+  if (githubHref) contactParts.push(`<a href="${esc(githubHref)}">${esc(githubHref.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);
+  if (websiteHref) contactParts.push(`<a href="${esc(websiteHref)}">${esc(websiteHref.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);
 
   const expHtml = experience.map(e => `
     <div class="entry">
@@ -132,7 +138,7 @@ export function generatePortfolioPrintHTML(
     <div class="entry">
       <div class="entry-header">
         <div class="entry-title">${esc(p.title || p.name || '')}</div>
-        ${(p as { url?: string }).url ? `<a class="entry-link" href="${esc((p as { url?: string }).url)}">${esc((p as { url?: string }).url)}</a>` : ''}
+        ${(() => { const u = safeHref((p as { url?: string }).url); return u ? `<a class="entry-link" href="${esc(u)}">${esc(u)}</a>` : ''; })()}
       </div>
       ${p.description ? `<p class="entry-body">${esc(p.description)}</p>` : ''}
     </div>`).join('');

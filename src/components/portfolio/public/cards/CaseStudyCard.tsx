@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import type { CaseStudy } from '@/hooks/useProfile';
+import { safeHref } from '@/lib/urlUtils';
 
 const unfold = {
   hidden: { opacity: 0, scale: 0.92 },
@@ -34,6 +35,7 @@ function getCardProps(style: string): { className: string; style: React.CSSPrope
 export function CaseStudyCard({ cs, style }: { cs: CaseStudy; style: string }) {
   const cardProps = getCardProps(style);
   const isTerminal = style === 'developer-terminal';
+  const caseStudyUrl = safeHref(cs.url);
 
   const tiltRef = useRef<HTMLDivElement>(null);
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -57,8 +59,8 @@ export function CaseStudyCard({ cs, style }: { cs: CaseStudy; style: string }) {
           </span>
         </div>
         <div className="pr-20">
-          {cs.url ? (
-            <a href={cs.url} target="_blank" rel="noopener noreferrer"
+          {caseStudyUrl ? (
+            <a href={caseStudyUrl} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 font-bold text-lg transition-opacity hover:opacity-80 group"
               style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
               {cs.title}

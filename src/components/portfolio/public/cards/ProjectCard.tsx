@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, ExternalLink, Github } from 'lucide-react';
 import type { Project } from '@/types/resume';
+import { safeHref } from '@/lib/urlUtils';
 
 const scalePop = {
   hidden: { opacity: 0, scale: 0.88, rotateX: 6 },
@@ -34,6 +35,8 @@ function getCardProps(style: string): { className: string; style: React.CSSPrope
 export function ProjectCard({ project, style }: { project: Project; style: string }) {
   const cardProps = getCardProps(style);
   const isTerminal = style === 'developer-terminal';
+  const projectUrl = safeHref(project.url);
+  const githubUrl = safeHref(project.githubUrl);
 
   const tiltRef = useRef<HTMLDivElement>(null);
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -51,8 +54,8 @@ export function ProjectCard({ project, style }: { project: Project; style: strin
       {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
       <div className={isTerminal ? 'pf-terminal-card-body space-y-3' : ''}>
         <div>
-          {project.url ? (
-            <a href={project.url} target="_blank" rel="noopener noreferrer"
+          {projectUrl ? (
+            <a href={projectUrl} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 font-bold text-base transition-opacity hover:opacity-80"
               style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
               {project.name}
@@ -77,17 +80,17 @@ export function ProjectCard({ project, style }: { project: Project; style: strin
             ))}
           </div>
         )}
-        {(project.url || project.githubUrl) && (
+        {(projectUrl || githubUrl) && (
           <div className="flex gap-2 flex-wrap">
-            {project.url && (
-              <a href={project.url} target="_blank" rel="noopener noreferrer"
+            {projectUrl && (
+              <a href={projectUrl} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-85"
                 style={{ background: 'var(--pf-accent)', color: '#fff' }}>
                 <ExternalLink className="w-3 h-3" /> Live Demo
               </a>
             )}
-            {project.githubUrl && (
-              <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
+            {githubUrl && (
+              <a href={githubUrl} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all hover:opacity-85"
                 style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.15))', color: 'var(--pf-fg, inherit)' }}>
                 <Github className="w-3 h-3" /> GitHub

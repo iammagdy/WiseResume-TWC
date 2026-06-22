@@ -1827,6 +1827,19 @@ async function handleListUserContent(body, log) {
   return { resumes };
 }
 
+async function handleCheckUsernameAvailability(body) {
+  // Server-side username-availability check for the DevKit user drawer, so the
+  // browser no longer issues a cross-user `profiles` query directly. Read-only.
+  const { databases } = getClients();
+  const username = String(body.username || '').trim().toLowerCase();
+  const excludeUserId = body.target_user_id || body.exclude_user_id || null;
+  if (!username) return { available: false };
+  const queries = [sdk.Query.equal('username', username), sdk.Query.limit(1)];
+  if (excludeUserId) queries.push(sdk.Query.notEqual('user_id', excludeUserId));
+  const res = await safeList(databases, 'profiles', queries);
+  return { available: (res?.total ?? 0) === 0 };
+}
+
 async function handleUpdateProfile(body, log) {
   const { databases } = getClients();
   const { target_user_id, profile_action, full_name, username, portfolio_enabled, account_type, actor_email } = body;
@@ -2771,6 +2784,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'revoke-sessions') data = await handleRevokeSessions(body, log);
     else if (action === 'list-user-content') data = await handleListUserContent(body, log);
     else if (action === 'update-profile') data = await handleUpdateProfile(body, log);
+    else if (action === 'check-username-availability') data = await handleCheckUsernameAvailability(body);
     else if (action === 'get-identity') data = await handleGetIdentity(body, log);
     else if (action === 'user-audit-logs') data = await handleUserAuditLogs(body, log);
     else if (action === 'wisehire-reset-user') data = await handleWisehireResetUser(body, log);

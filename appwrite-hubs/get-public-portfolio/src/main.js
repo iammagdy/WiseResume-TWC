@@ -343,7 +343,14 @@ async function handler({ req, res, error }) {
       let hasValidSession = false;
       if (providedToken) {
         const sessionData = verifySessionToken(providedToken);
-        if (sessionData && sessionData.username === username.toLowerCase()) {
+        // Bind the unlock token to BOTH the username and the owner's user_id so
+        // a token issued for a now-recycled username can't unlock a different
+        // owner's portfolio. Existing tokens already carry userId.
+        if (
+          sessionData &&
+          sessionData.username === username.toLowerCase() &&
+          sessionData.userId === profile.user_id
+        ) {
           hasValidSession = true;
         }
       }
