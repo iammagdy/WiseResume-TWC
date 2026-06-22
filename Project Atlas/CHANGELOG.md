@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-22 - Security: remove hardcoded QA credentials from tracked files
+
+### Summary
+Removed pre-existing hardcoded QA test-account credentials (password + login email) from tracked E2E scripts/specs and two audit reports; replaced with environment variables. No backend/Appwrite/API/auth/AI/payment/schema/deployment-workflow changes. `tsc --noEmit` + `npm run build` pass.
+
+### Changed
+- `scripts/e2e-resend-verification.mjs`, `scripts/e2e-signup-plus8.mjs`, `scripts/e2e-signup-test.mjs`, `scripts/signup-and-send-verification.cjs`: read QA email/password from `WISE_RESUME_E2E_EMAIL` / `WISE_RESUME_E2E_PASSWORD` (or argv) with a safe "missing env" error + exit; removed the hardcoded literals **and** removed the `console.log` lines that printed the password.
+- `tests/e2e/specs/27-antigravity-auth-flows.spec.ts`: email assertion now uses `process.env.WISE_RESUME_E2E_EMAIL` (asserted only when set); no hardcoded email.
+- `reports/audits/2026-06-20-devkit-live-audit.md`, `reports/e2e-wiseresume-report.md`: redacted the owner email to a `qa-user@example.com` placeholder.
+- `tests/e2e/fixtures/.env.test.example`: added empty `WISE_RESUME_E2E_EMAIL=` / `WISE_RESUME_E2E_PASSWORD=` placeholders.
+
+### Verified
+`git grep`: no QA password or `+1` login-email literal remains in any tracked file. Dry-run confirms the scripts fail safely (clear message, exit 1) with no credentials and never print the password.
+
+### Action required
+**Rotate the QA account password** — the old value existed in tracked git history before this cleanup (this commit removes it from HEAD only, not from history). Separately, the base owner email is still used as sample/demo data in ~14 tracked files (resume templates / test fixtures / historical docs); broader PII cleanup is left as a separate decision (not done here to avoid a broad refactor).
+
+---
+
 ## 2026-06-22 - UI/UX Audit Auth-Gated Browser QA Pass
 
 ### Summary

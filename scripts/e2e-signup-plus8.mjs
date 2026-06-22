@@ -1,11 +1,18 @@
 /**
- * Log in +8 on production and resend verification email.
+ * Log in (account from env) on production and resend verification email.
  */
 import { chromium } from '@playwright/test';
 
 const BASE = process.env.E2E_BASE_URL || 'https://wiseresume.app';
-const EMAIL = 'magdy.saber+8@outlook.com';
-const PASSWORD = 'P@ssw0rd';
+// QA credentials come from env only — never hardcoded.
+// See tests/e2e/fixtures/.env.test.example for the variable names.
+const EMAIL = (process.env.WISE_RESUME_E2E_EMAIL || '').toLowerCase();
+const PASSWORD = process.env.WISE_RESUME_E2E_PASSWORD || '';
+
+if (!EMAIL || !PASSWORD) {
+  console.error('Missing WISE_RESUME_E2E_EMAIL or WISE_RESUME_E2E_PASSWORD. Set them in your local environment before running this script.');
+  process.exit(1);
+}
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -33,7 +40,6 @@ try {
   console.log('Page heading:', heading?.trim());
   console.log('\n--- Inbox ---');
   console.log('Email:', EMAIL);
-  console.log('Password:', PASSWORD);
   console.log('Look for: Verify your WiseResume email address');
 } finally {
   await browser.close();

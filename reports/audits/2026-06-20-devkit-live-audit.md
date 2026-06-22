@@ -68,7 +68,7 @@ Seed prefix: `devkit_audit_20260620155431`
 
 Temporary audit user:
 - User ID: `6a36b7b8001d1c842e18`
-- Email: `Magdy.saber+devkit_audit_20260620155431@outlook.com`
+- Email: `qa-user@example.com`
 
 Passed actions:
 - `set-plan`: request `dk_mqmjbx8s_d0cb2b52`

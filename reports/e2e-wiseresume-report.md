@@ -275,7 +275,7 @@ an error. Behavior on success is unchanged.
 ### Medium — M1. Seeded `"Replit Test"` resume is not present in the test account
 
 The brief assumes a CV titled "Replit Test" exists for
-`Magdy.saber@outlook.com`. It is not visible on `/dashboard` nor
+`qa-user@example.com`. It is not visible on `/dashboard` nor
 on `/resume`.
 
 **Evidence**
@@ -301,7 +301,7 @@ on `/resume`.
 
 **Resolved (Task #7, 2026-04-24).** Inserted a fresh `Replit Test`
 resume row into `public.resumes` for the test account
-(`magdy.saber@outlook.com`, auth uid
+(`qa-user@example.com`, auth uid
 `a92bb568-bc85-42e3-a230-e94b897e7093`) via the Supabase Management
 API SQL endpoint. Insert is idempotent (`WHERE NOT EXISTS … title =
 'Replit Test'`); new row id `51de8084-4fd0-45b0-a030-b3441c9c9612`.
@@ -315,14 +315,14 @@ Management API token, or via `psql`):
 
 ```sql
 -- Look up the auth uid first:
--- SELECT id FROM auth.users WHERE lower(email) = lower('magdy.saber@outlook.com');
+-- SELECT id FROM auth.users WHERE lower(email) = lower('qa-user@example.com');
 
 INSERT INTO public.resumes
   (user_id, title, contact_info, summary, experience, education, skills, template_id, is_primary)
 SELECT
   'a92bb568-bc85-42e3-a230-e94b897e7093'::uuid,
   'Replit Test',
-  '{"fullName":"Replit Test","email":"magdy.saber@outlook.com","phone":"+1 555 0100","location":"Remote"}'::jsonb,
+  '{"fullName":"Replit Test","email":"qa-user@example.com","phone":"+1 555 0100","location":"Remote"}'::jsonb,
   'Seed CV restored for the WiseResume Replit E2E test account.',
   '[{"id":"exp-1","position":"Senior Software Engineer","company":"Acme Replit","startDate":"2022-01","endDate":"","current":true,"description":"Lead engineer on the WiseResume E2E test seed account.","achievements":["Shipped Playwright E2E coverage for 18 routes","Cut auth bridge first-load failure rate via single-retry","Hardened parse-resume rate limiter with Retry-After"]}]'::jsonb,
   '[{"id":"edu-1","institution":"Test University","degree":"BSc Computer Science","field":"Computer Science","startDate":"2014-09","endDate":"2018-06"}]'::jsonb,
@@ -343,14 +343,14 @@ Operational verification (2026-04-24, post-insert):
 SELECT r.id, r.title, r.created_at, u.email
 FROM public.resumes r
 JOIN auth.users u ON u.id = r.user_id
-WHERE lower(u.email) = lower('Magdy.saber@outlook.com')
+WHERE lower(u.email) = lower('qa-user@example.com')
   AND r.title = 'Replit Test';
 
 -- Returned: 1 row
 -- id=51de8084-4fd0-45b0-a030-b3441c9c9612
 -- title='Replit Test'
 -- created_at=2026-04-24 00:01:48.804076+00
--- email=magdy.saber@outlook.com
+-- email=qa-user@example.com
 ```
 
 ### Medium — M2. `/dashboard/applications` etc. linked from sidebar?

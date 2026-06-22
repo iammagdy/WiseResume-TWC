@@ -1,6 +1,6 @@
 /**
  * Create account (if missing) and send verification email via admin token + Resend.
- * Usage: node scripts/signup-and-send-verification.cjs magdy.saber+8@outlook.com "P@ssw0rd" "Magdy Test"
+ * Usage: node scripts/signup-and-send-verification.cjs <email> "<password>" [name]  (or set WISE_RESUME_E2E_EMAIL / WISE_RESUME_E2E_PASSWORD)
  */
 const fs = require('fs');
 const path = require('path');
@@ -22,11 +22,16 @@ loadEnv('.env.deploy');
 loadEnv('.env');
 
 const email = (process.argv[2] || '').trim().toLowerCase();
-const password = process.argv[3] || 'P@ssw0rd';
+const password = process.argv[3] || process.env.WISE_RESUME_E2E_PASSWORD || '';
 const name = process.argv[4] || 'Magdy Saber Test';
 
 if (!email) {
   console.error('Usage: node scripts/signup-and-send-verification.cjs <email> [password] [name]');
+  process.exit(1);
+}
+
+if (!password) {
+  console.error('Missing password. Pass it as the 2nd argument or set WISE_RESUME_E2E_PASSWORD in your local environment.');
   process.exit(1);
 }
 

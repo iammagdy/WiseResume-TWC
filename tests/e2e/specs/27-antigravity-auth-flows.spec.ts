@@ -193,7 +193,7 @@ test('Step 9 - Dashboard & Navigation QA', async ({ page }) => {
   console.log('Sidebar plan/credits displayed successfully.');
 
   // 2. Verify account info
-  expect(innerText).toContain('magdy.saber+1@outlook.com');
+  if (process.env.WISE_RESUME_E2E_EMAIL) expect(innerText).toContain(process.env.WISE_RESUME_E2E_EMAIL);
   console.log('User email displayed in sidebar.');
 
   // 3. Verify Tailor links prefer /tailoring-hub

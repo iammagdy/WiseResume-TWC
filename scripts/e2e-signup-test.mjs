@@ -1,13 +1,20 @@
 /**
  * Sign up a test account on production and trigger verification email.
  * Usage: node scripts/e2e-signup-test.mjs [email] [password] [name]
+ * Credentials default to the WISE_RESUME_E2E_EMAIL / WISE_RESUME_E2E_PASSWORD
+ * env vars (see tests/e2e/fixtures/.env.test.example); never hardcoded.
  */
 import { chromium } from '@playwright/test';
 
 const BASE = process.env.E2E_BASE_URL || 'https://wiseresume.app';
-const EMAIL = (process.argv[2] || 'magdy.saber+9@outlook.com').toLowerCase();
-const PASSWORD = process.argv[3] || 'P@ssw0rd';
-const NAME = process.argv[4] || 'Magdy Saber Test';
+const EMAIL = (process.argv[2] || process.env.WISE_RESUME_E2E_EMAIL || '').toLowerCase();
+const PASSWORD = process.argv[3] || process.env.WISE_RESUME_E2E_PASSWORD || '';
+const NAME = process.argv[4] || 'QA Test User';
+
+if (!EMAIL || !PASSWORD) {
+  console.error('Missing WISE_RESUME_E2E_EMAIL or WISE_RESUME_E2E_PASSWORD. Set them in your local environment before running this script.');
+  process.exit(1);
+}
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -74,7 +81,6 @@ try {
 
   console.log('\n--- Test account ---');
   console.log('Email:', EMAIL);
-  console.log('Password:', PASSWORD);
   console.log('Check inbox for: Verify your WiseResume email address');
 } finally {
   await browser.close();
