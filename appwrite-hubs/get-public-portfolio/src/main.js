@@ -15,6 +15,11 @@ const JWT_SECRET = process.env.PORTFOLIO_JWT_SECRET;
 const PROFILES_COLLECTION_ID = 'profiles';
 const RESUMES_COLLECTION_ID = 'resumes';
 const PORTFOLIO_SETTINGS_COLLECTION_ID = 'portfolio_settings';
+// PORT-P1-03: brute-force lockout for the password gate (shared collection with
+// the secondary Vercel path so limits are consistent across both surfaces).
+const PORTFOLIO_RATE_LIMIT_COLLECTION_ID = 'portfolio_session_rate_limits';
+const PASSWORD_ATTEMPT_LIMIT = 8;
+const PASSWORD_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 
 function getClient() {
   return new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
@@ -30,12 +35,28 @@ function parseBody(req) {
   }
   const raw = req.body.trim();
   if (!raw) return {};
-  const parsed = JSON.parse(raw);
-  return parsed && typeof parsed === 'object' ? parsed : {};
+  // PORT-P3-03: guard JSON.parse so a malformed body yields a clean 400 (handled
+  // downstream by the missing-username check) instead of an unhandled 500.
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 function sha256Hex(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+// PORT-P2-05: constant-time, length-independent comparison. Hashing both inputs
+// to a fixed 32-byte digest first means we never early-return on a length
+// mismatch (which previously leaked the stored hash format via timing), while
+// satisfying crypto.timingSafeEqual's equal-length requirement.
+function timingSafeCompare(a, b) {
+  const da = crypto.createHash('sha256').update(String(a)).digest();
+  const db = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(da, db);
 }
 
 async function verifyStoredPassword(password, storedHash) {
@@ -61,16 +82,6 @@ async function verifyStoredPassword(password, storedHash) {
   }
 
   return false;
-}
-
-// Timing-safe signature comparison
-function timingSafeCompare(a, b) {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
 }
 
 function signSessionToken(username, userId) {
@@ -130,58 +141,115 @@ function normalizeArray(value, defaultValue = []) {
   return defaultValue;
 }
 
-async function verifyPassword(db, username, password) {
-  const profileRes = await db.listDocuments(DB_ID, PROFILES_COLLECTION_ID, [
-    sdk.Query.equal('username', username.toLowerCase()),
-    sdk.Query.limit(1),
-  ]);
-  if (profileRes.total === 0) return { valid: false };
-  
-  const profile = profileRes.documents[0];
-  const userId = profile.user_id;
-  
-  const settingsRes = await db.listDocuments(DB_ID, PORTFOLIO_SETTINGS_COLLECTION_ID, [
-    sdk.Query.equal('user_id', userId),
-    sdk.Query.limit(1),
-  ]);
-  
-  if (settingsRes.total === 0) return { valid: true, userId }; // No password set
-  
-  const settings = settingsRes.documents[0];
-  const passwordEnabled = settings.password_enabled || settings.passwordEnabled;
-  const storedHash = settings.password_hash || settings.passwordHash;
-  
-  if (!passwordEnabled) return { valid: true, userId };
-  if (!storedHash) return { valid: false };
-  
-  if (!(await verifyStoredPassword(password, storedHash))) return { valid: false };
-  
-  return { valid: true, userId };
+// PORT-P1-03: best-effort per-(username, IP) brute-force lockout. Rate-limit
+// infrastructure failures fail OPEN (never hard-lock a legitimate visitor out
+// because of a DB hiccup) — the gate itself remains fail-closed elsewhere.
+function getClientIp(req) {
+  const headers = (req && req.headers) || {};
+  const cfIp = typeof headers['cf-connecting-ip'] === 'string' ? headers['cf-connecting-ip'].trim() : '';
+  if (cfIp) return cfIp;
+  const realIp = typeof headers['x-real-ip'] === 'string' ? headers['x-real-ip'].trim() : '';
+  if (realIp) return realIp;
+  const forwarded = headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim() || 'unknown';
+  return 'unknown';
 }
 
-async function buildPublicPortfolio(db, username, sessionToken) {
-  // Get profile
-  const profileRes = await db.listDocuments(DB_ID, PROFILES_COLLECTION_ID, [
-    sdk.Query.equal('username', username.toLowerCase()),
-    sdk.Query.limit(1),
-  ]);
-  if (profileRes.total === 0) return null;
-  
-  const rawProfile = profileRes.documents[0];
-  
+function passwordAttemptId(username, ip) {
+  const digest = sha256Hex(`${String(username).toLowerCase()}|${ip || 'unknown'}`);
+  return `pwd_${digest.slice(0, 32)}`;
+}
+
+async function getPasswordAttemptState(db, username, ip) {
+  const id = passwordAttemptId(username, ip);
+  try {
+    const doc = await db.getDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id);
+    const resetAt = new Date(doc.reset_at).getTime();
+    const count = Number(doc.count || 0);
+    if (Number.isFinite(resetAt) && Date.now() <= resetAt && count >= PASSWORD_ATTEMPT_LIMIT) {
+      return { blocked: true, retryAfterSeconds: Math.ceil((resetAt - Date.now()) / 1000) };
+    }
+    return { blocked: false };
+  } catch {
+    return { blocked: false };
+  }
+}
+
+async function recordPasswordFailure(db, username, ip) {
+  const id = passwordAttemptId(username, ip);
+  const now = Date.now();
+  const resetAt = new Date(now + PASSWORD_ATTEMPT_WINDOW_MS).toISOString();
+  try {
+    const doc = await db.getDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id);
+    const currentReset = new Date(doc.reset_at).getTime();
+    const count = Number(doc.count || 0);
+    if (!Number.isFinite(currentReset) || now > currentReset) {
+      await db.updateDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, { count: 1, reset_at: resetAt });
+      return;
+    }
+    await db.updateDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, { count: count + 1 });
+  } catch {
+    try {
+      await db.createDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, { count: 1, reset_at: resetAt });
+    } catch {
+      // Rate-limit collection unavailable — fail open (do not block the gate).
+    }
+  }
+}
+
+async function clearPasswordFailures(db, username, ip) {
+  const id = passwordAttemptId(username, ip);
+  try {
+    await db.updateDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, {
+      count: 0,
+      reset_at: new Date(Date.now() + PASSWORD_ATTEMPT_WINDOW_MS).toISOString(),
+    });
+  } catch {
+    // Best-effort reset.
+  }
+}
+
+// PORT-P2-04: pure verification against an already-fetched settings document.
+// The settings collection is read ONCE in the handler and passed in here, which
+// removes the previous time-of-check/time-of-use double read that could bypass
+// the gate if the document changed between reads.
+async function verifyProvidedPassword(settingsDoc, password) {
+  if (!settingsDoc) return false; // caller only invokes this when protection is active
+  const passwordEnabled = !!(settingsDoc.password_enabled || settingsDoc.passwordEnabled);
+  if (!passwordEnabled) return true;
+  const storedHash = settingsDoc.password_hash || settingsDoc.passwordHash;
+  if (!storedHash) return false;
+  return await verifyStoredPassword(password, storedHash);
+}
+
+async function buildPublicPortfolio(db, username, sessionToken, prefetchedProfile) {
+  // Reuse the profile already fetched by the handler when available to avoid a
+  // redundant read; fall back to a fresh lookup for any other caller.
+  let rawProfile = prefetchedProfile || null;
+  if (!rawProfile) {
+    const profileRes = await db.listDocuments(DB_ID, PROFILES_COLLECTION_ID, [
+      sdk.Query.equal('username', username.toLowerCase()),
+      sdk.Query.limit(1),
+    ]);
+    if (profileRes.total === 0) return null;
+    rawProfile = profileRes.documents[0];
+  }
+
   // Check portfolio enabled
   if (rawProfile.portfolio_enabled !== true && rawProfile.portfolioEnabled !== true) {
     return null;
   }
-  
+
   // Parse extras safely
   const extras = parseJsonField(rawProfile.portfolio_extras || rawProfile.portfolioExtras);
-  
+
   // Build sanitized public profile with OLD SHAPE for backward compatibility
-  // Fields must match what PublicPortfolioPage and child components expect
+  // Fields must match what PublicPortfolioPage and child components expect.
+  // PORT-P1-02: the owner's contact email and internal user_id are intentionally
+  // NOT included in the public payload (privacy — see usePortfolioSEO + the
+  // gated contact form). Do not re-add them without an explicit opt-in.
   const publicProfile = {
     $id: rawProfile.$id,
-    user_id: rawProfile.user_id,
     username: rawProfile.username || '',
     fullName: rawProfile.full_name || rawProfile.fullName || null,
     jobTitle: rawProfile.job_title || rawProfile.jobTitle || null,
@@ -202,7 +270,6 @@ async function buildPublicPortfolio(db, username, sessionToken) {
     linkedinUrl: rawProfile.linkedin_url || rawProfile.linkedinUrl || null,
     twitterUrl: rawProfile.twitter_url || rawProfile.twitterUrl || null,
     websiteUrl: rawProfile.website_url || rawProfile.websiteUrl || null,
-    contactEmail: rawProfile.contact_email || rawProfile.contactEmail || null,
     openToWork: !!(rawProfile.open_to_work || rawProfile.openToWork),
     availabilityStatus: extras.availabilityStatus || 'not-looking',
     availabilityHeadline: rawProfile.availability_headline || rawProfile.availabilityHeadline || null,
@@ -229,10 +296,10 @@ async function buildPublicPortfolio(db, username, sessionToken) {
     portfolioSecondaryLanguage: extras.portfolioSecondaryLanguage || null,
     contactFormEnabled: typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true,
   };
-  
+
   // Get selected resume with ownership verification
   const portfolioResumeId = rawProfile.portfolio_resume_id || rawProfile.portfolioResumeId;
-  
+
   // Default empty resume (never null for backward compatibility)
   const emptyResume = {
     $id: '',
@@ -246,9 +313,9 @@ async function buildPublicPortfolio(db, username, sessionToken) {
     publications: [],
     volunteering: [],
   };
-  
+
   let publicResume = emptyResume;
-  
+
   if (portfolioResumeId) {
     try {
       const resumeRes = await db.listDocuments(DB_ID, RESUMES_COLLECTION_ID, [
@@ -256,7 +323,7 @@ async function buildPublicPortfolio(db, username, sessionToken) {
         sdk.Query.equal('user_id', rawProfile.user_id),
         sdk.Query.limit(1),
       ]);
-      
+
       if (resumeRes.total > 0) {
         const rawResume = resumeRes.documents[0];
         // SECURITY: Verify ownership before returning
@@ -279,7 +346,7 @@ async function buildPublicPortfolio(db, username, sessionToken) {
       // Resume fetch failed, use empty resume
     }
   }
-  
+
   return {
     profile: publicProfile,
     resume: publicResume,
@@ -312,13 +379,15 @@ async function handler({ req, res, error }) {
     }
 
     const profile = profileRes.documents[0];
-    
+
     if (profile.portfolio_enabled !== true && profile.portfolioEnabled !== true) {
       return res.json({ success: false, error: 'Portfolio not published' }, 404);
     }
 
-    // Check password protection from portfolio_settings (server-side only)
-    // SECURITY: Default to true if settings read fails (fail closed)
+    // PORT-P2-04: read portfolio_settings exactly ONCE here and reuse it for both
+    // the protection check and the password verification.
+    // SECURITY: Default to protected if the settings read fails (fail closed).
+    let settingsDoc = null;
     let passwordEnabled = true;
     try {
       const settingsRes = await db.listDocuments(DB_ID, PORTFOLIO_SETTINGS_COLLECTION_ID, [
@@ -326,15 +395,17 @@ async function handler({ req, res, error }) {
         sdk.Query.limit(1),
       ]);
       if (settingsRes.total > 0) {
-        const settings = settingsRes.documents[0];
-        passwordEnabled = !!(settings.password_enabled || settings.passwordEnabled);
+        settingsDoc = settingsRes.documents[0];
+        passwordEnabled = !!(settingsDoc.password_enabled || settingsDoc.passwordEnabled);
       } else {
         // No settings document = no password protection
         passwordEnabled = false;
       }
     } catch {
       // SECURITY: Fail closed - if we can't read settings, assume password protected
+      // and leave settingsDoc null so verification below can never succeed.
       passwordEnabled = true;
+      settingsDoc = null;
     }
 
     // If password protected, verify
@@ -357,9 +428,21 @@ async function handler({ req, res, error }) {
 
       // If no valid session, verify password
       if (!hasValidSession) {
+        // PORT-P1-03: brute-force lockout (best-effort; fails open on infra error).
+        const clientIp = getClientIp(req);
+        const attempt = await getPasswordAttemptState(db, username, clientIp);
+        if (attempt.blocked) {
+          return res.json({
+            success: false,
+            error: 'too_many_attempts',
+            protected: true,
+            retryAfterSeconds: attempt.retryAfterSeconds,
+          }, 429);
+        }
+
         if (!password) {
-          return res.json({ 
-            success: false, 
+          return res.json({
+            success: false,
             error: 'Password required',
             protected: true,
             gate: {
@@ -371,43 +454,47 @@ async function handler({ req, res, error }) {
           }, 401);
         }
 
-        const verifyResult = await verifyPassword(db, username, password);
-        if (!verifyResult.valid) {
-          return res.json({ 
-            success: false, 
+        const isValid = await verifyProvidedPassword(settingsDoc, password);
+        if (!isValid) {
+          await recordPasswordFailure(db, username, clientIp);
+          return res.json({
+            success: false,
             error: 'Invalid password',
-            protected: true 
+            protected: true
           }, 401);
         }
 
+        // Successful unlock — clear the failure counter.
+        await clearPasswordFailures(db, username, clientIp);
+
         // Generate session token for subsequent requests
         const newToken = signSessionToken(username.toLowerCase(), profile.user_id);
-        
-        // Build and return portfolio with token
-        const portfolio = await buildPublicPortfolio(db, username, newToken);
+
+        // Build and return portfolio with token (reuse the already-fetched profile)
+        const portfolio = await buildPublicPortfolio(db, username, newToken, profile);
         if (!portfolio) {
           return res.json({ success: false, error: 'Portfolio not found' }, 404);
         }
 
-        return res.json({ 
-          success: true, 
+        return res.json({
+          success: true,
           protected: true,
           verified: true,
-          ...portfolio 
+          ...portfolio
         });
       }
     }
 
     // Build and return public portfolio (not protected or already verified)
-    const portfolio = await buildPublicPortfolio(db, username, providedToken);
+    const portfolio = await buildPublicPortfolio(db, username, providedToken, profile);
     if (!portfolio) {
       return res.json({ success: false, error: 'Portfolio not found' }, 404);
     }
 
-    return res.json({ 
+    return res.json({
       success: true,
       protected: passwordEnabled,
-      ...portfolio 
+      ...portfolio
     });
 
   } catch (err) {

@@ -2,6 +2,35 @@
 
 ---
 
+## Session Log - 2026-06-22 (Portfolio Findings Repair — branch, pre-deploy)
+
+### Overview
+Implemented the approved repair plan for the Portfolio Full Discovery Audit on branch
+`fix/portfolio-repair` (off `main` @ `4f639724`). **Not pushed, not merged, not deployed; no production
+data touched.** Full detail + per-finding coverage table:
+`Project Atlas/Portfolio Audit 2026-06-22/PORTFOLIO_REPAIR_IMPLEMENTATION_REPORT.md`.
+
+### What changed (owner decisions applied)
+- Contact form now emails the **portfolio owner** (reply-to = visitor), not the admin inbox.
+- Owner email + internal user_id removed from all public output (JSON-LD + payloads).
+- Brute-force lockout added to the primary Appwrite password path; password hash no longer leaves the server.
+- Chat/session/credit caps now fail **closed**; single settings read (TOCTOU fixed); `crypto.timingSafeEqual`.
+- Custom-domain editor UI **disabled** ("coming soon") — feature intentionally not built.
+- Canonical share/template URLs; analytics via validated server endpoint; rate-limited public state; byte-accurate draft guard.
+- Deferred: PORT-P3-09 secret separation (would break DevKit auth without a coordinated new secret).
+
+### Validation
+`tsc --noEmit` PASS; `npm run build` PASS; 6 hubs `node --check` PASS; hub password test PASS;
+targeted portfolio vitest PASS. Source hashes regenerated for the 6 changed hubs.
+
+### Where We Stopped
+Code complete on the branch, locally validated. **Awaiting owner approval to push → PR → deploy.**
+Status: `READY_FOR_REVIEW`. Promote to `READY_FOR_DEPLOY_APPROVAL` after confirming the Appwrite Console
+items (portfolio_settings perms, rate-limit/chat_sessions collections, username collection-ID drift, function
+CORS, OG env). Deploy order: hubs (narrow targets, GitHub Actions) → Vercel.
+
+---
+
 ## Session Log - 2026-06-22 (Production Push + Smoke Test Closeout)
 
 ### Overview

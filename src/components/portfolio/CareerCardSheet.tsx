@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { downloadFile } from '@/lib/downloadUtils';
 import { haptics } from '@/lib/haptics';
-import { getPortfolioUrl, getAppUrl } from '@/lib/portfolioUrl';
+import { getPortfolioCanonicalUrl, getAppUrl } from '@/lib/portfolioUrl';
 // Profile shape (mirrors useProfile internal type)
 interface Profile {
   fullName?: string | null;
@@ -479,8 +479,10 @@ export function CareerCardSheet({
 
   const handleShareLinkedIn = useCallback(() => {
     haptics.light();
+    // PORT-P2-09: share the canonical wiseresume.app URL, not the runtime host,
+    // so a card shared from a legacy/preview domain still points at production.
     const portfolioUrl = username
-      ? getPortfolioUrl(username)
+      ? getPortfolioCanonicalUrl(username)
       : getAppUrl();
     const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(portfolioUrl)}`;
     openExternal(shareUrl);

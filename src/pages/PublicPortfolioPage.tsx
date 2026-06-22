@@ -404,6 +404,21 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
 
   if (isLoading) return <PortfolioSkeleton />;
 
+  // PORT-P3-01: distinguish a brute-force lockout from a missing portfolio so the
+  // visitor sees an actionable message instead of a misleading "Not Found".
+  if (error && (error as Error).message === 'rate_limited') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 text-center" style={{ background: '#0a0a14' }}>
+        <div className="max-w-md space-y-3">
+          <h1 className="text-xl font-semibold text-white">Too many attempts</h1>
+          <p className="text-sm text-gray-400">
+            Too many incorrect password attempts for this portfolio. Please wait a few minutes, then try again.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Password errors are caught by the gate condition above. Only surface NotFound
   // for real missing/disabled-portfolio errors (not wrong-password responses).
   if (error && (error as Error).message !== 'invalid_password') return <NotFound />;
@@ -444,7 +459,9 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     '--pf-warning': '#f59e0b',
   } as React.CSSProperties;
 
-  const initials = profile.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  // PORT-P3-12: split on any whitespace run and drop empty tokens so names with
+  // extra/leading spaces (or whitespace-only) yield clean initials, never junk.
+  const initials = (profile.fullName || '').split(/\s+/).filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
   const portfolioSummary = profile.portfolioSummary;
   const sectionOrder = profile.sectionOrder || undefined;
   const scrollEffect = (profile.scrollEffect as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic') || 'fade';

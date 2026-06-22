@@ -197,6 +197,11 @@ export function usePublicPortfolio(
         if (result.error === 'Invalid password') {
           throw new Error('invalid_password');
         }
+        // PORT-P3-01: surface brute-force lockout distinctly so the UI can show a
+        // "too many attempts" message instead of a misleading "Not Found".
+        if (result.error === 'too_many_attempts' || result.error === 'rate_limited') {
+          throw new Error('rate_limited');
+        }
         if (result.protected && result.gate) {
           // Return gate info for protected portfolio
           throw new Error('password_required');
@@ -215,6 +220,7 @@ export function usePublicPortfolio(
     retry: (failureCount, error) => {
       if ((error as Error)?.message === 'invalid_password') return false;
       if ((error as Error)?.message === 'password_required') return false;
+      if ((error as Error)?.message === 'rate_limited') return false;
       return failureCount < 2;
     },
   });
@@ -224,7 +230,10 @@ export function validateCustomDomain(domain: string): string | null {
   if (!domain || !domain.trim()) return null;
   const d = domain.trim().toLowerCase();
   const appDomains = ['thewise.cloud', 'wiseresume.com', 'wiseresume.app', 'localhost', '127.0.0.1', 'replit.dev', 'replit.co'];
-  if (appDomains.some(ad => d.includes(ad))) return 'This domain is reserved — use your own domain.';
+  // PORT-P3-15: exact / suffix match (not substring) so legitimate domains like
+  // "notthewise.cloud" aren't falsely rejected. (isAppHostname remains the
+  // security boundary with the same precise matching.)
+  if (appDomains.some(ad => d === ad || d.endsWith('.' + ad))) return 'This domain is reserved — use your own domain.';
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(d)) return 'Invalid domain format.';
   return null;
 }

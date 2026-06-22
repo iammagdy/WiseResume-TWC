@@ -366,7 +366,7 @@ function Footer({ page, total }: { page: number; total: number }) {
   return (
     <footer className="wrc-footer">
       Page {page} of {total} - Made with{' '}
-      <a href="https://resume.thewise.cloud" target="_blank" rel="noreferrer">WiseResume</a>
+      <a href="https://wiseresume.app" target="_blank" rel="noreferrer">WiseResume</a>
     </footer>
   );
 }

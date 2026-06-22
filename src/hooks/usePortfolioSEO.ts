@@ -81,7 +81,9 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       if (profile.twitterUrl) {
         jsonLdData.sameAs = [...((jsonLdData.sameAs as string[]) ?? []), profile.twitterUrl];
       }
-      if (profile.contactEmail) jsonLdData.email = profile.contactEmail;
+      // PORT-P1-02: the owner's contact email is intentionally NOT published in
+      // JSON-LD — structured data is machine-harvestable by crawlers/scrapers.
+      // Visitors reach the owner through the gated contact form instead.
       jsonLdEl.textContent = JSON.stringify(jsonLdData);
 
       // Load Google Fonts for premium themes

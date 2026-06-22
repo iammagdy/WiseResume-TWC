@@ -155,7 +155,11 @@ async function checkPortfolioSessionRateLimit(db, ip) {
     await db.updateDocument(DB_ID, SESSION_RATE_LIMIT_COLLECTION_ID, ipHash, { count: count + 1 });
     return { ok: true };
   } catch {
-    return { ok: true };
+    // PORT-P2-02: fail CLOSED. Previously returned { ok: true }, so a missing
+    // rate-limit collection or a DB outage silently disabled IP throttling and
+    // allowed unlimited portfolio chat-session creation. Requires the
+    // portfolio_session_rate_limits collection to exist (see owner checklist).
+    return { ok: false, retryAfterSeconds: 60 };
   }
 }
 
@@ -184,7 +188,10 @@ async function getResumeForPortfolio(db, profile, userId) {
   if (selectedResumeId) {
     try {
       const resume = await db.getDocument(DB_ID, RESUMES_COLLECTION_ID, selectedResumeId);
-      if (resume) return resume;
+      // SECURITY (PORT-P1): only return the selected resume if it belongs to the
+      // portfolio owner. Without this ownership check, a tampered
+      // portfolio_resume_id could surface another user's resume as chat context.
+      if (resume && resume.user_id === userId) return resume;
     } catch {
       // Fall through to user_id query if selected resume not found
     }

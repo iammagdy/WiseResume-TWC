@@ -299,7 +299,7 @@ export function useProfile(userId: string | undefined) {
     queryClient,
   ]);
 
-  const updateProfile = async (updates: ProfileUpdates): Promise<void> => {
+  const updateProfile = async (updates: ProfileUpdates, opts: { silent?: boolean } = {}): Promise<void> => {
     if (!userId) throw new Error('Identity not settled');
     const existing = await databases.listDocuments(DATABASE_ID, COLLECTIONS.profiles, [
       Query.equal('user_id', userId),
@@ -384,7 +384,10 @@ export function useProfile(userId: string | undefined) {
       });
     }
     queryClient.invalidateQueries({ queryKey: ['profile', userId] });
-    toast.success('Profile updated');
+    // PORT-P2-07: allow callers (e.g. the portfolio publish flow, which shows its
+    // own "Published!" toast) to suppress the generic success toast and avoid a
+    // confusing double notification.
+    if (!opts.silent) toast.success('Profile updated');
   };
 
   return { profile, loading, updateProfile };
