@@ -72,6 +72,7 @@ const HUBS = [
     { id: 'portfolio-gate', name: 'Portfolio Gate', file: 'portfolio-gate.tar.gz' },
     { id: 'get-public-portfolio', name: 'Get Public Portfolio', file: 'get-public-portfolio.tar.gz' },
     { id: 'verify-portfolio-password', name: 'Verify Portfolio Password', file: 'verify-portfolio-password.tar.gz' },
+    { id: 'portfolio-settings', name: 'Portfolio Settings Hub', file: 'portfolio-settings.tar.gz' },
 ];
 
 const SAFE_SMOKE_CHECKS = new Map([
@@ -690,6 +691,16 @@ async function ensureVerifyPortfolioPasswordVariables() {
     }
 }
 
+async function ensurePortfolioSettingsVariables() {
+    for (const [key, value] of [
+        ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
+        ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
+        ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192'],
+    ]) {
+        await ensureVariable('portfolio-settings', key, value);
+    }
+}
+
 async function syncVariablesForHubs(hubIds) {
     const selected = new Set(hubIds);
     const hasAny = ids => ids.some(id => selected.has(id));
@@ -742,6 +753,7 @@ async function syncVariablesForHubs(hubIds) {
     if (selected.has('portfolio-gate')) await ensurePortfolioGateVariables();
     if (selected.has('get-public-portfolio')) await ensureGetPublicPortfolioVariables();
     if (selected.has('verify-portfolio-password')) await ensureVerifyPortfolioPasswordVariables();
+    if (selected.has('portfolio-settings')) await ensurePortfolioSettingsVariables();
 }
 
 function resolveRequestedHubs(requestedIds) {

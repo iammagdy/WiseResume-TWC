@@ -180,6 +180,15 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
+      "functionId": "portfolio-settings",
+      "name": "Portfolio Settings",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/portfolio-settings",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "portfolio-gate",
       "name": "Portfolio Gate",
       "runtime": "node-22",

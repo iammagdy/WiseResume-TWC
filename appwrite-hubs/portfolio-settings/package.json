@@ -1,0 +1,10 @@
+{
+  "name": "portfolio-settings",
+  "version": "1.0.0",
+  "description": "Owner-authenticated server-side writer for portfolio password settings (keeps portfolio_settings server-only)",
+  "main": "src/main.js",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "node-appwrite": "^17.2.0"
+  }
+}

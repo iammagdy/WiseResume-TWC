@@ -42,6 +42,7 @@ const HUBS = [
   'portfolio-gate',
   'get-public-portfolio',
   'verify-portfolio-password',
+  'portfolio-settings',
 ];
 
 const hashes = {};

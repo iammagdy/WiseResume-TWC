@@ -15,7 +15,6 @@ import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { useNavigate } from 'react-router-dom';
-import bcrypt from 'bcryptjs';
 import { Smartphone, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -855,7 +854,6 @@ export default function PortfolioEditorPage() {
     // cannot cause us to write `passwordHash: null` over a real hash that
     // exists in the DB.
     const cachedPasswordEnabled = !!profile?.portfolioExtras?.passwordEnabled;
-    const cachedPasswordHash = (profile?.portfolioExtras?.passwordHash as string | undefined) || '';
     const hasNewPassword = portfolioPassword.length > 0;
     const isEnablingPassword =
       overrides?.portfolioEnabled !== false && passwordEnabled;
@@ -894,43 +892,12 @@ export default function PortfolioEditorPage() {
     setSavingPortfolio(true);
     haptics.light();
     try {
-      // Authoritative read of the password-protection state straight from
-      // the DB.  The editor never touches passwordHash anywhere else, but
-      // our updateProfile call below performs a full overwrite of
-      // portfolio_extras - if we copied a stale `null`/`false` from the
-      // React Query cache, that would silently disable the gate.  Reading
-      // here closes that common case.  The two extra columns are tiny so
-      // the round-trip cost is negligible compared to the safety win.
-      //
-      // Known residual race (Phase 2 follow-up): a concurrent tab that
-      // mutates the password between this read and the updateProfile call
-      // below can still have its change overwritten.  The proper fix is
-      // an optimistic concurrency guard on profile updates or moving the
-      // entire portfolio_extras merge server-side; both are out of scope
-      // for the current task.  The window is one network round-trip wide
-      // and requires two tabs actively editing the password simultaneously.
-      let dbPasswordEnabled = cachedPasswordEnabled;
-      let dbPasswordHash = cachedPasswordHash;
-      if (user?.id) {
-        try {
-          const settingsDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
-            Query.equal('user_id', user.id),
-            Query.limit(1),
-          ]);
-          if (settingsDocs.total > 0) {
-            const doc = settingsDocs.documents[0] as unknown as { password_enabled?: boolean; password_hash?: string };
-            dbPasswordEnabled = !!doc.password_enabled;
-            dbPasswordHash = doc.password_hash ?? '';
-          }
-        } catch {
-          // Fall back to cached values on error
-        }
-      }
-
-      // Deferred guard: enabling password protection without a stored hash
-      // and without a new password is invalid.  Run this AFTER the fresh DB
-      // read so a stale React Query cache cannot block a legitimate save.
-      if (isEnablingPassword && !dbPasswordHash && !hasNewPassword) {
+      // Password protection lives in the server-only `portfolio_settings`
+      // collection and is managed exclusively by the `portfolio-settings`
+      // function — the browser cannot read or write that collection (or the
+      // hash). We only need the local "is a password already set" hint here
+      // (the sentinel), never the hash.
+      if (isEnablingPassword && !passwordHash && !hasNewPassword) {
         toast.error('Set a password before enabling password protection.');
         setSavingPortfolio(false);
         return;
@@ -994,8 +961,10 @@ export default function PortfolioEditorPage() {
           // for password_hash; echoing it here exposed the bcrypt hash to the
           // owner's browser via the profile document (and into drafts). Any
           // legacy hash in an existing doc is dropped on this republish. The
-          // passwordEnabled boolean is kept as a harmless UI hint.
-          passwordEnabled: dbPasswordEnabled,
+          // passwordEnabled boolean is kept as a harmless UI hint (the
+          // server-only portfolio_settings collection remains the source of
+          // truth that the public gate enforces).
+          passwordEnabled: passwordEnabled,
           customDomain: isPaidUser ? (customDomain.trim() || null) : null,
           contactFormEnabled,
         }
@@ -1031,53 +1000,34 @@ export default function PortfolioEditorPage() {
       await updateProfile(updates as Parameters<typeof updateProfile>[0], { silent: true });
       clearLocalPortfolioDraft(user?.id);
 
-      // -- Apply password changes via Appwrite portfolio_settings upsert --
-      // The raw password is hashed client-side with SHA-256 before being
-      // written to Appwrite.  Only the password_enabled / password_hash keys
-      // are touched - the main profile write above is unaffected.
-      // Called only when the password state actually changed so a routine
-      // save never regenerates the hash.
-      const pwdStateChanged = passwordEnabled !== dbPasswordEnabled || hasNewPassword;
+      // -- Apply password changes via the server-side `portfolio-settings` fn --
+      // `portfolio_settings` is server-only; the browser never reads/writes it
+      // or the hash. We send the owner's intent and the function (authenticated
+      // by the Appwrite JWT that appwriteFunctions attaches automatically)
+      // resolves the user_id server-side, hashes the password (bcrypt cost 12 —
+      // the format the public gate verifies), and upserts the settings doc.
+      // Only called when the password state actually changed.
+      const pwdStateChanged = passwordEnabled !== cachedPasswordEnabled || hasNewPassword;
       let pwdUpdateFailed = false;
       if (pwdStateChanged) {
         try {
-          let finalHash = dbPasswordHash;
-          if (passwordEnabled && hasNewPassword) {
-            finalHash = await bcrypt.hash(portfolioPassword, 12);
-          } else if (!passwordEnabled) {
-            finalHash = '';
-          }
-          const pwdSettingsDocs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.portfolio_settings, [
-            Query.equal('user_id', user!.id),
-            Query.limit(1),
-          ]);
-          const pwdPayload = {
-            user_id: user!.id,
-            password_enabled: passwordEnabled,
-            password_hash: finalHash || null,
-          };
-          if (pwdSettingsDocs.total > 0) {
-            await databases.updateDocument(DATABASE_ID, COLLECTIONS.portfolio_settings, pwdSettingsDocs.documents[0].$id, pwdPayload);
-          } else {
-            await databases.createDocument(DATABASE_ID, COLLECTIONS.portfolio_settings, ID.unique(), pwdPayload);
-          }
-          // Reflect the new state locally:
-          //  - on enable+new pwd: we now have a stored hash (sentinel value;
-          //    the actual hash never returns to the browser)
-          //  - on disable: the hash was cleared
-          //  - on enable without new pwd (toggle on existing): hash unchanged
+          const body = passwordEnabled
+            ? { action: 'enable', ...(hasNewPassword ? { password: portfolioPassword } : {}) }
+            : { action: 'disable' };
+          const { error: pwdError } = await appwriteFunctions.invoke('portfolio-settings', { body });
+          if (pwdError) throw new Error(pwdError.message || 'Password settings update failed');
+          // Reflect the new "is set" indicator locally (never the hash):
           if (passwordEnabled && hasNewPassword) {
             setPasswordHash('set');
           } else if (!passwordEnabled) {
             setPasswordHash('');
           }
           setPortfolioPassword('');
-          // Refresh the profile cache so next render reads back the merged extras.
           queryClient.invalidateQueries({ queryKey: ['profile'] });
         } catch (pwdErr) {
-          console.error('portfolio_settings password update failed', pwdErr);
+          console.error('portfolio password settings update failed', pwdErr);
           pwdUpdateFailed = true;
-          toast.error('Portfolio saved, but the password update failed. Please try again.');
+          toast.error('Portfolio saved, but updating password protection failed. Please try again.');
         }
       }
 
