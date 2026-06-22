@@ -2,6 +2,51 @@
 
 ---
 
+## Session Log - 2026-06-22 (Security Remediation Closeout — PR #104 + PR #105)
+
+### Overview
+Closed out the full-codebase security remediation: implemented the security-review findings, ran an adversarial review, merged two PRs, deployed 15 Appwrite hubs, and ran an anonymous + authenticated verification pass. Final verdict: **PASS WITH WARNINGS**. Production is safe to keep live and ready for broad user testing; public launch is conditional on owner-side checks. No rollback and no new deploy required.
+
+### PR #104 — Security fixes (merge `1f790dbd4361c1c978871f3e298abb1fab3a5b0e`)
+- **Portfolio / shared-resume XSS:** new `safeHref()` (`src/lib/urlUtils.ts`, allowlist `http`/`https`/`mailto`/`tel`; rejects `javascript:`/`data:`/`vbscript:`) wired into every public-portfolio link site (ProjectCard, CaseStudyCard, PublicSections, PublicHero, ContactLinks, GitHubProjectsSection, VisitorsPanel), the PDF/print export (`portfolioPrintLayout.ts`), and the shared-resume template (`WiseResumeClassicTemplate.tsx`). Unsafe URLs render as plain text; safe URLs preserved unchanged.
+- **job-import credits/rate-limit/idempotency:** ported the `resume-section-ai` charging pattern into `appwrite-hubs/job-import` (`parse-job` = 1 credit; no charge on fetch/LLM/no-result failures; idempotent same-URL retries).
+- **ai-health authenticated-only:** requires a valid Appwrite user session (anonymous → 401); response shape unchanged; no provider keys exposed.
+- **admin-sentry fail-closed:** webhook rejects when `SENTRY_WEBHOOK_SECRET` is unset; unsigned webhooks → 401.
+- **Raw DEVKIT_PASSWORD bearer fallback removed** from 9 admin hubs (admin-impersonate, admin-email, admin-testmail, admin-moderation, admin-portfolio-usernames, admin-visitor-analytics, admin-onboarding-funnel, admin-deploy-hubs, inspect-ai-keys); signed-token-only (`verifySignedToken` / `APPWRITE_API_KEY` verification preserved).
+- **WiseHire rate limits:** per-IP throttle on `waitlist-check-email`; per-user throttle on `write-jd`/`generate-brief` (no credit deduction).
+- **Portfolio unlock token user_id binding:** `get-public-portfolio` unlock token now validated against username **and** owner `user_id`.
+- **DevKit username availability moved server-side:** new read-only `check-username-availability` action in `admin-devkit-data`; `UserDetailDrawer` no longer issues a direct cross-user browser query.
+
+### PR #105 — Deploy smoke-check fix (merge `42819189193f48fea47fb38994614d263e17032c`)
+- `scripts/deploy_hubs.cjs` only: `admin-sentry` (unsigned webhook) and `ai-health` (anonymous) smoke checks now treat **401 as the expected PASS** (`okStatuses` option), matching the new fail-closed behaviour. No hub redeploy required.
+
+### Deployment State
+| Area | Result |
+|------|--------|
+| Appwrite hubs | All **15** deployed and live from PR #104 via the official `deploy-appwrite-hubs.yml` workflow (targeted, not `target=all`). Deployment IDs verified live for ai-health, admin-sentry, admin-devkit-data, get-public-portfolio, job-import, inspect-ai-keys. |
+| Vercel | Production deployed; success for `1f790dbd` and `42819189`. |
+| PR #105 | Merged; deploy-script-only; no hub redeploy. |
+| Source hashes | `sourceHashes.generated.json` consistent with hub source (gate passes). |
+
+### Verification (PASS WITH WARNINGS)
+- **Tests:** `tsc --noEmit`, `npm run build`, relevant Vitest (69), hub tests (8 files), source-hash gate, `git diff --check` — all pass. The only Vitest failures are the pre-existing, unrelated `AIStudioPage` tests.
+- **Live anonymous:** ai-health → 401, admin-sentry unsigned webhook → 401, job-import → 401, get-public-portfolio (bogus) → 404, admin-devkit-data/inspect-ai-keys (invalid token) → 401.
+- **Authenticated read-only (owner session):** dashboard, portfolio studio, tailoring hub, editor, settings load with no blocking errors; live public portfolio renders with normal links preserved and zero unsafe hrefs.
+
+### Known Warnings / Blocked
+- **Signed Sentry webhook → 200:** owner-side confirmation pending (cannot sign without the secret).
+- **QA write flows blocked** (no dedicated QA account; signup gated by SlideCaptcha + email verification; owner account not used for writes): resume save, live job-import credit deduction, portfolio `javascript:` injection, DevKit UI, WiseHire recruiter flow.
+- **`useCombinedTailorHistory` "not authorized" console warning in Editor:** non-blocking; editor fully functional; likely pre-existing/unrelated (no changed file touches `tailor_history`).
+- **`AIHealthBadge`/`DashboardStatusPopover` not currently mounted** anywhere in the app (pre-existing; unrelated to the ai-health hub fix).
+
+### Where We Stopped
+Documentation closeout (this entry + CHANGELOG). Security remediation is **complete**; no rollback, no new deploy required; **ready for broad user testing**.
+
+### Follow-ups
+Confirm signed Sentry webhook with a real event; run QA-account write-flow smoke; investigate the `useCombinedTailorHistory` 403 separately. Deferred: CSP `unsafe-inline` removal, SHA-256→bcrypt portfolio-password migration, impersonation nonce sessionStorage review, custom-domain mapping disclosure, job-import DNS-rebinding pin. CI noise: AI Gateway auto-build failure and TestSprite "no tests detected" (unrelated, non-required).
+
+---
+
 ## Session Log - 2026-06-21 (Anti-Gravity Post-Secret Live QA)
 
 ### Overview

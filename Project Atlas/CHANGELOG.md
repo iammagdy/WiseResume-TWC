@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-21
+**Last verified:** 2026-06-22
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,61 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-22 - Security Remediation Closeout (PR #104 + PR #105)
+
+### Summary
+Completed the full-codebase security remediation cycle: implemented, reviewed, merged, deployed, and verified the fixes from the security review. Final verification verdict is **PASS WITH WARNINGS**. Production is safe to keep live and ready for broad user testing; public launch is **conditional** on owner-side checks. No rollback or new deploy required.
+
+### PR #104 — Security fixes (merged; 15 hubs deployed)
+Merge commit `1f790dbd4361c1c978871f3e298abb1fab3a5b0e`.
+- **Portfolio / shared-resume XSS:** new `safeHref()` (`src/lib/urlUtils.ts`) allowlisting `http`/`https`/`mailto`/`tel` and rejecting `javascript:`/`data:`/`vbscript:`; wired into all public-portfolio link sites (ProjectCard, CaseStudyCard, PublicSections, PublicHero, ContactLinks, GitHubProjectsSection, VisitorsPanel), the PDF/print export (`portfolioPrintLayout.ts`), and the shared-resume template (`WiseResumeClassicTemplate.tsx`). Unsafe URLs render as plain text / non-clickable; safe URLs are not normalized/broken.
+- **job-import credits/rate-limit/idempotency:** ported the `resume-section-ai` charging pattern into `appwrite-hubs/job-import` (`parse-job` = 1 credit). Failed fetch/LLM/no-result paths do not charge; same-URL retries are idempotent within the TTL.
+- **ai-health authenticated-only:** `appwrite-hubs/ai-health` now requires a valid Appwrite user session (anonymous → 401); response shape unchanged; no provider keys exposed.
+- **admin-sentry fail-closed:** webhook now rejects when `SENTRY_WEBHOOK_SECRET` is unset (`if (!secret) return false`); unsigned webhooks → 401.
+- **Raw DEVKIT_PASSWORD bearer fallback removed:** 9 admin hubs (admin-impersonate, admin-email, admin-testmail, admin-moderation, admin-portfolio-usernames, admin-visitor-analytics, admin-onboarding-funnel, admin-deploy-hubs, inspect-ai-keys) are now signed-token-only (`verifySignedToken` / `APPWRITE_API_KEY` verification preserved).
+- **WiseHire rate limits:** per-IP throttle on `waitlist-check-email` (email enumeration) and per-user throttle on `write-jd`/`generate-brief` in `wisehire-gateway` (no credit deduction).
+- **Portfolio unlock token user_id binding:** `get-public-portfolio` unlock token now validated against both username and owner `user_id`.
+- **DevKit username availability moved server-side:** new read-only `check-username-availability` action in `admin-devkit-data`; `UserDetailDrawer` no longer issues a direct cross-user browser query.
+
+### PR #105 — Deploy smoke-check fix (merged; deploy-script only)
+Merge commit `42819189193f48fea47fb38994614d263e17032c`.
+- Updated `scripts/deploy_hubs.cjs` smoke checks for the now fail-closed endpoints: `admin-sentry` (unsigned webhook) and `ai-health` (anonymous) now treat **401 as the expected PASS** via an `okStatuses` option. A 200 to either would now fail the smoke (regression guard).
+- **No hub redeploy required** — changes only affect the deploy-script's smoke-validation step.
+
+### Deployment state
+- **15 Appwrite hubs deployed and live from PR #104** (job-import, wisehire-gateway, admin-devkit-data, get-public-portfolio, admin-sentry, ai-health, admin-impersonate, admin-email, admin-testmail, admin-moderation, admin-portfolio-usernames, admin-visitor-analytics, admin-onboarding-funnel, admin-deploy-hubs, inspect-ai-keys) via the official `deploy-appwrite-hubs.yml` workflow (targeted, not `target=all`).
+- **Vercel production deployed** (success for both `1f790dbd` and `42819189`).
+- **PR #105 merged**, deploy-script-only; no hub redeploy triggered.
+
+### Verification result — PASS WITH WARNINGS
+- Production safe to keep live: **YES**.
+- Broad user testing: **YES**.
+- Public launch: **CONDITIONAL** (owner-side checks below).
+
+### Tests passed
+- `npx tsc --noEmit`; `npm run build`; relevant Vitest (urlUtils/safeHref, ProjectCard, GitHubProjectsSection, portfolio public, templates/WiseResumeClassicTemplate, ContactLinks — 69 tests); hub tests (8 files incl. ai-health-auth, devkit-auth-signed-only, job-import-credit, wisehire-ratelimit); source-hash gate (`compute-source-hashes.mjs` + `git diff --exit-code`); `git diff --check`.
+- **Live anonymous endpoint checks:** ai-health → 401, admin-sentry unsigned webhook → 401, job-import → 401, get-public-portfolio (bogus user) → 404, admin-devkit-data & inspect-ai-keys (invalid token) → 401 — all with deployment IDs matching the #104 run.
+- **Authenticated read-only browser checks:** dashboard, portfolio studio, tailoring hub, editor, settings load with no blocking errors; live public portfolio (`/p/<user>`) renders with normal links preserved and **zero unsafe hrefs**.
+
+### Known warnings / blocked tests
+- **Signed Sentry webhook → 200** still needs owner-side confirmation (cannot sign without the secret).
+- **QA write tests blocked** without a dedicated QA account (signup gated by SlideCaptcha + email verification; owner's real account not used for writes).
+- **Live job-import credit deduction blocked** without a QA account.
+- **WiseHire recruiter flow blocked** without a recruiter account.
+- **`useCombinedTailorHistory` "not authorized" console warning in Editor** — non-blocking; editor fully functional; likely **pre-existing/unrelated** (no changed file touches `tailor_history` or its permissions).
+
+### Remaining follow-ups
+- Confirm the signed Sentry webhook with a real Sentry event.
+- Create/use a QA account for write-flow smoke (resume save, job-import credit deduction, portfolio `javascript:` rendering, DevKit, WiseHire).
+- Investigate the `useCombinedTailorHistory` 403 separately (confirm it predates the remediation).
+- Deferred: CSP `unsafe-inline` removal; SHA-256→bcrypt portfolio-password migration; impersonation nonce sessionStorage review; custom-domain mapping disclosure; job-import DNS-rebinding pin.
+- CI noise: AI Gateway auto-build failure and TestSprite "no tests detected" (both unrelated, non-required).
+
+### Current final status
+Security remediation **complete**. No immediate rollback required. No new deploy required. **Ready for broad user testing.**
 
 ---
 
