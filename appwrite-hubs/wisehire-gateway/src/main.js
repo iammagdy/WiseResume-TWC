@@ -35,6 +35,34 @@ function json(res, data, status = 200) {
   return res.json(data, status);
 }
 
+// ─── In-memory rate limiting (per-instance) ───────────────────────────────────
+// Throttles the AI-backed recruiter actions (per user) and the anonymous
+// waitlist email check (per IP, to blunt email enumeration). Per-instance only;
+// a persistent counter would be the upgrade path for stronger guarantees.
+const _rateLimits = new Map();
+function rateLimitExceeded(key, max, windowMs) {
+  const now = Date.now();
+  const current = _rateLimits.get(key);
+  if (!current || now > current.resetAt) {
+    _rateLimits.set(key, { count: 1, resetAt: now + windowMs });
+    return false;
+  }
+  if (current.count >= max) return true;
+  current.count += 1;
+  return false;
+}
+function rateLimitError() {
+  const err = new Error('Too many requests. Please wait a moment and try again.');
+  err.status = 429;
+  return err;
+}
+function clientIpFrom(req) {
+  const h = (req && req.headers) || {};
+  const fwd = h['x-forwarded-for'] || h['X-Forwarded-For'] || '';
+  const first = String(fwd).split(',')[0].trim();
+  return first || h['x-real-ip'] || h['X-Real-IP'] || 'unknown';
+}
+
 async function currentUser(account) {
   try { return await account.get(); } catch { return null; }
 }
@@ -416,10 +444,25 @@ module.exports = async ({ req, res, error }) => {
       'wisehire-talent-search',
       'wisehire-talent-view',
     ]);
+    // Per-IP throttle on the anonymous waitlist email check to blunt enumeration.
+    if (action === 'wisehire-access') {
+      const sub = body.wisehire_action || body.action_name || body.action;
+      if (sub === 'waitlist-check-email' && rateLimitExceeded(`wh:waitlist-check:${clientIpFrom(req)}`, 10, 60_000)) {
+        throw rateLimitError();
+      }
+    }
+
     const access = recruiterActions.has(action)
       ? await requireWiseHireAccess(databases, user, action)
       : null;
     const scopedBody = access ? { ...body, __wisehireAccess: access } : body;
+
+    // Per-user throttle on the AI-backed recruiter actions (no credit charge;
+    // WiseHire is a separate product). Mirrors resume-section-ai's 20/min cap.
+    if ((action === 'wisehire-write-jd' || action === 'wisehire-generate-brief') &&
+        rateLimitExceeded(`wh:${user.$id}:${action}`, 20, 60_000)) {
+      throw rateLimitError();
+    }
 
     let data;
     if (action === 'wisehire-write-jd') data = await handleWriteJd(scopedBody);
@@ -442,4 +485,6 @@ module.exports = async ({ req, res, error }) => {
 module.exports._test = {
   canAccessWiseHireDocument,
   hasRequiredWiseHireRole,
+  rateLimitExceeded,
+  clientIpFrom,
 };

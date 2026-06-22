@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { ContactInfo } from '@/types/resume';
 import { Mail, Phone, MapPin, Linkedin, Github, Globe } from 'lucide-react';
 import { extractLinkedInUsername, extractGitHubUsername, extractDomain, DEFAULT_HEADER_ORDER } from './contactUtils';
+import { safeHref } from '@/lib/urlUtils';
 
 interface ContactLinksProps {
   contact: ContactInfo;
@@ -54,13 +55,13 @@ function ensureGithubUrl(raw: string): string {
 
 function getItems(contact: ContactInfo): ContactItem[] {
   const items: ContactItem[] = [];
-  if (contact.email) items.push({ key: 'email', icon: Mail, label: contact.email, value: contact.email, href: `mailto:${contact.email}` });
-  if (contact.email2) items.push({ key: 'email2', icon: Mail, label: contact.email2, value: contact.email2, href: `mailto:${contact.email2}` });
+  if (contact.email) items.push({ key: 'email', icon: Mail, label: contact.email, value: contact.email, href: safeHref(`mailto:${contact.email}`) });
+  if (contact.email2) items.push({ key: 'email2', icon: Mail, label: contact.email2, value: contact.email2, href: safeHref(`mailto:${contact.email2}`) });
   if (contact.phone) items.push({ key: 'phone', icon: Phone, label: contact.phone, value: contact.phone });
   if (contact.location) items.push({ key: 'location', icon: MapPin, label: contact.location, value: contact.location });
-  if (contact.linkedin) items.push({ key: 'linkedin', icon: Linkedin, label: extractLinkedInUsername(contact.linkedin), value: contact.linkedin, href: ensureLinkedinUrl(contact.linkedin) });
-  if (contact.github) items.push({ key: 'github', icon: Github, label: extractGitHubUsername(contact.github), value: contact.github, href: ensureGithubUrl(contact.github) });
-  if (contact.portfolio) items.push({ key: 'portfolio', icon: Globe, label: extractDomain(contact.portfolio), value: contact.portfolio, href: ensureUrl(contact.portfolio) });
+  if (contact.linkedin) items.push({ key: 'linkedin', icon: Linkedin, label: extractLinkedInUsername(contact.linkedin), value: contact.linkedin, href: safeHref(ensureLinkedinUrl(contact.linkedin)) });
+  if (contact.github) items.push({ key: 'github', icon: Github, label: extractGitHubUsername(contact.github), value: contact.github, href: safeHref(ensureGithubUrl(contact.github)) });
+  if (contact.portfolio) items.push({ key: 'portfolio', icon: Globe, label: extractDomain(contact.portfolio), value: contact.portfolio, href: safeHref(ensureUrl(contact.portfolio)) });
   return items;
 }
 

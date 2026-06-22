@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { safeHref } from '@/lib/urlUtils';
 import {
   usePortfolioAnalytics,
   useShortLinks,
@@ -242,9 +243,9 @@ function VisitCard({
                 <div className="flex items-center gap-2">
                   <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <span className={`text-xs font-medium ${ref.color}`}>{ref.label}</span>
-                  {visit.referrer && (
+                  {visit.referrer && safeHref(visit.referrer) && (
                     <a
-                      href={visit.referrer}
+                      href={safeHref(visit.referrer)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors font-mono"
@@ -253,6 +254,9 @@ function VisitCard({
                       {ref.host}
                       <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
                     </a>
+                  )}
+                  {visit.referrer && !safeHref(visit.referrer) && (
+                    <span className="text-[10px] text-muted-foreground font-mono">{ref.host || 'referrer'}</span>
                   )}
                   {!visit.referrer && (
                     <span className="text-[10px] text-muted-foreground font-mono">no referrer</span>

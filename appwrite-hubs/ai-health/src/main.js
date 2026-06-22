@@ -7,7 +7,49 @@ const PROVIDER_ENDPOINTS = {
   nvidia:     'https://integrate.api.nvidia.com/v1/models',
 };
 
+// ─── Authentication ───────────────────────────────────────────────────────────
+// ai-health probes server-held provider credentials, so it must not be callable
+// anonymously. Any authenticated Appwrite user session is allowed (this keeps the
+// in-app AI Health badge and the DevKit AI panel working — admins are users too);
+// only anonymous callers are rejected. The frontend sends the user's JWT via
+// X-Appwrite-JWT (see appwrite-functions invoke()).
+
+function extractJwt(body, req) {
+  const embedded = (body && typeof body.__headers === 'object' && body.__headers) || {};
+  const reqHeaders = (req && typeof req.headers === 'object' && req.headers) || {};
+  const fromEmbedded = embedded['X-Appwrite-JWT'] || embedded['x-appwrite-jwt'] || '';
+  const authHeader =
+    embedded.Authorization || embedded.authorization ||
+    reqHeaders['x-appwrite-jwt'] || reqHeaders['authorization'] || reqHeaders['Authorization'] || '';
+  const bearer = String(authHeader).replace(/^Bearer\s+/i, '').trim();
+  return String(fromEmbedded).trim() || bearer;
+}
+
+async function isAuthenticatedUser(jwt) {
+  if (!jwt) return false;
+  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '';
+  try {
+    const response = await fetch(`${endpoint}/account`, {
+      method: 'GET',
+      headers: { 'X-Appwrite-Project': projectId, 'X-Appwrite-JWT': jwt },
+      signal: AbortSignal.timeout(6000),
+    });
+    return response.status >= 200 && response.status < 300;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = async ({ req, res, log }) => {
+  // Require an authenticated Appwrite user session; reject anonymous callers.
+  let body = {};
+  try { body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); } catch { body = {}; }
+  const jwt = extractJwt(body, req);
+  if (!(await isAuthenticatedUser(jwt))) {
+    return res.json({ status: 'unauthorized', error: 'Authentication required.' }, 401);
+  }
+
   const timestamp = new Date().toISOString();
 
   // Collect every configured key across all providers
@@ -80,3 +122,6 @@ module.exports = async ({ req, res, log }) => {
 
   return res.json({ status, timestamp, providers, latencyMs: avgLatency });
 };
+
+// Exposed for hub regression tests (tests/hubs/ai-health-auth.test.cjs).
+module.exports.__test = { extractJwt, isAuthenticatedUser };

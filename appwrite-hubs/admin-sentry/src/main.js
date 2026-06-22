@@ -133,7 +133,11 @@ async function ignoreIssue(cfg, issueId) {
 // ── Webhook signature verification ────────────────────────────────────────────
 
 function verifyWebhookSig(rawBody, signature, secret) {
-  if (!secret) return true; // skip if no secret configured
+  // Fail closed (security): without a configured SENTRY_WEBHOOK_SECRET we cannot
+  // verify the request came from Sentry, so reject it rather than trusting an
+  // unsigned webhook. SENTRY_WEBHOOK_SECRET must be set in the admin-sentry
+  // function env (and GitHub secret) for webhooks to be accepted.
+  if (!secret) return false;
   if (!signature) return false;
   const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
   try {

@@ -103,9 +103,10 @@ function timingSafeStringEqual(a, b) {
 
 function checkAuth(req, body) {
   const token = bearerToken(req, body);
-  const password = process.env.DEVKIT_PASSWORD;
   if (!token) return false;
-  if (password && timingSafeStringEqual(token, password)) return true;
+  // Raw DEVKIT_PASSWORD bearer fallback removed (security): only short-lived
+  // signed DevKit tokens (minted by admin-devkit-data after JWT + admin-label
+  // verification) are accepted.
   return verifySignedToken(token);
 }
 

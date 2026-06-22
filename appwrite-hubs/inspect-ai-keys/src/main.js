@@ -67,11 +67,11 @@ function timingSafeStringEqual(a, b) {
 }
 
 function checkAuth(req, body) {
-  const password = process.env.DEVKIT_PASSWORD;
   const authHeader = body?.__headers?.Authorization || req.headers['authorization'] || req.headers['Authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
   if (!token) return false;
-  return (password && timingSafeStringEqual(token, password)) || verifySignedToken(token);
+  // Raw DEVKIT_PASSWORD bearer fallback removed (security): signed DevKit token only.
+  return verifySignedToken(token);
 }
 
 function maskKey(key) {

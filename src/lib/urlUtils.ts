@@ -34,3 +34,41 @@ export function normalizeUrl(url: string | null | undefined): string {
 
   return trimmed;
 }
+
+/** Schemes permitted in a rendered anchor href. */
+const SAFE_HREF_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+/**
+ * Returns a sanitized href safe to place in an anchor's `href`, or `undefined`
+ * when the URL uses a disallowed scheme (e.g. `javascript:`, `data:`,
+ * `vbscript:`). Bare values without a scheme (e.g. "example.com") are treated
+ * as `https://`. Only http(s), mailto, and tel are permitted.
+ *
+ * Unlike {@link normalizeUrl}, this never returns an unsafe scheme — callers
+ * should render the label as plain text (no anchor) when this returns
+ * `undefined`. This is the only function whose output may be trusted directly
+ * in an href for owner/user-supplied URLs.
+ */
+export function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+
+  // Prepend https:// only when there is no scheme at all, so bare domains stay
+  // clickable. A value that already carries a scheme is parsed as-is so that
+  // disallowed schemes are rejected rather than neutralized into a fake host.
+  const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed);
+  const candidate = hasScheme ? trimmed : `https://${trimmed}`;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return undefined;
+  }
+  if (!SAFE_HREF_SCHEMES.has(parsed.protocol)) return undefined;
+  // Return the validated original rather than parsed.href so we don't normalize
+  // (e.g. add a trailing slash to) the user's URL. The scheme — the only
+  // security-relevant part in an href — has been validated above.
+  return candidate;
+}
