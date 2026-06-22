@@ -51,7 +51,7 @@ was **deferred** after verification showed a naive fix would break DevKit auth.
 | PORT-P3-10 | ✅ Fixed | `user_id` dropped from analytics journey response |
 | PORT-P3-11 | ⚠️ Needs owner verification | data check for legacy plaintext `resume_shares` passwords (upgrade-on-access kept) |
 | PORT-P3-12 | ✅ Fixed | robust `initials` (whitespace-safe) |
-| PORT-P3-15 | ✅ Fixed | reserved-domain check uses exact/suffix match |
+| PORT-SEC-15 | ✅ Fixed | `validateCustomDomain` reserved-domain check uses exact/suffix match (was substring `includes`). NOTE: surfaced by the security discovery pass; **not** a numbered finding in the consolidated audit — included as extra hardening. (Earlier drafts mislabeled this "PORT-P3-15"; corrected.) |
 | "chat missing" | ✅ Verified safe | wiring exists via `public-share` actions (refuted) |
 | hash in public resp | ✅ Verified safe | public functions never return the hash |
 

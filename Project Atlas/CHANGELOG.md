@@ -38,7 +38,7 @@ hub `node --check` PASS, hub password test PASS. Full detail + coverage table:
 - **PORT-P2-07** No duplicate publish toast. **PORT-P2-09** Templates/Career-Card use canonical domain.
 - **PORT-P2-10** View analytics routed through the validated `/api/track-portfolio-view` endpoint.
 - **PORT-P3-01** Rate-limited public state (no more misleading "Not Found").
-- **PORT-P3-08** Draft size guard uses UTF-8 bytes. **PORT-P3-12** robust initials. **PORT-P3-15** exact reserved-domain match.
+- **PORT-P3-08** Draft size guard uses UTF-8 bytes. **PORT-P3-12** robust initials. **PORT-SEC-15** exact reserved-domain match (extra hardening; not a numbered audit finding).
 
 ### Deferred / verified-safe / needs owner verification
 - **PORT-P3-09 DEFERRED** (secret separation) — the DevKit token minter signs with `APPWRITE_API_KEY`;

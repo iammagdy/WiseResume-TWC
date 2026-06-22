@@ -230,9 +230,11 @@ export function validateCustomDomain(domain: string): string | null {
   if (!domain || !domain.trim()) return null;
   const d = domain.trim().toLowerCase();
   const appDomains = ['thewise.cloud', 'wiseresume.com', 'wiseresume.app', 'localhost', '127.0.0.1', 'replit.dev', 'replit.co'];
-  // PORT-P3-15: exact / suffix match (not substring) so legitimate domains like
-  // "notthewise.cloud" aren't falsely rejected. (isAppHostname remains the
-  // security boundary with the same precise matching.)
+  // PORT-SEC-15 (extra hardening, surfaced by the security discovery pass; not in
+  // the consolidated audit's numbered findings): exact / suffix match (not
+  // substring) so legitimate domains like "notthewise.cloud" aren't falsely
+  // rejected. (isAppHostname remains the security boundary with the same precise
+  // matching.)
   if (appDomains.some(ad => d === ad || d.endsWith('.' + ad))) return 'This domain is reserved — use your own domain.';
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(d)) return 'Invalid domain format.';
   return null;
