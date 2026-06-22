@@ -273,7 +273,10 @@ export default function PortfolioEditorPage() {
       setPortfolioSecondaryLanguage(extras.portfolioSecondaryLanguage as string || '');
       setPortfolioTranslations(extras.portfolioTranslations as Record<string, { bio?: string; portfolioSummary?: string; pinnedProjectDescription?: string; highlights?: Array<{ id: string; value: string; label: string }>; services?: Array<{ id: string; title: string; description?: string }>; testimonials?: Array<{ id: string; quote: string }> }> || {});
       setPasswordEnabled((extras.passwordEnabled as boolean) || false);
-      setPasswordHash((extras.passwordHash as string) || '');
+      // PORT-P2-01: never load the real bcrypt hash into client state. Keep only a
+      // boolean-style sentinel so the "password is set" indicator still works
+      // (legacy docs may still carry extras.passwordHash; new docs use passwordEnabled).
+      setPasswordHash((extras.passwordHash || extras.passwordEnabled) ? 'set' : '');
       setCustomDomain((extras.customDomain as string) || '');
       setContactFormEnabled(typeof extras.contactFormEnabled === 'boolean' ? extras.contactFormEnabled : true);
 
@@ -316,7 +319,7 @@ export default function PortfolioEditorPage() {
         if ('portfolioPrimaryLanguage' in d) setPortfolioPrimaryLanguage(String(d.portfolioPrimaryLanguage ?? 'English'));
         if ('portfolioSecondaryLanguage' in d) setPortfolioSecondaryLanguage(String(d.portfolioSecondaryLanguage ?? ''));
         if ('passwordEnabled' in d) setPasswordEnabled(Boolean(d.passwordEnabled));
-        if ('passwordHash' in d) setPasswordHash(String(d.passwordHash ?? ''));
+        if ('passwordHash' in d) setPasswordHash(d.passwordHash ? 'set' : ''); // PORT-P2-01: sentinel only, never the real hash
         if ('customDomain' in d) setCustomDomain(String(d.customDomain ?? ''));
         if ('contactFormEnabled' in d) setContactFormEnabled(Boolean(d.contactFormEnabled));
       }
@@ -415,11 +418,13 @@ export default function PortfolioEditorPage() {
         // restoration until they trim the payload back under the cap.
         // The toast is gated to one fire per editor session via the ref so
         // continued typing doesn't trigger a spam-storm every 3 s.
-        if (currentSnapshot.length > PORTFOLIO_EXTRAS_MAX_BYTES) {
+        // PORT-P3-08: UTF-8 byte size, consistent with the publish-side guard.
+        const snapshotBytes = new Blob([currentSnapshot]).size;
+        if (snapshotBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
           if (!draftOverflowToastedRef.current) {
             draftOverflowToastedRef.current = true;
             toast.warning(
-              `Draft is too large to autosave (${Math.round(currentSnapshot.length / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Your edits are still here, but they won't be restored after a refresh until you trim some services, case studies, testimonials, or translations.`,
+              `Draft is too large to autosave (${Math.round(snapshotBytes / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Your edits are still here, but they won't be restored after a refresh until you trim some services, case studies, testimonials, or translations.`,
               { duration: 8000 }
             );
           }
@@ -785,9 +790,11 @@ export default function PortfolioEditorPage() {
     try {
       if (!user?.id) throw new Error('Not authenticated');
       const currentSnapshot = getCurrentSnapshot();
-      if (currentSnapshot.length > PORTFOLIO_EXTRAS_MAX_BYTES) {
+      // PORT-P3-08: UTF-8 byte size, consistent with the publish-side guard.
+      const currentSnapshotBytes = new Blob([currentSnapshot]).size;
+      if (currentSnapshotBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
         toast.error(
-          `Draft is too large to save (${Math.round(currentSnapshot.length / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Trim some services, case studies, testimonials, or translations.`
+          `Draft is too large to save (${Math.round(currentSnapshotBytes / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Trim some services, case studies, testimonials, or translations.`
         );
         return;
       }
@@ -982,12 +989,13 @@ export default function PortfolioEditorPage() {
           lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
             profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
           ),
-          // Preserve existing password fields untouched - the portfolio_settings
-          // upsert (called after updateProfile below) is the SOLE writer of these
-          // two keys.  We use the FRESH DB read above (not the React Query cache)
-          // so a stale snapshot can never overwrite a real hash with null.
+          // PORT-P2-01: the password HASH is intentionally NOT mirrored into
+          // portfolio_extras. portfolio_settings is the sole, server-only home
+          // for password_hash; echoing it here exposed the bcrypt hash to the
+          // owner's browser via the profile document (and into drafts). Any
+          // legacy hash in an existing doc is dropped on this republish. The
+          // passwordEnabled boolean is kept as a harmless UI hint.
           passwordEnabled: dbPasswordEnabled,
-          passwordHash: dbPasswordHash || null,
           customDomain: isPaidUser ? (customDomain.trim() || null) : null,
           contactFormEnabled,
         }
@@ -1002,7 +1010,9 @@ export default function PortfolioEditorPage() {
       // module-scope PORTFOLIO_EXTRAS_MAX_BYTES so the publish-side limit and
       // the autosave-side limit (in the autosave useEffect above) can never
       // drift apart.
-      const extrasBytes = JSON.stringify(updates.portfolioExtras ?? {}).length;
+      // PORT-P3-08: measure UTF-8 byte size (not UTF-16 .length) so multi-byte
+      // (CJK / emoji) content cannot slip past the column budget.
+      const extrasBytes = new Blob([JSON.stringify(updates.portfolioExtras ?? {})]).size;
       if (extrasBytes > PORTFOLIO_EXTRAS_MAX_BYTES) {
         toast.error(
           `Portfolio content is too large (${Math.round(extrasBytes / 1024)} KB / ${Math.round(PORTFOLIO_EXTRAS_MAX_BYTES / 1024)} KB max). Remove some services, case studies, testimonials, or translations.`
@@ -1016,7 +1026,9 @@ export default function PortfolioEditorPage() {
       (updates as Record<string, unknown>).portfolioDraft = null;
       (updates as Record<string, unknown>).portfolioDraftSavedAt = null;
 
-      await updateProfile(updates as Parameters<typeof updateProfile>[0]);
+      // PORT-P2-07: publish shows its own "Published!" toast below, so suppress
+      // the generic "Profile updated" toast to avoid a confusing double notice.
+      await updateProfile(updates as Parameters<typeof updateProfile>[0], { silent: true });
       clearLocalPortfolioDraft(user?.id);
 
       // -- Apply password changes via Appwrite portfolio_settings upsert --
@@ -1122,7 +1134,7 @@ export default function PortfolioEditorPage() {
               );
               return;
             }
-            updateProfile({ portfolioExtras: nextExtras } as Parameters<typeof updateProfile>[0]).catch(() => {
+            updateProfile({ portfolioExtras: nextExtras } as Parameters<typeof updateProfile>[0], { silent: true }).catch(() => {
               toast.warning('Portfolio published - secondary language content could not be synced. Try saving again.');
             });
           }

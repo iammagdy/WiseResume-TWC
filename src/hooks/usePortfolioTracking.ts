@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { resolvePublicApiBase } from '@/lib/publicApiBase';
 
 interface UsePortfolioTrackingProps {
   username?: string | null;
@@ -98,11 +97,27 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       ab_variant: snap.abVariant ?? null,
     };
 
-    // Write directly to the Appwrite portfolio_visits collection.
-    // Fire-and-forget: errors are silently discarded.
-    databases
-      .createDocument(DATABASE_ID, COLLECTIONS.portfolio_visits, ID.unique(), payload)
-      .catch(() => {});
+    // PORT-P2-10: route through the validated server endpoint instead of an
+    // unauthenticated direct Appwrite write. The server allowlists/clamps the
+    // fields and rate-limits by IP, preventing visit-count inflation and
+    // arbitrary client writes. Uses sendBeacon so the write survives pagehide,
+    // with a keepalive fetch fallback. Fire-and-forget: errors are discarded.
+    try {
+      const url = `${resolvePublicApiBase()}/api/track-portfolio-view`;
+      const json = JSON.stringify(payload);
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        navigator.sendBeacon(url, new Blob([json], { type: 'application/json' }));
+      } else {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: json,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch {
+      // Best-effort — analytics must never break the page.
+    }
   }, []);
 
   // Public-API beacon — wraps sendBeaconCore with live ref values so

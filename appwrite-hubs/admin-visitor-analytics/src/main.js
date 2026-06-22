@@ -482,7 +482,8 @@ async function handleJourney(databases, sessionId, anonId) {
     id:          d.$id,
     session_id:  d.session_id  || null,
     anon_id:     d.anon_id     || null,
-    user_id:     d.user_id     || null,
+    // PORT-P3-10: do not surface the internal Appwrite user_id in analytics
+    // output — it correlates an anonymous browsing session to an account.
     event_type:  d.event_type  || 'unknown',
     page:        d.page        || null,
     target:      d.target      || null,

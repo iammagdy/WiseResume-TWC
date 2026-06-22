@@ -169,10 +169,14 @@ async function verifyAndMaybeUpgradePassword(
   if (storedHash.startsWith('$2')) {
     return bcrypt.compare(submittedPassword, storedHash);
   }
-  const sha256 = await sha256Hex(submittedPassword);
-  const a = Buffer.from(sha256);
-  const b = Buffer.from(storedHash);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return false;
+  // PORT-SEC-12: hash both sides to fixed-length 32-byte digests before
+  // timingSafeEqual so there is no early length-check that could leak the stored
+  // hash's length/format via timing (mirrors the Appwrite hub fix). Equality of
+  // the digests holds iff sha256(submittedPassword) === storedHash.
+  const submittedSha = await sha256Hex(submittedPassword);
+  const a = createHash('sha256').update(submittedSha).digest();
+  const b = createHash('sha256').update(storedHash).digest();
+  if (!timingSafeEqual(a, b)) return false;
   try {
     const upgraded = await bcrypt.hash(submittedPassword, 12);
     await db.updateDocument(DATABASE_ID, PORTFOLIO_SETTINGS_COLLECTION, settingsDocId, { password_hash: upgraded });
@@ -184,7 +188,9 @@ function mapProfile(doc: Record<string, unknown>) {
   const extras = parseJsonField<Record<string, unknown>>(doc.portfolio_extras, {});
   return {
     $id: String(doc.$id || ''),
-    user_id: String(doc.user_id || ''),
+    // PORT-P1-02: do not expose the owner's internal user_id or contact email in
+    // the public payload (kept consistent with the Appwrite get-public-portfolio
+    // function). Visitors contact the owner through the gated contact form.
     username: asString(doc.username),
     fullName: (doc.full_name as string | null) ?? null,
     jobTitle: (doc.job_title as string | null) ?? null,
@@ -205,7 +211,6 @@ function mapProfile(doc: Record<string, unknown>) {
     linkedinUrl: (doc.linkedin_url as string | null) ?? null,
     twitterUrl: (doc.twitter_url as string | null) ?? null,
     websiteUrl: (doc.website_url as string | null) ?? null,
-    contactEmail: (doc.contact_email as string | null) ?? null,
     openToWork: Boolean(doc.open_to_work),
     availabilityStatus: (extras.availabilityStatus as string | null) ?? null,
     availabilityHeadline: (doc.availability_headline as string | null) ?? null,
@@ -263,11 +268,22 @@ function mapResume(doc: Record<string, unknown> | null) {
   };
 }
 
+// LEGACY/SECONDARY PATH. The primary public-portfolio runtime is the Appwrite
+// `get-public-portfolio` / `portfolio-gate` functions. This Vercel route is kept
+// only for the custom-domain `mode=domain` lookup and as a fallback; behavioral
+// defaults are intentionally NOT kept in lockstep with the Appwrite functions
+// (see PORT-P2-06). Do not extend this path — fold new behavior into the hubs.
 async function getResume(db: Databases, profile: Record<string, unknown>) {
   const preferredResumeId = asString(profile.portfolio_resume_id);
   if (preferredResumeId) {
     try {
-      return await db.getDocument(DATABASE_ID, RESUMES_COLLECTION, preferredResumeId) as unknown as Record<string, unknown>;
+      const resume = await db.getDocument(DATABASE_ID, RESUMES_COLLECTION, preferredResumeId) as unknown as Record<string, unknown>;
+      // SECURITY (PORT-P2-06): verify the selected resume belongs to the profile
+      // owner before returning it. Without this, a tampered portfolio_resume_id
+      // pointing at another user's resume id would leak that resume publicly.
+      if (resume && String(resume.user_id || '') === String(profile.user_id || '')) {
+        return resume;
+      }
     } catch {
       // Fall through to first user resume
     }

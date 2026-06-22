@@ -85,8 +85,10 @@ export function MoreTab(props: MoreTabProps) {
     portfolioSecondaryLanguage, onPortfolioSecondaryLanguageChange,
     onTranslate, translating,
     passwordEnabled, onPasswordEnabledChange, portfolioPasswordSet, onPortfolioPasswordChange,
-    customDomain, onCustomDomainChange, customDomainError = null,
-    isPaidUser = false,
+    // customDomain / onCustomDomainChange / customDomainError / isPaidUser are
+    // intentionally not destructured while the custom-domain feature is disabled
+    // (PORT-P1-05). They remain on the props interface so the parent still
+    // compiles and the saved value is preserved.
     contactFormEnabled, onContactFormEnabledChange,
   } = props;
 
@@ -414,87 +416,20 @@ export function MoreTab(props: MoreTabProps) {
         )}
       </CollapsibleCard>
 
-      {/* Custom Domain — paid users only */}
-      {isPaidUser ? (
-        <CollapsibleCard
-          id="customdomain"
-          icon={<Globe className="w-4 h-4" />}
-          title="Custom Domain"
-          hint={customDomain ? <span className="text-[11px] truncate max-w-[120px]">{customDomain}</span> : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <p className="text-[11px] text-muted-foreground mb-3">
-            Use your own domain (e.g. <span className="font-mono">portfolio.yourdomain.com</span>) instead of the default URL.
-          </p>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Custom domain</label>
-            <Input
-              placeholder="portfolio.yourdomain.com"
-              value={customDomain}
-              onChange={(e) => onCustomDomainChange(e.target.value.toLowerCase().trim())}
-              type="text"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              inputMode="url"
-              className={customDomainError ? 'border-red-500 focus-visible:ring-red-500' : ''}
-              aria-invalid={!!customDomainError}
-              aria-describedby={customDomainError ? 'custom-domain-error' : undefined}
-            />
-            {customDomainError && (
-              <p id="custom-domain-error" className="text-[11px] text-red-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3 shrink-0" />
-                {customDomainError}
-              </p>
-            )}
-          </div>
-          {customDomain && !customDomainError && (
-            <div className="mt-3 space-y-2">
-              <div className="p-3 rounded-lg bg-amber-50/60 border border-amber-200/60 dark:bg-amber-950/20 dark:border-amber-500/20">
-                <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 mb-0.5">Manual Setup Required (Beta)</p>
-                <p className="text-[11px] text-amber-700/90 dark:text-amber-400/80">
-                  Saving your domain here records your request. Our team will activate it after DNS verification — you will be notified via email.
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-1.5">
-                <p className="text-xs font-semibold text-foreground">DNS Setup Instructions</p>
-                {customDomain.split('.').slice(0, -2).length > 0 ? (
-                  <>
-                    <p className="text-[11px] text-muted-foreground">
-                      For a <span className="font-mono font-medium text-foreground">subdomain</span> (e.g. portfolio.yourdomain.com):
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Add a <span className="font-mono font-medium text-foreground">CNAME</span> record at your DNS provider:
-                    </p>
-                    <div className="font-mono text-[11px] bg-background rounded-md px-2 py-1.5 border border-border space-y-0.5">
-                      <p><span className="text-muted-foreground">Type:</span> <span className="text-foreground">CNAME</span></p>
-                      <p><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.split('.').slice(0, -2).join('.')}</span></p>
-                      <p><span className="text-muted-foreground">Value:</span> <span className="text-foreground">cname.vercel-dns.com</span></p>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">
-                    For an <span className="font-mono font-medium text-foreground">apex/root domain</span> (e.g. yourdomain.com), CNAME records are not supported. Use an <span className="font-mono font-medium text-foreground">A record</span> instead — contact our support team for the current IP address.
-                  </p>
-                )}
-                <p className="text-[11px] text-muted-foreground">
-                  DNS changes may take up to 48 hours to propagate.
-                </p>
-              </div>
-            </div>
-          )}
-        </CollapsibleCard>
-      ) : (
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-card opacity-70">
-          <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground">Custom Domain</p>
-            <p className="text-[11px] text-muted-foreground">Available on Pro &amp; Premium plans</p>
-          </div>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 shrink-0">PRO</span>
+      {/* Custom Domain — temporarily disabled (PORT-P1-05).
+          The end-to-end custom-domain pipeline (indexed lookup + provisioning)
+          is not built yet, so the editor no longer presents a domain input that
+          would silently do nothing. Any previously-saved `customDomain` value is
+          preserved untouched in portfolio_extras and is simply not editable here
+          until the feature ships. */}
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-card opacity-70">
+        <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-foreground">Custom Domain</p>
+          <p className="text-[11px] text-muted-foreground">Coming soon — your portfolio is live at its wiseresume.app link.</p>
         </div>
-      )}
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">SOON</span>
+      </div>
 
       {/* SEO & Sharing */}
       <CollapsibleCard

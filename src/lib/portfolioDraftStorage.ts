@@ -122,7 +122,10 @@ export function getMergedPortfolioDraftBytes(
   draft: Record<string, unknown>,
   savedAt: string,
 ): number {
-  return JSON.stringify(mergeDraftIntoPortfolioExtras(extras, draft, savedAt)).length;
+  // PORT-P3-08: measure UTF-8 byte size (not UTF-16 .length) so multi-byte
+  // (CJK / emoji) content cannot slip past the column budget — consistent with
+  // the publish/autosave guards in PortfolioEditorPage.
+  return new Blob([JSON.stringify(mergeDraftIntoPortfolioExtras(extras, draft, savedAt))]).size;
 }
 
 /** Persist draft snapshot locally; mirror to `portfolio_extras` only when that schema exists. */

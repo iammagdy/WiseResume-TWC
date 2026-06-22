@@ -11,6 +11,48 @@
 
 ---
 
+## 2026-06-22 - Portfolio Findings Repair (branch `fix/portfolio-repair` — PENDING owner review & deploy)
+
+Implements the repair plan for the Portfolio Full Discovery Audit
+(`Project Atlas/Portfolio Audit 2026-06-22/PORTFOLIO_FULL_DISCOVERY_AUDIT.md`).
+**Not merged, not pushed, not deployed.** Validation: `tsc --noEmit` PASS, `npm run build` PASS,
+hub `node --check` PASS, hub password test PASS. Full detail + coverage table:
+`Project Atlas/Portfolio Audit 2026-06-22/PORTFOLIO_REPAIR_IMPLEMENTATION_REPORT.md`.
+
+### Security / privacy (P1/P2)
+- **PORT-P1-01** Portfolio contact form now delivers to the **portfolio owner** (looked up
+  server-side by username; `reply_to` = visitor), not the platform admin (`ai-gateway`).
+- **PORT-P1-02** Owner contact email + internal `user_id` removed from public JSON-LD and the
+  public payloads (`usePortfolioSEO`, `get-public-portfolio`, `api/public-portfolio` mapProfile).
+- **PORT-P1-03** Brute-force lockout (8 / 15 min per username+IP) added to the **primary** Appwrite
+  password path (`get-public-portfolio`, `verify-portfolio-password`).
+- **PORT-P2-01** Password hash no longer mirrored into `portfolio_extras` / client state.
+- **PORT-P2-02** Session-cap, chat-session rate-limit and daily-cap now **fail closed** on DB error.
+- **PORT-P2-04** Single `portfolio_settings` read (TOCTOU removed). **PORT-P2-05** `crypto.timingSafeEqual`.
+- **PORT-P2-06** Vercel `getResume` ownership re-check (+ path marked legacy/secondary).
+- **PORT-P2-11** Visitor-question injection hardening (XML wrappers + sanitization).
+- **PORT-P3-10** `user_id` dropped from analytics journey. **PORT-P3-03** parse-guard on hubs.
+
+### Reliability / UX / product
+- **PORT-P1-05** Custom-domain editor UI disabled ("coming soon"); saved values preserved.
+- **PORT-P2-07** No duplicate publish toast. **PORT-P2-09** Templates/Career-Card use canonical domain.
+- **PORT-P2-10** View analytics routed through the validated `/api/track-portfolio-view` endpoint. Follow-up: added the real Vercel route `api/track-portfolio-view.ts` (it previously existed only in the non-deployed `server/index.ts`, so the beacon would have 404'd in production and dropped analytics — caught in PR #107 review).
+- **PORT-P3-01** Rate-limited public state (no more misleading "Not Found").
+- **PORT-P3-08** Draft size guard uses UTF-8 bytes. **PORT-P3-12** robust initials. **PORT-SEC-15** exact reserved-domain match (extra hardening; not a numbered audit finding).
+
+### Deferred / verified-safe / needs owner verification
+- **PORT-P3-09 DEFERRED** (secret separation) — the DevKit token minter signs with `APPWRITE_API_KEY`;
+  a safe fix needs a new dedicated signing secret across minter + consumers + env (owner action).
+- **VERIFIED SAFE:** PORT-P3-06 (print layout already `esc()`-encodes hrefs); chat wiring exists.
+- **NEEDS OWNER VERIFICATION (Appwrite Console):** `portfolio_settings` perms, username collection-ID
+  drift (PORT-P1-04), existence of `portfolio_session_rate_limits` / `chat_sessions`, function CORS,
+  OG `APPWRITE_DATABASE_ID`, legacy plaintext `resume_shares` passwords (PORT-P3-11).
+
+### Source hashes
+Regenerated (`scripts/compute-source-hashes.mjs`) for the 6 changed hubs.
+
+---
+
 ## 2026-06-22 - Production Push + Smoke Test Closeout (UI/UX audit live)
 
 ### Commits pushed to `main` (no force)
