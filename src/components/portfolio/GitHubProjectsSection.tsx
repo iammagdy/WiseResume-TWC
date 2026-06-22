@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Github, Star, ExternalLink } from 'lucide-react';
+import { safeHref } from '@/lib/urlUtils';
 
 interface GitHubProject {
   name: string;
@@ -43,7 +44,7 @@ export function GitHubProjectsSection({ projects, accentColor, style }: GitHubPr
       {projects.map((project, i) => (
         <motion.a
           key={project.name}
-          href={project.url}
+          href={safeHref(project.url)}
           target="_blank"
           rel="noopener noreferrer"
           initial={{ opacity: 0, y: 12 }}

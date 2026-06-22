@@ -37,13 +37,13 @@ describe("urlUtils", () => {
   });
 
   describe("safeHref", () => {
-    it("allows http and https URLs", () => {
-      expect(safeHref("https://example.com")).toBe("https://example.com/");
+    it("allows http and https URLs without normalizing them", () => {
+      expect(safeHref("https://example.com")).toBe("https://example.com");
       expect(safeHref("http://example.com/path?q=1")).toBe("http://example.com/path?q=1");
     });
 
     it("prepends https:// for bare domains", () => {
-      expect(safeHref("example.com")).toBe("https://example.com/");
+      expect(safeHref("example.com")).toBe("https://example.com");
     });
 
     it("allows mailto and tel schemes", () => {

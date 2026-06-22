@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Github, Linkedin, Mail, MapPin, Phone, Globe } from 'lucide-react';
 import type { ResumeData } from '@/types/resume';
 import { WISERESUME_CLASSIC_HEIGHT, WISERESUME_CLASSIC_WIDTH } from '@/lib/templateDimensions';
+import { safeHref } from '@/lib/urlUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -253,19 +254,19 @@ function Header({ data }: { data: ClassicData }) {
             <span>{data.location}</span>
           </ContactItem>
         )}
-        {data.linkedin?.url && (
+        {safeHref(data.linkedin?.url) && (
           <ContactItem icon={Linkedin}>
-            <a href={data.linkedin.url} target="_blank" rel="noreferrer">{data.linkedin.username}</a>
+            <a href={safeHref(data.linkedin.url)} target="_blank" rel="noreferrer">{data.linkedin.username}</a>
           </ContactItem>
         )}
-        {data.github?.url && (
+        {safeHref(data.github?.url) && (
           <ContactItem icon={Github}>
-            <a href={data.github.url} target="_blank" rel="noreferrer">{data.github.username}</a>
+            <a href={safeHref(data.github.url)} target="_blank" rel="noreferrer">{data.github.username}</a>
           </ContactItem>
         )}
-        {data.portfolio?.url && (
+        {safeHref(data.portfolio?.url) && (
           <ContactItem icon={Globe}>
-            <a href={data.portfolio.url} target="_blank" rel="noreferrer">{data.portfolio.label}</a>
+            <a href={safeHref(data.portfolio.url)} target="_blank" rel="noreferrer">{data.portfolio.label}</a>
           </ContactItem>
         )}
       </div>
@@ -350,7 +351,7 @@ function Projects({ items }: { items: ClassicProject[] }) {
           <article key={project.id} className="wrc-project-item" data-break-avoid>
             <div className="wrc-entry-row">
               <h3>{project.name} | {project.role}</h3>
-              {project.url && <a href={project.url} target="_blank" rel="noreferrer">{domainFromUrl(project.url)}</a>}
+              {safeHref(project.url) && <a href={safeHref(project.url)} target="_blank" rel="noreferrer">{domainFromUrl(project.url)}</a>}
             </div>
             <p>{project.description}</p>
             {project.stack.length > 0 && <small><strong>Stack:</strong> {project.stack.join(DOT)}</small>}

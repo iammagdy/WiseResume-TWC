@@ -67,5 +67,8 @@ export function safeHref(url: string | null | undefined): string | undefined {
     return undefined;
   }
   if (!SAFE_HREF_SCHEMES.has(parsed.protocol)) return undefined;
-  return parsed.href;
+  // Return the validated original rather than parsed.href so we don't normalize
+  // (e.g. add a trailing slash to) the user's URL. The scheme — the only
+  // security-relevant part in an href — has been validated above.
+  return candidate;
 }
