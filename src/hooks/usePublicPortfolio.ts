@@ -25,7 +25,10 @@ export interface PortfolioSections {
 
 export interface PublicProfile {
   $id: string;
-  user_id: string;
+  // PORT-P1-02: user_id is no longer returned in the public payload and has no
+  // public consumer, so it is removed from the type. (contactEmail is also no
+  // longer returned, but is still referenced by guarded UI in PublicHero/
+  // StickyHeader; removing it requires component cleanup and is deferred.)
   username: string;
   fullName: string | null;
   jobTitle: string | null;

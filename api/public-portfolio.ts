@@ -169,10 +169,14 @@ async function verifyAndMaybeUpgradePassword(
   if (storedHash.startsWith('$2')) {
     return bcrypt.compare(submittedPassword, storedHash);
   }
-  const sha256 = await sha256Hex(submittedPassword);
-  const a = Buffer.from(sha256);
-  const b = Buffer.from(storedHash);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return false;
+  // PORT-SEC-12: hash both sides to fixed-length 32-byte digests before
+  // timingSafeEqual so there is no early length-check that could leak the stored
+  // hash's length/format via timing (mirrors the Appwrite hub fix). Equality of
+  // the digests holds iff sha256(submittedPassword) === storedHash.
+  const submittedSha = await sha256Hex(submittedPassword);
+  const a = createHash('sha256').update(submittedSha).digest();
+  const b = createHash('sha256').update(storedHash).digest();
+  if (!timingSafeEqual(a, b)) return false;
   try {
     const upgraded = await bcrypt.hash(submittedPassword, 12);
     await db.updateDocument(DATABASE_ID, PORTFOLIO_SETTINGS_COLLECTION, settingsDocId, { password_hash: upgraded });
