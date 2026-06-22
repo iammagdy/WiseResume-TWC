@@ -37,7 +37,7 @@ was **deferred** after verification showed a naive fix would break DevKit auth.
 | PORT-P2-07 | ✅ Fixed | `updateProfile({silent})` — no duplicate publish toast |
 | PORT-P2-08 | ⚠️ Needs owner verification | OG `APPWRITE_DATABASE_ID` / `profiles` read strategy (no blind code change) |
 | PORT-P2-09 | ✅ Fixed | template footer + sample data + Career-Card share use canonical `wiseresume.app` |
-| PORT-P2-10 | ✅ Fixed | view beacon → validated `/api/track-portfolio-view` (sendBeacon) |
+| PORT-P2-10 | ✅ Fixed | view beacon → validated `/api/track-portfolio-view` (sendBeacon). Follow-up: added the real Vercel serverless route `api/track-portfolio-view.ts` (the route previously existed only in the non-Vercel `server/index.ts`, so the beacon would have 404'd in production); validates input, server-side write, stores no visitor IP. |
 | PORT-P2-11 | ✅ Fixed | visitor question capped/sanitized; `<profile_data>`/`<visitor_question>` wrappers |
 | PORT-P3-01 | ✅ Fixed | distinct rate-limited public state (no false "Not Found") |
 | PORT-P3-02 | ◻️ Not changed | hardcoded project/endpoint fallbacks left (non-secret, single-project repo); low value/risk |

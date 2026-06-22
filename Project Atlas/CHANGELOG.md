@@ -36,7 +36,7 @@ hub `node --check` PASS, hub password test PASS. Full detail + coverage table:
 ### Reliability / UX / product
 - **PORT-P1-05** Custom-domain editor UI disabled ("coming soon"); saved values preserved.
 - **PORT-P2-07** No duplicate publish toast. **PORT-P2-09** Templates/Career-Card use canonical domain.
-- **PORT-P2-10** View analytics routed through the validated `/api/track-portfolio-view` endpoint.
+- **PORT-P2-10** View analytics routed through the validated `/api/track-portfolio-view` endpoint. Follow-up: added the real Vercel route `api/track-portfolio-view.ts` (it previously existed only in the non-deployed `server/index.ts`, so the beacon would have 404'd in production and dropped analytics — caught in PR #107 review).
 - **PORT-P3-01** Rate-limited public state (no more misleading "Not Found").
 - **PORT-P3-08** Draft size guard uses UTF-8 bytes. **PORT-P3-12** robust initials. **PORT-SEC-15** exact reserved-domain match (extra hardening; not a numbered audit finding).
 

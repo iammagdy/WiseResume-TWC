@@ -61,3 +61,4 @@ jobs:
           src/components/portfolio/public/__tests__/PublicSections.test.tsx
           src/components/portfolio/public/cards/__tests__/ProjectCard.test.tsx
           src/components/portfolio/__tests__/GitHubProjectsSection.test.tsx
+          src/lib/security/publicPrivacyHardening.test.ts
