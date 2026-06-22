@@ -75,7 +75,11 @@ const HUBS = [
 ];
 
 const SAFE_SMOKE_CHECKS = new Map([
-    ['admin-sentry', { auth: 'none', body: { action: 'webhook', resource: 'health' } }],
+    // admin-sentry is fail-closed: an UNSIGNED Sentry webhook must be REJECTED
+    // with 401. Treat 401 as the expected PASS — a 200 here would mean the
+    // fail-open behaviour regressed. We intentionally send no signature and do
+    // not reference the webhook secret in this check.
+    ['admin-sentry', { auth: 'none', body: { action: 'webhook', resource: 'health' }, okStatuses: [401] }],
     ['admin-devkit-data', { auth: 'devkit', body: { action: 'diagnostics' } }],
     ['admin-email', { auth: 'devkit', body: { module: 'resend-stats', action: 'stats' } }],
     ['admin-feature-flags', { auth: 'devkit', body: { action: 'list' } }],
@@ -86,7 +90,9 @@ const SAFE_SMOKE_CHECKS = new Map([
     ['inspect-ai-keys', { auth: 'devkit', body: { action: 'inspect', includeModels: true } }],
     ['admin-deploy-hubs', { auth: 'devkit', body: { action: 'health' } }],
     ['ai-gateway', { auth: 'gateway-internal', body: { featureName: 'smoke-check', 'x-smoke-test': 'true' } }],
-    ['ai-health', { auth: 'none', body: {} }],
+    // ai-health now requires an authenticated user session: an anonymous request
+    // must be REJECTED with 401. Treat 401 as the expected PASS.
+    ['ai-health', { auth: 'none', body: {}, okStatuses: [401] }],
 ]);
 
 function selectedHubIds() {
@@ -346,10 +352,18 @@ async function smokeFunction(hubId, smoke) {
     if (execution.status === 'failed') {
         throw new Error(`${hubId} smoke execution failed: ${execution.errors || 'execution failed'}`);
     }
-    if (execution.responseStatusCode < 200 || execution.responseStatusCode >= 300) {
-        throw new Error(`${hubId} smoke returned HTTP ${execution.responseStatusCode}`);
+    const status = execution.responseStatusCode;
+    // A smoke check may declare explicit expected statuses (smoke.okStatuses) for
+    // endpoints that are intentionally fail-closed — i.e. an unsigned webhook or
+    // an unauthenticated request that MUST be rejected. Otherwise any 2xx passes.
+    const expected = Array.isArray(smoke.okStatuses) && smoke.okStatuses.length
+        ? smoke.okStatuses
+        : null;
+    const passed = expected ? expected.includes(status) : (status >= 200 && status < 300);
+    if (!passed) {
+        throw new Error(`${hubId} smoke returned HTTP ${status}${expected ? ` (expected ${expected.join('/')})` : ''}`);
     }
-    console.log(`  Smoke ${hubId}: HTTP ${execution.responseStatusCode}`);
+    console.log(`  Smoke ${hubId}: HTTP ${status}${expected ? ' (expected — fail-closed)' : ''}`);
     return execution;
 }
 
