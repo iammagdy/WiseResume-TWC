@@ -16,6 +16,11 @@ import "@fontsource/fira-code/700.css";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+// Lenis smooth-scroll baseline reset (landing ScrollStack runs Lenis on the
+// document). Ships `html.lenis body { height:auto }` + overscroll resets so the
+// document scroller behaves on mobile. The native-smooth-scroll override is in
+// index.css (`.lenis.lenis-smooth { scroll-behavior:auto !important }`).
+import "lenis/dist/lenis.css";
 import { reportWebVitals } from "./lib/reportWebVitals";
 /* Sentry (and its browserTracing + replay integrations) is heavy. Loading
    it synchronously here adds it to the entry chunk's modulepreload graph

@@ -12,6 +12,15 @@
      card and no longer dumps the user into a long empty band. */
   padding-bottom: 30vh;
   min-height: 100vh;
+  min-height: 100dvh; /* dvh avoids mobile URL-bar overshoot (vh fallback above) */
+}
+
+/* Landing scroll fix: trim the trailing empty band on phones, where each card
+   already fills the viewport and the 30vh tail reads as dead scroll. */
+@media (max-width: 640px) {
+  .scroll-stack-inner {
+    padding-bottom: 14vh;
+  }
 }
 
 /* Non-clipping wrapper for each card. Carries the inter-card margin so

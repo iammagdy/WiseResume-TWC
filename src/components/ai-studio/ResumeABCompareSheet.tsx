@@ -169,14 +169,17 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
           </div>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-1 pb-safe ai-output-scroll-fade">
+        <div className="flex-1 min-h-0 overflow-y-auto px-1 pb-safe ai-output-scroll-fade" aria-busy={step === 'loading'}>
+          <span role="status" aria-live="polite" className="sr-only">
+            {step === 'loading' ? 'Scoring both resumes, please wait…' : step === 'results' ? 'Comparison results ready.' : ''}
+          </span>
           {/* INPUT STEP */}
           {step === 'input' && (
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Resume A</label>
+                <label htmlFor="abc-resume-a" className="text-sm font-medium text-muted-foreground">Resume A</label>
                 <Select value={resumeAId} onValueChange={setResumeAId}>
-                  <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select first resume" /></SelectTrigger>
+                  <SelectTrigger id="abc-resume-a" className="min-h-[48px]"><SelectValue placeholder="Select first resume" /></SelectTrigger>
                   <SelectContent>
                     {resumeList.map(r => (
                       <SelectItem key={r.id} value={r.id} disabled={r.id === resumeBId}>{r.title}</SelectItem>
@@ -186,9 +189,9 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Resume B</label>
+                <label htmlFor="abc-resume-b" className="text-sm font-medium text-muted-foreground">Resume B</label>
                 <Select value={resumeBId} onValueChange={setResumeBId}>
-                  <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select second resume" /></SelectTrigger>
+                  <SelectTrigger id="abc-resume-b" className="min-h-[48px]"><SelectValue placeholder="Select second resume" /></SelectTrigger>
                   <SelectContent>
                     {resumeList.map(r => (
                       <SelectItem key={r.id} value={r.id} disabled={r.id === resumeAId}>{r.title}</SelectItem>
@@ -198,15 +201,16 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Job Description</label>
+                <label htmlFor="abc-jd" className="text-sm font-medium text-muted-foreground">Job Description</label>
                 <Textarea
+                  id="abc-jd"
                   value={jobDescription}
                   onChange={e => setJobDescription(e.target.value)}
                   placeholder="Paste the job description here..."
                   className="min-h-[160px]"
                 />
                 {jobDescription.length > 0 && jobDescription.trim().length < 20 && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
+                  <p role="alert" className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" /> Minimum 20 characters
                   </p>
                 )}

@@ -38,13 +38,22 @@ export default function PricingPage() {
     else navigate(`/auth?mode=signup&plan=${targetPlan}`);
   };
 
+  // Plan rank so an authenticated user is never told to "Upgrade" to a tier
+  // already covered by their plan (e.g. a Premium user must not see "Upgrade"
+  // on the Free / Pro cards). Unknown plans fall back to the lowest rank.
+  const PLAN_RANK: Record<string, number> = { free: 0, pro: 1, premium: 2 };
+  const planRank = (p: string) => PLAN_RANK[p] ?? 0;
+
   const ctaLabel = (targetPlan: string) => {
     if (!isAuthenticated) return 'Get Started';
     if (plan === targetPlan) return 'Current Plan';
-    return 'Upgrade';
+    return planRank(targetPlan) < planRank(plan) ? 'Included' : 'Upgrade';
   };
 
-  const isCurrentPlan = (p: string) => isAuthenticated && plan === p;
+  // Disable the CTA for the current plan and any lower tier; only strictly
+  // higher tiers remain actionable.
+  const isCtaDisabled = (targetPlan: string) =>
+    isAuthenticated && planRank(targetPlan) <= planRank(plan);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -75,11 +84,11 @@ export default function PricingPage() {
             <ul className="space-y-3 mb-8 flex-1">
               {pricingFeatures.free.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14}/> {f}</li>)}
             </ul>
-            <PricingButton onClick={() => handlePerPlanCTA('free')} variant="outline" disabled={isCurrentPlan('free')}>{ctaLabel('free')}</PricingButton>
+            <PricingButton onClick={() => handlePerPlanCTA('free')} variant="outline" disabled={isCtaDisabled('free')}>{ctaLabel('free')}</PricingButton>
           </div>
 
           {/* Pro — recommended */}
-          <div className="flex flex-col rounded-2xl p-7 bg-primary text-primary-foreground ring-2 ring-primary/40 shadow-lg scale-[1.02] sm:scale-100 relative">
+          <div className="flex flex-col rounded-2xl p-7 bg-primary text-primary-foreground ring-2 ring-primary/40 shadow-lg scale-[1.02] sm:scale-[1.03] relative">
             <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wider bg-background text-primary px-3 py-1 rounded-full border border-primary/20">
               Recommended
             </span>
@@ -88,7 +97,7 @@ export default function PricingPage() {
             <ul className="space-y-3 mb-8 flex-1">
               {pricingFeatures.pro.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14}/> {f}</li>)}
             </ul>
-            <button onClick={() => handlePerPlanCTA('pro')} className="w-full h-11 bg-white text-primary rounded-xl font-bold">{ctaLabel('pro')}</button>
+            <button onClick={() => handlePerPlanCTA('pro')} disabled={isCtaDisabled('pro')} className="w-full h-11 bg-white text-primary rounded-xl font-bold disabled:opacity-60 disabled:cursor-not-allowed">{ctaLabel('pro')}</button>
           </div>
 
           {/* Premium */}
@@ -98,7 +107,7 @@ export default function PricingPage() {
             <ul className="space-y-3 mb-8 flex-1">
               {pricingFeatures.premium.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14} className="text-amber-500"/> {f}</li>)}
             </ul>
-            <PricingButton onClick={() => handlePerPlanCTA('premium')} variant="outline">{ctaLabel('premium')}</PricingButton>
+            <PricingButton onClick={() => handlePerPlanCTA('premium')} variant="outline" disabled={isCtaDisabled('premium')}>{ctaLabel('premium')}</PricingButton>
           </div>
         </div>
 

@@ -503,7 +503,7 @@ export default function OnboardingPage() {
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Button>
           ) : <div />}
-          {step !== 'celebration' && step !== 'whatsnext' && (
+          {step !== 'welcome' && step !== 'celebration' && step !== 'whatsnext' && (
             <Button variant="ghost" size="sm" onClick={handleSkip} className="text-muted-foreground hover:text-foreground">
               Skip
             </Button>

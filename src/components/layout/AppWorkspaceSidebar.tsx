@@ -189,7 +189,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
             </button>
             )}
             <Link
-              to="/"
+              to="/dashboard"
               onClick={() => {
                 haptics.light();
                 window.scrollTo(0, 0);
@@ -198,7 +198,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                 'dashboard-workspace-sidebar__brand flex items-center rounded-xl transition-colors hover:bg-muted/30 min-w-0',
                 effectiveCollapsed ? 'justify-center p-1.5' : 'flex-1 gap-2.5 px-1 py-1.5',
               )}
-              aria-label="WiseResume — go to landing page"
+              aria-label="WiseResume — go to dashboard"
             >
               <AppIcon size={effectiveCollapsed ? 28 : 32} className="shrink-0 rounded-lg" />
               {!effectiveCollapsed && (

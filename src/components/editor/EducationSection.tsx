@@ -218,10 +218,10 @@ export const EducationSection = memo(function EducationSection() {
                     className="flex-1 flex items-center justify-between touch-manipulation active:bg-muted/70 min-w-0"
                   >
                     <div className="text-left flex-1 min-w-0 pr-3">
-                      <p className="font-semibold text-sm truncate">
+                      <p className="font-semibold text-sm truncate" title={edu.degree || undefined}>
                         {edu.degree || `Degree ${index + 1}`}
                       </p>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className="text-sm text-muted-foreground truncate" title={edu.institution || undefined}>
                         {edu.institution || 'Institution name'}
                       </p>
                     </div>
@@ -247,7 +247,7 @@ export const EducationSection = memo(function EducationSection() {
                             value={edu.institution}
                             onChange={(e) => updateEducation(edu.id, { institution: e.target.value })}
                             placeholder="University Name"
-                            className="h-12"
+                            className="h-11"
                             autoComplete="organization"
                           />
                         </div>
@@ -259,7 +259,7 @@ export const EducationSection = memo(function EducationSection() {
                               value={edu.degree}
                               onChange={(e) => updateEducation(edu.id, { degree: e.target.value })}
                               placeholder="Bachelor's"
-                              className="h-10"
+                              className="h-11"
                             />
                           </div>
                           <div>
@@ -268,7 +268,7 @@ export const EducationSection = memo(function EducationSection() {
                               value={edu.field}
                               onChange={(e) => updateEducation(edu.id, { field: e.target.value })}
                               placeholder="Computer Science"
-                              className="h-12"
+                              className="h-11"
                             />
                           </div>
                         </div>
@@ -314,7 +314,7 @@ export const EducationSection = memo(function EducationSection() {
                             value={edu.gpa || ''}
                             onChange={(e) => updateEducation(edu.id, { gpa: e.target.value })}
                             placeholder="3.8/4.0"
-                            className="h-12"
+                            className="h-11"
                             inputMode="decimal"
                             autoComplete="off"
                           />

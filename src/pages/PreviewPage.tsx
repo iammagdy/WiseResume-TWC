@@ -721,10 +721,23 @@ export default function PreviewPage() {
                 false and traps the preview on the skeleton, breaking PDF
                 download via the auto-export effect.
               */}
-              <TemplateComponent
-                resume={currentResume}
-                accentColor={currentResume.customization?.accentColor}
-              />
+              {/*
+                Wrong-resume guard (audit 03 / P1): when the URL requests a
+                different resume id than the one in the store, render the
+                skeleton until the requested resume is bootstrapped in, rather
+                than briefly painting the stale resume. `isPreviewReady` is
+                id-based (true whenever there is no `?id` or it matches), so it
+                never permanently traps the skeleton; auto-export is already
+                gated on the same flag, so the two stay in lockstep.
+              */}
+              {isPreviewReady ? (
+                <TemplateComponent
+                  resume={currentResume}
+                  accentColor={currentResume.customization?.accentColor}
+                />
+              ) : (
+                <TemplateSkeleton />
+              )}
             </Suspense>
           </PreviewScaledWrapper>
         </div>
@@ -742,7 +755,7 @@ export default function PreviewPage() {
             onClick={() => setShowExportSheet(true)}
             disabled={isGenerating}>
               <FileDown className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              <span className="sm:hidden">Export PDF</span>
+              <span className="sm:hidden">Export Options</span>
               <span className="hidden sm:inline">Export Options</span>
             </Button>
             <Button

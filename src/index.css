@@ -4,6 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Lenis smooth-scroll reset (landing scroll fix) ───────────────────────
+   The landing ScrollStack drives Lenis on the document (window-scroll mode).
+   The official reset (`lenis/dist/lenis.css`, imported in main.tsx) sets
+   `html.lenis body { height:auto }` but does NOT neutralise the global native
+   `html { scroll-behavior: smooth }` declared in @layer base below. While Lenis
+   is active it adds `lenis lenis-smooth` to <html>; this unlayered + !important
+   rule disables native smooth-scroll only then, so the two scroll engines no
+   longer fight on touch/wheel. (Unlayered styles beat @layer base styles.) */
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
 /* Aurora wallpaper — fixed z:0 canvas sits above the dark body background.
    Page content containers are elevated to z:1 so they render above the aurora layer.
    Page root backgrounds are set to transparent so the aurora shows through. */
@@ -368,8 +380,10 @@ body.wr-security-curtain [data-biometric-lock] {
 
   /* Border: #2A2A30 = hsl(240 7% 18%) */
   --border: 240 7% 18%;
-  /* Input: sunken #0A0A0C = hsl(240 9% 4%) */
-  --input: 240 9% 4%;
+  /* Input: sits just above the surface so a field never reads darker than the
+     page/card (was a sunken 240 9% 4%, i.e. darker than the 240 6% 5% page,
+     which made dark-mode inputs look like a void). */
+  --input: 240 5% 11%;
 
   /* Semantic — exact dark-mode values (#22C55E, #F59E0B, #EF4444, #3B82F6) */
   --success: 142 71% 45%;

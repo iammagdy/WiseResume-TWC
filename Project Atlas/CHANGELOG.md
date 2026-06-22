@@ -11,6 +11,122 @@
 
 ---
 
+## 2026-06-22 - UI/UX Audit Auth-Gated Browser QA Pass
+
+### Summary
+Owner provided a dedicated PREMIUM QA account and logged it in (agent did not handle the password). With the authenticated session, the previously-blocked auth-gated surfaces were verified via the local dev server (Vite :5000) + preview DOM/eval/screenshot tools. **No product source changed this pass; no credentials stored.** `tsc` + `build` re-confirmed PASS (exit 0).
+
+### Verified live (fixes confirmed)
+- **Editor light-mode P0:** light theme → header `rgba(255,255,255,.88)`, `--editor-surface-2: 0 0% 100%`, light section headers/borders; branded rail stays dark (`--editor-rail-end`) with legible white text; **screenshot confirms a clean premium light editor**. Dark mode → original dark tokens restored. Both themes good.
+- **Pricing (PREMIUM):** Free/Pro = "Included" (disabled), Premium = "Current Plan" — **no "Upgrade" on Free/Pro**.
+- **Dashboard:** no fabricated tip stats; premium sees no "Upgrade" (shows "Manage billing"); sidebar logo → `/dashboard`; no overflow.
+- **Editor mobile "Improve with AI":** "AI" label + `aria-label="Improve Summary"` + 44px.
+- **AI Studio mobile:** composer pins at `top:56px`, clears the 48px header (no collision); no overflow.
+- **Preview:** mobile primary button = "Export Options" (matches behavior); no overflow.
+- **Tailoring Hub / Settings / Portfolio editor:** load, no overflow. No console errors anywhere.
+
+### Code-verified, not exercised live
+AI-Studio sheet DOM (sheets open from workflows / avoided AI credits), Preview wrong-resume flash (racy), Dialog max-h trigger + AIQuestionsDialog focus-trap (Radix; needs AI flow), public-portfolio contact/chat (no published portfolio). z-index still **deferred**.
+
+### Verdict
+**PASS WITH WARNINGS — close to push-ready.** Headline risks retired live; residual = deferred z-index P1 + a few code-verified-only items. Then branch → commit → PR. See `IMPLEMENTATION_FULL_REMAINING_AUDIT_REPORT.md` → "Auth-Gated Browser QA Pass".
+
+---
+
+## 2026-06-22 - UI/UX Audit Final Browser QA Pass
+
+### Summary
+Ran the local dev server (Vite :5000) and verified the working tree via preview DOM/eval tools. **Browser QA = PASS WITH WARNINGS:** public surfaces verified clean; auth-gated surfaces BLOCKED (no QA credentials; account creation prohibited). UI-only; no backend/Appwrite/API/auth/AI-logic/deploy changes. `tsc` + `build` PASS (exit 0). Not committed/pushed.
+
+### Verified (browser, public)
+- **Landing:** no horizontal overflow at 1440 & 375; `lenis` class active (official `html.lenis body{height:auto}` reset live); `.scroll-stack-inner` min-height = 100dvh and padding-bottom = 270px desktop / **93px (14vh) mobile** (empty-band fix confirmed); hero CTA visible at 375×667; no console/server errors. Investigated the at-rest `scroll-behavior:smooth` — non-issue (Lenis uses `behavior:"instant"` + transient `lenis-smooth`).
+- **Pricing:** renders Free/Pro/Premium; unauthenticated CTAs all "Get Started" (no stray Upgrade); no overflow.
+- **Auth:** login form renders. Route gating confirmed (`/ai-studio` → `/auth`).
+
+### Fixed this pass
+- Closed the 2 remaining AI-Studio sibling sheets' a11y: `PortfolioBioSheet.tsx` (aria-live/aria-busy region) and `ResumeABCompareSheet.tsx` (`htmlFor`/`id` on selects + JD textarea, aria-live loading region, `role="alert"`). All 8 AI-Studio sheets now consistent.
+
+### Blocked / deferred
+- **Auth-gated flows BLOCKED** (editor light-mode P0, preview, dialogs/AIQuestionsDialog, AI-Studio DOM, tailoring, dashboard, settings, portfolio, pricing premium case) — code-verified only, need a QA account/owner browser verification.
+- **z-index (P1)** still deferred (tooltip 55 > modal 50; Radix tooltips portal to body).
+
+### Verdict
+**PASS WITH WARNINGS — do not fast-track to `main`.** Run §9/§12 browser QA on auth-gated flows (light + dark) first. See `IMPLEMENTATION_FULL_REMAINING_AUDIT_REPORT.md` → "Final Browser QA Pass".
+
+---
+
+## 2026-06-22 - UI/UX Audit Final Pre-Push Cleanup Loop
+
+### Summary
+Closed/validated the remaining partial/deferred P1s. UI-only; no backend/Appwrite/API/auth/AI-logic/payment/deploy changes. `tsc --noEmit` + `npm run build` PASS (exit 0); eslint on edited sheets = 0 problems. Not committed/pushed.
+
+### Fixed
+- **AI Studio a11y (P1):** all 6 audited sheets (`ColdEmail`, `SalaryNegotiation`, `ReferenceLetter`, `SkillsGap`, `PersonalBranding`, `JobRejection`) now have `htmlFor`/`id`-associated labels, a `role="status" aria-live="polite"` + `aria-busy` generation/result live region, and `role="alert"` on inline errors. Combined with the earlier AIActionBar + AIQuestionsDialog work, the "AI results not announced" and "AI-Studio labels" P1s are now addressed across audited surfaces. (No AI/API/credit/layout changes — additive attributes + one sr-only span per sheet.)
+
+### Still deferred
+- **z-index inversion (P1):** verified (tooltip 55 > modal 50) but a blind fix would break tooltips rendered inside dialogs (Radix portals to body); needs a browser-verified overlay-tier split — documented with files + suggested PR + QA.
+- Two unlisted AI-Studio siblings (`PortfolioBioSheet`, `ResumeABCompareSheet`) — same-pattern follow-up.
+
+### QA / verdict
+Browser/mobile/screen-reader QA = **BLOCKED** (auth-gated flows, no dev server/credentials). Pre-push verdict: **PASS WITH WARNINGS** — static validation green, all P0s + nearly all P1s fixed, but browser QA not run and z-index deferred → **not yet safe to fast-track to `main`**. See `IMPLEMENTATION_FULL_REMAINING_AUDIT_REPORT.md` → "Final Pre-Push Cleanup Loop".
+
+---
+
+## 2026-06-22 - UI/UX Audit Full Remaining Pass (P0/P1 closeout)
+
+### Summary
+Implemented the remaining safe UI/UX/responsive/a11y/theme/correctness findings on top of Wave 0 + Report 02. UI-only; no backend/Appwrite/API/auth/AI-logic/payment/route/schema/deploy changes. All audit **P0s fixed**; most P1s fixed; a few P1/P2 deferred with rationale. `tsc --noEmit` + `npm run build` PASS (exit 0); eslint clean for edited files. Not committed/pushed.
+
+### Fixed in this pass
+- **Editor light/dark mode (P0):** `editor-workspace.css` now has light defaults + a verbatim `.dark` override; branded rail stays dark crimson in both themes (`--editor-rail-end`). Dark mode unchanged.
+- **Preview wrong-resume (P1):** `PreviewPage.tsx` renders a skeleton (not the stale resume) until the URL-requested id is bootstrapped (`isPreviewReady` gate).
+- **Pricing CTA (P1):** `PricingPage.tsx` plan-rank — premium users no longer see "Upgrade" on Free/Pro (Included/Current Plan/disabled).
+- **Dashboard tip stats (P1):** `DashboardStats.tsx` fabricated percentages rephrased to non-numeric guidance.
+- **AIQuestionsDialog → Radix (P1 a11y):** rebuilt on `Dialog` (focus trap, Escape, title/desc, associated labels).
+- **Public contact form (P1 a11y):** `PortfolioContactForm.tsx` label `htmlFor`/`id`, focus rings, `role=alert`/`status`. **AIActionBar** got `aria-live`/`aria-busy`. **ChatWidget** send got `aria-label`+44px.
+- **Tailoring guardrail (P2):** reframed as a recoverable warning with inline Retry / Edit job description (no AI-logic change). **Upload (P2):** double-submit guard + parse-recovery actions wired.
+- **Small fixes:** sidebar logo→`/dashboard`; empty-state copy; dark `--input` raised; onboarding Skip hidden on welcome; SetupTab duplicate import removed.
+
+### Deferred (with rationale)
+Global z-index restack (regression risk); ai-studio multi-sheet aria-live/label sweep (volume; editor path + AIQuestionsDialog done); Auth inline errors; portfolio password-state hydration; WiseHire token swap + radius/H1/WiseHire-bg (broad/subjective); dead-component deletion. See `IMPLEMENTATION_FULL_REMAINING_AUDIT_REPORT.md`. **Browser/mobile QA still required** before production sign-off.
+
+---
+
+## 2026-06-22 - UI/UX Audit Report 02 (responsive/mobile pass)
+
+### Summary
+Controlled responsive/mobile fixes from `Project Atlas/UI_UX_AUDIT_2026-06-22/02_RESPONSIVE_AUDIT.md` (items A–K). UI/CSS-class/small-component only; no backend/API/auth/Appwrite/AI/state/route/payment/deploy changes. Builds on Wave 0 (left intact). `tsc --noEmit` + `npm run build` PASS (exit 0); no new lint errors in edited files. Not committed/pushed.
+
+### Changes (9 files)
+- **Dashboard (A,F):** gated `.dashboard-workspace-main-body` / `.dashboard-resume-list-scroll` overflow to `xl:` so mobile/tablet (<1280px) get one natural page scroll (desktop list scroll preserved); resume list `pb-20 lg:pb-1` so the bottom-left FAB no longer overlaps the last row.
+- **AI Studio (B):** composer `sticky top-14 lg:top-0` so it no longer collides under the mobile sticky header.
+- **Editor (C,G,H):** mobile "Improve with AI" now shows an "AI" label + `aria-label`; Education inputs standardized to `h-11` (match date pickers); collapsed Education/Experience rows get native `title` tooltips.
+- **Preview (E):** mobile primary button relabeled "Export Options" to match its behavior (opens the options sheet). (Item D — bottom-bar overlap — verified NOT an issue: the bar is `shrink-0` normal flow, no change.)
+- **Tailoring Hub (J):** compact truncated job-context chip now shown on mobile (`max-w-[40vw]`, real data only).
+- **Landing (I):** hero `minHeight: min(640px, 88dvh)` so the CTA isn't pushed too low on short phones.
+- **Sheet (K):** side-sheet base width `w-full`→`w-[92%]` to leave a dismiss strip below 375px (`xs`/`sm` + bottom sheets unchanged).
+
+### Deferred
+Persistent mobile bottom-nav, preview wrong-resume gating, editor light-mode (P0, owner decision), upload dedupe, z-index refactor, full a11y pass. Live device confirmation pending. See `IMPLEMENTATION_REPORT_02_RESPONSIVE.md`. Mobile/responsive risk reduced, not eliminated.
+
+---
+
+## 2026-06-22 - UI/UX Audit Wave 0 (landing scroll, dialog max-height, info token, tailoring clip)
+
+### Summary
+Controlled UI-only fix pass for the four highest-impact / lowest-risk items (A–D) from `Project Atlas/UI_UX_AUDIT_2026-06-22/00_EXECUTIVE_SUMMARY.md`. No backend/API/auth/AI/payment/Appwrite/route/state/deployment changes. `tsc --noEmit` and `npm run build` both PASS (exit 0); no new lint errors in edited files. Not yet committed/pushed.
+
+### Changes (8 files, UI only)
+- **Landing scroll (P0):** imported `lenis/dist/lenis.css` (`src/main.tsx`) and added unlayered `.lenis.lenis-smooth { scroll-behavior: auto !important }` (`src/index.css`) so native smooth-scroll no longer fights Lenis; reduced mobile ScrollStack `padding-bottom` to 14vh and switched `min-height` to `100dvh` w/ vh fallback (`ScrollStack.css`).
+- **Dialog trap (P0):** added `max-h-[calc(100dvh-2rem)] overflow-y-auto` to default `DialogContent` and `AlertDialogContent`, and `max-h-[calc(100dvh-6rem)] overflow-y-auto` to `DrawerContent` (shadcn/Radix structure preserved).
+- **`info` token (P1):** added `info` (DEFAULT + foreground) to `tailwind.config.ts`, activating the dead `bg-info`/`text-info` classes in `badge.tsx`/`sonner.tsx`.
+- **Tailoring mobile clip (P1):** scoped `.jmw-result-body--compare { padding-bottom:1.25rem }` to `@media (min-width:640px)` so the mobile `4.5rem + safe-area` rule is no longer overridden under the fixed action bar.
+
+### Deferred
+Editor light-mode P0 (needs owner decision), preview wrong-resume gating, pricing CTA plan-rank, dashboard tip copy, z-index refactor, AI a11y pass, mobile nav, upload dedupe. See `IMPLEMENTATION_WAVE_0_REPORT.md`. Live device/a11y confirmation pending. Exec-Summary P0/P1 risk reduced, not eliminated.
+
+---
+
 ## 2026-06-22 - Security Remediation Closeout (PR #104 + PR #105)
 
 ### Summary

@@ -159,7 +159,10 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4" aria-busy={isLoading}>
+          <span role="status" aria-live="polite" className="sr-only">
+            {isLoading ? 'Generating your portfolio bio, please wait…' : result ? 'Portfolio bios ready.' : ''}
+          </span>
           {!result ? (
             <>
               <div className="text-center py-6 space-y-3">

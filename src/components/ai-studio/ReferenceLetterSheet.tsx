@@ -152,7 +152,10 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4" aria-busy={isLoading}>
+          <span role="status" aria-live="polite" className="sr-only">
+            {isLoading ? 'Generating your reference letter, please wait…' : letter ? 'Reference letter ready.' : ''}
+          </span>
           {showDraftBanner && draft && !letter && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
@@ -172,20 +175,21 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Referee Name *</Label>
-                  <Input placeholder="e.g. Jane Smith" value={refereeName} onChange={e => setRefereeName(e.target.value)} />
+                  <Label htmlFor="ref-name">Referee Name *</Label>
+                  <Input id="ref-name" placeholder="e.g. Jane Smith" value={refereeName} onChange={e => setRefereeName(e.target.value)} />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Referee Role/Title *</Label>
-                  <Input placeholder="e.g. Engineering Manager at Acme Corp" value={refereeRole} onChange={e => setRefereeRole(e.target.value)} />
+                  <Label htmlFor="ref-role">Referee Role/Title *</Label>
+                  <Input id="ref-role" placeholder="e.g. Engineering Manager at Acme Corp" value={refereeRole} onChange={e => setRefereeRole(e.target.value)} />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Your Relationship *</Label>
-                  <Input placeholder="e.g. Direct manager for 2 years" value={relationship} onChange={e => setRelationship(e.target.value)} />
+                  <Label htmlFor="ref-relationship">Your Relationship *</Label>
+                  <Input id="ref-relationship" placeholder="e.g. Direct manager for 2 years" value={relationship} onChange={e => setRelationship(e.target.value)} />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Additional Context <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Label htmlFor="ref-context">Additional Context <span className="text-muted-foreground text-xs">(optional)</span></Label>
                   <Textarea
+                    id="ref-context"
                     placeholder="Any specific achievements, skills, or qualities to highlight..."
                     value={context}
                     onChange={e => setContext(e.target.value)}

@@ -886,7 +886,7 @@ function DashboardPageContent() {
                 onTailorResume={handleTailorResume}
               />
 
-              <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
+              <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col xl:overflow-y-auto xl:overscroll-y-contain">
                 <div className="dashboard-recent-resumes-head flex w-full min-w-0 flex-col gap-2.5 mb-2.5 shrink-0">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
                     <Tabs
@@ -1026,9 +1026,9 @@ function DashboardPageContent() {
                   </div>
                 </div>
 
-                <div className="dashboard-resume-list-scroll w-full min-w-0 flex-1 overflow-y-auto overscroll-y-contain">
+                <div className="dashboard-resume-list-scroll w-full min-w-0 flex-1 xl:overflow-y-auto xl:overscroll-y-contain">
                 <motion.div
-                  className="space-y-2 pb-1"
+                  className="space-y-2 pb-20 lg:pb-1"
                   initial="hidden"
                   animate="visible"
                   variants={{ visible: { transition: { staggerChildren: 0.03 } } }}
@@ -1045,7 +1045,7 @@ function DashboardPageContent() {
                                   ? 'No tailored resumes yet'
                                   : resumeListTab === 'normal'
                                     ? 'No normal resumes yet'
-                                    : 'No resumes match your search'}
+                                    : 'No resumes yet'}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1.5 max-w-sm mx-auto leading-relaxed">
                               {deferredSearch && resumeListTab === 'all'
@@ -1054,7 +1054,7 @@ function DashboardPageContent() {
                                   ? 'Create a tailored copy from any master resume using Tailor to Job.'
                                   : resumeListTab === 'normal'
                                     ? 'Normal resumes are your original CVs — not job-specific tailored copies.'
-                                    : 'Try clearing your search or create a new resume.'}
+                                    : 'Create your first resume to get started.'}
                             </p>
                             {deferredSearch && resumeListTab === 'all' && (
                               <Button

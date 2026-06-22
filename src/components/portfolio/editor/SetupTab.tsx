@@ -1,5 +1,4 @@
 import { Sparkles, CheckCircle2, XCircle, Eye, Zap, Video, ScanSearch, Crown } from 'lucide-react';
-import { getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

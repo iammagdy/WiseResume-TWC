@@ -155,7 +155,10 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4" aria-busy={isLoading}>
+          <span role="status" aria-live="polite" className="sr-only">
+            {isLoading ? 'Generating your negotiation script, please wait…' : result ? 'Negotiation script ready.' : ''}
+          </span>
           {showDraftBanner && draft && !result && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
@@ -175,42 +178,48 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Job Title *</Label>
+                  <Label htmlFor="sal-jobtitle">Job Title *</Label>
                   <Input
+                    id="sal-jobtitle"
                     placeholder="e.g. Senior Software Engineer"
                     value={jobTitle}
                     onChange={e => setJobTitle(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Offered Salary *</Label>
+                  <Label htmlFor="sal-offered">Offered Salary *</Label>
                   <Input
+                    id="sal-offered"
                     placeholder="e.g. 90000"
                     value={offeredSalary}
                     onChange={e => { setOfferedSalary(e.target.value); if (salaryErrors.offered) setSalaryErrors(prev => ({ ...prev, offered: undefined })); }}
                     className={salaryErrors.offered ? 'border-destructive' : ''}
                     inputMode="numeric"
+                    aria-invalid={!!salaryErrors.offered}
                   />
                   {salaryErrors.offered && (
-                    <p className="text-xs text-destructive">{salaryErrors.offered}</p>
+                    <p role="alert" className="text-xs text-destructive">{salaryErrors.offered}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Target Salary *</Label>
+                  <Label htmlFor="sal-target">Target Salary *</Label>
                   <Input
+                    id="sal-target"
                     placeholder="e.g. 110000"
                     value={targetSalary}
                     onChange={e => { setTargetSalary(e.target.value); if (salaryErrors.target) setSalaryErrors(prev => ({ ...prev, target: undefined })); }}
                     className={salaryErrors.target ? 'border-destructive' : ''}
                     inputMode="numeric"
+                    aria-invalid={!!salaryErrors.target}
                   />
                   {salaryErrors.target && (
-                    <p className="text-xs text-destructive">{salaryErrors.target}</p>
+                    <p role="alert" className="text-xs text-destructive">{salaryErrors.target}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Currency</Label>
+                  <Label htmlFor="sal-currency">Currency</Label>
                   <Input
+                    id="sal-currency"
                     placeholder="USD"
                     value={currency}
                     onChange={e => setCurrency(e.target.value)}

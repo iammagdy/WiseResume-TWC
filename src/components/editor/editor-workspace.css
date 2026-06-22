@@ -5,15 +5,31 @@
   --editor-rail-w-icon: 3rem;
   --editor-suggestions-w: 17rem;
   --editor-crimson: 358 68% 42%;
+  /* Light-mode defaults — the editor chrome surfaces follow the active theme.
+     The original dark values are restored verbatim in the
+     `.dark .editor-workspace-root` override below, so dark mode is unchanged. */
+  --editor-surface: 240 5% 96%;
+  --editor-surface-2: 0 0% 100%;
+  --editor-surface-3: 240 6% 93%;
+  --editor-border: 220 13% 88%;
+  --editor-muted-fg: 240 4% 46%;
+  /* The branded nav rail stays dark crimson in BOTH themes (white-on-dark text
+     reads cleanly over a light page too), so its gradient end + accent ring use
+     a theme-independent dark token rather than the now-light --editor-surface. */
+  --editor-rail-end: 240 8% 7%;
+  background:
+    radial-gradient(ellipse 90% 55% at 0% 0%, hsl(var(--primary) / 0.08), transparent 50%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, hsl(var(--editor-crimson) / 0.06), transparent 45%),
+    hsl(var(--background));
+}
+
+/* Dark mode — restore the original premium dark editor surfaces verbatim. */
+.dark .editor-workspace-root {
   --editor-surface: 240 8% 7%;
   --editor-surface-2: 240 7% 10%;
   --editor-surface-3: 240 6% 14%;
   --editor-border: 240 6% 18%;
   --editor-muted-fg: 240 5% 58%;
-  background:
-    radial-gradient(ellipse 90% 55% at 0% 0%, hsl(var(--primary) / 0.08), transparent 50%),
-    radial-gradient(ellipse 70% 45% at 100% 100%, hsl(var(--editor-crimson) / 0.06), transparent 45%),
-    hsl(var(--background));
 }
 
 /* ── Top bar ── */
@@ -93,7 +109,7 @@
   min-height: 0;
   border-right: 1px solid hsl(var(--editor-border) / 0.8);
   background:
-    linear-gradient(180deg, hsl(358 42% 14%) 0%, hsl(358 38% 10%) 38%, hsl(var(--editor-surface)) 100%);
+    linear-gradient(180deg, hsl(358 42% 14%) 0%, hsl(358 38% 10%) 38%, hsl(var(--editor-rail-end)) 100%);
   color: hsl(0 0% 96%);
   transition: width 0.2s ease;
 }
@@ -197,7 +213,7 @@
   height: 0.3125rem;
   border-radius: 999px;
   background: hsl(142 70% 45%);
-  box-shadow: 0 0 0 1px hsl(var(--editor-surface));
+  box-shadow: 0 0 0 1px hsl(var(--editor-rail-end));
 }
 
 .editor-nav-rail__sections {

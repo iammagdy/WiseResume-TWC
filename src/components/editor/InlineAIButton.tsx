@@ -168,6 +168,7 @@ export const InlineAIButton = memo(function InlineAIButton({
       ) : (
         <Sparkles className={`w-3.5 h-3.5 ${showPulse && isAuthenticated ? 'animate-pulse' : ''}`} />
       )}
+      <span className="text-xs font-medium sm:hidden">AI</span>
       <span className="text-xs font-medium hidden sm:inline">{sectionButtonLabels[section] ?? 'AI Assist'}</span>
     </>
   );
@@ -270,6 +271,7 @@ export const InlineAIButton = memo(function InlineAIButton({
           setIsOpen(true);
         }}
         aria-haspopup="true"
+        aria-label={sectionButtonLabels[section] ?? 'AI Assist'}
       >
         {buttonInner}
       </Button>

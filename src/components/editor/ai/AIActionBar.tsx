@@ -86,7 +86,12 @@ export function AIActionBar({
         <span className="text-sm font-medium hidden sm:inline">AI Assist</span>
       </div>
 
-      <div className="relative flex-1 min-w-0">
+      <div className="relative flex-1 min-w-0" aria-busy={isLoading}>
+        {/* Announce async AI activity to screen readers (the generated result
+            itself renders in the section the action targets). */}
+        <span role="status" aria-live="polite" className="sr-only">
+          {isLoading ? 'Generating with AI, please wait…' : ''}
+        </span>
         <div
           ref={scrollRef}
           className="flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x-mandatory"

@@ -150,7 +150,10 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4" aria-busy={isLoading}>
+          <span role="status" aria-live="polite" className="sr-only">
+            {isLoading ? 'Generating your brand statements, please wait…' : result ? 'Brand statements ready.' : ''}
+          </span>
           {showDraftBanner && draft && !result && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
@@ -181,12 +184,13 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Target role or audience (optional)</Label>
+                  <Label htmlFor="pb-target-role" className="text-xs text-muted-foreground">Target role or audience (optional)</Label>
                   <span className={`text-xs ${targetRole.length > 130 ? (targetRole.length >= 150 ? 'text-destructive font-medium' : 'text-amber-500') : 'text-muted-foreground'}`}>
                     {targetRole.length}/150
                   </span>
                 </div>
                 <Input
+                  id="pb-target-role"
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
                   placeholder="e.g. Senior Engineer, LinkedIn, portfolio..."
@@ -194,7 +198,7 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
                   maxLength={150}
                 />
                 {targetRole.length >= 150 && (
-                  <p className="text-xs text-destructive">Maximum 150 characters reached.</p>
+                  <p role="alert" className="text-xs text-destructive">Maximum 150 characters reached.</p>
                 )}
               </div>
               <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading || !currentResume}>

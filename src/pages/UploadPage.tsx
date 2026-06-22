@@ -79,6 +79,8 @@ export default function UploadPage() {
 
   // Watch parsedData from hook → open review sheet + trigger ATS scoring
   const prevParsedRef = useRef<ResumeData | null>(null);
+  // Guards against a rapid double-tap on "Continue" creating two resume docs.
+  const isContinuingRef = useRef(false);
   useEffect(() => {
     if (parsedData && parsedData !== prevParsedRef.current) {
       prevParsedRef.current = parsedData;
@@ -143,6 +145,10 @@ export default function UploadPage() {
 
   const handleValidationContinue = useCallback(async () => {
     if (!validationResumeData || !validationSections) return;
+    // Prevent a rapid double-tap from creating two resume documents before the
+    // first create resolves (frontend-local guard only; no API change).
+    if (isContinuingRef.current) return;
+    isContinuingRef.current = true;
 
     if (user) {
       try {
@@ -157,6 +163,7 @@ export default function UploadPage() {
         }
       } catch {
         toast.error('Failed to save your resume. Please try again.', { duration: 5000 });
+        isContinuingRef.current = false;
         return;
       }
     } else {
@@ -381,14 +388,14 @@ export default function UploadPage() {
                 variant="outline"
                 size="sm"
                 className="min-h-[44px] flex-1 sm:flex-none"
-                onClick={() => { setShowParseRecoveryBanner(false); navigate('/upload'); }}
+                onClick={() => { setShowParseRecoveryBanner(false); handleTryDifferentFile(); }}
               >
                 Try a different file
               </Button>
               <Button
                 size="sm"
                 className="min-h-[44px] flex-1 sm:flex-none"
-                onClick={() => setShowParseRecoveryBanner(false)}
+                onClick={() => { setShowParseRecoveryBanner(false); handleStartBlankResume(); }}
               >
                 Fill in manually
               </Button>

@@ -10,7 +10,7 @@ export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
     return (
       <section
         className="lp-hero-top relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
-        style={{ background: 'var(--lp-bg)', paddingBottom: '4rem', minHeight: 640 }}
+        style={{ background: 'var(--lp-bg)', paddingBottom: '4rem', minHeight: 'min(640px, 88dvh)' }}
       >
         {/* Match the live hero's layered background so the static shell
             (used as the LCP placeholder before the motion stage hydrates)

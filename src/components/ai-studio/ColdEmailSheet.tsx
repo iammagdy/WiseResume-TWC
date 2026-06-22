@@ -177,7 +177,10 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4" aria-busy={isLoading}>
+          <span role="status" aria-live="polite" className="sr-only">
+            {isLoading ? 'Generating your cold email, please wait…' : variants ? 'Cold email ready.' : ''}
+          </span>
           {showDraftBanner && draft && !variants && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
@@ -197,16 +200,17 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
             <>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label>Target Company *</Label>
-                  <Input placeholder="e.g. Google" value={company} onChange={e => setCompany(e.target.value)} />
+                  <Label htmlFor="cold-company">Target Company *</Label>
+                  <Input id="cold-company" placeholder="e.g. Google" value={company} onChange={e => setCompany(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Job Title / Role *</Label>
-                  <Input placeholder="e.g. Senior Product Manager" value={jobTitle} onChange={e => setJobTitle(e.target.value)} />
+                  <Label htmlFor="cold-jobtitle">Job Title / Role *</Label>
+                  <Input id="cold-jobtitle" placeholder="e.g. Senior Product Manager" value={jobTitle} onChange={e => setJobTitle(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Job Description Snippet <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Label htmlFor="cold-snippet">Job Description Snippet <span className="text-muted-foreground text-xs">(optional)</span></Label>
                   <Textarea
+                    id="cold-snippet"
                     placeholder="Paste key requirements or the job description for a more personalized email..."
                     value={jobSnippet}
                     onChange={e => setJobSnippet(e.target.value)}

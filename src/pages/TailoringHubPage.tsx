@@ -125,6 +125,9 @@ export default function JobMatchWorkspacePage() {
   const [isTailoring, setIsTailoring] = useState(false);
   const [progress, setProgress] = useState<TailorProgress | EnhancedTailorProgress | null>(null);
   const [tailorError, setTailorError] = useState<string | null>(null);
+  // Distinguishes the "no meaningful changes" guardrail (a recoverable warning)
+  // from a genuine tailoring failure, so the UI can frame it correctly.
+  const [tailorWarning, setTailorWarning] = useState(false);
   const [showResumePicker, setShowResumePicker] = useState(false);
   const [jobInputActiveTab, setJobInputActiveTab] = useState<'paste' | 'url'>('paste');
   const [importJobOpen, setImportJobOpen] = useState(false);
@@ -327,6 +330,7 @@ export default function JobMatchWorkspacePage() {
     haptics.medium();
     setIsTailoring(true);
     setTailorError(null);
+    setTailorWarning(false);
     setProgress(null);
 
     const abort = new AbortController();
@@ -389,10 +393,14 @@ export default function JobMatchWorkspacePage() {
       if (appearsUnchanged) {
         setIsTailoring(false);
         setProgress(null);
-        setTailorError('No meaningful changes were detected. The AI may not have tailored the resume, or the job description may not be specific enough. Try a more detailed job description or retry tailoring.');
+        // Recoverable guardrail, NOT a hard failure: the AI ran but produced no
+        // meaningful diff (usually a too-generic job description). Frame it as a
+        // warning with an inline retry instead of "Tailoring failed".
+        setTailorWarning(true);
+        setTailorError('No meaningful changes were detected — the job description may be too generic. Add the specific responsibilities and required skills, then tailor again.');
         haptics.error();
-        toast.error('No meaningful changes detected', {
-          description: 'Try a more specific job description or retry tailoring.',
+        toast.warning('No meaningful changes detected', {
+          description: 'Add more detail to the job description, then retry.',
           duration: 6000,
         });
         return; // Do not navigate, do not save, do not show false success
@@ -555,7 +563,7 @@ export default function JobMatchWorkspacePage() {
             </div>
           </div>
           {hubView === 'workspace' && parsedJobInfo && (
-            <div className="hidden sm:flex items-center gap-1.5 shrink-0 max-w-[12rem]">
+            <div className="flex items-center gap-1.5 shrink-0 max-w-[40vw] sm:max-w-[12rem]">
               <Briefcase className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden />
               <span className="text-xs text-muted-foreground truncate">
                 {parsedJobInfo.title}
@@ -676,11 +684,33 @@ export default function JobMatchWorkspacePage() {
 
             {tailorError && (
               <div className={cn(
-                'flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3 shrink-0',
+                'flex flex-col gap-2.5 rounded-xl border px-4 py-3 shrink-0',
+                tailorWarning
+                  ? 'border-warning/40 bg-warning/10'
+                  : 'border-destructive/30 bg-destructive/8',
               )}>
                 <div>
-                  <p className="text-sm font-medium text-destructive">Tailoring failed</p>
-                  <p className="text-xs text-destructive/80 mt-0.5 leading-relaxed">{tailorError}</p>
+                  <p className={cn('text-sm font-medium', tailorWarning ? 'text-warning' : 'text-destructive')}>
+                    {tailorWarning ? 'No changes detected' : 'Tailoring failed'}
+                  </p>
+                  <p className={cn('text-xs mt-0.5 leading-relaxed', tailorWarning ? 'text-warning/90' : 'text-destructive/80')}>
+                    {tailorError}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={handleTailor}>
+                    Retry tailoring
+                  </Button>
+                  {tailorWarning && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 text-xs"
+                      onClick={() => { setTailorError(null); setTailorWarning(false); setJobInputActiveTab('paste'); }}
+                    >
+                      Edit job description
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

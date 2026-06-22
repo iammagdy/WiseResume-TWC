@@ -207,25 +207,15 @@ const motivationalSubtitles = [
 
 
 const tips = [
-
-  'Tailoring your resume to each job increases callbacks by 40%.',
-
-  'Use numbers and metrics — recruiters spend 6 seconds scanning.',
-
-  'A strong summary section can boost interview chances by 30%.',
-
-  'Keep your resume to one page if under 10 years of experience.',
-
+  'Tailoring your resume to each job description tends to increase callbacks.',
+  'Use numbers and metrics — recruiters skim quickly, so quantified results stand out.',
+  'A strong summary section helps recruiters grasp your value at a glance.',
+  'Keep your resume to one page if you have under 10 years of experience.',
   'Use action verbs like "led", "built", and "improved" to stand out.',
-
-  'Adding relevant keywords from the job posting helps beat ATS filters.',
-
-  'Review your resume twice — 77% of hiring managers reject resumes with typos.',
-
-  'Quantify achievements: "Increased revenue by 25%" beats vague claims.',
-
-  'Update your resume every 3 months, even if you\'re not job hunting.',
-
+  'Adding relevant keywords from the job posting helps you pass ATS filters.',
+  'Proofread your resume twice — typos are one of the fastest ways to get screened out.',
+  'Quantify achievements: "Increased revenue by 25%" reads stronger than vague claims.',
+  'Update your resume every few months, even if you\'re not job hunting.',
 ];
 
 

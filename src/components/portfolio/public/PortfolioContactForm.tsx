@@ -160,6 +160,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
   if (status === 'success') {
     return (
       <motion.div
+        role="status"
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         className="rounded-2xl p-6 text-center space-y-3"
@@ -225,10 +226,11 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>
+            <label htmlFor="pf-contact-name" className="text-xs font-medium" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>
               Your name
             </label>
             <input
+              id="pf-contact-name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
@@ -241,15 +243,16 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
                 border: '1px solid var(--pf-border, rgba(255,255,255,0.12))',
                 color: 'var(--pf-fg, #f5f5ff)',
               }}
-              onFocus={e => (e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 60%, transparent)`)}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--pf-border, rgba(255,255,255,0.12))')}
+              onFocus={e => { e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 60%, transparent)`; e.currentTarget.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${accentColor} 22%, transparent)`; }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--pf-border, rgba(255,255,255,0.12))'; e.currentTarget.style.boxShadow = 'none'; }}
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>
+            <label htmlFor="pf-contact-email" className="text-xs font-medium" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>
               Your email
             </label>
             <input
+              id="pf-contact-email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -264,17 +267,18 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
                 border: '1px solid var(--pf-border, rgba(255,255,255,0.12))',
                 color: 'var(--pf-fg, #f5f5ff)',
               }}
-              onFocus={e => (e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 60%, transparent)`)}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--pf-border, rgba(255,255,255,0.12))')}
+              onFocus={e => { e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 60%, transparent)`; e.currentTarget.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${accentColor} 22%, transparent)`; }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--pf-border, rgba(255,255,255,0.12))'; e.currentTarget.style.boxShadow = 'none'; }}
             />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>
+          <label htmlFor="pf-contact-message" className="text-xs font-medium" style={{ color: 'var(--pf-fg, #f5f5ff)' }}>
             Message
           </label>
           <textarea
+            id="pf-contact-message"
             value={message}
             onChange={e => setMessage(e.target.value)}
             placeholder="Hi, I'd love to connect about…"
@@ -286,8 +290,8 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
               border: '1px solid var(--pf-border, rgba(255,255,255,0.12))',
               color: 'var(--pf-fg, #f5f5ff)',
             }}
-            onFocus={e => (e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 60%, transparent)`)}
-            onBlur={e => (e.currentTarget.style.borderColor = 'var(--pf-border, rgba(255,255,255,0.12))')}
+            onFocus={e => { e.currentTarget.style.borderColor = `color-mix(in srgb, ${accentColor} 60%, transparent)`; e.currentTarget.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${accentColor} 22%, transparent)`; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--pf-border, rgba(255,255,255,0.12))'; e.currentTarget.style.boxShadow = 'none'; }}
           />
           <p className="text-[10px] text-right" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
             {message.length}/2000
@@ -295,7 +299,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         </div>
 
         {status === 'error' && (
-          <div className="flex items-start gap-2 text-sm text-red-400">
+          <div role="alert" className="flex items-start gap-2 text-sm text-red-400">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{errorMsg || 'Something went wrong. Please try again.'}</span>
           </div>

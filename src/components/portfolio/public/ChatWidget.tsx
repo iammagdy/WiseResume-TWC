@@ -322,7 +322,8 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
                   <button
                     onClick={() => send()}
                     disabled={!input.trim() || loading || sessionLoading || !sessionToken || chatDisabled}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-40 hover:scale-105 active:scale-95"
+                    aria-label="Send message"
+                    className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-40 hover:scale-105 active:scale-95"
                     style={{ background: accentColor, color: '#fff' }}
                   >
                     <Send className="w-3.5 h-3.5" />

@@ -895,8 +895,13 @@
   }
 }
 
-.jmw-result-body--compare {
-  padding-bottom: 1.25rem;
+/* Scope the compact desktop padding to ≥640px so it no longer overrides the
+   mobile rule above (the fixed action bar was clipping the bottom of the
+   result on phones because this unscoped rule won by source order). */
+@media (min-width: 640px) {
+  .jmw-result-body--compare {
+    padding-bottom: 1.25rem;
+  }
 }
 
 .jmw-result-compare-layout {

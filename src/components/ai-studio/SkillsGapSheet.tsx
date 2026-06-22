@@ -188,7 +188,10 @@ export function SkillsGapSheet({ open, onOpenChange }: SkillsGapSheetProps) {
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4" aria-busy={isLoading}>
+          <span role="status" aria-live="polite" className="sr-only">
+            {isLoading ? 'Analyzing your skills gap, please wait…' : result ? 'Skills gap report ready.' : ''}
+          </span>
           {showDraftBanner && draft && !result && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
@@ -207,8 +210,9 @@ export function SkillsGapSheet({ open, onOpenChange }: SkillsGapSheetProps) {
           {!result ? (
             <>
               <div className="space-y-1.5">
-                <Label>Job Description *</Label>
+                <Label htmlFor="skillsgap-jd">Job Description *</Label>
                 <Textarea
+                  id="skillsgap-jd"
                   placeholder="Paste the full job description here..."
                   value={jobDescription}
                   onChange={e => setJobDescription(e.target.value)}

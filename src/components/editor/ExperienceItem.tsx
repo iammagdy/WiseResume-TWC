@@ -137,10 +137,10 @@ export const ExperienceItem = memo(function ExperienceItem({
           className="flex-1 flex items-center justify-between touch-manipulation active:bg-muted/70 min-w-0"
         >
           <div className="text-left flex-1 min-w-0 pr-3">
-            <p className="font-semibold text-base sm:text-sm truncate">
+            <p className="font-semibold text-base sm:text-sm truncate" title={exp.position || undefined}>
               {exp.position || `Position ${index + 1}`}
             </p>
-            <p className="text-sm text-muted-foreground truncate">
+            <p className="text-sm text-muted-foreground truncate" title={exp.company || undefined}>
               {exp.company || 'Company name'}
               {exp.account && <span className="text-muted-foreground/70"> ({exp.account} Account)</span>}
             </p>

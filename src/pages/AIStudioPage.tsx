@@ -486,7 +486,7 @@ export default function AIStudioPage() {
             </div>
           )}
 
-          <div className="sticky top-0 z-30 pb-4 pt-1 -mx-1 px-1 bg-background/80 backdrop-blur-md lg:static lg:bg-transparent lg:backdrop-blur-none">
+          <div className="sticky top-14 lg:top-0 z-30 pb-4 pt-1 -mx-1 px-1 bg-background/80 backdrop-blur-md lg:static lg:bg-transparent lg:backdrop-blur-none">
             <form
               className="flex gap-2 items-center rounded-2xl border border-border/70 bg-card/90 p-2 shadow-soft-sm"
               onSubmit={(e) => {
