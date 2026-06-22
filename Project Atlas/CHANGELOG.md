@@ -11,6 +11,45 @@
 
 ---
 
+## 2026-06-22 - Production Push + Smoke Test Closeout (UI/UX audit live)
+
+### Commits pushed to `main` (no force)
+- `ec73548d6cfdb62f5d4c4cd37303c713ff354e20` — `fix(ui): complete Project Atlas UI/UX audit fixes` (full UI/UX audit implementation + the 12 audit reports + 3 implementation reports).
+- `31c863dd5a5637214571b042af27d0223a4b1ceb` — `chore(security): remove hardcoded QA credentials` (current HEAD).
+
+### Deployment
+- Vercel production deploy for `31c863dd` reached **READY** (`dpl_EGAcis9Wf3gBPhtcyRGAi4ShdnUq`, target production, region iad1; aliases incl. `wiseresume.app`). **No Appwrite deployment triggered; no environment variables changed.**
+
+### Validation
+- `npx tsc --noEmit` PASS; `npm run build` PASS (no sourcemaps; only the pre-existing chunk-size advisory).
+- **Production smoke test (`https://wiseresume.app`, in-browser, authenticated session) = PASS WITH ACCEPTED WARNINGS:** landing (no console errors, no overflow, `lenis` reset live), dashboard (logo→`/dashboard`, no fabricated stats, no upgrade buttons), pricing (correct free-user plan-rank CTAs), editor (mounted, `--editor-rail-end` live, no overflow), preview ("Export Options" label), tailoring/ai-studio/settings load — no horizontal overflow anywhere.
+
+### UI/UX work shipped (live on production)
+Landing Lenis/scroll reset; Dialog/AlertDialog/Drawer height-trap `max-h`; Tailwind `info` token; Tailoring Hub mobile clipping; Report 02 responsive fixes; editor light/dark P0; preview wrong-resume gating; pricing plan-rank CTAs; dashboard tip-copy + sidebar logo→`/dashboard` + empty-state copy; upload double-submit guard + recovery wiring; tailoring guardrail warning/retry; AIQuestionsDialog→Radix focus-trap/a11y; public-portfolio contact/chat a11y; all 8 AI-Studio sheet labels/live-regions; onboarding skip hidden on welcome; tracked-credential cleanup. (Per-pass detail in the entries below + `UI_UX_AUDIT_2026-06-22/` reports.)
+
+### Security
+QA creds removed from tracked HEAD; `WISE_RESUME_E2E_EMAIL` / `WISE_RESUME_E2E_PASSWORD` env vars introduced; no real `.env` secrets committed; no `.claude/worktrees` committed. **URGENT: owner must rotate the QA account password** (the old value existed in git history before cleanup; this work removed it from HEAD only). Optional later: git history scrub (BFG / git-filter-repo) — but rotation is the urgent remediation.
+
+### Verdict
+**Ready for broad user testing with accepted warnings** — NOT final-launch-ready/perfect.
+
+### Accepted warnings
+- Pre-existing non-blocking `useCombinedTailorHistory` Appwrite 403 (tailor-history permissions; fails gracefully).
+- z-index tooltip(55)/modal(50) overlay-tier split — deferred.
+- Some flows code-verified-only (AI-Studio sheet rendered DOM, preview wrong-resume flash, dialog/AIQuestionsDialog trigger, public-portfolio contact/chat live).
+- Full screen-reader QA — future task.
+
+### Remaining backlog
+- z-index overlay-tier-split PR.
+- Appwrite `useCombinedTailorHistory` 403 / tailor-history permission cleanup.
+- Public portfolio contact form / chat live QA.
+- Full screen-reader QA pass.
+- Optional git history scrub (BFG / git-filter-repo) for the old credential value.
+- Optional broader PII cleanup: base owner email used as sample data in ~14 tracked files.
+- Broad user-testing bug collection (triage by severity).
+
+---
+
 ## 2026-06-22 - Security: remove hardcoded QA credentials from tracked files
 
 ### Summary

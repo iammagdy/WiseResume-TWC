@@ -2,6 +2,40 @@
 
 ---
 
+## Session Log - 2026-06-22 (Production Push + Smoke Test Closeout)
+
+### Overview
+Committed + pushed the UI/UX audit work to `main`, confirmed the Vercel production deploy, and ran a production smoke test. No source changed in this closeout.
+
+### Commits on `main` (pushed, no force)
+- `ec73548d6cfdb62f5d4c4cd37303c713ff354e20` — fix(ui): complete Project Atlas UI/UX audit fixes.
+- `31c863dd5a5637214571b042af27d0223a4b1ceb` — chore(security): remove hardcoded QA credentials (HEAD).
+
+### Deployment
+Vercel production for `31c863dd` = **READY** (`dpl_EGAcis9Wf3gBPhtcyRGAi4ShdnUq`, production, iad1, `wiseresume.app`). No Appwrite deploy; no env-var changes.
+
+### Validation
+`tsc --noEmit` PASS; `npm run build` PASS. Production smoke (`https://wiseresume.app`, in-browser via connected Chrome, authed) = **PASS WITH ACCEPTED WARNINGS**: landing/dashboard/pricing/editor/preview/tailoring/ai-studio/settings render, no horizontal overflow, no new console errors. Live-confirmed: logo→`/dashboard`, no fabricated stats, plan-rank CTAs, `--editor-rail-end`, "Export Options", `lenis` reset.
+
+### Security
+Creds removed from tracked HEAD; `WISE_RESUME_E2E_EMAIL` / `WISE_RESUME_E2E_PASSWORD` introduced; no `.env` secrets or `.claude/worktrees` committed. **Owner must rotate the QA password** (existed in git history pre-cleanup; removed from HEAD only). Optional later: git history scrub.
+
+### Status
+`main` @ `31c863dd`; Vercel production READY; production smoke PASS WITH ACCEPTED WARNINGS. **Ready for broad user testing with accepted warnings** (not final-launch-ready).
+
+### Accepted warnings
+Pre-existing `useCombinedTailorHistory` Appwrite 403 (non-blocking); z-index tooltip/modal deferred; some code-verified-only flows; full screen-reader QA pending.
+
+### Remaining backlog
+z-index overlay-tier-split PR; Appwrite tailor-history 403 permission cleanup; public-portfolio contact/chat live QA; full screen-reader QA; optional git history scrub (BFG/git-filter-repo); optional broader PII cleanup (owner email as sample data in ~14 files); broad user-testing bug collection.
+
+### Owner actions
+1. Rotate the QA account password.
+2. Start broad user testing.
+3. Collect bugs by severity.
+
+---
+
 ## Session Log - 2026-06-22 (Security — Remove Hardcoded QA Credentials)
 
 ### Overview

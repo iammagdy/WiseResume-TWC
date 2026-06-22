@@ -324,3 +324,45 @@ Editor verified in **both** themes (the marquee P0). Dashboard/AI-Studio/Preview
 
 ## Final recommendation
 **PASS WITH WARNINGS — close to push-ready.** The headline risks are now retired live: **editor light/dark P0 confirmed (incl. screenshot), premium-pricing CTA confirmed, dashboard trust/premium/logo fixes confirmed, mobile AI control + AI-Studio composer confirmed, no horizontal overflow on any tested surface, no console errors.** What remains is (a) the deferred **z-index** P1 and (b) a few code-verified-but-not-live-exercised items (AI-Studio sheet DOM, preview flash, dialog/AIQuestionsDialog trigger, public portfolio). Suggested path: the owner does a brief confirm of those residual items (or accepts the code-level verification), schedules the z-index PR, then **branch → commit → PR → review → merge to `main`**. No commit/push/deploy was performed in this pass.
+
+---
+
+# Production Push + Smoke Test Closeout (2026-06-22)
+
+The owner approved committing/pushing to `main`; the work is now live and smoke-tested.
+
+## Commits pushed to `main` (no force)
+- `ec73548d6cfdb62f5d4c4cd37303c713ff354e20` — `fix(ui): complete Project Atlas UI/UX audit fixes` (Wave 0 + Report 02 + remaining audit fixes + AI-Studio a11y + the 12 audit reports + 3 implementation reports).
+- `31c863dd5a5637214571b042af27d0223a4b1ceb` — `chore(security): remove hardcoded QA credentials` (current HEAD).
+
+## Deployment
+- Vercel production deploy for `31c863dd` reached **READY** (`dpl_EGAcis9Wf3gBPhtcyRGAi4ShdnUq`, target production, region iad1; aliases incl. `wiseresume.app`, `www.wiseresume.app`, `resume.thewise.cloud`). **No Appwrite deployment triggered; no environment variables changed.**
+- Note: `31c863dd` changed only `scripts/`/`tests/`/`reports/`/docs (nothing in the app bundle), so the live app equals the UI/UX-fix build `ec73548d`.
+
+## Validation
+- `npx tsc --noEmit` PASS; `npm run build` PASS (no sourcemaps; only the pre-existing chunk-size advisory).
+- **Production smoke test (`https://wiseresume.app`, in-browser via connected Chrome, authenticated session) = PASS WITH ACCEPTED WARNINGS.** Verified live: landing (no console errors, no overflow, `lenis` reset on `<html>`), dashboard (logo→`/dashboard`, no fabricated tip stats, no upgrade buttons), pricing (free-account: Free="Current Plan"/disabled, Pro+Premium="Upgrade" — correct plan-rank), editor (mounted, `--editor-rail-end` token live, dark theming correct, no overflow), preview ("Export Options" label), tailoring-hub/ai-studio/settings load — no horizontal overflow on any page.
+
+## Production smoke verdict
+Production is healthy and **ready for broad user testing with accepted warnings** — **not** claimed final-launch-ready/perfect.
+
+### Accepted warnings (production)
+- Pre-existing non-blocking **`useCombinedTailorHistory` Appwrite 403** (tailor-history permissions; fails gracefully; documented in the security-remediation closeout; not from the UI work).
+- **z-index** tooltip(55)/modal(50) overlay-tier split — deferred.
+- A few flows **code-verified-only** (AI-Studio sheet rendered DOM, preview wrong-resume flash, dialog/AIQuestionsDialog trigger, public-portfolio contact/chat live).
+- **Full screen-reader QA** — future task.
+
+## Security state (final)
+- QA credentials removed from tracked HEAD; `WISE_RESUME_E2E_EMAIL` / `WISE_RESUME_E2E_PASSWORD` env vars introduced; no real `.env` secrets committed; no `.claude/worktrees` committed.
+- **URGENT — owner must rotate the QA account password:** the old value existed in git **history** before cleanup (removed from HEAD only). Optional follow-up: git history scrub (BFG / git-filter-repo); rotation is the urgent remediation.
+
+## Remaining backlog
+1. z-index overlay-tier-split PR (tooltip below modal-content; verify in-dialog tooltips).
+2. Appwrite `useCombinedTailorHistory` 403 / tailor-history permission cleanup (backend/permissions).
+3. Public portfolio contact form / chat live QA (needs a published portfolio).
+4. Full screen-reader QA pass.
+5. Optional git history scrub for the old credential value.
+6. Optional broader PII cleanup: base owner email used as sample/demo data in ~14 tracked files.
+7. Broad user-testing bug collection (triage by severity).
+
+**Final status:** `main` @ `31c863dd`; Vercel production READY; production smoke PASS WITH ACCEPTED WARNINGS. **Ready for broad user testing with accepted warnings.**
