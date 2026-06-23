@@ -40,30 +40,47 @@ Hubs`, workflow_dispatch) or a Console upload.
    (`69fd518d91ac2b25574c` / GitHub install `130461735`), which the Function-config API
    cannot remove. This matches the prior session's conclusion.
 
-### Effective off-switch (install-level — REQUIRED, now applied)
-Stopping the auto-build needs an **installation-level** action; the per-function detach
-is not enough. Owner authorized option (A):
-- **(A) APPLIED:** Deleted the project's Appwrite VCS installation via API
-  (`DELETE /vcs/installations/69fd518d91ac2b25574c` → `204`; `GET /vcs/installations` →
-  `total: 0`). Functionally scoped to `ai-gateway` (0 sites; the other 24 functions had
-  no live link). `ai-gateway` keeps serving the manual deployment `6a3a1927…`
-  (unchanged), so zero downtime. **Reversible:** reconnect Git from the Console
-  (Function → Settings → Git → Connect) if auto-build is ever wanted again.
-- **(B) Alternative (not used):** remove `WiseResume-TWC` from the Appwrite GitHub App
-  (**GitHub → Settings → Applications → Appwrite → Configure → Repository access**).
+### Two API levers tried — BOTH proved insufficient
+- **(A) Function-level detach — cosmetic.** `PUT /functions/ai-gateway` with all VCS
+  fields blanked (the Console "Disconnect Git" payload). After it, a fresh push of
+  `f4b2595` **still** built `vcs` deployment `6a3a2050`.
+- **(B) Delete the Appwrite VCS installation — also insufficient.** Owner-authorized
+  `DELETE /vcs/installations/69fd518d91ac2b25574c` → `204`; `GET /vcs/installations` →
+  `total: 0`. **Yet pushes kept building:** three `type: vcs` deployments were created
+  *after* the delete (~06:06:30Z) across multiple branches —
+  `4223f6e`@`claude/epic-maxwell-evkfa4` (06:08:30), `7594501`@`main` (06:07:48),
+  `4152b06`@`claude/confident-johnson-ruvmnw` (06:07:34). Deleting the Appwrite-side
+  installation record does **not** stop GitHub-App webhook delivery, and the function's
+  internal repo link is masked + uncleared by the API.
+
+Throughout, `ai-gateway` kept serving manual deployment `6a3a1927…` (failed `vcs`
+builds are non-activating) — **production never affected**.
+
+### Effective off-switch — OWNER ACTION REQUIRED (GitHub-side)
+The push→build link is delivered by the **Appwrite GitHub App** and cannot be removed
+from the Appwrite API or from repo tooling. The owner must, in GitHub, do **one** of:
+- **Remove the repo from the app (recommended, surgical):** GitHub → **Settings →
+  Applications → Installed GitHub Apps → Appwrite → Configure** → under *Repository
+  access* either switch to "Only select repositories" without `WiseResume-TWC`, or
+  remove `WiseResume-TWC` → **Save**. Keeps your other repos (wiseresume,
+  Kinde-Custom-Ui-WiseResume, …) connected.
+- **Or suspend/uninstall the Appwrite GitHub App** entirely (broader).
+
+After that, pushes deliver no event to Appwrite → no `vcs` builds. Deploys remain
+manual via `Deploy Appwrite Hubs` (workflow_dispatch) or a Console upload.
 
 ### Repeatable tooling added (manual-only)
 - `scripts/detach_appwrite_git.cjs` — scriptable equivalent of the Console "Disconnect
-  Git" (one/many/all functions). Note: clears the per-function link; on its own it does
-  **not** remove an install-level link — keep it as a first step / for re-linked funcs.
+  Git" (one/many/all functions). Clears the per-function link; on its own it does **not**
+  remove the GitHub-App delivery (see above) — kept for re-linked functions / hygiene.
 - `.github/workflows/detach-appwrite-git.yml` — `workflow_dispatch` wrapper (input
   `target`, default `ai-gateway`).
 
-### Status — RESOLVED
-The project has **no** Appwrite VCS installation, so pushes no longer create `type: vcs`
-deployments for any function. Verified: the push after the delete produced **no** new
-`vcs` build for `ai-gateway`. Deploys are now **manual only** via `Deploy Appwrite Hubs`
-(workflow_dispatch) or the Appwrite Console.
+### Status — AWAITING OWNER GITHUB-APP ACTION
+Diagnosed end-to-end; both API off-switches proven insufficient. The repo must be
+removed from the Appwrite GitHub App (owner/GitHub). Until then pushes keep creating
+**non-activating** (harmless to production) failed `vcs` builds. Deploys are already
+manual-only by design (`DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`).
 
 ---
 

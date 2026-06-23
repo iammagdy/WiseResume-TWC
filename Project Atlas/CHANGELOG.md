@@ -11,21 +11,24 @@
 
 ---
 
-## 2026-06-23 - ai-gateway push auto-trigger REMOVED (branch `claude/epic-maxwell-evkfa4`)
+## 2026-06-23 - ai-gateway push auto-trigger: diagnosed; needs GitHub-App removal (branch `claude/epic-maxwell-evkfa4`)
 
-`ai-gateway` was auto-building (`type: vcs`) on every push to any branch via the Appwrite
-GitHub App (installation `69fd518d91ac2b25574c`, repo `WiseResume-TWC` /
-providerRepositoryId `1170228859`) — only it of 25 functions was still linked. New finding:
-the Appwrite **VCS REST API works with the project API key**. The **function-level detach is
-cosmetic** — after a blank-VCS `PUT /functions/ai-gateway`, a fresh push of `f4b2595` still
-created `vcs` deployment `6a3a2050` → the link lives at the **GitHub-App installation
-level**. **Resolution (owner-authorized):** deleted the project's Appwrite VCS installation
-(`DELETE /vcs/installations/69fd518d91ac2b25574c` → `204`; `GET /vcs/installations` →
-`total: 0`). `ai-gateway` keeps serving manual deployment `6a3a1927…` (zero downtime).
-Reversible by reconnecting Git in the Console. Pushes no longer create `vcs` deployments.
-Added manual-only tooling: `scripts/detach_appwrite_git.cjs` + the `Detach Appwrite Git`
-workflow (`workflow_dispatch`). Deploys are now **manual only** via `Deploy Appwrite Hubs`
-or the Appwrite Console.
+`ai-gateway` auto-builds (`type: vcs`) on every push to any branch via the Appwrite GitHub
+App (installation `69fd518d91ac2b25574c` / GitHub install `130461735`, repo `WiseResume-TWC`
+/ providerRepositoryId `1170228859`) — only it of 25 functions is still linked. **Both
+API-side off-switches were tried and proven insufficient:** (A) the function-level detach
+(`PUT /functions/ai-gateway`, blank VCS fields) is cosmetic — a push of `f4b2595` still
+built; (B) deleting the Appwrite VCS installation (`DELETE /vcs/installations/…` → `204`,
+`total: 0`) did **not** stop delivery — three `vcs` builds fired *after* the delete
+(`4223f6e`@epic-maxwell, `7594501`@main, `4152b06`@confident-johnson). The push event is
+delivered by the **Appwrite GitHub App** and cannot be removed via the Appwrite API or repo
+tooling. **Owner action required:** remove `WiseResume-TWC` from the Appwrite GitHub App
+(GitHub → Settings → Applications → Appwrite → Configure → Repository access), or
+suspend/uninstall the app. Production was never affected (failed `vcs` builds are
+non-activating; `ai-gateway` keeps serving manual deployment `6a3a1927…`). Added manual-only
+tooling: `scripts/detach_appwrite_git.cjs` + the `Detach Appwrite Git` workflow
+(`workflow_dispatch`). Deploys are manual-only by design via `Deploy Appwrite Hubs` or the
+Console.
 
 ---
 
