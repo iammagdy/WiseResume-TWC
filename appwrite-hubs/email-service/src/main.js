@@ -32,6 +32,13 @@
  *     Body:     { action: 'send-welcome' }
  *     Sends:    branded welcome email (triggered after email verification)
  *
+ *   send-password-changed
+ *     Requires: active user session (in-app change) OR a userId (post-reset)
+ *     Body:     { action: 'send-password-changed' }            // uses the session
+ *           or  { action: 'send-password-changed', userId }    // looks up via admin key
+ *     Sends:    branded "your password was changed" security notice
+ *     Note:     best-effort; always returns success, never reveals account existence
+ *
  *   send-admin-verification
  *     Requires: DevKit admin session
  *     Body:     { action: 'send-admin-verification', target_user_id: '...' }
@@ -307,7 +314,7 @@ async function resendSend({ to, subject, html, fromEmail, fromName }) {
 
 // ─── Email HTML builders ─────────────────────────────────────────────────────
 
-function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, securityNote, showCta = true }) {
+function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, securityNote, showCta = true, disclaimer = "If you didn't request this, you can safely ignore this email." }) {
   const ctaSection = showCta ? `
               <!-- CTA Button -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
@@ -421,7 +428,7 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
                   <td style="padding:20px 24px;">
                     <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#d4d4d8;">${securityNote}</p>
                     <p style="margin:0;font-size:14px;line-height:1.6;color:#8b8b94;">
-                      If you didn't request this, you can safely ignore this email.
+                      ${disclaimer}
                     </p>
                   </td>
                 </tr>
@@ -471,13 +478,26 @@ function verificationEmail(verifyUrl) {
 function passwordResetEmail(resetUrl) {
   return emailShell({
     metaLabel:   'Password Recovery',
-    preheader:   'Reset your WiseResume password — link expires in 24 hours.',
+    preheader:   'Reset your WiseResume password — link expires in 1 hour.',
     h1:          'Reset your password',
     bodyCopy:    'We received a request to reset the password for your WiseResume account. Click below to choose a new one.',
     ctaLabel:    'Reset password',
     ctaUrl:      resetUrl,
-    securityNote: 'This link will expire in <strong style="color:#ffffff;">24 hours</strong> and can only be used once.',
+    securityNote: 'This link will expire in <strong style="color:#ffffff;">1 hour</strong> and can only be used once.',
     showCta:     true,
+  });
+}
+
+function passwordChangedEmail(name) {
+  const safeName = name || 'there';
+  return emailShell({
+    metaLabel:    'Security Alert',
+    preheader:    'Your WiseResume password was just changed.',
+    h1:           'Password changed',
+    bodyCopy:     `Hi ${safeName}, this is a confirmation that the password for your WiseResume account was just changed.`,
+    securityNote: 'If this was you, no further action is needed — you can sign in with your new password.',
+    disclaimer:   'If you did <strong style="color:#ffffff;">not</strong> make this change, reset your password immediately and contact <a href="mailto:contact@thewise.cloud" style="color:#ef4444;">contact@thewise.cloud</a>.',
+    showCta:      false,
   });
 }
 
@@ -608,14 +628,27 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
     log(`Password reset email sent via Resend to ${email}`);
 
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg  = err instanceof Error ? err.message : String(err);
+    const code = (err && typeof err.code === 'number') ? err.code : 0;
+    const type = (err && typeof err.type === 'string') ? err.type : '';
 
     // IMPORTANT: Always return success for password reset.
     // Revealing whether an email exists is a security vulnerability.
-    if (/not found|no user|invalid/i.test(msg)) {
+    //
+    // BUT only a genuinely unknown email is an expected, benign outcome. Everything
+    // else (redirect URL host not in the project's Platform allowlist, rate limit,
+    // SMTP/Resend failure, …) is a real misconfiguration that previously matched the
+    // broad `/invalid/i` test and was silently logged as benign — making a fully
+    // broken reset flow look identical to success. Surface those as errors so they
+    // appear in the function logs and can actually be diagnosed.
+    const isUnknownUser = code === 404
+      || /user_not_found/i.test(type)
+      || /could not be found|no such user/i.test(msg);
+
+    if (isUnknownUser) {
       log(`Password reset requested for unknown email: ${email} — returning silent success`);
     } else {
-      error(`send-password-reset failed for ${email}: ${msg}`);
+      error(`send-password-reset failed for ${email}: ${msg} (type=${type || 'n/a'}, code=${code || 'n/a'})`);
     }
   }
 
@@ -667,6 +700,63 @@ async function handleSendWelcome({ req, res, log, error, body }) {
     error(`send-welcome failed: ${msg}`);
     return json(res, { error: msg }, 500);
   }
+}
+
+/**
+ * Notify a user that their account password was just changed.
+ *
+ * Two entry points:
+ *   • In-app change (Settings → Change password): the caller has an active session,
+ *     so we derive the recipient from the injected user JWT (most secure).
+ *   • Reset flow (logged out, after updateRecovery): no session — the page supplies
+ *     the userId and we look up the email with the admin API key.
+ *
+ * Best-effort and fail-open: always returns { success: true } and never reveals
+ * whether an account exists. It only ever sends a benign security notice, so the
+ * worst-case abuse (someone POSTing a known userId) is a single rate-limited
+ * "your password changed" notice — not data disclosure.
+ */
+async function handleSendPasswordChanged({ req, res, log, error, body }) {
+  const userJwt = headerValue(req, body, ['x-appwrite-user-jwt', 'X-Appwrite-JWT']);
+
+  try {
+    let email = '';
+    let displayName = '';
+
+    if (userJwt) {
+      const userClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setJWT(userJwt);
+      const user = await new sdk.Account(userClient).get();
+      email = user.email || '';
+      displayName = (user.name || '').trim();
+    } else {
+      const userId = (body?.userId || body?.user_id || '').trim();
+      if (!userId) return json(res, { success: true });
+      if (!appwriteApiKey()) {
+        error('send-password-changed: APPWRITE_API_KEY not configured — cannot look up user by id');
+        return json(res, { success: true });
+      }
+      const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(appwriteApiKey());
+      const user = await new sdk.Users(adminClient).get(userId);
+      email = user.email || '';
+      displayName = (user.name || '').trim();
+    }
+
+    if (!email) return json(res, { success: true });
+
+    const firstName = displayName ? displayName.split(' ')[0] : email.split('@')[0];
+    await resendSend({
+      to:      email,
+      subject: 'Your WiseResume password was changed',
+      html:    passwordChangedEmail(firstName),
+    });
+    log(`Password-changed notification sent to ${email}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`send-password-changed failed: ${msg}`);
+  }
+
+  // Non-critical notification — never surface failure to the caller.
+  return json(res, { success: true });
 }
 
 async function handleGetVerificationStatus({ req, res, log, error, body }) {
@@ -849,6 +939,9 @@ module.exports = async ({ req, res, log, error }) => {
 
     case 'send-welcome':
       return handleSendWelcome({ req, res, log, error, body });
+
+    case 'send-password-changed':
+      return handleSendPasswordChanged({ req, res, log, error, body });
 
     case 'send-admin-verification':
       return handleSendAdminVerification({ req, res, log, error, body });
