@@ -15,6 +15,10 @@
         "APPWRITE_PROJECT_ID": "${APPWRITE_PROJECT_ID}",
         "APPWRITE_API_KEY": "${APPWRITE_API_KEY}"
       }
+    },
+    "claude_design": {
+      "type": "http",
+      "url": "https://api.anthropic.com/v1/design/mcp"
     }
   }
 }
