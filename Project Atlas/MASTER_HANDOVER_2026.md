@@ -2,6 +2,38 @@
 
 ---
 
+## Session Log - 2026-06-23 (Auth Redesign + Vercel Preview Host Fix + AI Gateway VCS Disconnect — branch claude/happy-bardeen-jsqvpj, PR #117)
+
+### Overview
+Three related pieces of work on PR #117:
+- **Auth page redesign** (`src/pages/AuthPage.tsx`): single glass card → **modern split-screen**
+  (left brand panel: logo, "Build smarter resumes with AI.", feature list, ambient glows; right
+  form). Added per-view headings (Welcome back / Create your account / Reset password / Claim your
+  account). **Email-only — no auth-method changes;** all flows (email/password, branded
+  reset+verify via `email-service`, plan-intent, redirect/mode params, a11y) preserved.
+- **Vercel preview host fix** (`src/hooks/usePublicPortfolio.ts`): app routes (e.g. `/auth`) on
+  `*.vercel.app` rendered *"Portfolio not found for this domain."* because `isAppHostname()` didn't
+  list Vercel hosts → fell through to (stubbed) custom-domain portfolio. Added
+  `h.startsWith('wise-resume-twc') && h.endsWith('.vercel.app')` (scoped, keeps the host allowlist
+  tight). Direct sibling of the 2026-05-09 Replit preview-login fix.
+- **AI Gateway build-failure diagnosis + VCS disconnect**: the `ai-gateway` GitHub-App auto-build
+  fails on every push (*"Build archive was not created"*) because `providerRootDirectory` is empty
+  → it builds the **whole repo** (6.75 MB) and runs the main app's Puppeteer/Chrome `postinstall`
+  → builder killed. Production is unaffected (function stays `live` on its last-good CLI deploy).
+  Owner-approved API attempt: `functions_update` cleared the VCS link (re-supplying all other
+  config). **Caveat:** Appwrite masks VCS fields, so the disconnect can't be 100% confirmed via API
+  — next push is the test; fallbacks are `providerSilentMode: true` or the Console Git disconnect.
+
+### Status
+Branch + PR #117 (merging to `main`). Frontend ships via Vercel on merge.
+Detail card: `Project Atlas/01-Currently Implemented/stability-fixes/auth-redesign-and-vercel-preview-host-fix-2026-06-23.md`.
+**Open items:** (1) signing in from a Vercel host may need the Vercel domain registered as an
+Appwrite Web Platform (else `403 general_unknown_origin`); (2) confirm AI Gateway auto-build is gone
+on the next push, else apply silent-mode/Console disconnect. **Unrelated red checks:** TestSprite
+"No tests detected" is a pre-existing repo gate, not from this work.
+
+---
+
 ## Session Log - 2026-06-23 (Public Portfolio Visitor Experience — branch fix/portfolio-visitor-experience)
 
 ### Overview
