@@ -11,6 +11,22 @@
 
 ---
 
+## 2026-06-23 - Password gate → "Scout" mascot (PRs #112, #116)
+
+The password-gate mascot evolved across iterations and its final state is **Scout**, an
+ATS-scanner robot ported from the owner-provided Claude Design ("Scout Password Screen"):
+- #112 — first reworked the gate's cat to be cuter/more animated (interim).
+- #116 — replaced the cat entirely with **Scout** (`PortfolioPasswordGate.tsx`): antenna +
+  glowing dot, dark rounded head, two camera lenses whose pupils track the pointer, and lens
+  **shutters that cover the lenses while typing** (one-eyed peek when the password is revealed),
+  plus a pulsing scan beam and "ATS" label. Card/pill/title/input/submit/footer match the design.
+- Reds are driven by the portfolio **accent color**; the themed animated backdrop is kept;
+  respects `prefers-reduced-motion`. Frontend-only (ships via Vercel).
+
+Note: the gate's password verification/flow is unchanged — this is purely the visual mascot/card.
+
+---
+
 ## 2026-06-23 - "I'm Interested" moved to Appwrite (branch `fix/portfolio-interest-via-appwrite`)
 
 The "I'm Interested" beacon hit `/api/portfolio-interest` (Vercel), which needs a
