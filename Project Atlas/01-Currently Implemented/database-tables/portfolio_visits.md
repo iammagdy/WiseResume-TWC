@@ -12,9 +12,24 @@
 
 ---
 
+> **2026-06-23 — Appwrite schema realignment (PR #119).** The runtime is Appwrite
+> (`main/portfolio_visits`), not Supabase. The live collection had drifted from the
+> code contract: it held `user_id, portfolio_id, referrer, country, device_type,
+> page, utm_source` (+2) and **zero indexes**, while the visit beacon
+> (`api/track-portfolio-view.ts`) writes `username, ref, sections_viewed,
+> sections_timing, time_spent_seconds, device, ab_variant` and the dashboard reads
+> via `Query.equal('username', …)`. Every write failed silently ("Unknown
+> attribute") → **0 rows ever** → Visitors tab stuck at 0. Fix (idempotent
+> `scripts/setup_portfolio_visits_schema.cjs`, applied to prod) **added** the
+> optional columns `username`, `ref`, `sections_viewed` (array), `sections_timing`,
+> `time_spent_seconds` (int 0..86400), `device`, `ab_variant`, `short_link_id`,
+> `company_name`, `city` plus a key index `idx_pv_username`. Ordering uses the
+> built-in `$createdAt`; the read maps `visited_at` → `$createdAt` fallback. The
+> legacy/Supabase columns below remain for historical reference only.
+
 **What it is:** Portfolio view tracking events.
 
-**Schema:** 9 original columns + 1 added in Task #4 (2026-04-18). Columns: `city`, `country`, `id`, `referrer`, `sections_viewed`, `short_link_id`, `time_spent_seconds`, `username` (legacy text FK, retained as fallback), `visited_at`, `portfolio_id` (nullable uuid FK → `portfolios.id`, backfilled — permanent identifier that survives username renames).
+**Schema (legacy Supabase reference):** 9 original columns + 1 added in Task #4 (2026-04-18). Columns: `city`, `country`, `id`, `referrer`, `sections_viewed`, `short_link_id`, `time_spent_seconds`, `username` (legacy text FK, retained as fallback), `visited_at`, `portfolio_id` (nullable uuid FK → `portfolios.id`, backfilled — permanent identifier that survives username renames).
 
 **FK note (2026-04-18):** `username` now has `ON UPDATE CASCADE` so admin renames keep it in sync. `portfolio_id` is the preferred column for all new queries. The legacy `username` column will be dropped in a future migration once all readers have cut over to `portfolio_id`.
 

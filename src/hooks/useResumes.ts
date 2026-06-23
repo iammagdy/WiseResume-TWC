@@ -62,7 +62,7 @@ export function getResumeDocumentUpdatedAt(doc: {
   return doc.$updatedAt ?? doc.updated_at ?? doc.updatedAt;
 }
 
-function parseDbJson<T>(str: unknown, fallback: T): T {
+export function parseDbJson<T>(str: unknown, fallback: T): T {
   if (!str) return fallback;
   if (typeof str === 'object') return str as T;
   try {
