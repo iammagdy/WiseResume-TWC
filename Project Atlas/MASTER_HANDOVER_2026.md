@@ -2,6 +2,87 @@
 
 ---
 
+## Session Log - 2026-06-23 (Auth "Bold" design ported — branch claude/fervent-faraday-iwuf82, PR #128)
+
+### Goal
+Port the **Auth Bold** design from `iammagdy/Auth-Routes` (`AuthBold.dc.html`) — the
+"polished & responsive" sign-in concept handed off from `claude.ai/design` — into
+`WiseResume-TWC`, covering every auth route the design ships (signin, signup, forgot,
+reset, change), without touching the existing Appwrite auth flows.
+
+### Sourcing the design (took most of the session)
+- The `claude_design` MCP connector (`https://api.anthropic.com/v1/design/mcp`) referenced
+  in the task brief has been **shut down** — the endpoint now returns a notice pointing
+  to Google Drive MCP as the replacement. `/design-login` in this remote container also
+  failed (it's a UI surface, not a slash command available to the web container).
+- The original `claude.ai/design/p/…` link is gated behind a logged-in session (`403`
+  from `WebFetch` even with `?via=share`). WeTransfer was firewalled
+  (`x-deny-reason: host_not_allowed`).
+- Resolution: the user re-published the handoff bundle to a public GitHub mirror
+  `iammagdy/Auth-Routes` (`raw.githubusercontent.com` reachable from the container).
+  Pulled `AuthBold.dc.html`, `Auth Bold.dc.html`, `Auth Concepts.dc.html`, and
+  `support.js` for reference. The `Auth Bold.dc.html` file is just a preview wrapper that
+  renders three device frames embedding `<dc-import name="AuthBold">`; the real component
+  is `AuthBold.dc.html`.
+
+### What was ported
+The `.dc.html` source uses a Scout-runtime templating syntax (`<sc-if>`, `{{ … }}`,
+`<dc-import>`, `data-lucide`) that is **not** React — it was hand-translated, not bundled.
+
+- **`src/components/auth/AuthBold.tsx` (new, ~620 LOC)** — single reusable component,
+  five modes (`signin`, `signup`, `forgot`, `reset`, `change`). Self-contained styles
+  (`<style>` block scoped via `.ab-root`) with container queries reflowing mobile → tablet
+  → desktop. Animated Scout SVG mascot (mouse-driven eye-tracking, blink interval,
+  wander interval, cover-on-password-focus that honors the eye-toggle's `scaleY(.55)`
+  peek), typewriter hero ("Ready when **you are.**"), animated count-up stats, rotating
+  conic-gradient card border via `@property --ab-angle`, pulsing CTA, dark/light theme
+  toggle wired to `useIsDark` for initial preference. All animations are no-ops under
+  `prefers-reduced-motion`. Icons come from the already-installed `lucide-react`. Brand
+  asset reuses `@/assets/wiseresume-logo-dark.webp`.
+- **`src/pages/AuthPage.tsx` (rewrite)** — now a slim controller (state + Appwrite
+  handlers) that renders `<AuthBold mode={…}>`. All existing Appwrite calls preserved
+  verbatim (`createEmailPasswordSession`, `account.create`, `upsertProfileIdentity`,
+  `email-service` `send-verification` / `send-password-reset`). `SIGNUP_PLAN_KEY` plan
+  intent and `?redirect=`/`?mode=` URL sync intact; plan notice now renders inside the
+  card via the component's `notice` prop.
+- **`src/pages/AuthResetPasswordPage.tsx` (rewrite)** — `<AuthBold mode="reset">` with
+  `doneSlot` for the invalid-link and success states. `updateRecovery` + best-effort
+  `send-password-changed` notification unchanged.
+- **`src/components/auth/__tests__/AuthBold.test.tsx` (new)** — 10 vitest cases covering
+  each mode's fields, error pill, doneSlot, footer toggle, "Forgot?" link, and
+  password-mismatch submit-blocking. `vitest run` → 10/10 green locally.
+
+### CI verification (PR #128)
+- ✅ **Typecheck + portfolio tests** — green (no TS errors in the three touched files).
+- ✅ **Vercel preview** — Ready at
+  `wise-resume-twc-git-claude-fervent-faraday-iwuf82-iam-magdy.vercel.app`.
+- ❌ **TestSprite Pre-Check** — "No tests detected". *Advisory only.* TestSprite is a
+  SaaS that orchestrates browser E2E against the preview and requires a test plan
+  authored in its dashboard (the `testsprite.md` brief is just the human description, not
+  a runnable plan). Same gate failed on PR #124 for the same reason. User confirmed to
+  ignore.
+
+### Out of scope (intentionally deferred)
+- **Change-password mode** — built into `<AuthBold>` (so the future route is just
+  `<AuthBold mode="change">`) but no new route registered. The existing in-account
+  password change continues to go through `components/settings/sections/ChangePasswordDialog.tsx`.
+- **TestSprite plan generation** — `mcp__TestSprite__testsprite_generate_frontend_test_plan`
+  is available if/when the team wants the Pre-Check check turning green.
+
+### Notes for next session
+- The "Scout" mascot and its animations live entirely inside `AuthBold.tsx` — if the
+  design ever splits into per-route pages, the Scout SVG + ref-attacher is the piece to
+  factor out first.
+- The component is **dark-by-default** with a manual toggle. It does not subscribe to
+  changes in `prefers-color-scheme` after first mount; that matches the source design
+  intent (per-user manual control) but if a global theme store is added later, swap the
+  local `light` state for `useSettingsStore` selectors.
+- `<AuthBold>` controls all of its own form state via props — pages own the values. No
+  hidden internal mutation beyond the Scout animations and the password-visibility
+  toggle.
+
+---
+
 ## Session Log - 2026-06-23 (ai-gateway push auto-trigger RESOLVED — branch claude/epic-maxwell-evkfa4, PR #124)
 
 ### Problem
