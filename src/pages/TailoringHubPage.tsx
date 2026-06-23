@@ -493,30 +493,37 @@ export default function JobMatchWorkspacePage() {
         tailorResultJson = JSON.stringify({ ...compactDiff, bulletTransformations: [] });
       }
 
-      // E-6: Persist to Appwrite tailor_history (fire-and-forget, non-blocking)
-      databases.createDocument(
-        DATABASE_ID,
-        COLLECTIONS.tailor_history,
-        ID.unique(),
-        {
-          user_id: user.id,
-          job_title: jobTitle,
-          company: company || '',
-          job_url: jobUrl || null,
-          tailored_resume_id: newResumeId,
-          source_resume_id: currentResumeId ?? null,
-          score_before: scoreBeforeAfter.before,
-          score_after: scoreBeforeAfter.after,
-          applied_sections: JSON.stringify(enabledSections),
-          intensity,
-          status: 'completed',
-          job_description: jobDescription.slice(0, 5000),
-          tailor_result: tailorResultJson,
-        },
-      ).catch((err: unknown) => {
-        console.warn('[TailoringHub] tailor_history write failed (non-blocking):', err);
-        toast.warning('Your tailored resume was saved, but it may not show in Tailoring history until history storage is fixed.');
-      });
+      // E-6 / B9: Persist to Appwrite tailor_history. Non-blocking (navigation
+      // already happened) but resilient: one retry after a short delay handles a
+      // transient JWT warm-up race before surfacing a warning to the user.
+      const tailorHistoryPayload = {
+        user_id: user.id,
+        job_title: jobTitle,
+        company: company || '',
+        job_url: jobUrl || null,
+        tailored_resume_id: newResumeId,
+        source_resume_id: currentResumeId ?? null,
+        score_before: scoreBeforeAfter.before,
+        score_after: scoreBeforeAfter.after,
+        applied_sections: JSON.stringify(enabledSections),
+        intensity,
+        status: 'completed',
+        job_description: jobDescription.slice(0, 5000),
+        tailor_result: tailorResultJson,
+      };
+      void (async () => {
+        try {
+          await databases.createDocument(DATABASE_ID, COLLECTIONS.tailor_history, ID.unique(), tailorHistoryPayload);
+        } catch {
+          await new Promise((r) => setTimeout(r, 1500));
+          try {
+            await databases.createDocument(DATABASE_ID, COLLECTIONS.tailor_history, ID.unique(), tailorHistoryPayload);
+          } catch (err: unknown) {
+            console.warn('[TailoringHub] tailor_history write failed after retry (non-blocking):', err);
+            toast.warning('Your tailored resume was saved, but it may not show in Tailoring history until history storage is fixed.');
+          }
+        }
+      })();
     } catch (err: unknown) {
       if (abort.signal.aborted) return;
       const msg = isAIError(err)
