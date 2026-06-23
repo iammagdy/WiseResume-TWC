@@ -40,3 +40,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Public page navigation stall — WebGL Aurora disabled on utility pages](./public-page-navigation-webgl-aurora-fix.md)
 - [Auth page redesign (split-screen) + Vercel preview host fix + AI Gateway VCS disconnect (2026-06-23)](./auth-redesign-and-vercel-preview-host-fix-2026-06-23.md)
 - [Portfolio visitor count + completion-bar accuracy fix (2026-06-23)](./portfolio-visitor-count-and-completion-fix-2026-06-23.md)
+- [Appwrite remediation — schema, permissions, targeted hub deploy + smoke tests (2026-06-23)](./appwrite-remediation-deploy-and-schema-2026-06-23.md)
