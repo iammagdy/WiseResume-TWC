@@ -2,6 +2,56 @@
 
 ---
 
+## Session Log - 2026-06-23 (ai-gateway push auto-trigger removed at the source — branch claude/epic-maxwell-evkfa4)
+
+### Overview
+The "AI Gateway Hub" was still creating a `type: vcs` deployment on **every push to
+any branch**, even though no Function shows a Git link in the Console. Goal: stop the
+push auto-trigger so hubs deploy **only** via the manual workflow (`Deploy Appwrite
+Hubs`, workflow_dispatch) or a Console upload.
+
+### Root cause (confirmed via Appwrite API + GitHub)
+- The Appwrite **GitHub App** (installation `69fd518d91ac2b25574c`, GitHub install id
+  `130461735`, org `iammagdy`) is installed on `WiseResume-TWC`
+  (providerRepositoryId `1170228859`). On push, GitHub webhooks Appwrite, which created
+  a **non-activating** `vcs` deployment of `ai-gateway` (commit hash/author/branch
+  visible on each deployment). Of all 25 functions, **only `ai-gateway`** was still
+  linked → only it auto-built.
+- Production was never at risk: the serving deployment is the last manual/CLI build
+  (`6a3a1927…`, `type: manual`, `ready`, `activate: true`); failed `vcs` builds are
+  `activate: false`.
+- **Why earlier detaches did nothing:** the Function-config API *masks* the VCS fields
+  (`installationId` / `providerRepositoryId` read back empty even while the link is
+  live). `deploy_hubs.cjs` only updates a Function when `settingsNeedUpdate()` sees a
+  diff — "empty == empty" → it **never sent** the detach. The link persisted.
+
+### Fix (this session)
+1. **New finding:** the Appwrite **VCS REST API is reachable with the project API key**
+   (`GET /vcs/installations` → 200). The prior session believed the only off-switch was
+   the GitHub-App UI ("owner action"); it is not required.
+2. Issued an **explicit** Function update with all VCS fields blanked
+   (`PUT /functions/ai-gateway`, `installationId/providerRepositoryId/providerBranch/
+   providerRootDirectory = ""`, `providerSilentMode: false`). Sending the empty values
+   (vs. skipping the update) triggers Appwrite's detach path. Verified by pushing a
+   commit and confirming **no new `vcs` deployment** is created for it.
+3. Did **not** delete the project's VCS installation (that would disconnect Git for the
+   whole project, broader than asked) — only `ai-gateway` was detached.
+
+### Repeatable tooling added (manual-only)
+- `scripts/detach_appwrite_git.cjs` — scriptable "Disconnect Git" for one/many/all
+  functions; always sends the explicit blank-VCS update (works around the masked-field
+  diff that defeats `deploy_hubs.cjs`).
+- `.github/workflows/detach-appwrite-git.yml` — `workflow_dispatch` wrapper (input
+  `target`, default `ai-gateway`) to re-apply the detach from GitHub Actions if a
+  Function ever gets re-linked.
+
+### Status
+Push no longer auto-builds `ai-gateway`. Deploys remain manual via `Deploy Appwrite
+Hubs` (workflow_dispatch) or the Appwrite Console. Re-connecting Git, if ever wanted,
+is a deliberate Console action (Function → Settings → Git → Connect).
+
+---
+
 ## Session Log - 2026-06-23 (ai-gateway VCS auto-build failures resolved — branch claude/clever-volta-cnv3wt)
 
 ### Overview

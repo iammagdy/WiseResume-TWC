@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-23 - ai-gateway push auto-trigger removed at the source (branch `claude/epic-maxwell-evkfa4`)
+
+`ai-gateway` was still auto-building (`type: vcs`) on every push to any branch via the
+Appwrite GitHub App (installation `69fd518d91ac2b25574c`, repo `WiseResume-TWC` /
+providerRepositoryId `1170228859`) — only it of 25 functions was still linked.
+Earlier detach attempts were no-ops because the Function-config API masks the VCS fields
+(`installationId`/`providerRepositoryId` read empty while live), so `deploy_hubs.cjs`'s
+diff check ("empty == empty") never sent the update. New finding: the Appwrite **VCS
+REST API works with the project API key**, so the off-switch did **not** require the
+GitHub-App UI. Fix: issued an explicit `PUT /functions/ai-gateway` with all VCS fields
+blanked (the Console's "Disconnect Git" path); verified a fresh push creates **no** new
+`vcs` deployment. The project VCS installation was **not** deleted (kept blast radius to
+`ai-gateway`). Added repeatable tooling: `scripts/detach_appwrite_git.cjs` and the
+`Detach Appwrite Git` workflow (`workflow_dispatch`). Deploys remain manual via `Deploy
+Appwrite Hubs` or the Appwrite Console.
+
+---
+
 ## 2026-06-23 - ai-gateway VCS auto-build failures resolved (branch `claude/clever-volta-cnv3wt`)
 
 Follow-up to PR #119. The recurring red "AI Gateway Hub (WiseResume)" check was the
