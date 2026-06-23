@@ -2,6 +2,48 @@
 
 ---
 
+## Session Log - 2026-06-23 (ai-gateway VCS auto-build failures resolved — branch claude/clever-volta-cnv3wt)
+
+### Overview
+Follow-up to PR #119. The recurring red **"AI Gateway Hub (WiseResume)"** check was
+failing on every push. Root cause (confirmed via the Appwrite MCP): the Appwrite
+GitHub-App auto-build packaged the **whole repo (~6.77 MB)** and ran the *root*
+`package.json` `postinstall` (`ensure-puppeteer-chrome`) → builder killed. This is the
+issue PR #117 first diagnosed.
+
+### Findings
+- Production was **never affected**: the active/live deployment was the last-good
+  **manual/CLI** build (`6a39c386…`, `status: ready`). The failing `type: vcs` builds
+  are **non-activating** (`activate: false`) → they can never replace the live
+  deployment, so the function kept serving throughout.
+- The function-config **API masks VCS fields**: `installationId` /
+  `providerRepositoryId` / `providerRootDirectory` already read empty, and clearing
+  them via `functions.update` is a no-op for stopping builds. The per-function Console
+  "Git repository" card shows **"No repository connected,"** yet a VCS build still fired
+  at 04:53 → the connection persists at the **Appwrite GitHub-App install level**, which
+  neither the API nor the per-function card can reach.
+
+### Actions taken (via Appwrite MCP / SDK)
+1. Ran the canonical VCS detach (`functions.update` with empty `installationId` /
+   `providerRepositoryId` / `providerBranch` / `providerRootDirectory`,
+   `providerSilentMode: false`) — matches `scripts/deploy_hubs.cjs`
+   `DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`. Confirmed the API cannot remove the
+   install-level link.
+2. Published a fresh known-good deployment: duplicated the ready manual deployment
+   `6a39c386…` → new deployment `6a3a12ad…`, which built **ready** and is now both the
+   **active** and **latest** deployment (`live: true`). Zero downtime; the top of the
+   deployment history is green again.
+
+### Status / open item (OWNER ACTION)
+ai-gateway is live and green. To stop **future** failed VCS entries appearing on new
+pushes (they remain non-activating, so the live function is safe regardless), remove the
+repo from the Appwrite GitHub App: **GitHub → Settings → Applications → Appwrite →
+Configure → Repository access → remove `WiseResume-TWC`**. This is the install-level
+off-switch; the per-function Git is already disconnected. Closes the PR #117 open item
+("confirm the AI Gateway auto-build is gone").
+
+---
+
 ## Session Log - 2026-06-23 (8-Area Audit → Remediation — branch claude/serene-ride-nk2c6t, PR #120)
 
 ### Overview

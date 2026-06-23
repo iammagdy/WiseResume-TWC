@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-23 - ai-gateway VCS auto-build failures resolved (branch `claude/clever-volta-cnv3wt`)
+
+Follow-up to PR #119. The recurring red "AI Gateway Hub (WiseResume)" check was the
+Appwrite GitHub-App auto-build packaging the whole repo (~6.77 MB) → root `postinstall`
+(`ensure-puppeteer-chrome`) → builder killed (the PR #117 issue). Findings: production
+was **never affected** — the active deployment was the last-good manual/CLI build
+(`6a39c386…`, `ready`); failed `type: vcs` builds are non-activating (`activate: false`).
+The function-config API masks the VCS fields, so clearing them can't stop the builds; the
+per-function Console card shows "No repository connected" yet a VCS build still fired →
+the link lives at the Appwrite **GitHub-App install level**. Actions (via Appwrite MCP):
+(1) ran the canonical detach (empty VCS fields, matching `deploy_hubs.cjs`
+`DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS`); (2) published a fresh known-good deployment
+(duplicated ready `6a39c386…` → `6a3a12ad…`, now active + latest + `ready`, zero
+downtime). **Owner action to fully stop future failed entries:** remove `WiseResume-TWC`
+from the Appwrite GitHub App (GitHub → Settings → Applications → Appwrite → Configure).
+Closes the PR #117 open item.
+
+---
+
 ## 2026-06-23 - 8-Area audit → remediation (PR #120, branch `claude/serene-ride-nk2c6t`)
 
 Phased remediation of eight audited areas (batches B0–B16; B13 agentic tool-loop and
