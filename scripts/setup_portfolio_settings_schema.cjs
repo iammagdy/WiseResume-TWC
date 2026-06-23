@@ -13,7 +13,8 @@
 // permissions, i.e. API-key-only access — matching the verified production state.
 // Safe to run repeatedly.
 
-const { Client, Databases, IndexType } = require('node-appwrite');
+// node-appwrite v17 exports the index-type enum as `DatabasesIndexType`.
+const { Client, Databases, DatabasesIndexType: IndexType } = require('node-appwrite');
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_FUNCTION_PROJECT_ID || '';
