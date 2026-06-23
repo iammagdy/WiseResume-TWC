@@ -11,6 +11,20 @@
 
 ---
 
+## 2026-06-23 - ai-gateway push auto-trigger RESOLVED via GitHub-App suspension (branch `claude/epic-maxwell-evkfa4`)
+
+**Resolved.** Owner suspended the Appwrite GitHub App (the install-level off-switch).
+Verified: test commit `0935388` created **no** `vcs` build (Vercel still built it, so the
+push reached GitHub — Appwrite did nothing), and no new `vcs` build appeared from any
+branch in a 2-min window; previously every push built within ~30–60s. Both Appwrite API
+off-switches had failed first — the per-function detach (`PUT /functions/ai-gateway`,
+cosmetic) and deleting the VCS installation (`DELETE /vcs/installations/…` → `204`, yet
+post-delete pushes still built across branches). Only the GitHub-side app
+suspension/removal stops the webhook delivery. Reversible by un-suspending. Deploys remain
+manual via `Deploy Appwrite Hubs` or the Console. See details below.
+
+---
+
 ## 2026-06-23 - ai-gateway push auto-trigger: diagnosed; needs GitHub-App removal (branch `claude/epic-maxwell-evkfa4`)
 
 `ai-gateway` auto-builds (`type: vcs`) on every push to any branch via the Appwrite GitHub

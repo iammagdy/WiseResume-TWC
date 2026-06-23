@@ -76,11 +76,20 @@ manual via `Deploy Appwrite Hubs` (workflow_dispatch) or a Console upload.
 - `.github/workflows/detach-appwrite-git.yml` — `workflow_dispatch` wrapper (input
   `target`, default `ai-gateway`).
 
-### Status — AWAITING OWNER GITHUB-APP ACTION
-Diagnosed end-to-end; both API off-switches proven insufficient. The repo must be
-removed from the Appwrite GitHub App (owner/GitHub). Until then pushes keep creating
-**non-activating** (harmless to production) failed `vcs` builds. Deploys are already
-manual-only by design (`DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`).
+### Status — RESOLVED (owner suspended the Appwrite GitHub App)
+The owner **suspended the Appwrite GitHub App** (GitHub → Settings → Applications →
+Appwrite → Suspend). **Verified:** an empty test commit `0935388` pushed to
+`claude/epic-maxwell-evkfa4` produced **no** `vcs` build (Vercel still built the same
+push → it reached GitHub; Appwrite did nothing), and no new `vcs` build from any branch
+appeared in a 2-minute watch window. Before the suspension, every push produced an
+`ai-gateway` `vcs` build within ~30–60s.
+
+Pushes no longer auto-build any function. Deploys are manual-only via `Deploy Appwrite
+Hubs` (workflow_dispatch) or a Console upload — matching the design intent
+(`DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`). **Reversible:** un-suspend the app in
+GitHub if push-to-deploy is ever wanted again (and clear the stuck per-function link
+first, since the API can't). Both API off-switches (function detach, installation
+delete) were proven insufficient — only the GitHub-side app suspension/removal works.
 
 ---
 
