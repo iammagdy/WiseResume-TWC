@@ -2,7 +2,7 @@ import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { useNavigate } from 'react-router-dom';
-import { X, Check } from 'lucide-react';
+import { X, Check, LogOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
 import { SettingsRow } from '@/components/settings/SettingsRow';
@@ -219,6 +219,15 @@ export default function SettingsPage() {
             <SettingsSection title="Account" description="Plan, usage, and sign-in">
               <AccountSection authProvider="Appwrite" />
               <UserIdCard userId={user.id} />
+              <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-soft">
+                <SettingsRow
+                  type="button"
+                  label="Sign Out"
+                  description="End your session on this device"
+                  icon={<LogOut className="w-4 h-4" />}
+                  onClick={() => setSignOutConfirmOpen(true)}
+                />
+              </div>
             </SettingsSection>
           )}
 
@@ -285,7 +294,6 @@ export default function SettingsPage() {
           {user && (
             <SettingsSection title="Danger Zone" variant="danger">
               <DangerZoneSection
-                onSignOut={() => setSignOutConfirmOpen(true)}
                 onDeleteData={() => setDeleteDialogOpen(true)}
               />
             </SettingsSection>
