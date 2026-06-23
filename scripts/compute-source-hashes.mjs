@@ -43,6 +43,7 @@ const HUBS = [
   'get-public-portfolio',
   'verify-portfolio-password',
   'portfolio-settings',
+  'track-visitor-event',
 ];
 
 const hashes = {};

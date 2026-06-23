@@ -475,7 +475,7 @@ export function VisitorsPanel() {
           <p className="text-sm font-medium text-foreground">No visit data yet</p>
           {eventCount === 0 ? (
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-amber-500">visitor_events: 0 documents</span> — no visits recorded yet. Page views are tracked automatically; country and detailed data appear after visitors grant GDPR consent.
+              <span className="font-medium text-amber-500">visitor_events: 0 documents</span> — no page views ingested yet. Page views are sent to the <code className="text-xs bg-muted px-1 rounded">track-visitor-event</code> function, which writes them server-side via API key. If this stays at 0 under live traffic, verify that function is deployed with Execute = Any and an <code className="text-xs bg-muted px-1 rounded">APPWRITE_API_KEY</code> variable.
             </p>
           ) : eventCount !== null && eventCount > 0 ? (
             <p className="text-xs text-muted-foreground">
@@ -495,7 +495,7 @@ export function VisitorsPanel() {
             <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
               <p className="font-medium">No visitor events recorded yet</p>
               <p className="mt-1 text-xs text-amber-200/90">
-                The <span className="font-mono">visitor_events</span> collection is empty. Page views are tracked automatically for all visitors. Country data and full session details appear after visitors accept the GDPR consent banner.
+                The <span className="font-mono">visitor_events</span> collection is empty. Page views are ingested by the <span className="font-mono">track-visitor-event</span> function (server-side write via API key). If this persists under live traffic, confirm that function is deployed with Execute = Any and a valid <span className="font-mono">APPWRITE_API_KEY</span>.
               </p>
             </div>
           )}

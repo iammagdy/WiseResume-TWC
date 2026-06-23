@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-06-23T01:55:31.184Z",
+  "generatedAt": "2026-06-23T03:51:13.093Z",
   "hashes": {
-    "ai-gateway": "64f75037ebf486d3e1936c709e7e8925430af1b12d8d5b5b2eea650cfeab73b1",
+    "ai-gateway": "b25578a0ca9e4c31ff99c6bee2a58400991fc10bacbb50b72eb768362616a42f",
     "admin-devkit-data": "8f942c0a753b914041225c43bd4fe442dd7ba7ef55934cbce130a5d54411dae3",
     "admin-email": "3408d620651fdc7bbeebd5fe2ef22f19fd784bc085f232ed620d0c6e4e73025e",
     "inspect-ai-keys": "9e204e2dbaf66d699023145874109607bc735f40d17c37ed089b12b68ee7a959",
@@ -25,6 +25,7 @@
     "portfolio-gate": "b9d7febb4cd5a4164e1d7b9da24fa60177340ddf3c8aaa66291d211fbbc5b5d6",
     "get-public-portfolio": "522328fa59c457fb06f233f12ae6fc9a9fd5a21a1dce73a02e2175e8fb790c63",
     "verify-portfolio-password": "7f9d59501327d3f0b9d959c51d9e8fc4f3ac924fe0b65efab7ab8b80602fda7b",
-    "portfolio-settings": "e4398b85d759ecb652608cc7d7b88083e934f2503ae6f8d98a94ffedcb659f3f"
+    "portfolio-settings": "e4398b85d759ecb652608cc7d7b88083e934f2503ae6f8d98a94ffedcb659f3f",
+    "track-visitor-event": "1f40e7661c11a9fef55a75278d94394871d1ab602ee9e4b9dc2946eaafd98c94"
   }
 }

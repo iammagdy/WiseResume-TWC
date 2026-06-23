@@ -223,6 +223,15 @@
       "entrypoint": "src/main.js",
       "commands": "npm install",
       "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "track-visitor-event",
+      "name": "Track Visitor Event",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/track-visitor-event",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
     }
   ]
 }

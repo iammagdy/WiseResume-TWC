@@ -1,0 +1,155 @@
+'use strict';
+
+/**
+ * track-visitor-event
+ *
+ * Server-side ingestion for visitor analytics (DevKit Growth / Visitors).
+ *
+ * Why this exists (B10): the frontend previously wrote visitor_events directly
+ * from the browser with the public SDK. Unauthenticated visitors have no
+ * Appwrite session and the collection does not grant guest create, so every
+ * write was silently rejected and the Growth/Visitors tabs were always empty.
+ * This function accepts the event(s), bot-guards them, and writes via the
+ * server API key — so no guest write permission on the collection is required.
+ *
+ * Deploy / config (manual, not performed by code):
+ *   - Set this function's Execute permission to `any` (guests must be able to
+ *     call it) — the bot guard + sanitisation below are the abuse controls.
+ *   - Set the function variable APPWRITE_API_KEY to a key with
+ *     databases.documents.write on the `main` database.
+ *   - Optionally run scripts/setup_visitor_events_schema.cjs to add the
+ *     `referrer` and `os` attributes (the function strips them and retries if
+ *     they are absent, so it never fails closed).
+ *
+ * Request body: { events: VisitorEvent[], userAgent?: string } or a single
+ * VisitorEvent object. { action: 'warmup' } is a no-op keep-warm ping.
+ */
+
+const sdk = require('node-appwrite');
+
+const DB_ID = 'main';
+const VISITOR_EVENTS_ID = 'visitor_events';
+const ENDPOINT =
+  process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+const PROJECT_ID =
+  process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+
+const MAX_EVENTS_PER_REQUEST = 20;
+const ALLOWED_EVENT_TYPES = new Set(['page_view', 'click', 'section_view', 'feature_use']);
+const BOT_UA =
+  /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|headless|lighthouse|pingdom|gtmetrix|uptimerobot|monitor|datadog|scrap|curl|wget|python-requests|axios\//i;
+// Optional attributes that may not exist on the collection yet. The write
+// strips these and retries on an unknown-attribute error so ingestion never
+// fails just because the schema has not been extended.
+const OPTIONAL_FIELDS = ['referrer', 'os'];
+
+function getDatabases() {
+  return new sdk.Databases(
+    new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY),
+  );
+}
+
+function parseBody(req) {
+  if (req && typeof req.body !== 'string') {
+    return req && req.body && typeof req.body === 'object' ? req.body : {};
+  }
+  const raw = (req && req.body ? req.body : '').trim();
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function str(value, max) {
+  return typeof value === 'string' && value ? value.slice(0, max) : undefined;
+}
+
+function sanitize(ev) {
+  if (!ev || typeof ev !== 'object') return null;
+  const type = String(ev.event_type || '');
+  if (!ALLOWED_EVENT_TYPES.has(type)) return null;
+  const doc = {
+    event_type: type,
+    session_id: str(ev.session_id, 64),
+    anon_id: str(ev.anon_id, 64),
+    user_id: str(ev.user_id, 64),
+    page: str(ev.page, 512),
+    target: str(ev.target, 128),
+    section: str(ev.section, 128),
+    country: str(ev.country, 8),
+    device_type: str(ev.device_type, 16),
+    browser: str(ev.browser, 32),
+    referrer: str(ev.referrer, 512),
+    os: str(ev.os, 32),
+  };
+  for (const key of Object.keys(doc)) {
+    if (doc[key] === undefined) delete doc[key];
+  }
+  return doc;
+}
+
+async function writeEvent(databases, doc) {
+  try {
+    await databases.createDocument(DB_ID, VISITOR_EVENTS_ID, sdk.ID.unique(), doc);
+  } catch (e) {
+    const message = String((e && e.message) || '');
+    const isUnknownAttr = /unknown attribute/i.test(message) || (e && e.code === 400);
+    if (!isUnknownAttr) throw e;
+    const core = {};
+    for (const key of Object.keys(doc)) {
+      if (!OPTIONAL_FIELDS.includes(key)) core[key] = doc[key];
+    }
+    await databases.createDocument(DB_ID, VISITOR_EVENTS_ID, sdk.ID.unique(), core);
+  }
+}
+
+async function handler({ req, res, error }) {
+  if (!API_KEY) {
+    return res.json({ ok: false, error: 'APPWRITE_API_KEY is not configured' }, 500);
+  }
+
+  const body = parseBody(req);
+  if (body && body.action === 'warmup') {
+    return res.json({ ok: true, warm: true });
+  }
+
+  // Bot guard — skip known crawlers/monitors so analytics reflects real humans.
+  const headers = (req && req.headers) || {};
+  const ua = String(
+    body.userAgent || headers['x-forwarded-user-agent'] || headers['user-agent'] || '',
+  );
+  if (ua && BOT_UA.test(ua)) {
+    return res.json({ ok: true, written: 0, skipped: 'bot' });
+  }
+
+  const rawEvents = Array.isArray(body.events)
+    ? body.events
+    : body.event_type
+      ? [body]
+      : [];
+  if (rawEvents.length === 0) {
+    return res.json({ ok: true, written: 0 });
+  }
+
+  const databases = getDatabases();
+  let written = 0;
+  for (const ev of rawEvents.slice(0, MAX_EVENTS_PER_REQUEST)) {
+    const doc = sanitize(ev);
+    if (!doc) continue;
+    try {
+      await writeEvent(databases, doc);
+      written += 1;
+    } catch (e) {
+      if (error) error(`visitor_events write failed: ${(e && e.message) || e}`);
+    }
+  }
+
+  return res.json({ ok: true, written });
+}
+
+module.exports = handler;
+module.exports.__test = { sanitize, BOT_UA, ALLOWED_EVENT_TYPES };
