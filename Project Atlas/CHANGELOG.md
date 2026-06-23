@@ -11,6 +11,35 @@
 
 ---
 
+## 2026-06-23 - 8-Area audit → remediation (PR #120, branch `claude/serene-ride-nk2c6t`)
+
+Phased remediation of eight audited areas (batches B0–B16; B13 agentic tool-loop and
+B17 route consolidation deferred) plus two review fixes. Validated locally:
+`npm run build` green, 23 targeted unit tests + a new `track-visitor-event` hub test
+pass, `node --check` on all changed hubs, source hashes refreshed, Vercel preview
+Ready.
+
+- **Frontend (safe now, all degrade gracefully):** plan-badge instant cache resolve
+  (`usePlan`); WiseResume `wiseresume-classic` default everywhere (`migrateTemplateId`
+  replaces all dangerous `'modern'` fallbacks incl. the missed `TailoringHubPage:431`);
+  server-backed dashboard activity (`useActivityFeed`); Settings scroll-paint fix
+  (paused ProfileCard animations + reduced-motion, static gradient) and Sign-Out moved
+  out of Danger Zone; offline-sync conflict vs load-baseline `$updatedAt` (clock-skew
+  data-loss fix); editor auto-grow textareas + reversed-date warning; Letter page
+  default; 6 dead files removed.
+- **Backend (need manual Appwrite steps to activate):** `ai-gateway` no longer
+  fabricates a 55→78 tailoring score (returns `null`); compact `tailor_result`
+  rich-diff persisted to `tailor_history` (schema-safe write); new server-side,
+  bot-guarded, rate-limited `track-visitor-event` hub replaces the silently-rejected
+  browser write; onboarding funnel metadata `JSON.parse` + `audit_logs` provisioning
+  (separate from `admin_audit_logs`); Wise AI prompt context + `get_company_briefing`.
+- **Environment note:** implementation session had no Appwrite egress / MCP, so
+  schema + permission + targeted hub deploy were handed off via idempotent scripts
+  (`scripts/setup_tailoring_lineage_schema.cjs`, `setup_visitor_events_schema.cjs`,
+  `setup_audit_logs_collection.cjs`) and the **Deploy Appwrite Hubs** workflow targeting
+  `track-visitor-event,ai-gateway,admin-onboarding-funnel,admin-devkit-data`. See the
+  matching Master Handover session log for the full runbook.
+
 ## 2026-06-23 - Portfolio visitor count + completion-bar fix (PR #119, branch `claude/clever-volta-cnv3wt`)
 
 Two long-standing portfolio bugs, both root-caused against the **live Appwrite
