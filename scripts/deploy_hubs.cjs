@@ -88,6 +88,7 @@ const HUBS = [
     { id: 'get-public-portfolio', name: 'Get Public Portfolio', file: 'get-public-portfolio.tar.gz' },
     { id: 'verify-portfolio-password', name: 'Verify Portfolio Password', file: 'verify-portfolio-password.tar.gz' },
     { id: 'portfolio-settings', name: 'Portfolio Settings Hub', file: 'portfolio-settings.tar.gz' },
+    { id: 'track-visitor-event', name: 'Track Visitor Event', file: 'track-visitor-event.tar.gz' },
 ];
 
 const SAFE_SMOKE_CHECKS = new Map([
@@ -786,6 +787,14 @@ async function syncVariablesForHubs(hubIds) {
         // only missing attributes; never changes permissions or existing data.
         console.log('\nEnsuring profiles portfolio schema...');
         execSync('node scripts/setup_profiles_portfolio_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
+
+    if (selected.has('track-visitor-event')) {
+        // track-visitor-event writes visitor_events server-side via the API key so
+        // unauthenticated visitors never need collection write permission. Its
+        // Execute permission is already forced to `any` by desiredFunctionSettings.
+        // Only the API key is set here; nothing else is touched.
+        await ensureVariable('track-visitor-event', 'APPWRITE_API_KEY', process.env.APPWRITE_API_KEY);
     }
 
     if (selected.has('public-share')) {
