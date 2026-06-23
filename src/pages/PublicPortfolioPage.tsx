@@ -2,10 +2,10 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePublicPortfolio, usePortfolioGate, type PortfolioSections } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, SearchX, Languages, Heart, Check, Printer, Lock } from 'lucide-react';
+import { ArrowLeft, SearchX, Languages, Heart, Check, Printer, Sparkles, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ import { getThemeById, buildThemeCSSVars } from '@/lib/portfolioThemes';
 
 import { usePortfolioTracking } from '@/hooks/usePortfolioTracking';
 import { usePortfolioSEO } from '@/hooks/usePortfolioSEO';
+import { PortfolioPasswordGate } from '@/components/portfolio/public/PortfolioPasswordGate';
 
 // Direct import for above-the-fold content
 import { PublicHero } from '@/components/portfolio/public/PublicHero';
@@ -128,78 +129,6 @@ function NotFound() {
           Create your free portfolio with WiseResume →
         </a>
       </div>
-    </div>
-  );
-}
-
-// ─── Password Gate ────────────────────────────────────────────────────────────
-// Password verification is fully server-side. The gate component collects the
-// raw password and passes it to the parent; no hashing occurs in the browser.
-//
-// IMPORTANT: do NOT enforce a minimum length here.  The 8-char minimum applies
-// only to passwords being SET (editor + server RPC).  Existing portfolios may
-// have been protected with shorter passwords before that rule existed; refusing
-// to submit them client-side would lock owners out of their own gate.  We also
-// pass the raw value through (no trim) so passwords with intentional leading/
-// trailing whitespace round-trip correctly to the server's exact-match check.
-function PasswordGate({
-  accentColor,
-  onSubmit,
-  hasError,
-  isChecking,
-}: {
-  accentColor: string;
-  onSubmit: (password: string) => void;
-  hasError: boolean;
-  isChecking: boolean;
-}) {
-  const [value, setValue] = useState('');
-  const canSubmit = value.length > 0 && !isChecking;
-
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canSubmit) return;
-    onSubmit(value);
-  }, [canSubmit, value, onSubmit]);
-
-  return (
-    <div className="relative z-[1] min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm space-y-6 text-center"
-      >
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
-          style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${accentColor} 30%, transparent)` }}
-        >
-          <Lock className="w-7 h-7" style={{ color: accentColor }} />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-white">Protected Portfolio</h1>
-          <p className="text-sm text-white/60">This portfolio is password-protected. Enter the password to view it.</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="password"
-            value={value}
-            onChange={(e) => { setValue(e.target.value); }}
-            placeholder="Enter password"
-            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 text-sm outline-none focus:border-white/30 transition-colors"
-            autoFocus
-            autoComplete="current-password"
-          />
-          {hasError && <p className="text-sm text-red-400">Incorrect password. Please try again.</p>}
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
-            style={{ background: accentColor }}
-          >
-            {isChecking ? 'Checking...' : 'Unlock Portfolio'}
-          </button>
-        </form>
-      </motion.div>
     </div>
   );
 }
@@ -390,7 +319,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   if (passwordRequired && !portfolio) {
     const accentColor = gateInfo?.accentColor || '#e84545';
     return (
-      <PasswordGate
+      <PortfolioPasswordGate
         accentColor={accentColor}
         onSubmit={(password) => {
           setPasswordError(false);
@@ -692,15 +621,35 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
               </p>
             </div>
           )}
-          <div>
+          <div className="flex justify-center">
             <a
               href={getAppUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80 underline decoration-1 underline-offset-2 cursor-pointer"
-              style={{ color: 'var(--pf-muted, #9ca3af)' }}
+              className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium transition-all duration-300 hover:scale-[1.04] cursor-pointer"
+              style={{
+                background: `color-mix(in srgb, ${accentColor} 10%, var(--pf-card, rgba(255,255,255,0.04)))`,
+                border: `1px solid color-mix(in srgb, ${accentColor} 28%, transparent)`,
+                color: 'var(--pf-fg, #f5f5ff)',
+                boxShadow: `0 4px 18px -6px color-mix(in srgb, ${accentColor} 55%, transparent)`,
+              }}
             >
-              Built with <span className="font-bold" style={{ color: accentColor }}>WiseResume</span> · Create your free portfolio →
+              <span
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full shrink-0"
+                style={{ background: `color-mix(in srgb, ${accentColor} 22%, transparent)` }}
+              >
+                <Sparkles className="w-3 h-3" style={{ color: accentColor }} />
+              </span>
+              <span>
+                Built with <span className="font-bold" style={{ color: accentColor }}>WiseResume</span>
+              </span>
+              <span
+                className="hidden sm:inline-flex items-center gap-0.5 pl-2 ml-0.5"
+                style={{ borderLeft: `1px solid color-mix(in srgb, ${accentColor} 25%, transparent)`, color: 'var(--pf-muted, #9ca3af)' }}
+              >
+                Create yours
+                <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </span>
             </a>
           </div>
         </motion.div>

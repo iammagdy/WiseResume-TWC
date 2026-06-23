@@ -2,6 +2,28 @@
 
 ---
 
+## Session Log - 2026-06-23 (Public Portfolio Visitor Experience — branch fix/portfolio-visitor-experience)
+
+### Overview
+Fixed three broken visitor-facing features and redesigned the password gate + launcher/footer.
+- **Chat** was 500'ing: public-share `executeAiGateway` used object-form `createExecution` but
+  bundles node-appwrite 17.2.0 (positional) → `Invalid functionId param`. Fixed → positional.
+- **"I'm Interested"** failed: `portfolio_interactions` missing token/portfolio_username/
+  interaction_type/referrer_hostname → new idempotent schema script (+token index), wired into the
+  public-share deploy.
+- **Contact form** "Security check required": Turnstile token never sent because
+  `VITE_TURNSTILE_SITE_KEY` is unset in Vercel. **OWNER ACTION:** set it (pairs with the Appwrite
+  `TURNSTILE_SECRET_KEY`). Frontend error message clarified.
+- **Password gate redesign:** `PortfolioPasswordGate.tsx` — peeking cat (covers eyes while typing)
+  + accent-driven animated background. Chat launcher got a hint pill/pulse; footer got a pill badge.
+
+### Status
+Branch + PR. Deploy `--only=public-share` (chat fix + interest schema); frontend via Vercel on
+merge. Contact form blocked on the owner's `VITE_TURNSTILE_SITE_KEY`.
+Detail: `Project Atlas/Portfolio Visitor Experience 2026-06-23/PORTFOLIO_VISITOR_EXPERIENCE_REPORT.md`.
+
+---
+
 ## Session Log - 2026-06-23 (Public Portfolio Cold-Start Warmup — branch fix/portfolio-warmup)
 
 ### Overview
