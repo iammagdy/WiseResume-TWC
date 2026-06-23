@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { Eye, EyeOff, ArrowRight, AlertCircle, Lock } from 'lucide-react';
 
 // ── color helpers ────────────────────────────────────────────────────────────
 function hexToRgb(hex: string): [number, number, number] {
@@ -11,7 +11,6 @@ function rgba([r, g, b]: [number, number, number], a: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 function rotateHue([r, g, b]: [number, number, number], deg: number): [number, number, number] {
-  // cheap HSL hue-rotate so the background has two related-but-distinct accents
   let [h, s, l] = (() => {
     const rr = r / 255, gg = g / 255, bb = b / 255;
     const max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb);
@@ -42,16 +41,16 @@ function rotateHue([r, g, b]: [number, number, number], deg: number): [number, n
 
 // ── animated, accent-driven background ───────────────────────────────────────
 function AnimatedBackdrop({ accent, reduced }: { accent: [number, number, number]; reduced: boolean }) {
-  const a2 = rotateHue(accent, 40);
-  const a3 = rotateHue(accent, -55);
+  const a2 = rotateHue(accent, 36);
+  const a3 = rotateHue(accent, -52);
   const blobs = [
     { c: accent, size: 620, x: '8%', y: '12%', dur: 17, delay: 0 },
-    { c: a2, size: 520, x: '72%', y: '18%', dur: 21, delay: 1.5 },
-    { c: a3, size: 560, x: '60%', y: '74%', dur: 19, delay: 0.8 },
-    { c: accent, size: 460, x: '20%', y: '78%', dur: 23, delay: 2.2 },
+    { c: a2, size: 520, x: '74%', y: '16%', dur: 21, delay: 1.5 },
+    { c: a3, size: 560, x: '60%', y: '76%', dur: 19, delay: 0.8 },
+    { c: accent, size: 460, x: '18%', y: '80%', dur: 23, delay: 2.2 },
   ];
   return (
-    <div className="absolute inset-0 overflow-hidden" style={{ background: 'radial-gradient(140% 120% at 50% 0%, #0d0d18 0%, #07070d 60%, #050509 100%)' }}>
+    <div className="absolute inset-0 overflow-hidden" style={{ background: 'radial-gradient(140% 120% at 50% 0%, #14080a 0%, #0a0608 60%, #050304 100%)' }}>
       {blobs.map((b, i) => (
         <motion.div
           key={i}
@@ -59,31 +58,16 @@ function AnimatedBackdrop({ accent, reduced }: { accent: [number, number, number
           style={{
             width: b.size, height: b.size, left: b.x, top: b.y,
             marginLeft: -b.size / 2, marginTop: -b.size / 2,
-            background: `radial-gradient(circle at 50% 50%, ${rgba(b.c, 0.55)} 0%, ${rgba(b.c, 0.12)} 45%, transparent 70%)`,
-            filter: 'blur(48px)',
-            willChange: 'transform',
+            background: `radial-gradient(circle at 50% 50%, ${rgba(b.c, 0.5)} 0%, ${rgba(b.c, 0.1)} 45%, transparent 70%)`,
+            filter: 'blur(50px)', willChange: 'transform',
           }}
-          animate={reduced ? undefined : {
-            x: [0, 36, -22, 0],
-            y: [0, -28, 24, 0],
-            scale: [1, 1.12, 0.94, 1],
-          }}
+          animate={reduced ? undefined : { x: [0, 34, -20, 0], y: [0, -26, 22, 0], scale: [1, 1.12, 0.94, 1] }}
           transition={reduced ? undefined : { duration: b.dur, delay: b.delay, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
-      {/* drifting sheen */}
-      {!reduced && (
-        <motion.div
-          className="absolute inset-0"
-          style={{ background: `linear-gradient(115deg, transparent 40%, ${rgba(accent, 0.06)} 50%, transparent 60%)`, backgroundSize: '200% 200%' }}
-          animate={{ backgroundPosition: ['0% 0%', '100% 100%'] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      )}
-      {/* fine grid + vignette for depth */}
-      <div className="absolute inset-0 opacity-[0.06]" style={{
+      <div className="absolute inset-0 opacity-[0.05]" style={{
         backgroundImage: 'linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)',
-        backgroundSize: '44px 44px',
+        backgroundSize: '46px 46px',
         maskImage: 'radial-gradient(circle at 50% 45%, black 0%, transparent 72%)',
         WebkitMaskImage: 'radial-gradient(circle at 50% 45%, black 0%, transparent 72%)',
       }} />
@@ -91,151 +75,88 @@ function AnimatedBackdrop({ accent, reduced }: { accent: [number, number, number
   );
 }
 
-// ── the cat ──────────────────────────────────────────────────────────────────
-// A chibi kitten that's alive: it breathes, blinks, twitches its ears and swishes
-// its tail, and its eyes follow the pointer. When you type the password it shyly
-// covers its eyes with its paws (and peeks when you reveal the password). Wrong
-// password → a worried wiggle. All idle motion is disabled under reduced-motion.
-function PeekingCat({ accent, covered, peeking, error, reduced }: {
-  accent: string; covered: boolean; peeking: boolean; error: boolean; reduced: boolean;
+// ── Scout — the ATS-scanner mascot ───────────────────────────────────────────
+// Camera lenses for eyes; pupils follow the pointer; shutters slide down to cover
+// the lenses while you type, and lift to a one-eyed peek when you reveal the
+// password. Ported from the "Scout Password Screen" design.
+function ScoutMascot({ accent, leftCover, rightCover, reduced }: {
+  accent: string; leftCover: boolean; rightCover: boolean; reduced: boolean;
 }) {
-  const pupilX = useSpring(0, { stiffness: 140, damping: 13 });
-  const pupilY = useSpring(0, { stiffness: 140, damping: 13 });
-  const ref = useRef<SVGSVGElement>(null);
-  const eyesOpen = !(covered && !peeking);
+  const px = useSpring(0, { stiffness: 140, damping: 13 });
+  const py = useSpring(0, { stiffness: 140, damping: 13 });
+  const deep = `color-mix(in srgb, ${accent} 72%, #1b0406)`;
+  const highlight = `color-mix(in srgb, ${accent} 32%, #ffffff)`;
+  const shutterT = 'transform .42s cubic-bezier(.16,1,.3,1)';
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      if (covered) { pupilX.set(0); pupilY.set(0); return; }
-      const el = ref.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const dx = (e.clientX - (r.left + r.width / 2)) / (window.innerWidth / 2);
-      const dy = (e.clientY - (r.top + r.height / 2)) / (window.innerHeight / 2);
-      pupilX.set(Math.max(-1, Math.min(1, dx)) * 6);
-      pupilY.set(Math.max(-1, Math.min(1, dy)) * 5);
+      const w = window.innerWidth || 1, h = window.innerHeight || 1;
+      const x = Math.max(-1, Math.min(1, (e.clientX / w) * 2 - 1));
+      const y = Math.max(-1, Math.min(1, (e.clientY / h) * 2 - 1));
+      px.set(x * 6); py.set(y * 4.5);
     };
-    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointermove', onMove, { passive: true });
     return () => window.removeEventListener('pointermove', onMove);
-  }, [covered, pupilX, pupilY]);
-
-  // Paw group offset: tucked off-screen below by default, up over the eyes when
-  // typing, a little lower (peek gap) when the password is revealed.
-  const pawY = covered ? (peeking ? 30 : 0) : 132;
-
-  const Eye = ({ cx }: { cx: number }) => (
-    <g>
-      <ellipse cx={cx} cy={108} rx={17} ry={20} fill="url(#pg-eye)" />
-      <motion.g style={{ x: pupilX, y: pupilY }}>
-        <circle cx={cx} cy={108} r={11} fill={accent} opacity={0.85} />
-        <circle cx={cx} cy={109} r={7.5} fill="#070710" />
-        <circle cx={cx - 4} cy={103} r={3.6} fill="#fff" />
-        <circle cx={cx + 4} cy={113} r={1.7} fill="#fff" opacity={0.8} />
-      </motion.g>
-    </g>
-  );
+  }, [px, py]);
 
   return (
-    <motion.svg
-      ref={ref}
-      viewBox="0 0 220 210"
-      className="w-40 h-40 mx-auto -mt-2 -mb-1"
-      animate={error ? { x: [0, -8, 8, -6, 6, 0], rotate: [0, -3, 3, -2, 0] } : { x: 0, rotate: 0 }}
-      transition={{ duration: 0.5 }}
+    <motion.div
+      className="mx-auto"
+      style={{ width: 150, height: 168 }}
+      animate={reduced ? undefined : { y: [0, -7, 0] }}
+      transition={reduced ? undefined : { duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       aria-hidden="true"
     >
-      <defs>
-        <radialGradient id="pg-fur" cx="50%" cy="32%" r="75%">
-          <stop offset="0%" stopColor="#41414f" />
-          <stop offset="100%" stopColor="#232330" />
-        </radialGradient>
-        <radialGradient id="pg-eye" cx="50%" cy="38%" r="62%">
-          <stop offset="0%" stopColor="#23232f" />
-          <stop offset="100%" stopColor="#06060c" />
-        </radialGradient>
-      </defs>
+      <svg width="100%" height="100%" viewBox="0 0 160 175" style={{ overflow: 'visible', display: 'block' }}>
+        <defs>
+          <clipPath id="pg-lensL"><circle cx="60" cy="88" r="18" /></clipPath>
+          <clipPath id="pg-lensR"><circle cx="100" cy="88" r="18" /></clipPath>
+        </defs>
 
-      {/* soft accent glow behind the cat */}
-      <ellipse cx="110" cy="118" rx="92" ry="84" fill={accent} opacity="0.10" />
-
-      {/* breathing bob wraps everything (translate-only — no per-frame bbox cost) */}
-      <motion.g
-        animate={reduced ? undefined : { y: [0, -4, 0] }}
-        transition={reduced ? undefined : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        {/* tail — swishes */}
-        <motion.path
-          d="M176 168 Q214 150 206 112 Q202 92 188 98"
-          fill="none" stroke={accent} strokeOpacity="0.85" strokeWidth="11" strokeLinecap="round"
-          style={{ transformBox: 'fill-box', transformOrigin: 'left bottom' } as React.CSSProperties}
-          animate={reduced ? undefined : { rotate: [0, 9, 0, -7, 0] }}
-          transition={reduced ? undefined : { duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-
-        {/* ears — occasional twitch */}
-        <motion.g
-          style={{ transformBox: 'fill-box', transformOrigin: 'center bottom' } as React.CSSProperties}
-          animate={reduced ? undefined : { rotate: [0, 0, 0, -7, 4, 0] }}
-          transition={reduced ? undefined : { duration: 5.5, times: [0, 0.62, 0.72, 0.8, 0.88, 1], repeat: Infinity }}
-        >
-          <path d="M58 92 L66 36 L106 74 Z" fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" strokeLinejoin="round" />
-          <path d="M162 92 L154 36 L114 74 Z" fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" strokeLinejoin="round" />
-          <path d="M68 84 L72 52 L94 72 Z" fill={accent} opacity="0.55" strokeLinejoin="round" />
-          <path d="M152 84 L148 52 L126 72 Z" fill={accent} opacity="0.55" strokeLinejoin="round" />
-        </motion.g>
+        {/* antenna */}
+        <line x1="80" y1="46" x2="80" y2="28" stroke="#6b6470" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="80" cy="24" r="5" fill={accent} style={{ filter: `drop-shadow(0 0 5px ${accent})` }} />
 
         {/* head */}
-        <ellipse cx="110" cy="114" rx="82" ry="73" fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" />
+        <rect x="26" y="46" width="108" height="86" rx="22" fill="#2b2730" />
+        <rect x="34" y="54" width="92" height="70" rx="16" fill="#16131a" />
+        <rect x="22" y="78" width="9" height="22" rx="4.5" fill="#3a3640" />
+        <rect x="129" y="78" width="9" height="22" rx="4.5" fill="#3a3640" />
 
-        {/* blush */}
-        <ellipse cx="64" cy="130" rx="13" ry="8" fill={accent} opacity="0.28" />
-        <ellipse cx="156" cy="130" rx="13" ry="8" fill={accent} opacity="0.28" />
+        {/* lens housings */}
+        <circle cx="60" cy="88" r="18" fill="#0c0910" />
+        <circle cx="100" cy="88" r="18" fill="#0c0910" />
+        <circle cx="60" cy="88" r="18" fill="none" stroke={deep} strokeWidth="2.5" />
+        <circle cx="100" cy="88" r="18" fill="none" stroke={deep} strokeWidth="2.5" />
 
-        {/* whiskers */}
-        <g stroke="rgba(255,255,255,0.32)" strokeWidth="1.6" strokeLinecap="round">
-          <line x1="50" y1="124" x2="14" y2="118" />
-          <line x1="50" y1="132" x2="12" y2="136" />
-          <line x1="170" y1="124" x2="206" y2="118" />
-          <line x1="170" y1="132" x2="208" y2="136" />
+        {/* LEFT lens — pupil + shutter */}
+        <g clipPath="url(#pg-lensL)">
+          <motion.g style={{ x: px, y: py }}>
+            <circle cx="60" cy="88" r="9" fill={accent} />
+            <circle cx="56" cy="84" r="2.4" fill={highlight} />
+          </motion.g>
+          <rect x="40" y="62" width="40" height="38" rx="3" fill="#514a55"
+            style={{ transform: leftCover ? 'translateY(0)' : 'translateY(-40px)', transition: shutterT }} />
         </g>
 
-        {/* eyes — blink (only meaningful while open) */}
-        {eyesOpen ? (
-          <motion.g
-            style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
-            animate={reduced ? undefined : { scaleY: [1, 1, 1, 0.08, 1] }}
-            transition={reduced ? undefined : { duration: 4.6, times: [0, 0.82, 0.88, 0.92, 0.97], repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Eye cx={84} />
-            <Eye cx={136} />
+        {/* RIGHT lens — pupil + shutter */}
+        <g clipPath="url(#pg-lensR)">
+          <motion.g style={{ x: px, y: py }}>
+            <circle cx="100" cy="88" r="9" fill={accent} />
+            <circle cx="96" cy="84" r="2.4" fill={highlight} />
           </motion.g>
-        ) : (
-          // happy closed eyes (shown briefly as the paws come up)
-          <g fill="none" stroke={accent} strokeWidth="3.5" strokeLinecap="round">
-            <path d="M72 110 Q84 121 96 110" />
-            <path d="M124 110 Q136 121 148 110" />
-          </g>
-        )}
+          <rect x="80" y="62" width="40" height="38" rx="3" fill="#514a55"
+            style={{ transform: rightCover ? 'translateY(0)' : 'translateY(-40px)', transition: shutterT }} />
+        </g>
 
-        {/* nose + mouth */}
-        <path d="M103 136 Q110 133 117 136 Q113 145 110 147 Q107 145 103 136 Z" fill={accent} />
-        <path d="M110 147 Q104 154 99 148 M110 147 Q116 154 121 148" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeLinecap="round" />
-
-        {/* paws — rise to cover the eyes while typing */}
-        <motion.g animate={{ y: pawY }} transition={{ type: 'spring', stiffness: 240, damping: 20 }}>
-          {[84, 136].map((cx) => (
-            <g key={cx}>
-              <ellipse cx={cx} cy={110} rx={28} ry={24} fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" />
-              <g fill={accent} opacity="0.5">
-                <ellipse cx={cx} cy={101} rx={4} ry={5} />
-                <ellipse cx={cx - 11} cy={106} rx={3.4} ry={4.4} />
-                <ellipse cx={cx + 11} cy={106} rx={3.4} ry={4.4} />
-              </g>
-            </g>
-          ))}
-        </motion.g>
-      </motion.g>
-    </motion.svg>
+        {/* scan beam + label */}
+        <motion.rect x="40" y="114" width="80" height="3" rx="1.5" fill={accent}
+          animate={reduced ? undefined : { opacity: [0.35, 0.9, 0.35], y: [0, 5, 0] }}
+          transition={reduced ? undefined : { duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ opacity: 0.5 }} />
+        <text x="80" y="124" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="7" fontWeight="700" letterSpacing="1.5" fill="#6b6470">ATS</text>
+      </svg>
+    </motion.div>
   );
 }
 
@@ -271,44 +192,63 @@ export function PortfolioPasswordGate({
     onSubmit(value);
   }, [canSubmit, value, onSubmit]);
 
-  const covered = focused || value.length > 0;
+  // Left shutter covers while typing AND while revealed; right shutter covers only
+  // during a full cover — so revealing the password leaves one lens open (a peek).
+  const active = focused || value.length > 0;
+  const leftCover = active || revealed;
+  const rightCover = active && !revealed;
 
   return (
     <div className="relative z-[1] min-h-[100dvh] flex items-center justify-center p-6 overflow-hidden">
       <AnimatedBackdrop accent={accentRgb} reduced={reduced} />
 
       <motion.div
-        initial={{ opacity: 0, y: 28, scale: 0.96 }}
+        initial={{ opacity: 0, y: 26, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-sm"
+        className="relative w-full"
+        style={{ maxWidth: 420 }}
       >
-        {/* glow ring behind the card */}
         <div
-          className="absolute -inset-px rounded-3xl opacity-70"
-          style={{ background: `linear-gradient(135deg, ${rgba(accentRgb, 0.55)}, transparent 55%)`, filter: 'blur(14px)' }}
-        />
-        <div
-          className="relative rounded-3xl p-8 text-center space-y-6 backdrop-blur-xl"
+          className="relative overflow-hidden"
           style={{
-            background: 'rgba(15,15,22,0.72)',
-            border: `1px solid ${rgba(accentRgb, 0.25)}`,
-            boxShadow: `0 30px 90px -30px ${rgba(accentRgb, 0.5)}, 0 8px 30px rgba(0,0,0,0.5)`,
+            borderRadius: 28,
+            padding: '38px 34px 30px',
+            border: '1px solid rgba(255,255,255,0.07)',
+            boxShadow: '0 40px 80px -28px rgba(20,8,8,0.7)',
+            background: `radial-gradient(ellipse 70% 55% at 0% 0%, ${rgba(accentRgb, 0.5)}, transparent 55%), radial-gradient(ellipse 70% 60% at 100% 100%, ${rgba(accentRgb, 0.42)}, transparent 55%), #140d10`,
           }}
         >
-          <PeekingCat accent={accent} covered={covered} peeking={revealed} error={hasError} reduced={reduced} />
-
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Protected Portfolio</h1>
-            <p className="text-sm text-white/55 leading-relaxed">
-              {hasError
-                ? 'Hmm, that password didn’t work. Want to try again?'
-                : 'This portfolio is private. Enter the password and I’ll let you in.'}
-            </p>
+          {/* Protected pill */}
+          <div
+            className="mx-auto mb-[22px] flex w-fit items-center justify-center gap-[7px] rounded-full px-[14px] py-[6px]"
+            style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', font: '600 0.68rem/1 Inter, system-ui, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#e6b3b6' }}
+          >
+            <span className="block w-[6px] h-[6px] rounded-full" style={{ background: accent, boxShadow: `0 0 8px ${accent}` }} />
+            Protected
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="relative">
+          <div className="text-center" style={{ font: '800 1.7rem/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em', color: '#fbf6f3' }}>
+            Protected Portfolio
+          </div>
+          <div className="text-center mx-auto" style={{ font: '400 0.9rem/1.5 Inter, system-ui, sans-serif', color: '#b9aeb0', margin: '10px auto 6px', maxWidth: 300 }}>
+            {hasError ? 'That password didn’t match — want to try again?' : 'This portfolio is private. Enter the password and I’ll let you in.'}
+          </div>
+
+          <ScoutMascot accent={accent} leftCover={leftCover} rightCover={rightCover} reduced={reduced} />
+
+          <form onSubmit={handleSubmit}>
+            {/* input row */}
+            <div
+              className="flex items-center gap-[6px]"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${focused ? rgba(accentRgb, 0.6) : 'rgba(255,255,255,0.12)'}`,
+                borderRadius: 16, padding: '0 8px 0 18px', height: 56,
+                boxShadow: focused ? `0 0 0 3px ${rgba(accentRgb, 0.18)}` : 'none',
+                transition: 'border-color .18s, box-shadow .18s',
+              }}
+            >
               <input
                 type={revealed ? 'text' : 'password'}
                 value={value}
@@ -318,57 +258,59 @@ export function PortfolioPasswordGate({
                 placeholder="Enter password"
                 autoFocus
                 autoComplete="current-password"
-                className="w-full pl-4 pr-11 py-3 rounded-2xl bg-white/[0.06] text-white placeholder-white/30 text-sm outline-none transition-all duration-200"
-                style={{
-                  border: `1px solid ${focused ? rgba(accentRgb, 0.6) : 'rgba(255,255,255,0.14)'}`,
-                  boxShadow: focused ? `0 0 0 4px ${rgba(accentRgb, 0.18)}` : 'none',
-                }}
+                className="flex-1 bg-transparent border-none outline-none"
+                style={{ color: '#fbf6f3', font: '400 1rem Inter, system-ui, sans-serif' }}
               />
               <button
                 type="button"
                 onClick={() => setRevealed((r) => !r)}
                 aria-label={revealed ? 'Hide password' : 'Show password'}
                 tabIndex={-1}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl text-white/45 hover:text-white/80 transition-colors"
+                className="flex-none grid place-items-center rounded-[11px] border-none cursor-pointer bg-transparent"
+                style={{ width: 40, height: 40, color: revealed ? '#e98a90' : '#8d8488', transition: 'color .18s' }}
               >
-                {revealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {revealed ? <EyeOff className="w-[21px] h-[21px]" /> : <Eye className="w-[21px] h-[21px]" />}
               </button>
             </div>
 
-            <AnimatePresence>
-              {hasError && (
-                <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="text-sm text-red-400"
-                >
-                  Incorrect password. Please try again.
-                </motion.p>
-              )}
-            </AnimatePresence>
+            {hasError && (
+              <div className="flex items-center gap-[6px]" style={{ marginTop: 10, font: '500 0.78rem/1.3 Inter, system-ui, sans-serif', color: '#ff8d92' }}>
+                <AlertCircle className="w-[13px] h-[13px] shrink-0" />
+                That password didn’t match. Try again.
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={!canSubmit}
-              className="group w-full py-3 rounded-2xl text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{ background: accent, boxShadow: `0 10px 30px -8px ${rgba(accentRgb, 0.7)}` }}
+              className="w-full border-none cursor-pointer text-white flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                height: 54, marginTop: 16, borderRadius: 16, font: '600 1rem Inter, system-ui, sans-serif',
+                background: `linear-gradient(180deg, ${accent}, color-mix(in srgb, ${accent} 62%, #000))`,
+                boxShadow: `0 8px 22px -6px ${rgba(accentRgb, 0.6)}`, transition: 'transform .12s',
+              }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
               {isChecking ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span className="w-4 h-4 rounded-full animate-spin" style={{ border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff' }} />
                   Checking…
                 </>
               ) : (
                 <>
                   Unlock Portfolio
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="w-[18px] h-[18px]" />
                 </>
               )}
             </button>
           </form>
 
-          <p className="text-[11px] text-white/30">🔒 End-to-end private · powered by WiseResume</p>
+          <div className="flex items-center justify-center gap-[7px]" style={{ marginTop: 18, font: '500 0.74rem Inter, system-ui, sans-serif', color: '#8d8488' }}>
+            <Lock className="w-[13px] h-[13px]" style={{ color: '#c9a23a' }} />
+            End-to-end private · powered by WiseResume
+          </div>
         </div>
       </motion.div>
     </div>
