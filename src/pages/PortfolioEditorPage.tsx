@@ -5,7 +5,8 @@ import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
-import { useResumes, parseDbJson, type DatabaseResume } from '@/hooks/useResumes';
+import { useResumes, type DatabaseResume } from '@/hooks/useResumes';
+import { deriveResumeCompletion, PORTFOLIO_SKILL_THRESHOLD } from '@/lib/portfolioCompletion';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useProfile';
@@ -1212,20 +1213,15 @@ export default function PortfolioEditorPage() {
 
   // -- Portfolio Strength ----------------------------------------------------
   const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
-  // Resume sections arrive from Appwrite as JSON-encoded strings (see
-  // DatabaseResume / resumeDataToDb — `skills`/`experience` are stored via
-  // JSON.stringify). They MUST be parsed before any Array.isArray/length
-  // check: testing Array.isArray on the raw string is always false, which
-  // previously made "Skills" and "Work experience" read as missing on the
-  // completion bar even when the resume was fully populated.
-  const resumeSkills = parseDbJson<unknown[]>(selectedResume?.skills, []);
-  const resumeExperience = parseDbJson<unknown[]>(selectedResume?.experience, []);
-  const hasExperience = Array.isArray(resumeExperience) && resumeExperience.length >= 1;
-  // Live skill count (capped at the threshold for messaging clarity).  Driving
-  // the tip text from this lets the strength card show "1 more skill needed"
-  // immediately as the user edits, instead of only after they save.
-  const skillsCount = Array.isArray(resumeSkills) ? resumeSkills.length : 0;
-  const SKILL_THRESHOLD = 3;
+  // Resume `skills`/`experience` arrive from Appwrite as JSON-encoded strings
+  // (resumeDataToDb stores them via JSON.stringify), so deriveResumeCompletion
+  // parses them before counting. Doing Array.isArray on the raw string is
+  // always false, which previously made "Skills" and "Work experience" read as
+  // missing on the completion bar even when the resume was fully populated.
+  const { hasExperience, hasSkills, skillsCount } = deriveResumeCompletion(selectedResume);
+  // Live skill count drives the tip text so the strength card can show
+  // "1 more skill needed" immediately as the user edits, not only after save.
+  const SKILL_THRESHOLD = PORTFOLIO_SKILL_THRESHOLD;
   const skillsRemaining = Math.max(0, SKILL_THRESHOLD - skillsCount);
   const skillsTip =
     skillsRemaining > 0
@@ -1249,7 +1245,7 @@ export default function PortfolioEditorPage() {
     bio,
     avatarUrl: profile?.avatarUrl,
     hasExperience,
-    hasSkills: skillsCount >= 3,
+    hasSkills,
     hasSocialLink: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail),
     hasProjects: caseStudies.length > 0 || services.length > 0,
     hasTestimonials: testimonials.length > 0,
