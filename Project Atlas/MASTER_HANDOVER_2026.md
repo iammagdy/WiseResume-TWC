@@ -2,6 +2,27 @@
 
 ---
 
+## Session Log - 2026-06-23 (Profiles Portfolio Schema Fix — branch fix/profiles-portfolio-schema)
+
+### Overview
+Production portfolio save/publish was failing with "a portfolio field is misconfigured"
+(Appwrite "Unknown attribute"). Root cause: the live `profiles` collection was missing
+~18 portfolio columns the editor writes (and `useProfile.LIVE_PROFILE_ATTRIBUTES` whitelists).
+**Pre-existing** (commit `1d9765c7`), unrelated to the password-persistence work; profiles
+schema was never touched by PR #107/#108.
+
+### Fix
+`scripts/setup_profiles_portfolio_schema.cjs` (idempotent) adds the 18 missing attributes
+(no permission change, no data mutation), wired into `deploy_hubs.cjs` so a narrow
+`--only=portfolio-settings` deploy applies it with the approved deploy key. No frontend change.
+Detail: `Project Atlas/Portfolio Profiles Schema Fix 2026-06-23/PROFILES_SCHEMA_FIX_REPORT.md`.
+
+### Status
+Branch + PR ready; apply gated on owner approval (production schema mutation on the core
+`profiles` collection — additive/idempotent/backward-compatible).
+
+---
+
 ## Session Log - 2026-06-23 (Portfolio Password Persistence — PR #108)
 
 ### Overview

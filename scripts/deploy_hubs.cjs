@@ -762,6 +762,12 @@ async function syncVariablesForHubs(hubIds) {
         // schema + function together (matching the ai_credits / jobs precedent).
         console.log('\nEnsuring portfolio_settings schema...');
         execSync('node scripts/setup_portfolio_settings_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+        // Also ensure the `profiles` portfolio columns the editor writes (style,
+        // layout, extras, meta, contact, etc.). These were missing in production,
+        // causing portfolio save/publish to fail with "Unknown attribute". Adds
+        // only missing attributes; never changes permissions or existing data.
+        console.log('\nEnsuring profiles portfolio schema...');
+        execSync('node scripts/setup_profiles_portfolio_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
     }
 }
 
