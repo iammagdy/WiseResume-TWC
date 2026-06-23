@@ -71,3 +71,27 @@ export function buildActivityFeedFromLog(
     };
   });
 }
+
+/**
+ * Merge the server-backed activity feed (durable, account-scoped source of truth)
+ * with the local optimistic overlay (very recent actions not yet reflected in the
+ * server query). Server items win on collisions, deduped by label + resumeId so an
+ * action that already has a durable record isn't shown twice. No fabricated data —
+ * every item originates from a real server document or a real local user action.
+ */
+export function mergeActivityItems(
+  serverItems: ActivityFeedItem[],
+  localItems: ActivityFeedItem[],
+  limit = 6,
+): ActivityFeedItem[] {
+  const seen = new Set(serverItems.map((s) => `${s.label}|${s.resumeId ?? ''}`));
+  const merged = [...serverItems];
+  for (const item of localItems) {
+    const key = `${item.label}|${item.resumeId ?? ''}`;
+    if (!seen.has(key)) {
+      merged.push(item);
+      seen.add(key);
+    }
+  }
+  return merged.sort((a, b) => b.sortKey - a.sortKey).slice(0, limit);
+}

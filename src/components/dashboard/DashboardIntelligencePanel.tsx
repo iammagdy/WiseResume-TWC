@@ -14,7 +14,8 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { DatabaseResume } from '@/hooks/useResumes';
-import { buildActivityFeedFromLog } from '@/components/dashboard/dashboardActivityLabels';
+import { buildActivityFeedFromLog, mergeActivityItems } from '@/components/dashboard/dashboardActivityLabels';
+import { useActivityFeed } from '@/hooks/useActivityFeed';
 import {
   buildIntelligenceSignals,
   buildIntelligenceQuickActions,
@@ -79,9 +80,10 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
   );
 
   const activityEvents = useWorkspaceActivityStore((s) => s.events);
+  const { data: serverActivity = [], isLoading: activityLoading } = useActivityFeed(6);
   const activityItems = useMemo(
-    () => buildActivityFeedFromLog(activityEvents, 6),
-    [activityEvents],
+    () => mergeActivityItems(serverActivity, buildActivityFeedFromLog(activityEvents, 6), 6),
+    [serverActivity, activityEvents],
   );
 
   const openDialog = useCallback(
@@ -194,7 +196,18 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
           <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground mb-2">
             Recent Activity
           </p>
-          {activityItems.length > 0 ? (
+          {activityLoading && activityItems.length === 0 ? (
+            <div className="space-y-1.5" aria-hidden>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="dashboard-ai-rail__activity">
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="h-3 w-2/3 rounded bg-muted/60 animate-pulse" />
+                    <div className="h-2.5 w-1/2 rounded bg-muted/40 animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activityItems.length > 0 ? (
             <div className="space-y-1.5">
               {activityItems.map((item) => {
                 const row = (
