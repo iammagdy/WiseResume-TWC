@@ -8,6 +8,24 @@ import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
+/**
+ * Exported for tests. A sync conflict means the server's current `$updatedAt`
+ * is newer than the baseline `$updatedAt` the offline edit started from — i.e.
+ * someone saved elsewhere after we loaded. Comparing against the baseline (not
+ * the client wall-clock queue time) makes this immune to device clock skew.
+ * Legacy pending entries without a baseline fall back to the queue timestamp.
+ */
+export function isOfflineSyncConflict(
+  serverUpdatedAt: string,
+  change: { timestamp: number; baseUpdatedAt?: string | null },
+): boolean {
+  const serverTime = new Date(serverUpdatedAt).getTime();
+  const baseTime = change.baseUpdatedAt ? new Date(change.baseUpdatedAt).getTime() : null;
+  return baseTime != null && !Number.isNaN(baseTime)
+    ? serverTime > baseTime
+    : serverTime > change.timestamp;
+}
+
 export function useOfflineSync() {
   const { isOnline } = useNetworkStatus();
   const prevOnline = useRef(isOnline);
@@ -40,10 +58,15 @@ export function useOfflineSync() {
         continue;
       }
 
-      // 2. Conflict detection: if server is newer, discard local change and notify user.
-      //    Strategy: server-wins (last-write-wins by server timestamp).
-      const serverTime = new Date(serverDoc.$updatedAt as string).getTime();
-      if (serverTime > change.timestamp) {
+      // 2. Conflict detection: a real conflict means the server advanced PAST the
+      //    baseline this offline edit started from (someone saved elsewhere). We
+      //    compare the server's current $updatedAt against the baseline $updatedAt
+      //    captured when the edit was made — NOT the client wall-clock queue time,
+      //    which device clock skew could make wrongly look "older" and silently
+      //    discard valid offline work. Legacy entries without a baseline fall back
+      //    to the previous comparison.
+      const isConflict = isOfflineSyncConflict(serverDoc.$updatedAt as string, change);
+      if (isConflict) {
         removePendingChange(change.resumeId);
         queryClient.invalidateQueries({ queryKey: ['resume', change.resumeId] });
         toast.warning(
