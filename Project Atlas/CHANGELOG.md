@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-22
+**Last verified:** 2026-06-23
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,38 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-23 - Portfolio visitor count + completion-bar fix (PR #119, branch `claude/clever-volta-cnv3wt`)
+
+Two long-standing portfolio bugs, both root-caused against the **live Appwrite
+schema/data** before fixing:
+
+- **Visitor count stuck at 0.** The visit beacon (`api/track-portfolio-view.ts`,
+  `server/index.ts`) writes `username, ref, sections_viewed, sections_timing,
+  time_spent_seconds, device, ab_variant`, and the dashboard reads them via
+  `Query.equal('username', …)`. The live `main/portfolio_visits` collection had a
+  completely unrelated column set (`user_id, portfolio_id, referrer, country,
+  device_type, page, utm_source`) and **zero indexes** — so every fire-and-forget
+  write failed silently with "Unknown attribute." The table had **0 rows ever**.
+  Fix: added the missing **optional** attributes + a `idx_pv_username` index
+  (idempotent `scripts/setup_portfolio_visits_schema.cjs`, same pattern as the
+  `portfolio_interactions` repair). **Applied to production and verified
+  end-to-end** (write succeeds → dashboard query returns it → test row deleted).
+  Real visits record going forward, given the Vercel `APPWRITE_API_KEY` is set.
+
+- **Completion bar marked Skills/Work experience as missing when filled.**
+  `useResumes()` returns raw Appwrite docs where `skills`/`experience` are
+  JSON-encoded strings (`resumeDataToDb` → `JSON.stringify`), but the completion
+  logic called `Array.isArray()` on the raw string (always false). Fix: new
+  tested helper `deriveResumeCompletion` (`src/lib/portfolioCompletion.ts`) parses
+  via `parseDbJson` before counting; wired into `PortfolioEditorPage`. Regression
+  test added.
+
+Unrelated red checks on the PR: `AI Gateway Hub` build (pre-existing
+`providerRootDirectory` auto-build issue, see PR #117 notes — this PR changes no
+function build inputs) and `TestSprite "No tests detected"` (standing repo gate).
 
 ---
 

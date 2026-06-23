@@ -2,6 +2,51 @@
 
 ---
 
+## Session Log - 2026-06-23 (Portfolio visitor count + completion-bar fix — branch claude/clever-volta-cnv3wt, PR #119)
+
+### Overview
+Two owner-reported portfolio bugs, both root-caused against the **live Appwrite
+schema/data** before any code was changed:
+
+- **Visitor count stuck at 0** (Visitors tab always "No visitors yet"). The visit
+  beacon (`api/track-portfolio-view.ts` + `server/index.ts` mirror) writes
+  `username, ref, sections_viewed, sections_timing, time_spent_seconds, device,
+  ab_variant`; the dashboard (`usePortfolioAnalytics`) reads them via
+  `Query.equal('username', …)`. The live `main/portfolio_visits` collection had a
+  completely different column set (`user_id, portfolio_id, referrer, country,
+  device_type, page, utm_source`) and **zero indexes** → every fire-and-forget
+  write failed silently with "Unknown attribute." **The table had 0 rows ever.**
+- **Completion bar** flagged "Work experience" and "Skills" as missing even when
+  populated, because `useResumes()` returns raw Appwrite docs where
+  `skills`/`experience` are **JSON strings** (`resumeDataToDb` → `JSON.stringify`)
+  and the logic called `Array.isArray()` on the raw string (always false).
+
+### What shipped
+- **DB migration (applied to production & verified):** added the missing optional
+  attributes to `portfolio_visits` + a `idx_pv_username` index via the idempotent
+  `scripts/setup_portfolio_visits_schema.cjs`. Verified end-to-end (beacon-shaped
+  write succeeds → dashboard query returns it → verification row deleted; table
+  clean). This fix is **live now, independent of merge**.
+- **Code fix:** new tested helper `src/lib/portfolioCompletion.ts`
+  (`deriveResumeCompletion`) parses with `parseDbJson` before counting; wired into
+  `PortfolioEditorPage`; `parseDbJson` exported from `useResumes.ts`. Regression
+  test `src/lib/__tests__/portfolioCompletion.test.ts` (4 cases, passing). Ships on
+  merge via Vercel.
+
+### Status
+PR #119 merged to `main`. Frontend ships via Vercel on merge; the visitor schema
+fix is already live in Appwrite.
+Detail card: `Project Atlas/01-Currently Implemented/stability-fixes/portfolio-visitor-count-and-completion-fix-2026-06-23.md`.
+**Open items:** (1) for visits to record in production the Vercel deployment must
+have `APPWRITE_API_KEY` + `APPWRITE_PROJECT_ID` set (same key "I'm Interested"
+uses) — if visits still read 0 after real traffic, check that first.
+**Unrelated red checks:** `AI Gateway Hub` build failure is the pre-existing
+`ai-gateway` auto-build issue (empty `providerRootDirectory`, see PR #117 entry
+below) — this PR changes no function build inputs; `TestSprite "No tests detected"`
+is the standing repo gate.
+
+---
+
 ## Session Log - 2026-06-23 (Auth Redesign + Vercel Preview Host Fix + AI Gateway VCS Disconnect — branch claude/happy-bardeen-jsqvpj, PR #117)
 
 ### Overview
