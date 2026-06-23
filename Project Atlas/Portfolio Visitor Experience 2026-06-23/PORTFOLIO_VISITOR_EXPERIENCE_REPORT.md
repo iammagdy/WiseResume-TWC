@@ -12,14 +12,21 @@
 `ask-portfolio` call 500'd ("Could not get a response").
 **Fix:** switched to the positional signature. (`appwrite-hubs/public-share/src/main.js`)
 
-## 2. "I'm Interested" — "Could not send interest"
-**Root cause:** the `portfolio_interactions` collection had only a `user_id` attribute, but
+## 2. "I'm Interested" — "Could not send interest" (TWO causes)
+**Cause A (fixed):** the `portfolio_interactions` collection had only a `user_id` attribute, but
 `api/portfolio-interest.ts` writes `token` / `portfolio_username` / `interaction_type` /
 `referrer_hostname` and looks up by `token` → "Unknown attribute" → 500. Same schema-drift class
-as the earlier profiles bug.
-**Fix:** `scripts/setup_portfolio_interactions_schema.cjs` (idempotent) adds the 4 attributes +
-a `token` key index; wired into the public-share deploy block. Additive only; no permission/data
-changes.
+as the earlier profiles bug. **Fix:** `scripts/setup_portfolio_interactions_schema.cjs`
+(idempotent) adds the 4 attributes + a `token` key index; wired into the public-share deploy block.
+Additive only. ✅ deployed & verified (attributes `available`).
+
+**Cause B (OWNER ACTION):** post-deploy testing of the live endpoint returned
+`{"error":"config_error","message":"Portfolio interest API is not configured."}` — the Vercel
+serverless function is missing **`APPWRITE_API_KEY`** (it returns config_error before any DB call).
+The same gap affects the other `api/*.ts` serverless functions (e.g. `track-portfolio-view`,
+`public-portfolio` legacy path). ⚠️ **Set `APPWRITE_API_KEY` (and confirm `APPWRITE_PROJECT_ID`)
+in Vercel → Project → Settings → Environment Variables (Production)** — a server API key, so the
+owner must enter it. Interest works once both Cause A (done) and Cause B (env var) are resolved.
 
 ## 3. Contact form — "Security check required" with no widget
 **Root cause:** ai-gateway requires a Cloudflare Turnstile token for anonymous senders (else it
@@ -59,6 +66,13 @@ New `src/components/portfolio/public/PortfolioPasswordGate.tsx`:
   schema). Not `target=all`.
 - Frontend (gate, launcher, footer, contact msg): Vercel auto-deploy on merge.
 
+## Owner actions (Vercel env vars — can't be set by the assistant)
+1. **`APPWRITE_API_KEY`** (+ confirm `APPWRITE_PROJECT_ID`) → unblocks "I'm Interested" (and the
+   analytics beacon).
+2. **`VITE_TURNSTILE_SITE_KEY`** → unblocks the contact form (pairs with Appwrite
+   `TURNSTILE_SECRET_KEY`).
+
 ## Status
-`READY` — backend deploy + live verification, then merge. Contact form pending the owner's
-`VITE_TURNSTILE_SITE_KEY`.
+Chat ✅ fixed & verified live. Interest schema ✅ fixed & deployed (needs owner env var to fully
+work). Password gate / launcher / footer ✅ built & screenshot-verified (ship via Vercel on merge).
+Contact form ⚠️ pending owner env var.
