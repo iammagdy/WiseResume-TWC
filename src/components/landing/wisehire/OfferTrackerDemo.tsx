@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { CheckCircle2, Clock, Send, TrendingUp } from 'lucide-react';
 
 type OfferStatus = 'pending' | 'sent' | 'accepted' | 'negotiating';
@@ -35,10 +36,12 @@ function avatarBg(i: number) {
 }
 
 export function OfferTrackerDemo() {
+  const prefersReduced = useReducedMotion();
   const [offers, setOffers] = useState(INITIAL_OFFERS);
   const [animId, setAnimId] = useState<number | null>(null);
 
   useEffect(() => {
+    if (prefersReduced) return;
     let idx = 0;
     const interval = setInterval(() => {
       const offer = INITIAL_OFFERS[idx % INITIAL_OFFERS.length];
@@ -53,7 +56,7 @@ export function OfferTrackerDemo() {
     }, 1800);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [prefersReduced]);
 
   const accepted = offers.filter((o) => o.status === 'accepted').length;
 
@@ -81,7 +84,7 @@ export function OfferTrackerDemo() {
       >
         <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Offer Tracker</span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: '#34D399', fontWeight: 600, background: 'rgba(52,211,153,0.12)', borderRadius: 6, padding: '2px 7px' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#34D399', fontWeight: 600, background: 'rgba(52,211,153,0.12)', borderRadius: 6, padding: '2px 7px' }}>
           {accepted} accepted
         </span>
       </div>
@@ -120,23 +123,24 @@ export function OfferTrackerDemo() {
                   fontWeight: 800,
                   flexShrink: 0,
                 }}
+              aria-hidden="true"
               >
                 {offer.initials}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--lp-text)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {offer.name}
                 </p>
-                <p style={{ fontSize: '0.6rem', color: 'var(--lp-text-muted)' }}>{offer.role}</p>
+                <p style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)' }}>{offer.role}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--lp-text)' }}>{offer.salary}</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>{offer.salary}</span>
                 <span
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 3,
-                    fontSize: '0.58rem',
+                    fontSize: '0.68rem',
                     fontWeight: 600,
                     color: cfg.color,
                     background: cfg.bg,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useReducedMotion } from 'framer-motion';
 
 const COLUMNS = [
   { label: 'Applied', color: 'rgba(148,163,184,0.6)', bg: 'rgba(148,163,184,0.08)' },
@@ -37,10 +38,13 @@ function avatarBg(i: number) {
 }
 
 export function PipelineDemo() {
+  const prefersReduced = useReducedMotion();
   const [cards, setCards] = useState(INITIAL_CARDS);
   const [animId, setAnimId] = useState<number | null>(null);
 
   useEffect(() => {
+    if (prefersReduced) return;
+
     const cycle = () => {
       setCards((prev) => {
         const toMove = prev.find((c) => c.col < 3);
@@ -59,7 +63,7 @@ export function PipelineDemo() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [prefersReduced]);
 
   const colCards = (col: number) => cards.filter((c) => c.col === col);
 
@@ -86,7 +90,7 @@ export function PipelineDemo() {
         }}
       >
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Pipeline Board</span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: 'var(--lp-text-muted)' }}>7 candidates</span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--lp-text-muted)' }}>7 candidates</span>
       </div>
 
       {/* Kanban columns */}
@@ -111,13 +115,13 @@ export function PipelineDemo() {
                   flexShrink: 0,
                 }}
               />
-              <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 {col.label}
               </span>
               <span
                 style={{
                   marginLeft: 'auto',
-                  fontSize: '0.58rem',
+                  fontSize: '0.68rem',
                   fontWeight: 600,
                   color: col.color,
                   background: col.bg,
@@ -158,18 +162,19 @@ export function PipelineDemo() {
                         fontWeight: 800,
                         flexShrink: 0,
                       }}
+                      aria-hidden="true"
                     >
                       {card.initials}
                     </div>
-                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--lp-text)', lineHeight: 1.2 }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--lp-text)', lineHeight: 1.2 }}>
                       {card.name}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.57rem', color: 'var(--lp-text-muted)' }}>{card.role}</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--lp-text-muted)' }}>{card.role}</span>
                     <span
                       style={{
-                        fontSize: '0.57rem',
+                        fontSize: '0.68rem',
                         fontWeight: 700,
                         color: scoreColor(card.score),
                         background: `${scoreColor(card.score)}18`,

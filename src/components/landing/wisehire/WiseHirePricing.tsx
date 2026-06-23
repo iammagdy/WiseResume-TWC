@@ -26,7 +26,7 @@ function makeItemVariant(i: number, reduced: boolean | null) {
     hidden: { opacity: 0, x: dir.x, y: dir.y },
     visible: {
       opacity: 1, x: 0, y: 0,
-      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
     },
   };
 }
@@ -103,7 +103,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
-    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } };
 
   return (
     <section
@@ -125,19 +125,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
           whileInView="visible"
           viewport={{ once: true, amount: 0.25 }}
         >
-          <p
-            style={{
-              fontSize: '0.75rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--lp-eyebrow)',
-              fontWeight: 600,
-              marginBottom: '0.75rem',
-              transition: 'color 0.35s ease',
-            }}
-          >
-            Pricing
-          </p>
           <h2
             className="font-bold leading-tight"
             style={{
@@ -201,7 +188,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                   border: '1px solid var(--lp-border-card)',
                   borderRadius: 99,
                   padding: '3px 10px',
-                  fontSize: '0.65rem',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
                   color: 'var(--lp-eyebrow)',
                   whiteSpace: 'nowrap',
@@ -231,11 +218,11 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 4,
-                    background: '#1D4ED8',
+                    background: 'var(--lp-eyebrow)',
                     color: '#fff',
                     borderRadius: 99,
                     padding: '2px 9px',
-                    fontSize: '0.7rem',
+                    fontSize: '0.72rem',
                     fontWeight: 700,
                     letterSpacing: '0.04em',
                     marginBottom: 10,
@@ -267,7 +254,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
 
               <p
                 style={{
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   color: 'var(--lp-text-muted)',
                   lineHeight: 1.5,
                   marginBottom: 18,
@@ -297,6 +284,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
               {tier.name === 'Enterprise' ? (
                 <Link
                   to="/enterprise"
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--lp-eyebrow)]"
                   style={{
                     display: 'block',
                     width: '100%',
@@ -318,20 +306,22 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
               ) : (
                 <motion.button
                   onClick={onOpenWaitlist}
+                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--lp-eyebrow)]"
                   style={{
                     width: '100%',
                     padding: '10px 0',
+                    minHeight: 44,
                     borderRadius: 10,
                     fontSize: '0.8rem',
                     fontWeight: 700,
                     cursor: 'pointer',
-                    background: tier.highlight ? '#1D4ED8' : 'transparent',
+                    background: tier.highlight ? 'var(--lp-eyebrow)' : 'transparent',
                     color: tier.highlight ? '#fff' : 'var(--lp-eyebrow)',
                     border: tier.highlight ? 'none' : '1.5px solid rgba(29,78,216,0.35)',
                   }}
                   whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
                   whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 >
                   Join the Waitlist
                 </motion.button>

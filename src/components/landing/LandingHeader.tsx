@@ -155,7 +155,7 @@ export function LandingHeader({
                       className="text-xs font-semibold"
                       style={{
                         background: mode === 'wisehire' ? 'rgba(29,78,216,0.15)' : 'rgba(158,27,34,0.15)',
-                        color: mode === 'wisehire' ? '#3B82F6' : '#E53E3E',
+                        color: mode === 'wisehire' ? '#3B82F6' : 'var(--lp-eyebrow)',
                       }}
                     >
                       {getInitials() ?? <User className="w-3.5 h-3.5" />}

@@ -27,7 +27,7 @@ function makeItemVariant(i: number, reduced: boolean | null) {
     hidden: { opacity: 0, x: dir.x, y: dir.y },
     visible: {
       opacity: 1, x: 0, y: 0,
-      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
     },
   };
 }
@@ -74,7 +74,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
-    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } };
 
   return (
     <section
@@ -97,19 +97,6 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
           whileInView="visible"
           viewport={{ once: true, amount: 0.25 }}
         >
-          <p
-            style={{
-              fontSize: '0.75rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--lp-eyebrow)',
-              fontWeight: 600,
-              marginBottom: '0.75rem',
-              transition: 'color 0.35s ease',
-            }}
-          >
-            Platform pillars
-          </p>
           <h2
             className="font-bold leading-tight"
             style={{
@@ -161,7 +148,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
                   <div className="flex-1 min-w-0">
                     <div
                       style={{
-                        fontSize: '0.65rem',
+                        fontSize: '0.75rem',
                         fontWeight: 700,
                         letterSpacing: '0.08em',
                         color: 'var(--lp-eyebrow)',
@@ -178,7 +165,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
                       {pillar.title}
                     </h3>
                     <p
-                      className="text-xs leading-relaxed"
+                      className="text-sm leading-relaxed"
                       style={{ color: 'var(--lp-text-muted)', lineHeight: 1.6, transition: 'color 0.35s ease' }}
                     >
                       {pillar.desc}
@@ -202,7 +189,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
             onClick={onOpenWaitlist}
             whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
             whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
             <div
               style={{
@@ -219,11 +206,11 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
             </div>
             <div>
               <p className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>Get early access</p>
-              <p className="text-xs" style={{ color: 'var(--lp-text-muted)' }}>Join the waitlist and be first to try WiseHire</p>
+              <p className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>Join the waitlist and be first to try WiseHire</p>
             </div>
             <span
               style={{
-                background: '#1D4ED8',
+                background: 'var(--lp-eyebrow)',
                 color: '#fff',
                 borderRadius: 99,
                 padding: '7px 18px',

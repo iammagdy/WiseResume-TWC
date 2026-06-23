@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { Brain, CheckCircle2, AlertTriangle, MessageSquare } from 'lucide-react';
 
 const STRENGTHS = [
@@ -14,16 +15,21 @@ const CONCERNS = [
 const INTERVIEW_Q = 'Describe a time you balanced technical debt against a shipping deadline.';
 
 export function BriefDemo() {
-  const [score, setScore] = useState(0);
+  const prefersReduced = useReducedMotion();
+  const [score, setScore] = useState(prefersReduced ? 87 : 0);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (prefersReduced) {
+      setScore(87);
+      return;
+    }
     const t1 = setTimeout(() => setVisible(true), 400);
     return () => clearTimeout(t1);
-  }, []);
+  }, [prefersReduced]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || prefersReduced) return;
     let cancelled = false;
 
     const animate = () => {
@@ -51,7 +57,7 @@ export function BriefDemo() {
 
     animate();
     return () => { cancelled = true; };
-  }, [visible]);
+  }, [visible, prefersReduced]);
 
   const radius = 32;
   const circ = 2 * Math.PI * radius;
@@ -87,7 +93,7 @@ export function BriefDemo() {
         <span
           style={{
             marginLeft: 'auto',
-            fontSize: '0.62rem',
+            fontSize: '0.72rem',
             fontWeight: 600,
             background: 'rgba(29,78,216,0.14)',
             color: '#3B82F6',
@@ -121,7 +127,7 @@ export function BriefDemo() {
           </div>
           <div>
             <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--lp-text)', lineHeight: 1.2 }}>Sarah Chen</p>
-            <p style={{ fontSize: '0.68rem', color: 'var(--lp-text-muted)' }}>6 yrs exp · London, UK</p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)' }}>6 yrs exp · London, UK</p>
           </div>
 
           {/* Score dial */}
@@ -148,7 +154,7 @@ export function BriefDemo() {
                 /100
               </text>
             </svg>
-            <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginTop: -4 }}>Match score</span>
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginTop: -4 }}>Match score</span>
           </div>
         </div>
 
@@ -156,7 +162,7 @@ export function BriefDemo() {
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
             <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22c55e', flexShrink: 0 }} />
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               Strengths
             </span>
           </div>
@@ -164,7 +170,7 @@ export function BriefDemo() {
             {STRENGTHS.map((s) => (
               <li key={s} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                 <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', flexShrink: 0, marginTop: 5 }} />
-                <span style={{ fontSize: '0.68rem', color: 'var(--lp-text)', lineHeight: 1.45 }}>{s}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--lp-text)', lineHeight: 1.45 }}>{s}</span>
               </li>
             ))}
           </ul>
@@ -174,14 +180,14 @@ export function BriefDemo() {
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
             <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#f59e0b', flexShrink: 0 }} />
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               Considerations
             </span>
           </div>
           {CONCERNS.map((c) => (
             <div key={c} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: 5 }} />
-              <span style={{ fontSize: '0.68rem', color: 'var(--lp-text)', lineHeight: 1.45 }}>{c}</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--lp-text)', lineHeight: 1.45 }}>{c}</span>
             </div>
           ))}
         </div>
@@ -197,11 +203,11 @@ export function BriefDemo() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
             <MessageSquare className="w-3 h-3" style={{ color: '#3B82F6', flexShrink: 0 }} />
-            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#3B82F6', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#3B82F6', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               Top interview Q
             </span>
           </div>
-          <p style={{ fontSize: '0.67rem', color: 'var(--lp-text)', lineHeight: 1.5 }}>{INTERVIEW_Q}</p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--lp-text)', lineHeight: 1.5 }}>{INTERVIEW_Q}</p>
         </div>
       </div>
     </div>

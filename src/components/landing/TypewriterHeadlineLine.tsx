@@ -23,7 +23,8 @@ export function TypewriterHeadlineLine({
         {LONGEST_TYPEWRITER_WORD}
       </span>
       <span
-        className="lp-gradient-text block break-words text-center whitespace-normal sm:absolute sm:inset-0 sm:whitespace-nowrap"
+        className="block break-words text-center whitespace-normal sm:absolute sm:inset-0 sm:whitespace-nowrap"
+        style={{ color: 'var(--lp-eyebrow)' }}
       >
         {word || '\u00A0'}
         {showCursor ? <span className="lp-cursor" aria-hidden="true" /> : null}

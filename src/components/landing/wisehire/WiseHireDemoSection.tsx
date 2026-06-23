@@ -106,19 +106,6 @@ export function WiseHireDemoSection() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.25 }}
         >
-          <p
-            style={{
-              fontSize: '0.75rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--lp-eyebrow)',
-              fontWeight: 600,
-              marginBottom: '0.75rem',
-              transition: 'color 0.35s ease',
-            }}
-          >
-            See it in action
-          </p>
           <h2
             className="font-bold leading-tight"
             style={{
@@ -128,7 +115,7 @@ export function WiseHireDemoSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            Watch AI handle <span className="wh-gradient-text">the heavy lifting</span>
+            Watch AI handle <span style={{ color: 'var(--lp-eyebrow)' }}>the heavy lifting</span>
           </h2>
         </motion.div>
         <div

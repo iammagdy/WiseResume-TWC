@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Upload, CheckCircle2 } from 'lucide-react';
 
@@ -28,10 +29,17 @@ function avatarBg(i: number) {
 }
 
 export function BulkScreeningDemo() {
-  const [revealed, setRevealed] = useState(0);
-  const [uploading, setUploading] = useState(true);
+  const prefersReduced = useReducedMotion();
+  const [revealed, setRevealed] = useState(prefersReduced ? CANDIDATES.length : 0);
+  const [uploading, setUploading] = useState(!prefersReduced);
 
   useEffect(() => {
+    if (prefersReduced) {
+      setUploading(false);
+      setRevealed(CANDIDATES.length);
+      return;
+    }
+
     let cancelled = false;
 
     const run = () => {
@@ -66,7 +74,7 @@ export function BulkScreeningDemo() {
       cancelled = true;
       cleanup?.();
     };
-  }, []);
+  }, [prefersReduced]);
 
   return (
     <div
@@ -93,11 +101,11 @@ export function BulkScreeningDemo() {
         <Upload className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Bulk Screening</span>
         {uploading ? (
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.62rem', color: '#3B82F6', fontWeight: 600 }}>
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: '#3B82F6', fontWeight: 600 }}>
             <MiniSpinner size={12} /> Uploading CVs…
           </span>
         ) : (
-          <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: 'var(--lp-text-muted)', fontWeight: 500 }}>
+          <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--lp-text-muted)', fontWeight: 500 }}>
             5 CVs · ranked by AI
           </span>
         )}
@@ -140,7 +148,7 @@ export function BulkScreeningDemo() {
         <div style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#34D399' }} />
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               Ranked results
             </span>
           </div>
@@ -174,17 +182,18 @@ export function BulkScreeningDemo() {
                   fontWeight: 800,
                   flexShrink: 0,
                 }}
+                aria-hidden="true"
               >
                 {c.initials}
               </div>
-              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--lp-text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--lp-text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {c.name}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <div style={{ width: 52, height: 4, borderRadius: 99, background: 'rgba(29,78,216,0.10)', overflow: 'hidden' }}>
                   <div style={{ width: `${c.score}%`, height: '100%', borderRadius: 99, background: scoreColor(c.score), transition: 'width 0.5s ease' }} />
                 </div>
-                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: scoreColor(c.score), minWidth: 22, textAlign: 'right' }}>{c.score}</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: scoreColor(c.score), minWidth: 22, textAlign: 'right' }}>{c.score}</span>
               </div>
             </div>
           ))}

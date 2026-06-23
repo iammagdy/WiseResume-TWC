@@ -26,7 +26,7 @@ function makeItemVariant(i: number, reduced: boolean | null) {
     hidden: { opacity: 0, x: dir.x },
     visible: {
       opacity: 1, x: 0,
-      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
     },
   };
 }
@@ -59,7 +59,7 @@ export function WiseHireTrustSection() {
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
-    : { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+    : { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } };
 
   return (
     <section
@@ -84,19 +84,6 @@ export function WiseHireTrustSection() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.25 }}
         >
-          <p
-            style={{
-              fontSize: '0.75rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--lp-eyebrow)',
-              fontWeight: 600,
-              marginBottom: '0.75rem',
-              transition: 'color 0.35s ease',
-            }}
-          >
-            Why teams choose WiseHire
-          </p>
           <h2
             id="wisehire-trust-heading"
             className="font-bold leading-tight"
@@ -154,7 +141,7 @@ export function WiseHireTrustSection() {
                     {item.headline}
                   </p>
                   <p
-                    className="text-xs leading-relaxed"
+                    className="text-sm leading-relaxed"
                     style={{ color: 'var(--lp-text-muted)', lineHeight: 1.6, transition: 'color 0.35s ease' }}
                   >
                     {item.body}

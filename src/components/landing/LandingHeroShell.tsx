@@ -20,17 +20,6 @@ export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
             on the same H1. */}
         <div aria-hidden="true" className="wh-hero-bg" />
         <div aria-hidden="true" className="wh-hero-vignette" />
-        <p
-          className="wh-eyebrow-row relative z-10 mb-4 sm:mb-7"
-          style={{
-            fontSize: '0.8rem',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-          }}
-        >
-          AI-Powered HR Platform
-        </p>
         <h1
           className="relative z-10 font-extrabold leading-[1.04] max-w-4xl"
           style={{
@@ -40,10 +29,10 @@ export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
           }}
         >
           <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-            Hire <span className="wh-headline-accent">Smarter.</span>
+            Hire <span style={{ color: 'var(--lp-eyebrow)' }}>Smarter.</span>
           </span>
           <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-            Screen <span className="wh-headline-accent">Faster.</span>
+            Screen <span style={{ color: 'var(--lp-eyebrow)' }}>Faster.</span>
           </span>
         </h1>
       </section>
@@ -64,18 +53,6 @@ export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
         }}
       />
       <div className="relative z-10 flex flex-col items-center text-center w-full">
-        <p
-          className="mb-4 sm:mb-7"
-          style={{
-            fontSize: '0.8rem',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'var(--lp-eyebrow)',
-            fontWeight: 600,
-          }}
-        >
-          AI-Powered Career Platform
-        </p>
         <h1
           className="font-extrabold leading-[1.05]"
           style={{

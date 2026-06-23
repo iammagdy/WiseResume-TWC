@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { Archive, Search, Star } from 'lucide-react';
 
 const POOL = [
@@ -21,11 +22,17 @@ function avatarBg(i: number) {
 }
 
 export function TalentPoolDemo() {
-  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReduced = useReducedMotion();
   const [searchIdx, setSearchIdx] = useState(0);
   const [typedSearch, setTypedSearch] = useState('');
 
   useEffect(() => {
+    if (prefersReduced) {
+      setTypedSearch(SEARCH_TERMS[0]);
+      setSearchIdx(0);
+      return;
+    }
+
     let cancelled = false;
     let charIdx = 0;
     let termIdx = 0;
@@ -51,7 +58,7 @@ export function TalentPoolDemo() {
 
     setTimeout(typeNext, 600);
     return () => { cancelled = true; };
-  }, []);
+  }, [prefersReduced]);
 
   const filtered = typedSearch
     ? POOL.filter((p) => p.tags.some((t) => t.toLowerCase().includes(typedSearch.toLowerCase())) || p.role.toLowerCase().includes(typedSearch.toLowerCase()))
@@ -81,7 +88,7 @@ export function TalentPoolDemo() {
       >
         <Archive className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Talent Pool</span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: 'var(--lp-text-muted)' }}>{POOL.length} saved</span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--lp-text-muted)' }}>{POOL.length} saved</span>
       </div>
 
       <div style={{ padding: '10px 14px 0' }}>
@@ -98,7 +105,7 @@ export function TalentPoolDemo() {
           }}
         >
           <Search className="w-3 h-3" style={{ color: 'var(--lp-text-muted)', flexShrink: 0 }} />
-          <span style={{ fontSize: '0.68rem', color: typedSearch ? 'var(--lp-text)' : 'var(--lp-text-muted)', flex: 1 }}>
+          <span style={{ fontSize: '0.72rem', color: typedSearch ? 'var(--lp-text)' : 'var(--lp-text-muted)', flex: 1 }}>
             {typedSearch || 'Search by skill, role…'}
           </span>
           {typedSearch && (
@@ -149,26 +156,28 @@ export function TalentPoolDemo() {
                 flexShrink: 0,
                 marginTop: 1,
               }}
+              aria-hidden="true"
             >
               {p.initials}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--lp-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {p.name}
                 </span>
                 {p.starred && <Star className="w-3 h-3" style={{ color: '#F59E0B', fill: '#F59E0B', flexShrink: 0 }} />}
-                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#60A5FA', background: 'rgba(96,165,250,0.12)', borderRadius: 4, padding: '1px 5px' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#60A5FA', background: 'rgba(96,165,250,0.12)', borderRadius: 4, padding: '1px 5px' }}>
                   {p.score}
                 </span>
               </div>
-              <p style={{ fontSize: '0.6rem', color: 'var(--lp-text-muted)', marginBottom: 4 }}>{p.role}</p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)', marginBottom: 4 }}>{p.role}</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                 {p.tags.map((tag) => (
                   <span
                     key={tag}
+                    aria-hidden="true"
                     style={{
-                      fontSize: '0.58rem',
+                      fontSize: '0.68rem',
                       fontWeight: 600,
                       color: typedSearch && tag.toLowerCase().includes(typedSearch.toLowerCase()) ? '#3B82F6' : 'var(--lp-text-muted)',
                       background: typedSearch && tag.toLowerCase().includes(typedSearch.toLowerCase()) ? 'rgba(29,78,216,0.12)' : 'var(--lp-card-glass)',

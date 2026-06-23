@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { Check, FileText, Sparkles } from 'lucide-react';
 
 const JD_LINES = [
@@ -20,21 +21,26 @@ const JD_LINES = [
 ];
 
 export function JDDemo() {
-  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReduced = useReducedMotion();
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
-  const [displayedLines, setDisplayedLines] = useState<string[]>(['']);
+  const [displayedLines, setDisplayedLines] = useState<string[]>(prefersReduced ? JD_LINES : ['']);
   const [generating, setGenerating] = useState(false);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState(!!prefersReduced);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (prefersReduced) {
+      setDisplayedLines(JD_LINES);
+      setDone(true);
+      return;
+    }
     const startDelay = setTimeout(() => setGenerating(true), 600);
     return () => clearTimeout(startDelay);
-  }, []);
+  }, [prefersReduced]);
 
   useEffect(() => {
-    if (!done) return;
+    if (!done || prefersReduced) return;
     let inner: ReturnType<typeof setTimeout>;
     const t = setTimeout(() => {
       setDone(false);
@@ -112,14 +118,14 @@ export function JDDemo() {
         {generating && !done && (
           <span
             className="flex items-center gap-1"
-            style={{ marginLeft: 'auto', fontSize: '0.62rem', color: '#3B82F6', fontWeight: 600 }}
+            style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#3B82F6', fontWeight: 600 }}
           >
             <Sparkles className="w-3 h-3 animate-pulse" />
             Writing…
           </span>
         )}
         {done && (
-          <span className="flex items-center gap-1" style={{ marginLeft: 'auto', fontSize: '0.62rem', color: '#34D399', fontWeight: 600 }}>
+          <span className="flex items-center gap-1" style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#34D399', fontWeight: 600 }}>
             <Check className="w-3 h-3" />
             Done
           </span>
@@ -140,7 +146,7 @@ export function JDDemo() {
             marginBottom: 10,
           }}
         >
-          <span style={{ fontSize: '0.68rem', color: 'var(--lp-text-muted)', flexShrink: 0 }}>Role:</span>
+          <span style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)', flexShrink: 0 }}>Role:</span>
           <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--lp-text)' }}>
             Senior Frontend Engineer
           </span>
@@ -151,7 +157,7 @@ export function JDDemo() {
               color: '#fff',
               borderRadius: 6,
               padding: '2px 8px',
-              fontSize: '0.6rem',
+              fontSize: '0.72rem',
               fontWeight: 700,
               flexShrink: 0,
             }}
@@ -178,7 +184,7 @@ export function JDDemo() {
             <p
               key={i}
               style={{
-                fontSize: header ? '0.72rem' : '0.67rem',
+                fontSize: '0.72rem',
                 fontWeight: header ? 700 : 400,
                 color: header ? 'var(--lp-text)' : 'var(--lp-text-muted)',
                 lineHeight: 1.55,
