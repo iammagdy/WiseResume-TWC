@@ -603,20 +603,35 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
     return json(res, { error: 'Valid email address required' }, 400);
   }
 
-  // ── Create public Account client (no session needed for createRecovery) ────
-  const publicClient = new sdk.Client()
+  // ── Create an API-keyed Account client for createRecovery ──────────────────
+  // createRecovery() only returns the token .secret to SERVER-SIDE (API-keyed)
+  // requests. Called as a pure public client the secret comes back EMPTY, so the
+  // branded link becomes `…/auth/reset-password?userId=…&secret=` and the reset
+  // page rejects it as "invalid or already used". The API key is REQUIRED for the
+  // branded email to carry a working link.
+  const apiKey = appwriteApiKey();
+  const recoveryClient = new sdk.Client()
     .setEndpoint(ENDPOINT)
     .setProject(PROJECT_ID);
+  if (apiKey) recoveryClient.setKey(apiKey);
 
-  const acct = new sdk.Account(publicClient);
+  const acct = new sdk.Account(recoveryClient);
 
   try {
     const redirectUrl = `${FRONTEND_URL}/auth/reset-password`;
 
-    // createRecovery() returns a Token with .userId and .secret.
-    // It also triggers Appwrite's built-in recovery email — set the Console
-    // Password Recovery template to a single space to suppress that send.
+    // Returns a Token with .userId and .secret (secret is populated because this
+    // request is API-keyed). This also triggers Appwrite's own recovery email —
+    // blank the Console "Reset password" template to a single space to suppress it.
     const token = await acct.createRecovery(email, redirectUrl);
+
+    if (!token.secret) {
+      // Without a secret the link cannot work. This means the function has no
+      // APPWRITE_API_KEY (or it lacks scope) — surface it instead of emailing a
+      // broken link that lands on "invalid or already used".
+      error(`send-password-reset: createRecovery returned no secret for ${email} — set APPWRITE_API_KEY on the email-service function. No email sent.`);
+      return json(res, { success: true });
+    }
 
     const resetUrl = `${redirectUrl}?userId=${encodeURIComponent(token.userId)}&secret=${encodeURIComponent(token.secret)}`;
     await resendSend({
