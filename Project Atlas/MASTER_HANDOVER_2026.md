@@ -2,6 +2,134 @@
 
 ---
 
+## Session Log - 2026-06-24 (Landing page UX critique + delight micro-interactions + DESIGN.md refresh — uncommitted working tree on `main`)
+
+### Goal
+Full UX design critique of the WiseResume landing page, fix all P1–P3 issues found, add delight micro-interactions, and refresh `DESIGN.md` to match the live codebase.
+
+### What changed and why
+
+#### Phase 1 — Full UX critique (automated + manual)
+- Ran `node .claude/skills/impeccable/scripts/detect.mjs` against all landing components.
+- Scored 35/40 after an earlier pass of fixes within this session.
+- Identified remaining issues: banned `type:'spring'` easing in animation variants, numbered category labels (AI grammar anti-pattern), missing scroll affordance in sticky header, silent Suspense fallback on lazy demos, hardcoded `rgba` on Footer icon, missing double-submit guard on hero CTA.
+
+#### Phase 2 — P1–P3 fixes
+
+**`src/components/landing/landingAnimations.ts`**
+- Root cause: `SCATTER_SECTION_ITEM.visible` and `heroItemVariants.visible` both used `type: 'spring'` — banned by DESIGN.md.
+- Fix: replaced with `ease: [0.22, 1, 0.36, 1] as [number, number, number, number]` (ease-out-quart), `duration: 0.45`.
+
+**`src/components/landing/FeatureSection.tsx`**
+- Root cause 1: `makeSlideVariant` and `bulletsVariant` used spring easing.
+- Root cause 2: Suspense fallback was a silent empty div — users saw nothing on chunk load failure, no error recovery path.
+- Root cause 3: Badge chip had no hover state (zero delight).
+- Fix 1: replaced easing with ease-out-quart.
+- Fix 2: replaced silent `DemoFallback` with a labeled loading state + `DemoErrorBoundary` class component with retry logic (retry count, backoff messaging after re-failure, "Reload page" after 2 attempts, focus-visible ring on button).
+- Fix 3: converted badge chip to `motion.span` with icon scale+rotate pulse on hover, gated on `prefersReducedMotion`.
+
+**`src/components/landing/wiseResumeFeatureData.ts`**
+- Root cause: numbered eyebrow labels (`categoryLabel: '01'`–`'05'`) are an AI-generated content anti-pattern — no semantic value, visually noisy.
+- Fix: removed all `categoryLabel` fields from all 5 feature entries.
+
+**`src/components/landing/WiseResumeContent.tsx`**
+- Root cause: sticky header gave no visual hint to scroll — users couldn't tell if content existed below.
+- Fix: added animated `ChevronDown` scroll affordance that fades out after scroll > 80px; gated on `prefersReducedMotion`; `hasScrolled` state drives fade.
+
+**`src/components/landing/Footer.tsx`**
+- Root cause: `ShieldCheck` icon used hardcoded `rgba(158,27,34,…)` — violated the "no hardcoded hex in landing components" rule and breaks on WiseHire product mode.
+- Fix: replaced with `var(--lp-trust-icon)` CSS token.
+
+**`src/components/landing/WiseResumeHero.tsx`**
+- Root cause 1: "Go to Dashboard" button had no guard against rapid double-clicks — `navigate()` could fire multiple times in quick succession.
+- Root cause 2: CTA buttons had no hover delight (flat at rest, flat on hover).
+- Fix 1: added `navigating` guard state; button disables on first click.
+- Fix 2: added `whileHover` `boxShadow` glow to both "Get Started Free" and "Go to Dashboard" buttons using `var(--glow)`.
+
+**`src/components/landing/wisehire/WiseHireHero.tsx`**
+- Root cause 1: Primary and secondary CTAs had no glow lift on hover.
+- Root cause 2: Pre-existing TS lint — conditional `false` on `initial`/`whileInView` props was wrong pattern for reduced-motion.
+- Fix 1: added `whileHover` `boxShadow` glow (WiseHire blue `rgba(29,78,216,0.45)`).
+- Fix 2: replaced conditional `false` with DESIGN.md pattern (skip animation props entirely when reduced motion; use proper props otherwise).
+
+**`src/components/landing/wisehire/WiseHireClosingCTA.tsx`**
+- Root cause: "Join the Waitlist" button had no glow lift on hover; pre-existing TS lint on glow shadow value.
+- Fix: added `whileHover` `boxShadow` glow; fixed lint.
+
+#### Phase 3 — Impeccable live mode (variant exploration)
+- Started live poll server; opened browser preview at `http://localhost:5000`.
+- User selected the `/auth` auth shell for variant exploration.
+- Generated 3 layout variants (form-first hierarchy, single-column centred, airy two-column glass) in `src/components/auth/AuthBold.tsx` using `@scope`-keyed CSS and `data-impeccable-variant` scaffolding.
+- User discarded all variants ("keep original auth design").
+- All variant scaffolding was cleanly removed from `AuthBold.tsx` — file returned to original state. Confirmed with grep: zero `data-impeccable` attributes remain.
+
+#### Phase 4 — DESIGN.md refresh
+- Root cause: `DESIGN.md` was written before several landing page patterns were built; it documented stale token values and was missing entire token categories.
+- Scanned `src/pages/index-landing.css` and `src/index.css` for live token values.
+- Changes to `DESIGN.md`:
+  - **Frontmatter:** Added `crimson-eyebrow-dark: "#E53E3E"`, `wisehire-eyebrow-dark: "#3B82F6"` (actively used, undocumented). Added landing page base colors (`lp-dark-base`, `lp-dark-card`, `lp-light-base`, `lp-wisehire-*`). Added `rounded.card: "16px"`, `rounded.card-stack: "28px"` (stack cards use 28px — distinct from app-shell 16px). Added `card-stack` component entry.
+  - **Colors:** Fully documented `--lp-stack-*`, `--lp-brand-pill-*`, `--lp-toggle-*`, `--lp-signin-*`, `--lp-ticker-edge`, `--lp-nav-h`, `--lp-header-h`, `--lp-safe-top` token groups. Documented `AuthBold.tsx` self-contained token scope (`--bg`, `--field-*`, `--glow`, `--stat-*`, `--check-*`). Added `@property` registered token status. Added **The Eyebrow Split Rule** (dark vs light eyebrow hex values are intentionally different).
+  - **Typography:** Added **The Gradient-Text Exception** rule — `.lp-gradient-text`/`.wh-gradient-text` hero shimmer is permitted on the single typewriter word only; prohibited everywhere else.
+  - **Elevation:** Added scroll-stack card elevation recipe (28px radius, three-layer shadow, rationale for no CSS transition on composited element).
+  - **Components:** LandingHeader nav fully documented (scroll state, View Transitions product toggle, `cubic-bezier(0.16,1,0.3,1)` exception for view transition only). Auth Shell added as signature component.
+  - **Do's:** Added `var(--lp-brand)`/`var(--lp-eyebrow)` mandate; `loading="eager"` on LCP logo; `--lp-safe-top` single-declaration rule.
+  - **Don'ts:** Consolidated gradient-text to nuanced exception-aware rule (removed duplicate blanket ban). Added composited-element transition prohibition. Added `type:'spring'` prohibition with tuple-cast pattern. Added `z-index: 4` landing stack clarification.
+
+### Files changed (product code — uncommitted)
+| File | Change |
+|---|---|
+| `src/components/landing/landingAnimations.ts` | Replace `type:'spring'` with ease-out-quart |
+| `src/components/landing/FeatureSection.tsx` | Easing fix + DemoErrorBoundary + badge chip pulse |
+| `src/components/landing/wiseResumeFeatureData.ts` | Remove numbered `categoryLabel` eyebrows |
+| `src/components/landing/WiseResumeContent.tsx` | Animated scroll affordance chevron |
+| `src/components/landing/Footer.tsx` | `ShieldCheck` icon → `var(--lp-trust-icon)` |
+| `src/components/landing/WiseResumeHero.tsx` | Double-submit guard + glow lifts on CTAs |
+| `src/components/landing/wisehire/WiseHireHero.tsx` | Glow lifts + TS lint fix |
+| `src/components/landing/wisehire/WiseHireClosingCTA.tsx` | Glow lift |
+| `src/components/auth/AuthBold.tsx` | Live-mode variants added then fully reverted — file is identical to HEAD |
+| `DESIGN.md` | Full refresh (new file relative to HEAD — not yet in repo) |
+| `PRODUCT.md` | Created (new file — design system strategic context) |
+| `CLAUDE.md` | Created (AI agent mandatory pre-work instructions) |
+| `.windsurfrules` | Created (Windsurf-specific design system constraints) |
+| `.claude/settings.json` | PostToolUse hook added (design detector auto-run) |
+| `.impeccable` | Submodule added (impeccable skill scripts) |
+
+### Validation performed
+- Design detector run after each edit cluster; no new violations introduced.
+- `AuthBold.tsx` variant discard verified via grep: zero `data-impeccable` attributes remain in file.
+- `DESIGN.md` structure validated against spec (six sections, correct header names, no extra top-level sections, frontmatter token refs use `{path.to.token}` syntax).
+- Live server (`http://localhost:5000`) used for visual inspection during session.
+
+### Commits created
+None — all changes are uncommitted on `main` working tree (no branch, no PR opened this session). The previous merge commit on `main` is `6c594217` (Auth Bold port, PR #128).
+
+### Deployments performed
+None. No Appwrite functions touched. No Vercel deploy triggered (no push).
+
+### Current production/deployment state
+- **Vercel (frontend):** Live at `wiseresume.app` on commit `6c594217` — unchanged this session.
+- **Appwrite functions:** Unchanged — same state as PR #122 remediation deploy.
+- **Working tree:** 32 files modified, 4 new files (`DESIGN.md`, `PRODUCT.md`, `CLAUDE.md`, `.windsurfrules`), `.impeccable` submodule added. All changes are local only.
+
+### Where we stopped
+All landing page UX fixes are complete and validated. Changes are **uncommitted** — next agent must commit and push before opening a PR. Recommended commit split:
+
+1. **`feat(landing): UX critique fixes + delight micro-interactions`** — `landingAnimations.ts`, `FeatureSection.tsx`, `wiseResumeFeatureData.ts`, `WiseResumeContent.tsx`, `Footer.tsx`, `WiseResumeHero.tsx`, `WiseHireHero.tsx`, `WiseHireClosingCTA.tsx`
+2. **`docs: refresh DESIGN.md + add PRODUCT.md, CLAUDE.md, .windsurfrules`** — documentation files only
+3. **`chore: add .impeccable submodule + claude settings hook`** — tooling only
+
+**Remaining P2 issues in `LandingHeader.tsx` (not yet fixed — identified in critique, deferred):**
+- Sign In button uses gradient background — should use `var(--lp-signin-bg)` token.
+- Join Waitlist button uses hardcoded `#1D4ED8` — should use `var(--lp-brand)`.
+- Both auth buttons missing `focus-visible` ring classes.
+- Logo `<img>` is missing `loading="eager"` (LCP penalty).
+- No skip-to-content link for keyboard users.
+
+**Pre-existing TS lint (not introduced this session):**
+- `src/components/landing/WiseResumeHero.tsx:65` — `RefObject<HTMLElement | null>` not assignable to `LegacyRef<HTMLElement>`. Pre-existing; out of scope.
+
+---
+
 ## Session Log - 2026-06-23 (Auth "Bold" design ported — branch claude/fervent-faraday-iwuf82, PR #128)
 
 ### Goal
