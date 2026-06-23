@@ -428,7 +428,7 @@ export default function JobMatchWorkspacePage() {
           certifications: JSON.stringify(merged.certifications ?? []),
           projects: JSON.stringify(merged.projects ?? []),
           awards: JSON.stringify(merged.awards ?? []),
-          template: merged.templateId || 'modern',
+          template: migrateTemplateId(merged.templateId),
         },
       );
       const newResumeId = (doc as { $id: string }).$id;
@@ -512,12 +512,23 @@ export default function JobMatchWorkspacePage() {
         tailor_result: tailorResultJson,
       };
       void (async () => {
+        const write = (payload: Record<string, unknown>) =>
+          databases.createDocument(DATABASE_ID, COLLECTIONS.tailor_history, ID.unique(), payload);
         try {
-          await databases.createDocument(DATABASE_ID, COLLECTIONS.tailor_history, ID.unique(), tailorHistoryPayload);
-        } catch {
-          await new Promise((r) => setTimeout(r, 1500));
+          await write(tailorHistoryPayload);
+        } catch (firstErr: unknown) {
+          // Schema-safe degradation: if the additive `tailor_result` attribute is
+          // not on the collection yet (frontend deployed before the schema script
+          // ran), retry WITHOUT it so the core history row still records — no
+          // regression vs the pre-B8 write. Otherwise retry the full payload once
+          // after a short delay (transient JWT warm-up).
+          const msg = firstErr instanceof Error ? firstErr.message.toLowerCase() : '';
+          const unknownAttr = msg.includes('unknown attribute') || msg.includes('tailor_result');
+          await new Promise((r) => setTimeout(r, unknownAttr ? 0 : 1500));
+          const { tailor_result, ...corePayload } = tailorHistoryPayload;
+          void tailor_result;
           try {
-            await databases.createDocument(DATABASE_ID, COLLECTIONS.tailor_history, ID.unique(), tailorHistoryPayload);
+            await write(unknownAttr ? corePayload : tailorHistoryPayload);
           } catch (err: unknown) {
             console.warn('[TailoringHub] tailor_history write failed after retry (non-blocking):', err);
             toast.warning('Your tailored resume was saved, but it may not show in Tailoring history until history storage is fixed.');

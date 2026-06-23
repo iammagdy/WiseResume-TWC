@@ -26,6 +26,7 @@
  */
 
 const sdk = require('node-appwrite');
+const crypto = require('crypto');
 
 const DB_ID = 'main';
 const VISITOR_EVENTS_ID = 'visitor_events';
@@ -43,6 +44,48 @@ const BOT_UA =
 // strips these and retries on an unknown-attribute error so ingestion never
 // fails just because the schema has not been extended.
 const OPTIONAL_FIELDS = ['referrer', 'os'];
+
+// ── Rate limiting ───────────────────────────────────────────────────────────
+// In-memory, per-runtime throttle keyed by session_id / anon_id / forwarded IP.
+// Deliberately NOT a per-call DB read+write: this is a high-volume analytics
+// ingestion path, and adding a durable round-trip to every page view would be a
+// real latency/cost regression. Combined with Appwrite's platform per-execution
+// limits, the 20-event cap, the bot guard, and payload validation, this is
+// sufficient abuse control for an endpoint with no destructive capability and no
+// secret exposure. Serverless caveat: each warm container keeps its own buckets,
+// so a flood spread across many cold instances is only partially throttled. If
+// stronger cross-instance guarantees are ever required, swap _rlBuckets for a
+// durable `visitor_rate_limits` collection (server-side write via the API key).
+const RL_WINDOW_MS = 60_000;
+const RL_MAX_PER_WINDOW = 30; // a normal visitor flushes ~6x/min; 30 blocks floods
+const RL_MAX_KEYS = 5000; // bound memory
+const _rlBuckets = new Map(); // key -> { count, windowStart }
+
+function rateLimitKey(body, headers) {
+  const ev = Array.isArray(body.events) && body.events.length ? body.events[0] : body;
+  const ip = String((headers && (headers['x-forwarded-for'] || headers['x-real-ip'])) || '')
+    .split(',')[0]
+    .trim();
+  const raw = String((ev && (ev.session_id || ev.anon_id)) || ip || 'anon');
+  return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 32);
+}
+
+function isRateLimited(key) {
+  const now = Date.now();
+  if (_rlBuckets.size > RL_MAX_KEYS) {
+    for (const [k, b] of _rlBuckets) {
+      if (now - b.windowStart > RL_WINDOW_MS) _rlBuckets.delete(k);
+    }
+  }
+  const bucket = _rlBuckets.get(key);
+  if (!bucket || now - bucket.windowStart > RL_WINDOW_MS) {
+    _rlBuckets.set(key, { count: 1, windowStart: now });
+    return false;
+  }
+  if (bucket.count >= RL_MAX_PER_WINDOW) return true;
+  bucket.count += 1;
+  return false;
+}
 
 function getDatabases() {
   return new sdk.Databases(
@@ -126,6 +169,11 @@ async function handler({ req, res, error }) {
     return res.json({ ok: true, written: 0, skipped: 'bot' });
   }
 
+  // Per-caller throttle — drop (do not error) excessive batches.
+  if (isRateLimited(rateLimitKey(body, headers))) {
+    return res.json({ ok: true, written: 0, skipped: 'rate_limited' });
+  }
+
   const rawEvents = Array.isArray(body.events)
     ? body.events
     : body.event_type
@@ -152,4 +200,4 @@ async function handler({ req, res, error }) {
 }
 
 module.exports = handler;
-module.exports.__test = { sanitize, BOT_UA, ALLOWED_EVENT_TYPES };
+module.exports.__test = { sanitize, BOT_UA, ALLOWED_EVENT_TYPES, rateLimitKey, isRateLimited, RL_MAX_PER_WINDOW };
