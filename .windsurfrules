@@ -1,0 +1,35 @@
+# WiseResume — Windsurf Agent Rules
+
+Before any UI, styling, animation, or component work, read:
+- `DESIGN.md` — visual design system (color, type, components, motion, Do's/Don'ts)
+- `PRODUCT.md` — strategic context (register: product UI, brand, anti-references, principles)
+
+## Non-negotiable constraints
+
+**Color**
+- Landing page: always use `var(--lp-eyebrow)` / `var(--lp-brand)` tokens, never hardcode `#9E1B22` or `#1D4ED8` in landing components
+- Neutrals lean cool — `#F7F7F8` yes, `#FAF7F2` never
+- No gradient text, no warm/beige/cream backgrounds
+
+**Motion**
+- No `type: 'spring'` anywhere — in props or variant objects
+- Canonical ease-out-quart: `[0.22, 1, 0.36, 1]` — in variants: cast as `[number, number, number, number]`
+- Button duration: `0.18s`. Section reveal duration: `0.45s`
+- All JS animation loops (`setInterval`/`setTimeout`/`rAF`) gated on `useReducedMotion()` from `framer-motion`
+- Reduced motion → stop loop + skip to final state + `initial={false}` not `initial={{}}`
+
+**Accessibility**
+- Focus ring on every interactive element — never remove
+- 44px minimum touch target
+- Font size floor: 0.72rem semantic, 0.68rem decorative
+
+**Anti-patterns (refuse)**
+- `border-left` colored stripe on cards
+- `z-index: 999/9999`
+- Identical card grids
+- Content gated behind animation triggers
+
+## After editing UI files
+The design detector runs automatically via `.claude/settings.json` PostToolUse hook.
+To run manually: `node .claude/skills/impeccable/scripts/detect.mjs --json <files>`
+Address all findings before marking work complete.
