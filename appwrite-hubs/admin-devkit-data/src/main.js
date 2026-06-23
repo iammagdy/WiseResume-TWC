@@ -343,7 +343,7 @@ async function handleDiagnostics(log, error) {
     items.push(item('Functions', 'functions-list', 'Function Inventory', 'broken', 'Could not list Appwrite Functions.', e.message));
   }
 
-  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'moderation_bugs', 'blocklist', 'moderation_queue'];
+  const requiredCollections = ['profiles', 'subscriptions', 'ai_credits', 'resumes', 'admin_audit_logs', 'audit_logs', 'feature_flags', 'error_log', 'edge_function_logs', 'discount_codes', 'app_settings', 'visitor_events', 'contact_requests', 'notifications', 'ai_routing_config', 'wisehire_accounts', 'wisehire_invites', 'wisehire_waitlist', 'moderation_bugs', 'blocklist', 'moderation_queue'];
   try {
     const collPage = await listCollections([sdk.Query.limit(200)]);
     for (const coll of requiredCollections) {
