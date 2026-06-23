@@ -2,15 +2,17 @@
 
 **Last verified:** 2026-06-23
 **Type:** bug fix + feature + email/UX hardening
-**Branch / PR:** `claude/confident-johnson-ruvmnw` → PR #123
+**Branch / PR:** `claude/confident-johnson-ruvmnw` → PR #123 (review fixes) + PR #125 (root-cause fix) — both **merged to `main`**
+**Status:** ✅ merged + email-service function **deployed** (workflow run `28006023582`, success)
 **Sources:**
-- `appwrite-hubs/email-service/src/main.js` — transactional email function (verification, reset, welcome, **password-changed**)
+- `appwrite-hubs/email-service/src/main.js` — transactional email function (verification, reset, welcome, **password-changed**); **createRecovery API-key fix**
 - `src/pages/AuthResetPasswordPage.tsx` — `/auth/reset-password` page (`account.updateRecovery`)
 - `src/pages/AuthPage.tsx` — login / register / forgot-password (unchanged logic, referenced)
 - `src/components/settings/sections/AccountSection.tsx` — Settings → "Manage Sign-in & Password"
 - `src/components/settings/sections/ChangePasswordDialog.tsx` — **new** in-app change-password form
 - `src/lib/appwrite-functions.ts` — `appwriteFunctions.invoke` (ExecutionMethod type fix)
 - `scripts/deploy_email_service.cjs` — `FRONTEND_URL` default
+- `.github/workflows/deploy-email-service.yml` — `FRONTEND_URL` deploy env (aligned to `wiseresume.app`)
 
 ---
 
@@ -52,6 +54,17 @@ was never a separate "change password" link.
 ---
 
 ## Problems found
+
+0. **★ ROOT CAUSE — branded reset link had an empty `secret` (fixed in PR #125).**
+   `handleSendPasswordReset` called `account.createRecovery()` with a **keyless
+   public client**. Appwrite only returns the recovery token's `secret` to
+   **server-side (API-keyed)** requests — for a public call the secret is **empty**.
+   So the branded email link was `…/auth/reset-password?userId=XXX&secret=` (no
+   secret), and `AuthResetPasswordPage` rejects a missing secret as
+   *"This link is invalid or has already been used."* — **before any password is
+   submitted.** This was masked for a while because Appwrite's own "Reset password"
+   email *did* carry a working secret; blanking that template (to kill the
+   duplicate) removed the only working email and exposed the broken branded link.
 
 1. **Silent-swallow masked real failures as success.** The anti-enumeration `catch`
    in `handleSendPasswordReset` matched `/not found|no user|invalid/i`. An invalid
@@ -120,22 +133,48 @@ was never a separate "change password" link.
 ### `scripts/deploy_email_service.cjs`
 - Pinned `FRONTEND_URL` default to the canonical `https://wiseresume.app` so reset
   / verify links match the function default and `deploy_hubs.cjs`.
+- (Reference) This script also **re-blanks** the Appwrite `verification` and
+  `recovery` email templates on every deploy via `PATCH /projects/.../templates/email/...`
+  with the API key, so the duplicate-email suppression is idempotent.
+
+### PR #125 — root-cause fix + deploy alignment
+
+#### `appwrite-hubs/email-service/src/main.js`
+- **`createRecovery` now uses the function's `APPWRITE_API_KEY`** so the returned
+  token `secret` is populated → the branded reset link carries a working secret.
+- **Guards an empty secret**: if no secret comes back (missing/insufficient API
+  key), it logs a clear error and does **not** email a broken link.
+- Updated the stale comment to the Console's current template name (**"Reset
+  password"**, formerly "Recovery").
+
+#### `.github/workflows/deploy-email-service.yml`
+- Changed the hardcoded `FRONTEND_URL` from `https://resume.thewise.cloud` to
+  **`https://wiseresume.app`** — it was overriding the script default and would have
+  pointed reset/verify links at a host that isn't the registered Web Platform.
 
 ---
 
-## Owner follow-ups (config, not code)
+## Owner follow-ups (config, not code) — ✅ COMPLETED 2026-06-23
 
-These are required for the reset flow to work end-to-end and are **outside the repo**:
-
-1. **Register `wiseresume.app` as an Appwrite Web Platform.** `createRecovery()`
+1. ✅ **Registered `wiseresume.app` as an Appwrite Web Platform.** `createRecovery()`
    rejects redirect URLs whose host is not in the project's Platform allowlist.
-   Before this PR that rejection was silently swallowed; it now logs an error, but
-   the host must still be allow-listed for the email to send.
-2. **Blank the Appwrite Console "Password Recovery" template to a single space.**
-   `createRecovery()` on Appwrite Cloud also sends Appwrite's own recovery email;
-   blanking the template suppresses the duplicate so users get only the branded one.
+2. ✅ **Blanked the Appwrite Console "Reset password" template** (set to a single
+   space). Appwrite Cloud otherwise also sends its own recovery email; blanking
+   suppresses the duplicate. (Also re-applied programmatically by the deploy script.)
+   Note: the Console relabeled the old **"Recovery"** template to **"Reset password"**.
 
 ---
+
+## Resolution / deployment
+
+- PR #123 (review fixes) and PR #125 (root-cause fix) both **merged to `main`**.
+- The **email-service function was redeployed** via the `Deploy Email Service`
+  workflow (`workflow_dispatch` on `main`, run `28006023582`) → **success**. The
+  deploy set `FRONTEND_URL=https://wiseresume.app`, re-blanked the auth templates,
+  and activated the new code.
+- After this, the branded reset email link is
+  `https://wiseresume.app/auth/reset-password?userId=…&secret=<non-empty>` and the
+  reset page accepts a new password.
 
 ## Verification
 
@@ -144,7 +183,12 @@ These are required for the reset flow to work end-to-end and are **outside the r
   (`appwrite-functions.ts`, `AccountSection.tsx`, `ChangePasswordDialog.tsx`,
   `AuthResetPasswordPage.tsx`). The repo has unrelated pre-existing `tsc` debt that
   `vite build` (used by Vercel) does not gate on.
-- **Vercel preview built and deployed `Ready`** for the final commit.
+- **Vercel preview built and deployed `Ready`** for both PRs' final commits.
+- **Deploy workflow run `28006023582` completed `success`.**
+- Live functional check (owner): request a reset → confirm a single branded email,
+  a non-empty `secret` in the link, the Set-New-Password form accepts a new
+  password, and a "password changed" email follows. Function logs
+  (email-service → Executions) now name the precise reason on any failure.
 
 ## Out of scope / unrelated red checks
 
