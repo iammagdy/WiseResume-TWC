@@ -11,6 +11,54 @@
 
 ---
 
+## 2026-06-23 - Auth "Bold" design ported across signin / signup / forgot / reset (branch `claude/fervent-faraday-iwuf82`, PR #128)
+
+Ported the **Auth Bold** design from `iammagdy/Auth-Routes` (`AuthBold.dc.html` — the
+handoff bundle published from `claude.ai/design`) into the app. The `.dc.html` source uses
+a Scout-runtime templating syntax (`<sc-if>`, `{{ … }}`, `<dc-import>`) that is not native
+React, so it was hand-ported to a single reusable component rather than imported. The
+`claude_design` MCP path was attempted first but the server has been turned down
+(`api.anthropic.com/v1/design/mcp` → 410 / replaced by Google Drive MCP), so the source
+was pulled from the user's mirror repo via `raw.githubusercontent.com`.
+
+**Component:** `src/components/auth/AuthBold.tsx` — one component, five modes (`signin`,
+`signup`, `forgot`, `reset`, `change`). Self-contained styles (CSS-in-`<style>` scoped via
+`.ab-root`) with container queries reflowing mobile → tablet → desktop in one element.
+Animated Scout SVG mascot (eye-tracking via `mousemove`, blink interval, wander interval,
+cover-on-password-focus that respects the eye-toggle's `scaleY(.55)` peek), typewriter
+hero ("Ready when **you are.**"), animated count-up stats, rotating conic-gradient card
+border (`@property --ab-angle`), pulsing CTA, dark/light theme toggle wired to
+`useIsDark` for initial preference. All animations are no-ops under
+`prefers-reduced-motion`.
+
+**Page wiring (Appwrite logic unchanged):**
+- `src/pages/AuthPage.tsx` is now a slim controller around `<AuthBold>`. Sign-in →
+  `createEmailPasswordSession`, sign-up → `account.create` + `createEmailPasswordSession`
+  + `upsertProfileIdentity` + `email-service` `send-verification`, forgot →
+  `email-service` `send-password-reset`. `SIGNUP_PLAN_KEY` (`signup_plan_intent`) is
+  preserved and surfaced inside the card via the `notice` prop. Redirect-after-login
+  (`?redirect=…`, default `/dashboard`) and the `?mode=signup/login` URL sync are intact.
+- `src/pages/AuthResetPasswordPage.tsx` uses `<AuthBold mode="reset">` with `doneSlot` for
+  the invalid-link and success states. `updateRecovery` + best-effort
+  `send-password-changed` notification preserved verbatim. Inline mismatch / min-length
+  checks moved into the error pill.
+
+**Tests:** `src/components/auth/__tests__/AuthBold.test.tsx` — 10 vitest cases (renders for
+each mode, submit-fires, error pill, doneSlot, footer mode-toggle, inline Forgot? link,
+mismatch blocks submit). Local `vitest run` → 10/10 green.
+
+**CI:** Typecheck + portfolio tests ✅. Vercel preview ✅
+(`wise-resume-twc-git-claude-fervent-faraday-iwuf82-iam-magdy.vercel.app`). TestSprite
+Pre-Check ❌ "No tests detected" — advisory only (TestSprite is a SaaS that orchestrates
+browser E2E against the preview and needs a test plan authored in its dashboard; not
+fixable from the repo). User accepted it as advisory.
+
+**Out of scope (deferred):** the `change` password mode is built into `<AuthBold>` for
+future use but no new route is registered — the in-account password change continues to
+go through `components/settings/sections/ChangePasswordDialog.tsx`.
+
+---
+
 ## 2026-06-23 - ai-gateway push auto-trigger RESOLVED via GitHub-App suspension (branch `claude/epic-maxwell-evkfa4`, PR #124)
 
 Every push to `WiseResume-TWC` (any branch) auto-built the **AI Gateway Hub** as a

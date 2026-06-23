@@ -1,19 +1,13 @@
-import { useState, type FormEvent } from 'react';
-import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { ShieldCheck, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 import { account as appwriteAccount } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
-import { AppIcon } from '@/components/brand/AppIcon';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-
-const HERO_GRADIENT = 'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
+import { AuthBold } from '@/components/auth/AuthBold';
 
 export default function AuthResetPasswordPage() {
   const navigate = useNavigate();
@@ -29,26 +23,24 @@ export default function AuthResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   const isValidLink = !!userId && !!secret;
 
-  const handleReset = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleReset = async () => {
     if (password !== confirm) {
-      toast.error('Passwords do not match.');
+      setError('Passwords do not match.');
       return;
     }
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      setError('Password must be at least 8 characters.');
       return;
     }
     setLoading(true);
+    setError(null);
     try {
       await appwriteAccount.updateRecovery(userId, secret, password);
-      // Best-effort "your password was changed" security notice. The user has no
-      // session here (recovery is unauthenticated), so the function looks the email
-      // up by userId. Never block the success UI on this notification.
       try {
         await appwriteFunctions.invoke('email-service', {
           body: { action: 'send-password-changed', userId },
@@ -59,85 +51,88 @@ export default function AuthResetPasswordPage() {
       setDone(true);
       toast.success('Password updated! Please sign in.');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Reset failed. The link may have expired.');
+      const msg = err instanceof Error ? err.message : 'Reset failed. The link may have expired.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden" style={{ background: HERO_GRADIENT }}>
-      <OfflineBanner />
-      <div className="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
-        <motion.div
-          className="flex flex-col gap-6 px-8 py-10 rounded-2xl max-w-sm w-full"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+  const backToSignIn = () => navigate('/auth?mode=login', { replace: true });
+
+  let doneSlot: React.ReactNode | undefined;
+  if (!isValidLink) {
+    doneSlot = (
+      <>
+        <AlertTriangle color="#f59e0b" size={32} />
+        <p style={{ fontSize: 14, color: 'var(--sub)', margin: 0, maxWidth: 280 }}>
+          This link is invalid or has already been used. Please request a new password reset.
+        </p>
+        <button
+          type="button"
+          onClick={backToSignIn}
+          style={{
+            width: '100%',
+            height: 50,
+            border: 'none',
+            borderRadius: 15,
+            background: '#9E1B22',
+            color: '#fff',
+            font: '700 15px Inter, sans-serif',
+            cursor: 'pointer',
+            marginTop: 8,
+          }}
         >
-          <div className="flex flex-col items-center gap-4">
-            <AppIcon size={48} />
-            <h1 className="text-2xl font-bold text-white text-center">
-              {done ? 'Password Updated' : 'Set New Password'}
-            </h1>
-          </div>
+          Back to sign in
+        </button>
+      </>
+    );
+  } else if (done) {
+    doneSlot = (
+      <>
+        <ShieldCheck color="#22c55e" size={36} />
+        <p style={{ fontSize: 14, color: 'var(--sub)', margin: 0, maxWidth: 280 }}>
+          Your password has been reset. Sign in with your new password to continue.
+        </p>
+        <button
+          type="button"
+          onClick={backToSignIn}
+          style={{
+            width: '100%',
+            height: 50,
+            border: 'none',
+            borderRadius: 15,
+            background: '#9E1B22',
+            color: '#fff',
+            font: '700 15px Inter, sans-serif',
+            cursor: 'pointer',
+            marginTop: 8,
+          }}
+        >
+          Sign in
+        </button>
+      </>
+    );
+  }
 
-          {!isValidLink && (
-            <div className="flex flex-col items-center gap-3 text-center">
-              <AlertTriangle className="text-amber-400" size={32} />
-              <p className="text-sm text-white/60">
-                This link is invalid or has already been used. Please request a new password reset.
-              </p>
-              <Button className="w-full h-11" onClick={() => navigate('/auth?mode=login')}>
-                Back to Login
-              </Button>
-            </div>
-          )}
-
-          {isValidLink && done && (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <ShieldCheck className="text-green-400" size={36} />
-              <p className="text-sm text-white/60">
-                Your password has been reset. Sign in with your new password to continue.
-              </p>
-              <Button className="w-full h-11" onClick={() => navigate('/auth?mode=login')}>
-                Sign In
-              </Button>
-            </div>
-          )}
-
-          {isValidLink && !done && (
-            <form onSubmit={handleReset} className="space-y-4">
-              <Input
-                type="password"
-                placeholder="New password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-              <Input
-                type="password"
-                placeholder="Confirm new password"
-                value={confirm}
-                onChange={e => setConfirm(e.target.value)}
-                required
-                minLength={8}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-              <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <MiniSpinner size={18} className="mr-2" /> : 'Update Password'}
-              </Button>
-              <p className="text-xs text-center text-white/30">
-                Remembered it?{' '}
-                <button type="button" onClick={() => navigate('/auth?mode=login')} className="text-primary hover:underline">
-                  Back to Login
-                </button>
-              </p>
-            </form>
-          )}
-        </motion.div>
-      </div>
-    </div>
+  return (
+    <>
+      <OfflineBanner />
+      <AuthBold
+        mode="reset"
+        onModeChange={(m) => {
+          if (m === 'signin') backToSignIn();
+        }}
+        password={password}
+        onPasswordChange={setPassword}
+        confirm={confirm}
+        onConfirmChange={setConfirm}
+        loading={loading}
+        error={error}
+        doneSlot={doneSlot}
+        onSubmit={handleReset}
+      />
+    </>
   );
 }
