@@ -40,29 +40,29 @@ Hubs`, workflow_dispatch) or a Console upload.
    (`69fd518d91ac2b25574c` / GitHub install `130461735`), which the Function-config API
    cannot remove. This matches the prior session's conclusion.
 
-### Effective off-switch (install-level — required)
+### Effective off-switch (install-level — REQUIRED, now applied)
 Stopping the auto-build needs an **installation-level** action; the per-function detach
-is not enough. Either:
-- **(A)** Delete the project's Appwrite VCS installation via API
-  (`DELETE /vcs/installations/69fd518d91ac2b25574c`). Functionally scoped to `ai-gateway`
-  here (0 sites; the other 24 functions have no live link), and reversible by
-  reconnecting Git in the Console. *(Initially gated by the remote auto-mode classifier
-  as "too broad"; pending owner authorization.)*
-- **(B)** Remove `WiseResume-TWC` from the Appwrite GitHub App on GitHub:
-  **GitHub → Settings → Applications → Appwrite → Configure → Repository access → remove
-  `WiseResume-TWC`**. Cleanest at the source; cannot be done from the repo tooling.
+is not enough. Owner authorized option (A):
+- **(A) APPLIED:** Deleted the project's Appwrite VCS installation via API
+  (`DELETE /vcs/installations/69fd518d91ac2b25574c` → `204`; `GET /vcs/installations` →
+  `total: 0`). Functionally scoped to `ai-gateway` (0 sites; the other 24 functions had
+  no live link). `ai-gateway` keeps serving the manual deployment `6a3a1927…`
+  (unchanged), so zero downtime. **Reversible:** reconnect Git from the Console
+  (Function → Settings → Git → Connect) if auto-build is ever wanted again.
+- **(B) Alternative (not used):** remove `WiseResume-TWC` from the Appwrite GitHub App
+  (**GitHub → Settings → Applications → Appwrite → Configure → Repository access**).
 
 ### Repeatable tooling added (manual-only)
 - `scripts/detach_appwrite_git.cjs` — scriptable equivalent of the Console "Disconnect
   Git" (one/many/all functions). Note: clears the per-function link; on its own it does
-  **not** remove an install-level link (see above).
+  **not** remove an install-level link — keep it as a first step / for re-linked funcs.
 - `.github/workflows/detach-appwrite-git.yml` — `workflow_dispatch` wrapper (input
   `target`, default `ai-gateway`).
 
-### Status
-Diagnosed and tooled; **awaiting the install-level off-switch (A or B)** to fully stop
-the push auto-build. Failed `vcs` builds remain non-activating, so production keeps
-serving the manual deployment throughout. Deploys are manual via `Deploy Appwrite Hubs`
+### Status — RESOLVED
+The project has **no** Appwrite VCS installation, so pushes no longer create `type: vcs`
+deployments for any function. Verified: the push after the delete produced **no** new
+`vcs` build for `ai-gateway`. Deploys are now **manual only** via `Deploy Appwrite Hubs`
 (workflow_dispatch) or the Appwrite Console.
 
 ---

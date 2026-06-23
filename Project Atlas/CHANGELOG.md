@@ -11,22 +11,21 @@
 
 ---
 
-## 2026-06-23 - ai-gateway push auto-trigger: diagnosed + tooled (branch `claude/epic-maxwell-evkfa4`)
+## 2026-06-23 - ai-gateway push auto-trigger REMOVED (branch `claude/epic-maxwell-evkfa4`)
 
-`ai-gateway` still auto-builds (`type: vcs`) on every push to any branch via the Appwrite
+`ai-gateway` was auto-building (`type: vcs`) on every push to any branch via the Appwrite
 GitHub App (installation `69fd518d91ac2b25574c`, repo `WiseResume-TWC` /
-providerRepositoryId `1170228859`) — only it of 25 functions is still linked. New finding:
-the Appwrite **VCS REST API works with the project API key**. However, the **function-level
-detach is cosmetic**: after a blank-VCS `PUT /functions/ai-gateway`, a fresh push of commit
-`f4b2595` **still** created `vcs` deployment `6a3a2050` → the push→build link lives at the
-**GitHub-App installation level**, not on the function. The effective off-switch is
-install-level: **(A)** `DELETE /vcs/installations/69fd518d91ac2b25574c` (functionally scoped
-to `ai-gateway`; reversible by reconnecting in the Console; initially gated by the remote
-auto-mode classifier, pending owner OK), or **(B)** remove `WiseResume-TWC` from the
-Appwrite GitHub App in GitHub settings. Added repeatable manual-only tooling meanwhile:
-`scripts/detach_appwrite_git.cjs` + the `Detach Appwrite Git` workflow (`workflow_dispatch`).
-Failed `vcs` builds stay non-activating, so production is unaffected. Deploys remain manual
-via `Deploy Appwrite Hubs` or the Appwrite Console.
+providerRepositoryId `1170228859`) — only it of 25 functions was still linked. New finding:
+the Appwrite **VCS REST API works with the project API key**. The **function-level detach is
+cosmetic** — after a blank-VCS `PUT /functions/ai-gateway`, a fresh push of `f4b2595` still
+created `vcs` deployment `6a3a2050` → the link lives at the **GitHub-App installation
+level**. **Resolution (owner-authorized):** deleted the project's Appwrite VCS installation
+(`DELETE /vcs/installations/69fd518d91ac2b25574c` → `204`; `GET /vcs/installations` →
+`total: 0`). `ai-gateway` keeps serving manual deployment `6a3a1927…` (zero downtime).
+Reversible by reconnecting Git in the Console. Pushes no longer create `vcs` deployments.
+Added manual-only tooling: `scripts/detach_appwrite_git.cjs` + the `Detach Appwrite Git`
+workflow (`workflow_dispatch`). Deploys are now **manual only** via `Deploy Appwrite Hubs`
+or the Appwrite Console.
 
 ---
 
