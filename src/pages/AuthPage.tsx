@@ -3,6 +3,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { Sparkles, FileText, Rocket, Check } from 'lucide-react';
 
 
 import { useAuth } from '@/hooks/useAuth';
@@ -19,6 +20,12 @@ import { upsertProfileIdentity } from '@/lib/profileSeed';
 const HERO_GRADIENT = 'linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%)';
 
 const SIGNUP_PLAN_KEY = 'signup_plan_intent';
+
+const BRAND_FEATURES = [
+  { icon: Sparkles, label: 'AI-assisted tailoring, rewriting & analysis' },
+  { icon: FileText, label: 'ATS-ready templates & one-click exports' },
+  { icon: Rocket, label: 'Portfolio publishing & career workflows' },
+] as const;
 
 type View = 'login' | 'register' | 'claim-account' | 'forgot-password';
 
@@ -160,24 +167,95 @@ export default function AuthPage() {
     }
   };
 
-  const cardTitle = () => {
-    if (view === 'claim-account') return 'Claim Your Account';
-    if (view === 'forgot-password') return 'Reset Password';
-    return 'WiseResume AI';
+  const headings = (): { title: string; subtitle: string } => {
+    switch (view) {
+      case 'register':
+        return { title: 'Create your account', subtitle: 'Start building smarter resumes in minutes.' };
+      case 'forgot-password':
+        return { title: 'Reset password', subtitle: "Enter your email and we'll send you a reset link." };
+      case 'claim-account':
+        return { title: 'Claim your account', subtitle: 'Secure your migrated data with a new password.' };
+      case 'login':
+      default:
+        return { title: 'Welcome back', subtitle: 'Log in to continue building.' };
+    }
   };
 
+  const { title, subtitle } = headings();
+
   return (
-    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden" style={{ background: HERO_GRADIENT }}>
+    <div className="relative isolate min-h-[100dvh] flex overflow-hidden" style={{ background: HERO_GRADIENT }}>
       <OfflineBanner />
-      <div className="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
+
+      {/* Brand panel — desktop only */}
+      <aside className="relative hidden lg:flex lg:w-1/2 flex-col justify-between overflow-hidden px-14 py-12">
+        {/* ambient decorative glows */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.35), transparent 70%)' }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-32 right-0 h-[28rem] w-[28rem] rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(56,108,255,0.22), transparent 70%)' }}
+        />
+
         <motion.div
-          className="flex flex-col gap-6 px-8 py-10 rounded-2xl max-w-sm w-full"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 flex items-center gap-3"
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <div className="flex flex-col items-center gap-4">
-            <AppIcon size={48} />
-            <h1 className="text-2xl font-bold text-white text-center">{cardTitle()}</h1>
+          <AppIcon size={40} />
+          <span className="text-lg font-semibold tracking-tight text-white">WiseResume AI</span>
+        </motion.div>
+
+        <motion.div
+          className="relative z-10 max-w-md"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <h2 className="text-4xl font-bold leading-tight text-white">
+            Build smarter resumes with AI.
+          </h2>
+          <p className="mt-4 text-base text-white/60">
+            Structured editing, AI tailoring, and one-click exports — all in one Appwrite-native workspace.
+          </p>
+
+          <ul className="mt-8 space-y-4">
+            {BRAND_FEATURES.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex items-center gap-3 text-sm text-white/75">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                  <Icon size={18} className="text-primary" />
+                </span>
+                {label}
+              </li>
+            ))}
+          </ul>
+        </motion.div>
+
+        <div className="relative z-10 flex items-center gap-2 text-xs text-white/40">
+          <Check size={14} className="text-primary" />
+          Trusted by thousands of job seekers · resume.thewise.cloud
+        </div>
+      </aside>
+
+      {/* Form panel */}
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-10 lg:w-1/2 lg:bg-black/20 lg:backdrop-blur-sm">
+        <motion.div
+          className="flex w-full max-w-sm flex-col gap-6"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="flex flex-col items-center gap-4 text-center lg:items-start lg:text-left">
+            <AppIcon size={48} className="lg:hidden" />
+            <div>
+              <h1 className="text-2xl font-bold text-white">{title}</h1>
+              <p className="mt-1.5 text-sm text-white/50">{subtitle}</p>
+            </div>
           </div>
 
           {view === 'login' && (
@@ -216,9 +294,6 @@ export default function AuthPage() {
 
           {view === 'forgot-password' && (
             <form onSubmit={handleForgotPassword} className="space-y-4">
-              <p className="text-sm text-white/60 text-center">
-                Enter your email and we'll send you a link to reset your password.
-              </p>
               <div className="space-y-1.5">
                 <Label htmlFor="forgot-email" className="sr-only">Email</Label>
                 <Input id="forgot-email" type="email" placeholder="Email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required className="bg-white/5 border-white/10 text-white placeholder:text-white/40" />
@@ -278,7 +353,7 @@ export default function AuthPage() {
             </form>
           )}
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 }
