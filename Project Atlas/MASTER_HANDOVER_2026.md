@@ -25,30 +25,45 @@ Hubs`, workflow_dispatch) or a Console upload.
   live). `deploy_hubs.cjs` only updates a Function when `settingsNeedUpdate()` sees a
   diff — "empty == empty" → it **never sent** the detach. The link persisted.
 
-### Fix (this session)
+### Investigation (this session)
 1. **New finding:** the Appwrite **VCS REST API is reachable with the project API key**
-   (`GET /vcs/installations` → 200). The prior session believed the only off-switch was
-   the GitHub-App UI ("owner action"); it is not required.
-2. Issued an **explicit** Function update with all VCS fields blanked
-   (`PUT /functions/ai-gateway`, `installationId/providerRepositoryId/providerBranch/
-   providerRootDirectory = ""`, `providerSilentMode: false`). Sending the empty values
-   (vs. skipping the update) triggers Appwrite's detach path. Verified by pushing a
-   commit and confirming **no new `vcs` deployment** is created for it.
-3. Did **not** delete the project's VCS installation (that would disconnect Git for the
-   whole project, broader than asked) — only `ai-gateway` was detached.
+   (`GET /vcs/installations` → 200, `GET .../providerRepositories?type=runtime` lists the
+   repos). The prior session believed the only off-switch was the GitHub-App UI; the
+   *read/installation* side is in fact reachable from the API key.
+2. Tried the **function-level detach** (`PUT /functions/ai-gateway` with
+   `installationId/providerRepositoryId/providerBranch/providerRootDirectory = ""`,
+   `providerSilentMode: false`) — the Console "Disconnect Git" payload.
+3. **Empirically disproved that it stops the trigger:** after the blank-VCS update, a
+   fresh push of commit `f4b2595` **still** created `vcs` deployment `6a3a2050`
+   (branch `claude/epic-maxwell-evkfa4`, commit `f4b2595`). So the function-level detach
+   is cosmetic — the push→build link lives at the **GitHub-App installation level**
+   (`69fd518d91ac2b25574c` / GitHub install `130461735`), which the Function-config API
+   cannot remove. This matches the prior session's conclusion.
+
+### Effective off-switch (install-level — required)
+Stopping the auto-build needs an **installation-level** action; the per-function detach
+is not enough. Either:
+- **(A)** Delete the project's Appwrite VCS installation via API
+  (`DELETE /vcs/installations/69fd518d91ac2b25574c`). Functionally scoped to `ai-gateway`
+  here (0 sites; the other 24 functions have no live link), and reversible by
+  reconnecting Git in the Console. *(Initially gated by the remote auto-mode classifier
+  as "too broad"; pending owner authorization.)*
+- **(B)** Remove `WiseResume-TWC` from the Appwrite GitHub App on GitHub:
+  **GitHub → Settings → Applications → Appwrite → Configure → Repository access → remove
+  `WiseResume-TWC`**. Cleanest at the source; cannot be done from the repo tooling.
 
 ### Repeatable tooling added (manual-only)
-- `scripts/detach_appwrite_git.cjs` — scriptable "Disconnect Git" for one/many/all
-  functions; always sends the explicit blank-VCS update (works around the masked-field
-  diff that defeats `deploy_hubs.cjs`).
+- `scripts/detach_appwrite_git.cjs` — scriptable equivalent of the Console "Disconnect
+  Git" (one/many/all functions). Note: clears the per-function link; on its own it does
+  **not** remove an install-level link (see above).
 - `.github/workflows/detach-appwrite-git.yml` — `workflow_dispatch` wrapper (input
-  `target`, default `ai-gateway`) to re-apply the detach from GitHub Actions if a
-  Function ever gets re-linked.
+  `target`, default `ai-gateway`).
 
 ### Status
-Push no longer auto-builds `ai-gateway`. Deploys remain manual via `Deploy Appwrite
-Hubs` (workflow_dispatch) or the Appwrite Console. Re-connecting Git, if ever wanted,
-is a deliberate Console action (Function → Settings → Git → Connect).
+Diagnosed and tooled; **awaiting the install-level off-switch (A or B)** to fully stop
+the push auto-build. Failed `vcs` builds remain non-activating, so production keeps
+serving the manual deployment throughout. Deploys are manual via `Deploy Appwrite Hubs`
+(workflow_dispatch) or the Appwrite Console.
 
 ---
 

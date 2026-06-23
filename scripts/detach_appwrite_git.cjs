@@ -19,8 +19,15 @@
  * still live. Because of that masking, `deploy_hubs.cjs` cannot detect that a
  * detach is needed (its diff check sees "empty == empty" and skips the update),
  * so the link is never cleared. This script ALWAYS issues an explicit update
- * with the VCS fields blanked, which triggers Appwrite's detach path and stops
- * the auto-build webhook for that Function.
+ * with the VCS fields blanked - the per-function "Disconnect Git" path.
+ *
+ * IMPORTANT - install-level links: if a Function is connected at the Appwrite
+ * GitHub-App INSTALLATION level, this per-function detach is cosmetic and pushes
+ * will STILL auto-build (verified for `ai-gateway`: a fresh push created a
+ * `type: vcs` deployment after this update). To fully stop those, remove the
+ * link at the install level instead - either remove the repo from the Appwrite
+ * GitHub App (GitHub -> Settings -> Applications -> Appwrite -> Configure), or
+ * delete the project's VCS installation (`DELETE /vcs/installations/{id}`).
  *
  * USAGE
  * -----
