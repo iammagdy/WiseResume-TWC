@@ -38,3 +38,4 @@ Cards in this folder describe shipped or in-flight stability fixes from the 2026
 - [Task #65 — Tailor animated demo panel: looping Before→After animation in the desktop right panel empty state](./task-65-tailor-animated-demo-panel.md)
 - [Task #66 — Tailor AI reliability: prompt token-budget guard, Groq fallback on 5xx, client retry delay 4s, upstream-specific retry message](./task-66-tailor-ai-reliability.md)
 - [Public page navigation stall — WebGL Aurora disabled on utility pages](./public-page-navigation-webgl-aurora-fix.md)
+- [Auth page redesign (split-screen) + Vercel preview host fix + AI Gateway VCS disconnect (2026-06-23)](./auth-redesign-and-vercel-preview-host-fix-2026-06-23.md)
