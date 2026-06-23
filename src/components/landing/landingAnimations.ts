@@ -39,7 +39,7 @@ export const SCATTER_SECTION_ITEM = {
   },
   visible: {
     opacity: 1, x: 0, y: 0, scale: 1, rotate: 0, filter: 'blur(0px)',
-    transition: { type: 'spring' as const, stiffness: 260, damping: 22 },
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
   },
   exit: (i: number) => {
     const e = SECTION_EXIT_VECTORS[i] ?? { x: 0, y: -100, rotate: 0 };
@@ -84,5 +84,5 @@ export const heroContainerVariants = {
    (y: 22 → 0) still gives a subtle entrance. */
 export const heroItemVariants = {
   hidden: { opacity: 1, y: 22 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 26 } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 };

@@ -170,22 +170,7 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         </span>
       </div>
 
-      {/* Eyebrow — paired with thin divider rules so it doesn't float alone */}
-      <p
-        className="wh-eyebrow-row relative z-10 mb-4 sm:mb-7"
-        style={{
-          fontSize: '0.8rem',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          fontWeight: 600,
-        }}
-      >
-        AI-Powered HR Platform
-      </p>
-
-      {/* Headline — same copy, but the descriptor words ("Smarter."/"Faster.")
-          get a subtle gradient accent so the two lines have visual rhythm
-          instead of identical white weight. */}
+      {/* Headline */}
       <h1
         className="relative z-10 font-extrabold leading-[1.04] max-w-4xl"
         style={{
@@ -196,10 +181,10 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         }}
       >
         <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-          Hire <span className="wh-headline-accent">Smarter.</span>
+          Hire <span style={{ color: 'var(--lp-eyebrow)' }}>Smarter.</span>
         </span>
         <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-          Screen <span className="wh-headline-accent">Faster.</span>
+          Screen <span style={{ color: 'var(--lp-eyebrow)' }}>Faster.</span>
         </span>
       </h1>
 
@@ -214,7 +199,7 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         }}
       >
         Built for the{' '}
-        <span className="wh-gradient-text" style={{ display: 'inline-block', fontWeight: 700 }}>
+        <span style={{ display: 'inline-block', fontWeight: 700, color: 'var(--lp-eyebrow)' }}>
           {typewriterWord || '\u00A0'}
           {!prefersReducedMotion && <span className="wh-cursor" aria-hidden="true" />}
         </span>
@@ -240,9 +225,9 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         <motion.button
           onClick={showDashboardCta ? () => navigate('/wisehire/dashboard') : onOpenWaitlist}
           className="wh-cta-primary h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-          whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.03 }}
-          whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+          whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.03, boxShadow: '0 0 28px 4px rgba(29,78,216,0.45)' }}
+          whileTap={prefersReducedMotion ? undefined : { scale: 0.97, boxShadow: '0 0 10px 2px rgba(29,78,216,0.25)' }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
           {showDashboardCta ? (
             <>
@@ -259,9 +244,9 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         <motion.button
           onClick={() => document.getElementById('wisehire-demo')?.scrollIntoView({ behavior: 'smooth' })}
           className="wh-cta-secondary h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-          whileHover={prefersReducedMotion ? undefined : { y: -1, scale: 1.02 }}
+          whileHover={prefersReducedMotion ? undefined : { y: -1, scale: 1.02, boxShadow: '0 0 18px 3px rgba(29,78,216,0.22)' }}
           whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
           See it in action
           <ChevronDown className="w-4 h-4" />
@@ -274,10 +259,10 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
           gets the brand accent color via .wh-trust-count. */}
       <motion.div
         className="relative z-10 mt-6 sm:mt-8 text-xs lp-trust-badges wh-trust-container"
-        initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
-        whileInView={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
+        initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.5 }}
-        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+        transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number], delay: 0.15 }}
       >
         <span ref={waitlistCount.containerRef} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
           <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />

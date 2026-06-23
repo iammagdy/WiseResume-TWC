@@ -57,6 +57,7 @@ export function WiseResumeHero({
 }: WiseResumeHeroProps) {
   const navigate = useNavigate();
   const typewriterWord = useTypewriterWord(TYPEWRITER_WORDS);
+  const [navigating, setNavigating] = useState(false);
 
   return (
     <>
@@ -97,22 +98,6 @@ export function WiseResumeHero({
             />
           </div>
 
-          {/* Eyebrow */}
-          <motion.p
-            variants={heroItemVariants}
-            className="mb-4 sm:mb-7"
-            style={{
-              fontSize: '0.8rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--lp-eyebrow)',
-              fontWeight: 600,
-              transition: 'color 0.3s ease',
-            }}
-          >
-            AI-Powered Career Platform
-          </motion.p>
-
           {/* Main headline with typewriter */}
           <motion.h1
             variants={heroItemVariants}
@@ -151,12 +136,19 @@ export function WiseResumeHero({
           <motion.div variants={heroItemVariants}>
             {isAuthenticated ? (
               <motion.button
-                onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
-                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
+                onClick={() => {
+                  if (navigating) return;
+                  setNavigating(true);
+                  triggerHaptic.light();
+                  navigate('/dashboard');
+                }}
+                disabled={navigating}
+                aria-disabled={navigating}
+                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#9E1B22] disabled:opacity-70 disabled:cursor-not-allowed"
                 style={{ background: '#9E1B22', color: '#fff' }}
-                whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                whileHover={prefersReducedMotion || navigating ? {} : { scale: 1.04, boxShadow: '0 0 28px 4px rgba(158,27,34,0.45)' }}
+                whileTap={prefersReducedMotion || navigating ? {} : { scale: 0.97, boxShadow: '0 0 10px 2px rgba(158,27,34,0.25)' }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 data-track="hero-go-to-dashboard"
               >
                 Go to Dashboard
@@ -165,11 +157,11 @@ export function WiseResumeHero({
             ) : (
               <motion.button
                 onClick={onCTA}
-                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
+                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#9E1B22]"
                 style={{ background: '#9E1B22', color: '#fff' }}
-                whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                whileHover={prefersReducedMotion ? {} : { scale: 1.04, boxShadow: '0 0 28px 4px rgba(158,27,34,0.45)' }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.97, boxShadow: '0 0 10px 2px rgba(158,27,34,0.25)' }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 data-track="hero-get-started-free"
               >
                 Get Started Free
@@ -201,7 +193,7 @@ export function WiseResumeHero({
         viewport={{ once: true, amount: 0.15 }}
         variants={{
           hidden: { opacity: 0, y: 60 },
-          visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } },
+          visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
         }}
       >
         <FeatureTicker lpMode />

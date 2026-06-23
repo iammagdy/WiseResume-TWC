@@ -42,7 +42,7 @@ export function Footer({ lpMode, product }: FooterProps) {
             className="w-3.5 h-3.5"
             style={
               lpMode
-                ? { color: isWiseHire ? 'rgba(29,78,216,0.65)' : 'rgba(158,27,34,0.65)' }
+                ? { color: 'var(--lp-trust-icon)' }
                 : undefined
             }
           />
@@ -90,7 +90,7 @@ export function Footer({ lpMode, product }: FooterProps) {
           <p
             className="text-[10px] select-none opacity-50"
             style={{ color: 'var(--lp-text-muted)' }}
-            aria-label="App version"
+            aria-hidden="true"
           >
             {getBuildVersionLabel()}
           </p>

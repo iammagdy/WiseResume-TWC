@@ -1,8 +1,8 @@
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
-import { Suspense } from 'react';
+import { Component, Suspense, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
-import { Check } from 'lucide-react';
+import { Check, RefreshCw } from 'lucide-react';
 
 const LazyEditorDemo = lazyWithRetry(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
 const LazyPortfolioDemo = lazyWithRetry(() => import('@/components/landing/PortfolioDemo').then((m) => ({ default: m.PortfolioDemo })));
@@ -53,7 +53,7 @@ function makeSlideVariant(xOffset: number, yOffset = 70) {
       opacity: 1,
       x: 0,
       y: 0,
-      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
     },
   };
 }
@@ -63,13 +63,63 @@ const bulletsVariant = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+    transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
   },
 };
 
 const DemoFallback = () => (
-  <div style={{ width: 260, height: 280, borderRadius: 20, background: 'var(--lp-card-glass)' }} />
+  <div
+    role="status"
+    aria-label="Loading demo"
+    style={{ width: 260, height: 280, borderRadius: 20, background: 'var(--lp-card-glass)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+  >
+    <span style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)', letterSpacing: '0.05em' }}>Loading…</span>
+  </div>
 );
+
+interface DemoErrorBoundaryState { hasError: boolean; retryCount: number }
+class DemoErrorBoundary extends Component<{ children: ReactNode }, DemoErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, retryCount: 0 };
+  }
+  static getDerivedStateFromError(_: Error) { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      const { retryCount } = this.state;
+      const exhausted = retryCount >= 2;
+      return (
+        <div
+          role="alert"
+          style={{ width: 260, height: 280, borderRadius: 20, background: 'var(--lp-card-glass)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '0 16px' }}
+        >
+          <RefreshCw style={{ width: 18, height: 18, color: 'var(--lp-text-muted)' }} aria-hidden="true" />
+          <span style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
+            {retryCount === 0 ? 'Demo unavailable' : 'Still unavailable — check your connection'}
+          </span>
+          {exhausted ? (
+            <button
+              onClick={() => window.location.reload()}
+              style={{ fontSize: '0.72rem', color: 'var(--lp-eyebrow)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', minHeight: 44, padding: '0 8px', outline: 'none' }}
+              className="focus-visible:ring-2 focus-visible:ring-[var(--lp-eyebrow)] focus-visible:ring-offset-1 rounded"
+            >
+              Reload page
+            </button>
+          ) : (
+            <button
+              onClick={() => this.setState((s) => ({ hasError: false, retryCount: s.retryCount + 1 }))}
+              style={{ fontSize: '0.72rem', color: 'var(--lp-eyebrow)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', minHeight: 44, padding: '0 8px', outline: 'none' }}
+              className="focus-visible:ring-2 focus-visible:ring-[var(--lp-eyebrow)] focus-visible:ring-offset-1 rounded"
+            >
+              Try again
+            </button>
+          )}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const BadgeIcon = data.badge.icon;
@@ -113,17 +163,25 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         </p>
       )}
 
-      <span
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold w-fit"
+      <motion.span
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold w-fit cursor-default"
         style={{
           background: 'rgba(158,27,34,0.10)',
           color: 'var(--lp-eyebrow)',
           border: '1px solid rgba(158,27,34,0.22)',
         }}
+        whileHover={prefersReducedMotion ? {} : { borderColor: 'rgba(158,27,34,0.5)', background: 'rgba(158,27,34,0.16)' }}
+        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
       >
-        <BadgeIcon className="w-3.5 h-3.5" />
+        <motion.span
+          whileHover={prefersReducedMotion ? {} : { scale: 1.22, rotate: -8 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          style={{ display: 'inline-flex' }}
+        >
+          <BadgeIcon className="w-3.5 h-3.5" />
+        </motion.span>
         {data.badge.label}
-      </span>
+      </motion.span>
 
       <div>
         <h2
@@ -158,6 +216,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           tooltips, or floating UI past the card edge (U-1/U-2). */}
       <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, width: '100%' }}>
       <div className="lp-stack-parallax w-full flex items-center justify-center">
+        <DemoErrorBoundary>
         <Suspense fallback={<DemoFallback />}>
           {data.demo === 'editor' && <LazyEditorDemo />}
           {data.demo === 'tailoring' && <LazyTailoringDemo />}
@@ -165,6 +224,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           {data.demo === 'interview' && <LazyInterviewDemo />}
           {data.demo === 'tracker' && <LazyTrackerDemo />}
         </Suspense>
+      </DemoErrorBoundary>
       </div>
       </div>
     </motion.div>
@@ -178,20 +238,6 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         borderRadius: 20,
       }}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(158,27,34,0.10)' }}
-        >
-          <BadgeIcon className="w-4 h-4" style={{ color: 'var(--lp-eyebrow)' }} />
-        </div>
-        <p
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--lp-text-muted)', letterSpacing: '0.06em' }}
-        >
-          Key Benefits
-        </p>
-      </div>
       <ul className="lp-stack-bullets flex flex-wrap gap-2">
         {data.bullets.map((bullet) => (
           <li

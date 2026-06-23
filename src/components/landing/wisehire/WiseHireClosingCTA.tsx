@@ -21,8 +21,8 @@ export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: Wis
       >
         <motion.div
           className="max-w-2xl mx-auto"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 28 }}
-          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 28 }}
+          whileInView={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
@@ -60,11 +60,11 @@ export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: Wis
           <motion.button
             type="button"
             onClick={onOpenWaitlist}
-            className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl"
-            style={{ background: '#1D4ED8', color: '#fff' }}
-            whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--lp-eyebrow)]"
+            style={{ background: 'var(--lp-eyebrow)', color: '#fff' }}
+            whileHover={prefersReducedMotion ? {} : { scale: 1.04, boxShadow: '0 0 28px 4px rgba(29,78,216,0.45)' }}
+            whileTap={prefersReducedMotion ? {} : { scale: 0.97, boxShadow: '0 0 10px 2px rgba(29,78,216,0.25)' }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
             Join the Waitlist
             <ArrowRight className="w-4 h-4" />

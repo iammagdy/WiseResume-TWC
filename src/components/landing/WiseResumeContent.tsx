@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import { FeatureSection } from '@/components/landing/FeatureSection';
 import { TrustSection } from '@/components/landing/TrustSection';
 import { SoftDivider } from '@/components/landing/SoftDivider';
@@ -20,6 +21,14 @@ interface WiseResumeContentProps {
 export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentProps) {
   const sectionItem = prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM;
   const [activeIdx, setActiveIdx] = useState(-1);
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  useEffect(() => {
+    if (prefersReducedMotion) { setHasScrolled(true); return; }
+    const onScroll = () => { if (window.scrollY > 80) { setHasScrolled(true); } };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [prefersReducedMotion]);
   const total = featureSections.length;
   const clampedActiveIdx = Math.min(activeIdx, total - 1);
   const activeLabel = clampedActiveIdx >= 0 ? featureSections[clampedActiveIdx]?.title : null;
@@ -48,15 +57,12 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
         >
           <div className="lp-stack-sticky-header">
             <div>
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                15+ AI-powered tools — {total} highlighted below
-              </p>
               <h2
                 className="font-bold leading-tight"
                 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', color: 'var(--lp-text)', letterSpacing: '-0.025em' }}
               >
                 15+ AI tools. One platform.<br />
-                <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
+                <span style={{ color: 'var(--lp-eyebrow)' }}>Your unfair advantage in the job market.</span>
               </h2>
             </div>
             <div
@@ -75,6 +81,21 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
                 </>
               )}
             </div>
+            <motion.div
+              aria-hidden="true"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: hasScrolled ? 0 : 1 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              style={{ pointerEvents: 'none', display: 'flex', justifyContent: 'center', marginTop: 4 }}
+            >
+              <motion.div
+                animate={prefersReducedMotion ? {} : { y: [0, 6, 0] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                style={{ color: 'var(--lp-eyebrow)', opacity: 0.65 }}
+              >
+                <ChevronDown className="w-5 h-5" />
+              </motion.div>
+            </motion.div>
           </div>
           <ScrollStack
             useWindowScroll
