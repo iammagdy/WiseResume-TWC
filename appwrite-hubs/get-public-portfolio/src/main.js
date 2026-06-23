@@ -45,6 +45,18 @@ function parseBody(req) {
   }
 }
 
+// WARMUP: a side-effect-free ping used by the scheduled warmer (native Appwrite
+// cron, configured in scripts/deploy_hubs.cjs) to keep this function's container
+// hot so visitors never pay the cold-start delay. True for a native schedule
+// trigger or an explicit { action: 'warmup' } body. It can never match a real
+// visitor request — those are http-triggered and carry a username — so it cannot
+// alter normal behavior.
+function isWarmupRequest(req, body) {
+  if (body && body.action === 'warmup') return true;
+  const headers = (req && req.headers) || {};
+  return (headers['x-appwrite-trigger'] || headers['X-Appwrite-Trigger']) === 'schedule';
+}
+
 function sha256Hex(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
@@ -359,8 +371,17 @@ async function handler({ req, res, error }) {
     return res.json({ success: false, error: 'Appwrite API key is not configured.' }, 500);
   }
 
-  const db = getDatabases();
   const body = parseBody(req);
+
+  // WARMUP: keep this container warm so the first visitor after an idle period
+  // never pays the cold-start delay. Returns immediately, BEFORE getDatabases()
+  // and any query — no database reads/writes, no analytics, no rate-limit,
+  // session, or email side effects.
+  if (isWarmupRequest(req, body)) {
+    return res.json({ ok: true, warm: true });
+  }
+
+  const db = getDatabases();
   const { username, password, sessionToken: providedToken } = body;
 
   if (!username) {
