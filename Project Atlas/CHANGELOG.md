@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-23 - Profiles Portfolio Schema Fix (branch `fix/profiles-portfolio-schema`)
+
+Fixes portfolio save/publish failing on production with "a portfolio field is
+misconfigured" — the live `profiles` collection was missing ~18 portfolio columns
+the editor writes (and `useProfile.LIVE_PROFILE_ATTRIBUTES` whitelists), so Appwrite
+rejected the write with "Unknown attribute". **Pre-existing** (from commit `1d9765c7`),
+NOT caused by the password-persistence work.
+
+- `scripts/setup_profiles_portfolio_schema.cjs` (idempotent) adds the 18 missing
+  attributes — strings (`portfolio_resume_id/style/layout/font/accent_color/sync_mode`,
+  meta title/desc, availability_headline, github/website/twitter url, contact_email,
+  draft_saved_at), large JSON strings (`portfolio_sections`, `portfolio_extras` 250 KB,
+  `portfolio_draft` 250 KB), boolean `open_to_work`. Never changes permissions or data.
+- Wired into `deploy_hubs.cjs` portfolio-settings block so a narrow `--only=portfolio-settings`
+  deploy applies it with the approved deploy key. No `target=all`. No frontend change.
+- Detail: `Project Atlas/Portfolio Profiles Schema Fix 2026-06-23/PROFILES_SCHEMA_FIX_REPORT.md`.
+
+---
+
 ## 2026-06-23 - Portfolio Password Persistence (PR #108)
 
 Makes portfolio password protection actually work in production while keeping
