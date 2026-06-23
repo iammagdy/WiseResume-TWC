@@ -1,4 +1,5 @@
 import { CSSProperties, Suspense, memo, useMemo, useCallback, useRef, useState } from 'react';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Eye, X, Download } from 'lucide-react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
@@ -58,7 +59,7 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
   applyLabel = 'Apply Changes',
   jobTitle,
 }: TailorPreviewSheetProps) {
-  const effectiveTemplate = (templateId || resume?.templateId || 'modern') as string;
+  const effectiveTemplate = migrateTemplateId(templateId || resume?.templateId) as string;
   const TemplateComponent = templateComponents[effectiveTemplate] || templateComponents.modern;
   const customizationStyle = useMemo(
     () => (resume ? applyCustomizationCSS(resume.customization) : {}),

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import {
   FileText,
   Sparkles,
@@ -134,7 +135,7 @@ export function ResumePickerSheet({
                     >
                       <div className="resume-picker-card__thumb">
                         <MiniTemplateThumbnail
-                          templateId={resume.template || resume.template_id || 'modern'}
+                          templateId={migrateTemplateId(resume.template || resume.template_id)}
                           className="w-full h-full"
                         />
                       </div>

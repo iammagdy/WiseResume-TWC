@@ -19,8 +19,7 @@
  *   sessionStorage. Included in all events so the DevKit map/country KPIs
  *   show real data.
  */
-import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { functions } from '@/lib/appwrite';
 
 export const CONSENT_KEY = 'wise_tracking_consent';
 export const ANON_ID_KEY  = 'wise_anon_id';
@@ -184,15 +183,24 @@ function buildBaseEvent(useConsented: boolean): Omit<VisitorEvent, 'event_type' 
 async function flush(): Promise<void> {
   if (_queue.length === 0) return;
   const batch = _queue.splice(0, _queue.length);
-  // Write each event directly to the Appwrite visitor_events collection.
-  // Fire-and-forget: errors are silently discarded.
-  await Promise.allSettled(
-    batch.map((event) =>
-      databases
-        .createDocument(DATABASE_ID, COLLECTIONS.visitor_events, ID.unique(), event as unknown as Record<string, unknown>)
-        .catch(() => {}),
-    ),
-  );
+  // B10: send the batch to the server-side, bot-guarded `track-visitor-event`
+  // function, which writes via API key. Unauthenticated visitors have no Appwrite
+  // session and the collection grants no guest-create, so the previous direct
+  // browser DB write was always silently rejected (the root cause of the empty
+  // Growth/Visitors tabs). Fire-and-forget async execution; analytics must never
+  // disrupt the user experience.
+  try {
+    await functions.createExecution(
+      'track-visitor-event',
+      JSON.stringify({
+        events: batch,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      }),
+      true,
+    );
+  } catch {
+    // ignore — never surface analytics failures to the visitor
+  }
 }
 
 function ensureFlushTimer(): void {

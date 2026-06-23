@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect, Fragment, type ReactNode } from 'react';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -665,7 +666,7 @@ export default function TailorPage() {
         certifications: JSON.stringify(mergedResume.certifications),
         projects: JSON.stringify(mergedResume.projects),
         awards: JSON.stringify(mergedResume.awards),
-        template: mergedResume.templateId || 'modern',
+        template: migrateTemplateId(mergedResume.templateId),
       });
 
       addTailorHistory({

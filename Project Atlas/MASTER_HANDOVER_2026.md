@@ -2,6 +2,108 @@
 
 ---
 
+## Session Log - 2026-06-23 (8-Area Audit → Remediation — branch claude/serene-ride-nk2c6t, PR #120)
+
+### Overview
+Full evidence-based audit of eight product areas, followed by a phased remediation
+(batches B0–B16; B13 and B17 deferred by design) plus two review fixes. All changes
+were validated locally (`npm run build` green, 23 targeted unit tests + a new
+`track-visitor-event` hub test pass, `node --check` on every changed hub). The
+implementation session had **no Appwrite network egress** (host `cloud.appwrite.io`
+not on the egress allowlist) and no Appwrite MCP, so all schema/permission/deploy
+work was **handed off** as an idempotent-script + MCP runbook (see "Pending manual
+actions").
+
+### What changed (frontend — safe to deploy now, all degrade gracefully)
+- **B1 Plan badge** (`usePlan.ts`, `AppWorkspaceSidebar.tsx`): a fresh, TTL-bounded
+  cached plan now resolves the badge instantly instead of an indefinite "Checking
+  your plan…". `subscriptionVerified` still gates paid features; `ai-gateway` stays
+  server-authoritative on every AI call (verified `getEffectivePlan`).
+- **B2 + Fix 1 Default template** (`useResumes.ts` `dbToResumeData`/`resumeDataToDb`,
+  `useEditorHydration.ts`, `templateConfig.ts`, tailoring saves incl. the
+  previously-missed `TailoringHubPage.tsx:431`, list thumbnails, create/import
+  paths): every `'modern'` fallback routed through `migrateTemplateId` /
+  `DEFAULT_RESUME_TEMPLATE_ID` (`wiseresume-classic`). Grep confirms no remaining
+  dangerous default `'modern'` (only test fixtures + dead/demo data). User-selected +
+  legacy ids preserved; no DB migration (read-time mapping).
+- **B3 Dashboard activity** (`useActivityFeed.ts` new, `DashboardIntelligencePanel.tsx`,
+  `dashboardActivityLabels.ts`): real server aggregation of `resumes`/`tailor_history`/
+  `job_applications`/`cover_letters`; local store kept as a deduped optimistic overlay;
+  honest empty/loading. No fake data.
+- **B4/B5 Settings** (`ProfileCard.css`, `AIEngineSection.tsx`, `SettingsPage.tsx`,
+  `DangerZoneSection.tsx`): idle ProfileCard animations paused + `prefers-reduced-motion`
+  guard; live `blur-3xl` → static gradient (real scroll-paint fix); Sign Out moved to a
+  neutral Account row; Danger Zone = delete only.
+- **B6 Offline-sync** (`useOfflineSync.ts`, `offlineSyncStore.ts`,
+  `useEditorAutosave.ts`): conflict detection compares the server `$updatedAt` against
+  the load-baseline, not the client wall-clock — fixes silent loss of valid offline
+  edits under clock skew.
+- **B14/B15 Editor/export** (`ui/textarea.tsx`, `ExperienceItem.tsx`, `dateUtils.ts`,
+  `templateCustomization.ts`): auto-grow textareas, reversed-date warning, Letter page
+  default unified with exports.
+- **B16 Cleanup**: removed 6 confirmed-dead files (head duplicate, DashboardUtilityRail
+  + DashboardRecentActivity, AIVoiceSection, AICreditsRow, ai/AISettingsSheet).
+
+### What changed (backend — require manual Appwrite steps before they activate)
+- **B7/B8/B9 Tailoring** (`ai-gateway/src/main.js`, `TailoringHubPage.tsx`,
+  `TailoringHubResultPage.tsx`, `setup_tailoring_lineage_schema.cjs`): `ai-gateway` no
+  longer fabricates a 55→78 score (returns `null` → real client `computeMatch`); a
+  compact rich-diff (`tailor_result`) is persisted to `tailor_history` and hydrated on
+  the result page; full lineage schema + resilient write. The history write is
+  **schema-safe** — if the `tailor_result` attribute is absent it strips it and retries
+  the core row, so the frontend is safe to deploy ahead of the schema.
+- **B10 + Fix 2 Visitor pipeline** (new `appwrite-hubs/track-visitor-event/`,
+  `visitorTrack.ts`, `VisitorsPanel.tsx`, `setup_visitor_events_schema.cjs`): root cause
+  of empty DevKit Growth/Visitors was that browser-direct `visitor_events` writes were
+  silently rejected (no guest session/permission). New server-side, bot-guarded,
+  **rate-limited** (in-memory per session/anon/IP, 60s/30, fail-open) function writes via
+  API key. Client now calls it. Misleading "GDPR" empty-state copy corrected.
+- **B11 Onboarding funnel** (`admin-onboarding-funnel/src/main.js`, `admin-devkit-data`
+  diagnostics probe, new `setup_audit_logs_collection.cjs`): funnel now `JSON.parse`s the
+  metadata string; `audit_logs` added to the diagnostics probe; provisioning script for
+  the `audit_logs` collection (SEPARATE from `admin_audit_logs`).
+- **B12 Wise AI** (`ai-gateway/src/main.js`, `drawerLayout.ts`): prompt now uses the
+  page/resume context the client already sends; advertises the handled
+  `get_company_briefing` tool; wider mobile chat. (Full agentic job-fit tool loop =
+  **B13, deferred** — needs live gateway testing.)
+
+### Deferred by design
+- **B13** Wise AI agentic job-fit tool loop — highest-risk change to the critical AI
+  path; must be built + validated live in a dedicated session.
+- **B17** legacy `/tailor` route consolidation — behavioral, owner-approval-gated;
+  legacy routes preserved.
+
+### Validation
+- `npm run build` ✅ (root `tsc --noEmit` is a no-op solution config; the real strict
+  `tsconfig.app.json` has ~589 pre-existing unrelated errors — unchanged, and B2 fixed
+  one). 23 targeted unit tests ✅. `track-visitor-event` hub test ✅. `node --check` on
+  ai-gateway / admin-onboarding-funnel / admin-devkit-data / track-visitor-event ✅.
+  Source-hash manifest refreshed. Vercel preview deploy: **Ready**.
+
+### Pending manual actions (owner / new Appwrite-MCP session)
+Run with an Appwrite API key (db scope), additive only:
+1. `node scripts/setup_tailoring_lineage_schema.cjs` — adds `tailor_result` + full
+   `tailor_history` schema.
+2. `node scripts/setup_visitor_events_schema.cjs` — adds `referrer`, `os` to
+   `visitor_events`.
+3. `node scripts/setup_audit_logs_collection.cjs` — provisions `audit_logs` (NOT
+   `admin_audit_logs`).
+4. Console: deploy `track-visitor-event` with **Execute = Any** + an `APPWRITE_API_KEY`
+   function variable.
+5. Run **Deploy Appwrite Hubs** workflow with target
+   `track-visitor-event,ai-gateway,admin-onboarding-funnel,admin-devkit-data` (never
+   `all`). Investigate the ai-gateway git-integration "Build failed" status on the
+   Appwrite console (source passes `node --check` and changed no deps — likely
+   transient/infra).
+
+### Where we stopped
+PR #120 opened against `main` (conflict with main resolved by merging origin/main in).
+Frontend is safe to merge (graceful degradation everywhere). Backend features remain
+inactive until the steps above run. TestSprite Pre-Check reports "No tests detected"
+(third-party gate, not code).
+
+---
+
 ## Session Log - 2026-06-23 (Portfolio visitor count + completion-bar fix — branch claude/clever-volta-cnv3wt, PR #119)
 
 ### Overview

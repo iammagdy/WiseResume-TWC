@@ -142,6 +142,35 @@ async function run() {
   await sleep(500);
   await ensureIndex(TAILOR_HISTORY_ID, 'tailored_resume_id_idx', 'key', ['tailored_resume_id'], ['ASC']);
   await sleep(500);
+  // B8: compact rich-diff (keyChanges, bulletTransformations, changedSections,
+  // missingSkills) so the Tailoring Result page survives hard refresh / cross-device.
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'tailor_result', 65535, false);
+  await sleep(500);
+  // B9: ensure the full tailor_history write schema so history list + hub stat
+  // cards never silently under-count on a fresh or partially-migrated environment.
+  // All additive + optional; existing attributes are detected and skipped.
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'user_id', 36, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'source_resume_id', 36, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'job_title', 256, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'company', 256, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'job_url', 2048, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'job_description', 5000, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'applied_sections', 2048, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'intensity', 32, false);
+  await sleep(200);
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'status', 32, false);
+  await sleep(200);
+  await ensureIntAttr(TAILOR_HISTORY_ID, 'score_before', false, 0, 100);
+  await sleep(200);
+  await ensureIntAttr(TAILOR_HISTORY_ID, 'score_after', false, 0, 100);
+  await sleep(200);
 
   // 2. resumes optional lineage fields
   console.log(`\n2. ${RESUMES_ID}`);

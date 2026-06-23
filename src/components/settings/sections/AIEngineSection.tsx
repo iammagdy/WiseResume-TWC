@@ -61,8 +61,11 @@ export const AIEngineSection = memo(function AIEngineSection() {
           className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent"
           aria-hidden
         />
+        {/* B4 perf: pre-baked radial-gradient glow instead of a live blur-3xl
+            filter, which forced a large-radius re-rasterize on every scroll frame. */}
         <div
-          className="pointer-events-none absolute -top-12 -right-8 h-40 w-40 rounded-full bg-primary/15 blur-3xl"
+          className="pointer-events-none absolute -top-12 -right-8 h-40 w-40 rounded-full"
+          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.18), transparent 70%)' }}
           aria-hidden
         />
         <div className="relative flex items-start gap-3.5">

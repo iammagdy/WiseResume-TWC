@@ -212,7 +212,17 @@ async function computeFunnel(databases, days, granularity) {
   for (const doc of docs) {
     const userId = doc.user_id || doc.anon_id || null;
     const action  = (doc.action || '').toLowerCase();
-    const meta    = doc.metadata || {};
+    // B11/P2-6: auditLogger writes metadata as a JSON string (JSON.stringify).
+    // Parse it so method / step / message breakdowns are not all 'unknown'.
+    // Tolerates legacy object-shaped metadata too.
+    let meta = {};
+    if (doc.metadata) {
+      if (typeof doc.metadata === 'string') {
+        try { meta = JSON.parse(doc.metadata) || {}; } catch { meta = {}; }
+      } else if (typeof doc.metadata === 'object') {
+        meta = doc.metadata;
+      }
+    }
     const ts      = doc.$createdAt;
     const bKey    = bucketKey(ts, granularity);
 

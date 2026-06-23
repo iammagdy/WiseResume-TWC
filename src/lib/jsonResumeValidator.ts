@@ -6,6 +6,7 @@
  */
 
 import type { ResumeData, Experience, Education, Certification } from '@/types/resume';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 
 /**
  * Regenerate all IDs in resume data to prevent React key conflicts.
@@ -129,7 +130,7 @@ export function validateAndCleanResumeData(data: unknown): ResumeData {
     education,
     skills,
     certifications,
-    templateId: typeof obj.templateId === 'string' ? obj.templateId : 'modern',
+    templateId: typeof obj.templateId === 'string' ? obj.templateId : DEFAULT_RESUME_TEMPLATE_ID,
   };
 
   return cleaned;

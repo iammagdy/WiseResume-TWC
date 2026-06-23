@@ -67,7 +67,7 @@ export function useEditorHydration({
       (resumeFromDb as { template_id?: string | null; template?: string | null }).template_id
       ?? (resumeFromDb as { template?: string | null }).template
       ?? dbResume.templateId
-      ?? 'modern';
+      ?? null;
 
     // Initial hydration: store empty OR persisted resume is for a different id
     // (common when opening /editor?id=… after another resume was cached locally).
@@ -98,7 +98,7 @@ export function useEditorHydration({
       if (isClean) {
         useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb as any));
         useResumeStore.getState().setSelectedTemplate(
-          migrateLegacyTemplateId((resumeFromDb.template_id as string) || 'modern')
+          migrateLegacyTemplateId((resumeFromDb.template_id as string | null) ?? null)
         );
         localLoadedAtRef.current = serverUpdatedAt;
         lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb as any));

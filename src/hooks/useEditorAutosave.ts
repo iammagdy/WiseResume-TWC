@@ -29,7 +29,7 @@ interface UseEditorAutosaveOptions {
   resumeFromDb: DatabaseResumeLike | null | undefined;
   localLoadedAtRef: React.MutableRefObject<string | null>;
   isSavingRef: React.MutableRefObject<boolean>;
-  addPendingChange: (resumeId: string, updates: ResumeData) => void;
+  addPendingChange: (resumeId: string, updates: ResumeData, baseUpdatedAt?: string | null) => void;
   isAILoadingRef?: React.MutableRefObject<boolean>;
   /** Optional callback to register the flush function with a parent context */
   onRegisterFlush?: (flushFn: () => Promise<void>) => void;
@@ -160,7 +160,7 @@ export function useEditorAutosave({
         errorMessage.toLowerCase().includes('invalid jwt');
 
       if (isNetworkError && currentResumeId) {
-        addPendingChange(currentResumeId, resume);
+        addPendingChange(currentResumeId, resume, localLoadedAtRef.current);
       } else if (isAuthError) {
         if (shouldEmitAutoSaveToast('error')) {
           toast.warning('Session expired — your changes are saved locally. Please sign back in.', { duration: 5000 });
@@ -182,7 +182,7 @@ export function useEditorAutosave({
           // Retry succeeded — no toast shown
         } catch (retryError: unknown) {
           console.error('Auto-save failed after retry:', retryError);
-          if (currentResumeId) addPendingChange(currentResumeId, resume);
+          if (currentResumeId) addPendingChange(currentResumeId, resume, localLoadedAtRef.current);
           if (shouldEmitAutoSaveToast('error')) {
             toast.warning('Auto-save failed — your changes are saved locally. Tap Save to retry.', { id: 'autosave-fail', duration: 4000 });
           }

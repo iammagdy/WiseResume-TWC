@@ -1,4 +1,5 @@
 import { TemplateId } from '@/types/resume';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 
 export type TemplateLayout = 'linear' | 'linear-grid' | 'fixed-sidebar';
 
@@ -11,6 +12,7 @@ export interface TemplateConfig {
 }
 
 export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
+  'wiseresume-classic': { id: 'wiseresume-classic', name: 'WiseResume Classic', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
   minimal: { id: 'minimal', name: 'Minimal', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
   classic: { id: 'classic', name: 'Classic', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
   modern: { id: 'modern', name: 'Modern', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
@@ -42,9 +44,10 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
 
 /**
  * Gets the configuration for a template.
- * Always returns a valid config — falls back to 'modern' for unknown/stale IDs
- * so a bad value in persisted storage never causes a runtime crash.
+ * Always returns a valid config — falls back to the WiseResume default template
+ * for unknown/stale IDs so a bad value in persisted storage never causes a
+ * runtime crash.
  */
 export function getTemplateConfig(templateId: TemplateId): TemplateConfig {
-  return TEMPLATE_CONFIGS[templateId] ?? TEMPLATE_CONFIGS['modern'];
+  return TEMPLATE_CONFIGS[templateId] ?? TEMPLATE_CONFIGS[DEFAULT_RESUME_TEMPLATE_ID];
 }

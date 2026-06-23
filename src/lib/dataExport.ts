@@ -1,4 +1,5 @@
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -186,7 +187,7 @@ export async function importResumes(file: File, userId: string): Promise<number>
       education: JSON.stringify(Array.isArray(resume.education) ? resume.education : []),
       skills: JSON.stringify(Array.isArray(resume.skills) ? resume.skills : []),
       certifications: JSON.stringify(Array.isArray(resume.certifications) ? resume.certifications : []),
-      template: typeof resume.templateId === 'string' ? resume.templateId : 'modern',
+      template: migrateTemplateId(typeof resume.templateId === 'string' ? resume.templateId : null),
     };
 
     const existingId = typeof resume.id === 'string' ? resume.id : null;

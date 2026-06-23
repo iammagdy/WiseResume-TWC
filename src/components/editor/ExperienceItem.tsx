@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Experience } from '@/types/resume';
 import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
-import { formatDateRange, calculateDuration } from '@/lib/dateUtils';
+import { formatDateRange, calculateDuration, isReversedDateRange } from '@/lib/dateUtils';
 import { NudgeState } from '@/hooks/useResumeNudges';
 import { MonthYearPicker } from './MonthYearPicker';
 
@@ -256,6 +256,13 @@ export const ExperienceItem = memo(function ExperienceItem({
                 )}
               </div>
             </div>
+
+            {isReversedDateRange(exp.startDate, exp.endDate, exp.current) && (
+              <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                End date is before the start date — check this range before exporting.
+              </p>
+            )}
 
             <div className="flex items-center gap-3 py-1">
               <Switch

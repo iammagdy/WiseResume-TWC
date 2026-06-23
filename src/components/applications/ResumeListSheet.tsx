@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { useNavigate } from 'react-router-dom';
 import { Crown, FileText, Scissors, Calendar, MoreVertical, Eye, Edit2, Download, Copy } from 'lucide-react';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
@@ -70,7 +71,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
       const resumeData = dbToResumeData(resume);
       const blob = await exportResumePdfFromData(
         resumeData,
-        (resume.template_id || 'modern') as TemplateId,
+        migrateTemplateId(resume.template_id),
         { showPageNumbers: true, showBranding: true },
       );
       const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');

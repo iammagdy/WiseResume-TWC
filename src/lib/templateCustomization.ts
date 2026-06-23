@@ -10,7 +10,10 @@ export const getDefaultCustomization = (): TemplateCustomization => ({
   spacing: 'normal',
   margins: 'normal',
   lineHeight: '1.15',
-  pageFormat: 'a4',
+  // B15: default to Letter to match every export/preview fallback (?? 'letter')
+  // and the Letter-designed flagship template, so "no explicit selection" is
+  // consistent across surfaces. Existing resumes keep their stored pageFormat.
+  pageFormat: 'letter',
 });
 
 export interface PresetPalette {

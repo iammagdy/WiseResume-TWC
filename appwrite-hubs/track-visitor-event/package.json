@@ -1,0 +1,9 @@
+{
+  "name": "track-visitor-event",
+  "version": "1.0.0",
+  "description": "Server-side, bot-guarded visitor event ingestion for DevKit Growth/Visitor analytics. Writes to visitor_events via API key so unauthenticated visitors do not need collection write permission.",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^17.2.0"
+  }
+}

@@ -66,7 +66,11 @@
   border-radius: var(--card-radius);
   position: relative;
   background-blend-mode: color-dodge, normal, normal, normal;
+  /* B4 perf: the idle glow loop is the main Settings scroll cost — keep the
+     gradient static while idle/off-screen; pointer-driven transforms still run
+     on hover. */
   animation: glow-bg 12s linear infinite;
+  animation-play-state: paused;
   box-shadow: rgba(0, 0, 0, 0.8) calc((var(--pointer-from-left) * 10px) - 3px)
     calc((var(--pointer-from-top) * 20px) - 6px) 20px -5px;
   transition: transform 1s ease;
@@ -116,8 +120,10 @@
   mask-position: top calc(200% - (var(--background-y) * 5)) left calc(100% - var(--background-x));
   transition: filter 0.8s ease;
   filter: brightness(0.66) contrast(1.33) saturate(0.33) opacity(0.5);
+  /* B4 perf: holographic shimmer no longer auto-loops while idle (it was already
+     paused on hover); keeps the static holo gradient without per-frame cost. */
   animation: holo-bg 18s linear infinite;
-  animation-play-state: running;
+  animation-play-state: paused;
   mix-blend-mode: color-dodge;
 }
 
@@ -428,4 +434,17 @@
   .pc-details p { font-size: 11px; }
   .pc-user-info { padding: 4px 6px; }
   .pc-action-btn { padding: 10px 4px; font-size: 8px; min-height: 44px; }
+}
+
+/* B4 perf/accessibility: fully disable the decorative card animations for users
+   who prefer reduced motion. Combined with the default paused state above, the
+   card never animates while idle, eliminating the Settings scroll-lag cost. */
+@media (prefers-reduced-motion: reduce) {
+  .pc-card,
+  .pc-shine,
+  .pc-shine::before,
+  .pc-shine::after,
+  .pc-glare {
+    animation: none !important;
+  }
 }

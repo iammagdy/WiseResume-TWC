@@ -6,6 +6,7 @@ import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useResumeStore } from '@/store/resumeStore';
 import { readPersistedCache, writePersistedCache } from '@/lib/persistedQueryCache';
+import { migrateTemplateId } from '@/lib/templateMigration';
 
 export interface DatabaseResume {
   $id: string;
@@ -96,7 +97,9 @@ export function resumeUpdatesToDbFields(updates: Partial<ResumeData>): Record<st
 export function dbToResumeData(db: any): ResumeData {
   return {
     id: db.$id,
-    templateId: db.template || 'modern',
+    // Default to the WiseResume white/crimson template when none is stored;
+    // valid user-selected ids pass through unchanged, legacy ids are migrated.
+    templateId: migrateTemplateId(db.template),
     title: db.title,
     summary: db.summary || '',
     contactInfo: parseDbJson(db.contact_info, { fullName: '', email: '', phone: '', location: '' }),
@@ -121,7 +124,7 @@ export function resumeDataToDb(resume: ResumeData, userId: string): Partial<Data
   return {
     user_id: userId,
     title: resume.title || 'Untitled Resume',
-    template: resume.templateId || 'modern',
+    template: migrateTemplateId(resume.templateId),
     summary: resume.summary,
     contact_info: JSON.stringify(resume.contactInfo),
     experience: JSON.stringify(resume.experience),

@@ -221,6 +221,23 @@ export function compareDates(a: ParsedDate, b: ParsedDate): number {
 }
 
 /**
+ * B14: true when an end date is chronologically before its start date (and the
+ * entry is not marked current). Used to surface a soft, non-blocking warning in
+ * the editor section forms so reversed ranges aren't silently exported.
+ */
+export function isReversedDateRange(
+  startDate?: string,
+  endDate?: string,
+  isCurrent?: boolean,
+): boolean {
+  if (isCurrent || !startDate || !endDate) return false;
+  const start = parseResumeDate(startDate);
+  const end = parseResumeDate(endDate);
+  if (!start || !end) return false;
+  return compareDates(end, start) < 0;
+}
+
+/**
  * Detect gaps between jobs
  */
 export function detectGaps(

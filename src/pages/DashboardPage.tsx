@@ -1,4 +1,5 @@
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import { useState, useEffect, useRef, useMemo, useDeferredValue, Suspense, useCallback } from 'react';
 import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -1319,7 +1320,7 @@ function DashboardPageContent() {
                   experience: JSON.stringify(newResume.experience || []),
                   education: JSON.stringify(newResume.education || []),
                   skills: JSON.stringify(newResume.skills || []),
-                  template: 'modern',
+                  template: DEFAULT_RESUME_TEMPLATE_ID,
                 });
                 createdId = doc.$id;
               } catch (e) {
@@ -1335,7 +1336,7 @@ function DashboardPageContent() {
                   education: (newResume.education || []) as never,
                   skills: (newResume.skills || []) as never,
                   certifications: [],
-                  templateId: 'modern',
+                  templateId: DEFAULT_RESUME_TEMPLATE_ID,
                 });
                 haptics.success();
                 toast.success('Resume created from LinkedIn!');

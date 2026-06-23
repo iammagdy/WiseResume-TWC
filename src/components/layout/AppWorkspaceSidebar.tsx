@@ -79,12 +79,17 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
 
   const planLabel =
     plan === 'premium' ? 'Premium plan' : plan === 'pro' ? 'Pro plan' : 'Free plan';
+  // Once the plan is resolved (from the TTL-bounded cache or live data),
+  // `planLoading` is false — show the actual plan label rather than the
+  // indefinite "Checking your plan…" state, which now only appears on a
+  // genuine cold load with no cached plan. `subscriptionVerified` is reserved
+  // for entitlement gating (upgrade CTA / Free chip), not the badge label.
   const membershipTitle =
     plan === 'premium'
       ? 'Premium membership'
       : plan === 'pro'
         ? 'Pro membership'
-        : planLoading || !membershipResolved
+        : planLoading
           ? 'Your membership'
           : 'Free plan';
   const membershipSubtitle =
@@ -92,7 +97,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
       ? 'Full workspace access'
       : plan === 'pro'
         ? 'Advanced AI tools included'
-        : planLoading || !membershipResolved
+        : planLoading
           ? 'Checking your plan…'
           : 'Upgrade for unlimited AI';
 
@@ -297,7 +302,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                       >
                         {isPremium ? 'Premium' : 'Pro'}
                       </span>
-                    ) : membershipResolved && !planLoading ? (
+                    ) : !planLoading ? (
                       <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] border border-border/60 bg-muted/50 text-muted-foreground">
                         Free
                       </span>
