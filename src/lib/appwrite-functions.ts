@@ -48,6 +48,7 @@ const PUBLIC_SHARE_FUNCTIONS = new Set([
   'verify-share-password',
   'create-portfolio-chat-session',
   'ask-portfolio',
+  'portfolio-interest',
 ]);
 
 function isCouponFunction(fnName: string): boolean {

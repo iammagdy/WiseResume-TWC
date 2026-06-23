@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, X, Send } from 'lucide-react';
+import { MessageSquare, X, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
@@ -59,8 +59,18 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
   });
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState(false);
+  // First-visit nudge so visitors notice the portfolio is actually askable.
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const MAX_QUESTIONS = 10;
+  const firstName = profile.fullName?.split(' ')[0] || 'me';
+
+  useEffect(() => {
+    if (hasInteracted || open) return;
+    const t = window.setTimeout(() => setShowHint(true), 3500);
+    return () => window.clearTimeout(t);
+  }, [hasInteracted, open]);
 
   // Provision a server-signed visitor session token when chat is first opened.
   // This token replaces IP-header-based identity and enables non-bypassable
@@ -181,28 +191,76 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
 
   return (
     <>
-      {/* Floating button */}
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 1.5, type: 'spring', stiffness: 300 }}
-        onClick={() => setOpen(o => !o)}
-        className="fixed bottom-6 right-4 z-[60] w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        style={{ background: accentColor, color: '#fff', boxShadow: `0 8px 32px -4px ${accentColor}70`, pointerEvents: 'auto' }}
-        data-pdf-exclude
-        title={`Ask ${profile.fullName?.split(' ')[0] || 'me'} anything`}
-      >
-        <AnimatePresence mode="wait">
-          {open
-            ? <motion.span key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
-                <X className="w-5 h-5" />
-              </motion.span>
-            : <motion.span key="chat" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
-                <MessageSquare className="w-5 h-5" />
-              </motion.span>
-          }
+      {/* Floating launcher + first-visit nudge */}
+      <div className="fixed bottom-6 right-4 z-[60] flex items-center gap-2.5" data-pdf-exclude style={{ pointerEvents: 'none' }}>
+        <AnimatePresence>
+          {showHint && !open && (
+            <motion.button
+              key="hint"
+              initial={{ opacity: 0, x: 16, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 16, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+              onClick={() => { setOpen(true); setHasInteracted(true); setShowHint(false); }}
+              className="relative max-w-[210px] rounded-2xl rounded-br-md px-3.5 py-2.5 text-left shadow-xl"
+              style={{ background: bgPanel, border: `1px solid ${borderColor}`, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', pointerEvents: 'auto' }}
+            >
+              <span
+                onClick={(e) => { e.stopPropagation(); setShowHint(false); setHasInteracted(true); }}
+                className="absolute -top-2 -left-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
+                style={{ background: bgPanel, border: `1px solid ${borderColor}`, color: mutedColor }}
+                aria-label="Dismiss"
+              >
+                <X className="w-2.5 h-2.5" />
+              </span>
+              <p className="text-xs font-semibold leading-tight flex items-center gap-1" style={{ color: fgColor }}>
+                <Sparkles className="w-3 h-3" style={{ color: accentColor }} />
+                Ask me about {firstName}
+              </p>
+              <p className="text-[10px] mt-0.5" style={{ color: mutedColor }}>Skills, experience, availability…</p>
+            </motion.button>
+          )}
         </AnimatePresence>
-      </motion.button>
+
+        <div className="relative" style={{ pointerEvents: 'auto' }}>
+          {/* attention pulse — only while closed */}
+          {!open && (
+            <motion.span
+              className="absolute inset-0 rounded-full"
+              style={{ background: accentColor, zIndex: -1 }}
+              animate={{ scale: [1, 1.55], opacity: [0.45, 0] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
+            />
+          )}
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 1.5, type: 'spring', stiffness: 300 }}
+            onClick={() => { setOpen(o => !o); setHasInteracted(true); setShowHint(false); }}
+            className="relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+            style={{ background: accentColor, color: '#fff', boxShadow: `0 8px 32px -4px ${accentColor}70` }}
+            title={`Ask ${firstName} anything`}
+            aria-label={`Ask ${firstName} anything`}
+          >
+            <AnimatePresence mode="wait">
+              {open
+                ? <motion.span key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                    <X className="w-5 h-5" />
+                  </motion.span>
+                : <motion.span key="chat" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                    <MessageSquare className="w-5 h-5" />
+                  </motion.span>
+              }
+            </AnimatePresence>
+            {/* sparkle accent badge to signal "AI" */}
+            {!open && (
+              <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#fff' }}>
+                <Sparkles className="w-3 h-3" style={{ color: accentColor }} />
+              </span>
+            )}
+          </motion.button>
+        </div>
+      </div>
 
       {/* Chat panel */}
       <AnimatePresence>

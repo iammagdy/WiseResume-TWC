@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-22
+**Last verified:** 2026-06-23
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,96 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-06-23 - Portfolio visitor count + completion-bar fix (PR #119, branch `claude/clever-volta-cnv3wt`)
+
+Two long-standing portfolio bugs, both root-caused against the **live Appwrite
+schema/data** before fixing:
+
+- **Visitor count stuck at 0.** The visit beacon (`api/track-portfolio-view.ts`,
+  `server/index.ts`) writes `username, ref, sections_viewed, sections_timing,
+  time_spent_seconds, device, ab_variant`, and the dashboard reads them via
+  `Query.equal('username', …)`. The live `main/portfolio_visits` collection had a
+  completely unrelated column set (`user_id, portfolio_id, referrer, country,
+  device_type, page, utm_source`) and **zero indexes** — so every fire-and-forget
+  write failed silently with "Unknown attribute." The table had **0 rows ever**.
+  Fix: added the missing **optional** attributes + a `idx_pv_username` index
+  (idempotent `scripts/setup_portfolio_visits_schema.cjs`, same pattern as the
+  `portfolio_interactions` repair). **Applied to production and verified
+  end-to-end** (write succeeds → dashboard query returns it → test row deleted).
+  Real visits record going forward, given the Vercel `APPWRITE_API_KEY` is set.
+
+- **Completion bar marked Skills/Work experience as missing when filled.**
+  `useResumes()` returns raw Appwrite docs where `skills`/`experience` are
+  JSON-encoded strings (`resumeDataToDb` → `JSON.stringify`), but the completion
+  logic called `Array.isArray()` on the raw string (always false). Fix: new
+  tested helper `deriveResumeCompletion` (`src/lib/portfolioCompletion.ts`) parses
+  via `parseDbJson` before counting; wired into `PortfolioEditorPage`. Regression
+  test added.
+
+Unrelated red checks on the PR: `AI Gateway Hub` build (pre-existing
+`providerRootDirectory` auto-build issue, see PR #117 notes — this PR changes no
+function build inputs) and `TestSprite "No tests detected"` (standing repo gate).
+
+---
+
+## 2026-06-23 - Password gate → "Scout" mascot (PRs #112, #116)
+
+The password-gate mascot evolved across iterations and its final state is **Scout**, an
+ATS-scanner robot ported from the owner-provided Claude Design ("Scout Password Screen"):
+- #112 — first reworked the gate's cat to be cuter/more animated (interim).
+- #116 — replaced the cat entirely with **Scout** (`PortfolioPasswordGate.tsx`): antenna +
+  glowing dot, dark rounded head, two camera lenses whose pupils track the pointer, and lens
+  **shutters that cover the lenses while typing** (one-eyed peek when the password is revealed),
+  plus a pulsing scan beam and "ATS" label. Card/pill/title/input/submit/footer match the design.
+- Reds are driven by the portfolio **accent color**; the themed animated backdrop is kept;
+  respects `prefers-reduced-motion`. Frontend-only (ships via Vercel).
+
+Note: the gate's password verification/flow is unchanged — this is purely the visual mascot/card.
+
+---
+
+## 2026-06-23 - "I'm Interested" moved to Appwrite (branch `fix/portfolio-interest-via-appwrite`)
+
+The "I'm Interested" beacon hit `/api/portfolio-interest` (Vercel), which needs a
+properly-scoped `APPWRITE_API_KEY` env var. In production that key wasn't authenticating
+(generic "not authorized" — a guest-level error, i.e. wrong/malformed key value, not a scope
+issue). Rather than keep fighting the Vercel env var, the endpoint was moved server-side.
+
+- public-share gains a `portfolio-interest` action (uses the function's own scoped key):
+  validates username + per-browser UUID token, dedups on token, writes `portfolio_interactions`
+  (`token`/`portfolio_username`/`interaction_type`/`referrer_hostname`). No PII/IP stored.
+- Frontend `sendPortfolioInterest` + `appwrite-functions.ts` route to public-share instead of the
+  Vercel route. The Vercel `/api/portfolio-interest` is now unused (left in place; harmless).
+- Removes the Vercel `APPWRITE_API_KEY` dependency for interest. (Analytics `track-portfolio-view`
+  still uses it, but that's silent/non-blocking.)
+
+---
+
+## 2026-06-23 - Public Portfolio Visitor Experience (branch `fix/portfolio-visitor-experience`)
+
+Fixes three broken visitor features + redesigns the password gate and polishes the chat
+launcher / footer.
+
+- **Chat fix:** public-share `executeAiGateway` used the object-form `createExecution`, but the
+  bundled node-appwrite 17.2.0 is positional → `Invalid functionId param` on every `ask-portfolio`.
+  Switched to positional. (`appwrite-hubs/public-share/src/main.js`)
+- **Interest fix:** `portfolio_interactions` was missing `token`/`portfolio_username`/
+  `interaction_type`/`referrer_hostname` (only had `user_id`) → "Unknown attribute" → "Could not
+  send interest." New idempotent `scripts/setup_portfolio_interactions_schema.cjs` (+ token index),
+  wired into the public-share deploy block.
+- **Contact form:** ai-gateway needs a Turnstile token for anonymous senders, but
+  `VITE_TURNSTILE_SITE_KEY` is missing in the Vercel build → no widget → "Security check required."
+  ⚠️ OWNER must set `VITE_TURNSTILE_SITE_KEY` in Vercel (pairs with the Appwrite
+  `TURNSTILE_SECRET_KEY`). Error message clarified.
+- **Password gate redesign:** new `PortfolioPasswordGate.tsx` — a cat that watches the pointer and
+  covers its eyes while you type (peeks on show-password) + an accent-driven animated aurora
+  background. Respects reduced-motion.
+- **Chat launcher:** pulse ring + sparkle badge + first-visit "Ask me about <Name>" hint pill.
+- **Footer:** "Built with WiseResume" is now an accent pill badge.
+- Detail: `Project Atlas/Portfolio Visitor Experience 2026-06-23/PORTFOLIO_VISITOR_EXPERIENCE_REPORT.md`.
 
 ---
 

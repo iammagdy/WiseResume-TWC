@@ -253,7 +253,14 @@ export function isAppHostname(hostname: string): boolean {
     h === 'wiseresume.app' ||
     h === 'www.wiseresume.app' ||
     h.endsWith('.replit.dev') ||
-    h.endsWith('.replit.co')
+    h.endsWith('.replit.co') ||
+    // Vercel preview/production deployments for this project, e.g.
+    // wise-resume-twc-git-<branch>-<team>.vercel.app. Scoped to the project's
+    // own prefix so arbitrary *.vercel.app subdomains are not treated as app
+    // hosts. Mirrors the Replit preview handling above so app routes resolve on
+    // Vercel previews instead of falling through to custom-domain portfolio
+    // resolution ("Portfolio not found for this domain.").
+    (h.startsWith('wise-resume-twc') && h.endsWith('.vercel.app'))
   );
 }
 

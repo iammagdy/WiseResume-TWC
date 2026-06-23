@@ -2,6 +2,123 @@
 
 ---
 
+## Session Log - 2026-06-23 (Portfolio visitor count + completion-bar fix — branch claude/clever-volta-cnv3wt, PR #119)
+
+### Overview
+Two owner-reported portfolio bugs, both root-caused against the **live Appwrite
+schema/data** before any code was changed:
+
+- **Visitor count stuck at 0** (Visitors tab always "No visitors yet"). The visit
+  beacon (`api/track-portfolio-view.ts` + `server/index.ts` mirror) writes
+  `username, ref, sections_viewed, sections_timing, time_spent_seconds, device,
+  ab_variant`; the dashboard (`usePortfolioAnalytics`) reads them via
+  `Query.equal('username', …)`. The live `main/portfolio_visits` collection had a
+  completely different column set (`user_id, portfolio_id, referrer, country,
+  device_type, page, utm_source`) and **zero indexes** → every fire-and-forget
+  write failed silently with "Unknown attribute." **The table had 0 rows ever.**
+- **Completion bar** flagged "Work experience" and "Skills" as missing even when
+  populated, because `useResumes()` returns raw Appwrite docs where
+  `skills`/`experience` are **JSON strings** (`resumeDataToDb` → `JSON.stringify`)
+  and the logic called `Array.isArray()` on the raw string (always false).
+
+### What shipped
+- **DB migration (applied to production & verified):** added the missing optional
+  attributes to `portfolio_visits` + a `idx_pv_username` index via the idempotent
+  `scripts/setup_portfolio_visits_schema.cjs`. Verified end-to-end (beacon-shaped
+  write succeeds → dashboard query returns it → verification row deleted; table
+  clean). This fix is **live now, independent of merge**.
+- **Code fix:** new tested helper `src/lib/portfolioCompletion.ts`
+  (`deriveResumeCompletion`) parses with `parseDbJson` before counting; wired into
+  `PortfolioEditorPage`; `parseDbJson` exported from `useResumes.ts`. Regression
+  test `src/lib/__tests__/portfolioCompletion.test.ts` (4 cases, passing). Ships on
+  merge via Vercel.
+
+### Status
+PR #119 merged to `main`. Frontend ships via Vercel on merge; the visitor schema
+fix is already live in Appwrite.
+Detail card: `Project Atlas/01-Currently Implemented/stability-fixes/portfolio-visitor-count-and-completion-fix-2026-06-23.md`.
+**Open items:** (1) for visits to record in production the Vercel deployment must
+have `APPWRITE_API_KEY` + `APPWRITE_PROJECT_ID` set (same key "I'm Interested"
+uses) — if visits still read 0 after real traffic, check that first.
+**Unrelated red checks:** `AI Gateway Hub` build failure is the pre-existing
+`ai-gateway` auto-build issue (empty `providerRootDirectory`, see PR #117 entry
+below) — this PR changes no function build inputs; `TestSprite "No tests detected"`
+is the standing repo gate.
+
+---
+
+## Session Log - 2026-06-23 (Auth Redesign + Vercel Preview Host Fix + AI Gateway VCS Disconnect — branch claude/happy-bardeen-jsqvpj, PR #117)
+
+### Overview
+Three related pieces of work on PR #117:
+- **Auth page redesign** (`src/pages/AuthPage.tsx`): single glass card → **modern split-screen**
+  (left brand panel: logo, "Build smarter resumes with AI.", feature list, ambient glows; right
+  form). Added per-view headings (Welcome back / Create your account / Reset password / Claim your
+  account). **Email-only — no auth-method changes;** all flows (email/password, branded
+  reset+verify via `email-service`, plan-intent, redirect/mode params, a11y) preserved.
+- **Vercel preview host fix** (`src/hooks/usePublicPortfolio.ts`): app routes (e.g. `/auth`) on
+  `*.vercel.app` rendered *"Portfolio not found for this domain."* because `isAppHostname()` didn't
+  list Vercel hosts → fell through to (stubbed) custom-domain portfolio. Added
+  `h.startsWith('wise-resume-twc') && h.endsWith('.vercel.app')` (scoped, keeps the host allowlist
+  tight). Direct sibling of the 2026-05-09 Replit preview-login fix.
+- **AI Gateway build-failure diagnosis + VCS disconnect**: the `ai-gateway` GitHub-App auto-build
+  fails on every push (*"Build archive was not created"*) because `providerRootDirectory` is empty
+  → it builds the **whole repo** (6.75 MB) and runs the main app's Puppeteer/Chrome `postinstall`
+  → builder killed. Production is unaffected (function stays `live` on its last-good CLI deploy).
+  Owner-approved API attempt: `functions_update` cleared the VCS link (re-supplying all other
+  config). **Caveat:** Appwrite masks VCS fields, so the disconnect can't be 100% confirmed via API
+  — next push is the test; fallbacks are `providerSilentMode: true` or the Console Git disconnect.
+
+### Status
+Branch + PR #117 (merging to `main`). Frontend ships via Vercel on merge.
+Detail card: `Project Atlas/01-Currently Implemented/stability-fixes/auth-redesign-and-vercel-preview-host-fix-2026-06-23.md`.
+**Open items:** (1) signing in from a Vercel host may need the Vercel domain registered as an
+Appwrite Web Platform (else `403 general_unknown_origin`); (2) confirm AI Gateway auto-build is gone
+on the next push, else apply silent-mode/Console disconnect. **Unrelated red checks:** TestSprite
+"No tests detected" is a pre-existing repo gate, not from this work.
+
+---
+
+## Session Log - 2026-06-23 (Password gate → Scout mascot; interest moved to Appwrite)
+
+Final state of the portfolio password gate + the "I'm Interested" path after several iterations:
+- **Password gate mascot = "Scout"** (PR #116, `PortfolioPasswordGate.tsx`): ATS-scanner robot
+  ported from the owner-provided Claude Design — camera-lens eyes that track the pointer, lens
+  shutters that cover while typing (one-eyed peek on reveal), accent-driven reds, themed animated
+  backdrop, reduced-motion aware. (PR #112 was an interim cuter-cat step, since superseded.)
+- **"I'm Interested" runs through Appwrite** (PR #114): public-share `portfolio-interest` action
+  uses the function's scoped key, so it no longer needs a Vercel `APPWRITE_API_KEY`. Verified live
+  (ok / duplicate / 404). The Vercel `/api/portfolio-interest` route is now unused.
+- **Contact form** still depends on the owner's `VITE_TURNSTILE_SITE_KEY` in Vercel (now present in
+  the bundle). If submit ever says "security check failed," the site key + Appwrite
+  `TURNSTILE_SECRET_KEY` must be the same Turnstile widget, allowing `wiseresume.app`.
+
+All merged to main; Vercel auto-deploys frontend; public-share deployed via the hubs workflow.
+
+---
+
+## Session Log - 2026-06-23 (Public Portfolio Visitor Experience — branch fix/portfolio-visitor-experience)
+
+### Overview
+Fixed three broken visitor-facing features and redesigned the password gate + launcher/footer.
+- **Chat** was 500'ing: public-share `executeAiGateway` used object-form `createExecution` but
+  bundles node-appwrite 17.2.0 (positional) → `Invalid functionId param`. Fixed → positional.
+- **"I'm Interested"** failed: `portfolio_interactions` missing token/portfolio_username/
+  interaction_type/referrer_hostname → new idempotent schema script (+token index), wired into the
+  public-share deploy.
+- **Contact form** "Security check required": Turnstile token never sent because
+  `VITE_TURNSTILE_SITE_KEY` is unset in Vercel. **OWNER ACTION:** set it (pairs with the Appwrite
+  `TURNSTILE_SECRET_KEY`). Frontend error message clarified.
+- **Password gate redesign:** `PortfolioPasswordGate.tsx` — peeking cat (covers eyes while typing)
+  + accent-driven animated background. Chat launcher got a hint pill/pulse; footer got a pill badge.
+
+### Status
+Branch + PR. Deploy `--only=public-share` (chat fix + interest schema); frontend via Vercel on
+merge. Contact form blocked on the owner's `VITE_TURNSTILE_SITE_KEY`.
+Detail: `Project Atlas/Portfolio Visitor Experience 2026-06-23/PORTFOLIO_VISITOR_EXPERIENCE_REPORT.md`.
+
+---
+
 ## Session Log - 2026-06-23 (Public Portfolio Cold-Start Warmup — branch fix/portfolio-warmup)
 
 ### Overview

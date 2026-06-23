@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes, type DatabaseResume } from '@/hooks/useResumes';
+import { deriveResumeCompletion, PORTFOLIO_SKILL_THRESHOLD } from '@/lib/portfolioCompletion';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useProfile';
@@ -1212,13 +1213,15 @@ export default function PortfolioEditorPage() {
 
   // -- Portfolio Strength ----------------------------------------------------
   const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
-  // Live skill count (capped at the threshold for messaging clarity).  Driving
-  // the tip text from this lets the strength card show "1 more skill needed"
-  // immediately as the user edits, instead of only after they save.
-  const skillsCount = Array.isArray(selectedResume?.skills)
-    ? (selectedResume?.skills as unknown[]).length
-    : 0;
-  const SKILL_THRESHOLD = 3;
+  // Resume `skills`/`experience` arrive from Appwrite as JSON-encoded strings
+  // (resumeDataToDb stores them via JSON.stringify), so deriveResumeCompletion
+  // parses them before counting. Doing Array.isArray on the raw string is
+  // always false, which previously made "Skills" and "Work experience" read as
+  // missing on the completion bar even when the resume was fully populated.
+  const { hasExperience, hasSkills, skillsCount } = deriveResumeCompletion(selectedResume);
+  // Live skill count drives the tip text so the strength card can show
+  // "1 more skill needed" immediately as the user edits, not only after save.
+  const SKILL_THRESHOLD = PORTFOLIO_SKILL_THRESHOLD;
   const skillsRemaining = Math.max(0, SKILL_THRESHOLD - skillsCount);
   const skillsTip =
     skillsRemaining > 0
@@ -1232,7 +1235,7 @@ export default function PortfolioEditorPage() {
     { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
     { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
     { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
-    { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
+    { ok: hasExperience, tip: 'Add work experience to your resume' },
     { ok: skillsCount >= SKILL_THRESHOLD, tip: skillsTip },
     { ok: services.length > 0, tip: 'Add services to showcase what you offer' },
     { ok: testimonials.length > 0, tip: 'Add testimonials to build credibility' },
@@ -1241,8 +1244,8 @@ export default function PortfolioEditorPage() {
   const completionItems = buildCompletionItems({
     bio,
     avatarUrl: profile?.avatarUrl,
-    hasExperience: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1,
-    hasSkills: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3,
+    hasExperience,
+    hasSkills,
     hasSocialLink: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail),
     hasProjects: caseStudies.length > 0 || services.length > 0,
     hasTestimonials: testimonials.length > 0,
