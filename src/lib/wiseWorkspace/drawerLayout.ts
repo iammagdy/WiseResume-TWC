@@ -3,8 +3,9 @@ import type { WiseWorkspaceMode } from '@/store/wiseWorkspaceStore';
 
 /** Mobile nav column (icons + short labels) */
 export const WISE_DRAWER_NAV_MOBILE = '5rem';
-/** Mobile chat expanded - match app sidebar sheet width */
-export const WISE_DRAWER_CHAT_MOBILE = 'min(var(--app-sidebar-width, 17rem), 86vw)';
+/** Mobile chat expanded — near full-width so the chat isn't cramped on phones
+ *  (B12/P2-10). Leaves a small sliver for tap-to-dismiss. */
+export const WISE_DRAWER_CHAT_MOBILE = 'min(26rem, 92vw)';
 /** Desktop nav pane */
 export const WISE_DRAWER_NAV_DESKTOP = '15rem';
 /** Desktop chat pane */
