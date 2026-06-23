@@ -34,6 +34,24 @@ on the next push, else apply silent-mode/Console disconnect. **Unrelated red che
 
 ---
 
+## Session Log - 2026-06-23 (Password gate → Scout mascot; interest moved to Appwrite)
+
+Final state of the portfolio password gate + the "I'm Interested" path after several iterations:
+- **Password gate mascot = "Scout"** (PR #116, `PortfolioPasswordGate.tsx`): ATS-scanner robot
+  ported from the owner-provided Claude Design — camera-lens eyes that track the pointer, lens
+  shutters that cover while typing (one-eyed peek on reveal), accent-driven reds, themed animated
+  backdrop, reduced-motion aware. (PR #112 was an interim cuter-cat step, since superseded.)
+- **"I'm Interested" runs through Appwrite** (PR #114): public-share `portfolio-interest` action
+  uses the function's scoped key, so it no longer needs a Vercel `APPWRITE_API_KEY`. Verified live
+  (ok / duplicate / 404). The Vercel `/api/portfolio-interest` route is now unused.
+- **Contact form** still depends on the owner's `VITE_TURNSTILE_SITE_KEY` in Vercel (now present in
+  the bundle). If submit ever says "security check failed," the site key + Appwrite
+  `TURNSTILE_SECRET_KEY` must be the same Turnstile widget, allowing `wiseresume.app`.
+
+All merged to main; Vercel auto-deploys frontend; public-share deployed via the hubs workflow.
+
+---
+
 ## Session Log - 2026-06-23 (Public Portfolio Visitor Experience — branch fix/portfolio-visitor-experience)
 
 ### Overview
