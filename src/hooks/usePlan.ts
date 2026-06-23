@@ -33,7 +33,12 @@ function fromCache(refetch?: () => void): PlanResult | null {
     plan: entry.plan,
     isPro,
     isPremium: entry.plan === 'premium',
-    isLoading: true, // still revalidating in background
+    // The cache is the last server-authoritative plan and is TTL-bounded
+    // (readPlanCache returns null once stale). Treat it as resolved for display
+    // so returning users see the correct plan instantly instead of a spinner.
+    // `subscriptionVerified` stays false so paid-only hard gates still wait for
+    // live confirmation — this only resolves the *badge*, never entitlements.
+    isLoading: false,
     subscriptionVerified: false,
     trialPlan: entry.trialPlan,
     trialExpiresAt: entry.trialExpiresAt,
