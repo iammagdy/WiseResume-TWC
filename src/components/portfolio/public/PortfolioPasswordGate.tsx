@@ -92,15 +92,17 @@ function AnimatedBackdrop({ accent, reduced }: { accent: [number, number, number
 }
 
 // ── the cat ──────────────────────────────────────────────────────────────────
-// Eyes track the pointer; paws rise to cover the eyes while typing the password,
-// and lower to a "peek" when the visitor reveals it. Wrong password → a quick
-// worried shake.
-function PeekingCat({ accent, covered, peeking, error }: {
-  accent: string; covered: boolean; peeking: boolean; error: boolean;
+// A chibi kitten that's alive: it breathes, blinks, twitches its ears and swishes
+// its tail, and its eyes follow the pointer. When you type the password it shyly
+// covers its eyes with its paws (and peeks when you reveal the password). Wrong
+// password → a worried wiggle. All idle motion is disabled under reduced-motion.
+function PeekingCat({ accent, covered, peeking, error, reduced }: {
+  accent: string; covered: boolean; peeking: boolean; error: boolean; reduced: boolean;
 }) {
-  const pupilX = useSpring(0, { stiffness: 120, damping: 14 });
-  const pupilY = useSpring(0, { stiffness: 120, damping: 14 });
+  const pupilX = useSpring(0, { stiffness: 140, damping: 13 });
+  const pupilY = useSpring(0, { stiffness: 140, damping: 13 });
   const ref = useRef<SVGSVGElement>(null);
+  const eyesOpen = !(covered && !peeking);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -108,85 +110,130 @@ function PeekingCat({ accent, covered, peeking, error }: {
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const dx = (e.clientX - cx) / (window.innerWidth / 2);
-      const dy = (e.clientY - cy) / (window.innerHeight / 2);
-      pupilX.set(Math.max(-1, Math.min(1, dx)) * 5);
-      pupilY.set(Math.max(-1, Math.min(1, dy)) * 4);
+      const dx = (e.clientX - (r.left + r.width / 2)) / (window.innerWidth / 2);
+      const dy = (e.clientY - (r.top + r.height / 2)) / (window.innerHeight / 2);
+      pupilX.set(Math.max(-1, Math.min(1, dx)) * 6);
+      pupilY.set(Math.max(-1, Math.min(1, dy)) * 5);
     };
     window.addEventListener('pointermove', onMove);
     return () => window.removeEventListener('pointermove', onMove);
   }, [covered, pupilX, pupilY]);
 
-  // paw vertical position: hidden below by default, up over eyes when covered,
-  // a partial "peek" gap when revealing the password.
-  const pawY = covered ? (peeking ? 30 : 8) : 96;
+  // Paw group offset: tucked off-screen below by default, up over the eyes when
+  // typing, a little lower (peek gap) when the password is revealed.
+  const pawY = covered ? (peeking ? 30 : 0) : 132;
+
+  const Eye = ({ cx }: { cx: number }) => (
+    <g>
+      <ellipse cx={cx} cy={108} rx={17} ry={20} fill="url(#pg-eye)" />
+      <motion.g style={{ x: pupilX, y: pupilY }}>
+        <circle cx={cx} cy={108} r={11} fill={accent} opacity={0.85} />
+        <circle cx={cx} cy={109} r={7.5} fill="#070710" />
+        <circle cx={cx - 4} cy={103} r={3.6} fill="#fff" />
+        <circle cx={cx + 4} cy={113} r={1.7} fill="#fff" opacity={0.8} />
+      </motion.g>
+    </g>
+  );
 
   return (
     <motion.svg
       ref={ref}
-      viewBox="0 0 200 170"
-      className="w-36 h-32 mx-auto"
-      animate={error ? { x: [0, -7, 7, -5, 5, 0], rotate: [0, -2, 2, 0] } : { x: 0 }}
-      transition={{ duration: 0.45 }}
+      viewBox="0 0 220 210"
+      className="w-40 h-40 mx-auto -mt-2 -mb-1"
+      animate={error ? { x: [0, -8, 8, -6, 6, 0], rotate: [0, -3, 3, -2, 0] } : { x: 0, rotate: 0 }}
+      transition={{ duration: 0.5 }}
       aria-hidden="true"
     >
       <defs>
-        <radialGradient id="catFur" cx="50%" cy="38%" r="70%">
-          <stop offset="0%" stopColor="#33333f" />
-          <stop offset="100%" stopColor="#1b1b24" />
+        <radialGradient id="pg-fur" cx="50%" cy="32%" r="75%">
+          <stop offset="0%" stopColor="#41414f" />
+          <stop offset="100%" stopColor="#232330" />
+        </radialGradient>
+        <radialGradient id="pg-eye" cx="50%" cy="38%" r="62%">
+          <stop offset="0%" stopColor="#23232f" />
+          <stop offset="100%" stopColor="#06060c" />
         </radialGradient>
       </defs>
 
-      {/* ears */}
-      <path d="M48 60 L40 18 L82 44 Z" fill="url(#catFur)" stroke={accent} strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M152 60 L160 18 L118 44 Z" fill="url(#catFur)" stroke={accent} strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M52 52 L48 30 L70 44 Z" fill={accent} opacity="0.5" />
-      <path d="M148 52 L152 30 L130 44 Z" fill={accent} opacity="0.5" />
+      {/* soft accent glow behind the cat */}
+      <ellipse cx="110" cy="118" rx="92" ry="84" fill={accent} opacity="0.10" />
 
-      {/* head */}
-      <ellipse cx="100" cy="98" rx="66" ry="58" fill="url(#catFur)" stroke={accent} strokeWidth="2.5" />
+      {/* breathing bob wraps everything (translate-only — no per-frame bbox cost) */}
+      <motion.g
+        animate={reduced ? undefined : { y: [0, -4, 0] }}
+        transition={reduced ? undefined : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        {/* tail — swishes */}
+        <motion.path
+          d="M176 168 Q214 150 206 112 Q202 92 188 98"
+          fill="none" stroke={accent} strokeOpacity="0.85" strokeWidth="11" strokeLinecap="round"
+          style={{ transformBox: 'fill-box', transformOrigin: 'left bottom' } as React.CSSProperties}
+          animate={reduced ? undefined : { rotate: [0, 9, 0, -7, 0] }}
+          transition={reduced ? undefined : { duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
 
-      {/* whiskers */}
-      <g stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeLinecap="round">
-        <line x1="40" y1="104" x2="8" y2="98" />
-        <line x1="40" y1="112" x2="10" y2="116" />
-        <line x1="160" y1="104" x2="192" y2="98" />
-        <line x1="160" y1="112" x2="190" y2="116" />
-      </g>
+        {/* ears — occasional twitch */}
+        <motion.g
+          style={{ transformBox: 'fill-box', transformOrigin: 'center bottom' } as React.CSSProperties}
+          animate={reduced ? undefined : { rotate: [0, 0, 0, -7, 4, 0] }}
+          transition={reduced ? undefined : { duration: 5.5, times: [0, 0.62, 0.72, 0.8, 0.88, 1], repeat: Infinity }}
+        >
+          <path d="M58 92 L66 36 L106 74 Z" fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" strokeLinejoin="round" />
+          <path d="M162 92 L154 36 L114 74 Z" fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" strokeLinejoin="round" />
+          <path d="M68 84 L72 52 L94 72 Z" fill={accent} opacity="0.55" strokeLinejoin="round" />
+          <path d="M152 84 L148 52 L126 72 Z" fill={accent} opacity="0.55" strokeLinejoin="round" />
+        </motion.g>
 
-      {/* eyes */}
-      <g>
-        <ellipse cx="76" cy="92" rx="16" ry={covered && !peeking ? 2 : 17} fill="#0c0c12" />
-        <ellipse cx="124" cy="92" rx="16" ry={covered && !peeking ? 2 : 17} fill="#0c0c12" />
-        {!(covered && !peeking) && (
-          <>
-            <motion.g style={{ x: pupilX, y: pupilY }}>
-              <circle cx="76" cy="92" r="8.5" fill={accent} />
-              <circle cx="124" cy="92" r="8.5" fill={accent} />
-              <circle cx="79" cy="88" r="2.6" fill="#fff" />
-              <circle cx="127" cy="88" r="2.6" fill="#fff" />
-            </motion.g>
-          </>
-        )}
-      </g>
+        {/* head */}
+        <ellipse cx="110" cy="114" rx="82" ry="73" fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" />
 
-      {/* nose + mouth */}
-      <path d="M94 112 L106 112 L100 119 Z" fill={accent} />
-      <path d="M100 119 Q100 126 92 126 M100 119 Q100 126 108 126" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.6" strokeLinecap="round" />
+        {/* blush */}
+        <ellipse cx="64" cy="130" rx="13" ry="8" fill={accent} opacity="0.28" />
+        <ellipse cx="156" cy="130" rx="13" ry="8" fill={accent} opacity="0.28" />
 
-      {/* paws — rise to cover the eyes while typing */}
-      <motion.g animate={{ y: pawY }} transition={{ type: 'spring', stiffness: 260, damping: 22 }}>
-        <ellipse cx="74" cy="84" rx="22" ry="18" fill="url(#catFur)" stroke={accent} strokeWidth="2.5" />
-        <ellipse cx="126" cy="84" rx="22" ry="18" fill="url(#catFur)" stroke={accent} strokeWidth="2.5" />
-        {/* toe beans */}
-        <g fill={accent} opacity="0.55">
-          <ellipse cx="68" cy="88" rx="3.4" ry="4.4" />
-          <ellipse cx="78" cy="89" rx="3.4" ry="4.4" />
-          <ellipse cx="120" cy="89" rx="3.4" ry="4.4" />
-          <ellipse cx="130" cy="88" rx="3.4" ry="4.4" />
+        {/* whiskers */}
+        <g stroke="rgba(255,255,255,0.32)" strokeWidth="1.6" strokeLinecap="round">
+          <line x1="50" y1="124" x2="14" y2="118" />
+          <line x1="50" y1="132" x2="12" y2="136" />
+          <line x1="170" y1="124" x2="206" y2="118" />
+          <line x1="170" y1="132" x2="208" y2="136" />
         </g>
+
+        {/* eyes — blink (only meaningful while open) */}
+        {eyesOpen ? (
+          <motion.g
+            style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
+            animate={reduced ? undefined : { scaleY: [1, 1, 1, 0.08, 1] }}
+            transition={reduced ? undefined : { duration: 4.6, times: [0, 0.82, 0.88, 0.92, 0.97], repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Eye cx={84} />
+            <Eye cx={136} />
+          </motion.g>
+        ) : (
+          // happy closed eyes (shown briefly as the paws come up)
+          <g fill="none" stroke={accent} strokeWidth="3.5" strokeLinecap="round">
+            <path d="M72 110 Q84 121 96 110" />
+            <path d="M124 110 Q136 121 148 110" />
+          </g>
+        )}
+
+        {/* nose + mouth */}
+        <path d="M103 136 Q110 133 117 136 Q113 145 110 147 Q107 145 103 136 Z" fill={accent} />
+        <path d="M110 147 Q104 154 99 148 M110 147 Q116 154 121 148" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeLinecap="round" />
+
+        {/* paws — rise to cover the eyes while typing */}
+        <motion.g animate={{ y: pawY }} transition={{ type: 'spring', stiffness: 240, damping: 20 }}>
+          {[84, 136].map((cx) => (
+            <g key={cx}>
+              <ellipse cx={cx} cy={110} rx={28} ry={24} fill="url(#pg-fur)" stroke={accent} strokeWidth="2.5" />
+              <g fill={accent} opacity="0.5">
+                <ellipse cx={cx} cy={101} rx={4} ry={5} />
+                <ellipse cx={cx - 11} cy={106} rx={3.4} ry={4.4} />
+                <ellipse cx={cx + 11} cy={106} rx={3.4} ry={4.4} />
+              </g>
+            </g>
+          ))}
+        </motion.g>
       </motion.g>
     </motion.svg>
   );
@@ -249,7 +296,7 @@ export function PortfolioPasswordGate({
             boxShadow: `0 30px 90px -30px ${rgba(accentRgb, 0.5)}, 0 8px 30px rgba(0,0,0,0.5)`,
           }}
         >
-          <PeekingCat accent={accent} covered={covered} peeking={revealed} error={hasError} />
+          <PeekingCat accent={accent} covered={covered} peeking={revealed} error={hasError} reduced={reduced} />
 
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-white tracking-tight">Protected Portfolio</h1>
