@@ -2,6 +2,27 @@
 
 ---
 
+## Session Log - 2026-06-23 (Public Portfolio Cold-Start Warmup — branch fix/portfolio-warmup)
+
+### Overview
+Visitors saw the public-portfolio skeleton for ~3 minutes. Root cause: Appwrite function
+**cold starts** on the visitor path (`get-public-portfolio` + `portfolio-gate`). Warm executions
+are <1.5s; the first visitor after idle waits on a cold container, and that wait isn't in the
+logged `duration`. Latent issue, surfaced once publishing worked. (0/24 functions were warmed.)
+
+### Fix (owner-approved Option 1: warm the Appwrite functions)
+- Side-effect-free warmup early-return (`{ ok: true, warm: true }`) in both functions, before any
+  DB access; triggered by native schedule (`x-appwrite-trigger: schedule`) or `{ action: 'warmup' }`.
+- Native Appwrite CRON `*/5 * * * *` on both functions via `HUB_SCHEDULES` in `scripts/deploy_hubs.cjs`
+  (cheaper/more reliable than a GitHub Actions cron). Disable by setting the entry to `''` + redeploy.
+- Detail: `Project Atlas/Portfolio Warmup 2026-06-23/PORTFOLIO_WARMUP_REPORT.md`.
+
+### Status
+Branch + PR; deploy via narrow target `get-public-portfolio,portfolio-gate` (owner pre-authorized
+after validation passes). Then verify warmup + normal loads, merge, sync.
+
+---
+
 ## Session Log - 2026-06-23 (Profiles Portfolio Schema Fix — branch fix/profiles-portfolio-schema)
 
 ### Overview

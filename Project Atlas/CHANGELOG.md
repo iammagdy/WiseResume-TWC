@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-06-23 - Public Portfolio Cold-Start Warmup (branch `fix/portfolio-warmup`)
+
+Fixes visitors seeing the loading skeleton for ~3 minutes on `/p/:username`. Root cause:
+Appwrite function **cold starts** — `get-public-portfolio` / `portfolio-gate` run in <1.5s
+warm but spin up a cold container (minutes) for the first visitor after idle; that wait isn't
+in the logged `duration`. Latent, not caused by the schema fix.
+
+- Side-effect-free **warmup early-return** (`{ ok: true, warm: true }`) added to both functions,
+  before any DB access — triggered by a native schedule (`x-appwrite-trigger: schedule`) or an
+  explicit `{ action: 'warmup' }` body. No DB/analytics/rate-limit/session/email side effects.
+- Native Appwrite **CRON `*/5 * * * *`** on both functions via new `HUB_SCHEDULES` in
+  `scripts/deploy_hubs.cjs` (chosen over GitHub Actions cron, which would bill ~8,640 min/month).
+- Disable: set the `HUB_SCHEDULES` entry to `''` and redeploy the narrow target.
+- Detail: `Project Atlas/Portfolio Warmup 2026-06-23/PORTFOLIO_WARMUP_REPORT.md`.
+
+---
+
 ## 2026-06-23 - Profiles Portfolio Schema Fix (branch `fix/profiles-portfolio-schema`)
 
 Fixes portfolio save/publish failing on production with "a portfolio field is

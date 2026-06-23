@@ -48,6 +48,21 @@ const HUB_TIMEOUTS = {
     'admin-portfolio-usernames': 60,
 };
 
+// Native Appwrite CRON schedules, keyed by hub id. Used to keep the public
+// visitor-facing portfolio functions WARM so the first visitor after an idle
+// period never pays a multi-minute container cold-start. The scheduled trigger
+// hits the function's side-effect-free warmup early-return (see each hub's
+// isWarmupRequest) — no DB reads/writes, analytics, rate-limit, or email.
+//
+// TO DISABLE: set the entry to '' (empty string) and redeploy that hub with a
+// narrow target (e.g. --only=get-public-portfolio,portfolio-gate). The deploy
+// detects the change and clears the schedule. Hubs not listed here keep whatever
+// schedule they already have in Appwrite (default: none).
+const HUB_SCHEDULES = {
+    'get-public-portfolio': '*/5 * * * *',
+    'portfolio-gate': '*/5 * * * *',
+};
+
 const HUBS = [
     { id: 'resume-section-ai', name: 'Resume Section AI Hub', file: 'resume-section-ai.tar.gz' },
     { id: 'job-import', name: 'Job Import Hub', file: 'job-import.tar.gz' },
@@ -171,7 +186,9 @@ function desiredFunctionSettings(hub, currentFn = null) {
         runtime: manifestEntry.runtime || currentFn?.runtime || DEFAULT_RUNTIME,
         execute: ['any'],
         events: Array.isArray(currentFn?.events) ? currentFn.events : [],
-        schedule: currentFn?.schedule || '',
+        // Warmup CRON for the public portfolio functions; otherwise preserve any
+        // existing schedule. (HUB_SCHEDULES may set '' to explicitly clear one.)
+        schedule: (hub.id in HUB_SCHEDULES) ? HUB_SCHEDULES[hub.id] : (currentFn?.schedule || ''),
         timeout: Math.max(timeoutTarget, currentFn?.timeout ?? 0),
         enabled: true,
         logging: true,
@@ -198,6 +215,7 @@ function settingsNeedUpdate(currentFn, desired) {
         currentFn.runtime !== desired.runtime ||
         !sameExecute ||
         (currentFn.timeout ?? 0) !== desired.timeout ||
+        (currentFn.schedule || '') !== desired.schedule ||
         (currentFn.enabled ?? true) !== desired.enabled ||
         (currentFn.logging ?? true) !== desired.logging ||
         (currentFn.entrypoint || '') !== desired.entrypoint ||
