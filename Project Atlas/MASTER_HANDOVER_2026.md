@@ -2,6 +2,33 @@
 
 ---
 
+## Session Log - 2026-06-23 (Portfolio Password Persistence — PR #108)
+
+### Overview
+Follow-up to PR #107. Makes portfolio password protection functional in production
+while keeping `portfolio_settings` server-only. Branch `fix/portfolio-password-persistence`,
+PR #108. Detail: `Project Atlas/Portfolio Password Persistence 2026-06-23/PASSWORD_PERSISTENCE_IMPLEMENTATION_REPORT.md`.
+
+### What changed
+- New server-side hub `portfolio-settings` (JWT-authed; user_id resolved server-side, never
+  trusted from the browser; bcrypt cost 12; response never includes the hash; API-key writes).
+- Idempotent schema script for `portfolio_settings` (`password_enabled` bool default false,
+  `password_hash` string 256 nullable) — wired into `deploy_hubs.cjs` so a narrow
+  `--only=portfolio-settings` deploy applies it inline. No permission change (server-only preserved).
+- Editor rewired off direct `portfolio_settings` client reads/writes (client bcrypt removed).
+- Gate functions unchanged.
+
+### Validation
+tsc PASS; build PASS; node --check PASS; hub unit test PASS; MoreTab + usePublicPortfolio
+32/32 PASS; source hashes regenerated.
+
+### Deploy
+Narrow target `portfolio-settings` ONLY (never `target=all`). The deploy applies the schema
+inline (production schema mutation — adds 2 attributes; idempotent; no perms change). Sequence:
+apply schema + deploy hub (narrow, branch ref) → merge → Vercel production → QA.
+
+---
+
 ## Session Log - 2026-06-22 (Portfolio Findings Repair — branch, pre-deploy)
 
 ### Overview

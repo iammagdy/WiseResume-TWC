@@ -753,7 +753,16 @@ async function syncVariablesForHubs(hubIds) {
     if (selected.has('portfolio-gate')) await ensurePortfolioGateVariables();
     if (selected.has('get-public-portfolio')) await ensureGetPublicPortfolioVariables();
     if (selected.has('verify-portfolio-password')) await ensureVerifyPortfolioPasswordVariables();
-    if (selected.has('portfolio-settings')) await ensurePortfolioSettingsVariables();
+    if (selected.has('portfolio-settings')) {
+        await ensurePortfolioSettingsVariables();
+        // Idempotently ensure the portfolio_settings attributes the writer needs.
+        // Runs with the deploy APPWRITE_API_KEY (inherited env), only adds
+        // password_enabled / password_hash, and never alters collection
+        // permissions — so a narrow `--only=portfolio-settings` deploy applies the
+        // schema + function together (matching the ai_credits / jobs precedent).
+        console.log('\nEnsuring portfolio_settings schema...');
+        execSync('node scripts/setup_portfolio_settings_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
 }
 
 function resolveRequestedHubs(requestedIds) {

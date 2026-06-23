@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-06-23 - Portfolio Password Persistence (PR #108)
+
+Makes portfolio password protection actually work in production while keeping
+`portfolio_settings` server-only. Follow-up to PR #107 (which exposed the gap:
+`portfolio_settings` was missing `password_enabled`/`password_hash` and the editor
+tried to write them client-side against a server-only collection).
+
+- **New hub `portfolio-settings`** — owner-authed via Appwrite JWT (user_id resolved
+  server-side; browser `user_id` never trusted); actions status/enable/disable;
+  bcrypt cost 12 (gate-compatible); response never includes the hash; writes with the
+  API key so the collection stays server-only.
+- **Schema** — `scripts/setup_portfolio_settings_schema.cjs` (idempotent) ensures
+  `password_enabled` (boolean, default false) + `password_hash` (string 256, nullable,
+  no default); no permission change. Wired into `deploy_hubs.cjs` so a narrow
+  `--only=portfolio-settings` deploy applies it inline (ai_credits/jobs precedent).
+- **Editor** — `PortfolioEditorPage` rewired off direct `portfolio_settings`
+  reads/writes (client bcrypt removed) to call the new function.
+- **Gate functions unchanged.** Deploy target: `portfolio-settings` only (never `target=all`).
+- Validation: tsc PASS; build PASS; node --check PASS; hub unit test PASS;
+  MoreTab + usePublicPortfolio 32/32 PASS; source hashes regenerated.
+- Detail: `Project Atlas/Portfolio Password Persistence 2026-06-23/PASSWORD_PERSISTENCE_IMPLEMENTATION_REPORT.md`.
+
+---
+
 ## 2026-06-22 - Portfolio Findings Repair (branch `fix/portfolio-repair` — PENDING owner review & deploy)
 
 Implements the repair plan for the Portfolio Full Discovery Audit
