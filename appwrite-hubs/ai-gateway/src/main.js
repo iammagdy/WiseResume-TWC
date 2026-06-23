@@ -1896,7 +1896,14 @@ function normalizeStructuredFeatureData(featureName, raw, opts) {
       awards: normalizedCollections.awards.length ? normalizedCollections.awards : (Array.isArray(resume.awards) ? resume.awards : []),
       keyChanges: Array.isArray(parsed.keyChanges) ? parsed.keyChanges : toStringArray(parsed.keyChanges),
       sectionScores: parsed.sectionScores || null,
-      overallScore: parsed.overallScore || { before: clampScore(parsed.beforeScore, 55), after: clampScore(parsed.afterScore, 78) },
+      // Honesty: never fabricate a before/after delta. If the model returned a
+      // structured score, use it; if it returned discrete scores, use those; if
+      // it returned neither, emit null so the client computes the real match
+      // score from keyword overlap instead of a fixed 55→78 placeholder.
+      overallScore: parsed.overallScore
+        || ((parsed.beforeScore != null || parsed.afterScore != null)
+              ? { before: clampScore(parsed.beforeScore), after: clampScore(parsed.afterScore) }
+              : null),
       missingSkills: Array.isArray(parsed.missingSkills) ? parsed.missingSkills : [],
       boostableSkills: Array.isArray(parsed.boostableSkills) ? parsed.boostableSkills : [],
       jobParsed: isRecord(parsed.jobParsed) ? parsed.jobParsed : { title: '', company: '', keywords: [] },
