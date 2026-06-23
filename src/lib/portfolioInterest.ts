@@ -1,29 +1,23 @@
-import { resolvePublicApiBase } from '@/lib/publicApiBase';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
-function portfolioInterestUrl(): string {
-  const apiBase = resolvePublicApiBase();
-  if (apiBase) return `${apiBase}/api/portfolio-interest`;
-  if (typeof window !== 'undefined') return `${window.location.origin}/api/portfolio-interest`;
-  return '/api/portfolio-interest';
-}
-
+// "I'm Interested" beacon. Routed through the public-share Appwrite function
+// (action: portfolio-interest), which uses a properly-scoped server key — so this
+// no longer depends on a Vercel APPWRITE_API_KEY env var.
 export async function sendPortfolioInterest(
   username: string,
   token: string,
 ): Promise<{ ok: boolean; duplicate?: boolean }> {
-  const res = await fetch(portfolioInterestUrl(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: username.toLowerCase(),
-      token,
-      referrer: typeof document !== 'undefined' ? document.referrer || null : null,
-    }),
-  });
+  const { data, error } = await appwriteFunctions.invoke<{ ok?: boolean; duplicate?: boolean }>(
+    'portfolio-interest',
+    {
+      body: {
+        username: username.toLowerCase(),
+        token,
+        referrer: typeof document !== 'undefined' ? document.referrer || null : null,
+      },
+    },
+  );
 
-  if (res.status === 429) return { ok: false };
-  if (!res.ok) return { ok: false };
-
-  const payload = (await res.json().catch(() => ({}))) as { duplicate?: boolean };
-  return { ok: true, duplicate: Boolean(payload.duplicate) };
+  if (error || !data?.ok) return { ok: false };
+  return { ok: true, duplicate: Boolean(data.duplicate) };
 }

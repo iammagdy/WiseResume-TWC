@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-06-23 - "I'm Interested" moved to Appwrite (branch `fix/portfolio-interest-via-appwrite`)
+
+The "I'm Interested" beacon hit `/api/portfolio-interest` (Vercel), which needs a
+properly-scoped `APPWRITE_API_KEY` env var. In production that key wasn't authenticating
+(generic "not authorized" — a guest-level error, i.e. wrong/malformed key value, not a scope
+issue). Rather than keep fighting the Vercel env var, the endpoint was moved server-side.
+
+- public-share gains a `portfolio-interest` action (uses the function's own scoped key):
+  validates username + per-browser UUID token, dedups on token, writes `portfolio_interactions`
+  (`token`/`portfolio_username`/`interaction_type`/`referrer_hostname`). No PII/IP stored.
+- Frontend `sendPortfolioInterest` + `appwrite-functions.ts` route to public-share instead of the
+  Vercel route. The Vercel `/api/portfolio-interest` is now unused (left in place; harmless).
+- Removes the Vercel `APPWRITE_API_KEY` dependency for interest. (Analytics `track-portfolio-view`
+  still uses it, but that's silent/non-blocking.)
+
+---
+
 ## 2026-06-23 - Public Portfolio Visitor Experience (branch `fix/portfolio-visitor-experience`)
 
 Fixes three broken visitor features + redesigns the password gate and polishes the chat

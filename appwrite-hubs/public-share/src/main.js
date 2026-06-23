@@ -19,6 +19,8 @@ const PROFILES_COLLECTION_ID = 'profiles';
 const RESUMES_COLLECTION_ID = 'resumes';
 const RESUME_SHARES_COLLECTION_ID = 'resume_shares';
 const CHAT_SESSIONS_COLLECTION_ID = 'chat_sessions';
+const PORTFOLIO_INTERACTIONS_COLLECTION_ID = 'portfolio_interactions';
+const INTEREST_TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SESSION_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const INTERNAL_GATEWAY_TOKEN_TTL_MS = 2 * 60 * 1000;
@@ -426,6 +428,53 @@ async function handleAskPortfolio(db, body, res) {
   return res.json(parsed, statusCode);
 }
 
+function safeReferrerHostname(referrer) {
+  if (typeof referrer !== 'string' || !referrer.trim()) return null;
+  try { return new URL(referrer).hostname.slice(0, 200); } catch { return null; }
+}
+
+// Public "I'm Interested" beacon. Moved here from the Vercel /api route so it uses
+// this function's properly-scoped server key instead of a separate Vercel env var.
+// Dedup is per-browser token; no PII stored, no IP recorded.
+async function handlePortfolioInterest(db, body, res) {
+  const username = normalizeUsername(body.username);
+  if (!username) {
+    return res.json({ status: 'error', message: 'Invalid portfolio username.' }, 400);
+  }
+  const token = asString(body.token);
+  if (!INTEREST_TOKEN_RE.test(token)) {
+    return res.json({ status: 'error', message: 'Invalid token.' }, 400);
+  }
+
+  const profile = await getPortfolioProfile(db, username);
+  if (!profile) {
+    return res.json({ status: 'error', message: 'Portfolio not found.' }, 404);
+  }
+
+  // Dedup on the per-browser token so repeat clicks don't create duplicates.
+  const existing = await db.listDocuments(DB_ID, PORTFOLIO_INTERACTIONS_COLLECTION_ID, [
+    sdk.Query.equal('token', token),
+    sdk.Query.limit(1),
+  ]);
+  if ((existing.documents?.length ?? 0) > 0) {
+    return res.json({ status: 'success', data: { ok: true, duplicate: true } });
+  }
+
+  const data = { token, portfolio_username: username, interaction_type: 'interested' };
+  const referrerHostname = safeReferrerHostname(body.referrer);
+  if (referrerHostname) data.referrer_hostname = referrerHostname;
+
+  try {
+    await db.createDocument(DB_ID, PORTFOLIO_INTERACTIONS_COLLECTION_ID, sdk.ID.unique(), data);
+    return res.json({ status: 'success', data: { ok: true } });
+  } catch (e) {
+    if (/unique|duplicate|already exists/i.test(e.message || '')) {
+      return res.json({ status: 'success', data: { ok: true, duplicate: true } });
+    }
+    throw e;
+  }
+}
+
 module.exports = async ({ req, res, error }) => {
   try {
     if (!API_KEY) {
@@ -444,6 +493,9 @@ module.exports = async ({ req, res, error }) => {
     }
     if (action === 'ask-portfolio') {
       return await handleAskPortfolio(databases, body, res);
+    }
+    if (action === 'portfolio-interest') {
+      return await handlePortfolioInterest(databases, body, res);
     }
 
     return res.json({ status: 'error', message: `Unknown public share action: ${action}` }, 400);
