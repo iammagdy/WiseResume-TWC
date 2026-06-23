@@ -6,6 +6,15 @@
       "env": {
         "API_KEY": "${TESTSPRITE_API_KEY}"
       }
+    },
+    "appwrite": {
+      "command": "uvx",
+      "args": ["mcp-server-appwrite"],
+      "env": {
+        "APPWRITE_ENDPOINT": "https://fra.cloud.appwrite.io/v1",
+        "APPWRITE_PROJECT_ID": "${APPWRITE_PROJECT_ID}",
+        "APPWRITE_API_KEY": "${APPWRITE_API_KEY}"
+      }
     }
   }
 }
