@@ -9,6 +9,7 @@
  */
 
 import type { ResumeData } from '@/types/resume';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
 import { databases, DATABASE_ID, Query, ID, account } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
@@ -322,7 +323,7 @@ export async function saveOnboardingProfile({
   fallbackUserId,
   fallbackUserEmail,
   resumeTitle = 'My Resume',
-  templateId = 'modern',
+  templateId = DEFAULT_RESUME_TEMPLATE_ID,
 }: SaveProfileArgs): Promise<SaveProfileResult> {
   let userId: string | null = null;
   let accountEmail = normalizeEmail(fallbackUserEmail);

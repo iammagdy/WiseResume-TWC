@@ -1,4 +1,5 @@
 import { useState, useMemo, memo, useCallback, useEffect, Suspense } from 'react';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -615,7 +616,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <div className="shrink-0 w-11 h-[62px] rounded-xl overflow-hidden border border-border shadow-soft-sm ring-1 ring-black/5 dark:ring-white/5">
                 <ErrorBoundary fallback={<div className="w-10 h-[56px] rounded-lg bg-muted" />}>
                   <Suspense fallback={<div className="w-10 h-[56px] rounded-lg bg-muted animate-pulse" />}>
-                    <MiniTemplateThumbnail templateId={resume.template || 'modern'} />
+                    <MiniTemplateThumbnail templateId={migrateTemplateId(resume.template)} />
                   </Suspense>
                 </ErrorBoundary>
               </div>

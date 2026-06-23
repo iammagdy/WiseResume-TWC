@@ -1,4 +1,5 @@
 import { ResumeData, Experience, Education, Certification } from '@/types/resume';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import { v4 as uuidv4 } from 'uuid';
 
 // Section heading patterns - expanded for international CVs
@@ -81,7 +82,7 @@ export function parseResumeText(text: string): ResumeData {
     projects,
     volunteering,
     languages,
-    templateId: 'modern',
+    templateId: DEFAULT_RESUME_TEMPLATE_ID,
   };
 }
 

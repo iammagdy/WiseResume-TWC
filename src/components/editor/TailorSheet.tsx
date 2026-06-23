@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect, memo, Suspense } from 'react';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import editorLogger from '@/lib/editorLogger';
 import { formatDegreeAndField } from '@/lib/educationFormat';
@@ -630,7 +631,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         certifications: JSON.stringify(mergedResume.certifications),
         projects: JSON.stringify(mergedResume.projects),
         awards: JSON.stringify(mergedResume.awards),
-        template: mergedResume.templateId || 'modern',
+        template: migrateTemplateId(mergedResume.templateId),
       });
 
       addTailorHistory({
@@ -1025,7 +1026,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               far off-screen (not display:none) because html2canvas requires
               a laid-out element with measurable width/height. */}
           {showAppliedCTA && !isTailoring && !tailorResult && appliedMergedResume && (() => {
-            const tid = (appliedMergedResume.templateId || 'modern') as string;
+            const tid = migrateTemplateId(appliedMergedResume.templateId) as string;
             const TemplateComponent = templateComponents[tid] || templateComponents.modern;
             return (
               <div

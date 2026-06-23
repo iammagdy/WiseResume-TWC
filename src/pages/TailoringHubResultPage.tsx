@@ -1,4 +1,5 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -140,7 +141,7 @@ export default function JobMatchResultPage() {
   );
 
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(
-    () => (dbResume?.template as TemplateId) ?? 'modern',
+    () => migrateTemplateId(dbResume?.template),
   );
   const [pdfExportOpen, setPdfExportOpen] = useState(false);
   const [coverLetterDownloadBusy, setCoverLetterDownloadBusy] = useState(false);

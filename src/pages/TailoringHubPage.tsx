@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { migrateTemplateId } from '@/lib/templateMigration';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Wand2, ArrowLeft, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
