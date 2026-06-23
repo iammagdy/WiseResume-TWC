@@ -877,6 +877,7 @@ function DashboardPageContent() {
                 applicationMatches={applicationMatches}
                 hasJobMatchScores={hasJobMatchScores}
                 savedJobsCount={savedJobsCount}
+                savedJobs={savedJobs}
                 isSavedJobsLoading={savedJobsLoading && savedJobs.length === 0}
                 onImportJob={handleImportJob}
                 atsTrendDelta={atsTrendDelta}

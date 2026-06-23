@@ -598,6 +598,7 @@ export function AuthBold({
       <div className="ab-glow2" />
       <img className="ab-mark-wm" src={wiseAiLogoDark} alt="" />
 
+
       <div className="ab-shell">
         <button
           className="ab-theme"
@@ -852,6 +853,7 @@ export function AuthBold({
           </form>
         </div>
       </div>
+
     </div>
   );
 }

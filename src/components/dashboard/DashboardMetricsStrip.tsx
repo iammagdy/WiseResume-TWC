@@ -1,5 +1,5 @@
-import { memo, useState } from 'react';
-import { Activity, Target, Briefcase, Bookmark, TrendingUp, TrendingDown } from 'lucide-react';
+import { memo, useState, useMemo } from 'react';
+import { Activity, Target, Briefcase, Bookmark, TrendingUp, TrendingDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PortfolioAtsChartPoint } from '@/components/dashboard/dashboardMetricsUtils';
 import { PortfolioAtsSparkline } from '@/components/dashboard/PortfolioAtsSparkline';
@@ -10,6 +10,7 @@ import { DashboardApplicationMatchesDialog } from '@/components/dashboard/Dashbo
 import { DatabaseResume } from '@/hooks/useResumes';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { haptics } from '@/lib/haptics';
+import type { Job } from '@/hooks/useJobs';
 
 interface DashboardMetricsStripProps {
   resumes: DatabaseResume[];
@@ -20,6 +21,7 @@ interface DashboardMetricsStripProps {
   applicationMatches: number;
   hasJobMatchScores: boolean;
   savedJobsCount: number;
+  savedJobs?: Job[];
   isSavedJobsLoading?: boolean;
   onImportJob?: () => void;
   atsTrendDelta?: number | null;
@@ -56,6 +58,38 @@ const TONE_STYLES: Record<MetricTone, { value: string; icon: string; iconBg: str
   },
 };
 
+const SEVEN_DAYS_MS = 7 * 86_400_000;
+
+const ONE_DAY_MS = SEVEN_DAYS_MS / 7;
+
+/** Returns an array of 7 booleans (oldest→newest) — true if a tailored resume was created that day */
+function buildTailoredActivityBars(
+  resumes: DatabaseResume[],
+): boolean[] {
+  const now = Date.now();
+  const bars = Array(7).fill(false) as boolean[];
+  for (const r of resumes) {
+    if (!r.parent_resume_id) continue;
+    const t = new Date(r.$createdAt || r.$updatedAt || 0).getTime();
+    const daysAgo = Math.floor((now - t) / ONE_DAY_MS);
+    if (daysAgo >= 0 && daysAgo < 7) {
+      bars[6 - daysAgo] = true;
+    }
+  }
+  return bars;
+}
+
+/** Segments job_match_scores into strong (≥70), partial (40-69), weak (<40) */
+function buildMatchSegments(resumes: DatabaseResume[]): { strong: number; partial: number; weak: number } | null {
+  const scored = resumes.filter(r => typeof r.job_match_score === 'number');
+  if (scored.length === 0) return null;
+  return {
+    strong: scored.filter(r => (r.job_match_score as number) >= 70).length,
+    partial: scored.filter(r => (r.job_match_score as number) >= 40 && (r.job_match_score as number) < 70).length,
+    weak: scored.filter(r => (r.job_match_score as number) < 40).length,
+  };
+}
+
 export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
   resumes,
   healthScores,
@@ -65,6 +99,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
   applicationMatches,
   hasJobMatchScores,
   savedJobsCount,
+  savedJobs,
   isSavedJobsLoading = false,
   onImportJob,
   atsTrendDelta = null,
@@ -85,61 +120,14 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         ? '…'
         : '—';
 
-  const cards: {
-    key: MetricTone;
-    label: string;
-    value: string;
-    footer: string | null;
-    trend: number | null;
-    icon: typeof Activity;
-    sparkline?: boolean;
-    ariaLabel: string;
-  }[] = [
-    {
-      key: 'ats',
-      label: 'ATS Score (Avg.)',
-      value: atsValue,
-      footer:
-        atsTrendDelta == null && scoredResumeCount > 0
-          ? `Across ${scoredResumeCount} resume${scoredResumeCount !== 1 ? 's' : ''}`
-          : atsTrendDelta == null && isScoring
-            ? 'Scoring resumes…'
-            : atsTrendDelta == null
-              ? 'Run ATS on your resumes'
-              : null,
-      trend: atsTrendDelta,
-      icon: Activity,
-      sparkline: showSparkline,
-      ariaLabel: 'View ATS scores for all resumes',
-    },
-    {
-      key: 'tailored',
-      label: 'Tailored Resumes',
-      value: String(tailoredThisWeek),
-      footer: 'This week',
-      trend: null,
-      icon: Target,
-      ariaLabel: 'View tailored resumes',
-    },
-    {
-      key: 'matches',
-      label: 'Application Matches',
-      value: String(applicationMatches),
-      footer: hasJobMatchScores ? 'Strong matches' : 'Add a target job to score',
-      trend: null,
-      icon: Briefcase,
-      ariaLabel: 'View application match scores',
-    },
-    {
-      key: 'jobs',
-      label: 'Saved Jobs',
-      value: isSavedJobsLoading && savedJobsCount === 0 ? '…' : String(savedJobsCount),
-      footer: savedJobsCount > 0 ? 'In your workspace' : 'Import a posting to save',
-      trend: null,
-      icon: Bookmark,
-      ariaLabel: 'View saved job postings',
-    },
-  ];
+  const tailoredBars = useMemo(() => buildTailoredActivityBars(resumes), [resumes]);
+  const matchSegments = useMemo(() => buildMatchSegments(resumes), [resumes]);
+  const jobChips = useMemo(
+    () => (savedJobs ?? []).slice(0, 2).map(j => j.title).filter(Boolean),
+    [savedJobs],
+  );
+
+  const openDialog = (key: MetricTone) => { haptics.light(); setActiveDialog(key); };
 
   return (
     <>
@@ -149,67 +137,151 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
           className,
         )}
         aria-label="Workspace metrics"
+        aria-live="polite"
+        aria-atomic="false"
       >
-        {cards.map((card) => {
-          const Icon = card.icon;
-          const styles = TONE_STYLES[card.key];
-          const TrendIcon = card.trend != null && card.trend > 0 ? TrendingUp : TrendingDown;
-
-          return (
-            <button
-              key={card.key}
-              type="button"
-              className={cn(
-                'dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full',
-                'transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation',
-              )}
-              aria-label={card.ariaLabel}
-              onClick={() => {
-                haptics.light();
-                setActiveDialog(card.key);
-              }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-[11px] font-medium text-muted-foreground leading-tight truncate">
-                  {card.label}
+        {/* ── ATS Score ── sparkline + crimson value + trend delta */}
+        <button
+          type="button"
+          className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
+          aria-label="View ATS scores for all resumes"
+          onClick={() => openDialog('ats')}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">ATS Score (Avg.)</p>
+            <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.ats.iconBg)}>
+              <Activity className={cn('w-4 h-4', TONE_STYLES.ats.icon)} aria-hidden />
+            </span>
+          </div>
+          <div className="mt-2 flex items-end justify-between gap-2 min-h-[2.25rem]">
+            <div className="min-w-0">
+              <p className={cn('text-2xl font-semibold tabular-nums leading-none', TONE_STYLES.ats.value)}>{atsValue}</p>
+              {atsTrendDelta != null ? (
+                <p className={cn('flex items-center gap-0.5 text-xs font-medium mt-1.5', atsTrendDelta > 0 ? 'text-success' : 'text-warning')}>
+                  {atsTrendDelta > 0 ? <TrendingUp className="w-3 h-3 shrink-0" /> : <TrendingDown className="w-3 h-3 shrink-0" />}
+                  {atsTrendDelta > 0 ? `↑ ${atsTrendDelta}%` : `↓ ${Math.abs(atsTrendDelta)}%`} vs last 7 days
                 </p>
-                <span
-                  className={cn(
-                    'dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0',
-                    styles.iconBg,
-                  )}
-                >
-                  <Icon className={cn('w-4 h-4', styles.icon)} aria-hidden />
-                </span>
-              </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                  {scoredResumeCount > 0 ? `Across ${scoredResumeCount} resume${scoredResumeCount !== 1 ? 's' : ''}` : isScoring ? 'Scoring resumes…' : 'Run ATS on your resumes'}
+                </p>
+              )}
+            </div>
+            {showSparkline && atsChartSeries && <PortfolioAtsSparkline points={atsChartSeries} />}
+          </div>
+        </button>
 
-              <div className="mt-2 flex items-end justify-between gap-2 min-h-[2.25rem]">
-                <div className="min-w-0">
-                  <p className={cn('text-2xl font-semibold tabular-nums leading-none', styles.value)}>
-                    {card.value}
-                  </p>
-                  {card.trend != null && (
-                    <p
-                      className={cn(
-                        'flex items-center gap-0.5 text-[10px] font-medium mt-1.5',
-                        card.trend > 0 ? 'text-emerald-500' : 'text-amber-500',
-                      )}
-                    >
-                      <TrendIcon className="w-3 h-3 shrink-0" />
-                      {card.trend > 0 ? `↑ ${card.trend}%` : `↓ ${Math.abs(card.trend)}%`} vs last 7 days
-                    </p>
+        {/* ── Tailored Resumes ── 7-day activity bar */}
+        <button
+          type="button"
+          className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
+          aria-label="View tailored resumes"
+          onClick={() => openDialog('tailored')}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">Tailored Resumes</p>
+            <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.tailored.iconBg)}>
+              <Target className={cn('w-4 h-4', TONE_STYLES.tailored.icon)} aria-hidden />
+            </span>
+          </div>
+          <div className="mt-2 min-h-[2.25rem]">
+            <p className="text-2xl font-semibold tabular-nums leading-none text-foreground">{tailoredThisWeek}</p>
+            {tailoredThisWeek > 0 ? (
+              <div className="flex items-end gap-0.5 mt-2" aria-label="Tailoring activity this week" role="img">
+                {tailoredBars.map((active, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex-1 rounded-sm transition-all duration-300',
+                      active ? 'bg-primary/70 h-3' : 'bg-border h-1.5',
+                    )}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">This week</p>
+            )}
+          </div>
+        </button>
+
+        {/* ── Application Matches ── score distribution bar */}
+        <button
+          type="button"
+          className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
+          aria-label="View application match scores"
+          onClick={() => openDialog('matches')}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">App. Matches</p>
+            <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.matches.iconBg)}>
+              <Briefcase className={cn('w-4 h-4', TONE_STYLES.matches.icon)} aria-hidden />
+            </span>
+          </div>
+          <div className="mt-2 min-h-[2.25rem]">
+            <p className="text-2xl font-semibold tabular-nums leading-none text-foreground">{applicationMatches}</p>
+            {matchSegments ? (
+              <div className="mt-2" aria-label="Match score distribution" role="img">
+                <div className="flex rounded-full overflow-hidden h-1.5 gap-px">
+                  {matchSegments.strong > 0 && (
+                    <div
+                      className="bg-success/70 rounded-l-full"
+                      style={{ flex: matchSegments.strong }}
+                    />
                   )}
-                  {card.footer && card.trend == null && (
-                    <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug">{card.footer}</p>
+                  {matchSegments.partial > 0 && (
+                    <div
+                      className={cn('bg-warning/60', matchSegments.strong === 0 && 'rounded-l-full', matchSegments.weak === 0 && 'rounded-r-full')}
+                      style={{ flex: matchSegments.partial }}
+                    />
+                  )}
+                  {matchSegments.weak > 0 && (
+                    <div
+                      className="bg-destructive/40 rounded-r-full"
+                      style={{ flex: matchSegments.weak }}
+                    />
                   )}
                 </div>
-                {card.sparkline && atsChartSeries && (
-                  <PortfolioAtsSparkline points={atsChartSeries} />
-                )}
+                <p className="text-xs text-muted-foreground mt-1 leading-snug">{matchSegments.strong} strong · {matchSegments.partial} partial</p>
               </div>
-            </button>
-          );
-        })}
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                {hasJobMatchScores ? 'Strong matches' : 'Add a target job to score'}
+              </p>
+            )}
+          </div>
+        </button>
+
+        {/* ── Saved Jobs ── job title chips */}
+        <button
+          type="button"
+          className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
+          aria-label="View saved job postings"
+          onClick={() => openDialog('jobs')}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">Saved Jobs</p>
+            <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.jobs.iconBg)}>
+              <Bookmark className={cn('w-4 h-4', TONE_STYLES.jobs.icon)} aria-hidden />
+            </span>
+          </div>
+          <div className="mt-2 min-h-[2.25rem]">
+            <p className="text-2xl font-semibold tabular-nums leading-none text-foreground">
+              {isSavedJobsLoading && savedJobsCount === 0 ? '…' : savedJobsCount}
+            </p>
+            {jobChips.length > 0 ? (
+              <div className="flex flex-col gap-1 mt-2">
+                {jobChips.map((title, i) => (
+                  <p key={i} className="text-xs text-foreground/70 font-medium truncate leading-snug">{title}</p>
+                ))}
+              </div>
+            ) : (
+              <span className="mt-1.5 flex items-center gap-1 text-xs text-primary font-medium" aria-hidden>
+                <Plus className="w-3 h-3 shrink-0" />
+                Import a posting
+              </span>
+            )}
+          </div>
+        </button>
       </div>
 
       <DashboardAtsPortfolioDialog

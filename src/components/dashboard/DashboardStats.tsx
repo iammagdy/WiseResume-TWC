@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState, useRef, memo } from 'react';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 import { FileText, Flame, Lightbulb, X, Star, Target, Hash, ChevronDown } from 'lucide-react';
 
@@ -270,6 +270,8 @@ export const DashboardStats = memo(function DashboardStats({
 
 }: DashboardStatsProps) {
 
+  const shouldReduceMotion = useReducedMotion();
+
   const appwriteStreak = useLoginStreak(userId);
 
   const streak = externalStreak ?? appwriteStreak;
@@ -296,7 +298,7 @@ export const DashboardStats = memo(function DashboardStats({
 
   useEffect(() => {
 
-    if (totalResumes > 0) return undefined;
+    if (totalResumes > 0 || shouldReduceMotion) return undefined;
 
     const interval = setInterval(() => {
 
@@ -306,7 +308,7 @@ export const DashboardStats = memo(function DashboardStats({
 
     return () => clearInterval(interval);
 
-  }, [totalResumes]);
+  }, [totalResumes, shouldReduceMotion]);
 
 
 
@@ -390,7 +392,7 @@ export const DashboardStats = memo(function DashboardStats({
           {metrics.map(({ Icon, value, label, accent, iconBg }) => (
             <div key={label} className="dashboard-atlas-metric p-2.5 sm:p-3 flex justify-between gap-2 items-center min-w-0">
               <div className="min-w-0">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-none">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide leading-none">
                   {label}
                 </p>
                 <p className={cn('text-lg sm:text-xl font-semibold leading-none tabular-nums mt-1 tracking-tight', accent)}>
@@ -435,7 +437,7 @@ export const DashboardStats = memo(function DashboardStats({
 
                   onClick={handleDismissTip}
 
-                  className="w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+                  className="h-11 w-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
 
                   aria-label="Dismiss tip"
 

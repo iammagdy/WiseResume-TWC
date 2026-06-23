@@ -247,18 +247,18 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   const handleCardClick = useDoubleTap(handleSingleTap, handleDoubleTapAction);
 
-  const scoreAccent = (() => {
+  const scoreTint = (() => {
     const score = healthScore?.overallScore;
-    if (score == null || score === 0) return 'border-l-border';
-    if (score >= 80) return 'border-l-success';
-    if (score >= 50) return 'border-l-warning';
-    return 'border-l-destructive';
+    if (score == null || score === 0) return '';
+    if (score >= 80) return 'bg-success/[0.04]';
+    if (score >= 50) return 'bg-warning/[0.04]';
+    return 'bg-destructive/[0.04]';
   })();
 
   return (
     <div className={cn(
       'relative overflow-hidden rounded-2xl transition-colors duration-500',
-      isCompactRow ? 'border-l-0' : cn('border-l-4', scoreAccent),
+      !isCompactRow && scoreTint,
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
