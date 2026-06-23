@@ -136,7 +136,11 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         toast.success('Message sent! The portfolio owner will get back to you soon.');
       } else {
         const msg = error.message || 'Something went wrong. Please try again.';
-        const friendlyMsg = msg.includes('Too many') ? 'Too many messages sent. Please wait a few minutes.' : msg;
+        const friendlyMsg = msg.includes('Too many')
+          ? 'Too many messages sent. Please wait a few minutes.'
+          : /security check|captcha/i.test(msg)
+            ? 'Couldn’t complete the security check. Please refresh the page and try again.'
+            : msg;
         if (TURNSTILE_SITE_KEY && window.turnstile && turnstileWidgetIdRef.current) {
           window.turnstile.reset(turnstileWidgetIdRef.current);
           setTurnstileToken(null);

@@ -787,6 +787,17 @@ async function syncVariablesForHubs(hubIds) {
         console.log('\nEnsuring profiles portfolio schema...');
         execSync('node scripts/setup_profiles_portfolio_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
     }
+
+    if (selected.has('public-share')) {
+        // Ensure the portfolio_interactions attributes the public "I'm Interested"
+        // beacon (api/portfolio-interest.ts) writes (token / portfolio_username /
+        // interaction_type / referrer_hostname + a token index). These were missing
+        // in production, so the beacon failed with "Unknown attribute" ("Could not
+        // send interest"). Additive only; never changes permissions or data — so a
+        // narrow `--only=public-share` deploy ships the chat fix + this schema.
+        console.log('\nEnsuring portfolio_interactions schema...');
+        execSync('node scripts/setup_portfolio_interactions_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
 }
 
 function resolveRequestedHubs(requestedIds) {

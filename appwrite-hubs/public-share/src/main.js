@@ -259,13 +259,17 @@ function sanitizeConversationHistory(value) {
 }
 
 async function executeAiGateway(payload) {
-  const execution = await getFunctions().createExecution({
-    functionId: 'ai-gateway',
-    body: JSON.stringify(payload),
-    async: false,
-    path: '/',
-    method: 'POST',
-  });
+  // node-appwrite 17.x (bundled here) uses the POSITIONAL createExecution
+  // signature: createExecution(functionId, body, async, xpath, method). The
+  // object form belongs to newer majors and would be misread as the functionId
+  // ("Invalid functionId param"), which silently broke portfolio chat.
+  const execution = await getFunctions().createExecution(
+    'ai-gateway',
+    JSON.stringify(payload),
+    false,
+    '/',
+    'POST',
+  );
 
   if (execution.status === 'failed') {
     throw new Error(execution.errors || 'AI gateway execution failed.');

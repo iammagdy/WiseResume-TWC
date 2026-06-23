@@ -11,6 +11,31 @@
 
 ---
 
+## 2026-06-23 - Public Portfolio Visitor Experience (branch `fix/portfolio-visitor-experience`)
+
+Fixes three broken visitor features + redesigns the password gate and polishes the chat
+launcher / footer.
+
+- **Chat fix:** public-share `executeAiGateway` used the object-form `createExecution`, but the
+  bundled node-appwrite 17.2.0 is positional → `Invalid functionId param` on every `ask-portfolio`.
+  Switched to positional. (`appwrite-hubs/public-share/src/main.js`)
+- **Interest fix:** `portfolio_interactions` was missing `token`/`portfolio_username`/
+  `interaction_type`/`referrer_hostname` (only had `user_id`) → "Unknown attribute" → "Could not
+  send interest." New idempotent `scripts/setup_portfolio_interactions_schema.cjs` (+ token index),
+  wired into the public-share deploy block.
+- **Contact form:** ai-gateway needs a Turnstile token for anonymous senders, but
+  `VITE_TURNSTILE_SITE_KEY` is missing in the Vercel build → no widget → "Security check required."
+  ⚠️ OWNER must set `VITE_TURNSTILE_SITE_KEY` in Vercel (pairs with the Appwrite
+  `TURNSTILE_SECRET_KEY`). Error message clarified.
+- **Password gate redesign:** new `PortfolioPasswordGate.tsx` — a cat that watches the pointer and
+  covers its eyes while you type (peeks on show-password) + an accent-driven animated aurora
+  background. Respects reduced-motion.
+- **Chat launcher:** pulse ring + sparkle badge + first-visit "Ask me about <Name>" hint pill.
+- **Footer:** "Built with WiseResume" is now an accent pill badge.
+- Detail: `Project Atlas/Portfolio Visitor Experience 2026-06-23/PORTFOLIO_VISITOR_EXPERIENCE_REPORT.md`.
+
+---
+
 ## 2026-06-23 - Public Portfolio Cold-Start Warmup (branch `fix/portfolio-warmup`)
 
 Fixes visitors seeing the loading skeleton for ~3 minutes on `/p/:username`. Root cause:
