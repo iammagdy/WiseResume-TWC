@@ -6,7 +6,7 @@
  * Custom headers are packed into `__headers` because SDK executions do not send
  * arbitrary HTTP headers to function runtimes.
  */
-import { AppwriteException } from 'appwrite';
+import { AppwriteException, type ExecutionMethod } from 'appwrite';
 import { functions } from '@/lib/appwrite';
 import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
@@ -281,7 +281,7 @@ export const appwriteFunctions = {
         executionBody,
         false,
         '/',
-        'POST',
+        'POST' as ExecutionMethod,
       );
 
       if (execution.status === 'failed') {

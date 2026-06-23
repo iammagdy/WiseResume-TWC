@@ -1,9 +1,10 @@
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
-import { memo, Suspense, useCallback } from 'react';
+import { memo, Suspense, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Crown, Gift, KeyRound } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
+import { ChangePasswordDialog } from '@/components/settings/sections/ChangePasswordDialog';
 import { Separator } from '@/components/ui/separator';
 import { useResumes } from '@/hooks/useResumes';
 import { useCoverLetters } from '@/hooks/useCoverLetters';
@@ -58,10 +59,12 @@ export const AccountSection = memo(function AccountSection({
         : authProvider === 'apple' ? 'Apple'
         : authProvider === 'email' ? 'email'
         : null;
-    const passwordRowDescription = knownProviderLabel
-        ? `Update your password through your ${knownProviderLabel} account`
-        : 'Update your password through your account portal';
+    const passwordRowDescription =
+        knownProviderLabel && knownProviderLabel !== 'email'
+            ? `Update your password through your ${knownProviderLabel} account`
+            : 'Change your account password';
     const navigate = useNavigate();
+    const [changePwOpen, setChangePwOpen] = useState(false);
     const { user } = useAuth();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
@@ -75,6 +78,25 @@ export const AccountSection = memo(function AccountSection({
     const renewalDateStr = isActiveTrial && trialExpiresAt
         ? new Date(trialExpiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
         : null;
+
+    // Reset-by-email fallback — used when the user can't recall their current password.
+    const sendResetEmail = useCallback(async () => {
+        const email = user?.email?.trim();
+        if (!email) {
+            toast.error('We could not find your account email. Use Forgot Password on the login screen.');
+            return;
+        }
+        try {
+            // Send branded password-reset email via email-service function (bypasses Appwrite template).
+            const { error: fnError } = await appwriteFunctions.invoke('email-service', {
+                body: { action: 'send-password-reset', email },
+            });
+            if (fnError) throw new Error(fnError.message);
+            toast.success('Password reset link sent! Check your inbox.');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to send reset email');
+        }
+    }, [user?.email]);
 
     const handleManageSignInPassword = useCallback(async () => {
         haptics.light();
@@ -97,26 +119,12 @@ export const AccountSection = memo(function AccountSection({
                 return;
             }
         } catch {
-            // Fall through to email recovery for password-based accounts.
+            // Fall through to the in-app change-password dialog for password accounts.
         }
 
-        const email = user?.email?.trim();
-        if (!email) {
-            toast.error('We could not find your account email. Use Forgot Password on the login screen.');
-            return;
-        }
-
-        try {
-            // Send branded password-reset email via email-service function (bypasses Appwrite template).
-            const { error: fnError } = await appwriteFunctions.invoke('email-service', {
-                body: { action: 'send-password-reset', email },
-            });
-            if (fnError) throw new Error(fnError.message);
-            toast.success('Password reset link sent! Check your inbox.');
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to send reset email');
-        }
-    }, [user?.email]);
+        // Email/password account → open the in-app change-password form.
+        setChangePwOpen(true);
+    }, []);
 
     return (
         <div>
@@ -181,6 +189,15 @@ export const AccountSection = memo(function AccountSection({
                     onClick={handleManageSignInPassword}
                 />
             </div>
+
+            <ChangePasswordDialog
+                open={changePwOpen}
+                onOpenChange={setChangePwOpen}
+                onForgotPassword={() => {
+                    setChangePwOpen(false);
+                    void sendResetEmail();
+                }}
+            />
         </div>
     );
 });

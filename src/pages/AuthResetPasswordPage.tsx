@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
 import { account as appwriteAccount } from '@/lib/appwrite';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
@@ -45,6 +46,16 @@ export default function AuthResetPasswordPage() {
     setLoading(true);
     try {
       await appwriteAccount.updateRecovery(userId, secret, password);
+      // Best-effort "your password was changed" security notice. The user has no
+      // session here (recovery is unauthenticated), so the function looks the email
+      // up by userId. Never block the success UI on this notification.
+      try {
+        await appwriteFunctions.invoke('email-service', {
+          body: { action: 'send-password-changed', userId },
+        });
+      } catch {
+        /* notification is non-critical */
+      }
       setDone(true);
       toast.success('Password updated! Please sign in.');
     } catch (err: unknown) {

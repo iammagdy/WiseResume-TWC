@@ -215,7 +215,10 @@ async function run() {
   await ensureVariable('RESEND_API_KEY',      process.env.RESEND_API_KEY);
   await ensureVariable('RESEND_FROM_EMAIL',   process.env.RESEND_FROM_EMAIL || 'noreply@thewise.cloud');
   await ensureVariable('RESEND_FROM_NAME',    process.env.RESEND_FROM_NAME  || 'WiseResume');
-  await ensureVariable('FRONTEND_URL',        process.env.FRONTEND_URL       || 'https://resume.thewise.cloud');
+  // Canonical production domain. Must match the function default and deploy_hubs.cjs,
+  // and the host MUST be registered as an Appwrite Web Platform — otherwise
+  // account.createRecovery() rejects the redirect URL and no reset email is sent.
+  await ensureVariable('FRONTEND_URL',        process.env.FRONTEND_URL       || 'https://wiseresume.app');
 
   // 4. Deploy
   console.log('\n📤 Uploading deployment...');
