@@ -11,6 +11,39 @@
 
 ---
 
+## 2026-06-23 - ai-gateway push auto-trigger RESOLVED via GitHub-App suspension (branch `claude/epic-maxwell-evkfa4`, PR #124)
+
+Every push to `WiseResume-TWC` (any branch) auto-built the **AI Gateway Hub** as a
+`type: vcs` deployment via the **Appwrite GitHub App** (installation
+`69fd518d91ac2b25574c` / GitHub install `130461735`, repo providerRepositoryId
+`1170228859`) — `ai-gateway` was the only one of 25 functions still Git-linked. Not GitHub
+Actions (all workflows are `workflow_dispatch`/`pull_request`). Production was never
+affected — the live deployment is the manual build `6a3a1927…`; failed `vcs` builds are
+non-activating.
+
+**Both Appwrite-API off-switches were tried and proven insufficient:** (A) the
+function-level detach (`PUT /functions/ai-gateway`, blank VCS fields = Console "Disconnect
+Git") is cosmetic — a push of `f4b2595` still built `6a3a2050` (the API masks the VCS
+fields); (B) deleting the Appwrite VCS installation (`DELETE /vcs/installations/…` →
+`204`, `total: 0`) did **not** stop delivery — three `vcs` builds fired *after* the delete
+(`4223f6e`@epic-maxwell, `7594501`@main, `4152b06`@confident-johnson). The push event is
+delivered by the Appwrite GitHub App and cannot be removed from the API or repo tooling.
+
+**Resolution (owner, verified ✅):** owner **suspended the Appwrite GitHub App** (GitHub →
+Settings → Applications → Appwrite → Suspend). Verified — test commit `0935388` (and
+later `d008efd`) created **no** `vcs` build (Vercel still built the push, so it reached
+GitHub; Appwrite did nothing; the `appwrite[bot]` comment stopped updating), and no new
+`vcs` build appeared from any branch in a 2-min window; previously every push built within
+~30–60s. Reversible by un-suspending (or removing just `WiseResume-TWC` under *Repository
+access*). Nothing else touched — backend/functions/data/auth/secrets/site and the deploy
+workflow are unaffected. Deploys are now manual-only via `Deploy Appwrite Hubs`
+(workflow_dispatch) or the Console — matching `DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true`.
+Added manual-only tooling: `scripts/detach_appwrite_git.cjs` + the `Detach Appwrite Git`
+workflow. Supersedes the `claude/clever-volta-cnv3wt` entry below (its API-only detach is
+now disproven).
+
+---
+
 ## 2026-06-23 - ai-gateway VCS auto-build failures resolved (branch `claude/clever-volta-cnv3wt`)
 
 Follow-up to PR #119. The recurring red "AI Gateway Hub (WiseResume)" check was the

@@ -2,6 +2,94 @@
 
 ---
 
+## Session Log - 2026-06-23 (ai-gateway push auto-trigger RESOLVED — branch claude/epic-maxwell-evkfa4, PR #124)
+
+### Problem
+Pushing **any** commit to `WiseResume-TWC` (any branch) auto-triggered an Appwrite
+deployment of the **AI Gateway Hub** (`ai-gateway`), even though the owner never
+connected the repo to a Function from the Console. Goal: remove the push auto-trigger so
+hubs deploy **only** via the manual workflow (`Deploy Appwrite Hubs`, workflow_dispatch)
+or a Console upload.
+
+### Root cause (confirmed via Appwrite VCS API + GitHub)
+- The recurring builds were **`type: vcs`** — created by a GitHub→Appwrite **push
+  webhook** from the **Appwrite GitHub App** (Appwrite installation
+  `69fd518d91ac2b25574c`, GitHub install id `130461735`, org `iammagdy`) linked to the
+  repo (providerRepositoryId `1170228859`). Each `vcs` deployment carried the commit
+  hash / author / branch. Of all 25 functions, **only `ai-gateway`** was still linked →
+  only it auto-built.
+- **Not** GitHub Actions: all repo workflows are `workflow_dispatch` / `pull_request`
+  (none trigger on push). `deploy_hubs.cjs` deploys via the `APPWRITE_API_KEY`, never the
+  GitHub App.
+- **Production was never affected:** the serving deployment was the last manual/CLI build
+  (`6a3a1927…`, `type: manual`, `ready`, `activate: true`); failed `vcs` builds are
+  non-activating (`activate: false`), so they can't replace the live deployment.
+
+### Investigation — both Appwrite-API off-switches tried, BOTH proven insufficient
+New finding: the Appwrite **VCS REST API is reachable with the project API key**
+(`GET /vcs/installations` → 200; `GET …/providerRepositories?type=runtime` lists repos).
+The prior session believed only the GitHub-App UI could fix it; the installation side is
+in fact reachable from the API key. Two levers were tried:
+
+- **(A) Function-level detach — cosmetic.** `PUT /functions/ai-gateway` with all VCS
+  fields blanked (`installationId/providerRepositoryId/providerBranch/
+  providerRootDirectory = ""`, `providerSilentMode: false`) — the Console "Disconnect
+  Git" payload. After it, a fresh push of `f4b2595` **still** built `vcs` deployment
+  `6a3a2050`. The Function-config API *masks* the VCS fields (they read empty while the
+  link is live), so `deploy_hubs.cjs`'s `settingsNeedUpdate()` diff ("empty == empty")
+  never even sent a detach, and an explicit blank-VCS update doesn't clear the internal
+  link either.
+- **(B) Delete the Appwrite VCS installation — also insufficient.** Owner-authorized
+  `DELETE /vcs/installations/69fd518d91ac2b25574c` → `204`; `GET /vcs/installations` →
+  `total: 0`. **Yet pushes kept building:** three `type: vcs` deployments were created
+  *after* the delete (~06:06:30Z) across multiple branches —
+  `4223f6e`@`claude/epic-maxwell-evkfa4` (06:08:30), `7594501`@`main` (06:07:48),
+  `4152b06`@`claude/confident-johnson-ruvmnw` (06:07:34). Deleting the Appwrite-side
+  record does **not** stop GitHub-App webhook delivery.
+
+Conclusion: the push→build link is delivered by the **Appwrite GitHub App** and cannot be
+removed from the Appwrite API or repo tooling — it requires a GitHub-side action by the
+repo owner.
+
+### Resolution (owner action) — VERIFIED ✅
+The owner **suspended the Appwrite GitHub App** (GitHub → Settings → Applications →
+Appwrite → Suspend). This is the install-level off-switch. **Verified end-to-end:** an
+empty test commit `0935388` (and subsequent pushes `d008efd`, …) produced **no** `vcs`
+build — Vercel still built the same push, proving it reached GitHub, while Appwrite did
+nothing and the `appwrite[bot]` PR comment stopped updating. No new `vcs` build appeared
+from any branch in a 2-minute watch window. Before the suspension, every push produced an
+`ai-gateway` `vcs` build within ~30–60s.
+
+Pushes no longer auto-build any function. Deploys are now **manual only** via `Deploy
+Appwrite Hubs` (workflow_dispatch) or a Console upload — matching the design intent
+(`DISABLE_APPWRITE_GIT_FOR_MANAGED_HUBS = true` in `scripts/deploy_hubs.cjs`).
+**Reversible:** un-suspend (or remove just `WiseResume-TWC` from the app under *Repository
+access*) if push-to-deploy is ever wanted again. Nothing else was touched — backend,
+functions, data, auth, secrets, the live site, and the deploy workflow are unaffected;
+the Appwrite GitHub App only ever governed Git-based auto-build.
+
+### Deliverables (PR #124, manual-only tooling + docs)
+- `scripts/detach_appwrite_git.cjs` — scriptable equivalent of the Console "Disconnect
+  Git" (one/many/all functions); always sends the explicit blank-VCS update. Honestly
+  documents that it clears the per-function link only and does **not** override
+  GitHub-App delivery — kept for re-linked functions / hygiene.
+- `.github/workflows/detach-appwrite-git.yml` — `workflow_dispatch` wrapper (input
+  `target`, default `ai-gateway`).
+- This `MASTER_HANDOVER` entry + `Project Atlas/CHANGELOG.md`.
+
+### Notes for next session
+- The one remaining red check on PR #124 is **TestSprite Pre-Check → "No tests
+  detected"** — a repo-wide TestSprite app gate, unrelated to this fix (the PR is docs +
+  ops scripts). Safe to ignore.
+- `ai-gateway`'s internal Git link is still set (masked, API-uncleared); harmless while
+  the app is suspended. If the app is ever un-suspended, that link would resume
+  auto-building — clear it via the Console (reconnect → disconnect) before re-enabling.
+- Supersedes the earlier "owner action required" guidance from the prior
+  `claude/clever-volta-cnv3wt` session log below: the API-only detach it relied on is now
+  proven insufficient; the GitHub-App suspension/removal is the real off-switch.
+
+---
+
 ## Session Log - 2026-06-23 (ai-gateway VCS auto-build failures resolved — branch claude/clever-volta-cnv3wt)
 
 ### Overview

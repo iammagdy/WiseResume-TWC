@@ -1,0 +1,46 @@
+name: Detach Appwrite Git (stop push auto-build)
+
+# Manual-only. Disconnects Appwrite's GitHub-App auto-build from a Function so
+# that pushing to this repo no longer triggers a `type: vcs` deployment.
+#
+# Hubs are deployed exclusively via "Deploy Appwrite Hubs" (workflow_dispatch)
+# or a manual Appwrite Console upload - never on push. Run this if a Function
+# ever gets re-linked to the repo and starts auto-building on every commit.
+#
+# Trigger: GitHub -> Actions -> Detach Appwrite Git -> Run workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Function id to detach, comma-separated ids, or "all"'
+        required: false
+        default: 'ai-gateway'
+
+jobs:
+  detach:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install script dependencies
+        run: npm install node-appwrite
+
+      - name: Detach Appwrite Git
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          TARGET: ${{ github.event.inputs.target || 'ai-gateway' }}
+        run: |
+          if [ "${TARGET}" = "all" ]; then
+            node scripts/detach_appwrite_git.cjs --all
+          else
+            node scripts/detach_appwrite_git.cjs --only="${TARGET}"
+          fi
