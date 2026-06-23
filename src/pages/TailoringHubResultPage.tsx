@@ -279,7 +279,23 @@ export default function JobMatchResultPage() {
     return parent ? dbToResumeData(parent) : null;
   }, [allResumes, dbResume?.parent_resume_id]);
 
-  const tailorResult = tailorHistoryEntry?.tailorResult as SuperTailorResult | undefined;
+  // B8: prefer the fast local Zustand entry, but fall back to the compact rich-diff
+  // persisted on the tailor_history doc so the result survives hard refresh and is
+  // available cross-device / after the local 10-entry cap rolls off.
+  const tailorResult = useMemo<SuperTailorResult | undefined>(() => {
+    if (tailorHistoryEntry?.tailorResult) {
+      return tailorHistoryEntry.tailorResult as SuperTailorResult;
+    }
+    const raw = (appwriteEntry as Record<string, unknown> | null)?.tailor_result;
+    if (typeof raw === 'string' && raw) {
+      try {
+        return JSON.parse(raw) as SuperTailorResult;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  }, [tailorHistoryEntry, appwriteEntry]);
   const canCompare = !!(resume && sourceResume);
 
   const appliedSections = useMemo((): TailorSectionId[] => {

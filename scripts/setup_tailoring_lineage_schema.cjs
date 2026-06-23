@@ -142,6 +142,10 @@ async function run() {
   await sleep(500);
   await ensureIndex(TAILOR_HISTORY_ID, 'tailored_resume_id_idx', 'key', ['tailored_resume_id'], ['ASC']);
   await sleep(500);
+  // B8: compact rich-diff (keyChanges, bulletTransformations, changedSections,
+  // missingSkills) so the Tailoring Result page survives hard refresh / cross-device.
+  await ensureStringAttr(TAILOR_HISTORY_ID, 'tailor_result', 65535, false);
+  await sleep(500);
 
   // 2. resumes optional lineage fields
   console.log(`\n2. ${RESUMES_ID}`);

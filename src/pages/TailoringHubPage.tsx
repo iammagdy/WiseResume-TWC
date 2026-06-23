@@ -476,6 +476,23 @@ export default function JobMatchWorkspacePage() {
       // Clear persisted job description so workspace starts fresh next session
       setJobDescription('');
 
+      // B8: persist a COMPACT rich-diff so the Tailoring Result page survives a
+      // hard refresh and works cross-device (the full result also lives in the
+      // local Zustand store as the fast path). Arrays are capped and the whole
+      // payload is dropped to a safe subset if it would exceed the attribute size.
+      const tr = tailorResult as SuperTailorResult;
+      const compactDiff = {
+        keyChanges: Array.isArray(tr?.keyChanges) ? tr.keyChanges.slice(0, 24) : [],
+        bulletTransformations: Array.isArray(tr?.bulletTransformations) ? tr.bulletTransformations.slice(0, 30) : [],
+        changedSections: changeSummary?.changedSections ?? [],
+        missingSkills: Array.isArray(tr?.missingSkills) ? tr.missingSkills.slice(0, 24) : [],
+      };
+      let tailorResultJson = JSON.stringify(compactDiff);
+      if (tailorResultJson.length > 60000) {
+        // Drop the largest field rather than risk truncating mid-JSON.
+        tailorResultJson = JSON.stringify({ ...compactDiff, bulletTransformations: [] });
+      }
+
       // E-6: Persist to Appwrite tailor_history (fire-and-forget, non-blocking)
       databases.createDocument(
         DATABASE_ID,
@@ -494,6 +511,7 @@ export default function JobMatchWorkspacePage() {
           intensity,
           status: 'completed',
           job_description: jobDescription.slice(0, 5000),
+          tailor_result: tailorResultJson,
         },
       ).catch((err: unknown) => {
         console.warn('[TailoringHub] tailor_history write failed (non-blocking):', err);
