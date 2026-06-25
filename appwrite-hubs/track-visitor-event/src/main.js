@@ -45,6 +45,45 @@ const BOT_UA =
 // fails just because the schema has not been extended.
 const OPTIONAL_FIELDS = ['referrer', 'os', 'duration_ms', 'label', 'utm_source', 'utm_medium', 'utm_campaign', 'is_returning'];
 
+// ── Server-side country resolution ──────────────────────────────────────────
+// Cached per-runtime: { ip, country, ts }
+let _serverCountry = { ip: null, country: null, ts: 0 };
+const SERVER_COUNTRY_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+async function resolveCountryServerSide(headers) {
+  const ip = String((headers && (headers['x-forwarded-for'] || headers['x-real-ip'])) || '')
+    .split(',')[0]
+    .trim();
+  if (!ip || ip === '::1' || ip === '127.0.0.1') return null;
+
+  // Return cached if fresh
+  const now = Date.now();
+  if (_serverCountry.ip === ip && _serverCountry.country && (now - _serverCountry.ts) < SERVER_COUNTRY_TTL_MS) {
+    return _serverCountry.country;
+  }
+
+  try {
+    const https = require('https');
+    const resp = await new Promise((resolve, reject) => {
+      const req = https.get(`https://get.geojs.io/v1/ip/country/${ip}.json`, { timeout: 3000 }, (r) => {
+        let body = '';
+        r.on('data', (chunk) => { body += chunk; });
+        r.on('end', () => {
+          try { resolve(JSON.parse(body)); } catch { resolve(null); }
+        });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); resolve(null); });
+    });
+    const code = resp && resp.country;
+    if (code && /^[A-Z]{2}$/.test(code)) {
+      _serverCountry = { ip, country: code, ts: now };
+      return code;
+    }
+  } catch { /* best-effort */ }
+  return null;
+}
+
 // ── Rate limiting ───────────────────────────────────────────────────────────
 // In-memory, per-runtime throttle keyed by session_id / anon_id / forwarded IP.
 // Deliberately NOT a per-call DB read+write: this is a high-volume analytics
@@ -193,10 +232,22 @@ async function handler({ req, res, error }) {
   }
 
   const databases = getDatabases();
+
+  // Resolve country server-side if any event is missing it (best-effort, cached per IP)
+  const needsCountry = rawEvents.some(ev => ev && !ev.country);
+  let serverCountry = null;
+  if (needsCountry) {
+    serverCountry = await resolveCountryServerSide(headers);
+  }
+
   let written = 0;
   for (const ev of rawEvents.slice(0, MAX_EVENTS_PER_REQUEST)) {
     const doc = sanitize(ev);
     if (!doc) continue;
+    // Fill in country from server-side resolution if client didn't provide one
+    if (!doc.country && serverCountry) {
+      doc.country = serverCountry;
+    }
     try {
       await writeEvent(databases, doc);
       written += 1;

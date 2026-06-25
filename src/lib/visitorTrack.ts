@@ -116,17 +116,22 @@ function getCachedCountry(): string | null {
   return null;
 }
 
-/** Fetch country once per session; result is cached in sessionStorage + memory. */
+/** Fetch country once per session; result is cached in sessionStorage + memory.
+ *  After resolution succeeds, fires a flush so queued events pick up the country. */
 function resolveCountry(): void {
   if (_country || _countryFetching) return;
   _countryFetching = true;
-  fetch('https://ip-api.com/json/?fields=countryCode', { cache: 'no-store' })
+  fetch('https://get.geojs.io/v1/ip/country.json', { cache: 'no-store' })
     .then((r) => r.json())
-    .then((data: { countryCode?: string }) => {
-      const code = data?.countryCode ?? null;
+    .then((data: { country?: string }) => {
+      const code = data?.country ?? null;
       if (code && /^[A-Z]{2}$/.test(code)) {
         _country = code;
         try { sessionStorage.setItem(COUNTRY_CACHE_KEY, code); } catch { /* ignore */ }
+        // Re-emit queued events so they pick up the newly resolved country.
+        // This fixes the race where the first page_view flushes before
+        // country resolution completes.
+        void flush();
       }
     })
     .catch(() => { /* geo lookup is best-effort */ })
@@ -334,10 +339,11 @@ export function trackPageView(path: string): void {
     page: path,
   });
 
-  // Immediate first flush — don't wait 10s for the first page_view
+  // First flush: wait briefly for country resolution to complete
+  // so the first page_view includes country. Subsequent flushes run on the 10s timer.
   if (!_hasFlushed) {
     _hasFlushed = true;
-    void flush();
+    setTimeout(() => void flush(), 2000);
   }
 
   // Fire perf event after load (best-effort)
