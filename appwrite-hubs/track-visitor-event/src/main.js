@@ -46,17 +46,24 @@ const BOT_UA =
 const OPTIONAL_FIELDS = ['referrer', 'os', 'duration_ms', 'label', 'utm_source', 'utm_medium', 'utm_campaign', 'is_returning'];
 
 // ── Server-side country resolution ──────────────────────────────────────────
-// Cached per-runtime: { ip, country, ts }
+// Appwrite injects x-appwrite-country-code and x-appwrite-client-ip headers.
+// We use the country code directly; if missing, fall back to geo lookup via IP.
 let _serverCountry = { ip: null, country: null, ts: 0 };
 const SERVER_COUNTRY_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 async function resolveCountryServerSide(headers) {
-  const ip = String((headers && (headers['x-forwarded-for'] || headers['x-real-ip'])) || '')
-    .split(',')[0]
-    .trim();
+  // Appwrite provides country code directly — no external API call needed
+  const appwriteCountry = headers['x-appwrite-country-code'];
+  if (appwriteCountry && /^[A-Z]{2}$/.test(appwriteCountry)) {
+    return appwriteCountry;
+  }
+
+  // Fallback: resolve from client IP via geo API
+  const ip = headers['x-appwrite-client-ip']
+    || String((headers['x-forwarded-for'] || headers['x-real-ip']) || '')
+      .split(',')[0].trim();
   if (!ip || ip === '::1' || ip === '127.0.0.1') return null;
 
-  // Return cached if fresh
   const now = Date.now();
   if (_serverCountry.ip === ip && _serverCountry.country && (now - _serverCountry.ts) < SERVER_COUNTRY_TTL_MS) {
     return _serverCountry.country;
