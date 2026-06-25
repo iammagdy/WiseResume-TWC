@@ -37,13 +37,13 @@ const PROJECT_ID =
 const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 
 const MAX_EVENTS_PER_REQUEST = 20;
-const ALLOWED_EVENT_TYPES = new Set(['page_view', 'click', 'section_view', 'feature_use']);
+const ALLOWED_EVENT_TYPES = new Set(['page_view', 'click', 'section_view', 'feature_use', 'session_end', 'perf']);
 const BOT_UA =
   /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|headless|lighthouse|pingdom|gtmetrix|uptimerobot|monitor|datadog|scrap|curl|wget|python-requests|axios\//i;
 // Optional attributes that may not exist on the collection yet. The write
 // strips these and retries on an unknown-attribute error so ingestion never
 // fails just because the schema has not been extended.
-const OPTIONAL_FIELDS = ['referrer', 'os'];
+const OPTIONAL_FIELDS = ['referrer', 'os', 'duration_ms', 'label', 'utm_source', 'utm_medium', 'utm_campaign', 'is_returning'];
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
 // In-memory, per-runtime throttle keyed by session_id / anon_id / forwarded IP.
@@ -115,12 +115,15 @@ function sanitize(ev) {
   if (!ev || typeof ev !== 'object') return null;
   const type = String(ev.event_type || '');
   if (!ALLOWED_EVENT_TYPES.has(type)) return null;
+  // Defense-in-depth: skip /devkit routes at ingestion level
+  const page = str(ev.page, 512);
+  if (page && page.startsWith('/devkit')) return null;
   const doc = {
     event_type: type,
     session_id: str(ev.session_id, 64),
     anon_id: str(ev.anon_id, 64),
     user_id: str(ev.user_id, 64),
-    page: str(ev.page, 512),
+    page,
     target: str(ev.target, 128),
     section: str(ev.section, 128),
     country: str(ev.country, 8),
@@ -128,6 +131,12 @@ function sanitize(ev) {
     browser: str(ev.browser, 32),
     referrer: str(ev.referrer, 512),
     os: str(ev.os, 32),
+    duration_ms: typeof ev.duration_ms === 'number' ? Math.min(Math.max(0, Math.round(ev.duration_ms)), 86400000) : undefined,
+    label: str(ev.label, 512),
+    utm_source: str(ev.utm_source, 128),
+    utm_medium: str(ev.utm_medium, 64),
+    utm_campaign: str(ev.utm_campaign, 128),
+    is_returning: typeof ev.is_returning === 'boolean' ? ev.is_returning : undefined,
   };
   for (const key of Object.keys(doc)) {
     if (doc[key] === undefined) delete doc[key];

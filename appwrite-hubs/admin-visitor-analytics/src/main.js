@@ -1,11 +1,12 @@
 /**
  * admin-visitor-analytics — Appwrite Function
  *
- * Serves VisitorsPanel (kpis, country-dist, top-pages, click-targets,
- * sections, sessions, cohort, journey) and MissionControlPanel (live-count).
+ * Serves VisitorsPanel (dashboard, kpis, country-dist, top-pages, click-targets,
+ * sections, sessions, cohort, journey, health, export, hourly, referrers,
+ * returning, funnel, top-events) and MissionControlPanel (live-count).
  *
- * Auth: Authorization: Bearer <DEVKIT_PASSWORD>
- * Runtime: Node.js 18
+ * Auth: Authorization: Bearer <signed DevKit token>
+ * Runtime: Node.js 22
  *
  * Required Function Variables:
  *   DEVKIT_PASSWORD        — shared secret matching the frontend DevKit token
@@ -37,6 +38,8 @@ const SESSION_PAGE_SIZE = 50;
 const MAX_FETCH = 500;
 // Hard cap per analytics request — prevents function timeout on large datasets
 const MAX_TOTAL_DOCS = 5000;
+// CSV export row cap — prevents function response size issues
+const EXPORT_ROW_CAP = 5000;
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
@@ -95,6 +98,20 @@ function getClients() {
     .setProject(process.env.APPWRITE_PROJECT_ID)
     .setKey(process.env.APPWRITE_API_KEY || '');
   return { databases: new sdk.Databases(client) };
+}
+
+// ─── runSafe wrapper ──────────────────────────────────────────────────────────
+
+/**
+ * Wraps an async aggregation so that one failure returns a default value
+ * and collects an error message, rather than breaking the entire dashboard.
+ * Mirrors the `runQ` pattern from the personal portfolio analytics system.
+ */
+function runSafe(name, fn, errors) {
+  return fn().catch((e) => {
+    errors[name] = String((e && e.message) || e);
+    return null;
+  });
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -291,6 +308,234 @@ function computeCohort(docs) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// ─── New computation helpers ─────────────────────────────────────────────────
+
+function computeDaily(docs) {
+  const dayMap = {};
+  for (const d of docs) {
+    if (d.event_type !== 'page_view') continue;
+    const date = d.$createdAt.slice(0, 10);
+    if (!dayMap[date]) dayMap[date] = { pageviews: 0, uniqueVisitors: new Set() };
+    dayMap[date].pageviews++;
+    if (d.anon_id) dayMap[date].uniqueVisitors.add(d.anon_id);
+  }
+  return Object.entries(dayMap)
+    .map(([date, v]) => ({ date, pageviews: v.pageviews, uniqueVisitors: v.uniqueVisitors.size }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function computeHourly(docs) {
+  const hours = new Array(24).fill(0);
+  for (const d of docs) {
+    if (d.event_type !== 'page_view') continue;
+    const h = new Date(d.$createdAt).getHours();
+    hours[h]++;
+  }
+  return hours;
+}
+
+function computeHeatmap(docs) {
+  const matrix = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  for (const d of docs) {
+    if (d.event_type !== 'page_view') continue;
+    const dt = new Date(d.$createdAt);
+    const dow = dt.getDay();
+    const hod = dt.getHours();
+    matrix[dow][hod]++;
+  }
+  return matrix;
+}
+
+function computeReferrers(docs) {
+  const map = {};
+  for (const d of docs) {
+    if (d.event_type !== 'page_view') continue;
+    const ref = d.referrer || '';
+    if (!ref || ref === 'null' || ref === 'undefined') continue;
+    map[ref] = (map[ref] || 0) + 1;
+  }
+  return Object.entries(map)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+}
+
+function computeReturning(docs) {
+  const anonSessions = {};
+  for (const d of docs) {
+    if (!d.anon_id) continue;
+    const sid = d.session_id || d.anon_id;
+    if (!anonSessions[d.anon_id]) anonSessions[d.anon_id] = new Set();
+    anonSessions[d.anon_id].add(sid);
+  }
+  let newCount = 0;
+  let returningCount = 0;
+  for (const sessions of Object.values(anonSessions)) {
+    if (sessions.size > 1) returningCount++;
+    else newCount++;
+  }
+  return { newCount, returningCount };
+}
+
+function computeFunnel(docs) {
+  const sessionEvents = {};
+  for (const d of docs) {
+    const sid = d.session_id || d.anon_id;
+    if (!sid) continue;
+    if (!sessionEvents[sid]) sessionEvents[sid] = new Set();
+    sessionEvents[sid].add(d.event_type);
+  }
+  let pageview = 0, sectionView = 0, click = 0, featureUse = 0;
+  for (const types of Object.values(sessionEvents)) {
+    if (types.has('page_view')) pageview++;
+    if (types.has('section_view')) sectionView++;
+    if (types.has('click')) click++;
+    if (types.has('feature_use')) featureUse++;
+  }
+  return { pageview, sectionView, click, featureUse };
+}
+
+function computeTopEvents(docs) {
+  const map = {};
+  for (const d of docs) {
+    if (d.event_type === 'page_view') continue;
+    const label = d.target || d.section || d.event_type;
+    const key = `${d.event_type}:${label}`;
+    map[key] = (map[key] || 0) + 1;
+  }
+  return Object.entries(map)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 25);
+}
+
+function computeOsBreakdown(docs) {
+  const map = {};
+  for (const d of docs) {
+    const os = d.os || 'Unknown';
+    map[os] = (map[os] || 0) + 1;
+  }
+  return Object.entries(map)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+}
+
+function computePerfMetrics(docs) {
+  const perfDocs = docs.filter(d => d.event_type === 'perf');
+  if (perfDocs.length === 0) {
+    return { avgLoadMs: null, avgFcpMs: null, p75LoadMs: null, fast: 0, ok: 0, slow: 0, count: 0 };
+  }
+  const loadTimes = [];
+  const fcpTimes = [];
+  for (const d of perfDocs) {
+    try {
+      const raw = d.metadata || d.label || '{}';
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (parsed.load_ms != null) loadTimes.push(Number(parsed.load_ms));
+      if (parsed.fcp_ms != null) fcpTimes.push(Number(parsed.fcp_ms));
+    } catch { /* ignore parse errors */ }
+  }
+  loadTimes.sort((a, b) => a - b);
+  fcpTimes.sort((a, b) => a - b);
+  const avg = (arr) => arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
+  const p75 = (arr) => arr.length > 0 ? arr[Math.floor(arr.length * 0.75)] : null;
+  let fast = 0, ok = 0, slow = 0;
+  for (const lt of loadTimes) {
+    if (lt < 2000) fast++;
+    else if (lt < 5000) ok++;
+    else slow++;
+  }
+  return {
+    avgLoadMs: avg(loadTimes),
+    avgFcpMs: avg(fcpTimes),
+    p75LoadMs: p75(loadTimes),
+    fast, ok, slow,
+    count: loadTimes.length,
+  };
+}
+
+function computeTrends(docs, range) {
+  const rangeMs = { '7d': 7, '30d': 30, '90d': 90 };
+  const days = rangeMs[range];
+  if (!days) return { visits: { current: 0, previous: 0, pct: null }, uniques: { current: 0, previous: 0, pct: null } };
+  const now = Date.now();
+  const midpoint = now - (days / 2) * 86400000;
+  let currentVisits = 0, previousVisits = 0;
+  const currentAnons = new Set();
+  const previousAnons = new Set();
+  for (const d of docs) {
+    if (d.event_type !== 'page_view') continue;
+    const ts = new Date(d.$createdAt).getTime();
+    if (ts >= midpoint) {
+      currentVisits++;
+      if (d.anon_id) currentAnons.add(d.anon_id);
+    } else {
+      previousVisits++;
+      if (d.anon_id) previousAnons.add(d.anon_id);
+    }
+  }
+  const pct = (curr, prev) => {
+    if (prev === 0) return curr > 0 ? 100 : null;
+    return Math.round(((curr - prev) / prev) * 100);
+  };
+  return {
+    visits: { current: currentVisits, previous: previousVisits, pct: pct(currentVisits, previousVisits) },
+    uniques: { current: currentAnons.size, previous: previousAnons.size, pct: pct(currentAnons.size, previousAnons.size) },
+  };
+}
+
+function computeWindows(docs) {
+  const now = Date.now();
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+  const h24 = now - 24 * 3600000;
+  const d7 = now - 7 * 86400000;
+  const d30 = now - 30 * 86400000;
+  const d90 = now - 90 * 86400000;
+  const win = (sinceMs) => {
+    let visits = 0;
+    const anons = new Set();
+    const sessions = new Set();
+    for (const d of docs) {
+      if (d.event_type !== 'page_view') continue;
+      const ts = new Date(d.$createdAt).getTime();
+      if (ts < sinceMs) continue;
+      visits++;
+      if (d.anon_id) anons.add(d.anon_id);
+      if (d.session_id) sessions.add(d.session_id);
+    }
+    return { visits, uniques: anons.size, sessions: sessions.size };
+  };
+  return {
+    today: win(todayStart),
+    '24h': win(h24),
+    '7d': win(d7),
+    '30d': win(d30),
+    '90d': win(d90),
+  };
+}
+
+function computeTotals(docs) {
+  const pageviews = docs.filter(d => d.event_type === 'page_view').length;
+  const clicks = docs.filter(d => d.event_type === 'click').length;
+  const sectionViews = docs.filter(d => d.event_type === 'section_view').length;
+  const featureUses = docs.filter(d => d.event_type === 'feature_use').length;
+  const uniqueVisitors = new Set(docs.map(d => d.anon_id).filter(Boolean)).size;
+  const sessions = new Set(docs.map(d => d.session_id).filter(Boolean)).size;
+  return { pageviews, uniqueVisitors, sessions, clicks, sectionViews, featureUses };
+}
+
+function computeMeta(docs, totalEvents, range, truncated) {
+  let latestEventAt = null;
+  let oldestEventAt = null;
+  for (const d of docs) {
+    const ts = d.$createdAt;
+    if (!latestEventAt || ts > latestEventAt) latestEventAt = ts;
+    if (!oldestEventAt || ts < oldestEventAt) oldestEventAt = ts;
+  }
+  return { totalEvents, eventsInRange: docs.length, latestEventAt, oldestEventAt, range, truncated };
+}
+
 async function loadRangeDocs(databases, range) {
   const since = rangeStart(range);
   const docs = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [
@@ -312,6 +557,7 @@ function ago(ms) {
 function rangeStart(range) {
   const map = {
     today: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
+    '24h': ago(24 * 3600000),
     '7d':  ago(7  * 86400000),
     '30d': ago(30 * 86400000),
     '90d': ago(90 * 86400000),
@@ -344,7 +590,7 @@ function countBy(arr, key) {
 function countByCountry(arr) {
   const map = {};
   for (const item of arr) {
-    const c = item.country || '??';
+    const c = item.country || 'Unknown';
     map[c] = (map[c] || 0) + 1;
   }
   return Object.entries(map)
@@ -437,20 +683,62 @@ async function handleCohort(databases, range) {
 async function handleDashboard(databases, range, pageNum) {
   const { docs, todayDocs, truncated } = await loadRangeDocs(databases, range);
   const totalEvents = await fetchTotalEventCount(databases);
+  const errors = {};
+
+  // Backward-compat kpis (always compute — it's cheap)
+  const kpis = computeKpis(docs, todayDocs);
+
+  // Live data (bounded query, separate from range docs)
+  const liveData = await runSafe('live', () => handleLiveCount(databases), errors);
+
+  // All metrics wrapped in runSafe — one failure doesn't break the dashboard
+  const [countryDist, daily, hourly, heatmap, referrers, returning, funnel, topEvents, oses, perfMetrics, trends, windows, totals] = await Promise.all([
+    runSafe('countries', () => Promise.resolve(countByCountry(docs)), errors),
+    runSafe('daily', () => Promise.resolve(computeDaily(docs)), errors),
+    runSafe('hourly', () => Promise.resolve(computeHourly(docs)), errors),
+    runSafe('heatmap', () => Promise.resolve(computeHeatmap(docs)), errors),
+    runSafe('referrers', () => Promise.resolve(computeReferrers(docs)), errors),
+    runSafe('returning', () => Promise.resolve(computeReturning(docs)), errors),
+    runSafe('funnel', () => Promise.resolve(computeFunnel(docs)), errors),
+    runSafe('topEvents', () => Promise.resolve(computeTopEvents(docs)), errors),
+    runSafe('oses', () => Promise.resolve(computeOsBreakdown(docs)), errors),
+    runSafe('perfMetrics', () => Promise.resolve(computePerfMetrics(docs)), errors),
+    runSafe('trends', () => Promise.resolve(computeTrends(docs, range)), errors),
+    runSafe('windows', () => Promise.resolve(computeWindows(docs)), errors),
+    runSafe('totals', () => Promise.resolve(computeTotals(docs)), errors),
+  ]);
+
+  const metaV2 = computeMeta(docs, totalEvents, range, truncated);
 
   return {
-    kpis: computeKpis(docs, todayDocs),
-    countryDist: countByCountry(docs),
+    // Backward-compat fields
+    kpis,
+    countryDist: countryDist || [],
     topPages: computeTopPages(docs),
     clickTargets: computeClickTargets(docs, null),
     sections: computeSections(docs),
     sessions: computeSessions(docs, pageNum || 0),
     cohort: computeCohort(docs),
-    meta: {
-      eventsInRange: docs.length,
-      totalEvents,
-      truncated,
-    },
+    meta: { eventsInRange: docs.length, totalEvents, truncated },
+    // New enriched payload
+    metaV2,
+    live: liveData || { liveCount: 0, topCountries: [], totalEvents },
+    totals: totals || { pageviews: 0, uniqueVisitors: 0, sessions: 0, clicks: 0, sectionViews: 0, featureUses: 0 },
+    windows: windows || {},
+    trends: trends || {},
+    daily: daily || [],
+    countries: (countryDist || []).map(c => ({ ...c, uniqueVisitors: 0 })),
+    devices: kpis.deviceBreakdown || [],
+    browsers: kpis.browserBreakdown || [],
+    oses: oses || [],
+    topEvents: topEvents || [],
+    referrers: referrers || [],
+    hourly: hourly || new Array(24).fill(0),
+    heatmap: heatmap || Array.from({ length: 7 }, () => new Array(24).fill(0)),
+    returning: returning || { newCount: 0, returningCount: 0 },
+    funnel: funnel || { pageview: 0, sectionView: 0, click: 0, featureUse: 0 },
+    perfMetrics: perfMetrics || { avgLoadMs: null, avgFcpMs: null, p75LoadMs: null, fast: 0, ok: 0, slow: 0, count: 0 },
+    errors: Object.keys(errors).length > 0 ? errors : undefined,
   };
 }
 
@@ -491,8 +779,129 @@ async function handleJourney(databases, sessionId, anonId) {
     country:     d.country     || null,
     device_type: normalizeDevice(d.device_type),
     browser:     d.browser     || null,
+    os:          d.os          || null,
     created_at:  d.$createdAt,
   }));
+}
+
+// ─── Action: health ──────────────────────────────────────────────────────────
+
+async function handleHealth(databases) {
+  const envFlags = {
+    APPWRITE_API_KEY: !!process.env.APPWRITE_API_KEY,
+    APPWRITE_ENDPOINT: !!process.env.APPWRITE_ENDPOINT,
+    APPWRITE_PROJECT_ID: !!process.env.APPWRITE_PROJECT_ID,
+    DEVKIT_PASSWORD: !!process.env.DEVKIT_PASSWORD,
+  };
+
+  let collectionExists = false;
+  let docCount = 0;
+  let latestEventAt = null;
+  let attributes = [];
+
+  try {
+    const page = await databases.listDocuments(DB_ID, COLLECTION_VISITOR_EVENTS, [
+      sdk.Query.orderDesc('$createdAt'),
+      sdk.Query.limit(1),
+    ]);
+    docCount = page.total ?? 0;
+    collectionExists = true;
+    if (page.documents && page.documents.length > 0) {
+      latestEventAt = page.documents[0].$createdAt;
+    }
+  } catch {
+    collectionExists = false;
+  }
+
+  const expectedAttrs = [
+    'user_id', 'session_id', 'anon_id', 'event_type', 'page', 'target',
+    'section', 'country', 'device_type', 'browser', 'metadata',
+    'referrer', 'os', 'duration_ms', 'label', 'utm_source', 'utm_medium',
+    'utm_campaign', 'is_returning',
+  ];
+  try {
+    const attrList = await databases.listAttributes(DB_ID, COLLECTION_VISITOR_EVENTS);
+    attributes = (attrList.attributes || []).map(a => a.key);
+  } catch { /* ignore */ }
+  const missingSchemaFields = expectedAttrs.filter(a => !attributes.includes(a));
+
+  return {
+    envFlags,
+    collectionExists,
+    docCount,
+    latestEventAt,
+    missingSchemaFields,
+    attributesFound: attributes,
+  };
+}
+
+// ─── Action: export ──────────────────────────────────────────────────────────
+
+async function handleExport(databases, range) {
+  const { docs } = await loadRangeDocs(databases, range);
+  const capped = docs.slice(0, EXPORT_ROW_CAP);
+  const headers = [
+    'created_at', 'event_type', 'session_id', 'anon_id', 'page',
+    'target', 'section', 'country', 'device_type', 'browser', 'os',
+    'referrer', 'duration_ms', 'label', 'utm_source', 'utm_medium',
+    'utm_campaign', 'is_returning',
+  ];
+  const escapeCsv = (val) => {
+    const s = String(val ?? '');
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+  const rows = capped.map(d => [
+    d.$createdAt, d.event_type, d.session_id, d.anon_id, d.page,
+    d.target, d.section, d.country, normalizeDevice(d.device_type),
+    d.browser, d.os, d.referrer, d.duration_ms, d.label,
+    d.utm_source, d.utm_medium, d.utm_campaign, d.is_returning,
+  ].map(escapeCsv).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  return {
+    csv,
+    rowsExported: capped.length,
+    totalInRange: docs.length,
+    truncated: docs.length > EXPORT_ROW_CAP,
+    cap: EXPORT_ROW_CAP,
+  };
+}
+
+// ─── Action: hourly ──────────────────────────────────────────────────────────
+
+async function handleHourly(databases, range) {
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeHourly(docs);
+}
+
+// ─── Action: referrers ───────────────────────────────────────────────────────
+
+async function handleReferrers(databases, range) {
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeReferrers(docs);
+}
+
+// ─── Action: returning ───────────────────────────────────────────────────────
+
+async function handleReturning(databases, range) {
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeReturning(docs);
+}
+
+// ─── Action: funnel ──────────────────────────────────────────────────────────
+
+async function handleFunnel(databases, range) {
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeFunnel(docs);
+}
+
+// ─── Action: top-events ──────────────────────────────────────────────────────
+
+async function handleTopEvents(databases, range) {
+  const { docs } = await loadRangeDocs(databases, range);
+  return computeTopEvents(docs);
 }
 
 // ─── Main entry point ────────────────────────────────────────────────────────
@@ -564,6 +973,41 @@ module.exports = async ({ req, res, log, error }) => {
 
       case 'journey': {
         const data = await handleJourney(databases, body.session_id || null, body.anon_id || null);
+        return res.json({ success: true, data });
+      }
+
+      case 'health': {
+        const data = await handleHealth(databases);
+        return res.json({ success: true, data });
+      }
+
+      case 'export': {
+        const data = await handleExport(databases, range);
+        return res.json({ success: true, data });
+      }
+
+      case 'hourly': {
+        const data = await handleHourly(databases, range);
+        return res.json({ success: true, data });
+      }
+
+      case 'referrers': {
+        const data = await handleReferrers(databases, range);
+        return res.json({ success: true, data });
+      }
+
+      case 'returning': {
+        const data = await handleReturning(databases, range);
+        return res.json({ success: true, data });
+      }
+
+      case 'funnel': {
+        const data = await handleFunnel(databases, range);
+        return res.json({ success: true, data });
+      }
+
+      case 'top-events': {
+        const data = await handleTopEvents(databases, range);
         return res.json({ success: true, data });
       }
 

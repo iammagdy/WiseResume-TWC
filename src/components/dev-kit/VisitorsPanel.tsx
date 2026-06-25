@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   RefreshCw, Users, Globe, Smartphone, Monitor, Tablet, MousePointerClick,
   Layers, Clock, ChevronRight, ArrowLeft, Lock, BarChart2, Map,
+  Activity, Download, HeartPulse, AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,10 @@ import { Donut } from './analytics/Donut';
 import { RankedList } from './analytics/RankedList';
 import { EmptyState } from './analytics/EmptyState';
 import { RangeSwitcher } from './analytics/RangeSwitcher';
+import { Sparkline } from './analytics/Sparkline';
+import { HeatmapDowHour } from './analytics/HeatmapDowHour';
 import type { AnalyticsRange } from './analytics/types';
+import { useReducedMotion } from 'framer-motion';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -81,6 +85,7 @@ interface JourneyEvent {
   country: string | null;
   device_type: string | null;
   browser: string | null;
+  os: string | null;
   created_at: string;
 }
 
@@ -93,6 +98,44 @@ interface DashboardData {
   sessions: { sessions: Session[]; total: number; page: number };
   cohort: NamedCount[];
   meta?: { eventsInRange: number; totalEvents: number; truncated?: boolean };
+  // New enriched payload
+  metaV2?: {
+    totalEvents: number;
+    eventsInRange: number;
+    latestEventAt: string | null;
+    oldestEventAt: string | null;
+    range: string;
+    truncated: boolean;
+  };
+  live?: { liveCount: number; topCountries: NamedCount[]; totalEvents?: number };
+  totals?: { pageviews: number; uniqueVisitors: number; sessions: number; clicks: number; sectionViews: number; featureUses: number };
+  windows?: Record<string, { visits: number; uniques: number; sessions: number }>;
+  trends?: {
+    visits: { current: number; previous: number; pct: number | null };
+    uniques: { current: number; previous: number; pct: number | null };
+  };
+  daily?: { date: string; pageviews: number; uniqueVisitors: number }[];
+  countries?: { country: string; count: number; uniqueVisitors: number }[];
+  devices?: NamedCount[];
+  browsers?: NamedCount[];
+  oses?: NamedCount[];
+  topEvents?: NamedCount[];
+  referrers?: NamedCount[];
+  hourly?: number[];
+  heatmap?: number[][];
+  returning?: { newCount: number; returningCount: number };
+  funnel?: { pageview: number; sectionView: number; click: number; featureUse: number };
+  perfMetrics?: { avgLoadMs: number | null; avgFcpMs: number | null; p75LoadMs: number | null; fast: number; ok: number; slow: number; count: number };
+  errors?: Record<string, string>;
+}
+
+interface HealthData {
+  envFlags: { APPWRITE_API_KEY: boolean; APPWRITE_ENDPOINT: boolean; APPWRITE_PROJECT_ID: boolean; DEVKIT_PASSWORD: boolean };
+  collectionExists: boolean;
+  docCount: number;
+  latestEventAt: string | null;
+  missingSchemaFields: string[];
+  attributesFound: string[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -129,6 +172,8 @@ function humanEventLabel(ev: JourneyEvent): string {
     case 'click':        return `Clicked "${ev.target ?? 'element'}"`;
     case 'section_view': return `Read section: ${ev.section ?? ''}`;
     case 'feature_use':  return `Used feature: ${ev.target ?? ''}`;
+    case 'session_end':  return `Session ended (${ev.page ?? ''})`;
+    case 'perf':         return `Performance: ${ev.page ?? ''}`;
     default:             return ev.event_type;
   }
 }
@@ -259,17 +304,22 @@ function JourneyDrawer({
 
 // ── Main Panel ─────────────────────────────────────────────────────────────
 
-type VisitorsRange = 'today' | '7d' | '30d' | '90d';
+type VisitorsRange = 'today' | '24h' | '7d' | '30d' | '90d';
 
 export function VisitorsPanel() {
   const { isUnlocked } = useDevKitSession();
   const isMounted = useIsMounted();
+  const prefersReducedMotion = useReducedMotion();
   const [range, setRange] = useState<VisitorsRange>('7d');
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadStatus, setLoadStatus] = useState<string | null>(null);
   const [dataTruncated, setDataTruncated] = useState(false);
+  const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [kpis, setKpis] = useState<KpiData | null>(null);
   const [countryDist, setCountryDist] = useState<CountryDist[]>([]);
@@ -285,6 +335,10 @@ export function VisitorsPanel() {
   const [journeySearch, setJourneySearch] = useState('');
   const [eventCount, setEventCount] = useState<number | null>(null);
 
+  // New enriched data state
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [health, setHealth] = useState<HealthData | null>(null);
+
   const invoke = useCallback(async (action: string, extra: Record<string, unknown> = {}, timeoutMs?: number) => {
     const result = await devKitCall<unknown>({
       functionId: 'admin-visitor-analytics',
@@ -297,6 +351,7 @@ export function VisitorsPanel() {
   }, [range]);
 
   const applyDashboard = useCallback((data: DashboardData) => {
+    setDashboard(data);
     setKpis(data.kpis);
     setCountryDist(data.countryDist ?? []);
     setTopPages(data.topPages ?? []);
@@ -310,6 +365,7 @@ export function VisitorsPanel() {
       setEventCount(data.meta.totalEvents);
     }
     setDataTruncated(!!data.meta?.truncated);
+    setLastLoadedAt(new Date());
   }, []);
 
   const fetchAll = useCallback(async (isRetry = false) => {
@@ -350,6 +406,15 @@ export function VisitorsPanel() {
       }
 
       applyDashboard(dashboardResult.data);
+
+      // Fetch health data in parallel (best-effort, don't block dashboard)
+      devKitCall<HealthData>({
+        functionId: 'admin-visitor-analytics',
+        action: 'health',
+        timeoutMs: 30_000,
+      }).then((result) => {
+        if (result.ok && isMounted()) setHealth(result.data);
+      }).catch(() => { /* best-effort */ });
     } catch (err) {
       const devKitErr = toDevKitError(err, { functionId: 'admin-visitor-analytics', action: 'dashboard' });
       // Auto-retry once on transient failures (cold-start, runtime timeout, network blip)
@@ -395,6 +460,45 @@ export function VisitorsPanel() {
     } catch { /* ignore */ }
   }, [invoke]);
 
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const result = await devKitCall<{ csv: string; rowsExported: number; totalInRange: number; truncated: boolean; cap: number }>({
+        functionId: 'admin-visitor-analytics',
+        action: 'export',
+        payload: { range },
+        timeoutMs: 120_000,
+      });
+      if (result.ok && result.data.csv) {
+        const blob = new Blob([result.data.csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `visitor_events_${range}_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch { /* ignore */ }
+    finally { setExporting(false); }
+  }, [range]);
+
+  // Auto-refresh: 60s interval, gated on useReducedMotion
+  useEffect(() => {
+    if (!autoRefresh || prefersReducedMotion || !isUnlocked) {
+      if (autoRefreshRef.current) {
+        clearInterval(autoRefreshRef.current);
+        autoRefreshRef.current = null;
+      }
+      return;
+    }
+    autoRefreshRef.current = setInterval(() => {
+      if (isMounted() && !loading) fetchAll();
+    }, 60_000);
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, [autoRefresh, prefersReducedMotion, isUnlocked, isMounted, loading, fetchAll]);
+
   if (!isUnlocked) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
@@ -427,11 +531,44 @@ export function VisitorsPanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {dashboard?.live && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              </span>
+              <span className="tabular-nums">{dashboard.live.liveCount} live</span>
+            </div>
+          )}
+          {lastLoadedAt && (
+            <span className="text-[10px] text-muted-foreground/60 tabular-nums hidden sm:inline">
+              {lastLoadedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
           <RangeSwitcher
             value={range as AnalyticsRange}
             onChange={(r) => setRange(r as VisitorsRange)}
             disabled={loading}
           />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAutoRefresh(prev => !prev)}
+            className={`flex items-center gap-1.5 ${autoRefresh ? 'bg-primary/10 text-primary border-primary/30' : ''}`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span className="text-xs">Auto</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={loading || exporting}
+            className="flex items-center gap-1.5"
+          >
+            {exporting ? <MiniSpinner size={14} /> : <Download className="w-3.5 h-3.5" />}
+            <span className="text-xs">CSV</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fetchAll()} disabled={loading} className="flex items-center gap-2">
             {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
             Refresh
@@ -782,6 +919,122 @@ export function VisitorsPanel() {
               </Button>
             </div>
           </SectionCard>
+
+          {/* Hourly Heatmap */}
+          {dashboard?.heatmap && (
+            <SectionCard
+              title="Activity heatmap"
+              description="Page views by day of week and hour of day"
+              icon={Clock}
+            >
+              <HeatmapDowHour matrix={dashboard.heatmap} />
+            </SectionCard>
+          )}
+
+          {/* New vs Returning */}
+          {dashboard?.returning && (dashboard.returning.newCount > 0 || dashboard.returning.returningCount > 0) && (
+            <SectionCard
+              title="New vs returning"
+              description="Visitor retention based on anonymous ID across sessions"
+              icon={Users}
+            >
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground tabular-nums">{dashboard.returning.newCount.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">New visitors</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground tabular-nums">{dashboard.returning.returningCount.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Returning</div>
+                </div>
+                <div className="flex-1">
+                  <div className="h-3 rounded-full bg-muted overflow-hidden flex">
+                    <div className="h-full bg-blue-500/70" style={{ width: `${(dashboard.returning.newCount / (dashboard.returning.newCount + dashboard.returning.returningCount)) * 100}%` }} />
+                    <div className="h-full bg-purple-500/70" style={{ width: `${(dashboard.returning.returningCount / (dashboard.returning.newCount + dashboard.returning.returningCount)) * 100}%` }} />
+                  </div>
+                  <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                    <span>New</span>
+                    <span>Returning</span>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* OS Breakdown + Top Events */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {dashboard?.oses && dashboard.oses.length > 0 && (
+              <SectionCard title="Operating systems" icon={Monitor}>
+                <RankedList items={dashboard.oses} maxItems={10} />
+              </SectionCard>
+            )}
+            {dashboard?.topEvents && dashboard.topEvents.length > 0 && (
+              <SectionCard title="Top interactions" description="Non-page-view events ranked by count" icon={MousePointerClick}>
+                <RankedList items={dashboard.topEvents} maxItems={15} />
+              </SectionCard>
+            )}
+          </div>
+
+          {/* Health / Diagnostics */}
+          {health && (
+            <SectionCard
+              title="Diagnostics"
+              description="System health and schema verification"
+              icon={HeartPulse}
+            >
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${health.envFlags.APPWRITE_API_KEY ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className="text-muted-foreground">API Key</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${health.envFlags.APPWRITE_ENDPOINT ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className="text-muted-foreground">Endpoint</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${health.envFlags.APPWRITE_PROJECT_ID ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className="text-muted-foreground">Project ID</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${health.envFlags.DEVKIT_PASSWORD ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className="text-muted-foreground">DevKit Pass</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${health.collectionExists ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-muted-foreground">Collection exists</span>
+                  <span className="text-muted-foreground/60 tabular-nums">({health.docCount.toLocaleString()} docs)</span>
+                </div>
+                {health.latestEventAt && (
+                  <div className="text-muted-foreground">
+                    Latest event: {new Date(health.latestEventAt).toLocaleString()}
+                  </div>
+                )}
+                {health.missingSchemaFields.length > 0 && (
+                  <div className="flex items-start gap-2 text-amber-500">
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-medium">Missing schema fields:</span>{' '}
+                      <span className="font-mono text-[10px]">{health.missingSchemaFields.join(', ')}</span>
+                      <div className="mt-1 text-muted-foreground text-[10px]">
+                        Run <code className="bg-muted px-1 rounded">node scripts/setup_visitor_events_schema.cjs</code> to add them
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {dashboard?.errors && Object.keys(dashboard.errors).length > 0 && (
+                  <div className="flex items-start gap-2 text-amber-500">
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-medium">Partial errors:</span>{' '}
+                      <span className="font-mono text-[10px]">{Object.keys(dashboard.errors).join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+          )}
 
           {/* Pre-signup cohort */}
           {cohort.length > 0 && (
