@@ -1,4 +1,4 @@
-export type AnalyticsRange = 'today' | '7d' | '30d' | '90d' | 'all';
+export type AnalyticsRange = 'today' | '24h' | '7d' | '30d' | '90d' | 'all';
 
 export interface KpiPair {
   current: number;

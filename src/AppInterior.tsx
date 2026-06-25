@@ -251,7 +251,7 @@ function AppRoutes() {
 
   useVisitorTracking({
     userId: user?.id ?? null,
-    enabled: !isPublicStandalone,
+    enabled: !isPublicStandalone && !location.pathname.startsWith('/devkit'),
   });
 
   // Cmd+Shift+A — admin quick-access shortcut (only fires when admin is signed in)

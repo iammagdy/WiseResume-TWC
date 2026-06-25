@@ -2,6 +2,137 @@
 
 ---
 
+## Session Log - 2026-06-25 (DevKit Visitor Analytics Upgrade — branch `feature/devkit-visitors-analytics-upgrade`)
+
+### Goal
+Refactor the DevKit Growth & Traffic dashboard into a command-center "App Overview" (Analytics) tab as the default experience, with a specialized "Visitor Deep Dive" (Visitors) tab for session-level analytics. Fix visitor tracking pipeline issues (missing country, /devkit route contamination, schema gaps). Deploy updated Appwrite functions. No external APIs or non-Appwrite databases.
+
+### What changed and why
+
+#### Phase 1 — Backend remediation (admin-visitor-analytics + track-visitor-event)
+**`appwrite-hubs/admin-visitor-analytics/src/main.js`**
+- Added `runSafe` wrapper so one metric failure doesn't break the entire dashboard payload.
+- Enriched dashboard response with: daily trend, hourly distribution, heatmap matrix, referrers, returning visitors, engagement funnel, top events, OS breakdown, performance metrics, browser windows, 7/30-day trends.
+- Added standalone actions: `health`, `export`, `hourly`, `referrers`, `returning`, `funnel`, `top-events`.
+- Added `os` field to journey events.
+- All new computation guarded by `runSafe` — partial failures return empty arrays, not errors.
+
+**`appwrite-hubs/track-visitor-event/src/main.js`**
+- Added server-side country resolution using Appwrite's built-in `x-appwrite-country-code` header (no external API call needed). Falls back to `x-appwrite-client-ip` + geojs.io lookup if header missing.
+- Added `/devkit` route exclusion at ingestion level (defense-in-depth alongside client-side exclusion).
+- Expanded `sanitize()` to handle new fields: `duration_ms`, `label`, `utm_source`, `utm_medium`, `utm_campaign`, `is_returning`.
+- Added new event types: `session_end`, `perf`.
+- Country is now filled server-side when client doesn't provide one — fixes the long-standing "country not showing" bug.
+
+**`scripts/setup_visitor_events_schema.cjs`**
+- Made idempotent and additive-only: verifies existing attributes before creating, logs warnings for size mismatches, never modifies destructively.
+- Added new attributes: `duration_ms` (integer), `label` (string 512), `utm_source` (string 128), `utm_medium` (string 64), `utm_campaign` (string 128), `is_returning` (boolean).
+- Known limitation: `country` attribute exists with size=10 (sufficient for 2-letter ISO codes). `page` index cannot be created (exceeds Appwrite 767-byte key limit). `$createdAt` not indexable (system field).
+
+#### Phase 2 — Client-side tracking fixes
+**`src/lib/visitorTrack.ts`**
+- Switched client-side geo API from `ip-api.com` (no HTTPS on free tier, no CORS — silently failed on all HTTPS sites) to `https://get.geojs.io/v1/ip/country.json` (HTTPS, CORS-friendly, free).
+- Added re-flush after country resolution succeeds — queued events pick up the newly resolved country.
+- Delayed first flush by 2s to give country resolution time to complete before first page_view is sent.
+- Added UTM parameter capture (`utm_source`, `utm_medium`, `utm_campaign`) from URL, cached in sessionStorage.
+- Added retry queue: failed flushes saved to localStorage, re-emitted on next page view. Capped at 100 events.
+- Added `session_end` event (fires on `visibilitychange`/`pagehide` with `duration_ms`).
+- Added `perf` event (fires on page load with `load_ms` and `fcp_ms` in `label` field).
+- Added `/devkit` route exclusion in `trackPageView()`.
+
+**`src/AppInterior.tsx`**
+- `useVisitorTracking` now disables tracking for `/devkit` routes — admin pages no longer count as visitor traffic.
+
+#### Phase 3 — DevKit dashboard IA refactor
+**`src/components/dev-kit/GrowthTrafficPanel.tsx`**
+- Changed default tab from `visitors` to `analytics`.
+- Renamed tabs: "App Overview" (Analytics) and "Visitor Deep Dive" (Visitors).
+
+**`src/components/dev-kit/AnalyticsPanel.tsx`** (full rewrite as command-center)
+- Now fetches from BOTH `admin-devkit-data` AND `admin-visitor-analytics` in parallel.
+- Composition: hero summary → KPI strip (2 rows) → full-width growth funnel → full-width traffic/active users chart → product usage grid (features + heatmap) → acquisition grid (referrers, top pages, visitor countries, profile countries, devices) → AI usage section → system health.
+- Growth funnel: Visitors → Signups → Created Resume → Used AI → Tailored → Exported/Shared.
+- KPIs: visits today, unique visitors, active users, AI credits, DAU, WAU, stickiness ratio, portfolio views.
+- Data cleanup applied: page labels normalized, test routes filtered, referrers cleaned.
+- CSV export functionality.
+- Auto-refresh on "today" range (gated on `useReducedMotion`).
+- All `useMemo` hooks moved before early return to satisfy rules-of-hooks.
+
+**`src/components/dev-kit/VisitorsPanel.tsx`** (trimmed to deep-dive)
+- Removed sections moved to Analytics: daily trend chart, top referrers, engagement funnel, performance metrics.
+- Removed `ResponsiveDailyChart` subcomponent (unused after trim).
+- Removed unused icon imports (`TrendingUp`, `Gauge`, `Zap`).
+- Kept: KPI strip, world map, device/browser donuts, top pages, click targets, section engagement, recent sessions with pagination, journey lookup, activity heatmap, new vs returning, OS breakdown, top interactions, diagnostics, pre-signup cohort.
+
+**`src/components/dev-kit/analytics/dataCleanup.ts`** (new file)
+- `normalizePageLabel(path)`: Maps routes to human-readable labels (`/auth` → "Auth", `/dashboard` → "Dashboard", etc.).
+- `filterCleanPages(pages)`: Filters out test routes (`/AUDIT_TEST`, `/test-*`, `/dev-test`, `/_test`) and normalizes labels.
+- `cleanReferrers(referrers, isDev)`: Strips `www.` prefix, hides `localhost`/`127.0.0.1` in production.
+- `formatUnknown(value)`: Replaces `??`, `null`, `undefined` with "Unknown".
+
+**`src/components/dev-kit/analytics/RangeSwitcher.tsx`**
+- Added `24h` range option, removed `all`.
+
+**`src/components/dev-kit/analytics/types.ts`**
+- Added `'24h'` to `AnalyticsRange` type.
+
+#### Phase 4 — Country resolution fix (root cause)
+- **Root cause**: Client-side `ip-api.com` doesn't support HTTPS on free tier → mixed-content blocked → country never resolved. Server-side had no fallback.
+- **Fix layer 1 (client)**: Switched to `https://get.geojs.io/v1/ip/country.json` (HTTPS, CORS). Added re-flush after resolution + 2s first-flush delay.
+- **Fix layer 2 (server)**: Added `resolveCountryServerSide()` in `track-visitor-event` that reads Appwrite's `x-appwrite-country-code` header directly — zero external API calls needed. Falls back to `x-appwrite-client-ip` + geojs.io if header missing.
+- **Verified live**: Test event written with `country: EG` confirmed in database.
+
+### Files changed
+| File | Change |
+|---|---|
+| `appwrite-hubs/admin-visitor-analytics/src/main.js` | `runSafe` wrapper, enriched dashboard, new actions, new helpers |
+| `appwrite-hubs/track-visitor-event/src/main.js` | Server-side country resolution, /devkit guard, new event types, expanded sanitize |
+| `scripts/setup_visitor_events_schema.cjs` | Idempotent additive schema setup |
+| `src/AppInterior.tsx` | /devkit exclusion from visitor tracking |
+| `src/lib/visitorTrack.ts` | geojs.io switch, re-flush, retry queue, UTM, session_end, perf events, /devkit exclusion |
+| `src/components/dev-kit/GrowthTrafficPanel.tsx` | Analytics default tab, renamed tabs |
+| `src/components/dev-kit/AnalyticsPanel.tsx` | Full rewrite as command-center dashboard |
+| `src/components/dev-kit/VisitorsPanel.tsx` | Trimmed to visitor/session deep-dive |
+| `src/components/dev-kit/analytics/RangeSwitcher.tsx` | Added 24h range |
+| `src/components/dev-kit/analytics/types.ts` | Added 24h to AnalyticsRange |
+| `src/components/dev-kit/analytics/dataCleanup.ts` | NEW: shared data cleanup utilities |
+| `WISERESUME_DEVKIT_VISITORS_AUDIT.md` | NEW: pre-upgrade audit report |
+| `WISERESUME_DEVKIT_VISITORS_UPGRADE_REPORT.md` | NEW: post-upgrade report |
+
+### Validation performed
+- `tsc --noEmit`: clean
+- `eslint` on all changed files: clean
+- `vite build`: succeeds
+- `track-visitor-event.test.cjs`: pass
+- Design detector: no findings
+- Live smoke test: `track-visitor-event` function returns 200, `admin-visitor-analytics` dashboard returns 200
+- Country resolution verified: test event written with `country: EG` confirmed in database
+
+### Commits created (3 on feature branch)
+1. `8a198d2a` — Upgrade DevKit visitor analytics dashboard
+2. `d0e1f507` — Fix country geo-resolution: switch to CORS-friendly API + server-side fallback
+3. `08d54d59` — Fix country resolution: use Appwrite x-appwrite-country-code header + client geojs.io fallback
+
+### Deployments performed
+- `track-visitor-event` function deployed to Appwrite (status=ready)
+- `admin-visitor-analytics` function deployed to Appwrite (status=ready)
+- API keys updated on all functions via `deploy_hubs.cjs`
+
+### Current production/deployment state
+- **Vercel (frontend):** Not yet deployed — changes are on feature branch, not main.
+- **Appwrite functions:** `track-visitor-event` and `admin-visitor-analytics` deployed with latest code.
+- **Feature branch:** `feature/devkit-visitors-analytics-upgrade` — 3 commits ahead of `main`, ready to merge.
+
+### Known limitations
+1. `country` attribute size=10 (sufficient for ISO 2-letter codes, not full country names).
+2. `page` index cannot be created (Appwrite 767-byte key limit on size-1024 strings).
+3. `$createdAt` not indexable (Appwrite system field limitation).
+4. Growth funnel steps after "Visitors" are approximated from feature event names.
+5. AI success/failure rates not available in current analytics payload.
+6. Auto-refresh only active on "Today" range, gated on `useReducedMotion()`.
+
+---
+
 ## Session Log - 2026-06-24 (Landing page UX critique + delight micro-interactions + DESIGN.md refresh — uncommitted working tree on `main`)
 
 ### Goal

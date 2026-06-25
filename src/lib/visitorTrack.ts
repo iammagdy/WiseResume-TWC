@@ -116,17 +116,22 @@ function getCachedCountry(): string | null {
   return null;
 }
 
-/** Fetch country once per session; result is cached in sessionStorage + memory. */
+/** Fetch country once per session; result is cached in sessionStorage + memory.
+ *  After resolution succeeds, fires a flush so queued events pick up the country. */
 function resolveCountry(): void {
   if (_country || _countryFetching) return;
   _countryFetching = true;
-  fetch('https://ip-api.com/json/?fields=countryCode', { cache: 'no-store' })
+  fetch('https://get.geojs.io/v1/ip/country.json', { cache: 'no-store' })
     .then((r) => r.json())
-    .then((data: { countryCode?: string }) => {
-      const code = data?.countryCode ?? null;
+    .then((data: { country?: string }) => {
+      const code = data?.country ?? null;
       if (code && /^[A-Z]{2}$/.test(code)) {
         _country = code;
         try { sessionStorage.setItem(COUNTRY_CACHE_KEY, code); } catch { /* ignore */ }
+        // Re-emit queued events so they pick up the newly resolved country.
+        // This fixes the race where the first page_view flushes before
+        // country resolution completes.
+        void flush();
       }
     })
     .catch(() => { /* geo lookup is best-effort */ })
@@ -141,7 +146,7 @@ export interface VisitorEvent {
   anon_id: string;
   user_id: string | null;
   session_id: string;
-  event_type: 'page_view' | 'click' | 'section_view' | 'feature_use';
+  event_type: 'page_view' | 'click' | 'section_view' | 'feature_use' | 'session_end' | 'perf';
   page: string;
   target?: string;
   section?: string;
@@ -150,6 +155,12 @@ export interface VisitorEvent {
   browser: string;
   os: string;
   country?: string | null;
+  duration_ms?: number;
+  label?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  is_returning?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +170,50 @@ export interface VisitorEvent {
 let _queue: VisitorEvent[] = [];
 let _flushTimer: ReturnType<typeof setInterval> | null = null;
 let _userId: string | null = null;
+let _hasFlushed = false;
+let _sessionStartTime: number | null = null;
+const RETRY_QUEUE_KEY = 'wise_visitor_retry_queue';
+const RETRY_QUEUE_MAX = 100;
+
+// UTM params cached on first load
+let _utmParams: { utm_source?: string; utm_medium?: string; utm_campaign?: string } = {};
+
+function captureUtmParams(): void {
+  try {
+    const cached = sessionStorage.getItem('wise_utm_params');
+    if (cached) {
+      _utmParams = JSON.parse(cached);
+      return;
+    }
+  } catch { /* ignore */ }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const utm_source = params.get('utm_source') || undefined;
+    const utm_medium = params.get('utm_medium') || undefined;
+    const utm_campaign = params.get('utm_campaign') || undefined;
+    if (utm_source || utm_medium || utm_campaign) {
+      _utmParams = { utm_source, utm_medium, utm_campaign };
+      sessionStorage.setItem('wise_utm_params', JSON.stringify(_utmParams));
+    }
+  } catch { /* ignore */ }
+}
+
+function loadRetryQueue(): VisitorEvent[] {
+  try {
+    const raw = localStorage.getItem(RETRY_QUEUE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as VisitorEvent[];
+  } catch {
+    return [];
+  }
+}
+
+function saveRetryQueue(events: VisitorEvent[]): void {
+  try {
+    const capped = events.slice(0, RETRY_QUEUE_MAX);
+    localStorage.setItem(RETRY_QUEUE_KEY, JSON.stringify(capped));
+  } catch { /* ignore */ }
+}
 
 /** Called by auth context after login so events carry the user_id. */
 export function setVisitorUserId(id: string | null): void {
@@ -177,18 +232,15 @@ function buildBaseEvent(useConsented: boolean): Omit<VisitorEvent, 'event_type' 
     browser:     detectBrowser(ua),
     os:          detectOS(ua),
     ...(country ? { country } : {}),
+    ...(_utmParams.utm_source ? { utm_source: _utmParams.utm_source } : {}),
+    ...(_utmParams.utm_medium ? { utm_medium: _utmParams.utm_medium } : {}),
+    ...(_utmParams.utm_campaign ? { utm_campaign: _utmParams.utm_campaign } : {}),
   };
 }
 
 async function flush(): Promise<void> {
   if (_queue.length === 0) return;
   const batch = _queue.splice(0, _queue.length);
-  // B10: send the batch to the server-side, bot-guarded `track-visitor-event`
-  // function, which writes via API key. Unauthenticated visitors have no Appwrite
-  // session and the collection grants no guest-create, so the previous direct
-  // browser DB write was always silently rejected (the root cause of the empty
-  // Growth/Visitors tabs). Fire-and-forget async execution; analytics must never
-  // disrupt the user experience.
   try {
     await functions.createExecution(
       'track-visitor-event',
@@ -199,7 +251,11 @@ async function flush(): Promise<void> {
       true,
     );
   } catch {
-    // ignore — never surface analytics failures to the visitor
+    if (import.meta.env.DEV) {
+      console.warn('[visitorTrack] flush failed — saving to retry queue');
+    }
+    const existing = loadRetryQueue();
+    saveRetryQueue([...existing, ...batch]);
   }
 }
 
@@ -208,10 +264,46 @@ function ensureFlushTimer(): void {
   _flushTimer = setInterval(flush, 10_000);
 
   const onHide = () => {
-    if (document.visibilityState === 'hidden') void flush();
+    if (document.visibilityState === 'hidden') {
+      fireSessionEnd();
+      void flush();
+    }
   };
   document.addEventListener('visibilitychange', onHide);
-  window.addEventListener('pagehide', () => void flush());
+  window.addEventListener('pagehide', () => {
+    fireSessionEnd();
+    void flush();
+  });
+}
+
+function fireSessionEnd(): void {
+  if (!_sessionStartTime) return;
+  const duration_ms = Date.now() - _sessionStartTime;
+  const consented = getConsent();
+  _queue.push({
+    ...buildBaseEvent(consented),
+    event_type: 'session_end',
+    page: typeof window !== 'undefined' ? window.location.pathname : '/',
+    duration_ms,
+  });
+  _sessionStartTime = null;
+}
+
+function firePerfEvent(): void {
+  try {
+    const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+    const load_ms = navEntries.length > 0 ? Math.round(navEntries[0].loadEventEnd) : null;
+    const fcpEntries = performance.getEntriesByName('first-contentful-paint');
+    const fcp_ms = fcpEntries.length > 0 ? Math.round((fcpEntries[0] as PerformanceEntry).startTime) : null;
+    if (load_ms === null && fcp_ms === null) return;
+    const consented = getConsent();
+    _queue.push({
+      ...buildBaseEvent(consented),
+      event_type: 'perf',
+      page: window.location.pathname,
+      label: JSON.stringify({ load_ms, fcp_ms }),
+    });
+  } catch { /* ignore */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -224,14 +316,42 @@ function ensureFlushTimer(): void {
  * Starts country geo resolution on first call.
  */
 export function trackPageView(path: string): void {
+  // Exclude /devkit routes from tracking — admin pages should not count as visitor traffic
+  if (path.startsWith('/devkit')) return;
+
+  captureUtmParams();
   resolveCountry();
   ensureFlushTimer();
+
+  if (!_sessionStartTime) _sessionStartTime = Date.now();
+
+  // Merge any retry queue events back into the active queue
+  const retried = loadRetryQueue();
+  if (retried.length > 0) {
+    _queue.push(...retried);
+    try { localStorage.removeItem(RETRY_QUEUE_KEY); } catch { /* ignore */ }
+  }
+
   const consented = getConsent();
   _queue.push({
     ...buildBaseEvent(consented),
     event_type: 'page_view',
     page: path,
   });
+
+  // First flush: wait briefly for country resolution to complete
+  // so the first page_view includes country. Subsequent flushes run on the 10s timer.
+  if (!_hasFlushed) {
+    _hasFlushed = true;
+    setTimeout(() => void flush(), 2000);
+  }
+
+  // Fire perf event after load (best-effort)
+  if (document.readyState === 'complete') {
+    firePerfEvent();
+  } else {
+    window.addEventListener('load', firePerfEvent, { once: true });
+  }
 }
 
 /** Fire a click event on a labelled target. No-op if consent not granted. */

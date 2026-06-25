@@ -1,18 +1,19 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   RefreshCw, BarChart2, Users, Eye, Zap, Globe, Lock, TrendingUp, Activity,
   Smartphone, Link2, MapPin, Calendar, Layers, FileText,
+  HeartPulse, AlertCircle, Download, BrainCircuit, CheckCircle2, Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
-import { useIsMounted, useVisibleInterval } from '@/lib/devkit/hooks';
-import { invokeWithRetry } from '@/lib/devkit/devKitClient';
+import { useIsMounted } from '@/lib/devkit/hooks';
+import { invokeWithRetry, devKitCall } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, LineChart, Line, Legend,
+  Line, Legend,
 } from 'recharts';
 
 import { RangeSwitcher } from './analytics/RangeSwitcher';
@@ -23,9 +24,53 @@ import { HeatmapDowHour } from './analytics/HeatmapDowHour';
 import { Donut } from './analytics/Donut';
 import { RankedList } from './analytics/RankedList';
 import { EmptyState } from './analytics/EmptyState';
-import type { AnalyticsRange, PremiumAnalyticsData } from './analytics/types';
+import type { AnalyticsRange, PremiumAnalyticsData, NamedCount } from './analytics/types';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
+import {
+  normalizePageLabel, filterCleanPages, cleanReferrers,
+  formatUnknown, isDevEnvironment,
+} from './analytics/dataCleanup';
+
+// ── Visitor analytics types (from admin-visitor-analytics) ──────────────────
+
+interface VisitorKpis {
+  totalVisitsToday: number;
+  uniqueVisitorsToday: number;
+  totalVisits: number;
+  uniqueVisitors: number;
+  newVisitors: number;
+  returningVisitors: number;
+  topCountry: string | null;
+  topCountryCount: number;
+  mobilePct: number;
+  desktopPct: number;
+  deviceBreakdown: NamedCount[];
+  browserBreakdown: NamedCount[];
+}
+
+interface VisitorDashboard {
+  kpis: VisitorKpis;
+  countryDist: { country: string; count: number }[];
+  topPages: { name: string; count: number }[];
+  referrers?: NamedCount[];
+  daily?: { date: string; pageviews: number; uniqueVisitors: number }[];
+  heatmap?: number[][];
+  funnel?: { pageview: number; sectionView: number; click: number; featureUse: number };
+  live?: { liveCount: number };
+  perfMetrics?: { avgLoadMs: number | null; avgFcpMs: number | null; p75LoadMs: number | null; fast: number; ok: number; slow: number; count: number };
+  errors?: Record<string, string>;
+}
+
+interface HealthData {
+  envFlags: { APPWRITE_API_KEY: boolean; APPWRITE_ENDPOINT: boolean; APPWRITE_PROJECT_ID: boolean; DEVKIT_PASSWORD: boolean };
+  collectionExists: boolean;
+  docCount: number;
+  latestEventAt: string | null;
+  missingSchemaFields: string[];
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const TOOLTIP_STYLE = {
   backgroundColor: 'hsl(var(--card))',
@@ -46,13 +91,19 @@ function formatShortDate(s: string, bucket: 'hour' | 'day'): string {
 
 export function AnalyticsPanel() {
   const { isUnlocked } = useDevKitSession();
+  const isMounted = useIsMounted();
+  const prefersReducedMotion = useReducedMotion();
   const [data, setData] = useState<PremiumAnalyticsData | null>(null);
+  const [visitorData, setVisitorData] = useState<VisitorDashboard | null>(null);
+  const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [range, setRange] = useState<AnalyticsRange>('7d');
+  const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-  const isMounted = useIsMounted();
+  const isDev = isDevEnvironment();
 
   const fetchAnalytics = useCallback(async (r: AnalyticsRange) => {
     const token = getDevKitToken();
@@ -69,6 +120,28 @@ export function AnalyticsPanel() {
       if (!isMounted()) return;
       setData({ ...result, lastUpdatedAt: new Date() });
       setSecondsAgo(0);
+
+      // Fetch visitor dashboard (best-effort, don't block on failure)
+      const visitorResult = await devKitCall<VisitorDashboard>({
+        functionId: 'admin-visitor-analytics',
+        action: 'dashboard',
+        payload: { range: r, page_num: 0 },
+        timeoutMs: 300_000,
+      });
+      if (visitorResult.ok && isMounted()) {
+        setVisitorData(visitorResult.data);
+      }
+
+      // Fetch health (best-effort)
+      devKitCall<HealthData>({
+        functionId: 'admin-visitor-analytics',
+        action: 'health',
+        timeoutMs: 30_000,
+      }).then((res) => {
+        if (res.ok && isMounted()) setHealth(res.data);
+      }).catch(() => { /* best-effort */ });
+
+      setLastLoadedAt(new Date());
     } catch (e) {
       if (!isMounted()) return;
       setError(formatEdgeError(e, 'Failed to load analytics'));
@@ -79,13 +152,12 @@ export function AnalyticsPanel() {
 
   useEffect(() => {
     if (isUnlocked) {
-      // Keep previously rendered numbers visible while the new range
-      // loads — only the inline refresh spinner indicates the fetch
-      // is in flight. Avoids a full skeleton flash on range switch.
       setError(null);
       fetchAnalytics(range);
     } else {
       setData(null);
+      setVisitorData(null);
+      setHealth(null);
       setError(null);
     }
   }, [isUnlocked, range, fetchAnalytics]);
@@ -96,21 +168,82 @@ export function AnalyticsPanel() {
     return () => clearInterval(interval);
   }, [isUnlocked]);
 
-  // Auto-refresh only on "Today" (other ranges are slower-moving)
+  // Auto-refresh on "Today" only, gated on reduced motion
   useEffect(() => {
-    if (!isUnlocked || range !== 'today') return;
+    if (!isUnlocked || range !== 'today' || prefersReducedMotion) return;
     const interval = setInterval(() => fetchAnalytics(range), 30_000);
     return () => clearInterval(interval);
-  }, [isUnlocked, range, fetchAnalytics]);
+  }, [isUnlocked, range, fetchAnalytics, prefersReducedMotion]);
 
-  const viewsSpark = useMemo(
-    () => data?.activitySeries.map(p => ({ date: p.date, value: p.views })) ?? [],
-    [data?.activitySeries],
-  );
-  const usersSpark = useMemo(
-    () => data?.activitySeries.map(p => ({ date: p.date, value: p.users })) ?? [],
-    [data?.activitySeries],
-  );
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const result = await devKitCall<{ csv: string }>({
+        functionId: 'admin-visitor-analytics',
+        action: 'export',
+        payload: { range },
+        timeoutMs: 120_000,
+      });
+      if (result.ok && result.data.csv) {
+        const blob = new Blob([result.data.csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `visitor_events_${range}_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch { /* ignore */ }
+    finally { setExporting(false); }
+  }, [range]);
+
+  // Clean data for display
+  const cleanTopPages = useMemo(() => {
+    const pages = visitorData?.topPages ?? data?.topPages ?? [];
+    return filterCleanPages(pages).slice(0, 10);
+  }, [visitorData, data]);
+
+  const cleanReferrerList = useMemo(() => {
+    const referrers = visitorData?.referrers ?? data?.topReferrers ?? [];
+    return cleanReferrers(referrers, isDev).slice(0, 8);
+  }, [visitorData, data, isDev]);
+
+  const visitorCountries = useMemo(() => {
+    return (visitorData?.countryDist ?? []).map(c => ({
+      name: formatUnknown(c.country),
+      count: c.count,
+    }));
+  }, [visitorData]);
+
+  const deviceBreakdown = useMemo(() => {
+    return visitorData?.kpis?.deviceBreakdown ?? data?.deviceBreakdown ?? [];
+  }, [visitorData, data]);
+
+  // Growth funnel data
+  const funnelSteps = useMemo(() => {
+    const visitors = visitorData?.kpis?.totalVisits ?? data?.rangeKpis.views.current ?? 0;
+    const signups = data?.rangeKpis.activeUsers.current ?? 0;
+    const resumeEvents = data?.topFeaturesRanged.find(f => f.name.includes('resume') || f.name.includes('editor'))?.count ?? 0;
+    const aiUsage = data?.rangeKpis.aiCredits.current ?? 0;
+    const tailorEvents = data?.topFeaturesRanged.find(f => f.name.includes('tailor'))?.count ?? 0;
+    const exportEvents = data?.topFeaturesRanged.find(f => f.name.includes('export') || f.name.includes('share'))?.count ?? 0;
+    return [
+      { label: 'Visitors', count: visitors },
+      { label: 'Signups', count: signups },
+      { label: 'Created Resume', count: resumeEvents },
+      { label: 'Used AI', count: aiUsage },
+      { label: 'Tailored', count: tailorEvents },
+      { label: 'Exported/Shared', count: exportEvents },
+    ];
+  }, [visitorData, data]);
+
+  const aiFeatures = useMemo(() => {
+    return (data?.topFeaturesRanged ?? []).filter(f => f.name.startsWith('ai.')).slice(0, 6);
+  }, [data]);
+
+  const productFeatures = useMemo(() => {
+    return (data?.topFeaturesRanged ?? []).filter(f => !f.name.startsWith('ai.')).slice(0, 6);
+  }, [data]);
 
   if (!isUnlocked) {
     return (
@@ -127,8 +260,10 @@ export function AnalyticsPanel() {
   const lastUpdatedLabel = secondsAgo < 60 ? `${secondsAgo}s ago` : `${Math.floor(secondsAgo / 60)}m ago`;
   const showDelta = range !== 'all';
   const rangeLabel: Record<AnalyticsRange, string> = {
-    today: 'today', '7d': 'last 7 days', '30d': 'last 30 days', '90d': 'last 90 days', all: 'all time',
+    today: 'today', '24h': 'last 24 hours', '7d': 'last 7 days', '30d': 'last 30 days', '90d': 'last 90 days', all: 'all time',
   };
+
+  const maxFunnelCount = Math.max(...funnelSteps.map(s => s.count), 1);
 
   return (
     <div className="space-y-6">
@@ -137,11 +272,37 @@ export function AnalyticsPanel() {
         <div>
           <h2 className="text-lg font-semibold text-foreground">App Analytics</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Showing {rangeLabel[range]}{data && <> · last updated {lastUpdatedLabel}{range === 'today' && ' · auto-refreshes every 30s'}</>}
+            Command center overview · {rangeLabel[range]}
+            {data && <> · last updated {lastUpdatedLabel}</>}
+            {range === 'today' && !prefersReducedMotion && ' · auto-refreshes every 30s'}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {visitorData?.live && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              </span>
+              <span className="tabular-nums">{visitorData.live.liveCount} live</span>
+            </div>
+          )}
+          {lastLoadedAt && (
+            <span className="text-[10px] text-muted-foreground/60 tabular-nums hidden sm:inline">
+              {lastLoadedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
           <RangeSwitcher value={range} onChange={setRange} disabled={loading} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={loading || exporting}
+            className="flex items-center gap-1.5"
+          >
+            {exporting ? <MiniSpinner size={14} /> : <Download className="w-3.5 h-3.5" />}
+            <span className="text-xs">CSV</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fetchAnalytics(range)} disabled={loading} className="flex items-center gap-2">
             {loading ? <MiniSpinner size={16} /> : <RefreshCw className="w-4 h-4" />}
             Refresh
@@ -155,7 +316,7 @@ export function AnalyticsPanel() {
 
       {loading && !data && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[...Array(8)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />)}
           </div>
           <div className="h-64 rounded-xl bg-muted/40 animate-pulse" />
@@ -168,21 +329,48 @@ export function AnalyticsPanel() {
 
       {data && (
         <>
-          {/* KPI hero strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {/* A. Hero summary */}
+          <div className="rounded-xl border border-border bg-muted/20 p-4">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              <span className="font-medium text-foreground">
+                {visitorData?.kpis?.totalVisits.toLocaleString() ?? data.rangeKpis.views.current.toLocaleString()}
+              </span>
+              <span className="text-muted-foreground">visitor events</span>
+              <span className="text-muted-foreground/40">·</span>
+              <span className="font-medium text-foreground">{data.rangeKpis.activeUsers.current.toLocaleString()}</span>
+              <span className="text-muted-foreground">active users</span>
+              <span className="text-muted-foreground/40">·</span>
+              <span className="font-medium text-foreground">{data.rangeKpis.aiCredits.current.toLocaleString()}</span>
+              <span className="text-muted-foreground">AI credits</span>
+              <span className="text-muted-foreground/40">·</span>
+              <span className="font-medium text-foreground">{data.rangeKpis.portfolioViews.current.toLocaleString()}</span>
+              <span className="text-muted-foreground">portfolio views</span>
+              {visitorData?.kpis?.topCountry && (
+                <>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span className="font-medium text-foreground">{formatUnknown(visitorData.kpis.topCountry)}</span>
+                  <span className="text-muted-foreground">top visitor country</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* B. KPI strip */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard
-              label="Feature events" value={data.rangeKpis.views.current.toLocaleString()}
-              sub="AI & app usage events (not page views)"
-              icon={Eye} accent="primary"
-              current={data.rangeKpis.views.current} previous={data.rangeKpis.views.previous}
-              trend={viewsSpark} hideDelta={!showDelta}
+              label="Visits today" value={(visitorData?.kpis?.totalVisitsToday ?? data.pageViewsToday).toLocaleString()}
+              sub="page views" icon={Globe} accent="primary" hideDelta
+            />
+            <KpiCard
+              label="Unique visitors" value={(visitorData?.kpis?.uniqueVisitors ?? data.rangeKpis.activeUsers.current).toLocaleString()}
+              sub={`in ${rangeLabel[range]}`} icon={Users} accent="green" hideDelta
             />
             <KpiCard
               label="Active users" value={data.rangeKpis.activeUsers.current.toLocaleString()}
-              sub={`distinct in ${rangeLabel[range]}`}
-              icon={Users} accent="green"
+              sub={`vs previous ${rangeLabel[range]}`}
+              icon={Activity} accent="blue"
               current={data.rangeKpis.activeUsers.current} previous={data.rangeKpis.activeUsers.previous}
-              trend={usersSpark} hideDelta={!showDelta}
+              hideDelta={!showDelta}
             />
             <KpiCard
               label="AI credits" value={data.rangeKpis.aiCredits.current.toLocaleString()}
@@ -191,32 +379,62 @@ export function AnalyticsPanel() {
               current={data.rangeKpis.aiCredits.current} previous={data.rangeKpis.aiCredits.previous}
               hideDelta={!showDelta}
             />
-            <KpiCard
-              label="Portfolio views" value={data.rangeKpis.portfolioViews.current.toLocaleString()}
-              sub={`vs previous ${rangeLabel[range]}`}
-              icon={Globe} accent="purple"
-              current={data.rangeKpis.portfolioViews.current} previous={data.rangeKpis.portfolioViews.previous}
-              hideDelta={!showDelta}
-            />
           </div>
-
-          {/* Secondary KPI strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard label="DAU" value={data.rangeKpis.dau.toLocaleString()} sub="last 24h"
               icon={Activity} accent="blue" hideDelta />
             <KpiCard label="WAU" value={data.rangeKpis.wau.toLocaleString()} sub="last 7 days"
               icon={Users} accent="blue" hideDelta />
             <KpiCard label="Stickiness" value={`${data.rangeKpis.stickiness}%`} sub="DAU / WAU"
               icon={TrendingUp} accent="rose" hideDelta />
-            <KpiCard label="Countries" value={data.totalCountries.toLocaleString()}
-              sub="distinct countries" icon={MapPin} accent="primary" hideDelta />
+            <KpiCard
+              label="Portfolio views" value={data.rangeKpis.portfolioViews.current.toLocaleString()}
+              sub={`vs previous ${rangeLabel[range]}`}
+              icon={Eye} accent="purple"
+              current={data.rangeKpis.portfolioViews.current} previous={data.rangeKpis.portfolioViews.previous}
+              hideDelta={!showDelta}
+            />
           </div>
 
-          {/* Traffic over time */}
+          {/* C. Growth funnel — full width */}
+          <SectionCard
+            title="Growth funnel"
+            description="Visitor → Signup → Created Resume → Used AI → Tailored → Exported/Shared"
+            icon={TrendingUp}
+          >
+            <div className="space-y-2">
+              {funnelSteps.map((step, i) => {
+                const pct = Math.round((step.count / maxFunnelCount) * 100);
+                const conversionPct = i > 0 && funnelSteps[0].count > 0
+                  ? Math.round((step.count / funnelSteps[0].count) * 100)
+                  : 100;
+                return (
+                  <div key={step.label} className="flex items-center gap-3">
+                    <div className="w-32 text-xs text-muted-foreground shrink-0">{step.label}</div>
+                    <div className="flex-1 h-7 rounded-md bg-muted/40 overflow-hidden">
+                      <div
+                        className="h-full rounded-md bg-primary/50 flex items-center px-2 transition-all"
+                        style={{ width: `${Math.max(pct, 2)}%` }}
+                      >
+                        <span className="text-[10px] text-primary-foreground font-medium tabular-nums">
+                          {step.count.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-14 text-right text-xs text-muted-foreground tabular-nums shrink-0">
+                      {conversionPct}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+
+          {/* D. Traffic & active users chart — full width */}
           <SectionCard
             title="Traffic & active users"
             description={`Events and unique active users per ${data.bucket}, with 7-day rolling average where applicable.`}
-            icon={TrendingUp}
+            icon={BarChart2}
           >
             {data.activitySeries.length === 0 ? <EmptyState /> : (
               <ResponsiveContainer width="100%" height={240}>
@@ -247,47 +465,16 @@ export function AnalyticsPanel() {
             )}
           </SectionCard>
 
-          {/* New vs returning */}
-          {data.bucket === 'day' && (
-            <SectionCard
-              title="New vs returning users"
-              description="Distinct users per day, split by whether their account was created that day."
-              icon={Users}
-            >
-              {data.newVsReturning.every(p => p.newUsers + p.returningUsers === 0) ? <EmptyState /> : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={data.newVsReturning.map(p => ({ ...p, label: formatShortDate(p.date, 'day') }))} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="newUsers" name="New" stackId="u" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="returningUsers" name="Returning" stackId="u" fill="#a855f7" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </SectionCard>
-          )}
-
-          {/* Two-column: Heatmap + Top features */}
+          {/* E. Product usage grid — two columns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <SectionCard
-              title="Activity by hour & day"
-              description="UTC hour-of-day vs day-of-week. Darker = more events in window."
-              icon={Calendar}
-            >
-              {data.heatmap.flat().every(v => v === 0) ? <EmptyState /> : <HeatmapDowHour matrix={data.heatmap} />}
-            </SectionCard>
-
-            <SectionCard
-              title="Top features (with trend)"
-              description="Most-used events in the selected window plus a mini sparkline per feature."
+              title="Top product features"
+              description="Most-used app features (non-AI) with trend"
               icon={Layers}
             >
-              {data.topFeaturesRanged.length === 0 ? <EmptyState /> : (
+              {productFeatures.length === 0 ? <EmptyState message="No product feature data yet" /> : (
                 <ul className="space-y-3">
-                  {data.topFeaturesRanged.map((f, i) => (
+                  {productFeatures.map((f, i) => (
                     <li key={`${f.name}-${i}`} className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 text-xs">
@@ -303,56 +490,224 @@ export function AnalyticsPanel() {
                 </ul>
               )}
             </SectionCard>
+
+            <SectionCard
+              title="Activity by hour & day"
+              description="UTC hour-of-day vs day-of-week. Darker = more events."
+              icon={Calendar}
+            >
+              {(visitorData?.heatmap ?? data.heatmap).flat().every(v => v === 0)
+                ? <EmptyState />
+                : <HeatmapDowHour matrix={visitorData?.heatmap ?? data.heatmap} />}
+            </SectionCard>
           </div>
 
-          {/* Top pages / routes */}
-          <SectionCard
-            title="Top pages"
-            description="Most-visited routes in the selected window. Empty until client-side page-view tracking is enabled."
-            icon={FileText}
-          >
-            {data.topPages.length === 0
-              ? <EmptyState message="No page-view data yet — instrument route changes to populate this section" />
-              : <RankedList items={data.topPages} maxItems={10} />}
-          </SectionCard>
-
-          {/* Two-column: Referrers + Devices */}
+          {/* F. Acquisition grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <SectionCard
               title="Top referrers"
-              description="Where portfolio visits originated from in the selected window."
+              description="External sources sending traffic (visitor analytics)"
               icon={Link2}
             >
-              {data.topReferrers.length === 0 ? <EmptyState message="No referrer data in this window" /> : (
-                <RankedList items={data.topReferrers} maxItems={8} />
+              {cleanReferrerList.length === 0 ? <EmptyState message="No referrer data in this window" /> : (
+                <RankedList items={cleanReferrerList} maxItems={8} />
               )}
             </SectionCard>
 
             <SectionCard
-              title="Device breakdown"
-              description="Portfolio visits by device class (mobile / desktop / tablet). Populated from portfolio visitor user-agents."
-              icon={Smartphone}
+              title="Top pages"
+              description="Most visited page paths (visitor analytics)"
+              icon={FileText}
             >
-              {data.deviceBreakdown.length === 0
-                ? <EmptyState message="No device data yet — this populates once portfolio pages receive visitors with tracked user-agents" />
-                : <Donut items={data.deviceBreakdown} />
+              {cleanTopPages.length === 0
+                ? <EmptyState message="No page-view data yet" />
+                : <RankedList items={cleanTopPages.map(p => ({ name: normalizePageLabel(p.name), count: p.count }))} maxItems={10} />
               }
             </SectionCard>
           </div>
 
-          {/* Geo ranking — all-time profile geography (intentionally not range-scoped) */}
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <SectionCard
-              title="Top Countries"
-              description="Countries ranked by registered user count (all-time, from profile data). Requires users to have a country set in their profile."
-              icon={Globe}
+              title="Visitor countries"
+              description="From visitor events (geo-resolved)"
+              icon={MapPin}
             >
-              {data.countryRanking.length === 0 ? <EmptyState message="No country data yet — populates once users set a country in their profile" /> : (
-                <RankedList items={data.countryRanking.map(c => ({ name: c.country, count: c.count }))} maxItems={8} />
-              )}
+              {visitorCountries.length === 0
+                ? <EmptyState message="No visitor country data yet" />
+                : <RankedList items={visitorCountries} maxItems={8} />
+              }
             </SectionCard>
 
+            <SectionCard
+              title="User profile countries"
+              description="From registered user profiles (all-time)"
+              icon={Globe}
+            >
+              {data.countryRanking.length === 0
+                ? <EmptyState message="No profile country data yet" />
+                : <RankedList items={data.countryRanking.map(c => ({ name: formatUnknown(c.country), count: c.count }))} maxItems={8} />
+              }
+            </SectionCard>
+
+            <SectionCard
+              title="Devices"
+              description="Visitor device breakdown"
+              icon={Smartphone}
+            >
+              {deviceBreakdown.length === 0
+                ? <EmptyState message="No device data yet" />
+                : <Donut items={deviceBreakdown} />
+              }
+            </SectionCard>
           </div>
+
+          {/* G. AI usage section */}
+          <SectionCard
+            title="AI usage"
+            description={`Credits used: ${data.rangeKpis.aiCredits.current.toLocaleString()} · Most-used AI tools`}
+            icon={BrainCircuit}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-foreground tabular-nums">{data.aiCreditsToday.toLocaleString()}</div>
+                    <div className="text-[10px] text-muted-foreground">Credits today</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-foreground tabular-nums">{data.aiCreditsYesterday.toLocaleString()}</div>
+                    <div className="text-[10px] text-muted-foreground">Yesterday</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-foreground tabular-nums">{data.rangeKpis.aiCredits.current.toLocaleString()}</div>
+                    <div className="text-[10px] text-muted-foreground">In range</div>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  AI credits are consumed by resume tailoring, cover letter generation, and AI-powered features.
+                </div>
+              </div>
+              <div>
+                {aiFeatures.length === 0
+                  ? <EmptyState message="No AI feature usage in this range" />
+                  : (
+                    <ul className="space-y-2">
+                      {aiFeatures.map((f, i) => (
+                        <li key={`${f.name}-${i}`} className="flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                              <span className="truncate font-medium text-foreground">{prettyFeatureName(f.name)}</span>
+                              <span className="text-muted-foreground tabular-nums">{f.count.toLocaleString()}</span>
+                            </div>
+                            <div className="mt-1 h-6">
+                              {f.trend.length > 0 ? <Sparkline data={f.trend} height={24} /> : <div className="h-full" />}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                }
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* H. Performance & health section */}
+          <SectionCard
+            title="System health & tracking"
+            description="Visitor tracking status, ingestion health, and performance metrics"
+            icon={HeartPulse}
+          >
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${health?.envFlags.APPWRITE_API_KEY ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-muted-foreground">API Key</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${health?.collectionExists ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-muted-foreground">Collection</span>
+                  {health && (
+                    <span className="text-muted-foreground/60 tabular-nums">({health.docCount.toLocaleString()})</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${data ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-muted-foreground">App Analytics</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${visitorData ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-muted-foreground">Visitor Analytics</span>
+                </div>
+              </div>
+
+              {health?.latestEventAt && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Last visitor event: {new Date(health.latestEventAt).toLocaleString()}</span>
+                </div>
+              )}
+
+              {visitorData?.perfMetrics && visitorData.perfMetrics.count > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-border">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-foreground tabular-nums">
+                      {visitorData.perfMetrics.avgLoadMs != null ? `${visitorData.perfMetrics.avgLoadMs}ms` : '—'}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">Avg load</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-foreground tabular-nums">
+                      {visitorData.perfMetrics.p75LoadMs != null ? `${visitorData.perfMetrics.p75LoadMs}ms` : '—'}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">p75 load</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-green-500 tabular-nums">{visitorData.perfMetrics.fast}</span>
+                      <span className="text-amber-500 tabular-nums">{visitorData.perfMetrics.ok}</span>
+                      <span className="text-red-500 tabular-nums">{visitorData.perfMetrics.slow}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">Fast / OK / Slow</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-foreground tabular-nums">{visitorData.perfMetrics.count}</div>
+                    <div className="text-[10px] text-muted-foreground">Samples</div>
+                  </div>
+                </div>
+              )}
+
+              {health?.missingSchemaFields && health.missingSchemaFields.length > 0 && (
+                <div className="flex items-start gap-2 text-amber-500 pt-2 border-t border-border">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="font-medium">Missing schema fields:</span>{' '}
+                    <span className="font-mono text-[10px]">{health.missingSchemaFields.join(', ')}</span>
+                    <div className="mt-1 text-muted-foreground text-[10px]">
+                      Run <code className="bg-muted px-1 rounded">node scripts/setup_visitor_events_schema.cjs</code> to add them
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {visitorData?.errors && Object.keys(visitorData.errors).length > 0 && (
+                <div className="flex items-start gap-2 text-amber-500 pt-2 border-t border-border">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="font-medium">Partial data errors:</span>{' '}
+                    <span className="font-mono text-[10px]">{Object.keys(visitorData.errors).join(', ')}</span>
+                  </div>
+                </div>
+              )}
+
+              {!health?.missingSchemaFields?.length && !visitorData?.errors && health?.collectionExists && (
+                <div className="flex items-center gap-2 text-green-500 pt-2 border-t border-border">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>All tracking systems operational</span>
+                </div>
+              )}
+            </div>
+          </SectionCard>
         </>
       )}
     </div>
