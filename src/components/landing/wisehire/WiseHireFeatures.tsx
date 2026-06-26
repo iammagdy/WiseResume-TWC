@@ -202,7 +202,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
                 justifyContent: 'center',
               }}
             >
-              <Rocket className="w-6 h-6" style={{ color: '#3B82F6' }} />
+              <Rocket className="w-6 h-6" style={{ color: 'var(--lp-eyebrow)' }} />
             </div>
             <div>
               <p className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>Get early access</p>

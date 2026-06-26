@@ -82,7 +82,7 @@ export function OfferTrackerDemo() {
           background: 'rgba(29,78,216,0.06)',
         }}
       >
-        <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
+        <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Offer Tracker</span>
         <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#34D399', fontWeight: 600, background: 'rgba(52,211,153,0.12)', borderRadius: 6, padding: '2px 7px' }}>
           {accepted} accepted

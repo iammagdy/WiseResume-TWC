@@ -98,10 +98,10 @@ export function BulkScreeningDemo() {
           background: 'rgba(29,78,216,0.06)',
         }}
       >
-        <Upload className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
+        <Upload className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Bulk Screening</span>
         {uploading ? (
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: '#3B82F6', fontWeight: 600 }}>
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: 'var(--lp-eyebrow)', fontWeight: 600 }}>
             <MiniSpinner size={12} /> Uploading CVs…
           </span>
         ) : (
@@ -124,7 +124,7 @@ export function BulkScreeningDemo() {
               justifyContent: 'center',
             }}
           >
-            <Upload className="w-6 h-6" style={{ color: '#3B82F6' }} />
+            <Upload className="w-6 h-6" style={{ color: 'var(--lp-eyebrow)' }} />
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
             Uploading 5 CVs and<br />scoring against role criteria…
@@ -134,7 +134,7 @@ export function BulkScreeningDemo() {
               style={{
                 height: '100%',
                 borderRadius: 99,
-                background: '#3B82F6',
+                background: 'var(--lp-eyebrow)',
                 animation: 'lp-progress 1.2s ease forwards',
                 width: '100%',
                 transformOrigin: 'left',

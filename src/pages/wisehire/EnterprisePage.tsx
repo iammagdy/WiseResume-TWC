@@ -151,7 +151,7 @@ function HeroSection() {
         <motion.a
           href="#enterprise-contact"
           className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-          style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
+          style={{ background: 'var(--lp-brand)', color: '#fff', textDecoration: 'none' }}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.97 }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -476,7 +476,7 @@ function HowItWorksSection() {
               )}
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold"
-                style={{ background: 'rgba(29,78,216,0.12)', color: '#3B82F6' }}
+                style={{ background: 'rgba(29,78,216,0.12)', color: 'var(--lp-eyebrow)' }}
               >
                 {s.step}
               </div>
@@ -593,7 +593,7 @@ function ComparisonSection() {
               className="px-5 py-4 text-center"
               style={{
                 color: '#fff',
-                background: '#1D4ED8',
+                background: 'var(--lp-brand)',
                 borderLeft: '1px solid rgba(255,255,255,0.15)',
               }}
             >
@@ -627,7 +627,7 @@ function ComparisonSection() {
               >
                 {typeof row.business === 'boolean' ? (
                   row.business ? (
-                    <CheckCircle2 className="w-4 h-4 mx-auto" style={{ color: '#3B82F6' }} />
+                    <CheckCircle2 className="w-4 h-4 mx-auto" style={{ color: 'var(--lp-eyebrow)' }} />
                   ) : (
                     <X className="w-4 h-4 mx-auto opacity-30" style={{ color: 'var(--lp-text-muted)' }} />
                   )
@@ -750,7 +750,7 @@ function ContactSection() {
               className="w-14 h-14 rounded-full flex items-center justify-center"
               style={{ background: 'rgba(29,78,216,0.12)' }}
             >
-              <CheckCircle2 className="w-7 h-7" style={{ color: '#3B82F6' }} />
+              <CheckCircle2 className="w-7 h-7" style={{ color: 'var(--lp-eyebrow)' }} />
             </div>
             <div>
               <p className="font-bold text-lg mb-1" style={{ color: 'var(--lp-text)' }}>
@@ -881,7 +881,7 @@ function ContactSection() {
             <motion.button
               type="submit"
               className="w-full h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
-              style={{ background: '#1D4ED8', color: '#fff' }}
+              style={{ background: 'var(--lp-brand)', color: '#fff' }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -923,7 +923,7 @@ function FooterCtaSection() {
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{ background: 'rgba(29,78,216,0.12)' }}
           >
-            <Users className="w-7 h-7" style={{ color: '#3B82F6' }} />
+            <Users className="w-7 h-7" style={{ color: 'var(--lp-eyebrow)' }} />
           </div>
           <div>
             <h2
@@ -948,7 +948,7 @@ function FooterCtaSection() {
             <motion.a
               href="#enterprise-contact"
               className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-              style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
+              style={{ background: 'var(--lp-brand)', color: '#fff', textDecoration: 'none' }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -1022,7 +1022,7 @@ function EnterpriseNav() {
         WiseHire
         <span
           className="ml-1 text-xs font-bold rounded px-1.5 py-0.5"
-          style={{ background: 'rgba(29,78,216,0.12)', color: '#3B82F6' }}
+          style={{ background: 'rgba(29,78,216,0.12)', color: 'var(--lp-eyebrow)' }}
         >
           Enterprise
         </span>
@@ -1030,7 +1030,7 @@ function EnterpriseNav() {
       <motion.a
         href="#enterprise-contact"
         className="h-9 px-5 text-sm font-semibold rounded-lg flex items-center gap-1.5"
-        style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
+        style={{ background: 'var(--lp-brand)', color: '#fff', textDecoration: 'none' }}
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
