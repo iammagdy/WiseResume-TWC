@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-23
+**Last verified:** 2026-06-26
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -10,6 +10,53 @@
 **Canonical owner:** this file
 
 ---
+
+## 2026-06-26 - Comprehensive Audit repair pass (branch `repair/audit-findings-2026-06-26`)
+
+Implemented the actionable findings from `Project Atlas/Comprehensive Audit 2026-06-26/`
+(verdict was PASS WITH WARNINGS, no confirmed P0). Scoped commits, no Appwrite deploy, no
+`target=all`, Appwrite GitHub App left suspended.
+
+- **F1 (P1 deploy blocker) — FIXED.** Regenerated `src/lib/devkit/sourceHashes.generated.json`.
+  The manifest was stale for **three** hubs (not the two the audit caught): `admin-visitor-analytics`
+  and `track-visitor-event` (06-25 analytics merge) **plus `email-service`** (changed by `fbd24841`
+  on 06-23, after the manifest was last generated). The official `Deploy Appwrite Hubs` workflow's
+  `git diff --exit-code` manifest gate would have failed on the next run; it now passes (verified by
+  re-running `compute-source-hashes.mjs` → clean diff). Manifest-only; no hub runtime change.
+- **F9 (P1 CI) — FIXED.** Re-enabled `PortfolioEditorPage.test.tsx` + `PortfolioEditorPage-D8.test.tsx`
+  in `pr-validation.yml`. Root cause was a **test-mock defect**, not an editor bug: the
+  `useProfile`/`useResumes` mocks returned a fresh object per render, so the page's
+  `useEffect(…, [profile])` re-fired every render and looped forever (CI hang). Mocks now return
+  stable references + the missing `parseDbJson` export was added. No editor source changed.
+- **F7 (P2) — FIXED.** Committed the 4 missing portfolio-hub `package-lock.json` files to match the
+  repo convention (21/25 hubs already track theirs).
+- **F11 — already addressed (no change).** `TailoringHubPage` already frames the unchanged-output
+  guardrail as a recoverable warning (amber, "No changes detected", Retry / Edit job description),
+  not a failure; `hasMeaningfulChanges` honesty guardrail intact.
+- **F2/F3/F13/F14 — owner verification only** (Appwrite Console / Vercel / GitHub App; agent has no
+  access). See `WiseResume_All_Findings_Repair_Report.md`.
+- **F4/F5/F6 — this docs sync.** **F8/F10/F12/F15 — documented as backlog/monitored** (no safe code change).
+
+## 2026-06-25 - DevKit Visitor Analytics command-center + country resolution (branch `feature/devkit-visitors-analytics-upgrade`, merged `a4d497f9`)
+
+Refactored the DevKit Growth & Traffic dashboard into a default "App Overview" (Analytics) tab plus a
+"Visitor Deep Dive" (Visitors) tab. Backend: `admin-visitor-analytics` gained a `runSafe` wrapper +
+enriched payload (daily/hourly/heatmap/referrers/funnel/OS/trends) and standalone actions;
+`track-visitor-event` added server-side country resolution via Appwrite's `x-appwrite-country-code`
+header (geojs.io fallback), `/devkit` ingestion exclusion, and new `session_end`/`perf` event types.
+Client `visitorTrack.ts` switched to HTTPS/CORS-friendly geo, added retry queue + UTM capture.
+`track-visitor-event` and `admin-visitor-analytics` were deployed to Appwrite (status=ready). Validated:
+tsc, eslint, vite build, hub test, live country `EG` confirmed. (Note: the source-hash manifest was not
+regenerated at the time — corrected in the 2026-06-26 repair pass, F1.)
+
+## 2026-06-24 - Landing page UX critique + delight micro-interactions + DESIGN.md refresh (working tree on `main`, later committed `dea0ee65`..`f6d9a489`)
+
+Full UX critique of the landing page: removed banned `type:'spring'` easing (→ ease-out-quart),
+removed numbered category eyebrow labels, added a labeled Suspense fallback + `DemoErrorBoundary`,
+scroll affordance in the sticky header, hover delight on hero/feature CTAs (gated on reduced motion),
+double-submit guard on the hero CTA, and replaced hardcoded `rgba` on the Footer icon with
+`var(--lp-trust-icon)`. Refreshed `DESIGN.md` to match live tokens; added `PRODUCT.md`, `CLAUDE.md`,
+`.windsurfrules`, and the `.impeccable` submodule + claude settings PostToolUse hook.
 
 ## 2026-06-23 - Auth "Bold" design ported across signin / signup / forgot / reset (branch `claude/fervent-faraday-iwuf82`, PR #128)
 
