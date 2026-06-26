@@ -1145,7 +1145,7 @@ export default function TailorPage() {
 function SectionRevealWrapper({ revealed, title, children }: { revealed: boolean; title: string; children: ReactNode }) {
   if (revealed) return <>{children}</>;
   return (
-    <div className="rounded-xl border-2 border-l-4 border-primary/20 border-l-primary/40 bg-primary/5 p-4 animate-pulse">
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 animate-pulse">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MiniSpinner size={16} className="text-primary/60" />
@@ -1543,8 +1543,8 @@ function ResultsPanel({
               <span className="text-muted-foreground">Preparing changes...</span>
             </h4>
             {(['summary', 'skills', 'experience', 'education'] as TailorSectionId[]).map(s => (
-              <div key={s} className={cn('rounded-xl border-2 border-l-4 p-4 transition-all',
-                sectionsReady[s] ? 'border-primary/30 border-l-primary bg-primary/5' : 'border-border border-l-muted-foreground/20 bg-muted/30'
+              <div key={s} className={cn('rounded-xl border p-4 transition-all',
+                sectionsReady[s] ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/30'
               )}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">

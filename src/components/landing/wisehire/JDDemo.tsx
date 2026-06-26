@@ -113,12 +113,12 @@ export function JDDemo() {
           background: 'rgba(29,78,216,0.06)',
         }}
       >
-        <FileText className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
+        <FileText className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>AI JD Writer</span>
         {generating && !done && (
           <span
             className="flex items-center gap-1"
-            style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#3B82F6', fontWeight: 600 }}
+            style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--lp-eyebrow)', fontWeight: 600 }}
           >
             <Sparkles className="w-3 h-3 animate-pulse" />
             Writing…
@@ -153,7 +153,7 @@ export function JDDemo() {
           <div
             style={{
               marginLeft: 'auto',
-              background: '#1D4ED8',
+              background: 'var(--lp-brand)',
               color: '#fff',
               borderRadius: 6,
               padding: '2px 8px',
@@ -198,7 +198,7 @@ export function JDDemo() {
                     display: 'inline-block',
                     width: 2,
                     height: '0.75em',
-                    background: '#3B82F6',
+                    background: 'var(--lp-eyebrow)',
                     marginLeft: 1,
                     verticalAlign: 'middle',
                     borderRadius: 1,

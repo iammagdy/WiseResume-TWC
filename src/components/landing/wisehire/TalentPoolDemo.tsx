@@ -86,7 +86,7 @@ export function TalentPoolDemo() {
           background: 'rgba(29,78,216,0.06)',
         }}
       >
-        <Archive className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
+        <Archive className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Talent Pool</span>
         <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--lp-text-muted)' }}>{POOL.length} saved</span>
       </div>
@@ -114,7 +114,7 @@ export function TalentPoolDemo() {
                 display: 'inline-block',
                 width: 2,
                 height: '0.75em',
-                background: '#3B82F6',
+                background: 'var(--lp-eyebrow)',
                 marginLeft: 1,
                 verticalAlign: 'middle',
                 borderRadius: 1,
@@ -179,7 +179,7 @@ export function TalentPoolDemo() {
                     style={{
                       fontSize: '0.68rem',
                       fontWeight: 600,
-                      color: typedSearch && tag.toLowerCase().includes(typedSearch.toLowerCase()) ? '#3B82F6' : 'var(--lp-text-muted)',
+                      color: typedSearch && tag.toLowerCase().includes(typedSearch.toLowerCase()) ? 'var(--lp-eyebrow)' : 'var(--lp-text-muted)',
                       background: typedSearch && tag.toLowerCase().includes(typedSearch.toLowerCase()) ? 'rgba(29,78,216,0.12)' : 'var(--lp-card-glass)',
                       border: '1px solid var(--lp-border)',
                       borderRadius: 4,

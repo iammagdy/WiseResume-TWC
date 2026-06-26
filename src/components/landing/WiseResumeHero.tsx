@@ -145,7 +145,7 @@ export function WiseResumeHero({
                 disabled={navigating}
                 aria-disabled={navigating}
                 className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#9E1B22] disabled:opacity-70 disabled:cursor-not-allowed"
-                style={{ background: '#9E1B22', color: '#fff' }}
+                style={{ background: 'var(--lp-brand)', color: '#fff' }}
                 whileHover={prefersReducedMotion || navigating ? {} : { scale: 1.04, boxShadow: '0 0 28px 4px rgba(158,27,34,0.45)' }}
                 whileTap={prefersReducedMotion || navigating ? {} : { scale: 0.97, boxShadow: '0 0 10px 2px rgba(158,27,34,0.25)' }}
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -158,7 +158,7 @@ export function WiseResumeHero({
               <motion.button
                 onClick={onCTA}
                 className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#9E1B22]"
-                style={{ background: '#9E1B22', color: '#fff' }}
+                style={{ background: 'var(--lp-brand)', color: '#fff' }}
                 whileHover={prefersReducedMotion ? {} : { scale: 1.04, boxShadow: '0 0 28px 4px rgba(158,27,34,0.45)' }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.97, boxShadow: '0 0 10px 2px rgba(158,27,34,0.25)' }}
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}

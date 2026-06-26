@@ -85,7 +85,7 @@ export function ScorecardView({ scorecard, candidateName, roleName }: ScorecardV
             </p>
             <StarDisplay value={scorecard.ratings?.[i] ?? null} />
             {scorecard.notes?.[i] && (
-              <p className="text-sm text-muted-foreground italic border-l-2 border-muted pl-3">
+              <p className="text-sm text-muted-foreground italic bg-muted/40 rounded-lg px-3 py-2">
                 {scorecard.notes[i]}
               </p>
             )}

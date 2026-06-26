@@ -175,7 +175,7 @@ export function WiseHireDemoSection() {
                     flexShrink: 0,
                   }}
                 >
-                  <Icon className="w-5 h-5" style={{ color: '#3B82F6' }} />
+                  <Icon className="w-5 h-5" style={{ color: 'var(--lp-eyebrow)' }} />
                 </div>
                 <div>
                   <h3

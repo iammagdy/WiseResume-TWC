@@ -86,7 +86,7 @@ export function BriefDemo() {
           background: 'rgba(29,78,216,0.06)',
         }}
       >
-        <Brain className="w-3.5 h-3.5" style={{ color: '#3B82F6', flexShrink: 0 }} />
+        <Brain className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)', letterSpacing: '0.02em' }}>
           AI Candidate Brief
         </span>
@@ -96,7 +96,7 @@ export function BriefDemo() {
             fontSize: '0.72rem',
             fontWeight: 600,
             background: 'rgba(29,78,216,0.14)',
-            color: '#3B82F6',
+            color: 'var(--lp-eyebrow)',
             borderRadius: 6,
             padding: '2px 7px',
           }}
@@ -202,8 +202,8 @@ export function BriefDemo() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-            <MessageSquare className="w-3 h-3" style={{ color: '#3B82F6', flexShrink: 0 }} />
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#3B82F6', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <MessageSquare className="w-3 h-3" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-eyebrow)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               Top interview Q
             </span>
           </div>

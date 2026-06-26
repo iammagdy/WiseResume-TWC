@@ -172,7 +172,7 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
             <h4 className="text-section-header mt-3 text-foreground text-center">
               {isComplete ? 'Tailoring complete' : 'Optimizing your resume'}
             </h4>
-            <p className="text-xs text-foreground/70 text-center">{progress.message}</p>
+            <p className="text-xs text-foreground/70 text-center" role="status" aria-live="polite" aria-atomic="true">{progress.message}</p>
 
             {/* Time remaining */}
             {!isComplete && timeLeft > 0 && (

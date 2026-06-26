@@ -27,21 +27,21 @@ const PRIORITY_CONFIG = {
     icon: AlertCircle,
     className: 'text-red-500',
     badgeClass: 'bg-red-500/10 text-red-500 border-red-500/20',
-    borderClass: 'border-l-red-500',
+    borderClass: 'border-red-500/40',
   },
   medium: {
     label: 'Medium',
     icon: AlertTriangle,
     className: 'text-amber-500',
     badgeClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-    borderClass: 'border-l-amber-500',
+    borderClass: 'border-amber-500/40',
   },
   low: {
     label: 'Low',
     icon: Info,
     className: 'text-blue-500',
     badgeClass: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-    borderClass: 'border-l-blue-500',
+    borderClass: 'border-blue-500/40',
   },
 };
 
@@ -52,7 +52,7 @@ function CritiqueCard({ item }: { item: CritiqueItem }) {
   const Icon = config.icon;
 
   return (
-    <div className={`rounded-xl border border-border border-l-4 ${config.borderClass} bg-card overflow-hidden`}>
+    <div className={`rounded-xl border ${config.borderClass} bg-card overflow-hidden`}>
       <button
         className="w-full flex items-start gap-3 p-3 text-left"
         onClick={() => setExpanded(e => !e)}

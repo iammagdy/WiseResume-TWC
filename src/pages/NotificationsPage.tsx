@@ -135,8 +135,8 @@ export default function NotificationsPage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: -100 }}
                         onClick={() => handleClick(n)}
-                        className={`bg-card border border-border shadow-soft-sm rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-colors ${
-                          !n.is_read ? 'border-l-2 border-l-primary' : 'opacity-70'
+                        className={`bg-card border shadow-soft-sm rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-colors ${
+                          !n.is_read ? 'border-primary/40 bg-primary/5' : 'border-border opacity-70'
                         }`}
                       >
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${

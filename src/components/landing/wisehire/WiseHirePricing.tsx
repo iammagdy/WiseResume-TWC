@@ -150,8 +150,8 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
               border: '1px solid rgba(29,78,216,0.22)',
             }}
           >
-            <Zap className="w-3.5 h-3.5" style={{ color: '#3B82F6' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3B82F6' }}>
+            <Zap className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)' }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--lp-eyebrow)' }}>
               Early Access — 40% off all tiers for waitlist members
             </span>
           </div>
@@ -272,7 +272,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                       className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
                       style={{ background: 'rgba(29,78,216,0.12)' }}
                     >
-                      <Check className="w-2.5 h-2.5" style={{ color: '#3B82F6' }} />
+                      <Check className="w-2.5 h-2.5" style={{ color: 'var(--lp-eyebrow)' }} />
                     </span>
                     <span style={{ fontSize: '0.75rem', color: 'var(--lp-text)', lineHeight: 1.45, transition: 'color 0.35s ease' }}>
                       {f}
