@@ -270,8 +270,8 @@ export const ExperienceTimeline = memo(function ExperienceTimeline({
                 transition={{ delay: index * 0.05, duration: 0.2 }}
                 className={
                   segment.type === 'job'
-                    ? 'rounded-xl p-3 border-l-4 border-l-primary bg-primary/5 border border-border'
-                    : 'rounded-xl p-3 border-l-4 border-l-warning bg-warning/10 border border-warning/30'
+                    ? 'rounded-xl p-3 bg-primary/5 border border-primary/30'
+                    : 'rounded-xl p-3 bg-warning/10 border border-warning/30'
                 }
               >
                 {segment.type === 'job' ? (
