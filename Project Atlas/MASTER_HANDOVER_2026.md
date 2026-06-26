@@ -2,6 +2,105 @@
 
 ---
 
+## Session Log - 2026-06-26 (Infra Stabilization Fixes — branch `fix/remove-prod-dev-tunnel-and-sentry-csp`, PR #133)
+
+### Goal
+Implement two safe infra/config fixes identified in the Live QA Stabilization Triage before wider public launch: (1) remove committed Impeccable dev tunnel script from production HTML, (2) add Sentry ingest domain to CSP `connect-src` so error reporting works.
+
+### What changed and why
+
+#### Fix 1 — Remove dev tunnel script (F-C)
+**`index.html`**
+- Removed 3 lines: `<!-- impeccable-live-start -->` / `<script src="http://localhost:8400/live.js">` / `<!-- impeccable-live-end -->`
+- Root cause: Impeccable design tool's live-preview feature injected this script tag into `index.html`. It was committed to the repo and shipped in production builds. CSP blocked it (`script-src 'self'`), so no code executed, but it generated a CSP violation on every page load and exposed an insecure `http://localhost:8400` URL in page source.
+- Post-removal grep: 0 hits for `localhost:8400`, `impeccable-live-start`, `impeccable-live-end` in production source files. Remaining references exist only in `.impeccable/` tooling directories (non-production, expected).
+
+#### Fix 2 — Add Sentry ingest domain to CSP (F-A)
+**`vercel.json`**, **`vite.config.ts`**, **`public/_headers`**
+- Added `https://*.ingest.de.sentry.io` to `connect-src` only (not `script-src` or `style-src`) in all three production CSP definitions.
+- Root cause: Sentry SDK (`src/lib/monitoring.ts`) initializes with `VITE_SENTRY_DSN` which resolves to `o4511264984989696.ingest.de.sentry.io`. The CSP `connect-src` never included this domain, so all Sentry error reports, traces, and replays were silently blocked.
+- `page.html` was inspected but intentionally left unchanged — it is not referenced in any build config, deployment workflow, or runtime code. Vite uses `index.html` as entry point. Documented in fix report.
+
+### Files changed
+| File | Change |
+|---|---|
+| `index.html` | Removed 3 lines: dev tunnel script block |
+| `vercel.json` | Added `https://*.ingest.de.sentry.io` to `connect-src` in CSP HTTP header |
+| `vite.config.ts` | Added `https://*.ingest.de.sentry.io` to `connect-src` in `CSP_BASE` (meta tag CSP) |
+| `public/_headers` | Added `https://*.ingest.de.sentry.io` to `connect-src` in CSP HTTP header (Hostinger/Cloudflare) |
+| `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/INFRA_STABILIZATION_FIX_REPORT_2026-06-26.md` | NEW: fix report |
+
+### Validation performed
+- Dev tunnel grep (`localhost:8400`, `impeccable-live-start`, `impeccable-live-end` in `index.html`, `public`, `vite.config.ts`, `vercel.json`, `page.html`): 0 hits
+- Sentry CSP grep (`https://*.ingest.de.sentry.io` in `vercel.json`, `vite.config.ts`, `public/_headers`): 3 hits (all intended files)
+- `npx tsc --noEmit`: PASS
+- `npm run test`: 673 passed, 1 todo, 1 skipped (112 test files)
+- `git diff --check`: Clean
+- `npm run build`: PASS — built in 1m 32s, no sourcemaps leaked
+
+### Commits created (3 on fix branch)
+1. `eee92db6` — fix: remove dev tunnel script from production html
+2. `b669e503` — fix: allow Sentry ingest in CSP
+3. `2b97a6a2` — docs: record infra stabilization fix
+
+### PR
+- PR #133: https://github.com/iammagdy/WiseResume-TWC/pull/133
+- Base: `main` (commit `38583687`)
+- Appwrite deploy: not required
+- Vercel-only deploy: sufficient
+
+### Deferred findings (not touched)
+- **F-B:** Appwrite visitor analytics `ERR_ABORTED` — working as designed (retry queue handles it)
+- **F-D:** `/examples` 401 — page renders from static JSON; 401 is on background analytics call
+- **F-E:** `/subscription` 401 — page handles gracefully via `useMe()` error handling
+
+---
+
+## Session Log - 2026-06-26 (Live Browser QA Audit + Stabilization Triage — production commit `38583687`)
+
+### Goal
+Run a full live browser QA audit on production (`https://wiseresume.app`) after PR #131 and #132 merge, then triage all findings and create a stabilization plan. Read-only triage first — no edits, no commits, no deploys.
+
+### What was done
+
+#### Phase 1 — Live Browser QA Audit
+- Ran Playwright 1.59.1 (Chromium headless) against production at commit `38583687`.
+- Tested 127 route-viewport combinations: 10 public routes × 5 viewports (50), 24 protected routes × 1 viewport + 9 key routes × 4 mobile viewports (60), 13 WiseHire routes × 1 viewport (13), 4 visual regression checks, 4 accessibility spot checks.
+- QA account: `Magdy.saber+1@outlook.com` (credentials via env vars, never hardcoded).
+- Login: SUCCESS. No UI regressions. No PR #132 blockers.
+
+#### Phase 2 — Stabilization Triage
+- Investigated root cause of 5 pre-existing issues (all predate PR #131/#132):
+  - **F-A (Sentry CSP block):** `connect-src` missing `*.ingest.de.sentry.io` in `vercel.json`, `vite.config.ts`, `public/_headers`. Ops observability gap only.
+  - **F-B (Appwrite analytics abort):** Browser cancels in-flight `functions.createExecution()` during navigation. Retry queue in `visitorTrack.ts` handles it. Working as designed.
+  - **F-C (Dev tunnel script):** `index.html:183-185` contains `<script src="http://localhost:8400/live.js">` from Impeccable tool. CSP blocks it. Highest priority fix.
+  - **F-D (/examples 401):** Page fetches static JSON, not Appwrite. 401 is on background analytics call. Page renders correctly.
+  - **F-E (/subscription 401):** `useMe()` calls `get-subscription` via `coupons` function. Page handles 401 gracefully with "payments coming soon" messaging.
+
+### Reports created
+| File | Purpose |
+|---|---|
+| `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/qa-results.json` | Raw QA audit data (127 route-viewport checks) |
+| `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/LIVE_QA_REPORT.md` | Full QA audit report with findings matrix |
+| `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/LIVE_QA_STABILIZATION_TRIAGE.md` | Triage report: verdict, finding table, fix plan, manual smoke checklist |
+| `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/live-qa-screenshots/` | Screenshots from QA audit |
+| `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/WiseResume_Full_App_UI_UX_Audit_Report.md` | Full app UI/UX audit report |
+| `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/WiseResume_UI_UX_Findings_Matrix.md` | Findings matrix from audit |
+
+### Verdict
+**READY FOR BROAD TESTING.** No P0/P1 issues. 1 P2 (F-C dev tunnel, fixed in PR #133). 4 P3 (observability/analytics gaps, deferred). Broad testing not blocked.
+
+### Manual smoke checklist created
+- AI generation smoke test
+- PDF export smoke test
+- Dialog Escape close test
+- Reduced-motion browser smoke
+- Mobile keyboard form check
+
+Full checklist in `LIVE_QA_STABILIZATION_TRIAGE.md` section 6.
+
+---
+
 ## Session Log - 2026-06-25 (DevKit Visitor Analytics Upgrade — branch `feature/devkit-visitors-analytics-upgrade`)
 
 ### Goal

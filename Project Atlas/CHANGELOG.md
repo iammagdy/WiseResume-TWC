@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-06-26 - Infra stabilization: dev tunnel removal + Sentry CSP fix (branch `fix/remove-prod-dev-tunnel-and-sentry-csp`, PR #133)
+
+Two safe infra/config fixes from the Live QA Stabilization Triage, applied before wider public launch.
+No Appwrite deploy. No backend/auth/routing/AI/UI logic changes. No secrets touched.
+
+- **F-C (P2) — FIXED.** Removed committed Impeccable dev tunnel script (`<script src="http://localhost:8400/live.js">`)
+  from `index.html` (3 lines). CSP was already blocking it; removal eliminates CSP violation on every page load
+  and insecure localhost URL in production page source.
+- **F-A (P3) — FIXED.** Added `https://*.ingest.de.sentry.io` to CSP `connect-src` in `vercel.json`,
+  `vite.config.ts` (CSP_BASE meta tag), and `public/_headers` (Hostinger/Cloudflare). Sentry error reporting,
+  traces, and replays now permitted by CSP. Domain added to `connect-src` only (not `script-src`/`style-src`).
+- **page.html** — inspected but intentionally left unchanged (not referenced in any build/deploy/runtime config).
+- **Deferred:** F-B (analytics abort — working as designed), F-D (/examples 401 — page renders from static JSON),
+  F-E (/subscription 401 — page handles gracefully).
+
+Validation: `tsc --noEmit` PASS, `npm run test` 673 passed, `npm run build` PASS, grep checks clean.
+
+## 2026-06-26 - Live Browser QA Audit + Stabilization Triage (read-only, production commit `38583687`)
+
+Full live browser QA audit on production (`https://wiseresume.app`) using Playwright 1.59.1.
+127 route-viewport combinations tested. Verdict: **READY FOR BROAD TESTING**. No P0/P1. No PR #132 regressions.
+5 pre-existing infra issues triaged with root cause, impact, and fix plan.
+Reports in `Project Atlas/UI_UX_FULL_APP_AUDIT_2026-06-26/`.
+
 ## 2026-06-26 - Comprehensive Audit repair pass (branch `repair/audit-findings-2026-06-26`)
 
 Implemented the actionable findings from `Project Atlas/Comprehensive Audit 2026-06-26/`
