@@ -1,6 +1,6 @@
 # Atlas Source Of Truth Map
 
-**Last verified:** 2026-05-13
+**Last verified:** 2026-06-26 (app version re-verified against `package.json`; collection/storage inventory figures unchanged from the 2026-05-13 verification)
 **Type:** index
 **Sources:**
 - `package.json`
@@ -21,7 +21,7 @@ This map is the A-to-Z guide for where app truth lives inside `Project Atlas/`. 
 - Product umbrella: The Wise Cloud.
 - Product surfaces: WiseResume for job seekers, WiseHire for HR/recruiting, Wise AI for AI capabilities.
 - Repository: `iammagdy/WiseResume-TWC`, default branch `main`.
-- Current app version in code: `4.1.5` from `package.json`.
+- Current app version in code: `4.7.3` from `package.json`.
 
 ## B. Current Architecture
 

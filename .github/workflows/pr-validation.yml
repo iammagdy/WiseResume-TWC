@@ -5,12 +5,12 @@ name: PR Validation
 # relevant to this PR. Verification only — NO build, NO deployment, NO
 # Appwrite/Vercel actions, and it does not touch any deploy workflow.
 #
-# NOTE: src/pages/__tests__/PortfolioEditorPage.test.tsx and
-# PortfolioEditorPage-D8.test.tsx are intentionally NOT run here. They hang
-# during the full PortfolioEditorPage mount — a PRE-EXISTING issue reproduced on
-# origin/main (it is not introduced by this PR). It will be handled in a separate
-# test-infra/editor follow-up PR (align vitest.config.ts deps for
-# pako/docx/pdfjs-dist + investigate the editor mount-loop).
+# NOTE: PortfolioEditorPage.test.tsx + PortfolioEditorPage-D8.test.tsx are now
+# RE-ENABLED (audit F9). The previous CI hang was a test-mock defect, not an
+# editor bug: the useProfile/useResumes mocks returned a fresh object per render,
+# so the page's `useEffect(..., [profile])` (which calls many setState) re-fired
+# every render and looped forever. The mocks now return stable references and the
+# missing `parseDbJson` export was added. No editor source was changed.
 on:
   pull_request:
     branches: [main]
@@ -62,3 +62,5 @@ jobs:
           src/components/portfolio/public/cards/__tests__/ProjectCard.test.tsx
           src/components/portfolio/__tests__/GitHubProjectsSection.test.tsx
           src/lib/security/publicPrivacyHardening.test.ts
+          src/pages/__tests__/PortfolioEditorPage.test.tsx
+          src/pages/__tests__/PortfolioEditorPage-D8.test.tsx

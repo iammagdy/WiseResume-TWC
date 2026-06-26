@@ -28,24 +28,43 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { $id: "user-123", id: "user-123" }, isAuthenticated: true }),
 }));
 
-vi.mock("@/hooks/useProfile", () => ({
-  useProfile: () => ({
+vi.mock("@/hooks/useProfile", () => {
+  // CRITICAL: a single stable reference. PortfolioEditorPage has a
+  // `useEffect(..., [profile])` that calls many setState; if the mock returned a
+  // fresh `profile` object per render, that effect would re-fire on every render
+  // and loop forever (this was the cause of the CI hang). The real useProfile is
+  // react-query backed and stable, so production never loops.
+  const value = {
     profile: { ...mockProfile, $id: "user-123", user_id: "user-123" },
     isLoading: false,
     loading: false,
     updateProfile: vi.fn().mockResolvedValue(undefined),
-  }),
-}));
+  };
+  return { useProfile: () => value };
+});
 
-vi.mock("@/hooks/useResumes", () => ({
-  useResumes: () => ({
-    data: mockResumes,
-    isLoading: false,
-    resumes: mockResumes,
-  }),
-  getResumeDocumentId: (doc: { $id?: string; id?: string } | null | undefined) =>
-    doc?.$id ?? doc?.id,
-}));
+vi.mock("@/hooks/useResumes", () => {
+  // Return ONE stable object reference across renders. The real useResumes is
+  // react-query backed (stable identity); a fresh object per call would make
+  // effects keyed on it re-fire forever.
+  const value = { data: mockResumes, isLoading: false, resumes: mockResumes };
+  return {
+    useResumes: () => value,
+    getResumeDocumentId: (doc: { $id?: string; id?: string } | null | undefined) =>
+      doc?.$id ?? doc?.id,
+    // deriveResumeCompletion (via portfolioCompletion.ts) imports parseDbJson from
+    // this module; mirror the real tolerant behavior so the editor mounts.
+    parseDbJson: <T,>(value: unknown, fallback: T): T => {
+      if (!value) return fallback;
+      if (typeof value === "object") return value as T;
+      try {
+        return JSON.parse(value as string) as T;
+      } catch {
+        return fallback;
+      }
+    },
+  };
+});
 
 vi.mock("@/hooks/usePlan", () => ({
   usePlan: () => ({
@@ -108,8 +127,9 @@ describe("PortfolioEditorPage", () => {
 
   it("shows Portfolio heading or tab", async () => {
     render(<PortfolioEditorPage />, { wrapper });
-    // The page renders some navigable content
-    const heading = screen.queryByText(/portfolio/i);
-    expect(heading).toBeTruthy();
+    // The fully-mounted page renders "portfolio" in several places (header, tabs,
+    // preview), so assert at least one match rather than a single unique node.
+    const matches = screen.queryAllByText(/portfolio/i);
+    expect(matches.length).toBeGreaterThan(0);
   });
 });
