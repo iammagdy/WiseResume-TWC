@@ -11,7 +11,7 @@ const CSP_BASE = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://fra.cloud.appwrite.io https://api.resend.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io https://challenges.cloudflare.com",
+  "connect-src 'self' https://fra.cloud.appwrite.io https://api.resend.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io https://challenges.cloudflare.com https://*.ingest.de.sentry.io",
   "worker-src 'self' blob:",
   "frame-src https://challenges.cloudflare.com",
   "object-src 'none'",
