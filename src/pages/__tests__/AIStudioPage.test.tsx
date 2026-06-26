@@ -50,6 +50,16 @@ vi.mock("@/hooks/useResumes", () => ({
   dbToResumeData: vi.fn((data: any) => data),
 }));
 
+vi.mock("@/store/settingsStore", () => ({
+  useSettingsStore: vi.fn((selector) =>
+    selector({
+      hasSeenAIStudioTour: true,
+      setHasSeenAIStudioTour: vi.fn(),
+      defaultTemplate: "wiseresume-classic",
+    })
+  ),
+}));
+
 vi.mock("@/components/editor/ai/AIDetectorSheet", () => ({
   AIDetectorSheet: ({
     open,
