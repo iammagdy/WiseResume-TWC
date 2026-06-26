@@ -86,7 +86,7 @@ describe('WiseResume Classic template', () => {
     expect(screen.getByRole('link', { name: 'iammagdy' })).toHaveAttribute('href', 'https://github.com/iammagdy');
     expect(screen.getByRole('link', { name: 'magdysaber.com' })).toHaveAttribute('href', 'https://magdysaber.com');
 
-    expect(screen.getByRole('link', { name: 'WiseResume' })).toHaveAttribute('href', 'https://resume.thewise.cloud');
+    expect(screen.getByRole('link', { name: 'WiseResume' })).toHaveAttribute('href', 'https://wiseresume.app');
     expect(container.querySelector('[data-resume-template]')).toBeTruthy();
     expect(container.textContent).not.toContain('—');
   });
