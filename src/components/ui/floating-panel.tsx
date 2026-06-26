@@ -12,9 +12,8 @@ import { AnimatePresence, motion, MotionConfig, Variants } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 const TRANSITION = {
-  type: "spring" as const,
-  bounce: 0.1,
-  duration: 0.4,
+  duration: 0.3,
+  ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
 }
 
 interface FloatingPanelContextType {

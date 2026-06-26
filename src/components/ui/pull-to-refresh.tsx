@@ -1,5 +1,5 @@
 import { useState, useRef, ReactNode, useEffect, useCallback } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, useReducedMotion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { haptics } from '@/lib/haptics';
@@ -32,6 +32,7 @@ export function PullToRefresh({
   threshold = 80,
 }: PullToRefreshProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const isPulling = useRef(false);
@@ -111,19 +112,23 @@ export function PullToRefresh({
       isPulling.current = false;
       isDragging.current = false;
 
+      const settle = prefersReducedMotion
+        ? { duration: 0 }
+        : { duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
+
       if (currentPull >= threshold) {
         setIsRefreshing(true);
         haptics.medium();
-        animate(y, threshold, { type: 'spring', stiffness: 300, damping: 30 });
+        animate(y, threshold, settle);
 
         try {
           await onRefresh();
         } finally {
           setIsRefreshing(false);
-          animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 });
+          animate(y, 0, settle);
         }
       } else {
-        animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 });
+        animate(y, 0, settle);
       }
     };
 
@@ -138,7 +143,7 @@ export function PullToRefresh({
       wrapper.removeEventListener('touchend', handleTouchEnd);
       wrapper.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [isRefreshing, onRefresh, threshold, y]);
+  }, [isRefreshing, onRefresh, threshold, y, prefersReducedMotion]);
 
   return (
     <div
