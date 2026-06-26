@@ -59,7 +59,7 @@ export function PortfolioDemo() {
                   key="avatar"
                   initial={prefersReducedMotion ? false : { scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                   className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-card"
                   style={{ background: accent }}
                 >

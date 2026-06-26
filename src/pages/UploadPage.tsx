@@ -463,7 +463,7 @@ export default function UploadPage() {
                       className="relative w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mb-5"
                       style={{ boxShadow: '0 8px 24px -4px hsl(var(--primary)/0.4)' }}
                       animate={isDragging ? { scale: 1.07, rotate: -4 } : { scale: 1, rotate: 0 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     >
                       {isDragging ? (
                         <FileText className="w-9 h-9 text-primary-foreground" aria-hidden />

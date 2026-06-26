@@ -159,7 +159,7 @@ export function UploadErrorRecovery({
         className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ type: 'spring', delay: 0.1 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
       >
         {icon}
       </motion.div>

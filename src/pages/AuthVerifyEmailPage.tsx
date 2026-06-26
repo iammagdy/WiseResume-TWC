@@ -412,7 +412,7 @@ export default function AuthVerifyEmailPage() {
                 style={{ background: 'rgba(16,185,129,0.15)' }}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.1 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
               >
                 <CheckCircle className="h-9 w-9 text-emerald-400" />
               </motion.div>

@@ -245,7 +245,7 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
                             key="check"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                           >
                             <Check className="w-3 h-3" />
                           </motion.div>

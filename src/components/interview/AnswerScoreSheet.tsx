@@ -46,7 +46,7 @@ function ScoreRing({ score }: { score: number }) {
         className="absolute text-2xl font-black text-foreground"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 300, delay: 0.5 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.5 }}
       >
         {score}<span className="text-sm font-bold text-muted-foreground">/10</span>
       </motion.span>
@@ -93,7 +93,7 @@ export function AnswerScoreSheet({ score, onDismiss }: AnswerScoreSheetProps) {
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           className="fixed left-0 right-0 z-50 px-4 pb-safe"
           style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom))' }}
           onClick={cancelAutoDismiss}

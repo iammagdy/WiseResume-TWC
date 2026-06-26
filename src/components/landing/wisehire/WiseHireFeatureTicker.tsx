@@ -47,7 +47,7 @@ export function WiseHireFeatureTicker() {
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.5 }}
-      transition={{ type: 'spring', stiffness: 240, damping: 28, restDelta: 0.001 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
     >
     <div
       className="relative overflow-hidden py-5 group select-none"

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, useReducedMotion } from 'framer-motion';
 import { Check, ShieldCheck } from 'lucide-react';
 import { useIsDark } from '@/hooks/useIsDark';
 
@@ -13,6 +13,7 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
   const [dragging, setDragging] = useState(false);
   const x = useMotionValue(0);
   const isDark = useIsDark();
+  const prefersReducedMotion = useReducedMotion();
 
   const HANDLE_SIZE = 44;
   const getMaxX = () => (trackRef.current?.clientWidth ?? 280) - HANDLE_SIZE;
@@ -23,13 +24,16 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
   const handleDragEnd = useCallback(() => {
     setDragging(false);
     const max = getMaxX();
+    const settle = prefersReducedMotion
+      ? { duration: 0 }
+      : { duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
     if (x.get() >= max * 0.85) {
-      animate(x, max, { type: 'spring', stiffness: 400, damping: 30 });
+      animate(x, max, settle);
       onVerified();
     } else {
-      animate(x, 0, { type: 'spring', stiffness: 400, damping: 25 });
+      animate(x, 0, settle);
     }
-  }, [x, onVerified]);
+  }, [x, onVerified, prefersReducedMotion]);
 
   // Theme-aware colors
   const trackBg = isDark ? 'hsl(0 0% 100% / 0.06)' : 'hsl(0 0% 0% / 0.06)';
@@ -51,7 +55,7 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
         >
           <ShieldCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
         </motion.div>

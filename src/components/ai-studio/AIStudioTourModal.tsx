@@ -53,7 +53,7 @@ export function AIStudioTourModal({ onDismiss }: AIStudioTourModalProps) {
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           className="w-full max-w-sm bg-card border border-primary/20 shadow-soft-lg rounded-3xl p-6 space-y-5"
         >
           {/* Step indicator */}

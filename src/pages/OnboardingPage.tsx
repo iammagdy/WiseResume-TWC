@@ -674,7 +674,7 @@ function WelcomeStep() {
       <motion.div
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.1, type: 'spring', stiffness: 220, damping: 14 }}
+        transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="mb-8 relative"
       >
         <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/30 to-primary/5 blur-xl scale-125" />
@@ -1060,7 +1060,7 @@ function CelebrationStep({ name, onNext: _onNext }: { name: string; onNext: () =
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 16, delay: 0.05 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
         className="mb-6"
       >
         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">

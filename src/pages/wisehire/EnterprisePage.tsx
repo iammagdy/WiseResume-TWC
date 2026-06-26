@@ -154,7 +154,7 @@ function HeroSection() {
           style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
           Request a Demo
           <ArrowRight className="w-4 h-4" />
@@ -170,7 +170,7 @@ function HeroSection() {
           }}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
           See pricing
           <ChevronRight className="w-4 h-4" />
@@ -884,7 +884,7 @@ function ContactSection() {
               style={{ background: '#1D4ED8', color: '#fff' }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
               Request Demo
               <ArrowRight className="w-4 h-4" />
@@ -951,7 +951,7 @@ function FooterCtaSection() {
               style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
               Talk to Sales
               <ArrowRight className="w-4 h-4" />
@@ -959,7 +959,7 @@ function FooterCtaSection() {
             <motion.div
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
               <Link
                 to="/?for=companies"
@@ -1033,7 +1033,7 @@ function EnterpriseNav() {
         style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
       >
         Request Demo
       </motion.a>

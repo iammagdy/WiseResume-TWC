@@ -52,7 +52,7 @@ export const SectionEmptyState = memo(function SectionEmptyState({
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.3, type: 'spring', stiffness: 200 }}
+        transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
           <Icon className="w-6 h-6 text-primary" aria-hidden />

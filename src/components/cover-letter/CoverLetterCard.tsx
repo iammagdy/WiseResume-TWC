@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, useReducedMotion, PanInfo } from 'framer-motion';
 import { MoreVertical, FileText, Trash2, Copy } from 'lucide-react';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { Badge } from '@/components/ui/badge';
@@ -26,22 +26,26 @@ export const CoverLetterCard = memo(function CoverLetterCard({
   onMenuOpen,
 }: CoverLetterCardProps) {
   const x = useMotionValue(0);
+  const prefersReducedMotion = useReducedMotion();
   const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
   const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
   let isDragging = false;
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     isDragging = false;
+    const settle = prefersReducedMotion
+      ? { duration: 0 }
+      : { duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
     if (info.offset.x <= -SWIPE_THRESHOLD) {
       haptics.warning();
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      animate(x, 0, settle);
       onDelete(letter.id);
     } else if (info.offset.x >= SWIPE_THRESHOLD) {
       haptics.success();
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      animate(x, 0, settle);
       onDuplicate(letter.id);
     } else {
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      animate(x, 0, settle);
     }
   };
 

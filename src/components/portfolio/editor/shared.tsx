@@ -36,7 +36,7 @@ export function CollapsibleCard({
           {action && !isOpen && action}
           <motion.div
             animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 25 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </motion.div>

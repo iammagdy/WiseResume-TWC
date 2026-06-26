@@ -139,7 +139,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
             initial={{ y: 60, scale: 0.95, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 60, scale: 0.95, opacity: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           >
             <Confetti />
 

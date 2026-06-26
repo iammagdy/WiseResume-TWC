@@ -1238,9 +1238,9 @@ export function WiseWorkspaceChat({
                       <AppIcon size={28} showSparkle={false} className="shrink-0" />
                       <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
                         <div className="flex gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
-                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
-                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
+                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:0ms]" />
+                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:150ms]" />
+                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:300ms]" />
                         </div>
                       </div>
                     </motion.div>
