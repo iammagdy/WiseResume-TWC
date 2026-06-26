@@ -77,7 +77,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
       {visible && (
         <motion.div
           key="splash"
-          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background overflow-hidden"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background overflow-hidden"
           initial={{ opacity: 1 }}
           exit={prefersReduced ? { opacity: 1 } : { opacity: 0 }}
           transition={prefersReduced ? { duration: 0 } : { duration: 0.3, ease: 'easeInOut' }}

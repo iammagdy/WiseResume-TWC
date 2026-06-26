@@ -127,7 +127,7 @@ export function BriefOutput({ brief, candidateName }: BriefOutputProps) {
       {brief.employment_notes && (
         <div>
           <SectionHeader>Hiring Notes</SectionHeader>
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed border-l-4 border-blue-500">
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed border border-blue-500/30">
             {brief.employment_notes}
           </div>
         </div>
