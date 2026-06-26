@@ -33,7 +33,7 @@ export function PortfolioHistorySheet({ open, onOpenChange, userId, onRestore, i
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           className="relative w-full max-w-lg bg-background border-t sm:border border-border sm:rounded-2xl shadow-2xl overflow-hidden pointer-events-auto sm:max-h-[85vh] max-h-[90vh] flex flex-col"
         >
           {/* Header */}

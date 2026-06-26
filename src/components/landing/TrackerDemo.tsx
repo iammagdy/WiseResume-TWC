@@ -86,7 +86,7 @@ export function TrackerDemo() {
                         initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.85 }}
-                        transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                         className={`rounded-lg border p-1.5 ${card.color}`}
                       >
                         <p className="text-[9px] font-semibold leading-none">{card.company}</p>

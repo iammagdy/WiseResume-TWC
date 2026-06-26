@@ -1,7 +1,7 @@
 import { useState, useMemo, memo, useCallback, useEffect, Suspense } from 'react';
 import { migrateTemplateId } from '@/lib/templateMigration';
 import { getAppUrl } from '@/lib/portfolioUrl';
-import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, useReducedMotion, PanInfo } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   MoreVertical,
@@ -157,6 +157,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   }, [resume.$id, getTailorHistoryForResume]);
 
   const x = useMotionValue(0);
+  const prefersReducedMotion = useReducedMotion();
   const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
   const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
 
@@ -208,18 +209,22 @@ export const ResumeListCard = memo(function ResumeListCard({
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     setIsDragging(false);
 
+    const settle = prefersReducedMotion
+      ? { duration: 0 }
+      : { duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
+
     if (info.offset.x <= -SWIPE_THRESHOLD) {
       haptics.warning();
-      // Always spring back and trigger confirmation dialog (never direct delete)
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      // Always settle back and trigger confirmation dialog (never direct delete)
+      animate(x, 0, settle);
       onDelete(resume.$id);
     } else if (info.offset.x >= SWIPE_THRESHOLD) {
       haptics.success();
-      // Always spring back and trigger duplicate
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      // Always settle back and trigger duplicate
+      animate(x, 0, settle);
       onDuplicate(resume.$id);
     } else {
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      animate(x, 0, settle);
     }
   };
 

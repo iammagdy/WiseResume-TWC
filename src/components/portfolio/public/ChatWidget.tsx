@@ -200,7 +200,7 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
               initial={{ opacity: 0, x: 16, scale: 0.9 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 16, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               onClick={() => { setOpen(true); setHasInteracted(true); setShowHint(false); }}
               className="relative max-w-[210px] rounded-2xl rounded-br-md px-3.5 py-2.5 text-left shadow-xl"
               style={{ background: bgPanel, border: `1px solid ${borderColor}`, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', pointerEvents: 'auto' }}
@@ -235,7 +235,7 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 1.5, type: 'spring', stiffness: 300 }}
+            transition={{ delay: 1.5, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             onClick={() => { setOpen(o => !o); setHasInteracted(true); setShowHint(false); }}
             className="relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
             style={{ background: accentColor, color: '#fff', boxShadow: `0 8px 32px -4px ${accentColor}70` }}
@@ -346,7 +346,7 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
                   <div className="px-3 py-2 rounded-2xl" style={{ background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.07)', border: `1px solid ${borderColor}` }}>
                     <div className="flex gap-1 items-center h-4">
                       {[0, 1, 2].map(i => (
-                        <span key={i} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: accentColor, animationDelay: `${i * 0.15}s` }} />
+                        <span key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: accentColor, animationDelay: `${i * 0.15}s` }} />
                       ))}
                     </div>
                   </div>

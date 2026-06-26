@@ -1400,7 +1400,7 @@ export function ProfileImportSheet({
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                   className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center"
                 >
                   <Check className="w-10 h-10 text-success" />

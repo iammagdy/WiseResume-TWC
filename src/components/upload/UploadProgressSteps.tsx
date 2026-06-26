@@ -47,7 +47,7 @@ export function UploadProgressSteps({ currentStep, fileName }: UploadProgressSte
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 300 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
             <Check className="w-8 h-8 text-primary-foreground" />
           </motion.div>

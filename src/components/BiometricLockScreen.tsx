@@ -113,7 +113,7 @@ export function BiometricLockScreen({
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+          transition={{ delay: 0.2, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className="relative mb-8"
         >
           <motion.div

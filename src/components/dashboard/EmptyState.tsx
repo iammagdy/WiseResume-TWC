@@ -86,7 +86,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
           initial={shouldReduceMotion ? undefined : { scale: 0.8, y: 8 }}
           animate={shouldReduceMotion ? undefined : { scale: 1, y: 0 }}
           transition={{
-            scale: { delay: 0.1, type: 'spring', stiffness: 200 },
+            scale: { delay: 0.1, duration: 0.4, ease: [0.22, 1, 0.36, 1] },
             y: { duration: 0.6, ease: 'easeOut' },
           }}
           className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-5 relative shadow-soft-lg mt-2"
