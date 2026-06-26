@@ -146,6 +146,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
             {/* Close */}
             <button
               onClick={onClose}
+              aria-label="Close"
               className="absolute top-4 right-4 p-2 rounded-xl hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center z-10"
             >
               <X className="w-4 h-4" />
