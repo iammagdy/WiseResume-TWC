@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { useAccountType } from '@/hooks/wisehire/useAccountType';
 import triggerHaptic from '@/lib/haptics';
 // Step 4 (B-3) — full lazy-load: framer-motion is NOT imported by this
 // page-level component anymore. The entire AnimatePresence + m.div tree
@@ -73,7 +72,6 @@ const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
-  const { isHR } = useAccountType();
   const prefersReducedMotion = usePrefersReducedMotion();
   const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
@@ -177,12 +175,6 @@ const Index = () => {
       navigate('/auth/callback' + hash, { replace: true });
     }
   }, [navigate]);
-
-  useEffect(() => {
-    if (!authLoading && isAuthenticated && isHR) {
-      navigate('/wisehire/dashboard', { replace: true });
-    }
-  }, [authLoading, isAuthenticated, isHR, navigate]);
 
   useEffect(() => {
     if (searchParams.get('tailor') === '1' && isAuthenticated) {
