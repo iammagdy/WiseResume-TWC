@@ -314,7 +314,7 @@ const Index = () => {
     >
       <a
         href="#landing-main"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:rounded-md focus:m-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:z[100] focus:p-4 focus:rounded-md focus:m-2"
         style={{ background: 'var(--lp-brand)', color: '#fff' }}
       >
         Skip to content
