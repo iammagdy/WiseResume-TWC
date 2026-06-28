@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-29 - Public landing route and social preview reliability
+
+- **Landing route** (`src/pages/Index.tsx`, `src/App.tsx`): preserved `/` and `/enterprises` as public `AppLanding` routes for authenticated and unauthenticated visitors; account-type redirects remain limited to protected product routes.
+- **Social metadata** (`index.html`): made the WiseResume Open Graph and X image metadata static, added `image/png` and X alt metadata, and aligned the declared `1280x672` dimensions with `public/wiseresume-og.png`.
+- **Regression coverage** (`src/lib/__tests__/socialPreviewMetadata.test.ts`, `src/pages/__tests__/landingRouteContract.test.ts`): added crawler-visible metadata, PNG-dimension, and public-route contracts.
+
 ## 2026-06-21 - Final autonomous QA readiness
 
 - **Job Import**: updated `appwrite-hubs/job-import/src/main.js` so URL job imports prefer DeepSeek before Groq/OpenRouter fallbacks.

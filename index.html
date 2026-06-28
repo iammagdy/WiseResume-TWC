@@ -20,19 +20,18 @@
   <link id="app-favicon-preload" rel="preload" href="/favicon.png" as="image" />
   <meta name="format-detection" content="telephone=no" />
 
-  <!-- Open Graph & Twitter image tags are declared up here (before the
-       pre-React brand-detection script below) so that script can swap
-       their `content` attribute on first paint when the user lands on a
-       WiseHire URL. The title/description og/twitter tags stay further
-       down where React (Index.tsx) keeps them in sync. -->
-  <meta id="app-og-image" property="og:image" content="https://wiseresume.app/wiseresume-og.png?v=5">
-  <meta id="app-twitter-image" name="twitter:image" content="https://wiseresume.app/wiseresume-og.png?v=5">
+  <!-- Social crawlers do not run the landing-page JavaScript reliably, so
+       the preview image contract is complete and static in the source HTML. -->
+  <meta property="og:image" content="https://wiseresume.app/wiseresume-og.png?v=5">
+  <meta property="og:image:secure_url" content="https://wiseresume.app/wiseresume-og.png?v=5" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1280" />
+  <meta property="og:image:height" content="672" />
+  <meta property="og:image:alt" content="WiseResume AI resume builder and ATS optimization dashboard" />
+  <meta name="twitter:image" content="https://wiseresume.app/wiseresume-og.png?v=5">
+  <meta name="twitter:image:alt" content="WiseResume AI resume builder and ATS optimization dashboard" />
   <meta property="og:site_name" content="WiseResume" />
   <meta property="og:url" content="https://wiseresume.app/" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="WiseResume AI social preview" />
-  <meta property="og:image:secure_url" content="https://wiseresume.app/wiseresume-og.png?v=5" />
 
   <script>
     // SPA redirect: restore deep-link path saved by 404.html
@@ -78,10 +77,6 @@
             if (fav) fav.setAttribute('href', '/favicon-wisehire.png');
             var favPre = document.getElementById('app-favicon-preload');
             if (favPre) favPre.setAttribute('href', '/favicon-wisehire.png');
-            var ogImg = document.getElementById('app-og-image');
-            if (ogImg) ogImg.setAttribute('content', '/favicon-wisehire.png');
-            var twImg = document.getElementById('app-twitter-image');
-            if (twImg) twImg.setAttribute('content', '/favicon-wisehire.png');
           }
         }
       } catch (e) { }
@@ -156,10 +151,10 @@
     }
   </style>
 
-  <!-- Open Graph (og:image is declared higher so the pre-React script can swap it on first paint) -->
+  <!-- Open Graph image metadata is declared above as a static crawler contract. -->
   <meta property="og:type" content="website" />
 
-  <!-- Twitter Card (twitter:image is declared higher so the pre-React script can swap it on first paint) -->
+  <!-- X card image metadata is declared above as a static crawler contract. -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@WiseresumeAI" />
   <meta property="og:title" content="WiseResume AI — AI Resume Builder">

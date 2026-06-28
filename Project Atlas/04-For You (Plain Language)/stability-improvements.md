@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-06-21 (final QA loop checked)
+**Last verified:** 2026-06-29
+
+## Shared links now show a reliable WiseResume preview without changing the landing destination (2026-06-29)
+
+**What was the situation:** Sharing the website could produce no preview image, and signed-in hiring accounts could be sent away from the public landing page.
+
+**What changed:** The public landing page now stays public for every account type, and social platforms receive one consistent preview image with accurate image information directly from the page.
+
+**What you'll notice:** Opening the main website link keeps you on the landing page, while newly refreshed link previews can display the branded WiseResume image reliably.
 
 ## Job import now follows the same AI routing priority as the main tailoring flow (2026-06-21)
 

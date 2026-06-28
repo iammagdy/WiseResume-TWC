@@ -147,26 +147,18 @@ const Index = () => {
       : 'Build, tailor, and optimize job-winning resumes with AI.');
     setMeta('og:url', isWH ? `${window.location.origin}/enterprises` : window.location.origin);
 
-    /* Task #13: swap the favicon (and matching apple-touch / og:image /
-       twitter:image) so the browser tab icon mirrors the active brand.
+    /* Task #13: swap the favicon so the browser tab icon mirrors the active brand.
        The pre-React script in index.html already sets the correct icon
        for first paint based on the URL; this effect handles in-app
        toggling between Individuals/Enterprises (and direct navigation
        between `/` and `/enterprises`) without a page reload. */
     const favHref = isWH ? '/favicon-wisehire.png' : '/favicon.png';
-    const ogImgUrl = isWH ? favHref : 'https://wiseresume.app/wiseresume-og.png?v=5';
     const setLinkHref = (id: string, href: string) => {
       const el = document.getElementById(id) as HTMLLinkElement | null;
       if (el && el.getAttribute('href') !== href) el.setAttribute('href', href);
     };
-    const setMetaContent = (id: string, content: string) => {
-      const el = document.getElementById(id) as HTMLMetaElement | null;
-      if (el && el.getAttribute('content') !== content) el.setAttribute('content', content);
-    };
     setLinkHref('app-favicon', favHref);
     setLinkHref('app-favicon-preload', favHref);
-    setMetaContent('app-og-image', ogImgUrl);
-    setMetaContent('app-twitter-image', ogImgUrl);
   }, [mode]);
 
   useEffect(() => {
