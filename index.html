@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
-  <title>Wiseresume AI - AI Resume Editor</title>
-  <meta name="description" content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+  <title>WiseResume AI — AI Resume Builder</title>
+  <meta name="description" content="Build, tailor, and optimize job-winning resumes with AI.">
   <meta name="author" content="Wiseresume AI" />
 
   <!-- Inter font is self-hosted via @fontsource/inter (imported in src/main.tsx).
@@ -20,19 +20,18 @@
   <link id="app-favicon-preload" rel="preload" href="/favicon.png" as="image" />
   <meta name="format-detection" content="telephone=no" />
 
-  <!-- iOS home screen / PWA -->
-  <link rel="apple-touch-icon" href="/favicon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="WiseResume">
-
   <!-- Open Graph & Twitter image tags are declared up here (before the
        pre-React brand-detection script below) so that script can swap
        their `content` attribute on first paint when the user lands on a
        WiseHire URL. The title/description og/twitter tags stay further
        down where React (Index.tsx) keeps them in sync. -->
-  <meta id="app-og-image" property="og:image" content="/favicon.png">
-  <meta id="app-twitter-image" name="twitter:image" content="/favicon.png">
+  <meta id="app-og-image" property="og:image" content="https://wiseresume.app/og/wiseresume-ai-og.png?v=1">
+  <meta id="app-twitter-image" name="twitter:image" content="https://wiseresume.app/og/wiseresume-ai-og.png?v=1">
+  <meta property="og:site_name" content="WiseResume" />
+  <meta property="og:url" content="https://wiseresume.app/" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="WiseResume AI social preview" />
 
   <script>
     // SPA redirect: restore deep-link path saved by 404.html
@@ -160,14 +159,14 @@
   <meta property="og:type" content="website" />
 
   <!-- Twitter Card (twitter:image is declared higher so the pre-React script can swap it on first paint) -->
-  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@WiseresumeAI" />
-  <meta property="og:title" content="Wiseresume AI - AI Resume Editor">
-  <meta name="twitter:title" content="Wiseresume AI - AI Resume Editor">
+  <meta property="og:title" content="WiseResume AI — AI Resume Builder">
+  <meta name="twitter:title" content="WiseResume AI — AI Resume Builder">
   <meta property="og:description"
-    content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+    content="Build, tailor, and optimize job-winning resumes with AI.">
   <meta name="twitter:description"
-    content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+    content="Build, tailor, and optimize job-winning resumes with AI.">
 </head>
 
 <body style="margin:0;">

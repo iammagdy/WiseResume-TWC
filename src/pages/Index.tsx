@@ -1,11 +1,9 @@
-import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import './index-landing.css';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAccountType } from '@/hooks/wisehire/useAccountType';
-import { useAdminStatus } from '@/hooks/useIsAdmin';
 import triggerHaptic from '@/lib/haptics';
 // Step 4 (B-3) — full lazy-load: framer-motion is NOT imported by this
 // page-level component anymore. The entire AnimatePresence + m.div tree
@@ -14,7 +12,7 @@ import triggerHaptic from '@/lib/haptics';
 // `src/lib/usePrefersReducedMotion`. Result: framer-motion is excluded
 // from the landing entry chunk and only fetched once the motion stage
 // chunk arrives.
-import { useEffect, useState, useRef, useCallback, startTransition, Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback, startTransition, lazy, Suspense } from 'react';
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -51,11 +49,11 @@ if (typeof window !== 'undefined') {
    landing entry chunk. The dialogs (WaitlistModal, QuickTailorSheet)
    are also lazy: they're invisible on first paint and only mount on
    user action. */
-const LandingMotionStage = lazyWithRetry(() => import('@/components/landing/LandingMotionStage'));
-const WaitlistModal = lazyWithRetry(() =>
+const LandingMotionStage = lazy(() => import('@/components/landing/LandingMotionStage'));
+const WaitlistModal = lazy(() =>
   import('@/components/landing/WaitlistModal').then((m) => ({ default: m.WaitlistModal }))
 );
-const QuickTailorSheet = lazyWithRetry(() =>
+const QuickTailorSheet = lazy(() =>
   import('@/components/landing/QuickTailorSheet').then((m) => ({ default: m.QuickTailorSheet }))
 );
 /* Task #15 (LCP fix): static hero shell rendered as the Suspense fallback
@@ -74,9 +72,8 @@ function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
-  const { profile } = useProfile(isAuthenticated ? user?.id : undefined);
+  const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
   const { isHR } = useAccountType();
-  const { isAdmin, isLoading: adminStatusLoading } = useAdminStatus();
   const prefersReducedMotion = usePrefersReducedMotion();
   const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
@@ -139,17 +136,17 @@ const Index = () => {
 
   useEffect(() => {
     const isWH = mode === 'wisehire';
-    document.title = isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume — AI-Powered Career Platform';
+    document.title = isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume AI — AI Resume Builder';
     const setMeta = (name: string, content: string) => {
       let el = document.querySelector<HTMLMetaElement>(`meta[property="${name}"]`) ??
                document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
       if (!el) { el = document.createElement('meta'); el.setAttribute(name.startsWith('og:') ? 'property' : 'name', name); document.head.appendChild(el); }
       el.setAttribute('content', content);
     };
-    setMeta('og:title', isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume — AI-Powered Career Platform');
+    setMeta('og:title', isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume AI — AI Resume Builder');
     setMeta('og:description', isWH
       ? 'AI-powered hiring platform. Brief Generator, JD Writer, Pipeline Board and more. Now in early access.'
-      : 'AI that builds, tailors, and lands your next job. ATS scoring, interview coaching, and more.');
+      : 'Build, tailor, and optimize job-winning resumes with AI.');
     setMeta('og:url', isWH ? `${window.location.origin}/enterprises` : window.location.origin);
 
     /* Task #13: swap the favicon (and matching apple-touch / og:image /
@@ -159,6 +156,7 @@ const Index = () => {
        toggling between Individuals/Enterprises (and direct navigation
        between `/` and `/enterprises`) without a page reload. */
     const favHref = isWH ? '/favicon-wisehire.png' : '/favicon.png';
+    const ogImgUrl = isWH ? favHref : 'https://wiseresume.app/og/wiseresume-ai-og.png?v=1';
     const setLinkHref = (id: string, href: string) => {
       const el = document.getElementById(id) as HTMLLinkElement | null;
       if (el && el.getAttribute('href') !== href) el.setAttribute('href', href);
@@ -169,8 +167,8 @@ const Index = () => {
     };
     setLinkHref('app-favicon', favHref);
     setLinkHref('app-favicon-preload', favHref);
-    setMetaContent('app-og-image', favHref);
-    setMetaContent('app-twitter-image', favHref);
+    setMetaContent('app-og-image', ogImgUrl);
+    setMetaContent('app-twitter-image', ogImgUrl);
   }, [mode]);
 
   useEffect(() => {
@@ -181,10 +179,10 @@ const Index = () => {
   }, [navigate]);
 
   useEffect(() => {
-    if (!authLoading && !adminStatusLoading && isAuthenticated && isHR && !isAdmin) {
+    if (!authLoading && isAuthenticated && isHR) {
       navigate('/wisehire/dashboard', { replace: true });
     }
-  }, [adminStatusLoading, authLoading, isAdmin, isAuthenticated, isHR, navigate]);
+  }, [authLoading, isAuthenticated, isHR, navigate]);
 
   useEffect(() => {
     if (searchParams.get('tailor') === '1' && isAuthenticated) {
