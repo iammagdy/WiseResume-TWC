@@ -156,7 +156,7 @@ const Index = () => {
        toggling between Individuals/Enterprises (and direct navigation
        between `/` and `/enterprises`) without a page reload. */
     const favHref = isWH ? '/favicon-wisehire.png' : '/favicon.png';
-    const ogImgUrl = isWH ? favHref : 'https://wiseresume.app/og/wiseresume-ai-og-fixed.png?v=2';
+    const ogImgUrl = isWH ? favHref : 'https://wiseresume.app/wiseresume-og.png?v=3';
     const setLinkHref = (id: string, href: string) => {
       const el = document.getElementById(id) as HTMLLinkElement | null;
       if (el && el.getAttribute('href') !== href) el.setAttribute('href', href);
