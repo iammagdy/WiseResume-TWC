@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { CoverLetterRecord } from '@/hooks/useCoverLetters';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface CoverLetterCardProps {
   letter: CoverLetterRecord;
@@ -25,6 +26,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
   onDelete,
   onMenuOpen,
 }: CoverLetterCardProps) {
+  const { t } = useLocale();
   const x = useMotionValue(0);
   const prefersReducedMotion = useReducedMotion();
   const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
@@ -58,11 +60,11 @@ export const CoverLetterCard = memo(function CoverLetterCard({
   // template_style → user-facing label. Legacy 'minimal' aliases to
   // Classic; null hides the badge so old cards look identical.
   const styleLabels: Record<string, string> = {
-    professional: 'Classic',
-    minimal: 'Classic',
-    modern: 'Modern',
-    compact: 'Compact',
-    creative: 'Creative',
+    professional: t('app.coverLetters.styleClassic', 'Classic'),
+    minimal: t('app.coverLetters.styleClassic', 'Classic'),
+    modern: t('app.coverLetters.styleModern', 'Modern'),
+    compact: t('app.coverLetters.styleCompact', 'Compact'),
+    creative: t('app.coverLetters.styleCreative', 'Creative'),
   };
   const styleLabel = letter.template_style ? styleLabels[letter.template_style] : null;
 
@@ -88,7 +90,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
         >
           <div className="flex items-center gap-2 text-success">
             <Copy className="w-5 h-5" />
-            <span className="font-medium text-sm">Duplicate</span>
+            <span className="font-medium text-sm">{t('common.duplicate', 'Duplicate')}</span>
           </div>
         </motion.div>
         <motion.div
@@ -96,7 +98,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
           style={{ opacity: deleteOpacity }}
         >
           <div className="flex items-center gap-2 text-destructive">
-            <span className="font-medium text-sm">Delete</span>
+            <span className="font-medium text-sm">{t('common.delete', 'Delete')}</span>
             <Trash2 className="w-5 h-5" />
           </div>
         </motion.div>
@@ -138,19 +140,19 @@ export const CoverLetterCard = memo(function CoverLetterCard({
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-foreground truncate">{letter.title || letter.job_title}</h3>
             <p className="text-sm text-muted-foreground truncate">
-              {letter.company || 'No company'} · {safeFormatDistanceToNow(letter.created_at, { addSuffix: true }, '')}
+              {letter.company || t('app.coverLetters.noCompany', 'No company')} · {safeFormatDistanceToNow(letter.created_at, { addSuffix: true }, '')}
             </p>
             {letter.resume_title && (
               <p className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
-                From: {letter.resume_title}
+                {t('app.coverLetters.fromResume', 'From:')} {letter.resume_title}
                 {letter.resume_id === null && (
-                  <span className="ml-1 italic opacity-75">(deleted)</span>
+                  <span className="ml-1 italic opacity-75">({t('app.coverLetters.deleted', 'deleted')})</span>
                 )}
               </p>
             )}
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-5 capitalize', toneColors[letter.tone || 'professional'])}>
-                {letter.tone || 'professional'}
+                {letter.tone || t('app.coverLetters.toneProfessional', 'professional')}
               </Badge>
               {styleLabel && (
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-muted-foreground border-border/60">
@@ -168,7 +170,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
               haptics.light();
               onMenuOpen(letter.id);
             }}
-            aria-label="More options"
+            aria-label={t('common.moreOptions', 'More options')}
           >
             <MoreVertical className="h-5 w-5" />
           </Button>

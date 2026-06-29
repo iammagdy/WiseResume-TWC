@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Check, Clock, Zap } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { useLocale } from '@/i18n/LocaleProvider';
 const ProfileImportSheet = lazyWithRetry(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
 );
@@ -111,6 +112,14 @@ export function CreateResumeDialog({
   defaultTemplateId,
   onLinkedInImport,
 }: CreateResumeDialogProps) {
+  const { t } = useLocale();
+  const LEVEL_TRANSLATION_KEYS: Record<ExperienceLevel, { label: string; desc: string }> = {
+    student: { label: 'createResumeDialog.expStudent', desc: 'createResumeDialog.expStudentDesc' },
+    early: { label: 'createResumeDialog.expEarly', desc: 'createResumeDialog.expEarlyDesc' },
+    mid: { label: 'createResumeDialog.expMid', desc: 'createResumeDialog.expMidDesc' },
+    senior: { label: 'createResumeDialog.expSenior', desc: 'createResumeDialog.expSeniorDesc' },
+    'career-change': { label: 'createResumeDialog.expCareerChange', desc: 'createResumeDialog.expCareerChangeDesc' },
+  };
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPro, isLoading: planLoading } = usePlan();
@@ -469,21 +478,21 @@ export function CreateResumeDialog({
     <Dialog open={open} onOpenChange={resetAndClose}>
       <DialogContent className="max-w-[90vw] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Resume</DialogTitle>
-          <DialogDescription className="sr-only">Choose how you want to create your new resume</DialogDescription>
+          <DialogTitle>{t('createResumeDialog.title', 'Create New Resume')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('createResumeDialog.description', 'Choose how you want to create your new resume')}</DialogDescription>
         </DialogHeader>
 
         {atResumeLimit ? (
           <div className="py-4 space-y-4">
             <UpgradeWall
               requiredPlan="pro"
-              featureName="Multiple Resumes"
-              description="Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more."
+              featureName={t('app.upgradeWall.multipleResumes', 'Multiple Resumes')}
+              description={t('app.upgradeWall.resumeLimitDesc', 'Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more.')}
               features={[
-                'Unlimited resumes for every role & industry',
-                'AI-tailored resume versions in seconds',
-                'Side-by-side resume comparison',
-                'Version history & restore',
+                t('app.upgradeWall.featResumes', 'Unlimited resumes for every role & industry'),
+                t('app.upgradeWall.featTailor', 'AI-tailored resume versions in seconds'),
+                t('app.upgradeWall.featCompare', 'Side-by-side resume comparison'),
+                t('app.upgradeWall.featHistory', 'Version history & restore'),
               ]}
               compact
             />
@@ -491,10 +500,10 @@ export function CreateResumeDialog({
               <div className="border border-dashed border-amber-300 dark:border-amber-700 rounded-xl p-4 space-y-2 bg-amber-50/50 dark:bg-amber-900/10">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Try a second resume free for 24 hours</p>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{t('createResumeDialog.tryTrialOption', 'Try a second resume free for 24 hours')}</p>
                 </div>
                 <p className="text-xs text-amber-700 dark:text-amber-400">
-                  Get a full copy of your resume to experiment with — no credit card needed. It auto-deletes after 24 h.
+                  {t('createResumeDialog.tryTrialDesc', 'Get a full copy of your resume to experiment with — no credit card needed. It auto-deletes after 24 h.')}
                 </p>
                 <Button
                   size="sm"
@@ -508,15 +517,15 @@ export function CreateResumeDialog({
                   ) : (
                     <Zap className="w-3.5 h-3.5" />
                   )}
-                  Try for 24 h — free
+                  {t('createResumeDialog.tryTrial', 'Try for 24 h — free')}
                 </Button>
               </div>
             )}
             {existingTrial && (
               <p className="text-xs text-center text-muted-foreground">
                 {existingTrial.trial_expires_at && new Date(existingTrial.trial_expires_at) > new Date()
-                  ? 'You already have an active 24-hour trial resume on your dashboard.'
-                  : 'Your trial resume is still on your dashboard. Upgrade to keep editing it.'}
+                  ? t('createResumeDialog.trialActive', 'You already have an active 24-hour trial resume on your dashboard.')
+                  : t('createResumeDialog.trialExpired', 'Your trial resume is still on your dashboard. Upgrade to keep editing it.')}
               </p>
             )}
           </div>
@@ -532,8 +541,8 @@ export function CreateResumeDialog({
                 <FileText className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1 text-left">
-                <p className="font-medium">Start from Scratch</p>
-                <p className="text-sm text-muted-foreground">Build step by step with AI</p>
+                <p className="font-medium">{t('createResumeDialog.blankTitle', 'Start from Scratch')}</p>
+                <p className="text-sm text-muted-foreground">{t('createResumeDialog.blankDesc', 'Build step by step with AI')}</p>
               </div>
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
@@ -547,8 +556,8 @@ export function CreateResumeDialog({
                 <Upload className="w-6 h-6 text-secondary" />
               </div>
               <div className="flex-1 text-left">
-                <p className="font-medium">Upload PDF</p>
-                <p className="text-sm text-muted-foreground">Extract and enhance existing resume</p>
+                <p className="font-medium">{t('createResumeDialog.uploadTitle', 'Upload PDF')}</p>
+                <p className="text-sm text-muted-foreground">{t('createResumeDialog.uploadDesc', 'Extract and enhance existing resume')}</p>
               </div>
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
@@ -570,8 +579,8 @@ export function CreateResumeDialog({
                 <Linkedin className="w-6 h-6 text-[#0A66C2]" />
               </div>
               <div className="flex-1 text-left">
-                <p className="font-medium">Import Profile</p>
-                <p className="text-sm text-muted-foreground">LinkedIn, Indeed, Xing & more</p>
+                <p className="font-medium">{t('createResumeDialog.importTitle', 'Import Profile')}</p>
+                <p className="text-sm text-muted-foreground">{t('createResumeDialog.importDesc', 'LinkedIn, Indeed, Xing & more')}</p>
               </div>
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
@@ -585,8 +594,8 @@ export function CreateResumeDialog({
                 <Type className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="flex-1 text-left">
-                <p className="font-medium">Build from Text</p>
-                <p className="text-sm text-muted-foreground">Paste any career notes, bio, or freeform text</p>
+                <p className="font-medium">{t('createResumeDialog.pasteTitle', 'Build from Text')}</p>
+                <p className="text-sm text-muted-foreground">{t('createResumeDialog.pasteDesc', 'Paste any career notes, bio, or freeform text')}</p>
               </div>
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
@@ -601,50 +610,54 @@ export function CreateResumeDialog({
                   <Copy className="w-6 h-6 text-accent" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="font-medium">Duplicate Existing</p>
-                  <p className="text-sm text-muted-foreground">Copy and customize a resume</p>
+                  <p className="font-medium">{t('createResumeDialog.duplicateTitle', 'Duplicate Existing')}</p>
+                  <p className="text-sm text-muted-foreground">{t('createResumeDialog.duplicateDesc', 'Copy and customize a resume')}</p>
                 </div>
                 <ArrowRight className="w-5 h-5 text-muted-foreground" />
               </motion.button>
             )}
-          </div>
-        ) : mode === 'blank' && blankStep === 'intake' ? (
+                ) : mode === 'blank' && blankStep === 'intake' ? (
           /* Guided Intake Step */
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>What's your experience level?</Label>
+              <Label>{t('createResumeDialog.expLabel', "What's your experience level?")}</Label>
               <div className="space-y-2">
-                {EXPERIENCE_LEVELS.map((level) => (
-                  <button
-                    key={level.value}
-                    onClick={() => setExperienceLevel(level.value)}
-                    className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all touch-manipulation ${
-                      experienceLevel === level.value
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border hover:border-primary/40 hover:bg-muted'
-                    }`}
-                  >
-                    <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
-                      experienceLevel === level.value ? 'border-primary' : 'border-muted-foreground/40'
-                    }`}>
-                      {experienceLevel === level.value && (
-                        <span className="w-2 h-2 rounded-full bg-primary block" />
-                      )}
-                    </span>
-                    <div>
-                      <p className="font-medium text-sm">{level.label}</p>
-                      <p className="text-xs text-muted-foreground">{level.description}</p>
-                    </div>
-                  </button>
-                ))}
+                {EXPERIENCE_LEVELS.map((level) => {
+                  const translationKeys = LEVEL_TRANSLATION_KEYS[level.value];
+                  const levelLabel = translationKeys ? t(translationKeys.label, level.label) : level.label;
+                  const levelDesc = translationKeys ? t(translationKeys.desc, level.description) : level.description;
+                  return (
+                    <button
+                      key={level.value}
+                      onClick={() => setExperienceLevel(level.value)}
+                      className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all touch-manipulation ${
+                        experienceLevel === level.value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-border hover:border-primary/40 hover:bg-muted'
+                      }`}
+                    >
+                      <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                        experienceLevel === level.value ? 'border-primary' : 'border-muted-foreground/40'
+                      }`}>
+                        {experienceLevel === level.value && (
+                          <span className="w-2 h-2 rounded-full bg-primary block" />
+                        )}
+                      </span>
+                      <div>
+                        <p className="font-medium text-sm">{levelLabel}</p>
+                        <p className="text-xs text-muted-foreground">{levelDesc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="intake-job-title">Target job title <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label htmlFor="intake-job-title">{t('createResumeDialog.targetJob', 'Target job title')} <span className="text-muted-foreground font-normal">{t('createResumeDialog.optional', '(optional)')}</span></Label>
               <Input
                 id="intake-job-title"
-                placeholder="e.g., Software Engineer, Product Manager"
+                placeholder={t('createResumeDialog.targetJobPlaceholder', 'e.g., Software Engineer, Product Manager')}
                 value={intakeJobTitle}
                 onChange={(e) => setIntakeJobTitle(e.target.value)}
               />
@@ -656,14 +669,14 @@ export function CreateResumeDialog({
                 onClick={() => setMode(null)}
                 className="flex-1"
               >
-                Back
+                {t('createResumeDialog.back', 'Back')}
               </Button>
               <Button
                 onClick={handleIntakeContinue}
                 disabled={!experienceLevel}
                 className="flex-1 gradient-primary"
               >
-                Continue
+                {t('createResumeDialog.continue', 'Continue')}
               </Button>
             </div>
           </div>
@@ -671,8 +684,8 @@ export function CreateResumeDialog({
           /* Template Selection Step */
           <div className="space-y-4 py-4">
             <div>
-              <p className="text-sm font-medium mb-0.5">Pick a template</p>
-              <p className="text-xs text-muted-foreground">You can change this any time in the editor</p>
+              <p className="text-sm font-medium mb-0.5">{t('createResumeDialog.pickTemplate', 'Pick a template')}</p>
+              <p className="text-xs text-muted-foreground">{t('createResumeDialog.changeAnytime', 'You can change this any time in the editor')}</p>
             </div>
 
             <div className="max-h-[52vh] overflow-y-auto -mx-1 px-1">
@@ -710,31 +723,31 @@ export function CreateResumeDialog({
                 onClick={handleBlankBack}
                 className="flex-1"
               >
-                Back
+                {t('createResumeDialog.back', 'Back')}
               </Button>
               <Button
                 onClick={() => setBlankStep('title')}
                 className="flex-1 gradient-primary"
               >
-                Continue
+                {t('createResumeDialog.continue', 'Continue')}
               </Button>
             </div>
-          </div>
+          </div>    </div>
         ) : mode === 'blank' && blankStep === 'title' ? (
           /* Title Step */
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Resume Title</Label>
+              <Label htmlFor="title">{t('createResumeDialog.resumeTitle', 'Resume Title')}</Label>
               <Input
                 id="title"
-                placeholder="e.g., Software Engineer Resume"
+                placeholder={t('createResumeDialog.resumeTitlePlaceholder', 'e.g., Software Engineer Resume')}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) handleStartBlank(); }}
               />
               <p className="text-xs text-muted-foreground">
-                Give your resume a name to identify it later
+                {t('createResumeDialog.identifyLater', 'Give your resume a name to identify it later')}
               </p>
             </div>
 
@@ -744,14 +757,14 @@ export function CreateResumeDialog({
                 onClick={handleBlankBack}
                 className="flex-1"
               >
-                Back
+                {t('createResumeDialog.back', 'Back')}
               </Button>
               <Button
                 onClick={handleStartBlank}
                 disabled={!title.trim() || isCreating}
                 className="flex-1 gradient-primary"
               >
-                {isCreating ? 'Creating...' : 'Create'}
+                {isCreating ? t('createResumeDialog.creating', 'Creating...') : t('createResumeDialog.create', 'Create')}
               </Button>
             </div>
           </div>
@@ -759,13 +772,13 @@ export function CreateResumeDialog({
           /* Duplicate Resume Form */
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Select Resume to Duplicate</Label>
+              <Label>{t('createResumeDialog.selectToDuplicate', 'Select Resume to Duplicate')}</Label>
               <Select
                 value={selectedResumeId}
                 onValueChange={setSelectedResumeId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a resume" />
+                  <SelectValue placeholder={t('createResumeDialog.chooseResume', 'Choose a resume')} />
                 </SelectTrigger>
                 <SelectContent>
                   {existingResumes.map((resume) => (
@@ -783,14 +796,14 @@ export function CreateResumeDialog({
                 onClick={() => setMode(null)}
                 className="flex-1"
               >
-                Back
+                {t('createResumeDialog.back', 'Back')}
               </Button>
               <Button
                 onClick={handleDuplicate}
                 disabled={!selectedResumeId || isCreating}
                 className="flex-1 gradient-primary"
               >
-                {isCreating ? 'Duplicating...' : 'Duplicate'}
+                {isCreating ? t('createResumeDialog.duplicating', 'Duplicating...') : t('createResumeDialog.duplicate', 'Duplicate')}
               </Button>
             </div>
           </div>
@@ -800,42 +813,42 @@ export function CreateResumeDialog({
             <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
               <GitBranch className="w-5 h-5 text-primary" />
               <div>
-                <p className="text-sm font-medium">Creating Tailored Version</p>
+                <p className="text-sm font-medium">{t('createResumeDialog.creatingTailored', 'Creating Tailored Version')}</p>
                 <p className="text-xs text-muted-foreground">
-                  This will be linked to the master resume
+                  {t('createResumeDialog.linkedToMaster', 'This will be linked to the master resume')}
                 </p>
               </div>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="tailored-title">Version Title</Label>
+              <Label htmlFor="tailored-title">{t('createResumeDialog.versionTitle', 'Version Title')}</Label>
               <Input
                 id="tailored-title"
-                placeholder="e.g., Google SWE Application"
+                placeholder={t('createResumeDialog.versionTitlePlaceholder', 'e.g., Google SWE Application')}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">
-                Give this tailored version a descriptive name
+                {t('createResumeDialog.descriptiveName', 'Give this tailored version a descriptive name')}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tailored-job-title">Target Job Title</Label>
+              <Label htmlFor="tailored-job-title">{t('createResumeDialog.targetJobTitle', 'Target Job Title')}</Label>
               <Input
                 id="tailored-job-title"
-                placeholder="e.g., Senior Software Engineer"
+                placeholder={t('createResumeDialog.targetJobTitlePlaceholder', 'e.g., Senior Software Engineer')}
                 value={tailoredJobTitle}
                 onChange={(e) => setTailoredJobTitle(e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tailored-company">Target Company</Label>
+              <Label htmlFor="tailored-company">{t('createResumeDialog.targetCompany', 'Target Company')}</Label>
               <Input
                 id="tailored-company"
-                placeholder="e.g., Google"
+                placeholder={t('createResumeDialog.targetCompanyPlaceholder', 'e.g., Google')}
                 value={tailoredCompany}
                 onChange={(e) => setTailoredCompany(e.target.value)}
               />
@@ -843,17 +856,17 @@ export function CreateResumeDialog({
 
             <div className="space-y-2">
               <Label htmlFor="tailored-jd">
-                Job Description <span className="text-muted-foreground font-normal">(optional)</span>
+                {t('createResumeDialog.jobDescription', 'Job Description')} <span className="text-muted-foreground font-normal">{t('createResumeDialog.optional', '(optional)')}</span>
               </Label>
               <Textarea
                 id="tailored-jd"
-                placeholder="Paste the job description here to enable AI tailoring..."
+                placeholder={t('createResumeDialog.jdPlaceholder', 'Paste the job description here to enable AI tailoring...')}
                 value={tailoredJobDescription}
                 onChange={(e) => setTailoredJobDescription(e.target.value)}
                 className="min-h-[100px] resize-none text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                Adding a job description opens AI tailoring automatically
+                {t('createResumeDialog.jdDesc', 'Adding a job description opens AI tailoring automatically')}
               </p>
             </div>
 
@@ -863,14 +876,14 @@ export function CreateResumeDialog({
                 onClick={resetAndClose}
                 className="flex-1"
               >
-                Cancel
+                {t('createResumeDialog.cancel', 'Cancel')}
               </Button>
               <Button
                 onClick={handleCreateTailored}
                 disabled={!title.trim() || isCreating}
                 className="flex-1 gradient-primary"
               >
-                {isCreating ? 'Creating...' : 'Create Tailored'}
+                {isCreating ? t('createResumeDialog.creating', 'Creating...') : t('createResumeDialog.createTailored', 'Create Tailored')}
               </Button>
             </div>
           </div>
@@ -878,25 +891,25 @@ export function CreateResumeDialog({
           /* Build from Text Form */
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="paste-text">Your career text</Label>
+              <Label htmlFor="paste-text">{t('createResumeDialog.careerText', 'Your career text')}</Label>
               <Textarea
                 id="paste-text"
-                placeholder="Paste anything — job history, a bio, notes, or bullet points. The AI will structure it into a full resume."
+                placeholder={t('createResumeDialog.pastePlaceholder', 'Paste anything — job history, a bio, notes, or bullet points. The AI will structure it into a full resume.')}
                 value={pasteText}
                 onChange={(e) => { setPasteText(e.target.value); setPasteError(null); }}
                 className="min-h-[160px] resize-none text-sm"
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">
-                Works with rough notes, copy-pasted bios, or any career text you have on hand.
+                {t('createResumeDialog.pasteDesc', 'Works with rough notes, copy-pasted bios, or any career text you have on hand.')}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="paste-title">Resume title <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label htmlFor="paste-title">{t('createResumeDialog.resumeTitle', 'Resume title')} <span className="text-muted-foreground font-normal">{t('createResumeDialog.optional', '(optional)')}</span></Label>
               <Input
                 id="paste-title"
-                placeholder="e.g., Software Engineer Resume"
+                placeholder={t('createResumeDialog.resumeTitlePlaceholder', 'e.g., Software Engineer Resume')}
                 value={pasteTitle}
                 onChange={(e) => setPasteTitle(e.target.value)}
               />
@@ -909,7 +922,7 @@ export function CreateResumeDialog({
             {isCreating && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MiniSpinner size={16} />
-                <span>Structuring your career history…</span>
+                <span>{t('createResumeDialog.structuring', 'Structuring your career history…')}</span>
               </div>
             )}
 
@@ -919,7 +932,7 @@ export function CreateResumeDialog({
                 onClick={() => { setMode(null); setPasteError(null); }}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                Back
+                {t('createResumeDialog.back', 'Back')}
               </button>
               <Button
                 onClick={handlePasteCreate}
@@ -929,9 +942,9 @@ export function CreateResumeDialog({
                 {isCreating ? (
                   <>
                     <MiniSpinner size={16} className="mr-2" />
-                    Generating…
+                    {t('createResumeDialog.generating', 'Generating…')}
                   </>
-                ) : 'Generate Resume'}
+                ) : t('createResumeDialog.generateResume', 'Generate Resume')}
               </Button>
             </div>
           </div>

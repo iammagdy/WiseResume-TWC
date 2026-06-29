@@ -59,8 +59,8 @@ describe('DashboardPage implementation', () => {
     const source = fs.readFileSync(sourcePath, 'utf-8');
     
     // Verify the CTA exists with expected attributes
-    expect(source).toContain('aria-label="Create new resume"');
-    expect(source).toContain('New Resume');
+    expect(source).toContain("t('app.dashboardPage.newResume', 'Create new resume')");
+    expect(source).toContain("t('app.dashboardPage.newResume', 'New Resume')");
     expect(source).toContain('setShowCreateDialog(true)');
     
     // Verify it uses the existing create flow

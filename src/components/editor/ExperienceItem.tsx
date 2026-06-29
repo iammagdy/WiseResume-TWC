@@ -11,6 +11,7 @@ import { AIContextualNudge } from './AIContextualNudge';
 import { formatDateRange, calculateDuration, isReversedDateRange } from '@/lib/dateUtils';
 import { NudgeState } from '@/hooks/useResumeNudges';
 import { MonthYearPicker } from './MonthYearPicker';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface ExperienceItemProps {
   exp: Experience;
@@ -43,6 +44,7 @@ export const ExperienceItem = memo(function ExperienceItem({
   onAIAction,
   onDismissNudge,
 }: ExperienceItemProps) {
+  const { t, locale } = useLocale();
   const handleToggleExpand = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleExpand(exp.id);
@@ -118,7 +120,7 @@ export const ExperienceItem = memo(function ExperienceItem({
             disabled={index === 0}
             onClick={handleMoveUp}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
-            aria-label="Move up"
+            aria-label={t('common.moveUp', 'Move up')}
           >
             <ArrowUp className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -127,7 +129,7 @@ export const ExperienceItem = memo(function ExperienceItem({
             disabled={index === totalLength - 1}
             onClick={handleMoveDown}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
-            aria-label="Move down"
+            aria-label={t('common.moveDown', 'Move down')}
           >
             <ArrowDown className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -138,11 +140,11 @@ export const ExperienceItem = memo(function ExperienceItem({
         >
           <div className="text-left flex-1 min-w-0 pr-3">
             <p className="font-semibold text-base sm:text-sm truncate" title={exp.position || undefined}>
-              {exp.position || `Position ${index + 1}`}
+              {exp.position || t('editor.experience.positionDefault', 'Position {{index}}', { index: index + 1 })}
             </p>
             <p className="text-sm text-muted-foreground truncate" title={exp.company || undefined}>
-              {exp.company || 'Company name'}
-              {exp.account && <span className="text-muted-foreground/70"> ({exp.account} Account)</span>}
+              {exp.company || t('editor.experience.companyDefault', 'Company name')}
+              {exp.account && <span className="text-muted-foreground/70"> {t('editor.experience.accountSuffix', '({{account}} Account)', { account: exp.account })}</span>}
             </p>
             {(exp.startDate || exp.endDate || exp.current) && (
               <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-center gap-1">
@@ -176,7 +178,7 @@ export const ExperienceItem = memo(function ExperienceItem({
               <div className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-warning-foreground mt-3">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-warning" />
                 <p className="text-xs leading-snug">
-                  <span className="font-medium">Missing key details:</span> Adding a position title and start date helps AI features work better and prevents empty entries in your PDF export.
+                  <span className="font-medium">{t('editor.contact.missingDetailsTitle', 'Missing key details:')}</span> {t('editor.experience.missingDetails', 'Adding a position title and start date helps AI features work better and prevents empty entries in your PDF export.')}
                 </p>
               </div>
             )}
@@ -184,14 +186,14 @@ export const ExperienceItem = memo(function ExperienceItem({
               <div>
                 <Label htmlFor={`exp-${exp.id}-position`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Briefcase className="w-4 h-4" />
-                  Position
+                  {t('editor.experience.positionLabel', 'Position')}
                 </Label>
                 <Input
                   id={`exp-${exp.id}-position`}
                   value={exp.position}
                   onChange={handlePositionChange}
                   onBlur={handleFieldBlur}
-                  placeholder="Job Title"
+                  placeholder={t('editor.experience.positionPlaceholder', 'Job Title')}
                   className="h-12"
                   autoComplete="organization-title"
                 />
@@ -199,13 +201,13 @@ export const ExperienceItem = memo(function ExperienceItem({
               <div>
                 <Label htmlFor={`exp-${exp.id}-company`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Building2 className="w-4 h-4" />
-                  Company
+                  {t('editor.experience.companyLabel', 'Company')}
                 </Label>
                 <Input
                   id={`exp-${exp.id}-company`}
                   value={exp.company}
                   onChange={handleCompanyChange}
-                  placeholder="Company Name"
+                  placeholder={t('editor.experience.companyPlaceholder', 'Company Name')}
                   className="h-12"
                   autoComplete="organization"
                 />
@@ -215,13 +217,13 @@ export const ExperienceItem = memo(function ExperienceItem({
             <div>
               <Label htmlFor={`exp-${exp.id}-account`} className="text-sm flex items-center gap-1.5 mb-2">
                 <Building2 className="w-4 h-4 text-muted-foreground" />
-                Account / Client (optional)
+                {t('editor.experience.accountLabel', 'Account / Client (optional)')}
               </Label>
               <Input
                 id={`exp-${exp.id}-account`}
                 value={exp.account || ''}
                 onChange={handleAccountChange}
-                placeholder="e.g., Verizon, AT&T — the client you served at this company"
+                placeholder={t('editor.experience.accountPlaceholder', 'e.g., Verizon, AT&T — the client you served at this company')}
                 className="h-12"
                 autoComplete="off"
               />
@@ -231,7 +233,7 @@ export const ExperienceItem = memo(function ExperienceItem({
               <div role="group" aria-labelledby={`exp-${exp.id}-start-label`}>
                 <Label id={`exp-${exp.id}-start-label`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Calendar className="w-4 h-4" />
-                  Start Date
+                  {t('editor.experience.startDate', 'Start Date')}
                 </Label>
                 <MonthYearPicker
                   value={exp.startDate}
@@ -241,11 +243,11 @@ export const ExperienceItem = memo(function ExperienceItem({
               <div role="group" aria-labelledby={`exp-${exp.id}-end-label`}>
                 <Label id={`exp-${exp.id}-end-label`} className="text-sm flex items-center gap-1.5 mb-2">
                   <Calendar className="w-4 h-4" />
-                  End Date
+                  {t('editor.experience.endDate', 'End Date')}
                 </Label>
                 {exp.current ? (
                   <div className="h-11 flex items-center px-3 rounded-md border border-input bg-muted text-sm text-muted-foreground">
-                    Present
+                    {t('editor.experience.present', 'Present')}
                   </div>
                 ) : (
                   <MonthYearPicker
@@ -260,7 +262,7 @@ export const ExperienceItem = memo(function ExperienceItem({
             {isReversedDateRange(exp.startDate, exp.endDate, exp.current) && (
               <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                End date is before the start date — check this range before exporting.
+                {t('editor.experience.reversedDates', 'End date is before the start date — check this range before exporting.')}
               </p>
             )}
 
@@ -269,12 +271,12 @@ export const ExperienceItem = memo(function ExperienceItem({
                 checked={exp.current}
                 onCheckedChange={handleCurrentChange}
               />
-              <Label className="text-sm">Currently working here</Label>
+              <Label className="text-sm">{t('editor.experience.currentSwitch', 'Currently working here')}</Label>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-sm">Description</Label>
+                <Label className="text-sm">{t('editor.experience.descriptionLabel', 'Description')}</Label>
                 <InlineAIButton
                   section="experience"
                   onAction={handleInlineAIAction}
@@ -285,21 +287,21 @@ export const ExperienceItem = memo(function ExperienceItem({
               </div>
               {!exp.description?.trim() && (
                 <p className="text-xs text-muted-foreground mb-2 leading-snug">
-                  Tip: Start each line with an action verb — e.g. &ldquo;Led&rdquo;, &ldquo;Built&rdquo;, &ldquo;Improved&rdquo; — and include a result or metric where possible.
+                  {t('editor.experience.descriptionTip', 'Tip: Start each line with an action verb — e.g. "Led", "Built", "Improved" — and include a result or metric where possible.')}
                 </p>
               )}
               <Textarea
                 dir="auto"
                 value={exp.description}
                 onChange={handleDescriptionChange}
-                placeholder="Describe your responsibilities and achievements..."
+                placeholder={t('editor.experience.descriptionPlaceholder', 'Describe your responsibilities and achievements...')}
                 className="min-h-[120px] resize-none text-base"
               />
               {hasBracketPlaceholders && (
                 <div className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-warning-foreground mt-2">
                   <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-warning" />
                   <p className="text-xs leading-snug">
-                    <span className="font-medium">Fill in your real numbers:</span> The AI left placeholders like <span className="font-mono bg-warning/20 px-0.5 rounded">[X%]</span> or <span className="font-mono bg-warning/20 px-0.5 rounded">[~$X]</span> where it couldn't find your actual metrics. Replace each one with your real figures before submitting your resume.
+                    <span className="font-medium">{t('editor.contact.fillRealNumbersTitle', 'Fill in your real numbers:')}</span> {t('editor.contact.fillRealNumbersBody', "The AI left placeholders like [X%] or [~$X] where it couldn't find your actual metrics. Replace each one with your real figures before submitting your resume.")}
                   </p>
                 </div>
               )}
@@ -329,7 +331,7 @@ export const ExperienceItem = memo(function ExperienceItem({
                 className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 w-full sm:w-auto min-h-[44px]"
               >
                 <Trash2 className="w-4 h-4" />
-                Remove
+                {t('common.delete', 'Delete')}
               </Button>
             </div>
           </div>

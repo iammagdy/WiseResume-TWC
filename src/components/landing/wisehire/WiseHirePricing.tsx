@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Star, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const ENTRY_DIRS = [
   { x: -100, y: 80 },
@@ -31,75 +32,76 @@ function makeItemVariant(i: number, reduced: boolean | null) {
   };
 }
 
-const tiers = [
-  {
-    name: 'Starter',
-    price: '$49',
-    period: '/mo',
-    tagline: 'For small teams getting started with AI hiring',
-    highlight: false,
-    features: [
-      '5 active roles',
-      '50 candidate briefs / month',
-      'AI Brief Generator',
-      'JD Writer',
-      'Pipeline Board',
-      'Email support',
-    ],
-  },
-  {
-    name: 'Professional',
-    price: '$149',
-    period: '/mo',
-    tagline: 'For growing teams that hire continuously',
-    highlight: true,
-    features: [
-      '25 active roles',
-      '250 candidate briefs / month',
-      'Everything in Starter',
-      'Bulk CV Screening',
-      'Priority support',
-      'Team collaboration (up to 5 seats)',
-    ],
-  },
-  {
-    name: 'Business',
-    price: '$399',
-    period: '/mo',
-    tagline: 'For high-volume hiring across the organisation',
-    highlight: false,
-    features: [
-      'Unlimited active roles',
-      '1,000 candidate briefs / month',
-      'Everything in Professional',
-      'Talent Pool',
-      'API access',
-      'Dedicated Customer Success',
-    ],
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    tagline: 'Tailored to your organisation\'s scale and security requirements',
-    highlight: false,
-    features: [
-      'Unlimited everything',
-      'Custom AI training on your roles',
-      'SSO / SCIM provisioning',
-      'Custom integrations (ATS, HRIS)',
-      'SLA & uptime guarantee',
-      'Enterprise support & MSA',
-    ],
-  },
-];
-
 interface WiseHirePricingProps {
   onOpenWaitlist: () => void;
 }
 
 export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
+  const { t } = useLocale();
   const prefersReducedMotion = useReducedMotion();
+
+  const tiers = [
+    {
+      name: t('wisehire.pricing.starter.name', 'Starter'),
+      price: '$49',
+      period: t('wisehire.pricing.perMonth', '/mo'),
+      tagline: t('wisehire.pricing.starter.tagline', 'For small teams getting started with AI hiring'),
+      highlight: false,
+      features: [
+        t('wisehire.pricing.starter.f1', '5 active roles'),
+        t('wisehire.pricing.starter.f2', '50 candidate briefs / month'),
+        t('wisehire.pricing.starter.f3', 'AI Brief Generator'),
+        t('wisehire.pricing.starter.f4', 'JD Writer'),
+        t('wisehire.pricing.starter.f5', 'Pipeline Board'),
+        t('wisehire.pricing.starter.f6', 'Email support'),
+      ],
+    },
+    {
+      name: t('wisehire.pricing.professional.name', 'Professional'),
+      price: '$149',
+      period: t('wisehire.pricing.perMonth', '/mo'),
+      tagline: t('wisehire.pricing.professional.tagline', 'For growing teams that hire continuously'),
+      highlight: true,
+      features: [
+        t('wisehire.pricing.professional.f1', '25 active roles'),
+        t('wisehire.pricing.professional.f2', '250 candidate briefs / month'),
+        t('wisehire.pricing.professional.f3', 'Everything in Starter'),
+        t('wisehire.pricing.professional.f4', 'Bulk CV Screening'),
+        t('wisehire.pricing.professional.f5', 'Priority support'),
+        t('wisehire.pricing.professional.f6', 'Team collaboration (up to 5 seats)'),
+      ],
+    },
+    {
+      name: t('wisehire.pricing.business.name', 'Business'),
+      price: '$399',
+      period: t('wisehire.pricing.perMonth', '/mo'),
+      tagline: t('wisehire.pricing.business.tagline', 'For high-volume hiring across the organisation'),
+      highlight: false,
+      features: [
+        t('wisehire.pricing.business.f1', 'Unlimited active roles'),
+        t('wisehire.pricing.business.f2', '1,000 candidate briefs / month'),
+        t('wisehire.pricing.business.f3', 'Everything in Professional'),
+        t('wisehire.pricing.business.f4', 'Talent Pool'),
+        t('wisehire.pricing.business.f5', 'API access'),
+        t('wisehire.pricing.business.f6', 'Dedicated Customer Success'),
+      ],
+    },
+    {
+      name: t('wisehire.pricing.enterprise.name', 'Enterprise'),
+      price: t('wisehire.pricing.enterprise.price', 'Custom'),
+      period: '',
+      tagline: t('wisehire.pricing.enterprise.tagline', "Tailored to your organisation's scale and security requirements"),
+      highlight: false,
+      features: [
+        t('wisehire.pricing.enterprise.f1', 'Unlimited everything'),
+        t('wisehire.pricing.enterprise.f2', 'Custom AI training on your roles'),
+        t('wisehire.pricing.enterprise.f3', 'SSO / SCIM provisioning'),
+        t('wisehire.pricing.enterprise.f4', 'Custom integrations (ATS, HRIS)'),
+        t('wisehire.pricing.enterprise.f5', 'SLA & uptime guarantee'),
+        t('wisehire.pricing.enterprise.f6', 'Enterprise support & MSA'),
+      ],
+    },
+  ];
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
@@ -135,13 +137,13 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
               transition: 'color 0.35s ease',
             }}
           >
-            Simple, transparent pricing
+            {t('wisehire.pricing.heading', 'Simple, transparent pricing')}
           </h2>
           <p
             className="max-w-md mx-auto text-sm"
             style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
           >
-            Join the waitlist now for early access pricing — locked in for life.
+            {t('wisehire.pricing.subheading', 'Join the waitlist now for early access pricing — locked in for life.')}
           </p>
           <div
             className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full"
@@ -152,7 +154,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
           >
             <Zap className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)' }} />
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--lp-eyebrow)' }}>
-              Early Access — 40% off all tiers for waitlist members
+              {t('wisehire.pricing.earlyAccessBadge', 'Early Access — 40% off all tiers for waitlist members')}
             </span>
           </div>
         </motion.div>
@@ -195,7 +197,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                   letterSpacing: '0.05em',
                 }}
               >
-                Early Access
+                {t('wisehire.pricing.earlyAccessLabel', 'Early Access')}
               </div>
 
               <p
@@ -229,14 +231,14 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <Star className="w-3 h-3" /> Most Popular
+                  <Star className="w-3 h-3" /> {t('wisehire.pricing.mostPopular', 'Most Popular')}
                 </div>
               )}
 
               <div className="flex items-baseline gap-1 mb-2">
                 <span
                   style={{
-                    fontSize: tier.price === 'Custom' ? '1.6rem' : '2rem',
+                    fontSize: tier.price === t('wisehire.pricing.enterprise.price', 'Custom') ? '1.6rem' : '2rem',
                     fontWeight: 800,
                     color: 'var(--lp-text)',
                     letterSpacing: '-0.03em',
@@ -281,7 +283,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 ))}
               </ul>
 
-              {tier.name === 'Enterprise' ? (
+              {tier.name === t('wisehire.pricing.enterprise.name', 'Enterprise') ? (
                 <Link
                   to="/enterprise"
                   className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--lp-eyebrow)]"
@@ -301,7 +303,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                     textDecoration: 'none',
                   }}
                 >
-                  Learn More
+                  {t('wisehire.pricing.learnMore', 'Learn More')}
                 </Link>
               ) : (
                 <motion.button
@@ -323,7 +325,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                   whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  Join the Waitlist
+                  {t('wisehire.pricing.joinWaitlist', 'Join the Waitlist')}
                 </motion.button>
               )}
             </motion.div>

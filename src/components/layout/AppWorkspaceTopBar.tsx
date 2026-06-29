@@ -7,6 +7,7 @@ import { useWiseWorkspaceStore } from '@/store/wiseWorkspaceStore';
 import { getPageTitle } from '@/lib/pageTitles';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface AppWorkspaceTopBarProps {
   onImportJob: () => void;
@@ -15,6 +16,7 @@ interface AppWorkspaceTopBarProps {
 
 /** Global utility bar: page context + import, Wise AI, theme. */
 export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBarProps) {
+  const { t } = useLocale();
   const { pathname } = useLocation();
   const { isDark, toggleTheme } = useTheme();
   const toggleWiseChat = useWiseWorkspaceStore((s) => s.toggleChat);
@@ -23,6 +25,27 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
 
   const pageTitle = getPageTitle(pathname) ?? 'WiseResume';
   const showPlanBadge = !planLoading && (plan === 'premium' || plan === 'pro');
+
+  const keyMap: Record<string, string> = {
+    'Dashboard': 'app.dashboard',
+    'Editor': 'common.editor',
+    'AI Tools': 'app.aiStudioNavLabel',
+    'Tailoring Hub': 'app.tailoringHub',
+    'Activity': 'app.applications',
+    'Portfolio': 'app.portfolio',
+    'Settings': 'app.settings',
+    'Profile': 'app.profile',
+    'Notifications': 'app.notifications',
+    'Templates': 'app.templates',
+    'Examples': 'app.examples',
+    'Guides': 'app.guides',
+    'Help': 'app.help',
+    'Analytics': 'app.analytics',
+    'Subscription': 'app.subscription',
+    'Invite Friends': 'app.referral',
+    'Achievements': 'app.achievements',
+  };
+  const translatedTitle = keyMap[pageTitle] ? t(keyMap[pageTitle]) : pageTitle;
 
   return (
     <header
@@ -53,10 +76,10 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80 leading-none">
-              Workspace
+              {t('app.workspace', 'Workspace')}
             </p>
             <h2 className="text-sm lg:text-base font-semibold text-foreground truncate leading-tight mt-1">
-              {pageTitle}
+              {translatedTitle}
             </h2>
             {showPlanBadge && (
               <span
@@ -68,7 +91,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
                 )}
               >
                 <Crown className="w-3 h-3 shrink-0" aria-hidden />
-                {plan === 'premium' ? 'Premium' : 'Pro'}
+                {plan === 'premium' ? t('app.membershipPremiumBadge', 'Premium') : t('app.membershipProBadge', 'Pro')}
               </span>
             )}
           </div>
@@ -96,7 +119,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
           >
             <Briefcase className="w-4 h-4 shrink-0 sm:hidden" aria-hidden />
             <Plus className="w-4 h-4 shrink-0 hidden sm:block" aria-hidden />
-            <span className="hidden sm:inline leading-none">Import Job</span>
+            <span className="hidden sm:inline leading-none">{t('app.topBar.importJob', 'Import Job')}</span>
           </button>
 
           <span className="w-px h-6 bg-border/60 hidden sm:block" aria-hidden />
@@ -115,16 +138,16 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               wiseChatOpen &&
                 'border-primary/45 bg-primary/12 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]',
             )}
-            aria-label={wiseChatOpen ? 'Close Wise AI' : 'Ask Wise AI'}
+            aria-label={wiseChatOpen ? t('app.topBar.closeWiseAI', 'Close Wise AI') : t('app.topBar.askWiseAI', 'Ask Wise AI')}
             aria-pressed={wiseChatOpen}
           >
             <span className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 shrink-0">
               <MessageCircle className="w-3.5 h-3.5 text-primary" aria-hidden />
             </span>
             <span className="hidden md:inline bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent font-semibold">
-              Wise AI
+              {t('app.topBar.wiseAI', 'Wise AI')}
             </span>
-            <span className="md:hidden font-semibold text-primary">AI</span>
+            <span className="md:hidden font-semibold text-primary">{t('app.topBar.wiseAIShort', 'AI')}</span>
           </button>
 
           <button
@@ -137,7 +160,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               'inline-flex items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
               'text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation',
             )}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={isDark ? t('app.topBar.switchToLight', 'Switch to light mode') : t('app.topBar.switchToDark', 'Switch to dark mode')}
           >
             <span className="relative flex items-center justify-center w-4 h-4">
               <Sun

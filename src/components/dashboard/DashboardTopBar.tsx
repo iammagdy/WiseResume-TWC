@@ -4,6 +4,7 @@ import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const DashboardUploadWidget = lazyWithRetry(() =>
   import('@/components/dashboard/DashboardUploadWidget').then((m) => ({
@@ -27,6 +28,8 @@ export const DashboardTopBar = memo(function DashboardTopBar({
   compact = false,
   className,
 }: DashboardTopBarProps) {
+  const { t } = useLocale();
+
   return (
     <header
       className={cn(
@@ -34,11 +37,13 @@ export const DashboardTopBar = memo(function DashboardTopBar({
         compact ? 'pt-3 pb-1 gap-2' : 'pt-5 pb-2 gap-4 sm:items-end',
         className,
       )}
-      aria-label="Dashboard overview"
+      aria-label={t('app.dashboardTopBar.ariaLabel', 'Dashboard overview')}
     >
       <div className="min-w-0 flex-1">
         {compact && (
-          <p className="dashboard-workspace-eyebrow mb-1">Resume workspace</p>
+          <p className="dashboard-workspace-eyebrow mb-1">
+            {t('app.dashboardTopBar.resumeWorkspace', 'Resume workspace')}
+          </p>
         )}
         <h1
           data-dashboard-heading
@@ -49,11 +54,13 @@ export const DashboardTopBar = memo(function DashboardTopBar({
               : 'text-[clamp(1.65rem,5vw,2.25rem)] leading-[1.08]',
           )}
         >
-          {compact ? 'Your resumes, prioritized' : 'Make your next application stronger.'}
+          {compact 
+            ? t('app.dashboardTopBar.resumesPrioritized', 'Your resumes, prioritized') 
+            : t('app.dashboardTopBar.applicationStronger', 'Make your next application stronger.')}
         </h1>
         {!compact && (
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl mt-2">
-            Track your resumes, improve ATS score, and continue from the highest-impact action first.
+            {t('app.dashboardTopBar.trackResumesDescription', 'Track your resumes, improve ATS score, and continue from the highest-impact action first.')}
           </p>
         )}
       </div>
@@ -86,7 +93,9 @@ export const DashboardTopBar = memo(function DashboardTopBar({
           }}
         >
           <Wand2 className="w-4 h-4 shrink-0" />
-          {hasResumes ? 'Optimize Resume' : 'Get Started'}
+          {hasResumes 
+            ? t('app.dashboardTopBar.optimizeResume', 'Optimize Resume') 
+            : t('app.dashboardTopBar.getStarted', 'Get Started')}
         </Button>
       </div>
     </header>

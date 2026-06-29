@@ -8,7 +8,8 @@ import { LandingToggle } from '@/components/landing/LandingToggle';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { heroContainerVariants, heroItemVariants } from '@/components/landing/landingAnimations';
 import { TypewriterHeadlineLine } from '@/components/landing/TypewriterHeadlineLine';
-import { useTypewriterWord, TYPEWRITER_WORDS } from '@/hooks/useTypewriter';
+import { useTypewriterWord } from '@/hooks/useTypewriter';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 function HeroParallaxGlow({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -56,7 +57,18 @@ export function WiseResumeHero({
   mode, prefersReducedMotion, themeLogo, isAuthenticated, heroRef, onModeChange, onCTA,
 }: WiseResumeHeroProps) {
   const navigate = useNavigate();
-  const typewriterWord = useTypewriterWord(TYPEWRITER_WORDS);
+  const { locale, t } = useLocale();
+
+  const typewriterWords = [
+    t('landing.typewriterWords.word0', 'Senior Developer'),
+    t('landing.typewriterWords.word1', 'Product Manager'),
+    t('landing.typewriterWords.word2', 'Data Analyst'),
+    t('landing.typewriterWords.word3', 'UX Designer'),
+    t('landing.typewriterWords.word4', 'Data Engineer'),
+    t('landing.typewriterWords.word5', 'Marketing Lead'),
+  ];
+
+  const typewriterWord = useTypewriterWord(typewriterWords);
   const [navigating, setNavigating] = useState(false);
 
   return (
@@ -113,7 +125,7 @@ export function WiseResumeHero({
             }}
           >
             <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-              Stand out as a
+              {t('landing.standOutAsA', 'Stand out as a')}
             </span>
             <TypewriterHeadlineLine word={typewriterWord} showCursor />
           </motion.h1>
@@ -129,7 +141,7 @@ export function WiseResumeHero({
               maxWidth: 500,
             }}
           >
-            AI that builds, tailors, and lands your next job.
+            {t('landing.heroSubheading', 'AI that builds, tailors, and lands your next job.')}
           </motion.p>
 
           {/* CTA */}
@@ -151,8 +163,8 @@ export function WiseResumeHero({
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 data-track="hero-go-to-dashboard"
               >
-                Go to Dashboard
-                <ArrowRight className="w-4 h-4" />
+                {t('landing.goToDashboard', 'Go to Dashboard')}
+                <ArrowRight className="w-4 h-4" style={{ transform: locale === 'ar' ? 'rotate(180deg)' : undefined }} />
               </motion.button>
             ) : (
               <motion.button
@@ -164,8 +176,8 @@ export function WiseResumeHero({
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 data-track="hero-get-started-free"
               >
-                Get Started Free
-                <ArrowRight className="w-4 h-4" />
+                {t('landing.getStartedFree', 'Get Started Free')}
+                <ArrowRight className="w-4 h-4" style={{ transform: locale === 'ar' ? 'rotate(180deg)' : undefined }} />
               </motion.button>
             )}
           </motion.div>
@@ -175,7 +187,11 @@ export function WiseResumeHero({
             variants={heroItemVariants}
             className="mt-6 sm:mt-8 text-xs lp-trust-badges"
           >
-            {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
+            {[
+              t('landing.freeToStart', 'Free to start'),
+              t('landing.noCreditCard', 'No credit card'),
+              t('landing.aiPowered', 'AI-powered'),
+            ].map((item) => (
               <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
                 <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
                 {item}

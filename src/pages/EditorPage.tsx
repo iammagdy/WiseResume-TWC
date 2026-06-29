@@ -87,7 +87,9 @@ import { EditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useTierGate } from '@/hooks/useTierGate';
 import { UpgradeDialog } from '@/components/plan/UpgradeDialog';
 import { useChatTriggerStore } from '@/store/chatTriggerStore';
+import { useLocale } from '@/i18n/LocaleProvider';
 export default function EditorPage() {
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
@@ -150,10 +152,14 @@ export default function EditorPage() {
   // Read ?id= or ?resumeId= from the URL and seed the store on first mount.
   // This lets users deep-link directly to /editor?id=<uuid> without a prior
   // dashboard visit that would normally call setCurrentResumeId.
+  // As a fallback, if no URL param and no resume is active, use the user's
+  // defaultResumeId so clicking "Editor" in the sidebar always opens a resume.
   useEffect(() => {
     const urlId = searchParams.get('id') ?? searchParams.get('resumeId');
     if (urlId && urlId !== currentResumeId) {
       setCurrentResumeId(urlId);
+    } else if (!urlId && !currentResumeId && defaultResumeId) {
+      setCurrentResumeId(defaultResumeId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -913,30 +919,30 @@ export default function EditorPage() {
   const steps = useMemo(() => {
     const base = educationFirst
       ? [
-          { id: 'contact', label: 'Contact' },
-          { id: 'summary', label: 'Summary' },
-          { id: 'education', label: 'Education' },
-          { id: 'experience', label: 'Experience' },
-          { id: 'skills', label: 'Skills' },
+          { id: 'contact', label: t('editor.sections.contact', 'Contact') },
+          { id: 'summary', label: t('editor.sections.summary', 'Summary') },
+          { id: 'education', label: t('editor.sections.education', 'Education') },
+          { id: 'experience', label: t('editor.sections.experience', 'Experience') },
+          { id: 'skills', label: t('editor.sections.skills', 'Skills') },
         ]
       : [
-          { id: 'contact', label: 'Contact' },
-          { id: 'summary', label: 'Summary' },
-          { id: 'experience', label: 'Experience' },
-          { id: 'education', label: 'Education' },
-          { id: 'skills', label: 'Skills' },
+          { id: 'contact', label: t('editor.sections.contact', 'Contact') },
+          { id: 'summary', label: t('editor.sections.summary', 'Summary') },
+          { id: 'experience', label: t('editor.sections.experience', 'Experience') },
+          { id: 'education', label: t('editor.sections.education', 'Education') },
+          { id: 'skills', label: t('editor.sections.skills', 'Skills') },
         ];
 
     // Optional sections — only appear in the sidebar when the user has added data
     const OPTIONAL_SECTIONS: { id: string; label: string; hasData: (r: typeof currentResume) => boolean }[] = [
-      { id: 'certifications', label: 'Certifications', hasData: r => (r?.certifications?.length ?? 0) > 0 },
-      { id: 'languages',      label: 'Languages',      hasData: r => (r?.languages?.length ?? 0) > 0 },
-      { id: 'awards',         label: 'Awards',         hasData: r => (r?.awards?.length ?? 0) > 0 },
-      { id: 'publications',   label: 'Publications',   hasData: r => (r?.publications?.length ?? 0) > 0 },
-      { id: 'volunteering',   label: 'Volunteering',   hasData: r => (r?.volunteering?.length ?? 0) > 0 },
-      { id: 'projects',       label: 'Projects',       hasData: r => (r?.projects?.length ?? 0) > 0 },
-      { id: 'hobbies',        label: 'Hobbies',        hasData: r => (r?.hobbies?.length ?? 0) > 0 },
-      { id: 'references',     label: 'References',     hasData: r => (r?.references?.length ?? 0) > 0 },
+      { id: 'certifications', label: t('editor.sections.certifications', 'Certifications'), hasData: r => (r?.certifications?.length ?? 0) > 0 },
+      { id: 'languages',      label: t('editor.sections.languages', 'Languages'),      hasData: r => (r?.languages?.length ?? 0) > 0 },
+      { id: 'awards',         label: t('editor.sections.awards', 'Awards'),         hasData: r => (r?.awards?.length ?? 0) > 0 },
+      { id: 'publications',   label: t('editor.sections.publications', 'Publications'),   hasData: r => (r?.publications?.length ?? 0) > 0 },
+      { id: 'volunteering',   label: t('editor.sections.volunteering', 'Volunteering'),   hasData: r => (r?.volunteering?.length ?? 0) > 0 },
+      { id: 'projects',       label: t('editor.sections.projects', 'Projects'),       hasData: r => (r?.projects?.length ?? 0) > 0 },
+      { id: 'hobbies',        label: t('editor.sections.hobbies', 'Hobbies'),        hasData: r => (r?.hobbies?.length ?? 0) > 0 },
+      { id: 'references',     label: t('editor.sections.references', 'References'),     hasData: r => (r?.references?.length ?? 0) > 0 },
     ];
 
     for (const sec of OPTIONAL_SECTIONS) {
@@ -945,9 +951,9 @@ export default function EditorPage() {
       }
     }
 
-    base.push({ id: 'more', label: 'More' });
+    base.push({ id: 'more', label: t('editor.sections.more', 'More') });
     return base;
-  }, [educationFirst, currentResume]);
+  }, [educationFirst, currentResume, locale]);
 
   // availableMoreCount = how many optional sections have not yet been added (no data yet).
   // Used to show a badge/count on the "More" button in the sidebar.
@@ -1184,11 +1190,14 @@ export default function EditorPage() {
   // handleCustomizeApply removed — StyleCustomizationPanel patches via updateResume directly
 
   // === GUARDS (all inline, no effects — deterministic) ===
+  const urlId = searchParams.get('id') ?? searchParams.get('resumeId');
+  const targetId = urlId || currentResumeId || defaultResumeId;
+
   if (authLoading) return <EditorSkeleton />;
   if (!storeHydrated) return <EditorSkeleton />;
-  if (!currentResumeId && !currentResume) return <Navigate to="/dashboard" replace />;
+  if (!targetId && !currentResume) return <Navigate to="/dashboard" replace />;
   if (!currentResume && isValidating) return <EditorSkeleton />;
-  if (!currentResume && !resumeFromDb) return <EditorSkeleton />;
+  if (!currentResume && !resumeFromDb) return <Navigate to="/dashboard" replace />;
   if (!currentResume) return <EditorSkeleton />;
   // === Past this point, currentResume is guaranteed non-null ===
 
@@ -1266,7 +1275,7 @@ export default function EditorPage() {
         <div className="shrink-0 flex items-center gap-2 px-4 py-1 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-300 dark:border-amber-700" style={{ minHeight: 36 }}>
           <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
           <span className="text-xs text-amber-800 dark:text-amber-300 flex-1 truncate">
-            This is your <strong>default resume</strong> — edits apply directly. Use <em>Tailor</em> to create a safe copy for a specific job.
+            {t('editor.defaultResumeBanner', 'This is your default resume — edits apply directly. Use Tailor to create a safe copy for a specific job.')}
           </span>
         </div>
       )}
@@ -1276,14 +1285,14 @@ export default function EditorPage() {
         <div className="shrink-0 flex items-center gap-2 px-4 py-1 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800" style={{ minHeight: 36 }}>
           <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
           <span className="text-xs text-amber-800 dark:text-amber-300 flex-1 truncate">
-            Trial resume — expires in {Math.max(1, Math.ceil((new Date(resumeFromDb.trial_expires_at).getTime() - Date.now()) / (1000 * 60 * 60)))}h. Saving your first edit will end the trial period.
+            {t('editor.trialResumeBanner', 'Trial resume — expires in {{hours}}h. Saving your first edit will end the trial period.', { hours: Math.max(1, Math.ceil((new Date(resumeFromDb.trial_expires_at).getTime() - Date.now()) / (1000 * 60 * 60))) })}
           </span>
           <button
             onClick={() => navigate('/subscription')}
-            aria-label="Upgrade your plan to keep this resume forever"
+            aria-label={t('editor.upgradeToKeepForeverAria', 'Upgrade your plan to keep this resume forever')}
             className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
-            Upgrade to keep forever →
+            {t('editor.upgradeToKeepForever', 'Upgrade to keep forever →')}
           </button>
         </div>
       )}
@@ -1293,14 +1302,14 @@ export default function EditorPage() {
         <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-destructive/10 border-b border-destructive/30" style={{ minHeight: 40 }}>
           <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
           <span className="text-xs text-destructive flex-1">
-            Your free trial has ended. This resume is <strong>read-only</strong> — upgrade to Pro to keep making changes.
+            {t('editor.trialExpiredBanner', 'Your free trial has ended. This resume is read-only — upgrade to Pro to keep making changes.')}
           </span>
           <button
             onClick={() => navigate('/subscription')}
-            aria-label="Upgrade to Pro to continue editing"
+            aria-label={t('editor.upgradeToContinueAria', 'Upgrade to Pro to continue editing')}
             className="text-[11px] font-semibold text-destructive hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
           >
-            Upgrade →
+            {t('editor.upgradeShort', 'Upgrade →')}
           </button>
         </div>
       )}
@@ -1348,7 +1357,7 @@ export default function EditorPage() {
                     aiEnhancingCount > 0 && tab !== 'editor' && 'opacity-40 cursor-not-allowed'
                   )}
                 >
-                  {tab === 'editor' ? 'Edit' : tab === 'preview' ? 'Preview' : (
+                  {tab === 'editor' ? t('editor.mobileTabEdit', 'Edit') : tab === 'preview' ? t('common.preview', 'Preview') : (
                     <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />ATS</span>
                   )}
                 </button>

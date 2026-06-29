@@ -18,11 +18,13 @@ import { ProjectAIQuestionsDialog } from './ai/ProjectAIQuestionsDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export const ProjectsSection = memo(function ProjectsSection() {
   const projects = useResumeStore(state => state.currentResume?.projects) || [];
   const currentResume = useResumeStore(state => state.currentResume);
   const updateResume = useResumeStore(state => state.updateResume);
+  const { t } = useLocale();
   const { isAuthenticated } = useAuth();
   const [expandedId, setExpandedId] = useExpandedEntryRestore('projects');
   const [techInput, setTechInput] = useState('');
@@ -91,7 +93,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
           : p
       );
       updateResume({ projects: next });
-      toast.success(`Added ${newTechs.length} technologies`);
+      toast.success(t('editor.projects.addedTechsToast', 'Added {{count}} technologies', { count: newTechs.length }));
       triggerRescore(next);
       return;
     }
@@ -364,8 +366,8 @@ export const ProjectsSection = memo(function ProjectsSection() {
   };
 
   const dialogTitle = currentActionId === 'suggest_technologies'
-    ? 'Suggested Technologies'
-    : 'AI Project Enhancement';
+    ? t('editor.projects.suggestedTechTitle', 'Suggested Technologies')
+    : t('editor.projects.enhancedTitle', 'AI Project Enhancement');
 
   // Approve handler: branches on the action that triggered this preview.
   // For tech suggestions we ignore the user's edited preview text and
@@ -385,10 +387,14 @@ export const ProjectsSection = memo(function ProjectsSection() {
             p.id === proj.id ? { ...p, technologies: [...p.technologies, ...newTechs] } : p,
           );
           updateResume({ projects: next });
-          toast.success('Changes applied!', { description: `Added ${newTechs.length} technologies` });
+          toast.success(t('editor.projects.changesApplied', 'Changes applied!'), {
+            description: t('editor.projects.addedTechsToast', 'Added {{count}} technologies', { count: newTechs.length }),
+          });
           triggerRescore(next);
         } else {
-          toast.success('Changes applied!', { description: 'No new technologies to add' });
+          toast.success(t('editor.projects.changesApplied', 'Changes applied!'), {
+            description: t('editor.projects.noNewTechs', 'No new technologies to add'),
+          });
         }
       }
       reset();
@@ -407,38 +413,86 @@ export const ProjectsSection = memo(function ProjectsSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end">
-        <Button variant="outline" size="sm" onClick={addProject} className="gap-2 active:scale-95 transition-transform"><Plus className="w-4 h-4" />Add</Button>
+        <Button variant="outline" size="sm" onClick={addProject} className="gap-2 active:scale-95 transition-transform">
+          <Plus className="w-4 h-4" />
+          {t('common.add', 'Add')}
+        </Button>
       </div>
       {projects.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground"><Rocket className="w-10 h-10 mx-auto mb-2 opacity-40" /><p className="text-sm">Showcase your projects</p></div>
+        <div className="text-center py-8 text-muted-foreground">
+          <Rocket className="w-10 h-10 mx-auto mb-2 opacity-40" />
+          <p className="text-sm">{t('editor.projects.emptyTip', 'Showcase your projects')}</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {projects.map((proj, index) => (
             <div key={proj.id} className="rounded-xl border border-border overflow-hidden">
-              <button onClick={() => setExpandedId(expandedId === proj.id ? null : proj.id)} className="w-full p-4 flex items-center justify-between hover:bg-muted touch-manipulation active:bg-muted/70 min-h-[72px]">
+              <button
+                onClick={() => setExpandedId(expandedId === proj.id ? null : proj.id)}
+                className="w-full p-4 flex items-center justify-between hover:bg-muted touch-manipulation active:bg-muted/70 min-h-[72px]"
+              >
                 <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={e => { e.stopPropagation(); moveUp(index); }} disabled={index === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
-                  <button onClick={e => { e.stopPropagation(); moveDown(index); }} disabled={index === projects.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
+                  <button
+                    onClick={e => { e.stopPropagation(); moveUp(index); }}
+                    disabled={index === 0}
+                    className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                    aria-label={t('common.moveUp', 'Move up')}
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); moveDown(index); }}
+                    disabled={index === projects.length - 1}
+                    className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                    aria-label={t('common.moveDown', 'Move down')}
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
                 </div>
                 <div className="text-left flex-1 min-w-0 px-3">
-                  <p className="font-semibold text-sm truncate">{proj.name || `Project ${index + 1}`}</p>
-                  <p className="text-sm text-muted-foreground truncate">{proj.role || 'Your role'}</p>
+                  <p className="font-semibold text-sm truncate">{proj.name || t('editor.projects.nameDefault', 'Project {{index}}', { index: index + 1 })}</p>
+                  <p className="text-sm text-muted-foreground truncate">{proj.role || t('editor.projects.roleDefault', 'Your role')}</p>
                 </div>
-                <div className="shrink-0 w-10 h-10 flex items-center justify-center">{expandedId === proj.id ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}</div>
+                <div className="shrink-0 w-10 h-10 flex items-center justify-center">
+                  {expandedId === proj.id ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                </div>
               </button>
               {expandedId === proj.id && (
                 <div className="animate-in fade-in-0 duration-200">
                   <div className="p-4 pt-0 space-y-4 border-t border-border">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div><Label htmlFor={`proj-${proj.id}-name`} className="text-sm flex items-center gap-1.5 mb-2"><Rocket className="w-4 h-4" />Project Name</Label><Input id={`proj-${proj.id}-name`} value={proj.name} onChange={e => updateProject(proj.id, { name: e.target.value })} placeholder="My Awesome Project" className="h-12" /></div>
-                      <div><Label htmlFor={`proj-${proj.id}-role`} className="text-sm mb-2">Role</Label><Input id={`proj-${proj.id}-role`} value={proj.role} onChange={e => updateProject(proj.id, { role: e.target.value })} placeholder="Lead Developer" className="h-12" /></div>
+                      <div>
+                        <Label htmlFor={`proj-${proj.id}-name`} className="text-sm flex items-center gap-1.5 mb-2">
+                          <Rocket className="w-4 h-4" />
+                          {t('editor.projects.nameLabel', 'Project Name')}
+                        </Label>
+                        <Input
+                          id={`proj-${proj.id}-name`}
+                          value={proj.name}
+                          onChange={e => updateProject(proj.id, { name: e.target.value })}
+                          placeholder={t('editor.projects.namePlaceholder', 'My Awesome Project')}
+                          className="h-12"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`proj-${proj.id}-role`} className="text-sm mb-2">
+                          {t('editor.projects.roleLabel', 'Role')}
+                        </Label>
+                        <Input
+                          id={`proj-${proj.id}-role`}
+                          value={proj.role}
+                          onChange={e => updateProject(proj.id, { role: e.target.value })}
+                          placeholder={t('editor.projects.rolePlaceholder', 'Lead Developer')}
+                          className="h-12"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label className="text-sm flex items-center gap-1.5 mb-2">
                           <Calendar className="w-4 h-4" />
-                          Start Date
+                          {t('editor.projects.startDate', 'Start Date')}
                         </Label>
                         <MonthYearPicker
                           value={proj.startDate}
@@ -449,7 +503,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                         <div className="flex items-center justify-between mb-2">
                           <Label className="text-sm flex items-center gap-1.5">
                             <Calendar className="w-4 h-4" />
-                            End Date
+                            {t('editor.projects.endDate', 'End Date')}
                           </Label>
                           <label className="flex items-center gap-1.5 cursor-pointer select-none">
                             <input
@@ -463,7 +517,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
                               }
                               className="rounded accent-primary w-4 h-4"
                             />
-                            <span className="text-sm text-muted-foreground">Present</span>
+                            <span className="text-sm text-muted-foreground">{t('editor.projects.present', 'Present')}</span>
                           </label>
                         </div>
                         <MonthYearPicker
@@ -477,7 +531,9 @@ export const ProjectsSection = memo(function ProjectsSection() {
                     {/* Technologies with AI */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor={`proj-${proj.id}-tech-input`} className="text-sm">Technologies</Label>
+                        <Label htmlFor={`proj-${proj.id}-tech-input`} className="text-sm">
+                          {t('editor.projects.technologiesLabel', 'Technologies')}
+                        </Label>
                         <InlineAIButton
                           section="projects"
                           fieldContext="technologies"
@@ -496,15 +552,26 @@ export const ProjectsSection = memo(function ProjectsSection() {
                         ))}
                       </div>
                       <div className="flex gap-2">
-                        <Input id={`proj-${proj.id}-tech-input`} value={techInput} onChange={e => setTechInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTech(proj.id); } }} placeholder="Add technology..." className="h-12 flex-1" />
-                        <Button variant="outline" size="sm" onClick={() => addTech(proj.id)} className="h-12 active:scale-95">Add</Button>
+                        <Input
+                          id={`proj-${proj.id}-tech-input`}
+                          value={techInput}
+                          onChange={e => setTechInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTech(proj.id); } }}
+                          placeholder={t('editor.projects.techPlaceholder', 'Add technology...')}
+                          className="h-12 flex-1"
+                        />
+                        <Button variant="outline" size="sm" onClick={() => addTech(proj.id)} className="h-12 active:scale-95">
+                          {t('common.add', 'Add')}
+                        </Button>
                       </div>
                     </div>
 
                     {/* Description with AI */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor={`proj-${proj.id}-desc`} className="text-sm">Description</Label>
+                        <Label htmlFor={`proj-${proj.id}-desc`} className="text-sm">
+                          {t('editor.projects.descriptionLabel', 'Description')}
+                        </Label>
                         <InlineAIButton
                           section="projects"
                           fieldContext="description"
@@ -514,14 +581,56 @@ export const ProjectsSection = memo(function ProjectsSection() {
                           hasContent={!!proj.description}
                         />
                       </div>
-                      <Textarea id={`proj-${proj.id}-desc`} value={proj.description} onChange={e => updateProject(proj.id, { description: e.target.value })} placeholder="Describe the project..." className="min-h-[100px] resize-none text-base" />
+                      <Textarea
+                        id={`proj-${proj.id}-desc`}
+                        value={proj.description}
+                        onChange={e => updateProject(proj.id, { description: e.target.value })}
+                        placeholder={t('editor.projects.descriptionPlaceholder', 'Describe the project...')}
+                        className="min-h-[100px] resize-none text-base"
+                      />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div><Label htmlFor={`proj-${proj.id}-url`} className="text-sm flex items-center gap-1.5 mb-2"><Link className="w-4 h-4" />Project URL</Label><Input id={`proj-${proj.id}-url`} value={proj.url || ''} onChange={e => updateProject(proj.id, { url: e.target.value })} placeholder="https://..." className="h-12" type="url" /></div>
-                      <div><Label htmlFor={`proj-${proj.id}-github`} className="text-sm flex items-center gap-1.5 mb-2"><Github className="w-4 h-4" />GitHub</Label><Input id={`proj-${proj.id}-github`} value={proj.githubUrl || ''} onChange={e => updateProject(proj.id, { githubUrl: e.target.value })} placeholder="https://github.com/..." className="h-12" type="url" /></div>
+                      <div>
+                        <Label htmlFor={`proj-${proj.id}-url`} className="text-sm flex items-center gap-1.5 mb-2">
+                          <Link className="w-4 h-4" />
+                          {t('editor.projects.urlLabel', 'Project URL')}
+                        </Label>
+                        <Input
+                          id={`proj-${proj.id}-url`}
+                          value={proj.url || ''}
+                          onChange={e => updateProject(proj.id, { url: e.target.value })}
+                          placeholder="https://..."
+                          className="h-12"
+                          type="url"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`proj-${proj.id}-github`} className="text-sm flex items-center gap-1.5 mb-2">
+                          <Github className="w-4 h-4" />
+                          {t('editor.projects.githubLabel', 'GitHub')}
+                        </Label>
+                        <Input
+                          id={`proj-${proj.id}-github`}
+                          value={proj.githubUrl || ''}
+                          onChange={e => updateProject(proj.id, { githubUrl: e.target.value })}
+                          placeholder="https://github.com/..."
+                          className="h-12"
+                          type="url"
+                        />
+                      </div>
                     </div>
-                    <div className="flex justify-end pt-2"><Button variant="ghost" size="sm" onClick={() => deleteProject(proj.id)} className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" />Remove</Button></div>
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteProject(proj.id)}
+                        className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[44px]"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {t('common.delete', 'Delete')}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

@@ -3,5 +3,13 @@
   "network": "Check your connection and try again.",
   "notFound": "We could not find that page.",
   "exportFailed": "Export failed. Please try again.",
-  "missingTranslation": "Translation unavailable"
+  "missingTranslation": "Translation unavailable",
+  "somethingWentWrong": "Something went wrong",
+  "couldNotLoadResumesDescription": "We couldn't load your resumes. Please check your connection and try again.",
+  "couldNotLoadResumes": "We couldn't load your resumes.",
+  "youAreOffline": "You're offline",
+  "youAreOfflineState": "Offline",
+  "connectToInternet": "Connect to the internet to load your resumes.",
+  "retryLoadingResumes": "Retry loading resumes",
+  "tapToRetry": "Tap to retry"
 }

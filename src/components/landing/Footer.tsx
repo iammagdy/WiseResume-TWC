@@ -1,7 +1,7 @@
 import { ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
-
+import { useLocale } from '@/i18n/LocaleProvider';
 import { getBuildVersionLabel } from '@/lib/appVersion';
 
 interface FooterProps {
@@ -12,6 +12,8 @@ interface FooterProps {
 export function Footer({ lpMode, product }: FooterProps) {
   const logo = useThemeLogo();
   const isWiseHire = product === 'wisehire';
+  const { t } = useLocale();
+
   return (
     <footer
       style={
@@ -46,7 +48,7 @@ export function Footer({ lpMode, product }: FooterProps) {
                 : undefined
             }
           />
-          <span>Your data is encrypted and secure</span>
+          <span>{t('landing.footerSecureNotice', 'Your data is encrypted and secure')}</span>
         </div>
 
         <div className="flex items-center gap-1 text-xs">
@@ -58,7 +60,7 @@ export function Footer({ lpMode, product }: FooterProps) {
               : { padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
             }
           >
-            Privacy Policy
+            {t('landing.privacyPolicy', 'Privacy Policy')}
           </Link>
           <span
             className="w-px h-3"
@@ -72,7 +74,7 @@ export function Footer({ lpMode, product }: FooterProps) {
               : { padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
             }
           >
-            Terms of Service
+            {t('landing.termsOfService', 'Terms of Service')}
           </Link>
         </div>
 

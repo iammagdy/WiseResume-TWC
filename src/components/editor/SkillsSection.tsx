@@ -60,7 +60,10 @@ function getSuggestionsForResume(jobTitles: string[], existingSkills: string[]):
   return Array.from(matched).slice(0, 10);
 }
 
+import { useLocale } from '@/i18n/LocaleProvider';
+
 export const SkillsSection = memo(function SkillsSection() {
+  const { t } = useLocale();
   const skills = useResumeStore(state => state.currentResume?.skills);
   const gapAnalysis = useResumeStore(state => state.gapAnalysis);
   const jobDescription = useResumeStore(state => state.jobDescription);
@@ -157,7 +160,7 @@ export const SkillsSection = memo(function SkillsSection() {
           value={newSkill}
           onChange={(e) => setNewSkill(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Add a skill..."
+          placeholder={t('editor.skills.placeholder', 'Add a skill...')}
           className="h-10 sm:h-12 text-sm sm:text-base"
         />
         <Button onClick={addSkill} className="h-10 sm:h-12 min-h-[40px] sm:min-h-[48px] px-4 sm:px-6">
@@ -184,10 +187,14 @@ export const SkillsSection = memo(function SkillsSection() {
       {skills.length === 0 && (
         <SectionEmptyState
           icon={Zap}
-          title="List your key skills"
+          title={t('editor.skills.emptyTitle', 'List your key skills')}
           exampleContent={
             <div className="text-sm space-y-2">
-              {Object.entries({ Technical: skillsExample.technical, 'Soft Skills': skillsExample.soft, Languages: skillsExample.languages }).map(([cat, items]) => (
+              {Object.entries({
+                [t('editor.skills.technicalCategory', 'Technical')]: skillsExample.technical,
+                [t('editor.skills.softCategory', 'Soft Skills')]: skillsExample.soft,
+                [t('editor.skills.languagesCategory', 'Languages')]: skillsExample.languages
+              }).map(([cat, items]) => (
                 <div key={cat}>
                   <p className="font-semibold text-xs">{cat}</p>
                   <p className="text-muted-foreground text-xs">{(items as string[]).join(', ')}</p>
@@ -196,8 +203,8 @@ export const SkillsSection = memo(function SkillsSection() {
             </div>
           }
           actions={[
-            { label: 'Add Your Skills', variant: 'outline', icon: Plus, onClick: () => { /* focus handled by existing input */ } },
-            { label: 'AI Suggest Skills', variant: 'default', icon: Sparkles, onClick: () => requestSkillsAI('generate') },
+            { label: t('editor.skills.addSkillsBtn', 'Add Your Skills'), variant: 'outline', icon: Plus, onClick: () => { /* focus handled by existing input */ } },
+            { label: t('editor.skills.aiSuggestBtn', 'AI Suggest Skills'), variant: 'default', icon: Sparkles, onClick: () => requestSkillsAI('generate') },
           ]}
         />
       )}
@@ -207,10 +214,10 @@ export const SkillsSection = memo(function SkillsSection() {
         <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-4 h-4 text-primary" />
-            <h4 className="font-semibold text-sm">Suggested for you</h4>
+            <h4 className="font-semibold text-sm">{t('editor.skills.suggestedForYou', 'Suggested for you')}</h4>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Based on your job titles and experience:
+            {t('editor.skills.basedOnExperience', 'Based on your job titles and experience:')}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {jobTitleSuggestions.map((skill) => (
@@ -234,10 +241,10 @@ export const SkillsSection = memo(function SkillsSection() {
         >
           <div className="flex items-center gap-2 mb-3">
             <Zap className="w-4 h-4 text-secondary" />
-            <h4 className="font-semibold text-sm">Suggested Skills</h4>
+            <h4 className="font-semibold text-sm">{t('editor.skills.suggestedForYou', 'Suggested Skills')}</h4>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Based on your target job description:
+            {t('editor.skills.basedOnTargetJob', 'Based on your target job description:')}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {gapAnalysis.missingSkills
@@ -260,7 +267,7 @@ export const SkillsSection = memo(function SkillsSection() {
 
       {/* Quick add common skills */}
       <div className="p-4 rounded-xl bg-muted border border-border">
-        <h4 className="font-semibold text-sm mb-3">Common Skills</h4>
+        <h4 className="font-semibold text-sm mb-3">{t('editor.skills.commonSkills', 'Common Skills')}</h4>
         <div className="flex flex-wrap gap-1.5">
           {COMMON_SKILLS
             .filter((skill) => !skills.includes(skill))

@@ -11,6 +11,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { toast } from 'sonner';
 import haptics from '@/lib/haptics';
 import type { DeepResult } from '@/hooks/useATSSuggestions';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface ATSInlineSuggestionsProps {
   section: SectionId;
@@ -30,8 +31,6 @@ const priorityConfig = {
   low: { icon: Info, color: 'text-primary', bg: 'bg-primary/10' },
 };
 
-const PROGRESS_STEPS = ['Analyzing…', 'Optimizing…', 'Finalizing…'];
-
 export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
   section,
   suggestions,
@@ -47,8 +46,15 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const updateResume = useResumeStore(state => state.updateResume);
   const currentSkills = useResumeStore(state => state.currentResume?.skills || []);
+  const { t } = useLocale();
 
   // Stepped progress indicator
+  const PROGRESS_STEPS = [
+    t('editor.ats.analyzing', 'Analyzing\u2026'),
+    t('editor.ats.optimizing', 'Optimizing\u2026'),
+    t('editor.ats.finalizing', 'Finalizing\u2026'),
+  ];
+
   const [progressStep, setProgressStep] = useState(0);
   useEffect(() => {
     if (!isAnalyzing) {
@@ -71,13 +77,13 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
     if (suggestion.autoFix && section === 'skills') {
       if (!currentSkills.includes(suggestion.autoFix)) {
         updateResume({ skills: [...currentSkills, suggestion.autoFix] });
-        toast.success(`Added "${suggestion.autoFix}" to skills`);
+        toast.success(t('editor.ats.skillAdded', 'Added "{{skill}}" to skills', { skill: suggestion.autoFix }));
       } else {
-        toast.info('Skill already exists');
+        toast.info(t('editor.ats.skillExists', 'Skill already exists'));
       }
       setDismissed(prev => new Set(prev).add(suggestion.id));
     }
-  }, [section, currentSkills, updateResume]);
+  }, [section, currentSkills, updateResume, t]);
 
   const visible = suggestions.filter(s => !dismissed.has(s.id));
   const hasContent = visible.length > 0 || deepResult || isAnalyzing;
@@ -89,7 +95,9 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
         <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] active:scale-[0.98] touch-manipulation">
           <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
           <span className="text-xs font-medium text-foreground flex-1 text-left">
-            {suggestions.some(s => s.type === 'missing_keyword') ? 'ATS Tips' : 'Writing Tips'}
+            {suggestions.some(s => s.type === 'missing_keyword')
+              ? t('editor.ats.atsTips', 'ATS Tips')
+              : t('editor.ats.writingTips', 'Writing Tips')}
           </span>
           {visible.length > 0 && (
             <Badge variant="glass" className="text-[10px] px-1.5 py-0">
@@ -107,7 +115,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
           <div className="px-3 pb-3 space-y-1.5">
             {suggestions.some(s => s.type === 'missing_keyword') && (
               <p className="text-[11px] text-muted-foreground leading-snug px-0.5 pb-1">
-                Suggestions based on keyword overlap with your job description — not template layout or external ATS-tool scores.
+                {t('editor.ats.keywordOverlapNote', 'Suggestions based on keyword overlap with your job description \u2014 not template layout or external ATS-tool scores.')}
               </p>
             )}
             {/* Stepped progress while analyzing */}
@@ -142,13 +150,13 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                       className="shrink-0 flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 rounded-full px-2 py-1 min-h-[28px] active:scale-95 touch-manipulation"
                     >
                       <Check className="w-3 h-3" />
-                      Apply
+                      {t('common.apply', 'Apply')}
                     </button>
                   )}
                   <button
                     onClick={() => handleDismiss(suggestion.id)}
                     className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-muted active:scale-95 touch-manipulation"
-                    aria-label="Dismiss suggestion"
+                    aria-label={t('common.dismiss', 'Dismiss suggestion')}
                   >
                     <X className="w-3 h-3 text-muted-foreground" />
                   </button>
@@ -161,7 +169,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
               <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-xs font-semibold text-foreground">AI Optimized Content Ready</span>
+                  <span className="text-xs font-semibold text-foreground">{t('editor.ats.aiOptimizedReady', 'AI Optimized Content Ready')}</span>
                 </div>
 
                 {deepResult.changes.length > 0 && (
@@ -185,7 +193,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                     }}
                   >
                     <Check className="w-3.5 h-3.5 mr-1" />
-                    Apply Changes
+                    {t('editor.ats.applyChanges', 'Apply Changes')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -196,7 +204,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                       onDiscardDeep?.();
                     }}
                   >
-                    Discard
+                    {t('common.discard', 'Discard')}
                   </Button>
                 </div>
               </div>
@@ -221,18 +229,17 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                     ) : (
                       <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                     )}
-                    {isAnalyzing ? 'Analyzing…' : 'Deep Analyze'}
+                    {isAnalyzing ? t('editor.ats.analyzing', 'Analyzing\u2026') : t('editor.ats.deepAnalyze', 'Deep Analyze')}
                   </Button>
                   <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                    Rewrites this section to better match your target job
+                    {t('editor.ats.deepAnalyzeDesc', 'Rewrites this section to better match your target job')}
                   </p>
                 </div>
               ) : (
                 <div className="mt-1 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3 space-y-2">
-                  <p className="text-xs font-medium text-foreground">Tailor this section to a job posting</p>
+                  <p className="text-xs font-medium text-foreground">{t('editor.ats.tailorToJob', 'Tailor this section to a job posting')}</p>
                   <p className="text-[11px] text-muted-foreground leading-snug">
-                    Paste a job description from any posting you're applying to, and AI will rewrite
-                    this section to match its keywords and requirements.
+                    {t('editor.ats.tailorDesc', "Paste a job description from any posting you're applying to, and AI will rewrite this section to match its keywords and requirements.")}
                   </p>
                   <Button
                     variant="outline"
@@ -244,7 +251,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                     }}
                   >
                     <FileText className="w-3.5 h-3.5 mr-1.5" />
-                    Paste job description →
+                    {t('editor.ats.pasteJobDesc', 'Paste job description \u2192')}
                   </Button>
                 </div>
               )

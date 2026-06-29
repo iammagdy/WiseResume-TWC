@@ -16,6 +16,7 @@ import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 import {
   AlertDialog,
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function CoverLettersPage() {
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { isPro, isLoading: planLoading } = usePlan();
@@ -43,8 +45,8 @@ export default function CoverLettersPage() {
   const handleRefresh = useCallback(async () => {
     await refetch();
     haptics.success();
-    toast.success('Refreshed');
-  }, [refetch]);
+    toast.success(t('common.refreshed', 'Refreshed'));
+  }, [refetch, t]);
 
   const handleDuplicate = useCallback((id: string) => {
     const letter = letters?.find((l) => l.id === id);
@@ -55,9 +57,9 @@ export default function CoverLettersPage() {
       content: letter.content,
       tone: letter.tone || undefined,
       resume_id: letter.resume_id || undefined,
-      title: `${letter.title || letter.job_title} (Copy)`,
+      title: `${letter.title || letter.job_title} (${t('common.copyWord', 'Copy')})`,
     });
-  }, [letters, saveCoverLetter]);
+  }, [letters, saveCoverLetter, t]);
 
   const handleDownload = useCallback(async (id: string) => {
     const letter = letters?.find((l) => l.id === id);
@@ -67,11 +69,11 @@ export default function CoverLettersPage() {
       const linkedResume = resumes?.find(r => r.id === letter.resume_id);
       const accentHex = linkedResume ? dbToResumeData(linkedResume).customization?.accentColor : undefined;
       await downloadCoverLetterPDF({ ...letter, accentHex });
-      toast.success('PDF downloaded!');
+      toast.success(t('app.coverLetters.pdfDownloaded', 'PDF downloaded!'));
     } catch {
-      toast.error('Failed to generate PDF');
+      toast.error(t('app.coverLetters.failedPdf', 'Failed to generate PDF'));
     }
-  }, [letters, resumes]);
+  }, [letters, resumes, t]);
 
   const confirmDelete = useCallback(() => {
     if (!deleteId) return;
@@ -119,13 +121,13 @@ export default function CoverLettersPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
         <BackButton />
-        <h1 className="text-lg font-bold flex-1">Cover Letters</h1>
+        <h1 className="text-lg font-bold flex-1">{t('app.aiStudio.tools.cover-letters.label', 'Cover Letters')}</h1>
         <motion.button
           whileTap={{ scale: 0.9 }}
           style={{ touchAction: 'pan-y' }}
           onClick={() => { haptics.light(); navigate('/cover-letter/new'); }}
           className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center touch-manipulation active:scale-95"
-          aria-label="New cover letter"
+          aria-label={t('app.coverLetters.newLetter', 'New cover letter')}
         >
           <Plus className="w-5 h-5 text-primary-foreground" />
         </motion.button>
@@ -139,7 +141,7 @@ export default function CoverLettersPage() {
               <div className="relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search cover letters..."
+                  placeholder={t('app.coverLetters.searchPlaceholder', 'Search cover letters...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 rounded-full h-11 bg-input border border-border"
@@ -159,9 +161,9 @@ export default function CoverLettersPage() {
                 <div className="w-16 h-16 rounded-2xl bg-card border border-border shadow-soft flex items-center justify-center mb-4">
                   <FileText className="w-8 h-8 text-accent opacity-50" />
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">No matches found</h3>
+                <h3 className="font-semibold text-foreground mb-1">{t('common.noMatchesFound', 'No matches found')}</h3>
                 <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
-                  No cover letters match "{searchQuery}"
+                  {t('app.coverLetters.noMatchesForQuery', 'No cover letters match "{{query}}"', { query: searchQuery })}
                 </p>
               </div>
             ) : (
@@ -200,7 +202,7 @@ export default function CoverLettersPage() {
           style={{ touchAction: 'pan-y' }}
           onClick={() => { haptics.light(); navigate('/cover-letter/new'); }}
           className="fixed bottom-[7rem] right-4 z-50 w-14 h-14 rounded-2xl gradient-primary shadow-lg flex items-center justify-center active:scale-95 pr-safe"
-          aria-label="New cover letter"
+          aria-label={t('app.coverLetters.newLetter', 'New cover letter')}
         >
           <Plus className="w-6 h-6 text-primary-foreground" />
         </motion.button>
@@ -221,18 +223,18 @@ export default function CoverLettersPage() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Cover Letter?</AlertDialogTitle>
+            <AlertDialogTitle>{t('app.coverLetters.deleteConfirmTitle', 'Delete Cover Letter?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone.
+              {t('common.cannotBeUndone', 'This action cannot be undone.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t('common.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

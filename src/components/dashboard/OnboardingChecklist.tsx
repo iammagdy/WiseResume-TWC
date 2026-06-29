@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export interface ChecklistStep {
   id: string;
@@ -22,6 +23,7 @@ interface OnboardingChecklistProps {
 
 export function OnboardingChecklist({ steps, onDismiss, defaultCollapsed = false }: OnboardingChecklistProps) {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const headingRef = useRef<HTMLElement | null>(null);
 
@@ -44,7 +46,7 @@ export function OnboardingChecklist({ steps, onDismiss, defaultCollapsed = false
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
       className="rounded-xl border border-border/80 bg-card/80 shadow-soft-sm overflow-hidden"
-      aria-label="Getting started checklist"
+      aria-label={t('app.onboardingChecklist.ariaLabel', 'Getting started checklist')}
     >
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50">
         <button
@@ -57,10 +59,10 @@ export function OnboardingChecklist({ steps, onDismiss, defaultCollapsed = false
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">
-              {allDone ? "You're all set!" : 'Getting started'}
+              {allDone ? t('app.onboardingChecklist.allSet', "You're all set!") : t('app.onboardingChecklist.gettingStarted', 'Getting started')}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              {completedCount}/{steps.length} steps complete
+              {t('app.onboardingChecklist.stepsComplete', '{{completed}}/{{total}} steps complete', { completed: completedCount, total: steps.length })}
             </p>
           </div>
           {collapsed ? (
@@ -72,7 +74,7 @@ export function OnboardingChecklist({ steps, onDismiss, defaultCollapsed = false
         <button
           onClick={handleDismiss}
           className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full hover:bg-muted transition-colors"
-          aria-label="Dismiss getting started checklist"
+          aria-label={t('app.onboardingChecklist.dismissAria', 'Dismiss getting started checklist')}
         >
           <X className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -136,7 +138,7 @@ export function OnboardingChecklist({ steps, onDismiss, defaultCollapsed = false
                   className="w-full text-xs border-success/40 text-success hover:bg-success/10"
                   onClick={handleDismiss}
                 >
-                  Got it — I'm all set!
+                  {t('app.onboardingChecklist.gotItAllSet', "Got it — I'm all set!")}
                 </Button>
               </div>
             )}

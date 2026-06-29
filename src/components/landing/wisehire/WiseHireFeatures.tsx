@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, FileText, Kanban, Users, Archive, Rocket } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const ENTRY_DIRS = [
   { x: -100, y: 70 },
@@ -32,45 +33,46 @@ function makeItemVariant(i: number, reduced: boolean | null) {
   };
 }
 
-const pillars = [
-  {
-    icon: Brain,
-    title: 'AI Brief Generator',
-    desc: 'Instantly generate a structured candidate brief — match score, key strengths, red flags, and top interview questions — from any CV.',
-    badge: '01',
-  },
-  {
-    icon: FileText,
-    title: 'JD Writer',
-    desc: 'Write bias-free, compelling job descriptions in seconds. AI tailors the tone and requirements to attract the right candidates.',
-    badge: '02',
-  },
-  {
-    icon: Kanban,
-    title: 'Pipeline Board',
-    desc: 'Drag-and-drop kanban for your hiring pipeline. Track every candidate from applied to offer with full status history.',
-    badge: '03',
-  },
-  {
-    icon: Users,
-    title: 'Bulk Screening',
-    desc: 'Upload multiple CVs at once. AI scores and ranks every applicant against your role criteria — no manual reading required.',
-    badge: '04',
-  },
-  {
-    icon: Archive,
-    title: 'Talent Pool',
-    desc: 'Never lose a great candidate. Build a searchable pool of past applicants you can re-engage for future roles instantly.',
-    badge: '05',
-  },
-];
-
 interface WiseHireFeaturesProps {
   onOpenWaitlist: () => void;
 }
 
 export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
+  const { t } = useLocale();
   const prefersReducedMotion = useReducedMotion();
+
+  const pillars = [
+    {
+      icon: Brain,
+      title: t('wisehire.features.briefGenerator.title', 'AI Brief Generator'),
+      desc: t('wisehire.features.briefGenerator.desc', 'Instantly generate a structured candidate brief — match score, key strengths, red flags, and top interview questions — from any CV.'),
+      badge: '01',
+    },
+    {
+      icon: FileText,
+      title: t('wisehire.features.jdWriter.title', 'JD Writer'),
+      desc: t('wisehire.features.jdWriter.desc', 'Write bias-free, compelling job descriptions in seconds. AI tailors the tone and requirements to attract the right candidates.'),
+      badge: '02',
+    },
+    {
+      icon: Kanban,
+      title: t('wisehire.features.pipeline.title', 'Pipeline Board'),
+      desc: t('wisehire.features.pipeline.desc', 'Drag-and-drop kanban for your hiring pipeline. Track every candidate from applied to offer with full status history.'),
+      badge: '03',
+    },
+    {
+      icon: Users,
+      title: t('wisehire.features.bulkScreening.title', 'Bulk Screening'),
+      desc: t('wisehire.features.bulkScreening.desc', 'Upload multiple CVs at once. AI scores and ranks every applicant against your role criteria — no manual reading required.'),
+      badge: '04',
+    },
+    {
+      icon: Archive,
+      title: t('wisehire.features.talentPool.title', 'Talent Pool'),
+      desc: t('wisehire.features.talentPool.desc', 'Never lose a great candidate. Build a searchable pool of past applicants you can re-engage for future roles instantly.'),
+      badge: '05',
+    },
+  ];
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
@@ -107,13 +109,13 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
               transition: 'color 0.35s ease',
             }}
           >
-            Five tools. One hiring OS.
+            {t('wisehire.features.heading', 'Five tools. One hiring OS.')}
           </h2>
           <p
             className="max-w-md mx-auto text-sm"
             style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
           >
-            Everything your hiring team needs in one place — from writing the JD to making the offer.
+            {t('wisehire.features.subheading', 'Everything your hiring team needs in one place — from writing the JD to making the offer.')}
           </p>
         </motion.div>
 
@@ -129,7 +131,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
             const itemVariant = makeItemVariant(i, prefersReducedMotion);
             return (
               <motion.div
-                key={pillar.title}
+                key={pillar.badge}
                 variants={itemVariant}
                 className="lp-feature-card flex flex-col gap-4 p-6"
                 style={{
@@ -205,8 +207,8 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
               <Rocket className="w-6 h-6" style={{ color: 'var(--lp-eyebrow)' }} />
             </div>
             <div>
-              <p className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>Get early access</p>
-              <p className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>Join the waitlist and be first to try WiseHire</p>
+              <p className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>{t('wisehire.features.ctaEarlyAccess', 'Get early access')}</p>
+              <p className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>{t('wisehire.features.ctaWaitlistDesc', 'Join the waitlist and be first to try WiseHire')}</p>
             </div>
             <span
               style={{
@@ -218,7 +220,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
                 fontWeight: 600,
               }}
             >
-              Join Waitlist
+              {t('wisehire.features.joinWaitlist', 'Join Waitlist')}
             </span>
           </motion.button>
         </motion.div>

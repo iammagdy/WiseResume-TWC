@@ -6,7 +6,17 @@ import { useWorkspaceActivityStore } from '@/store/workspaceActivityStore';
 
 export type { ActivityFeedItem };
 
-const CATEGORY_TITLES: Record<keyof ResumeHealthScore['categories'], string> = {
+const CATEGORY_KEYS: Record<keyof ResumeHealthScore['categories'], string> = {
+  keywordOptimization: 'app.dashboardPage.categories.keywordOptimization',
+  contentQuality: 'app.dashboardPage.categories.contentQuality',
+  sectionStructure: 'app.dashboardPage.categories.sectionStructure',
+  parsability: 'app.dashboardPage.categories.parsability',
+  contactCompleteness: 'app.dashboardPage.categories.contactCompleteness',
+  lengthDensity: 'app.dashboardPage.categories.lengthDensity',
+  templateFriendliness: 'app.dashboardPage.categories.templateFriendliness',
+};
+
+const CATEGORY_DEFAULTS: Record<keyof ResumeHealthScore['categories'], string> = {
   keywordOptimization: 'Keyword match',
   contentQuality: 'Work experience impact',
   sectionStructure: 'Section structure',
@@ -36,16 +46,17 @@ export interface IntelligenceSignals {
 export function buildIntelligenceSignals(
   healthScore: ResumeHealthScore | null | undefined,
   featuredResume: DatabaseResume | null,
+  t: (key: string, variables?: Record<string, string | number>) => string,
 ): IntelligenceSignals {
-  const title = featuredResume?.title?.trim() || 'your active resume';
+  const title = featuredResume?.title?.trim() || t('app.dashboardPage.activeResumePlaceholder', 'your active resume');
 
   if (!healthScore || healthScore.overallScore <= 0) {
     return {
-      badge: 'Not scanned',
-      opportunityTitle: 'Run your first ATS scan',
-      opportunity: `“${title}” hasn't been scored yet. Scan once to unlock keyword gaps, weak bullets, and a ranked fix list.`,
+      badge: t('app.dashboardPage.notScanned', 'Not scanned'),
+      opportunityTitle: t('app.dashboardPage.runFirstScan', 'Run your first ATS scan'),
+      opportunity: t('app.dashboardPage.notScannedDesc', '“{{title}}” hasn\'t been scored yet. Scan once to unlock keyword gaps, weak bullets, and a ranked fix list.', { title }),
       primaryAction: 'ats',
-      cta: 'Scan portfolio',
+      cta: t('app.dashboardPage.scanPortfolio', 'Scan portfolio'),
       showImpact: true,
     };
   }
@@ -59,22 +70,22 @@ export function buildIntelligenceSignals(
   if (gapCount >= 2) {
     const preview = healthScore.keywordGaps!.slice(0, 3).join(', ');
     return {
-      badge: `ATS ${score}%`,
-      opportunityTitle: `${gapCount} keyword gaps`,
-      opportunity: `“${title}” is at ${score}% ATS. Prioritize: ${preview}${gapCount > 3 ? '…' : ''} for the fastest lift.`,
+      badge: t('app.dashboardPage.atsScore', 'ATS {{score}}%', { score }),
+      opportunityTitle: t('app.dashboardPage.keywordGapsCount', '{{count}} keyword gaps', { count: gapCount }),
+      opportunity: t('app.dashboardPage.keywordGapsDesc', '“{{title}}” is at {{score}}% ATS. Prioritize: {{preview}}{{ellipsis}} for the fastest lift.', { title, score, preview, ellipsis: gapCount > 3 ? '…' : '' }),
       primaryAction: 'keywords',
-      cta: 'Review gaps',
+      cta: t('app.dashboardPage.reviewGaps', 'Review gaps'),
       showImpact: true,
     };
   }
 
   if (score >= 85) {
     return {
-      badge: `ATS ${score}%`,
-      opportunityTitle: 'Portfolio is in strong shape',
-      opportunity: `“${title}” scores ${score}% (${healthScore.topStrength}). Tailor a copy for your next application to stay ahead.`,
+      badge: t('app.dashboardPage.atsScore', 'ATS {{score}}%', { score }),
+      opportunityTitle: t('app.dashboardPage.portfolioStrong', 'Portfolio is in strong shape'),
+      opportunity: t('app.dashboardPage.portfolioStrongDesc', '“{{title}}” scores {{score}}% ({{topStrength}}). Tailor a copy for your next application to stay ahead.', { title, score, topStrength: healthScore.topStrength || '' }),
       primaryAction: 'tailor',
-      cta: 'Tailor to job',
+      cta: t('app.dashboardPage.tailorToJob', 'Tailor to job'),
       showImpact: false,
     };
   }
@@ -82,21 +93,22 @@ export function buildIntelligenceSignals(
   const weakCount = healthScore.weakBullets?.length ?? 0;
   if (weakCount >= 2) {
     return {
-      badge: `ATS ${score}%`,
-      opportunityTitle: `${weakCount} bullets need metrics`,
-      opportunity: `“${title}” has experience lines without strong action verbs or numbers. Fix these first for a faster ATS lift.`,
+      badge: t('app.dashboardPage.atsScore', 'ATS {{score}}%', { score }),
+      opportunityTitle: t('app.dashboardPage.weakBulletsCount', '{{count}} bullets need metrics', { count: weakCount }),
+      opportunity: t('app.dashboardPage.weakBulletsDesc', '“{{title}}” has experience lines without strong action verbs or numbers. Fix these first for a faster ATS lift.', { title }),
       primaryAction: 'improve',
-      cta: 'Fix bullets now',
+      cta: t('app.dashboardPage.fixBullets', 'Fix bullets now'),
       showImpact: true,
     };
   }
 
+  const weakestCategoryTitle = t(CATEGORY_KEYS[weakestEntry[0]], CATEGORY_DEFAULTS[weakestEntry[0]]);
   return {
-    badge: `ATS ${score}%`,
-    opportunityTitle: CATEGORY_TITLES[weakestEntry[0]],
-    opportunity: healthScore.topImprovement || `Improve ${CATEGORY_TITLES[weakestEntry[0]].toLowerCase()} on “${title}”.`,
+    badge: t('app.dashboardPage.atsScore', 'ATS {{score}}%', { score }),
+    opportunityTitle: weakestCategoryTitle,
+    opportunity: healthScore.topImprovement || t('app.dashboardPage.improveCategoryDesc', 'Improve {{category}} on “{{title}}”.', { category: weakestCategoryTitle.toLowerCase(), title }),
     primaryAction: 'improve',
-    cta: 'View fix plan',
+    cta: t('app.dashboardPage.viewFixPlan', 'View fix plan'),
     showImpact: weakestEntry[1] < 75,
   };
 }
@@ -107,6 +119,7 @@ export function buildIntelligenceQuickActions(
   healthScores: Record<string, ResumeHealthScore>,
   resumes: DatabaseResume[],
   atsAverage: number | null,
+  t: (key: string, variables?: Record<string, string | number>) => string,
 ): IntelligenceQuickAction[] {
   const primary = signals.primaryAction;
   const gapTotal = resumes.reduce(
@@ -119,31 +132,31 @@ export function buildIntelligenceQuickActions(
   const catalog: IntelligenceQuickAction[] = [
     {
       id: 'tailor',
-      label: 'Import job posting',
-      description: 'Paste a listing URL to start tailoring',
+      label: t('app.dashboardPage.quickActions.tailorLabel', 'Import job posting'),
+      description: t('app.dashboardPage.quickActions.tailorDesc', 'Paste a listing URL to start tailoring'),
     },
     {
       id: 'keywords',
-      label: gapTotal > 0 ? `Keyword gaps (${gapTotal})` : 'Keyword gaps',
-      description: gapTotal > 0 ? 'Terms missing across your resumes' : 'Scan for missing role keywords',
+      label: gapTotal > 0 ? t('app.dashboardPage.quickActions.keywordsLabelCount', 'Keyword gaps ({{count}})', { count: gapTotal }) : t('app.dashboardPage.quickActions.keywordsLabel', 'Keyword gaps'),
+      description: gapTotal > 0 ? t('app.dashboardPage.quickActions.keywordsDescCount', 'Terms missing across your resumes') : t('app.dashboardPage.quickActions.keywordsDesc', 'Scan for missing role keywords'),
     },
     {
       id: 'ats',
-      label: unscoredCount > 0 ? `ATS scan (${unscoredCount} pending)` : 'Portfolio ATS',
+      label: unscoredCount > 0 ? t('app.dashboardPage.quickActions.atsLabelCount', 'ATS scan ({{count}} pending)', { count: unscoredCount }) : t('app.dashboardPage.quickActions.atsLabel', 'Portfolio ATS'),
       description:
         atsAverage != null
-          ? `Avg ${Math.round(atsAverage)}% · ${resumes.length} resume${resumes.length !== 1 ? 's' : ''}`
-          : 'Scores and weakest areas per resume',
+          ? t('app.dashboardPage.quickActions.atsDescCount', 'Avg {{score}}% · {{count}} resumes', { score: Math.round(atsAverage), count: resumes.length })
+          : t('app.dashboardPage.quickActions.atsDesc', 'Scores and weakest areas per resume'),
     },
     {
       id: 'improve',
-      label: weakCount > 0 ? `Fix ${weakCount} weak bullets` : 'Experience fix plan',
-      description: 'Category scores and bullet improvements',
+      label: weakCount > 0 ? t('app.dashboardPage.quickActions.improveLabelCount', 'Fix {{count}} weak bullets', { count: weakCount }) : t('app.dashboardPage.quickActions.improveLabel', 'Experience fix plan'),
+      description: t('app.dashboardPage.quickActions.improveDesc', 'Category scores and bullet improvements'),
     },
     {
       id: 'wise-ai',
-      label: 'Ask Wise AI',
-      description: 'Rewrite bullets or match a job description',
+      label: t('app.dashboardPage.quickActions.wiseAiLabel', 'Ask Wise AI'),
+      description: t('app.dashboardPage.quickActions.wiseAiDesc', 'Rewrite bullets or match a job description'),
     },
   ];
 

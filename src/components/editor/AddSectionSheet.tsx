@@ -1,27 +1,29 @@
 import { memo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Trophy, Rocket, BookOpen, Heart, Palette, Users, Check, Award, Globe } from 'lucide-react';
+import { Trophy, Rocket, BookOpen, Heart, Palette, Users, Award, Globe } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import haptics from '@/lib/haptics';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface AddSectionSheetProps {
   onSelectSection: (section: string) => void;
 }
 
-const OPTIONAL_SECTIONS = [
-  { id: 'awards', label: 'Awards', icon: Trophy, description: 'Awards & achievements', color: 'text-amber-500' },
-  { id: 'projects', label: 'Projects', icon: Rocket, description: 'Personal & work projects', color: 'text-blue-500' },
-  { id: 'certifications', label: 'Certifications', icon: Award, description: 'Licenses & credentials', color: 'text-orange-500' },
-  { id: 'publications', label: 'Publications', icon: BookOpen, description: 'Papers & articles', color: 'text-emerald-500' },
-  { id: 'volunteering', label: 'Volunteering', icon: Heart, description: 'Community service', color: 'text-rose-500' },
-  { id: 'languages', label: 'Languages', icon: Globe, description: 'Languages you speak', color: 'text-cyan-500' },
-  { id: 'hobbies', label: 'Hobbies', icon: Palette, description: 'Interests & hobbies', color: 'text-purple-500' },
-  { id: 'references', label: 'References', icon: Users, description: 'Professional references', color: 'text-sky-500' },
+const OPTIONAL_SECTION_IDS = [
+  { id: 'awards',          icon: Trophy, color: 'text-amber-500' },
+  { id: 'projects',        icon: Rocket, color: 'text-blue-500' },
+  { id: 'certifications',  icon: Award,  color: 'text-orange-500' },
+  { id: 'publications',    icon: BookOpen, color: 'text-emerald-500' },
+  { id: 'volunteering',    icon: Heart,  color: 'text-rose-500' },
+  { id: 'languages',       icon: Globe,  color: 'text-cyan-500' },
+  { id: 'hobbies',         icon: Palette, color: 'text-purple-500' },
+  { id: 'references',      icon: Users,  color: 'text-sky-500' },
 ] as const;
 
 export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }: AddSectionSheetProps) {
   const currentResume = useResumeStore(state => state.currentResume);
   const prefersReduced = useReducedMotion();
+  const { t } = useLocale();
 
   const getCount = (sectionId: string): number => {
     if (!currentResume) return 0;
@@ -32,7 +34,7 @@ export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        {OPTIONAL_SECTIONS.map((section, index) => {
+        {OPTIONAL_SECTION_IDS.map((section, index) => {
           const Icon = section.icon;
           const count = getCount(section.id);
           const active = count > 0;
@@ -58,8 +60,10 @@ export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }
                 </span>
               )}
               <Icon className={`w-6 h-6 ${section.color}`} />
-              <span className="text-sm font-medium">{section.label}</span>
-              <span className="text-[11px] text-muted-foreground text-center leading-tight">{section.description}</span>
+              <span className="text-sm font-medium">{t(`editor.sections.${section.id}`, section.id)}</span>
+              <span className="text-[11px] text-muted-foreground text-center leading-tight">
+                {t(`editor.addSection.${section.id}Desc`, '')}
+              </span>
             </motion.button>
           );
         })}

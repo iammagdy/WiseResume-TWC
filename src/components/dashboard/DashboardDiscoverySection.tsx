@@ -1,35 +1,9 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LayoutTemplate, BookOpen, Map, Users, ChevronRight } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-
-export const DASHBOARD_EXPLORE_LINKS = [
-  {
-    icon: LayoutTemplate,
-    label: 'Templates',
-    description: 'ATS-ready resume layouts',
-    path: '/templates',
-  },
-  {
-    icon: BookOpen,
-    label: 'Examples',
-    description: 'Proven resume samples',
-    path: '/examples',
-  },
-  {
-    icon: Map,
-    label: 'Guides',
-    description: 'Job search playbooks',
-    path: '/guides',
-  },
-  {
-    icon: Users,
-    label: 'Referral',
-    description: 'Invite friends, earn credits',
-    path: '/referral',
-  },
-] as const;
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface DashboardDiscoverySectionProps {
   className?: string;
@@ -42,6 +16,34 @@ export const DashboardDiscoverySection = memo(function DashboardDiscoverySection
   compact = false,
 }: DashboardDiscoverySectionProps) {
   const navigate = useNavigate();
+  const { t } = useLocale();
+
+  const exploreLinks = useMemo(() => [
+    {
+      icon: LayoutTemplate,
+      label: t('app.templates', 'Templates'),
+      description: t('app.dashboardPage.explore.templatesDesc', 'ATS-ready resume layouts'),
+      path: '/templates',
+    },
+    {
+      icon: BookOpen,
+      label: t('app.examples', 'Examples'),
+      description: t('app.dashboardPage.explore.examplesDesc', 'Proven resume samples'),
+      path: '/examples',
+    },
+    {
+      icon: Map,
+      label: t('app.guides', 'Guides'),
+      description: t('app.dashboardPage.explore.guidesDesc', 'Job search playbooks'),
+      path: '/guides',
+    },
+    {
+      icon: Users,
+      label: t('app.referral', 'Referral'),
+      description: t('app.dashboardPage.explore.referralDesc', 'Invite friends, earn credits'),
+      path: '/referral',
+    },
+  ], [t]);
 
   return (
     <section
@@ -51,7 +53,7 @@ export const DashboardDiscoverySection = memo(function DashboardDiscoverySection
         className,
       )}
       data-section="dashboard-discovery-content"
-      aria-label="Explore"
+      aria-label={t('app.dashboardPage.explore.exploreAria', 'Explore')}
     >
       <div
         className={cn(
@@ -61,11 +63,11 @@ export const DashboardDiscoverySection = memo(function DashboardDiscoverySection
       >
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Explore
+            {t('app.dashboardPage.explore.exploreTitle', 'Explore')}
           </p>
           {!compact && (
             <p className="text-xs text-muted-foreground mt-1 leading-snug">
-              Resources to strengthen your resumes and applications
+              {t('app.dashboardPage.explore.exploreSubtitle', 'Resources to strengthen your resumes and applications')}
             </p>
           )}
         </div>
@@ -78,7 +80,7 @@ export const DashboardDiscoverySection = memo(function DashboardDiscoverySection
           compact ? 'sm:grid-cols-4' : 'gap-2.5 lg:grid-cols-4',
         )}
       >
-        {DASHBOARD_EXPLORE_LINKS.map(({ icon: Icon, label, description, path }) => (
+        {exploreLinks.map(({ icon: Icon, label, description, path }) => (
           <button
             key={label}
             type="button"

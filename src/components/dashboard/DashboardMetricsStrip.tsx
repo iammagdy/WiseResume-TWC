@@ -2,6 +2,7 @@ import { memo, useState, useMemo } from 'react';
 import { Activity, Target, Briefcase, Bookmark, TrendingUp, TrendingDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PortfolioAtsChartPoint } from '@/components/dashboard/dashboardMetricsUtils';
+import { useLocale } from '@/i18n/LocaleProvider';
 import { PortfolioAtsSparkline } from '@/components/dashboard/PortfolioAtsSparkline';
 import { DashboardAtsPortfolioDialog } from '@/components/dashboard/DashboardAtsPortfolioDialog';
 import { DashboardSavedJobsDialog } from '@/components/dashboard/DashboardSavedJobsDialog';
@@ -110,6 +111,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
   onTailorResume,
   className,
 }: DashboardMetricsStripProps) {
+  const { t } = useLocale();
   const [activeDialog, setActiveDialog] = useState<MetricTone | null>(null);
 
   const showSparkline = atsChartSeries != null && atsChartSeries.length >= 2;
@@ -144,11 +146,11 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         <button
           type="button"
           className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
-          aria-label="View ATS scores for all resumes"
+          aria-label={t('app.dashboardPage.viewAtsScoresAria', 'View ATS scores for all resumes')}
           onClick={() => openDialog('ats')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">ATS Score (Avg.)</p>
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardStats.atsAverage', 'ATS Score (Avg.)')}</p>
             <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.ats.iconBg)}>
               <Activity className={cn('w-4 h-4', TONE_STYLES.ats.icon)} aria-hidden />
             </span>
@@ -159,11 +161,13 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
               {atsTrendDelta != null ? (
                 <p className={cn('flex items-center gap-0.5 text-xs font-medium mt-1.5', atsTrendDelta > 0 ? 'text-success' : 'text-warning')}>
                   {atsTrendDelta > 0 ? <TrendingUp className="w-3 h-3 shrink-0" /> : <TrendingDown className="w-3 h-3 shrink-0" />}
-                  {atsTrendDelta > 0 ? `↑ ${atsTrendDelta}%` : `↓ ${Math.abs(atsTrendDelta)}%`} vs last 7 days
+                  {atsTrendDelta > 0 ? `↑ ${atsTrendDelta}%` : `↓ ${Math.abs(atsTrendDelta)}%`} {t('app.dashboardPage.vsLast7Days', 'vs last 7 days')}
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
-                  {scoredResumeCount > 0 ? `Across ${scoredResumeCount} resume${scoredResumeCount !== 1 ? 's' : ''}` : isScoring ? 'Scoring resumes…' : 'Run ATS on your resumes'}
+                  {scoredResumeCount > 0 
+                    ? t('app.dashboardPage.acrossResumesCount', 'Across {{count}} resume{{suffix}}', { count: scoredResumeCount, suffix: scoredResumeCount !== 1 ? 's' : '' }) 
+                    : isScoring ? t('app.dashboardPage.scoringResumes', 'Scoring resumes…') : t('app.dashboardPage.runAtsOnResumes', 'Run ATS on your resumes')}
                 </p>
               )}
             </div>
@@ -175,11 +179,11 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         <button
           type="button"
           className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
-          aria-label="View tailored resumes"
+          aria-label={t('app.dashboardPage.viewTailoredResumesAria', 'View tailored resumes')}
           onClick={() => openDialog('tailored')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">Tailored Resumes</p>
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardStats.tailoredResumes', 'Tailored Resumes')}</p>
             <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.tailored.iconBg)}>
               <Target className={cn('w-4 h-4', TONE_STYLES.tailored.icon)} aria-hidden />
             </span>
@@ -199,7 +203,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">This week</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{t('app.dashboardPage.thisWeek', 'This week')}</p>
             )}
           </div>
         </button>
@@ -208,11 +212,11 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         <button
           type="button"
           className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
-          aria-label="View application match scores"
+          aria-label={t('app.dashboardPage.viewAppMatchesAria', 'View application match scores')}
           onClick={() => openDialog('matches')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">App. Matches</p>
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardPage.appMatches', 'App. Matches')}</p>
             <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.matches.iconBg)}>
               <Briefcase className={cn('w-4 h-4', TONE_STYLES.matches.icon)} aria-hidden />
             </span>
@@ -241,11 +245,13 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
                     />
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-snug">{matchSegments.strong} strong · {matchSegments.partial} partial</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                  {t('app.dashboardPage.matchSegmentsShort', '{{strong}} strong · {{partial}} partial', { strong: matchSegments.strong, partial: matchSegments.partial })}
+                </p>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
-                {hasJobMatchScores ? 'Strong matches' : 'Add a target job to score'}
+                {hasJobMatchScores ? t('app.dashboardPage.strongMatches', 'Strong matches') : t('app.dashboardPage.addTargetJobToScore', 'Add a target job to score')}
               </p>
             )}
           </div>
@@ -255,11 +261,11 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         <button
           type="button"
           className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
-          aria-label="View saved job postings"
+          aria-label={t('app.dashboardPage.viewSavedJobsAria', 'View saved job postings')}
           onClick={() => openDialog('jobs')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">Saved Jobs</p>
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardStats.savedResumes', 'Saved Jobs')}</p>
             <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.jobs.iconBg)}>
               <Bookmark className={cn('w-4 h-4', TONE_STYLES.jobs.icon)} aria-hidden />
             </span>
@@ -277,7 +283,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
             ) : (
               <span className="mt-1.5 flex items-center gap-1 text-xs text-primary font-medium" aria-hidden>
                 <Plus className="w-3 h-3 shrink-0" />
-                Import a posting
+                {t('app.dashboardPage.importPosting', 'Import a posting')}
               </span>
             )}
           </div>

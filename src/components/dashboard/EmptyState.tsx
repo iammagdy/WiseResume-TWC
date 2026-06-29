@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { TemplateId } from '@/types/resume';
 import { MiniTemplateThumbnail } from './MiniTemplateThumbnail';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface EmptyStateProps {
   onCreateNew: () => void;
@@ -14,23 +15,10 @@ interface EmptyStateProps {
   onImportProfile?: () => void;
 }
 
-const steps = [
-  { icon: Upload, label: 'Create or Upload', description: 'Start from scratch or import a PDF' },
-  { icon: Sparkles, label: 'AI Enhances It', description: 'Tailor content for any job posting' },
-  { icon: Download, label: 'Download PDF', description: 'Export an ATS-ready resume instantly' },
-];
-
 const templatePreviews: Array<{ id: TemplateId; name: string; popular: boolean }> = [
   { id: 'modern', name: 'Modern', popular: true },
   { id: 'classic', name: 'Classic', popular: false },
   { id: 'minimal', name: 'Minimal', popular: false },
-];
-
-const carouselTips = [
-  'Keep your resume to 1-2 pages maximum',
-  'Use action verbs to describe achievements',
-  'Tailor your resume for each job',
-  'Include quantifiable results',
 ];
 
 const containerVariants = {
@@ -45,9 +33,22 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
 
-
 export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, onImportProfile }: EmptyStateProps) {
   const shouldReduceMotion = useReducedMotion();
+  const { t, locale } = useLocale();
+
+  const steps = [
+    { icon: Upload, label: t('app.emptyState.step1Label', 'Create or Upload'), description: t('app.emptyState.step1Desc', 'Start from scratch or import a PDF') },
+    { icon: Sparkles, label: t('app.emptyState.step2Label', 'AI Enhances It'), description: t('app.emptyState.step2Desc', 'Tailor content for any job posting') },
+    { icon: Download, label: t('app.emptyState.step3Label', 'Download PDF'), description: t('app.emptyState.step3Desc', 'Export an ATS-ready resume instantly') },
+  ];
+
+  const carouselTips = [
+    t('app.emptyState.tip1', 'Keep your resume to 1-2 pages maximum'),
+    t('app.emptyState.tip2', 'Use action verbs to describe achievements'),
+    t('app.emptyState.tip3', 'Tailor your resume for each job'),
+    t('app.emptyState.tip4', 'Include quantifiable results'),
+  ];
   const [activeTipIndex, setActiveTipIndex] = useState(0);
   const [tipPaused, setTipPaused] = useState(false);
 
@@ -81,7 +82,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
         className="bg-card border border-primary/30 shadow-soft-lg rounded-2xl px-6 py-8 w-full max-w-md mb-6 relative overflow-hidden"
       >
         <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-[hsl(340,68%,52%)] to-primary/70" aria-hidden />
-        <span className="dashboard-atlas-eyebrow mb-4">Start here</span>
+        <span className="dashboard-atlas-eyebrow mb-4">{t('app.emptyState.startHere', 'Start here')}</span>
         <motion.div
           initial={shouldReduceMotion ? undefined : { scale: 0.8, y: 8 }}
           animate={shouldReduceMotion ? undefined : { scale: 1, y: 0 }}
@@ -94,19 +95,19 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
           <FileText className="w-9 h-9 text-primary-foreground" />
         </motion.div>
 
-        <h2 className="text-h1 text-foreground mb-2">No resumes yet</h2>
+        <h2 className="text-h1 text-foreground mb-2">{t('app.emptyState.noResumesYet', 'No resumes yet')}</h2>
 
         {onStartOnboarding ? (
           <button
             onClick={onStartOnboarding}
             className="text-muted-foreground max-w-sm text-sm underline decoration-dashed underline-offset-4 hover:text-foreground transition-colors"
-            aria-label="Start onboarding tour"
+            aria-label={t('app.emptyState.startTourAria', 'Start onboarding tour')}
           >
-            Get started in 3 simple steps
+            {t('app.emptyState.getStartedSteps', 'Get started in 3 simple steps')}
           </button>
         ) : (
           <p className="text-muted-foreground max-w-sm text-sm">
-            Get started in 3 simple steps
+            {t('app.emptyState.getStartedSteps', 'Get started in 3 simple steps')}
           </p>
         )}
       </motion.div>
@@ -144,12 +145,12 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
             key={tpl.id}
             onClick={onCreateNew}
             className="flex flex-col items-center gap-1.5 snap-center flex-shrink-0 group relative"
-            aria-label={`Create resume with ${tpl.name} template`}
+            aria-label={t('app.emptyState.createResumeWithTemplate', 'Create resume with {{name}} template', { name: t('app.templates.' + tpl.id, tpl.name) })}
             whileTap={{ scale: 0.95 }}
           >
             {tpl.popular && (
               <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 text-[8px] px-1.5 py-0 h-4 bg-primary text-primary-foreground pointer-events-none">
-                Popular
+                {t('app.emptyState.popular', 'Popular')}
               </Badge>
             )}
             <div
@@ -160,7 +161,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
                 <MiniTemplateThumbnail templateId={tpl.id} />
               </ErrorBoundary>
             </div>
-            <span className="text-[10px] text-muted-foreground font-medium group-hover:text-foreground transition-colors">{tpl.name}</span>
+            <span className="text-[10px] text-muted-foreground font-medium group-hover:text-foreground transition-colors">{t('app.templates.' + tpl.id, tpl.name)}</span>
           </motion.button>
         ))}
       </motion.div>
@@ -175,10 +176,10 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
             size="lg"
             onClick={onCreateNew}
             className="h-12 px-6 text-base font-semibold w-full shadow-soft-md"
-            aria-label="Create your first resume"
+            aria-label={t('app.emptyState.createFirstResume', 'Create Your First Resume')}
           >
             <Plus className="w-5 h-5 mr-2" />
-            Create Your First Resume
+            {t('app.emptyState.createFirstResume', 'Create Your First Resume')}
           </Button>
         </motion.div>
 
@@ -187,10 +188,10 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
             variant="outline"
             onClick={onImportProfile}
             className="gap-2"
-            aria-label="Import from LinkedIn or another platform"
+            aria-label={t('app.emptyState.importProfile', 'Import Profile')}
           >
             <FileDown className="w-4 h-4" />
-            Import Profile
+            {t('app.emptyState.importProfile', 'Import Profile')}
           </Button>
         )}
         {onBrowseTemplates && (
@@ -198,11 +199,14 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
             variant="outline"
             onClick={onBrowseTemplates}
             className="gap-2"
-            aria-label="Browse all resume templates"
+            aria-label={t('app.emptyState.browseTemplates', 'Browse All Templates')}
           >
             <LayoutGrid className="w-4 h-4" />
-            Browse All Templates
-            <ArrowRight className="w-4 h-4" />
+            {t('app.emptyState.browseTemplates', 'Browse All Templates')}
+            <ArrowRight
+              className="w-4 h-4"
+              style={{ transform: locale === 'ar' ? 'rotate(180deg)' : undefined }}
+            />
           </Button>
         )}
       </motion.div>
@@ -239,7 +243,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
               key={i}
               onClick={() => setActiveTipIndex(i)}
               className={`w-1.5 h-1.5 rounded-full transition-colors ${i === activeTipIndex ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-              aria-label={`Show tip ${i + 1}`}
+              aria-label={t('app.emptyState.showTipNum', 'Show tip {{num}}', { num: i + 1 })}
             />
           ))}
         </div>

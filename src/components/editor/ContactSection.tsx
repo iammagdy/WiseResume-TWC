@@ -7,6 +7,7 @@ import { SectionEmptyState } from './SectionEmptyState';
 import { contactExample } from '@/lib/emptyStateExamples';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email');
@@ -32,6 +33,7 @@ function extractGitHubUsername(url: string): string {
 }
 
 export const ContactSection = memo(function ContactSection() {
+  const { t } = useLocale();
   const contactInfo = useResumeStore(state => state.currentResume?.contactInfo);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
@@ -49,7 +51,7 @@ export const ContactSection = memo(function ContactSection() {
     return (
       <SectionEmptyState
         icon={User}
-        title="Add your contact information"
+        title={t('editor.contact.addInfoTitle', 'Add your contact information')}
         exampleContent={
           <div className="space-y-1 text-sm">
             <p className="font-semibold">{contactExample.fullName}</p>
@@ -60,7 +62,7 @@ export const ContactSection = memo(function ContactSection() {
           </div>
         }
         actions={[
-          { label: 'Start Adding Your Info', variant: 'default', onClick: () => setStarted(true) },
+          { label: t('editor.contact.startBtn', 'Start Adding Your Info'), variant: 'default', onClick: () => setStarted(true) },
         ]}
       />
     );
@@ -82,21 +84,21 @@ export const ContactSection = memo(function ContactSection() {
   // Validation functions
   const getNameError = (): string | undefined => {
     const name = contactInfo.fullName;
-    if (!name || name.trim() === '') return 'Full name is required';
-    if (name.length < 2) return 'Name must be at least 2 characters';
-    if (name.length > 100) return 'Name must be less than 100 characters';
+    if (!name || name.trim() === '') return t('editor.contact.fullNameRequired', 'Full name is required');
+    if (name.length < 2) return t('editor.contact.nameMinLen', 'Name must be at least 2 characters');
+    if (name.length > 100) return t('editor.contact.nameMaxLen', 'Name must be less than 100 characters');
     return undefined;
   };
 
   const getEmailError = (): string | undefined => {
     const email = contactInfo.email;
-    if (!email || email.trim() === '') return 'Email is required';
+    if (!email || email.trim() === '') return t('editor.contact.emailRequired', 'Email is required');
     try {
       emailSchema.parse(email);
       return undefined;
     } catch (e) {
-      if (e instanceof z.ZodError) return e.errors[0]?.message;
-      return 'Invalid email';
+      if (e instanceof z.ZodError) return t('editor.contact.emailInvalid', 'Please enter a valid email');
+      return t('editor.contact.emailInvalid', 'Please enter a valid email');
     }
   };
 
@@ -107,8 +109,8 @@ export const ContactSection = memo(function ContactSection() {
       emailSchema.parse(email2);
       return undefined;
     } catch (e) {
-      if (e instanceof z.ZodError) return e.errors[0]?.message;
-      return 'Invalid email';
+      if (e instanceof z.ZodError) return t('editor.contact.emailInvalid', 'Please enter a valid email');
+      return t('editor.contact.emailInvalid', 'Please enter a valid email');
     }
   };
 
@@ -119,8 +121,8 @@ export const ContactSection = memo(function ContactSection() {
       phoneSchema.parse(phone);
       return undefined;
     } catch (e) {
-      if (e instanceof z.ZodError) return e.errors[0]?.message;
-      return 'Invalid phone';
+      if (e instanceof z.ZodError) return t('editor.contact.phoneInvalid', 'Invalid phone');
+      return t('editor.contact.phoneInvalid', 'Invalid phone');
     }
   };
 
@@ -131,8 +133,8 @@ export const ContactSection = memo(function ContactSection() {
       linkedinUsernameSchema.parse(username);
       return undefined;
     } catch (e) {
-      if (e instanceof z.ZodError) return e.errors[0]?.message;
-      return 'Invalid username';
+      if (e instanceof z.ZodError) return t('editor.contact.linkedinInvalid', 'Invalid username');
+      return t('editor.contact.linkedinInvalid', 'Invalid username');
     }
   };
 
@@ -143,8 +145,8 @@ export const ContactSection = memo(function ContactSection() {
       githubUsernameSchema.parse(username);
       return undefined;
     } catch (e) {
-      if (e instanceof z.ZodError) return e.errors[0]?.message;
-      return 'Invalid username';
+      if (e instanceof z.ZodError) return t('editor.contact.githubInvalid', 'Invalid username');
+      return t('editor.contact.githubInvalid', 'Invalid username');
     }
   };
 
@@ -155,7 +157,7 @@ export const ContactSection = memo(function ContactSection() {
       new URL(portfolio);
       return undefined;
     } catch {
-      return 'Please enter a valid URL';
+      return t('editor.contact.portfolioInvalid', 'Please enter a valid URL');
     }
   };
 
@@ -173,12 +175,12 @@ export const ContactSection = memo(function ContactSection() {
       />
         <InputFormField
           id="fullName"
-          label="Full Name"
+          label={t('editor.contact.fullName', 'Full Name')}
           icon={<User className="w-4 h-4" />}
           value={contactInfo.fullName}
           onChange={(value) => handleChange('fullName', value)}
           onBlur={() => handleBlur('fullName')}
-          placeholder="John Doe"
+          placeholder={t('editor.contact.fullNamePlaceholder', 'John Doe')}
           autoComplete="name"
           error={getNameError()}
           touched={touched.fullName}
@@ -189,13 +191,13 @@ export const ContactSection = memo(function ContactSection() {
 
         <InputFormField
           id="email"
-          label="Email"
+          label={t('editor.contact.email', 'Email')}
           type="email"
           icon={<Mail className="w-4 h-4" />}
           value={contactInfo.email}
           onChange={(value) => handleChange('email', value)}
           onBlur={() => handleBlur('email')}
-          placeholder="john@example.com"
+          placeholder={t('editor.contact.emailPlaceholder', 'john@example.com')}
           autoComplete="email"
           error={getEmailError()}
           touched={touched.email}
@@ -204,13 +206,13 @@ export const ContactSection = memo(function ContactSection() {
 
         <InputFormField
           id="email2"
-          label="Second Email (optional)"
+          label={t('editor.contact.secondEmail', 'Second Email (optional)')}
           type="email"
           icon={<Mail className="w-4 h-4" />}
           value={contactInfo.email2 || ''}
           onChange={(value) => handleChange('email2', value)}
           onBlur={() => handleBlur('email2')}
-          placeholder="work@example.com"
+          placeholder={t('editor.contact.secondEmailPlaceholder', 'work@example.com')}
           autoComplete="email"
           error={getEmail2Error()}
           touched={touched.email2}
@@ -218,7 +220,7 @@ export const ContactSection = memo(function ContactSection() {
 
         <InputFormField
           id="phone"
-          label="Phone"
+          label={t('editor.contact.phone', 'Phone')}
           type="tel"
           inputMode="tel"
           icon={<Phone className="w-4 h-4" />}
@@ -228,7 +230,7 @@ export const ContactSection = memo(function ContactSection() {
             handleChange('phone', filtered);
           }}
           onBlur={() => handleBlur('phone')}
-          placeholder="+1 (555) 123-4567"
+          placeholder={t('editor.contact.phonePlaceholder', '+1 (555) 123-4567')}
           autoComplete="tel"
           error={getPhoneError()}
           touched={touched.phone}
@@ -236,18 +238,18 @@ export const ContactSection = memo(function ContactSection() {
 
         <InputFormField
           id="location"
-          label="Location"
+          label={t('editor.contact.location', 'Location')}
           icon={<MapPin className="w-4 h-4" />}
           value={contactInfo.location}
           onChange={(value) => handleChange('location', value)}
           onBlur={() => handleBlur('location')}
-          placeholder="New York, NY"
+          placeholder={t('editor.contact.locationPlaceholder', 'New York, NY')}
           autoComplete="address-level2"
         />
 
         <InputFormField
           id="linkedin"
-          label="LinkedIn (optional)"
+          label={t('editor.contact.linkedin', 'LinkedIn (optional)')}
           icon={<Linkedin className="w-4 h-4" />}
           prefix={LINKEDIN_PREFIX}
           value={extractLinkedInUsername(contactInfo.linkedin || '')}
@@ -256,14 +258,14 @@ export const ContactSection = memo(function ContactSection() {
             handleChange('linkedin', username ? `${LINKEDIN_URL_BASE}${username}` : '');
           }}
           onBlur={() => handleBlur('linkedin')}
-          placeholder="johndoe"
+          placeholder={t('editor.contact.linkedinPlaceholder', 'johndoe')}
           error={getLinkedinError()}
           touched={touched.linkedin}
         />
 
         <InputFormField
           id="github"
-          label="GitHub (optional)"
+          label={t('editor.contact.github', 'GitHub (optional)')}
           icon={<Github className="w-4 h-4" />}
           prefix={GITHUB_PREFIX}
           value={extractGitHubUsername(contactInfo.github || '')}
@@ -272,20 +274,20 @@ export const ContactSection = memo(function ContactSection() {
             handleChange('github', username ? `${GITHUB_URL_BASE}${username}` : '');
           }}
           onBlur={() => handleBlur('github')}
-          placeholder="johndoe"
+          placeholder={t('editor.contact.githubPlaceholder', 'johndoe')}
           error={getGithubError()}
           touched={touched.github}
         />
 
         <InputFormField
           id="portfolio"
-          label="Portfolio (optional)"
+          label={t('editor.contact.portfolio', 'Portfolio (optional)')}
           type="url"
           icon={<Globe className="w-4 h-4" />}
           value={contactInfo.portfolio || ''}
           onChange={(value) => handleChange('portfolio', value)}
           onBlur={() => handleBlur('portfolio')}
-          placeholder="https://johndoe.com"
+          placeholder={t('editor.contact.portfolioPlaceholder', 'https://johndoe.com')}
           error={getPortfolioError()}
           touched={touched.portfolio}
         />

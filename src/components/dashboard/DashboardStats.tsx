@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
+import { useLocale } from '@/i18n/LocaleProvider';
+
 
 
 function useLoginStreak(userId?: string | null) {
@@ -192,34 +194,6 @@ function useLoginStreak(userId?: string | null) {
 
 
 
-const motivationalSubtitles = [
-
-  "Let's create something amazing today!",
-
-  "Your next opportunity starts here",
-
-  "One great resume away from your dream job",
-
-  "Today is the perfect day to stand out",
-
-];
-
-
-
-const tips = [
-  'Tailoring your resume to each job description tends to increase callbacks.',
-  'Use numbers and metrics — recruiters skim quickly, so quantified results stand out.',
-  'A strong summary section helps recruiters grasp your value at a glance.',
-  'Keep your resume to one page if you have under 10 years of experience.',
-  'Use action verbs like "led", "built", and "improved" to stand out.',
-  'Adding relevant keywords from the job posting helps you pass ATS filters.',
-  'Proofread your resume twice — typos are one of the fastest ways to get screened out.',
-  'Quantify achievements: "Increased revenue by 25%" reads stronger than vague claims.',
-  'Update your resume every few months, even if you\'re not job hunting.',
-];
-
-
-
 interface DashboardStatsProps {
 
   totalResumes: number;
@@ -270,6 +244,8 @@ export const DashboardStats = memo(function DashboardStats({
 
 }: DashboardStatsProps) {
 
+  const { t, locale } = useLocale();
+
   const shouldReduceMotion = useReducedMotion();
 
   const appwriteStreak = useLoginStreak(userId);
@@ -279,6 +255,44 @@ export const DashboardStats = memo(function DashboardStats({
   const [subtitleIndex, setSubtitleIndex] = useState(0);
 
   const [tipDismissed, setTipDismissed] = useState(() => !!localStorage.getItem('wr-tip-dismissed'));
+
+
+
+  const motivationalSubtitles = useMemo(() => [
+
+    t('app.dashboardStats.motivational0', "Let's create something amazing today!"),
+
+    t('app.dashboardStats.motivational1', "Your next opportunity starts here"),
+
+    t('app.dashboardStats.motivational2', "One great resume away from your dream job"),
+
+    t('app.dashboardStats.motivational3', "Today is the perfect day to stand out"),
+
+  ], [t]);
+
+
+
+  const tips = useMemo(() => [
+
+    t('app.dashboardStats.tip0', 'Tailoring your resume to each job description tends to increase callbacks.'),
+
+    t('app.dashboardStats.tip1', 'Use numbers and metrics — recruiters skim quickly, so quantified results stand out.'),
+
+    t('app.dashboardStats.tip2', 'A strong summary section helps recruiters grasp your value at a glance.'),
+
+    t('app.dashboardStats.tip3', 'Keep your resume to one page if you have under 10 years of experience.'),
+
+    t('app.dashboardStats.tip4', 'Use action verbs like "led", "built", and "improved" to stand out.'),
+
+    t('app.dashboardStats.tip5', 'Adding relevant keywords from the job posting helps you pass ATS filters.'),
+
+    t('app.dashboardStats.tip6', 'Proofread your resume twice — typos are one of the fastest ways to get screened out.'),
+
+    t('app.dashboardStats.tip7', 'Quantify achievements: "Increased revenue by 25%" reads stronger than vague claims.'),
+
+    t('app.dashboardStats.tip8', 'Update your resume every few months, even if you\'re not job hunting.'),
+
+  ], [t]);
 
 
 
@@ -308,7 +322,7 @@ export const DashboardStats = memo(function DashboardStats({
 
     return () => clearInterval(interval);
 
-  }, [totalResumes, shouldReduceMotion]);
+  }, [totalResumes, shouldReduceMotion, motivationalSubtitles.length]);
 
 
 
@@ -328,13 +342,13 @@ export const DashboardStats = memo(function DashboardStats({
 
     const hour = new Date().getHours();
 
-    if (hour < 12) return 'Good morning';
+    if (hour < 12) return t('app.dashboardStats.goodMorning', 'Good morning');
 
-    if (hour < 17) return 'Good afternoon';
+    if (hour < 17) return t('app.dashboardStats.goodAfternoon', 'Good afternoon');
 
-    return 'Good evening';
+    return t('app.dashboardStats.goodEvening', 'Good evening');
 
-  }, []);
+  }, [t]);
 
 
 
@@ -345,70 +359,135 @@ export const DashboardStats = memo(function DashboardStats({
   if (totalResumes > 0) {
 
     const metrics = [
+
       {
+
         Icon: Star,
+
         value: avgScore > 0 ? `${avgScore}%` : isScoring ? '…' : '—',
-        label: 'ATS average',
+
+        label: t('app.dashboardStats.atsAverage', 'ATS average'),
+
         accent: avgScore >= 80 ? 'text-success' : avgScore >= 50 ? 'text-warning' : 'text-muted-foreground',
+
         iconBg: avgScore >= 80 ? 'bg-success/10' : avgScore >= 50 ? 'bg-warning/10' : 'bg-muted/60',
+
         show: true,
+
       },
+
       {
+
         Icon: Target,
+
         value: tailoredCount,
-        label: 'Tailored resumes',
+
+        label: t('app.dashboardStats.tailoredResumes', 'Tailored resumes'),
+
         accent: 'text-foreground',
+
         iconBg: 'bg-primary/8',
+
         show: tailoredCount > 0,
+
       },
+
       {
+
         Icon: Hash,
+
         value: missingKeywordsCount,
-        label: 'Missing keywords',
+
+        label: t('app.dashboardStats.missingKeywords', 'Missing keywords'),
+
         accent: 'text-warning',
+
         iconBg: 'bg-warning/10',
+
         show: missingKeywordsCount > 0,
+
       },
+
       {
+
         Icon: FileText,
+
         value: totalResumes,
-        label: 'Saved resumes',
+
+        label: t('app.dashboardStats.savedResumes', 'Saved resumes'),
+
         accent: 'text-foreground',
+
         iconBg: 'bg-muted/50',
+
         show: true,
+
       },
+
     ].filter((m) => m.show);
 
+
+
     const gridClass =
+
       metrics.length >= 4
+
         ? 'grid-cols-2 lg:grid-cols-4'
+
         : metrics.length === 3
+
           ? 'grid-cols-2 lg:grid-cols-3'
+
           : 'grid-cols-2';
 
+
+
     return (
+
       <div className={cn('px-4', metricsOnly ? 'pb-2 pt-0' : 'pb-4')}>
+
         <div className={cn('grid gap-2', gridClass)}>
+
           {metrics.map(({ Icon, value, label, accent, iconBg }) => (
+
             <div key={label} className="dashboard-atlas-metric p-2.5 sm:p-3 flex justify-between gap-2 items-center min-w-0">
+
               <div className="min-w-0">
+
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide leading-none">
+
                   {label}
+
                 </p>
+
                 <p className={cn('text-lg sm:text-xl font-semibold leading-none tabular-nums mt-1 tracking-tight', accent)}>
+
                   {value}
+
                 </p>
+
               </div>
+
               <div
+
                 className={cn(
+
                   'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-border/60',
+
                   iconBg,
+
                 )}
+
               >
+
                 <Icon className={cn('w-3.5 h-3.5', accent)} aria-hidden />
+
               </div>
+
             </div>
+
           ))}
+
         </div>
 
 
@@ -421,7 +500,7 @@ export const DashboardStats = memo(function DashboardStats({
 
               <Lightbulb className="w-3.5 h-3.5 shrink-0" />
 
-              <span>Daily tip</span>
+              <span>{t('app.dashboardStats.dailyTip', 'Daily tip')}</span>
 
               <ChevronDown className="w-3 h-3 ml-auto transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
 
@@ -439,7 +518,7 @@ export const DashboardStats = memo(function DashboardStats({
 
                   className="h-11 w-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
 
-                  aria-label="Dismiss tip"
+                  aria-label={t('common.dismissTip', 'Dismiss tip')}
 
                 >
 
@@ -473,7 +552,7 @@ export const DashboardStats = memo(function DashboardStats({
 
           <div className="min-w-0">
 
-            <p className="text-label text-muted-foreground mb-0.5 normal-case tracking-wide">Welcome</p>
+            <p className="text-label text-muted-foreground mb-0.5 normal-case tracking-wide">{t('app.dashboardStats.welcome', 'Welcome')}</p>
 
             <h2 className="text-page-title font-bold text-foreground truncate">
 
@@ -497,7 +576,7 @@ export const DashboardStats = memo(function DashboardStats({
 
               <Flame className="w-3.5 h-3.5 text-warning" />
 
-              <span className="text-xs font-bold text-warning tabular-nums">{streak}d</span>
+              <span className="text-xs font-bold text-warning tabular-nums">{streak}{t('app.dashboardStats.dayAbbrev', 'd')}</span>
 
             </motion.div>
 
@@ -540,4 +619,3 @@ export const DashboardStats = memo(function DashboardStats({
   );
 
 });
-

@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState, type ComponentType } from 'react
 import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 /* Phase 2: lazy-load each WiseHire demo component so they don't bloat
    the initial bundle. Mirrors the pattern in FeatureSection.tsx. */
@@ -72,10 +73,11 @@ const DEMOS: { key: string; label: string; icon: LucideIcon; desc: string; Demo:
 
 export function WiseHireDemoSection() {
   const prefersReducedMotion = useReducedMotion();
+  const { t } = useLocale();
   /* Phase 4: track active scroll-stack card for the sticky step chip. */
   const [activeIdx, setActiveIdx] = useState(-1);
   const total = DEMOS.length;
-  const activeLabel = activeIdx >= 0 ? DEMOS[activeIdx]?.label : null;
+  const activeLabel = activeIdx >= 0 ? t('landing.wisehire.demos.' + DEMOS[activeIdx]?.key + '.label', DEMOS[activeIdx]?.label) : null;
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
@@ -115,7 +117,7 @@ export function WiseHireDemoSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            Watch AI handle <span style={{ color: 'var(--lp-eyebrow)' }}>the heavy lifting</span>
+            {t('landing.wisehire.watchAiHandle', 'Watch AI handle')} <span style={{ color: 'var(--lp-eyebrow)' }}>{t('landing.wisehire.theHeavyLifting', 'the heavy lifting')}</span>
           </h2>
         </motion.div>
         <div
@@ -182,7 +184,7 @@ export function WiseHireDemoSection() {
                     className="font-bold"
                     style={{ fontSize: 'clamp(1.1rem, 2vw, 1.4rem)', color: 'var(--lp-text)', letterSpacing: '-0.015em' }}
                   >
-                    {label}
+                    {t('landing.wisehire.demos.' + key + '.label', label)}
                   </h3>
                   <p
                     style={{
@@ -194,7 +196,7 @@ export function WiseHireDemoSection() {
                       transition: 'color 0.35s ease',
                     }}
                   >
-                    {desc}
+                    {t('landing.wisehire.demos.' + key + '.desc', desc)}
                   </p>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, ChevronDown, LayoutDashboard, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 function useCountUp(target: number, prefersReduced: boolean | null, duration = 1400) {
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -37,14 +38,6 @@ function useCountUp(target: number, prefersReduced: boolean | null, duration = 1
   const initialText = prefersReduced ? String(target) : '0';
   return { containerRef, countRef, initialText };
 }
-
-const WH_TYPEWRITER_WORDS = [
-  'Hiring Manager',
-  'Recruiter',
-  'HR Director',
-  'Head of People',
-  'Talent Partner',
-];
 
 function useWHTypewriter(words: string[], prefersReduced: boolean | null) {
   const [displayed, setDisplayed] = useState(prefersReduced ? words[0] : '');
@@ -94,12 +87,6 @@ interface WiseHireHeroProps {
   mobileToggle?: ReactNode;
 }
 
-/**
- * Decorative side ornament — abstract concentric arcs that hint at AI /
- * pipeline rings without crowding the headline. Hidden < 1024px via CSS,
- * driven entirely by tokens (`--wh-decor-stroke` / `--wh-decor-fill`)
- * so it adapts to theme + product automatically.
- */
 function WhHeroDecor({ side }: { side: 'left' | 'right' }) {
   return (
     <div
@@ -111,7 +98,6 @@ function WhHeroDecor({ side }: { side: 'left' | 'right' }) {
         <circle cx="100" cy="100" r="68" strokeWidth="1" />
         <circle cx="100" cy="100" r="44" strokeWidth="1" />
         <circle cx="100" cy="100" r="20" strokeWidth="1" />
-        {/* Small "node" dots evoking candidate cards on a pipeline ring */}
         <circle cx="192" cy="100" r="3" />
         <circle cx="100" cy="32"  r="3" />
         <circle cx="100" cy="168" r="3" />
@@ -126,7 +112,16 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
   const navigate = useNavigate();
   const isAdmin = useIsAdmin();
   const prefersReducedMotion = useReducedMotion();
-  const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS, prefersReducedMotion);
+  const { t, locale } = useLocale();
+
+  const typewriterWords = [
+    t('landing.wisehire.typewriter.word0', 'Hiring Manager'),
+    t('landing.wisehire.typewriter.word1', 'Recruiter'),
+    t('landing.wisehire.typewriter.word2', 'HR Director'),
+    t('landing.wisehire.typewriter.word3', 'Head of People'),
+    t('landing.wisehire.typewriter.word4', 'Talent Partner'),
+  ];
+  const typewriterWord = useWHTypewriter(typewriterWords, prefersReducedMotion);
   const waitlistCount = useCountUp(500, prefersReducedMotion);
   const showDashboardCta = isAuthenticated && isAdmin;
 
@@ -166,7 +161,7 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
           className="font-display font-semibold tracking-tight"
           style={{ fontSize: '0.85rem', color: 'var(--lp-eyebrow)', transition: 'color 0.35s ease' }}
         >
-          Now in early access
+          {t('landing.wisehire.nowInEarlyAccess', 'Now in early access')}
         </span>
       </div>
 
@@ -181,10 +176,10 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         }}
       >
         <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-          Hire <span style={{ color: 'var(--lp-eyebrow)' }}>Smarter.</span>
+          {t('landing.wisehire.hireSmarter', 'Hire Smarter.')}
         </span>
         <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-          Screen <span style={{ color: 'var(--lp-eyebrow)' }}>Faster.</span>
+          {t('landing.wisehire.screenFaster', 'Screen Faster.')}
         </span>
       </h1>
 
@@ -198,7 +193,7 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
           transition: 'color 0.35s ease',
         }}
       >
-        Built for the{' '}
+        {t('landing.wisehire.builtFor', 'Built for the ')}{' '}
         <span style={{ display: 'inline-block', fontWeight: 700, color: 'var(--lp-eyebrow)' }}>
           {typewriterWord || '\u00A0'}
           {!prefersReducedMotion && <span className="wh-cursor" aria-hidden="true" />}
@@ -216,7 +211,7 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
           transition: 'color 0.35s ease',
         }}
       >
-        AI that screens candidates, writes job descriptions, and surfaces your best hires — in minutes, not hours.
+        {t('landing.wisehire.subheading', 'AI that screens candidates, writes job descriptions, and surfaces your best hires — in minutes, not hours.')}
       </p>
 
       {/* CTAs — primary now uses a token-driven glow + hover lift; secondary
@@ -231,13 +226,13 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         >
           {showDashboardCta ? (
             <>
-              Go to Dashboard
+              {t('landing.wisehire.goToDashboard', 'Go to Dashboard')}
               <LayoutDashboard className="w-4 h-4" />
             </>
           ) : (
             <>
-              Join the Waitlist
-              <ArrowRight className="w-4 h-4" />
+              {t('landing.wisehire.joinWaitlist', 'Join the Waitlist')}
+              <ArrowRight className="w-4 h-4" style={{ transform: locale === 'ar' ? 'rotate(180deg)' : undefined }} />
             </>
           )}
         </motion.button>
@@ -248,7 +243,7 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
           whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
-          See it in action
+          {t('landing.wisehire.seeInAction', 'See it in action')}
           <ChevronDown className="w-4 h-4" />
         </motion.button>
       </div>
@@ -268,9 +263,13 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
           <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
           <span ref={waitlistCount.countRef} className="wh-trust-count">{waitlistCount.initialText}</span>
           <span className="wh-trust-count">+</span>
-          <span>&nbsp;on the waitlist</span>
+          <span>&nbsp;{t('landing.wisehire.onTheWaitlist', 'on the waitlist')}</span>
         </span>
-        {['Invite-only access', '7-day free trial', 'No credit card'].map((item) => (
+        {[
+          t('landing.wisehire.inviteOnly', 'Invite-only access'),
+          t('landing.wisehire.freeTrial', '7-day free trial'),
+          t('landing.wisehire.noCreditCard', 'No credit card'),
+        ].map((item) => (
           <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
             <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
             {item}

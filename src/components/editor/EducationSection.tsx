@@ -25,7 +25,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 const LinkedInOptimizerSheet = lazyWithRetry(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
 
+import { useLocale } from '@/i18n/LocaleProvider';
+
 export const EducationSection = memo(function EducationSection() {
+  const { t } = useLocale();
   const education = useResumeStore(state => state.currentResume?.education);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
@@ -118,28 +121,29 @@ export const EducationSection = memo(function EducationSection() {
     <div className="space-y-4">
       <div className="flex items-center justify-end gap-2">
         {/* Overflow menu for import/example — always visible */}
+        {/* Overflow menu for import/example — always visible */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-1.5 min-h-[44px] min-w-[44px] px-2">
               <MoreHorizontal className="w-4 h-4" />
-              <span className="sr-only">More actions</span>
+              <span className="sr-only">{t('common.moreActions', 'More actions')}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setShowLinkedIn(true)}>
               <Linkedin className="w-4 h-4 mr-2" />
-              Import from LinkedIn
+              {t('education.importLinkedIn', 'Import from LinkedIn')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={useExampleEntry}>
               <GraduationCap className="w-4 h-4 mr-2" />
-              Use Example Entry
+              {t('education.useExample', 'Use Example Entry')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
         <Button variant="outline" size="sm" onClick={addEducation} className="gap-2 min-h-[44px]">
           <Plus className="w-4 h-4" />
-          Add
+          {t('education.add', 'Add')}
         </Button>
       </div>
 
@@ -155,7 +159,7 @@ export const EducationSection = memo(function EducationSection() {
       {education.length === 0 ? (
           <SectionEmptyState
             icon={GraduationCap}
-            title="Add your education"
+            title={t('education.emptyTitle', 'Add your education')}
             exampleContent={
               <div className="text-sm space-y-1">
                 <p className="font-semibold">{educationExample.degree}</p>
@@ -165,15 +169,15 @@ export const EducationSection = memo(function EducationSection() {
               </div>
             }
             actions={[
-              { label: 'Add Education', variant: 'outline', icon: Plus, onClick: addEducation },
+              { label: t('education.addEducationBtn', 'Add Education'), variant: 'outline', icon: Plus, onClick: addEducation },
               {
-                label: "I'm Self-Taught",
+                label: t('education.selfTaughtBtn', "I'm Self-Taught"),
                 variant: 'ghost',
                 onClick: () => {
                   const selfTaught: Education = {
                     id: uuidv4(),
-                    institution: 'Self-Taught / Online Learning',
-                    degree: 'Professional Certifications & Courses',
+                    institution: t('education.selfTaughtInstitution', 'Self-Taught / Online Learning'),
+                    degree: t('education.selfTaughtDegree', 'Professional Certifications & Courses'),
                     field: '',
                     startDate: '',
                     endDate: '',
@@ -199,7 +203,7 @@ export const EducationSection = memo(function EducationSection() {
                       disabled={index === 0}
                       onClick={(e) => { e.stopPropagation(); moveEducation(index, 'up'); }}
                       className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
-                      aria-label="Move up"
+                      aria-label={t('common.moveUp', 'Move up')}
                     >
                       <ArrowUp className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -208,7 +212,7 @@ export const EducationSection = memo(function EducationSection() {
                       disabled={index === education.length - 1}
                       onClick={(e) => { e.stopPropagation(); moveEducation(index, 'down'); }}
                       className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
-                      aria-label="Move down"
+                      aria-label={t('common.moveDown', 'Move down')}
                     >
                       <ArrowDown className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -219,10 +223,10 @@ export const EducationSection = memo(function EducationSection() {
                   >
                     <div className="text-left flex-1 min-w-0 pr-3">
                       <p className="font-semibold text-sm truncate" title={edu.degree || undefined}>
-                        {edu.degree || `Degree ${index + 1}`}
+                        {edu.degree || t('education.degreeDefault', 'Degree {{index}}', { index: index + 1 })}
                       </p>
                       <p className="text-sm text-muted-foreground truncate" title={edu.institution || undefined}>
-                        {edu.institution || 'Institution name'}
+                        {edu.institution || t('education.institutionDefault', 'Institution name')}
                       </p>
                     </div>
                     <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
@@ -241,12 +245,12 @@ export const EducationSection = memo(function EducationSection() {
                         <div>
                           <Label className="text-sm flex items-center gap-1.5 mb-2">
                             <GraduationCap className="w-4 h-4" />
-                            Institution
+                            {t('education.institutionLabel', 'Institution')}
                           </Label>
                           <Input
                             value={edu.institution}
                             onChange={(e) => updateEducation(edu.id, { institution: e.target.value })}
-                            placeholder="University Name"
+                            placeholder={t('education.institutionPlaceholder', 'University Name')}
                             className="h-11"
                             autoComplete="organization"
                           />
@@ -254,20 +258,20 @@ export const EducationSection = memo(function EducationSection() {
 
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <Label className="text-xs mb-1 block">Degree</Label>
+                            <Label className="text-xs mb-1 block">{t('education.degreeLabel', 'Degree')}</Label>
                             <Input
                               value={edu.degree}
                               onChange={(e) => updateEducation(edu.id, { degree: e.target.value })}
-                              placeholder="Bachelor's"
+                              placeholder={t('education.degreePlaceholder', "Bachelor's")}
                               className="h-11"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs mb-1 block">Field of Study</Label>
+                            <Label className="text-xs mb-1 block">{t('education.fieldLabel', 'Field of Study')}</Label>
                             <Input
                               value={edu.field}
                               onChange={(e) => updateEducation(edu.id, { field: e.target.value })}
-                              placeholder="Computer Science"
+                              placeholder={t('education.fieldPlaceholder', 'Computer Science')}
                               className="h-11"
                             />
                           </div>
@@ -277,7 +281,7 @@ export const EducationSection = memo(function EducationSection() {
                           <div>
                             <Label className="text-sm flex items-center gap-1.5 mb-2">
                               <Calendar className="w-4 h-4" />
-                              Start Date
+                              {t('education.startDate', 'Start Date')}
                             </Label>
                             <MonthYearPicker
                               value={edu.startDate}
@@ -288,7 +292,7 @@ export const EducationSection = memo(function EducationSection() {
                             <div className="flex items-center justify-between mb-2">
                               <Label className="text-sm flex items-center gap-1.5">
                                 <Calendar className="w-4 h-4" />
-                                End Date
+                                {t('education.endDate', 'End Date')}
                               </Label>
                               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                                 <input
@@ -297,7 +301,7 @@ export const EducationSection = memo(function EducationSection() {
                                   onChange={(e) => updateEducation(edu.id, { endDate: e.target.checked ? 'Present' : '' })}
                                   className="rounded accent-primary w-4 h-4"
                                 />
-                                <span className="text-sm text-muted-foreground">Present</span>
+                                <span className="text-sm text-muted-foreground">{t('education.present', 'Present')}</span>
                               </label>
                             </div>
                             <MonthYearPicker
@@ -309,11 +313,11 @@ export const EducationSection = memo(function EducationSection() {
                         </div>
 
                         <div>
-                          <Label className="text-sm mb-2 block">GPA (optional)</Label>
+                          <Label className="text-sm mb-2 block">{t('education.gpaLabel', 'GPA (optional)')}</Label>
                           <Input
                             value={edu.gpa || ''}
                             onChange={(e) => updateEducation(edu.id, { gpa: e.target.value })}
-                            placeholder="3.8/4.0"
+                            placeholder={t('education.gpaPlaceholder', '3.8/4.0')}
                             className="h-11"
                             inputMode="decimal"
                             autoComplete="off"
@@ -321,11 +325,11 @@ export const EducationSection = memo(function EducationSection() {
                         </div>
 
                         <div>
-                          <Label className="text-sm mb-2 block">Description (optional)</Label>
+                          <Label className="text-sm mb-2 block">{t('education.descriptionLabel', 'Description (optional)')}</Label>
                           <Textarea
                             value={edu.description || ''}
                             onChange={(e) => updateEducation(edu.id, { description: e.target.value })}
-                            placeholder="Brief description of your program, thesis, or relevant coursework..."
+                            placeholder={t('education.descriptionPlaceholder', 'Brief description of your program, thesis, or relevant coursework...')}
                             className="min-h-[60px] resize-none text-base"
                           />
                         </div>
@@ -338,7 +342,7 @@ export const EducationSection = memo(function EducationSection() {
                             className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[44px]"
                           >
                             <Trash2 className="w-4 h-4" />
-                            Remove
+                            {t('education.remove', 'Remove')}
                           </Button>
                         </div>
                       </div>

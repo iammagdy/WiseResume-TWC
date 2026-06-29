@@ -20,6 +20,9 @@ import { useAppSidebarStore } from '@/store/appSidebarStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { APP_SIDEBAR_LINKS, isAppSidebarPathActive } from '@/components/layout/appSidebarNav';
+import { useLocale } from '@/i18n/LocaleProvider';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useResumeStore } from '@/store/resumeStore';
 
 interface AppWorkspaceSidebarProps {
   userName?: string | null;
@@ -57,7 +60,10 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   forceVisible = false,
   className,
 }: AppWorkspaceSidebarProps) {
+  const { t } = useLocale();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const { defaultResumeId } = useSettingsStore();
+  const currentResumeId = useResumeStore((s) => s.currentResumeId);
   const location = useLocation();
   const navigate = useNavigate();
   const collapsed = useAppSidebarStore((s) => s.collapsed);
@@ -78,7 +84,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   const showUpgradeCta = membershipResolved && plan === 'free';
 
   const planLabel =
-    plan === 'premium' ? 'Premium plan' : plan === 'pro' ? 'Pro plan' : 'Free plan';
+    plan === 'premium' ? t('app.membershipPremium', 'Premium plan') : plan === 'pro' ? t('app.membershipPro', 'Pro plan') : t('app.membershipFreePlan', 'Free plan');
   // Once the plan is resolved (from the TTL-bounded cache or live data),
   // `planLoading` is false — show the actual plan label rather than the
   // indefinite "Checking your plan…" state, which now only appears on a
@@ -86,20 +92,20 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   // for entitlement gating (upgrade CTA / Free chip), not the badge label.
   const membershipTitle =
     plan === 'premium'
-      ? 'Premium membership'
+      ? t('app.membershipPremium', 'Premium membership')
       : plan === 'pro'
-        ? 'Pro membership'
+        ? t('app.membershipPro', 'Pro membership')
         : planLoading
-          ? 'Your membership'
-          : 'Free plan';
+          ? t('app.membershipChecking', 'Your membership')
+          : t('app.membershipFreePlan', 'Free plan');
   const membershipSubtitle =
     plan === 'premium'
-      ? 'Full workspace access'
+      ? t('app.membershipPremiumSubtitle', 'Full workspace access')
       : plan === 'pro'
-        ? 'Advanced AI tools included'
+        ? t('app.membershipProSubtitle', 'Advanced AI tools included')
         : planLoading
-          ? 'Checking your plan…'
-          : 'Upgrade for unlimited AI';
+          ? t('app.membershipCheckingSubtitle', 'Checking your plan…')
+          : t('app.membershipFreePlanSubtitle', 'Upgrade for unlimited AI');
 
   const initials = useMemo(() => {
     if (!userName?.trim()) return 'MS';
@@ -132,7 +138,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
       used,
       limit: safeLimit,
       remaining: Math.max(0, safeLimit - used),
-      footer: 'Resets at midnight',
+      footer: t('app.sidebar.resetsAtMidnight', 'Resets at midnight'),
     };
   }, [credits, creditsLoading, isPremium, isActiveTrial, trialPlan, meData]);
 
@@ -144,7 +150,14 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   const navTo = (path: string) => {
     haptics.selection();
     setMobileOpen(false);
-    navigate(path);
+    // For the editor, prefer the currently-loaded resume ID, then the default.
+    // This prevents the editor from bouncing back to /dashboard when no ?id= is in the URL.
+    if (path === '/editor') {
+      const resumeId = currentResumeId ?? defaultResumeId;
+      navigate(resumeId ? `/editor?id=${resumeId}` : '/dashboard');
+    } else {
+      navigate(path);
+    }
   };
 
   return (
@@ -218,17 +231,27 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
         <div className={cn('shrink-0 px-2 pb-2', effectiveCollapsed && 'px-1.5')}>
           {!effectiveCollapsed && (
             <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">
-              Workspace
+              {t('app.workspace', 'Workspace')}
             </p>
           )}
           <nav className="flex flex-col gap-1" aria-label="App sections">
             {APP_SIDEBAR_LINKS.map(({ path, label, icon: Icon, match }) => {
               const active = isAppSidebarPathActive(location.pathname, match);
+              const keyMap: Record<string, string> = {
+                'Dashboard': 'app.dashboard',
+                'Editor': 'common.editor',
+                'AI Tools': 'app.aiStudioNavLabel',
+                'Tailoring Hub': 'app.tailoringHub',
+                'Activity': 'app.applications',
+                'Portfolio': 'app.portfolio',
+                'Settings': 'app.settings',
+              };
+              const translatedLabel = t(keyMap[label] || label);
               return (
                 <button
                   key={path}
                   type="button"
-                  title={effectiveCollapsed ? label : undefined}
+                  title={effectiveCollapsed ? translatedLabel : undefined}
                   onClick={() => navTo(path)}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
@@ -240,7 +263,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                   )}
                 >
                   <Icon className="w-[18px] h-[18px] shrink-0 opacity-90" aria-hidden />
-                  {!effectiveCollapsed && label}
+                  {!effectiveCollapsed && translatedLabel}
                 </button>
               );
             })}
@@ -300,11 +323,11 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                             : 'border-primary/30 bg-primary/10 text-primary',
                         )}
                       >
-                        {isPremium ? 'Premium' : 'Pro'}
+                        {isPremium ? t('app.premium', 'Premium') : t('app.pro', 'Pro')}
                       </span>
                     ) : !planLoading ? (
                       <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] border border-border/60 bg-muted/50 text-muted-foreground">
-                        Free
+                        {t('app.free', 'Free')}
                       </span>
                     ) : null}
                   </div>
@@ -323,7 +346,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                     onUpgrade?.();
                   }}
                 >
-                  View plans & upgrade
+                  {t('app.viewPlansUpgrade', 'View plans & upgrade')}
                 </Button>
               )}
               {creditDisplay && !creditDisplay.unlimited && (
@@ -335,7 +358,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      AI credits
+                      {t('app.aiCredits', 'AI credits')}
                     </p>
                     <p className="text-sm font-semibold text-foreground tabular-nums">
                       {creditDisplay.remaining}
@@ -375,7 +398,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                     onBilling();
                   }}
                 >
-                  Manage billing
+                  {t('app.sidebar.manageBilling', 'Manage billing')}
                   <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
                 </button>
               )}
@@ -385,7 +408,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
           {effectiveCollapsed && (isPaid || planLoading) && (
             <button
               type="button"
-              title="Membership"
+              title={t('app.sidebar.membership', 'Membership')}
               onClick={() => {
                 haptics.light();
                 onBilling();
@@ -398,7 +421,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
 
           <button
             type="button"
-            title={effectiveCollapsed ? userName || 'Profile' : undefined}
+            title={effectiveCollapsed ? userName || t('app.sidebar.profile', 'Profile') : undefined}
             className={cn(
               'dashboard-workspace-sidebar__panel dashboard-workspace-sidebar__profile w-full rounded-xl text-left flex items-center hover:border-primary/30 transition-colors',
               effectiveCollapsed ? 'justify-center p-2 min-h-[48px]' : 'p-3 gap-3 min-h-[56px]',
@@ -411,7 +434,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
             }}
           >
             <Avatar className="dashboard-workspace-sidebar__avatar w-10 h-10 shrink-0 text-xs font-semibold">
-              <AvatarImage src={avatarUrl || undefined} alt={userName || 'Profile'} />
+              <AvatarImage src={avatarUrl || undefined} alt={userName || t('app.sidebar.profile', 'Profile')} />
               <AvatarFallback className="bg-primary/10 text-primary">
                 {initials}
               </AvatarFallback>
@@ -420,7 +443,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
               <>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate leading-tight">
-                    {userName || 'Your profile'}
+                    {userName || t('app.sidebar.yourProfile', 'Your profile')}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                     {userEmail?.trim() || planLabel}

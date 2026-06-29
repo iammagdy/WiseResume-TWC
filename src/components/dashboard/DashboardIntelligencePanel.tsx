@@ -16,6 +16,7 @@ import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { DatabaseResume } from '@/hooks/useResumes';
 import { buildActivityFeedFromLog, mergeActivityItems } from '@/components/dashboard/dashboardActivityLabels';
 import { useActivityFeed } from '@/hooks/useActivityFeed';
+import { useLocale } from '@/i18n/LocaleProvider';
 import {
   buildIntelligenceSignals,
   buildIntelligenceQuickActions,
@@ -52,6 +53,27 @@ interface DashboardIntelligencePanelProps {
   className?: string;
 }
 
+const getTranslatedActivityLabel = (label: string, t: any) => {
+  if (label === 'Resume created') return t('app.activity.resumeCreated', 'Resume created');
+  if (label === 'Resume deleted') return t('app.activity.resumeDeleted', 'Resume deleted');
+  if (label === 'Resume duplicated') return t('app.activity.resumeDuplicated', 'Resume duplicated');
+  if (label === 'Tailored copy saved') return t('app.activity.tailoredCopySaved', 'Tailored copy saved');
+  if (label === 'Resume renamed') return t('app.activity.resumeRenamed', 'Resume renamed');
+  if (label.startsWith('ATS scored ')) {
+    const score = label.replace('ATS scored ', '').replace('%', '');
+    return t('app.activity.atsScoredWithVal', 'ATS scored {{score}}%', { score });
+  }
+  if (label === 'ATS scan completed') return t('app.activity.atsScanned', 'ATS scan completed');
+  if (label === 'Job posting imported') return t('app.activity.jobImported', 'Job posting imported');
+  if (label === 'Application tracked') return t('app.activity.applicationTracked', 'Application tracked');
+  if (label === 'Cover letter created') return t('app.activity.coverLetterCreated', 'Cover letter created');
+  if (label.startsWith('Deleted ')) {
+    const count = label.replace('Deleted ', '').split(' ')[0];
+    return t('app.activity.bulkDeletedCount', 'Deleted {{count}} resumes', { count });
+  }
+  return t('app.activity.workspaceUpdate', label);
+};
+
 export const DashboardIntelligencePanel = memo(function DashboardIntelligencePanel({
   healthScore,
   featuredResume = null,
@@ -65,18 +87,19 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
   onTailorResume,
   className,
 }: DashboardIntelligencePanelProps) {
+  const { t } = useLocale();
   const [improveOpen, setImproveOpen] = useState(false);
   const [keywordsOpen, setKeywordsOpen] = useState(false);
   const [atsOpen, setAtsOpen] = useState(false);
 
   const signals = useMemo(
-    () => buildIntelligenceSignals(healthScore, featuredResume),
-    [healthScore, featuredResume],
+    () => buildIntelligenceSignals(healthScore, featuredResume, t),
+    [healthScore, featuredResume, t],
   );
 
   const quickActions = useMemo(
-    () => buildIntelligenceQuickActions(signals, healthScore, healthScores, resumes, atsAverage),
-    [signals, healthScore, healthScores, resumes, atsAverage],
+    () => buildIntelligenceQuickActions(signals, healthScore, healthScores, resumes, atsAverage, t),
+    [signals, healthScore, healthScores, resumes, atsAverage, t],
   );
 
   const activityEvents = useWorkspaceActivityStore((s) => s.events);
@@ -137,26 +160,26 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
     <>
       <aside
         className={cn('dashboard-ai-rail flex flex-col gap-2.5', className)}
-        aria-label="AI workspace"
+        aria-label={t('app.dashboardPage.aiWorkspaceAria', 'AI workspace')}
       >
         <section className="dashboard-ai-rail__card dashboard-ai-rail__featured rounded-2xl p-3.5">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="w-4 h-4 text-primary shrink-0" aria-hidden />
-              <p className="text-sm font-semibold text-foreground truncate">AI Workspace</p>
+              <p className="text-sm font-semibold text-foreground truncate">{t('app.dashboardPage.aiWorkspace', 'AI Workspace')}</p>
             </div>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shrink-0">
-              {scoresLoading ? 'Loading scores…' : signals.badge}
+              {scoresLoading ? t('app.dashboardPage.loadingScores', 'Loading scores…') : signals.badge}
             </span>
           </div>
           {featuredResume?.title && (
             <p className="text-[11px] text-muted-foreground mb-2 truncate">
-              Focus: <span className="text-foreground font-medium">{featuredResume.title}</span>
+              {t('app.dashboardPage.focus', 'Focus:')} <span className="text-foreground font-medium">{featuredResume.title}</span>
             </p>
           )}
           <div className="space-y-2">
             <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Recommended next step
+              {t('app.dashboardHero.recommendedNextStep', 'Recommended next step')}
             </p>
             <p className="text-[15px] font-semibold text-foreground leading-snug">{signals.opportunityTitle}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">{signals.opportunity}</p>
@@ -172,7 +195,7 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
             {signals.showImpact && (
               <div className="flex items-center gap-1.5 text-[10px] text-primary/90 pt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary/80 shrink-0" aria-hidden />
-                Highest impact for your focus resume
+                {t('app.dashboardPage.highestImpact', 'Highest impact for your focus resume')}
               </div>
             )}
           </div>
@@ -181,10 +204,10 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
         {quickActions.length > 0 && (
           <section className="dashboard-ai-rail__card rounded-2xl p-3">
             <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground mb-0.5">
-              Other tools
+              {t('app.dashboardPage.otherTools', 'Other tools')}
             </p>
             <p className="text-[10px] text-muted-foreground/80 mb-2 leading-snug">
-              Different from your recommended step above
+              {t('app.dashboardPage.otherToolsDesc', 'Different from your recommended step above')}
             </p>
             <div className="flex flex-col gap-1">
               {quickActions.map(renderQuickAction)}
@@ -194,7 +217,7 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
 
         <section className="dashboard-ai-rail__card rounded-2xl p-3">
           <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground mb-2">
-            Recent Activity
+            {t('app.dashboardPage.recentActivity', 'Recent Activity')}
           </p>
           {activityLoading && activityItems.length === 0 ? (
             <div className="space-y-1.5" aria-hidden>
@@ -212,9 +235,11 @@ export const DashboardIntelligencePanel = memo(function DashboardIntelligencePan
               {activityItems.map((item) => {
                 const row = (
                   <>
-                    <p className="text-xs font-medium text-foreground leading-snug">{item.label}</p>
+                    <p className="text-xs font-medium text-foreground leading-snug">{getTranslatedActivityLabel(item.label, t)}</p>
                     {item.detail && (
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.detail}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        {item.detail === 'Bulk selection' ? t('app.activity.bulkSelectionDetail', 'Bulk selection') : item.detail}
+                      </p>
                     )}
                     <p className="text-[10px] text-muted-foreground/90 mt-0.5 flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 shrink-0" aria-hidden />

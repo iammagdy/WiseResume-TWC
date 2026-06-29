@@ -19,6 +19,7 @@ import { haptics } from "@/lib/haptics";
 import { CompanyBriefingSheet } from "@/components/interview/CompanyBriefingSheet";
 import { AICostBadge } from "@/components/ai/AICostBadge";
 import { createRouteOverlayOpenChange } from "@/hooks/useRouteOverlaySync";
+import { useLocale } from "@/i18n/LocaleProvider";
 import {
   aiStudioPrimaryWorkflows,
   aiStudioSecondaryWorkflows,
@@ -45,17 +46,6 @@ const SkillsGapSheet = lazyWithRetry(() => import("@/components/ai-studio/Skills
 const RECENT_TOOLS_KEY = "wr-recent-ai-tools";
 const TIP_DISMISSED_KEY = "wr-ai-tip-dismissed";
 
-const PLACEHOLDER_EXAMPLES = [
-  "Ask Wise AI to improve your resume for a specific role...",
-  'Try: "Tailor my resume for a growth marketing job"',
-  'Try: "Give me interview stories for this company"',
-];
-
-const PRO_TIPS = [
-  "Start with the job-tailoring workflow when you already have a role in mind. It keeps your resume, fit, and follow-up steps together.",
-  "Use the resume-improvement workflow first when you want stronger wording before you tailor anything.",
-  "Research the company before interview practice so your answers sound more specific and informed.",
-];
 
 function getRecentToolPaths(): string[] {
   try {
@@ -80,6 +70,7 @@ function saveRecentToolPath(tool: AiStudioToolEntry) {
 }
 
 export default function AIStudioPage() {
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   const { tool: toolParam } = useParams<{ tool?: string }>();
   const { user } = useAuth();
@@ -89,12 +80,24 @@ export default function AIStudioPage() {
   const hasSeenAIStudioTour = useSettingsStore((s) => s.hasSeenAIStudioTour);
   const setHasSeenAIStudioTour = useSettingsStore((s) => s.setHasSeenAIStudioTour);
 
+  const placeholderExamples = [
+    t('app.aiStudio.placeholder0', "Ask Wise AI to improve your resume for a specific role..."),
+    t('app.aiStudio.placeholder1', 'Try: "Tailor my resume for a growth marketing job"'),
+    t('app.aiStudio.placeholder2', 'Try: "Give me interview stories for this company"'),
+  ];
+
+  const proTips = [
+    t('app.aiStudio.tip0', "Start with the job-tailoring workflow when you already have a role in mind. It keeps your resume, fit, and follow-up steps together."),
+    t('app.aiStudio.tip1', "Use the resume-improvement workflow first when you want stronger wording before you tailor anything."),
+    t('app.aiStudio.tip2', "Research the company before interview practice so your answers sound more specific and informed."),
+  ];
+
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => {
       interval = setInterval(() => {
-        setPlaceholderIdx((index) => (index + 1) % PLACEHOLDER_EXAMPLES.length);
+        setPlaceholderIdx((index) => (index + 1) % placeholderExamples.length);
       }, 3000);
     };
     const stop = () => {
@@ -125,7 +128,7 @@ export default function AIStudioPage() {
   );
 
   const [tipDismissed, setTipDismissed] = useState(() => localStorage.getItem(TIP_DISMISSED_KEY) === "1");
-  const tipIdx = useMemo(() => new Date().getDate() % PRO_TIPS.length, []);
+  const tipIdx = useMemo(() => new Date().getDate() % proTips.length, [proTips.length]);
 
   const [showChat, setShowChat] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
@@ -204,8 +207,8 @@ export default function AIStudioPage() {
       "skills-gap": () => setShowSkillsGap(true),
       customize: () => {
         if (!currentResumeId) {
-          toast.info("Select a resume first to customize design", {
-            action: { label: "Dashboard", onClick: () => navigate("/dashboard") },
+          toast.info(t('app.aiStudio.selectResumeFirstCustomize', 'Select a resume first to customize design'), {
+            action: { label: t('app.dashboard', 'Dashboard'), onClick: () => navigate('/dashboard') },
           });
           return;
         }
@@ -213,8 +216,8 @@ export default function AIStudioPage() {
       },
       ideas: () => {
         if (!currentResumeId) {
-          toast.info("Select a resume first for content ideas", {
-            action: { label: "Dashboard", onClick: () => navigate("/dashboard") },
+          toast.info(t('app.aiStudio.selectResumeFirstIdeas', 'Select a resume first for content ideas'), {
+            action: { label: t('app.dashboard', 'Dashboard'), onClick: () => navigate('/dashboard') },
           });
           return;
         }
@@ -228,8 +231,8 @@ export default function AIStudioPage() {
       return;
     }
 
-    toast.info("This tool is not available right now.");
-  }, [currentResumeId, navigate]);
+    toast.info(t('app.aiStudio.toolNotAvailable', 'This tool is not available right now.'));
+  }, [currentResumeId, navigate, t]);
 
   useEffect(() => {
     if (!toolParam) {
@@ -257,7 +260,7 @@ export default function AIStudioPage() {
       return;
     }
     if (!currentResumeId) {
-      toast.info("Select a resume first to chat with Wise AI");
+      toast.info(t('app.aiStudio.selectResumeFirstChat', 'Select a resume first to chat with Wise AI'));
       return;
     }
     setChatInitialMessage(message);
@@ -270,9 +273,9 @@ export default function AIStudioPage() {
         pendingActionRef.current = action;
         setShowResumePicker(true);
       } else {
-        toast.info("Create a resume first to use this tool", {
-          action: { label: "Create", onClick: () => navigate("/dashboard?action=create") },
-        });
+        toast.info(t('app.aiStudio.createResumeFirst', 'Create a resume first to use this tool'), {
+            action: { label: t('common.create', 'Create'), onClick: () => navigate('/dashboard?action=create') },
+          });
       }
       return;
     }
@@ -327,13 +330,13 @@ export default function AIStudioPage() {
         <UpgradeWall
           requiredPlan="pro"
           featureName="Wise AI"
-          description="Unlock the full Wise AI workspace for resume improvement, tailoring, interview prep, and career documents."
+          description={t('app.aiStudio.upgradeDesc', 'Unlock the full Wise AI workspace for resume improvement, tailoring, interview prep, and career documents.')}
           features={[
-            "Tailor for a Job with the Tailoring Hub",
-            "Interview Prep and Company Briefing",
-            "Cover Letters and LinkedIn optimization",
-            "Career planning and writing support",
-            "Wise AI Chat across your resume workflow",
+            t('app.aiStudio.upgradeF1', 'Tailor for a Job with the Tailoring Hub'),
+            t('app.aiStudio.upgradeF2', 'Interview Prep and Company Briefing'),
+            t('app.aiStudio.upgradeF3', 'Cover Letters and LinkedIn optimization'),
+            t('app.aiStudio.upgradeF4', 'Career planning and writing support'),
+            t('app.aiStudio.upgradeF5', 'Wise AI Chat across your resume workflow'),
           ]}
         />
       </div>
@@ -348,6 +351,10 @@ export default function AIStudioPage() {
       .map((toolId) => getAiStudioToolById(toolId))
       .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool && tool.visibility !== "hidden" && tool.visibility !== "excluded"))
       .slice(0, compact ? 1 : 2);
+
+    const title = t(`app.aiStudio.workflows.${workflow.id}.title`, workflow.title);
+    const description = t(`app.aiStudio.workflows.${workflow.id}.description`, workflow.description);
+    const primaryActionLabel = t(`app.aiStudio.workflows.${workflow.id}.primaryAction`, workflow.primaryAction.label);
 
     return (
       <article
@@ -372,7 +379,7 @@ export default function AIStudioPage() {
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <h2 className={cn("font-semibold leading-snug tracking-tight text-foreground", compact ? "text-sm" : "text-base")}>
-                {workflow.title}
+                {title}
               </h2>
               {primaryTool ? <AICostBadge operation={primaryTool.cost} className="shrink-0 scale-90 origin-top-right" /> : null}
             </div>
@@ -382,23 +389,27 @@ export default function AIStudioPage() {
                 compact ? "text-xs leading-5" : "text-[13px] leading-5",
               )}
             >
-              {workflow.description}
+              {description}
             </p>
+
+            {backingTools.length > 0 && !compact ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {backingTools.map((tool) => (
+                  <button
+                    key={tool.id}
+                    onClick={() => handleToolAction(tool)}
+                    className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/20 px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/20 hover:text-foreground active:scale-95 transition-all"
+                  >
+                    <tool.icon className="h-3 w-3 text-muted-foreground" />
+                    <span className="truncate max-w-[80px]">
+                      {t(`app.aiStudio.tools.${tool.id}.label`, tool.label)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
-
-        {backingTools.length > 0 ? (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {backingTools.map((tool) => (
-              <span
-                key={`${workflow.id}-${tool.id}`}
-                className="rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-              >
-                {tool.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
 
         <div className={cn("mt-auto flex flex-wrap gap-2", compact ? "pt-3" : "pt-3.5")}>
           <Button
@@ -409,8 +420,8 @@ export default function AIStudioPage() {
             )}
             onClick={() => handleWorkflowAction(workflow.primaryAction.toolId)}
           >
-            <span className="truncate">{workflow.primaryAction.label}</span>
-            <ArrowRight className="ml-1 h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{primaryActionLabel}</span>
+            <ArrowRight className="ml-1 h-3.5 w-3.5 shrink-0" style={{ transform: locale === 'ar' ? 'rotate(180deg)' : undefined }} />
           </Button>
           {workflow.secondaryActions.map((action) => (
             <Button
@@ -420,7 +431,7 @@ export default function AIStudioPage() {
               className="min-h-9 rounded-xl border border-border/60 bg-transparent px-3 hover:bg-muted/30"
               onClick={() => handleWorkflowAction(action.toolId)}
             >
-              {action.label}
+              {t(`app.aiStudio.workflows.${workflow.id}.secondaryActions.${action.toolId}`, action.label)}
             </Button>
           ))}
         </div>
@@ -434,7 +445,7 @@ export default function AIStudioPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h1 className="text-page-title">Wise AI Workspace</h1>
+            <h1 className="text-page-title">{t('app.aiStudio.title', 'Wise AI Workspace')}</h1>
           </div>
         </div>
       </header>
@@ -445,7 +456,7 @@ export default function AIStudioPage() {
             <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
               <FileSearch className="w-4 h-4 text-primary shrink-0" />
               <span className="text-sm flex-1 break-words leading-snug" title={resumeData.title}>
-                Working on: <span className="font-medium">{resumeData.title}</span>
+                {t('app.aiStudio.workingOn', 'Working on:')} <span className="font-medium">{resumeData.title}</span>
               </span>
               <Button
                 variant="ghost"
@@ -460,7 +471,7 @@ export default function AIStudioPage() {
                   }
                 }}
               >
-                Change
+                {t('common.change', 'Change')}
               </Button>
             </div>
           ) : (
@@ -478,10 +489,10 @@ export default function AIStudioPage() {
                 }}
               >
                 <FileSearch className="w-4 h-4" />
-                Select a resume
+                {t('app.aiStudio.selectResume', 'Select a resume')}
               </Button>
               <Button className="shrink-0 gradient-primary" onClick={() => navigate("/dashboard?action=create")}>
-                Create
+                {t('common.create', 'Create')}
               </Button>
             </div>
           )}
@@ -500,12 +511,12 @@ export default function AIStudioPage() {
               <Input
                 value={composerText}
                 onChange={(e) => setComposerText(e.target.value)}
-                placeholder={PLACEHOLDER_EXAMPLES[placeholderIdx]}
+                placeholder={placeholderExamples[placeholderIdx]}
                 className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 min-h-[44px]"
-                aria-label="Ask Wise AI"
+                aria-label={t('app.aiStudio.askWiseAI', 'Ask Wise AI')}
               />
-              <Button type="submit" size="sm" className="min-h-[44px] min-w-[44px] px-3 rounded-xl shrink-0" aria-label="Send message">
-                <Send className="w-4 h-4" />
+              <Button type="submit" size="sm" className="min-h-[44px] min-w-[44px] px-3 rounded-xl shrink-0" aria-label={t('common.sendMessage', 'Send message')}>
+                <Send className="w-4 h-4" style={{ transform: locale === 'ar' ? 'rotate(180deg)' : undefined }} />
               </Button>
             </form>
           </div>
@@ -514,7 +525,7 @@ export default function AIStudioPage() {
             <div className="pb-5">
               <div className="mb-2 px-1 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                <h2 className="text-sm font-medium text-muted-foreground">Recent</h2>
+                <h2 className="text-sm font-medium text-muted-foreground">{t('common.recent', 'Recent')}</h2>
               </div>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {recentTools.map((tool) => (
@@ -524,7 +535,9 @@ export default function AIStudioPage() {
                     className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0"
                   >
                     <tool.icon className={cn("w-4 h-4", "text-primary")} />
-                    <span className="text-sm font-medium whitespace-nowrap">{tool.label}</span>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      {t(`app.aiStudio.tools.${tool.id}.label`, tool.label)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -534,10 +547,16 @@ export default function AIStudioPage() {
           <div className="pb-3 pt-1">
             <div className="px-1 lg:flex lg:items-end lg:justify-between">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Primary workflows</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Start with the main outcomes most people need from Wise AI.</p>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                  {t('app.aiStudio.primaryWorkflows', 'Primary workflows')}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t('app.aiStudio.primaryWorkflowsDesc', 'Start with the main outcomes most people need from Wise AI.')}
+                </p>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground lg:mt-0 lg:max-w-xs lg:text-right">Built to feel like one workspace, not a long list of isolated tools.</p>
+              <p className="mt-2 text-xs text-muted-foreground lg:mt-0 lg:max-w-xs lg:text-right">
+                {t('app.aiStudio.primaryWorkflowsSide', 'Built to feel like one workspace, not a long list of isolated tools.')}
+              </p>
             </div>
           </div>
           <div className="grid gap-3 pb-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -546,8 +565,12 @@ export default function AIStudioPage() {
 
           <div className="pb-3">
             <div className="px-1">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Secondary tools</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Supporting workflows that stay available without crowding the main grid.</p>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                {t('app.aiStudio.secondaryTools', 'Secondary tools')}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t('app.aiStudio.secondaryToolsDesc', 'Supporting workflows that stay available without crowding the main grid.')}
+              </p>
             </div>
           </div>
           <div className="grid gap-3 pb-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -559,12 +582,15 @@ export default function AIStudioPage() {
               <div className="relative flex items-start gap-2 rounded-2xl border border-primary/10 bg-primary/5 p-4">
                 <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p className="pr-6 text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Workspace tip:</span> {PRO_TIPS[tipIdx]}
+                  <span className="font-medium text-foreground">
+                    {t('app.aiStudio.workspaceTip', 'Workspace tip:')}
+                  </span>{' '}
+                  {proTips[tipIdx]}
                 </p>
                 <button
                   onClick={dismissTip}
                   className="absolute right-2 top-2 rounded-full p-1 transition-colors hover:bg-muted/50"
-                  aria-label="Dismiss tip"
+                  aria-label={t('common.dismissTip', 'Dismiss tip')}
                 >
                   <X className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
@@ -584,8 +610,8 @@ export default function AIStudioPage() {
         }}
         resumes={allResumes ?? []}
         currentResumeId={currentResumeId}
-        title="Which resume should power this tool?"
-        description="Wise AI will read and update the resume you pick. Choose the version that fits this job or task."
+        title={t('app.aiStudio.pickerTitle', 'Which resume should power this tool?')}
+        description={t('app.aiStudio.pickerDesc', 'Wise AI will read and update the resume you pick. Choose the version that fits this job or task.')}
         onSelect={(resume) => {
           const setId = useResumeStore.getState().setCurrentResumeId;
           const setResume = useResumeStore.getState().setCurrentResume;
@@ -662,9 +688,9 @@ export default function AIStudioPage() {
       }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Welcome to Wise AI Workspace</DialogTitle>
+            <DialogTitle>{t('app.aiStudio.tourTitle', 'Welcome to Wise AI Workspace')}</DialogTitle>
             <DialogDescription>
-              Use the prompt bar to ask Wise AI anything, or pick a workflow card to tailor your resume, prep for interviews, and more.
+              {t('app.aiStudio.tourDesc', 'Use the prompt bar to ask Wise AI anything, or pick a workflow card to tailor your resume, prep for interviews, and more.')}
             </DialogDescription>
           </DialogHeader>
           <Button
@@ -674,7 +700,7 @@ export default function AIStudioPage() {
               setShowStudioTour(false);
             }}
           >
-            Got it
+            {t('common.gotIt', 'Got it')}
           </Button>
         </DialogContent>
       </Dialog>

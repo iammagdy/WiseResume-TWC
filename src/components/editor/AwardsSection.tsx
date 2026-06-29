@@ -9,11 +9,13 @@ import { useResumeStore } from '@/store/resumeStore';
 import { Award } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import haptics from '@/lib/haptics';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export const AwardsSection = memo(function AwardsSection() {
   const awards = useResumeStore(state => state.currentResume?.awards) || [];
   const updateResume = useResumeStore(state => state.updateResume);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { t } = useLocale();
 
   const addAward = () => {
     haptics.light();
@@ -39,22 +41,35 @@ export const AwardsSection = memo(function AwardsSection() {
     updateResume({ awards: awards.filter(a => a.id !== id) });
   };
 
-  const moveUp = (index: number) => { if (index === 0) return; haptics.light(); const arr = [...awards]; [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]]; updateResume({ awards: arr }); };
-  const moveDown = (index: number) => { if (index >= awards.length - 1) return; haptics.light(); const arr = [...awards]; [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]]; updateResume({ awards: arr }); };
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    haptics.light();
+    const arr = [...awards];
+    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+    updateResume({ awards: arr });
+  };
+
+  const moveDown = (index: number) => {
+    if (index >= awards.length - 1) return;
+    haptics.light();
+    const arr = [...awards];
+    [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+    updateResume({ awards: arr });
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end">
         <Button variant="outline" size="sm" onClick={addAward} className="gap-2 active:scale-95 transition-transform">
           <Plus className="w-4 h-4" />
-          Add
+          {t('common.add', 'Add')}
         </Button>
       </div>
 
       {awards.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <Trophy className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">Add your awards and achievements</p>
+          <p className="text-sm">{t('editor.awards.emptyTip', 'Add your awards and achievements')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -66,12 +81,26 @@ export const AwardsSection = memo(function AwardsSection() {
               >
                 <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={e => { e.stopPropagation(); moveUp(index); }} disabled={index === 0} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move up"><ArrowUp className="w-4 h-4" /></button>
-                  <button onClick={e => { e.stopPropagation(); moveDown(index); }} disabled={index === awards.length - 1} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move down"><ArrowDown className="w-4 h-4" /></button>
+                  <button
+                    onClick={e => { e.stopPropagation(); moveUp(index); }}
+                    disabled={index === 0}
+                    className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation"
+                    aria-label={t('common.moveUp', 'Move up')}
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); moveDown(index); }}
+                    disabled={index === awards.length - 1}
+                    className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation"
+                    aria-label={t('common.moveDown', 'Move down')}
+                  >
+                    <ArrowDown className="w-4 h-4" />
+                  </button>
                 </div>
                 <div className="text-left flex-1 min-w-0 px-3">
-                  <p className="font-semibold text-sm truncate">{award.title || `Award ${index + 1}`}</p>
-                  <p className="text-sm text-muted-foreground truncate">{award.issuer || 'Issuing organization'}</p>
+                  <p className="font-semibold text-sm truncate">{award.title || t('editor.awards.titleDefault', 'Award {{index}}', { index: index + 1 })}</p>
+                  <p className="text-sm text-muted-foreground truncate">{award.issuer || t('editor.awards.issuerDefault', 'Issuing organization')}</p>
                 </div>
                 <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
                   {expandedId === award.id ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
@@ -82,24 +111,58 @@ export const AwardsSection = memo(function AwardsSection() {
                 <div className="animate-in fade-in-0 duration-200">
                   <div className="p-4 pt-0 space-y-4 border-t border-border">
                     <div>
-                      <Label htmlFor={`award-${award.id}-title`} className="text-sm flex items-center gap-1.5 mb-2"><Trophy className="w-4 h-4" />Award Title</Label>
-                      <Input id={`award-${award.id}-title`} value={award.title} onChange={e => updateAward(award.id, { title: e.target.value })} placeholder="Best Innovation Award" className="h-12" />
+                      <Label htmlFor={`award-${award.id}-title`} className="text-sm flex items-center gap-1.5 mb-2">
+                        <Trophy className="w-4 h-4" />
+                        {t('editor.awards.titleLabel', 'Award Title')}
+                      </Label>
+                      <Input
+                        id={`award-${award.id}-title`}
+                        value={award.title}
+                        onChange={e => updateAward(award.id, { title: e.target.value })}
+                        placeholder={t('editor.awards.titlePlaceholder', 'Best Innovation Award')}
+                        className="h-12"
+                      />
                     </div>
                     <div>
-                      <Label htmlFor={`award-${award.id}-issuer`} className="text-sm flex items-center gap-1.5 mb-2"><Building2 className="w-4 h-4" />Issuing Organization</Label>
-                      <Input id={`award-${award.id}-issuer`} value={award.issuer} onChange={e => updateAward(award.id, { issuer: e.target.value })} placeholder="Company or Organization" className="h-12" />
+                      <Label htmlFor={`award-${award.id}-issuer`} className="text-sm flex items-center gap-1.5 mb-2">
+                        <Building2 className="w-4 h-4" />
+                        {t('editor.awards.issuerLabel', 'Issuing Organization')}
+                      </Label>
+                      <Input
+                        id={`award-${award.id}-issuer`}
+                        value={award.issuer}
+                        onChange={e => updateAward(award.id, { issuer: e.target.value })}
+                        placeholder={t('editor.awards.issuerPlaceholder', 'Company or Organization')}
+                        className="h-12"
+                      />
                     </div>
                     <div>
-                      <Label htmlFor={`award-${award.id}-date`} className="text-sm flex items-center gap-1.5 mb-2"><Calendar className="w-4 h-4" />Date Received</Label>
-                      <Input id={`award-${award.id}-date`} value={award.date} onChange={e => updateAward(award.id, { date: e.target.value })} placeholder="2024" className="h-12" />
+                      <Label htmlFor={`award-${award.id}-date`} className="text-sm flex items-center gap-1.5 mb-2">
+                        <Calendar className="w-4 h-4" />
+                        {t('editor.awards.dateLabel', 'Date Received')}
+                      </Label>
+                      <Input
+                        id={`award-${award.id}-date`}
+                        value={award.date}
+                        onChange={e => updateAward(award.id, { date: e.target.value })}
+                        placeholder={t('editor.awards.datePlaceholder', '2024')}
+                        className="h-12"
+                      />
                     </div>
                     <div>
-                      <Label htmlFor={`award-${award.id}-desc`} className="text-sm mb-2">Description (optional)</Label>
-                      <Textarea id={`award-${award.id}-desc`} value={award.description || ''} onChange={e => updateAward(award.id, { description: e.target.value })} placeholder="Brief description of the award..." className="min-h-[80px] resize-none text-base" />
+                      <Label htmlFor={`award-${award.id}-desc`} className="text-sm mb-2">{t('editor.awards.descriptionLabel', 'Description (optional)')}</Label>
+                      <Textarea
+                        id={`award-${award.id}-desc`}
+                        value={award.description || ''}
+                        onChange={e => updateAward(award.id, { description: e.target.value })}
+                        placeholder={t('editor.awards.descriptionPlaceholder', 'Brief description of the award...')}
+                        className="min-h-[80px] resize-none text-base"
+                      />
                     </div>
                     <div className="flex justify-end pt-2">
-                      <Button variant="ghost" size="sm" onClick={() => deleteAward(award.id)} className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10">
-                        <Trash2 className="w-4 h-4" />Remove
+                      <Button variant="ghost" size="sm" onClick={() => deleteAward(award.id)} className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[44px]">
+                        <Trash2 className="w-4 h-4" />
+                        {t('common.delete', 'Delete')}
                       </Button>
                     </div>
                   </div>

@@ -19,6 +19,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface SetTargetJobSheetProps {
   open: boolean;
@@ -50,6 +51,7 @@ function getScoreBarColor(score: number) {
 }
 
 export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSheetProps) {
+  const { t } = useLocale();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
@@ -65,7 +67,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
 
   const handleAnalyze = async () => {
     if (!jobDescription.trim()) {
-      toast.error('Please paste a job URL or description');
+      toast.error(t('setTargetJob.toastErrorPaste', 'Please paste a job URL or description'));
       return;
     }
     haptics.medium();
@@ -107,7 +109,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
       }
     } catch (error) {
       console.error('Analysis error:', error);
-      toast.error('Failed to analyze job. Please try again.');
+      toast.error(t('setTargetJob.toastErrorAnalyze', 'Failed to analyze job. Please try again.'));
       setPhase('input');
     }
   };
@@ -136,13 +138,13 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
       });
 
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      toast.success('Tailored version created!');
+      toast.success(t('setTargetJob.toastSuccessTailored', 'Tailored version created!'));
       haptics.success();
       onOpenChange(false);
       resetState();
     } catch (error) {
       console.error('Tailor error:', error);
-      toast.error('Failed to create tailored version');
+      toast.error(t('setTargetJob.toastErrorTailor', 'Failed to create tailored version'));
     } finally {
       setIsTailoring(false);
     }
@@ -166,7 +168,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2 text-lg">
             <Target className="w-5 h-5 text-primary" />
-            Set Target Job
+            {t('setTargetJob.title', 'Set Target Job')}
           </SheetTitle>
         </SheetHeader>
 
@@ -184,7 +186,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
               className="w-full min-h-[48px] active:scale-95 transition-transform"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Analyze Job
+              {t('setTargetJob.analyzeJob', 'Analyze Job')}
             </Button>
           </div>
         )}
@@ -221,7 +223,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
                   {overallScore.after}%
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Match Score • {getScoreLabel(overallScore.after)}
+                  {t('setTargetJob.matchScore', 'Match Score')} • {t(`setTargetJob.scoreLabels.${getScoreLabel(overallScore.after).toLowerCase().replace(' ', '')}`, getScoreLabel(overallScore.after))}
                 </p>
                 <div className="w-full h-3 rounded-full bg-secondary/30 overflow-hidden">
                   <div
@@ -231,7 +233,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
                 </div>
                 {overallScore.before < overallScore.after && (
                   <p className="text-xs text-success">
-                    ↑ {overallScore.after - overallScore.before}% improvement possible
+                    ↑ {t('setTargetJob.improvementPossible', '{{diff}}% improvement possible', { diff: overallScore.after - overallScore.before })}
                   </p>
                 )}
               </div>
@@ -239,9 +241,9 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
               <div className="p-4 rounded-xl bg-muted border border-border flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium">Score unavailable</p>
+                  <p className="text-sm font-medium">{t('setTargetJob.scoreUnavailable', 'Score unavailable')}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    AI couldn't calculate a match score. The analysis content is still valid.
+                    {t('setTargetJob.scoreUnavailableDesc', "AI couldn't calculate a match score. The analysis content is still valid.")}
                   </p>
                 </div>
               </div>
@@ -250,7 +252,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
             {/* Section Scores */}
             {sectionScores && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Section Breakdown</h4>
+                <h4 className="text-sm font-medium">{t('setTargetJob.sectionBreakdown', 'Section Breakdown')}</h4>
                 {Object.entries(sectionScores).map(([section, scores]) => {
                   const score = scores.after;
                   const Icon = score >= 90 ? CheckCircle : score >= 50 ? AlertTriangle : XCircle;
@@ -268,7 +270,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
             {/* Missing Skills */}
             {missingSkills.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Missing Skills</h4>
+                <h4 className="text-sm font-medium">{t('setTargetJob.missingSkills', 'Missing Skills')}</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {missingSkills.slice(0, 8).map((s) => (
                     <Badge key={s.skill} variant="outline" className="text-xs border-destructive/30 text-destructive">
@@ -282,7 +284,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
             {/* Key Changes */}
             {tailorResult.keyChanges?.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">What AI will improve</h4>
+                <h4 className="text-sm font-medium">{t('setTargetJob.whatAiWillImprove', 'What AI will improve')}</h4>
                 <ul className="space-y-1">
                   {tailorResult.keyChanges.slice(0, 5).map((change, i) => (
                     <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
@@ -306,18 +308,18 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
                 ) : (
                   <Sparkles className="w-4 h-4 mr-2" />
                 )}
-                Tailor Resume
+                {t('setTargetJob.tailorResume', 'Tailor Resume')}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
               <LoadingButton
                 variant="ghost"
                 onClick={() => { onOpenChange(false); resetState(); }}
                 isLoading={isSavingMatch}
-                loadingText="Saving…"
+                loadingText={t('setTargetJob.saving', 'Saving…')}
                 disabled={isTailoring}
                 className="w-full min-h-[44px]"
               >
-                Save Match Only
+                {t('setTargetJob.saveMatchOnly', 'Save Match Only')}
               </LoadingButton>
             </div>
           </motion.div>

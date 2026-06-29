@@ -10,6 +10,7 @@ import { SectionEmptyState } from './SectionEmptyState';
 import { summaryExample } from '@/lib/emptyStateExamples';
 import { useSectionAITrigger } from '@/store/sectionAIBridge';
 import { useOptionalEditorSave } from '@/contexts/EditorSaveContext';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export const SummarySection = memo(function SummarySection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
@@ -20,6 +21,7 @@ export const SummarySection = memo(function SummarySection() {
   const [touched, setTouched] = useState(false);
   const [started, setStarted] = useState(false);
   const editorSave = useOptionalEditorSave();
+  const { t } = useLocale();
 
   // Single source of truth for the Summary AI flow — registered by
   // `SectionAIAction` (the only owner of the AIEnhanceDialog for
@@ -68,13 +70,13 @@ export const SummarySection = memo(function SummarySection() {
     return (
       <SectionEmptyState
         icon={FileText}
-        title="Write your professional summary"
+        title={t('editor.summary.emptyTitle', 'Write your professional summary')}
         exampleContent={
           <p className="text-sm text-muted-foreground italic">"{summaryExample}"</p>
         }
         actions={[
-          { label: 'Start Writing', variant: 'outline', onClick: () => setStarted(true) },
-          { label: 'Let AI Write This', variant: 'default', icon: Sparkles, onClick: () => { setStarted(true); requestSummaryAI('generate'); } },
+          { label: t('editor.summary.startWriting', 'Start Writing'), variant: 'outline', onClick: () => setStarted(true) },
+          { label: t('editor.summary.letAiWrite', 'Let AI Write This'), variant: 'default', icon: Sparkles, onClick: () => { setStarted(true); requestSummaryAI('generate'); } },
         ]}
       />
     );
@@ -83,8 +85,8 @@ export const SummarySection = memo(function SummarySection() {
   const nudge = getNudgeForSection('summary');
 
   const getSummaryError = (): string | undefined => {
-    if (!summary || summary.trim() === '') return 'Professional summary is required';
-    if (summary.length < 50) return 'Summary should be at least 50 characters';
+    if (!summary || summary.trim() === '') return t('editor.summary.errorRequired', 'Professional summary is required');
+    if (summary.length < 50) return t('editor.summary.errorTooShort', 'Summary should be at least 50 characters');
     return undefined;
   };
 
@@ -109,7 +111,7 @@ export const SummarySection = memo(function SummarySection() {
 
       <TextareaFormField
         id="summary"
-        label="Summary"
+        label={t('editor.summary.label', 'Summary')}
         icon={<FileText className="w-4 h-4" />}
         value={summary}
         onChange={(value) => updateResume({ summary: value })}
@@ -120,7 +122,7 @@ export const SummarySection = memo(function SummarySection() {
             void editorSave.flushSave();
           }
         }}
-        placeholder="Write a brief professional summary highlighting your key qualifications, experience, and career goals..."
+        placeholder={t('editor.summary.placeholder', 'Write a brief professional summary highlighting your key qualifications, experience, and career goals...')}
         rows={8}
         maxLength={500}
         showCount
@@ -131,15 +133,15 @@ export const SummarySection = memo(function SummarySection() {
 
       <Collapsible defaultOpen={!summary || summary.trim().length < 50}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-4 rounded-xl bg-muted border border-border group">
-          <h4 className="font-semibold text-sm">Tips for a great summary</h4>
+          <h4 className="font-semibold text-sm">{t('editor.summary.tipsTitle', 'Tips for a great summary')}</h4>
           <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent className="px-4 pb-4 rounded-b-xl bg-muted border border-t-0 border-border">
           <ul className="text-sm text-muted-foreground space-y-2 pt-3">
-            <li>• Start with your years of experience and specialty</li>
-            <li>• Include 2-3 key achievements with metrics</li>
-            <li>• Mention skills relevant to your target role</li>
-            <li>• Keep it concise (3-4 sentences)</li>
+            <li>• {t('editor.summary.tip1', 'Start with your years of experience and specialty')}</li>
+            <li>• {t('editor.summary.tip2', 'Include 2-3 key achievements with metrics')}</li>
+            <li>• {t('editor.summary.tip3', 'Mention skills relevant to your target role')}</li>
+            <li>• {t('editor.summary.tip4', 'Keep it concise (3-4 sentences)')}</li>
           </ul>
         </CollapsibleContent>
       </Collapsible>

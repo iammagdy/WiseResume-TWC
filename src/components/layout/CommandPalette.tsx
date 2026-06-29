@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 import {
   CommandDialog,
   CommandEmpty,
@@ -58,6 +59,7 @@ function WorkspaceResultItem({
 }
 
 export function CommandPalette() {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const navigate = useNavigate();
@@ -144,15 +146,22 @@ export function CommandPalette() {
     const items = groupedWorkspace[group];
     if (items.length === 0) return null;
     return (
-      <CommandGroup key={group} heading={getWorkspaceGroupLabel(group)}>
-        {items.map((item) => (
-          <WorkspaceResultItem
-            key={item.id}
-            item={item}
-            query={inputValue}
-            onSelect={() => go(item.path)}
-          />
-        ))}
+      <CommandGroup key={group} heading={t(`search.groups.${group}`, getWorkspaceGroupLabel(group))}>
+        {items.map((item) => {
+          const localizedItem = {
+            ...item,
+            label: t(`search.items.${item.id}.label`, item.label),
+            description: item.description ? t(`search.items.${item.id}.description`, item.description) : undefined,
+          };
+          return (
+            <WorkspaceResultItem
+              key={item.id}
+              item={localizedItem}
+              query={inputValue}
+              onSelect={() => go(item.path)}
+            />
+          );
+        })}
       </CommandGroup>
     );
   };
@@ -160,40 +169,47 @@ export function CommandPalette() {
   return (
     <CommandDialog open={open} onOpenChange={handleOpenChange} shouldFilter={false}>
       <CommandInput
-        placeholder="Search resumes, keywords, tools..."
+        placeholder={t('app.dashboardPage.searchPlaceholderCommand', 'Search resumes, keywords, tools...')}
         value={inputValue}
         onValueChange={setInputValue}
       />
       <CommandList className="max-h-[min(60vh,28rem)]">
-        {!hasResults ? <CommandEmpty>No results found.</CommandEmpty> : null}
+        {!hasResults ? <CommandEmpty>{t('common.noMatchesFound', 'No results found.')}</CommandEmpty> : null}
 
         {resumeResults.length > 0 ? (
-          <CommandGroup heading={getWorkspaceGroupLabel('resumes')}>
-            {resumeResults.map((result) => (
-              <CommandItem
-                key={result.id}
-                value={`resume-${result.id}-${result.label}`}
-                onSelect={() => go(result.path)}
-                className="items-start gap-3 py-2.5"
-              >
-                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      <SearchHighlight text={result.label} query={inputValue} />
+          <CommandGroup heading={t('search.groups.resumes', getWorkspaceGroupLabel('resumes'))}>
+            {resumeResults.map((result) => {
+              const localizedResult = {
+                ...result,
+                label: result.label === 'Untitled resume' ? t('search.untitledResume', 'Untitled resume') : result.label,
+                description: result.description === 'Tailored resume' ? t('search.tailoredResume', 'Tailored resume') : result.description,
+              };
+              return (
+                <CommandItem
+                  key={localizedResult.id}
+                  value={`resume-${localizedResult.id}-${localizedResult.label}`}
+                  onSelect={() => go(localizedResult.path)}
+                  className="items-start gap-3 py-2.5"
+                >
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        <SearchHighlight text={localizedResult.label} query={inputValue} />
+                      </p>
+                      {localizedResult.tailored ? (
+                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          {t('search.tailoredBadge', 'Tailored')}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      <SearchHighlight text={localizedResult.description} query={inputValue} />
                     </p>
-                    {result.tailored ? (
-                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                        Tailored
-                      </span>
-                    ) : null}
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">
-                    <SearchHighlight text={result.description} query={inputValue} />
-                  </p>
-                </div>
-              </CommandItem>
-            ))}
+                </CommandItem>
+              );
+            })}
           </CommandGroup>
         ) : null}
 

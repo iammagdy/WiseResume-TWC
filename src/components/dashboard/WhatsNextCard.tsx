@@ -8,6 +8,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { calcOverallScore, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
 import { cn } from '@/lib/utils';
 import { shouldShowDiscovery } from '@/lib/discoveryManager';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface NextStep {
   icon: React.ElementType;
@@ -59,6 +60,7 @@ const TIP_INDEX_KEY = 'feature-discovery-index';
 const TIP_DISMISSED_KEY = 'feature-discovery-dismissed';
 
 export const WhatsNextCard = memo(function WhatsNextCard() {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { data: resumes } = useResumes();
   const setCurrentResumeId = useResumeStore((s) => s.setCurrentResumeId);
@@ -91,8 +93,8 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
     if (resumes.length === 0) {
       return {
         icon: Plus,
-        title: 'Create your first resume',
-        description: 'Get started in under 2 minutes',
+        title: t('whatsNext.createFirst', 'Create your first resume'),
+        description: t('whatsNext.createFirstDesc', 'Get started in under 2 minutes'),
         action: () => navigate('/dashboard?action=create'),
         color: 'text-primary',
         bgColor: 'bg-primary/10'
@@ -112,8 +114,8 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
       if (onboardingGoal === 'explore-templates') {
         return {
           icon: Wand2,
-          title: 'Browse Templates',
-          description: 'Find the perfect look for your resume',
+          title: t('whatsNext.browseTemplates', 'Browse Templates'),
+          description: t('whatsNext.browseTemplatesDesc', 'Find the perfect look for your resume'),
           action: () => navigate('/templates'),
           color: 'text-primary',
           bgColor: 'bg-primary/10'
@@ -123,8 +125,8 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
       const sectionLabel = section ? SECTION_LABELS[section] || section : 'sections';
       return {
         icon: Pencil,
-        title: `Finish your ${sectionLabel}`,
-        description: `Your resume is ${score}% complete — keep going!`,
+        title: t('whatsNext.finishSection', 'Finish your {{section}}', { section: sectionLabel }),
+        description: t('whatsNext.completePct', 'Your resume is {{pct}}% complete — keep going!', { pct: score }),
         action: () => {
           setCurrentResumeId(best.$id);
           setCurrentResume(bestData);
@@ -142,8 +144,8 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
       if (onboardingGoal === 'update-resume') {
         return {
           icon: Wand2,
-          title: 'Enhance your resume',
-          description: 'Polish your content with AI suggestions',
+          title: t('whatsNext.enhance', 'Enhance your resume'),
+          description: t('whatsNext.enhanceDesc', 'Polish your content with AI suggestions'),
           action: () => {
             setCurrentResumeId(best.$id);
             setCurrentResume(bestData);
@@ -155,8 +157,8 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
       }
       return {
         icon: Wand2,
-        title: 'Tailor for a job posting',
-        description: 'Boost your match score with AI tailoring',
+        title: t('whatsNext.tailorJob', 'Tailor for a job posting'),
+        description: t('whatsNext.tailorJobDesc', 'Boost your match score with AI tailoring'),
         action: () => {
           setCurrentResumeId(best.$id);
           setCurrentResume(bestData);
@@ -170,8 +172,8 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
     // 4. Try interview
     return {
       icon: Mic,
-      title: 'Practice a mock interview',
-      description: 'Get AI-powered feedback on your answers',
+      title: t('whatsNext.mockInterview', 'Practice a mock interview'),
+      description: t('whatsNext.mockInterviewDesc', 'Get AI-powered feedback on your answers'),
       action: () => {
         setCurrentResumeId(best.$id);
         setCurrentResume(bestData);
@@ -180,7 +182,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
       color: 'text-orange-500',
       bgColor: 'bg-orange-500/10'
     };
-  }, [resumes, navigate, setCurrentResumeId, setCurrentResume, onboardingGoal]);
+  }, [resumes, navigate, setCurrentResumeId, setCurrentResume, onboardingGoal, t]);
 
   // If we have a step, render the suggested next step
   if (step) {
@@ -193,7 +195,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.1 }}>
         
-        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Suggested next step</p>
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{t('whatsNext.suggestedNextStep', 'Suggested next step')}</p>
         <div className="flex items-center gap-3">
           <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', step.bgColor)}>
             <Icon className={cn('w-5 h-5', step.color)} />
@@ -225,7 +227,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           localStorage.setItem(TIP_DISMISSED_KEY, '1');
         }}
         className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-muted text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-        aria-label="Dismiss">
+        aria-label={t('common.dismiss', 'Dismiss')}>
         
         <X className="w-4 h-4" />
       </button>
@@ -234,14 +236,14 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           <Lightbulb className="w-4.5 h-4.5 text-accent" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-accent font-semibold uppercase tracking-wider mb-0.5">Did you know?</p>
+          <p className="text-[11px] text-accent font-semibold uppercase tracking-wider mb-0.5">{t('whatsNext.didYouKnow', 'Did you know?')}</p>
           <p className="text-sm font-semibold text-foreground">{tip.title}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{tip.description}</p>
           <button
             onClick={() => {haptics.light();navigate(tip.route);}}
             className="mt-2 text-xs font-medium text-primary flex items-center gap-1 min-h-[44px] touch-manipulation active:scale-95">
             
-            Try it <ArrowRight className="w-3.5 h-3.5" />
+            {t('common.tryIt', 'Try it')} <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

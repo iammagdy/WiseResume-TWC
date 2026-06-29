@@ -21,6 +21,7 @@ import { SectionEmptyState } from './SectionEmptyState';
 import { experienceExample } from '@/lib/emptyStateExamples';
 import { ExperienceItem } from './ExperienceItem';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
+import { useLocale } from '@/i18n/LocaleProvider';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,7 @@ const BoostAllExperienceSheet = lazyWithRetry(() => import('./BoostAllExperience
 const LinkedInOptimizerSheet = lazyWithRetry(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
 
 export const ExperienceSection = memo(function ExperienceSection() {
+  const { t } = useLocale();
   const experience = useResumeStore(state => state.currentResume?.experience);
   const summary = useResumeStore(state => state.currentResume?.summary);
   const updateResume = useResumeStore(state => state.updateResume);
@@ -392,11 +394,11 @@ export const ExperienceSection = memo(function ExperienceSection() {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setShowLinkedIn(true)}>
               <Linkedin className="w-4 h-4 mr-2" />
-              Import from LinkedIn
+              {t('editor.experience.importLinkedIn', 'Import from LinkedIn')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={useExampleEntry}>
               <Briefcase className="w-4 h-4 mr-2" />
-              Use Example Entry
+              {t('editor.experience.useExample', 'Use Example Entry')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -409,7 +411,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
             className="gap-1.5 min-h-[44px] sm:min-h-0 border-primary/30 text-primary hover:bg-primary/5"
           >
             <Sparkles className="w-4 h-4" />
-            Boost All with AI
+            {t('editor.experience.boostAll', 'Boost All with AI')}
           </Button>
         )}
         <Button
@@ -419,11 +421,11 @@ export const ExperienceSection = memo(function ExperienceSection() {
           className="gap-1.5 min-h-[44px] sm:min-h-0 border-primary/30 text-primary hover:bg-primary/5"
         >
           <Bot className="w-4 h-4" />
-          Add with AI
+          {t('editor.experience.addWithAi', 'Add with AI')}
         </Button>
         <Button variant="outline" size="sm" onClick={addExperience} className="gap-2 min-h-[44px] sm:min-h-0">
           <Plus className="w-4 h-4" />
-          Add
+          {t('editor.experience.add', 'Add')}
         </Button>
       </div>
 
@@ -450,7 +452,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
       {experience.length === 0 ? (
           <SectionEmptyState
             icon={Briefcase}
-            title="Add your work experience"
+            title={t('editor.experience.emptyTitle', 'Add your work experience')}
             exampleContent={
               <div className="text-sm space-y-1">
                 <p className="font-semibold">{experienceExample.position}</p>
@@ -463,8 +465,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
               </div>
             }
             actions={[
-              { label: 'Add Your First Job', variant: 'outline', icon: Plus, onClick: addExperience },
-              { label: 'Import from LinkedIn', variant: 'outline', icon: Linkedin, onClick: () => setShowLinkedIn(true) },
+              { label: t('editor.experience.addFirstJob', 'Add Your First Job'), variant: 'outline', icon: Plus, onClick: addExperience },
+              { label: t('editor.experience.importLinkedIn', 'Import from LinkedIn'), variant: 'outline', icon: Linkedin, onClick: () => setShowLinkedIn(true) },
             ]}
           />
         ) : (
@@ -495,7 +497,14 @@ export const ExperienceSection = memo(function ExperienceSection() {
       {pendingExpQuestions && (
         <AIQuestionsDialog
           isOpen={true}
-          contextLabel={`${pendingExpQuestions.exp.position || 'Experience'}${pendingExpQuestions.exp.company ? ` at ${pendingExpQuestions.exp.company}` : ''}`}
+          contextLabel={
+            pendingExpQuestions.exp.company
+              ? t('editor.experience.atCompany', '{{position}} at {{company}}', {
+                  position: pendingExpQuestions.exp.position || t('editor.sections.experience', 'Experience'),
+                  company: pendingExpQuestions.exp.company,
+                })
+              : (pendingExpQuestions.exp.position || t('editor.sections.experience', 'Experience'))
+          }
           questions={pendingExpQuestions.questions}
           onSubmit={handleExpQuestionsSubmit}
           onClose={handleExpQuestionsSkip}
@@ -522,7 +531,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
           setEnhancingExpId(null);
           setImprovedEntry(null);
         }}
-        title="Enhanced Experience"
+        title={t('editor.experience.enhancedTitle', 'Enhanced Experience')}
       />
 
       {/* Gap Explainer Sheet */}

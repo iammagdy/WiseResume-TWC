@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export interface AIAction {
   id: string;
@@ -38,6 +39,7 @@ export function AIActionBar({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
   const [isAtEnd, setIsAtEnd] = useState(false);
+  const { t } = useLocale();
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -83,14 +85,13 @@ export function AIActionBar({
     >
       <div className="flex items-center gap-1.5 text-primary shrink-0">
         <Sparkles className="w-4 h-4" />
-        <span className="text-sm font-medium hidden sm:inline">AI Assist</span>
+        <span className="text-sm font-medium hidden sm:inline">{t('editor.ai.aiAssist', 'AI Assist')}</span>
       </div>
 
       <div className="relative flex-1 min-w-0" aria-busy={isLoading}>
-        {/* Announce async AI activity to screen readers (the generated result
-            itself renders in the section the action targets). */}
+        {/* Announce async AI activity to screen readers */}
         <span role="status" aria-live="polite" className="sr-only">
-          {isLoading ? 'Generating with AI, please wait…' : ''}
+          {isLoading ? t('editor.ai.generatingWait', 'Generating with AI, please wait…') : ''}
         </span>
         <div
           ref={scrollRef}
@@ -123,7 +124,7 @@ export function AIActionBar({
                   disabled={disabled || isLoading}
                   className="shrink-0 h-11 px-4 text-sm gap-1.5 border-primary/30 snap-start touch-manipulation"
                 >
-                  More
+                  {t('common.more', 'More')}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>

@@ -11,6 +11,7 @@ import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 function StatusDot({ status }: { status: 'healthy' | 'degraded' | 'down' }) {
   if (status === 'healthy') return <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />;
@@ -19,6 +20,7 @@ function StatusDot({ status }: { status: 'healthy' | 'degraded' | 'down' }) {
 }
 
 export function DashboardStatusPopover() {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const { status } = useAIHealth();
   const { data: credits } = useAICredits();
@@ -72,7 +74,7 @@ export function DashboardStatusPopover() {
         className="w-auto p-0 flex flex-col gap-0 overflow-hidden border border-border/60 shadow-xl"
       >
         <div className="px-3 pt-2 pb-1 border-b border-border/40">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Status</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('common.status', 'Status')}</p>
         </div>
         {isActiveTrial && (
           <div className="px-3 py-2 border-b border-border/40">

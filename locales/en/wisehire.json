@@ -8,5 +8,90 @@
   "scorecards": "Scorecards",
   "talentPool": "Talent Pool",
   "analytics": "Analytics",
-  "clients": "Clients"
+  "clients": "Clients",
+  "features": {
+    "heading": "Five tools. One hiring OS.",
+    "subheading": "Everything your hiring team needs in one place — from writing the JD to making the offer.",
+    "briefGenerator": {
+      "title": "AI Brief Generator",
+      "desc": "Instantly generate a structured candidate brief — match score, key strengths, red flags, and top interview questions — from any CV."
+    },
+    "jdWriter": {
+      "title": "JD Writer",
+      "desc": "Write bias-free, compelling job descriptions in seconds. AI tailors the tone and requirements to attract the right candidates."
+    },
+    "pipeline": {
+      "title": "Pipeline Board",
+      "desc": "Drag-and-drop kanban for your hiring pipeline. Track every candidate from applied to offer with full status history."
+    },
+    "bulkScreening": {
+      "title": "Bulk Screening",
+      "desc": "Upload multiple CVs at once. AI scores and ranks every applicant against your role criteria — no manual reading required."
+    },
+    "talentPool": {
+      "title": "Talent Pool",
+      "desc": "Never lose a great candidate. Build a searchable pool of past applicants you can re-engage for future roles instantly."
+    },
+    "ctaEarlyAccess": "Get early access",
+    "ctaWaitlistDesc": "Join the waitlist and be first to try WiseHire",
+    "joinWaitlist": "Join Waitlist"
+  },
+  "pricing": {
+    "heading": "Simple, transparent pricing",
+    "subheading": "Join the waitlist now for early access pricing — locked in for life.",
+    "earlyAccessBadge": "Early Access — 40% off all tiers for waitlist members",
+    "earlyAccessLabel": "Early Access",
+    "mostPopular": "Most Popular",
+    "perMonth": "/mo",
+    "learnMore": "Learn More",
+    "joinWaitlist": "Join the Waitlist",
+    "starter": {
+      "name": "Starter",
+      "tagline": "For small teams getting started with AI hiring",
+      "f1": "5 active roles",
+      "f2": "50 candidate briefs / month",
+      "f3": "AI Brief Generator",
+      "f4": "JD Writer",
+      "f5": "Pipeline Board",
+      "f6": "Email support"
+    },
+    "professional": {
+      "name": "Professional",
+      "tagline": "For growing teams that hire continuously",
+      "f1": "25 active roles",
+      "f2": "250 candidate briefs / month",
+      "f3": "Everything in Starter",
+      "f4": "Bulk CV Screening",
+      "f5": "Priority support",
+      "f6": "Team collaboration (up to 5 seats)"
+    },
+    "business": {
+      "name": "Business",
+      "tagline": "For high-volume hiring across the organisation",
+      "f1": "Unlimited active roles",
+      "f2": "1,000 candidate briefs / month",
+      "f3": "Everything in Professional",
+      "f4": "Talent Pool",
+      "f5": "API access",
+      "f6": "Dedicated Customer Success"
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "price": "Custom",
+      "tagline": "Tailored to your organisation's scale and security requirements",
+      "f1": "Unlimited everything",
+      "f2": "Custom AI training on your roles",
+      "f3": "SSO / SCIM provisioning",
+      "f4": "Custom integrations (ATS, HRIS)",
+      "f5": "SLA & uptime guarantee",
+      "f6": "Enterprise support & MSA"
+    }
+  },
+  "closingCta": {
+    "eyebrow": "Get early access",
+    "heading": "Join the waitlist.",
+    "headingLine2": "Hire smarter from day one.",
+    "subtext": "Invite-only early access. No credit card required. Cancel anytime.",
+    "button": "Join the Waitlist"
+  }
 }

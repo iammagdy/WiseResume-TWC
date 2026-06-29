@@ -3,6 +3,7 @@ import { Component, Suspense, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { Check, RefreshCw } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const LazyEditorDemo = lazyWithRetry(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
 const LazyPortfolioDemo = lazyWithRetry(() => import('@/components/landing/PortfolioDemo').then((m) => ({ default: m.PortfolioDemo })));
@@ -122,10 +123,18 @@ class DemoErrorBoundary extends Component<{ children: ReactNode }, DemoErrorBoun
 }
 
 export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
+  const { t, locale } = useLocale();
   const BadgeIcon = data.badge.icon;
-  const isRtl = data.direction === 'rtl';
+  const isRtl = locale === 'ar' ? data.direction === 'ltr' : data.direction === 'rtl';
   const sectionBg = BAND_BG[data.bandColor ?? 'dark1'];
   const prefersReducedMotion = useReducedMotion();
+
+  const title = t(`landing.features.${data.id}.title`, data.title);
+  const desc = t(`landing.features.${data.id}.desc`, data.desc);
+  const badgeLabel = t(`landing.features.${data.id}.badge`, data.badge.label);
+  const bigLabel = t(`landing.features.${data.id}.bigLabel`, data.bigLabel);
+  const categoryLabel = data.categoryLabel ? t(`landing.features.${data.id}.categoryLabel`, data.categoryLabel) : undefined;
+  const bullets = data.bullets.map((bullet, idx) => t(`landing.features.${data.id}.bullets.${idx}`, bullet));
 
   const textSlide = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
@@ -147,7 +156,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         borderRadius: 24,
       }}
     >
-      {data.categoryLabel && (
+      {categoryLabel && (
         <p
           style={{
             fontSize: '0.72rem',
@@ -159,7 +168,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
             transition: 'color 0.3s ease',
           }}
         >
-          {data.categoryLabel}
+          {categoryLabel}
         </p>
       )}
 
@@ -180,7 +189,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         >
           <BadgeIcon className="w-3.5 h-3.5" />
         </motion.span>
-        {data.badge.label}
+        {badgeLabel}
       </motion.span>
 
       <div>
@@ -188,13 +197,13 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           className="text-2xl sm:text-3xl font-bold leading-tight mb-3"
           style={{ color: 'var(--lp-text)', letterSpacing: '-0.025em', transition: 'color 0.3s ease' }}
         >
-          {data.title}
+          {title}
         </h2>
         <p
           className="text-sm leading-relaxed"
           style={{ color: 'var(--lp-text-muted)', lineHeight: 1.7, transition: 'color 0.3s ease' }}
         >
-          {data.desc}
+          {desc}
         </p>
       </div>
     </motion.div>
@@ -208,12 +217,6 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         borderRadius: 24,
       }}
     >
-      {/* Phase 4: parallax wrapper is a plain div so its CSS transform
-          (driven by --card-translate-y) is not overridden by the
-          framer-motion transform applied to the parent motion.div. */}
-      {/* Wrap parallax in an overflow:hidden bounded box so the inverse
-          translate (driven by --card-translate-y) cannot push pills,
-          tooltips, or floating UI past the card edge (U-1/U-2). */}
       <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, width: '100%' }}>
       <div className="lp-stack-parallax w-full flex items-center justify-center">
         <DemoErrorBoundary>
@@ -239,7 +242,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       }}
     >
       <ul className="lp-stack-bullets flex flex-wrap gap-2">
-        {data.bullets.map((bullet) => (
+        {bullets.map((bullet) => (
           <li
             key={bullet}
             className="lp-stack-bullet flex items-start gap-2 text-sm"
@@ -262,7 +265,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
     <section
       ref={sectionRef as React.Ref<HTMLElement>}
       id={`feature-${data.id}`}
-      aria-label={data.title}
+      aria-label={title}
       data-section={`feature-${data.id}`}
       style={{
         background: sectionBg,
@@ -276,10 +279,6 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         className="max-w-6xl mx-auto w-full relative"
         style={{ padding: 'clamp(24px, 3vw, 44px) clamp(20px, 4vw, 40px)' }}
       >
-        {/* Watermark big label — anchored INSIDE the bounded container so
-            it can never escape the rounded card edge during scroll-stack
-            scaling (U-1/U-2). Previously sat at section level with
-            inset:0 and bled past the card's rounded corners. */}
         <span
           aria-hidden="true"
           className="lp-stack-watermark"
@@ -302,7 +301,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
             zIndex: 0,
           }}
         >
-          {data.bigLabel}
+          {bigLabel}
         </span>
         <motion.div
           variants={containerVariants}

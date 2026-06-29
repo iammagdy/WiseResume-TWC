@@ -2,6 +2,116 @@
 
 ---
 
+## Session Log - 2026-06-29 (Editor and UI Localization — branch `main`)
+
+### Goal
+Implement full localization (Arabic and English) for Editor, Dashboard, Cover Letters, Landing, and Workspace layouts. Resolve outstanding unlocalized hardcoded strings in all user-visible components to ensure complete bi-directional translation parity.
+
+### What changed and why
+- **Translation Files Enrichment**:
+  - Added new localized namespaces (`ats`, `ai`, `summary`, `hobbies`, `languages`, `awards`, `certifications`, `projects`, `publications`, `references`, `volunteering`, `versionHistory`) and keys to `en/editor.json`, `ar/editor.json`, `en/common.json`, and `ar/common.json`.
+  - Added translation equivalents for other namespaces in `app.json`, `errors.json`, `landing.json`, `wisehire.json`.
+- **Editor Components Localization**:
+  - Imported `useLocale` and wrapped all hardcoded labels, placeholders, tooltips, dialog titles, and toast notifications in `t()` calls.
+  - Localized `ContactSection.tsx`, `SummarySection.tsx`, `ExperienceSection.tsx`, `ExperienceItem.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`, `HobbiesSection.tsx`, `LanguagesSection.tsx`, `AwardsSection.tsx`, `CertificationsSection.tsx`, `ProjectsSection.tsx`, `PublicationsSection.tsx`, `ReferencesSection.tsx`, `VolunteeringSection.tsx`, `VersionHistorySheet.tsx`, `MonthYearPicker.tsx`, `ATSInlineSuggestions.tsx`, `AIActionBar.tsx`, `AddSectionSheet.tsx`, `EditorSectionContent.tsx`, `EditorHeader.tsx`, `EditorScrollForm.tsx`.
+- **Dashboard & Cover Letters Localization**:
+  - Localized all dashboard sub-components (e.g. `CreateResumeDialog.tsx`, `DashboardHero.tsx`, `DashboardMetricsStrip.tsx`, `OnboardingChecklist.tsx`, `SetTargetJobSheet.tsx`, `VersionCompareSheet.tsx`, etc.), cover letters routes (`CoverLettersPage.tsx`, `CoverLetterCard.tsx`, `EmptyCoverLetters.tsx`), and the main workspace layouts.
+- **Landing & Main Pages Localization**:
+  - Localized the landing page components (`WiseResumeHero.tsx`, `WiseResumeContent.tsx`, `FeatureSection.tsx`, `TrustSection.tsx`, `LandingHeader.tsx`, `Footer.tsx`), `WiseHire` landing sections, and `AIStudioPage.tsx`.
+
+### Root Cause of Each Fix
+- Hardcoded English text in JSX elements, attributes (`placeholder`, `aria-label`, `title`), and toast notifications caused incomplete translation when the user toggled the Arabic language mode.
+
+### Files changed
+- `locales/ar/app.json`
+- `locales/ar/common.json`
+- `locales/ar/editor.json`
+- `locales/ar/errors.json`
+- `locales/ar/landing.json`
+- `locales/ar/wisehire.json`
+- `locales/en/app.json`
+- `locales/en/common.json`
+- `locales/en/editor.json`
+- `locales/en/errors.json`
+- `locales/en/landing.json`
+- `locales/en/wisehire.json`
+- `src/components/cover-letter/CoverLetterActionSheet.tsx`
+- `src/components/cover-letter/CoverLetterCard.tsx`
+- `src/components/cover-letter/EmptyCoverLetters.tsx`
+- `src/components/dashboard/CreateResumeDialog.tsx`
+- `src/components/dashboard/DashboardDiscoverySection.tsx`
+- `src/components/dashboard/DashboardHero.tsx`
+- `src/components/dashboard/DashboardIntelligencePanel.tsx`
+- `src/components/dashboard/DashboardMetricsStrip.tsx`
+- `src/components/dashboard/DashboardNextActionCard.tsx`
+- `src/components/dashboard/DashboardStats.tsx`
+- `src/components/dashboard/DashboardStatusPopover.tsx`
+- `src/components/dashboard/DashboardTopBar.tsx`
+- `src/components/dashboard/DashboardTopCommandBar.tsx`
+- `src/components/dashboard/DashboardWorkspaceToolbar.tsx`
+- `src/components/dashboard/EmptyState.tsx`
+- `src/components/dashboard/FeatureDiscoveryCard.tsx`
+- `src/components/dashboard/OnboardingChecklist.tsx`
+- `src/components/dashboard/ResumeListCard.tsx`
+- `src/components/dashboard/SetTargetJobSheet.tsx`
+- `src/components/dashboard/VersionCompareSheet.tsx`
+- `src/components/dashboard/WhatsNextCard.tsx`
+- `src/components/dashboard/dashboardIntelligenceUtils.ts`
+- `src/components/editor/ATSInlineSuggestions.tsx`
+- `src/components/editor/AddSectionSheet.tsx`
+- `src/components/editor/AwardsSection.tsx`
+- `src/components/editor/CertificationsSection.tsx`
+- `src/components/editor/ContactSection.tsx`
+- `src/components/editor/EditorHeader.tsx`
+- `src/components/editor/EditorScrollForm.tsx`
+- `src/components/editor/EditorSectionContent.tsx`
+- `src/components/editor/EducationSection.tsx`
+- `src/components/editor/ExperienceItem.tsx`
+- `src/components/editor/ExperienceSection.tsx`
+- `src/components/editor/HobbiesSection.tsx`
+- `src/components/editor/LanguagesSection.tsx`
+- `src/components/editor/MonthYearPicker.tsx`
+- `src/components/editor/ProjectsSection.tsx`
+- `src/components/editor/PublicationsSection.tsx`
+- `src/components/editor/ReferencesSection.tsx`
+- `src/components/editor/SkillsSection.tsx`
+- `src/components/editor/SummarySection.tsx`
+- `src/components/editor/VersionHistorySheet.tsx`
+- `src/components/editor/VolunteeringSection.tsx`
+- `src/components/editor/ai/AIActionBar.tsx`
+- `src/components/landing/FeatureSection.tsx`
+- `src/components/landing/Footer.tsx`
+- `src/components/landing/LandingHeader.tsx`
+- `src/components/landing/TrustSection.tsx`
+- `src/components/landing/WaitlistModal.tsx`
+- `src/components/landing/WiseResumeContent.tsx`
+- `src/components/landing/WiseResumeHero.tsx`
+- `src/components/landing/wisehire/WiseHireClosingCTA.tsx`
+- `src/components/landing/wisehire/WiseHireDemoSection.tsx`
+- `src/components/landing/wisehire/WiseHireFeatures.tsx`
+- `src/components/landing/wisehire/WiseHireHero.tsx`
+- `src/components/landing/wisehire/WiseHirePricing.tsx`
+- `src/components/layout/AppWorkspaceSidebar.tsx`
+- `src/components/layout/AppWorkspaceTopBar.tsx`
+- `src/components/layout/CommandPalette.tsx`
+- `src/components/settings/sections/AppearanceSection.tsx`
+- `src/pages/AIStudioPage.tsx`
+- `src/pages/CoverLettersPage.tsx`
+- `src/pages/DashboardPage.tsx`
+- `src/pages/EditorPage.tsx`
+- `src/pages/__tests__/AIStudioPage.test.tsx`
+- `src/pages/__tests__/DashboardPage-CTA.test.tsx`
+
+### Validation performed
+- TypeScript typecheck (`npx tsc --noEmit`): PASS.
+- Manual verification of translation key changes on Vite local dev server.
+
+### Where We Stopped
+- Complete localization tasks have been finalized for all identified files.
+- The next agent can verify the build or proceed with other pending backlog items from the board.
+
+---
+
 ## Session Log - 2026-06-26 (Infra Stabilization Fixes — branch `fix/remove-prod-dev-tunnel-and-sentry-csp`, PR #133)
 
 ### Goal

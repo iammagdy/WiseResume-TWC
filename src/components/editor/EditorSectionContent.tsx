@@ -17,6 +17,7 @@ import { ContactSectionSkeleton, SummarySectionSkeleton, ExperienceSectionSkelet
 import haptics from '@/lib/haptics';
 import type { SectionId } from '@/types/resume';
 import type { ATSSuggestion, DeepResult } from '@/hooks/useATSSuggestions';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const ContactSection = lazyWithRetry(() => import('@/components/editor/ContactSection').then(m => ({ default: m.ContactSection })));
 const SummarySection = lazyWithRetry(() => import('@/components/editor/SummarySection').then(m => ({ default: m.SummarySection })));
@@ -32,15 +33,15 @@ const ReferencesSection = lazyWithRetry(() => import('@/components/editor/Refere
 const CertificationsSection = lazyWithRetry(() => import('@/components/editor/CertificationsSection').then(m => ({ default: m.CertificationsSection })));
 const LanguagesSection = lazyWithRetry(() => import('@/components/editor/LanguagesSection').then(m => ({ default: m.LanguagesSection })));
 
-const MORE_SECTION_COMPONENTS: Record<string, { icon: LucideIcon; title: string; hasAI: boolean; Component: React.LazyExoticComponent<React.ComponentType> }> = {
-  awards: { icon: Trophy, title: 'Awards & Achievements', hasAI: true, Component: AwardsSection },
-  projects: { icon: Rocket, title: 'Projects', hasAI: true, Component: ProjectsSection },
-  certifications: { icon: Award, title: 'Certifications', hasAI: true, Component: CertificationsSection },
-  publications: { icon: BookOpen, title: 'Publications', hasAI: true, Component: PublicationsSection },
-  volunteering: { icon: Heart, title: 'Volunteering', hasAI: true, Component: VolunteeringSection },
-  languages: { icon: Globe, title: 'Languages', hasAI: true, Component: LanguagesSection },
-  hobbies: { icon: Palette, title: 'Hobbies & Interests', hasAI: false, Component: HobbiesSection },
-  references: { icon: Users, title: 'References', hasAI: false, Component: ReferencesSection },
+const MORE_SECTION_COMPONENTS: Record<string, { icon: LucideIcon; titleKey: string; defaultTitle: string; hasAI: boolean; Component: React.LazyExoticComponent<React.ComponentType> }> = {
+  awards: { icon: Trophy, titleKey: 'editor.sections.awardsTitle', defaultTitle: 'Awards & Achievements', hasAI: true, Component: AwardsSection },
+  projects: { icon: Rocket, titleKey: 'editor.sections.projectsTitle', defaultTitle: 'Projects', hasAI: true, Component: ProjectsSection },
+  certifications: { icon: Award, titleKey: 'editor.sections.certificationsTitle', defaultTitle: 'Certifications', hasAI: true, Component: CertificationsSection },
+  publications: { icon: BookOpen, titleKey: 'editor.sections.publicationsTitle', defaultTitle: 'Publications', hasAI: true, Component: PublicationsSection },
+  volunteering: { icon: Heart, titleKey: 'editor.sections.volunteeringTitle', defaultTitle: 'Volunteering', hasAI: true, Component: VolunteeringSection },
+  languages: { icon: Globe, titleKey: 'editor.sections.languagesTitle', defaultTitle: 'Languages', hasAI: true, Component: LanguagesSection },
+  hobbies: { icon: Palette, titleKey: 'editor.sections.hobbiesTitle', defaultTitle: 'Hobbies & Interests', hasAI: false, Component: HobbiesSection },
+  references: { icon: Users, titleKey: 'editor.sections.referencesTitle', defaultTitle: 'References', hasAI: false, Component: ReferencesSection },
 };
 
 export interface EditorSectionContentProps {
@@ -79,6 +80,7 @@ export function EditorSectionContent({
   onRequestJobDescription,
 }: EditorSectionContentProps) {
   const navigate = useNavigate();
+  const { t } = useLocale();
 
   // First-visit onboarding banner — shown only on blank resumes, dismissed via localStorage
   const [bannerDismissed, setBannerDismissed] = useState(
@@ -99,11 +101,11 @@ export function EditorSectionContent({
         <div className="flex items-start gap-3 px-4 py-3 mb-3 rounded-xl bg-primary/10 border border-primary/20 text-sm text-foreground/80" style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <span className="text-base leading-none mt-0.5">👋</span>
           <p className="flex-1 leading-snug">
-            <span className="font-medium text-foreground">Welcome!</span> Fill in each section using the steps above — changes save automatically.
+            <span className="font-medium text-foreground">{t('editor.onboarding.welcome', 'Welcome!')}</span> {t('editor.onboarding.fillSectionsSteps', 'Fill in each section using the steps above — changes save automatically.')}
           </p>
           <button
             onClick={handleDismissBanner}
-            aria-label="Dismiss hint"
+            aria-label={t('editor.onboarding.dismissHint', 'Dismiss hint')}
             className="shrink-0 p-1 rounded-md hover:bg-primary/10 active:scale-95 transition-transform touch-manipulation"
           >
             <X className="w-4 h-4 text-muted-foreground" />
@@ -113,14 +115,14 @@ export function EditorSectionContent({
 
       {activeTab === 'contact' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={User} title="Contact Information" tip="Add your name, email, phone and LinkedIn — these appear at the top of your resume" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
+          <SectionCard icon={User} title={t('editor.sections.contactInfo', 'Contact Information')} tip={t('editor.contact.sectionTip', 'Add your name, email, phone and LinkedIn — these appear at the top of your resume')} status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
             <Suspense fallback={<ContactSectionSkeleton />}><ContactSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'summary' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2–4 sentences about your experience and what you're looking for" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
+          <SectionCard icon={AlignLeft} title={t('editor.sections.professionalSummary', 'Professional Summary')} tip={t('editor.summary.sectionTip', "Write 2–4 sentences about your experience and what you're looking for")} status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
             <Suspense fallback={<SummarySectionSkeleton />}><SummarySection /></Suspense>
             <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} hasJobDescription={!!jobDescription?.trim()} onRequestJobDescription={onRequestJobDescription} />
           </SectionCard>
@@ -128,7 +130,7 @@ export function EditorSectionContent({
       )}
       {activeTab === 'experience' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Briefcase} title="Work Experience" tip="Add your most recent job first — tap an entry to expand and edit it" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
+          <SectionCard icon={Briefcase} title={t('editor.sections.workExperience', 'Work Experience')} tip={t('editor.experience.sectionTip', 'Add your most recent job first — tap an entry to expand and edit it')} status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
             <Suspense fallback={<ExperienceSectionSkeleton />}><ExperienceSection /></Suspense>
             <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} hasJobDescription={!!jobDescription?.trim()} onRequestJobDescription={onRequestJobDescription} />
           </SectionCard>
@@ -136,7 +138,7 @@ export function EditorSectionContent({
       )}
       {activeTab === 'education' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={GraduationCap} title="Education" tip="List your highest degree first — GPA is optional" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
+          <SectionCard icon={GraduationCap} title={t('editor.sections.educationTitle', 'Education')} tip={t('editor.education.sectionTip', 'List your highest degree first — GPA is optional')} status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
             <Suspense fallback={<EducationSectionSkeleton />}><EducationSection /></Suspense>
             {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isAnalyzingSection('education')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['education']} onApplyDeep={(improved) => handleApplyDeep('education', improved)} onDiscardDeep={() => clearDeepResult('education')} />}
           </SectionCard>
@@ -144,7 +146,7 @@ export function EditorSectionContent({
       )}
       {activeTab === 'skills' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Wrench} title="Skills" tip="Add 6–10 skills matching the jobs you're applying to" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
+          <SectionCard icon={Wrench} title={t('editor.sections.skillsTitle', 'Skills')} tip={t('editor.skills.sectionTip', "Add 6–10 skills matching the jobs you're applying to")} status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
             <Suspense fallback={<SkillsSectionSkeleton />}><SkillsSection /></Suspense>
             {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isAnalyzingSection('skills')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['skills']} onApplyDeep={(improved) => handleApplyDeep('skills', improved)} onDiscardDeep={() => clearDeepResult('skills')} />}
           </SectionCard>
@@ -152,56 +154,56 @@ export function EditorSectionContent({
       )}
       {activeTab === 'certifications' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}>
+          <SectionCard icon={Award} title={t('editor.sections.certificationsTitle', 'Certifications')} action={<SectionAIAction section="certifications" />}>
             <Suspense fallback={<ListSectionSkeleton />}><CertificationsSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'languages' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}>
+          <SectionCard icon={Globe} title={t('editor.sections.languagesTitle', 'Languages')} action={<SectionAIAction section="languages" />}>
             <Suspense fallback={<ListSectionSkeleton />}><LanguagesSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'awards' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Trophy} title="Awards & Achievements" action={<SectionAIAction section="awards" />}>
+          <SectionCard icon={Trophy} title={t('editor.sections.awardsTitle', 'Awards & Achievements')} action={<SectionAIAction section="awards" />}>
             <Suspense fallback={<ListSectionSkeleton />}><AwardsSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'publications' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={BookOpen} title="Publications" action={<SectionAIAction section="publications" />}>
+          <SectionCard icon={BookOpen} title={t('editor.sections.publicationsTitle', 'Publications')} action={<SectionAIAction section="publications" />}>
             <Suspense fallback={<ListSectionSkeleton />}><PublicationsSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'volunteering' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Heart} title="Volunteering" action={<SectionAIAction section="volunteering" />}>
+          <SectionCard icon={Heart} title={t('editor.sections.volunteeringTitle', 'Volunteering')} action={<SectionAIAction section="volunteering" />}>
             <Suspense fallback={<ListSectionSkeleton />}><VolunteeringSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'projects' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}>
+          <SectionCard icon={Rocket} title={t('editor.sections.projectsTitle', 'Projects')} action={<SectionAIAction section="projects" />}>
             <Suspense fallback={<ListSectionSkeleton />}><ProjectsSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'hobbies' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Palette} title="Hobbies & Interests">
+          <SectionCard icon={Palette} title={t('editor.sections.hobbiesTitle', 'Hobbies & Interests')}>
             <Suspense fallback={<ListSectionSkeleton />}><HobbiesSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'references' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Users} title="References">
+          <SectionCard icon={Users} title={t('editor.sections.referencesTitle', 'References')}>
             <Suspense fallback={<ListSectionSkeleton />}><ReferencesSection /></Suspense>
           </SectionCard>
         </div>
@@ -209,13 +211,13 @@ export function EditorSectionContent({
       {activeTab === 'more' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           {!moreSubSection ? (
-            <SectionCard icon={Plus} title="More Sections">
+            <SectionCard icon={Plus} title={t('editor.sections.moreSections', 'More Sections')}>
               <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
             </SectionCard>
           ) : (
             <div className="space-y-3">
               <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation min-h-[44px]">
-                <ChevronLeft className="w-4 h-4" /> All Sections
+                <ChevronLeft className="w-4 h-4" /> {t('editor.sections.allSections', 'All Sections')}
               </button>
               <Suspense fallback={<ListSectionSkeleton />}>
                 {(() => {
@@ -224,9 +226,9 @@ export function EditorSectionContent({
                     setMoreSubSection(null);
                     return null;
                   }
-                  const { icon, title, hasAI, Component } = config;
+                  const { icon, titleKey, defaultTitle, hasAI, Component } = config;
                   return (
-                    <SectionCard icon={icon} title={title} action={hasAI ? <SectionAIAction section={moreSubSection! as SectionType} /> : undefined}>
+                    <SectionCard icon={icon} title={t(titleKey, defaultTitle)} action={hasAI ? <SectionAIAction section={moreSubSection! as SectionType} /> : undefined}>
                       <Component />
                     </SectionCard>
                   );
@@ -255,6 +257,7 @@ export function SectionNavButtons({
   noPadding?: boolean;
 }) {
   const [isNavigating, setIsNavigating] = useState(false);
+  const { t } = useLocale();
 
   return (
     <div className={cn('flex flex-row items-center gap-2 overflow-hidden flex-1', !noPadding && 'py-3')}>
@@ -270,7 +273,7 @@ export function SectionNavButtons({
         disabled={activeTab === steps[0].id}
       >
         <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-        Prev
+        {t('editor.nav.prev', 'Prev')}
       </Button>
       {activeTab === steps[steps.length - 1].id ? (
         <Button
@@ -289,7 +292,7 @@ export function SectionNavButtons({
           ) : (
             <Eye className="w-3.5 h-3.5 mr-1" />
           )}
-          {isNavigating ? 'Loading…' : 'Preview'}
+          {isNavigating ? t('editor.nav.loading', 'Loading…') : t('editor.nav.preview', 'Preview')}
         </Button>
       ) : (
         <Button
@@ -301,7 +304,7 @@ export function SectionNavButtons({
             if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
           }}
         >
-          Next
+          {t('editor.nav.next', 'Next')}
           <ChevronRight className="w-3.5 h-3.5 ml-1" />
         </Button>
       )}

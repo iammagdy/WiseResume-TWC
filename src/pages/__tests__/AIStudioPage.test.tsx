@@ -135,8 +135,10 @@ describe("AIStudioPage workspace IA", () => {
     expect(screen.getByText(/improve my resume/i)).toBeInTheDocument();
     expect(screen.getByText(/prepare for interview/i)).toBeInTheDocument();
     expect(screen.getAllByText(/company briefing/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/^cover letter$/i)).toBeInTheDocument();
-    expect(screen.getByText(/linkedin \/ personal brand/i)).toBeInTheDocument();
+    // Title is translated from "Cover Letter" → "Cover Letter Writer" via app.aiStudio.workflows.cover-letter.title
+    expect(screen.getAllByText(/cover letter/i).length).toBeGreaterThan(0);
+    // Title is translated from "LinkedIn / Personal Brand" → "LinkedIn & Brand" via app.aiStudio.workflows.linkedin-brand.title
+    expect(screen.getAllByText(/linkedin/i).length).toBeGreaterThan(0);
 
     expect(screen.queryByText(/qr generator/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/batch qr/i)).not.toBeInTheDocument();

@@ -83,8 +83,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 function DashboardPageContent() {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, authReady, authSettled, signOut } = useAuth();
@@ -448,7 +450,7 @@ function DashboardPageContent() {
   const handleRefresh = async () => {
     await refetch();
     haptics.success();
-    toast.success('Resumes refreshed');
+    toast.success(t('app.dashboardPage.resumesRefreshed', 'Resumes refreshed'));
   };
 
   const handleEdit = useCallback((resumeId: string) => {
@@ -492,7 +494,7 @@ function DashboardPageContent() {
         resumeTitle: (dupDoc as { title?: string }).title ?? source?.title,
         parentResumeTitle: source?.title,
       });
-      toast.success('Resume duplicated successfully');
+      toast.success(t('app.dashboardPage.resumeDuplicated', 'Resume duplicated successfully'));
     } catch {
       // error handled by mutation
     } finally {
@@ -520,9 +522,9 @@ function DashboardPageContent() {
         resumeTitle: prev?.title,
         newTitle,
       });
-      toast.success('Resume renamed');
+      toast.success(t('app.dashboardPage.resumeRenamed', 'Resume renamed'));
     } catch {
-      toast.error('Failed to rename resume');
+      toast.error(t('app.dashboardPage.resumeRenameFailed', 'Failed to rename resume'));
     }
   }, [updateResume, resumes]);
 
@@ -546,7 +548,7 @@ function DashboardPageContent() {
       });
       useATSScoreHistoryStore.getState().clearHistory(deleteResumeId!);
       useWorkspaceActivityStore.getState().pruneResume(deleteResumeId);
-      toast.success(`"${resumeToDelete?.title}" deleted`, { duration: 3000 });
+      toast.success(t('app.dashboardPage.resumeDeleted', '"{{title}}" deleted', { title: resumeToDelete?.title ?? '' }), { duration: 3000 });
     } catch {
       // error handled by mutation
     } finally {
@@ -634,16 +636,16 @@ function DashboardPageContent() {
     const idsToDelete = [...selectedIds];
 
     // Show undo toast immediately
-    toast.success(`${count} resume${count > 1 ? 's' : ''} deleted`, {
-      description: 'You can undo this action within 5 seconds.',
+    toast.success(t('app.dashboardPage.bulkDeleted', '{{count}} resume(s) deleted', { count }), {
+      description: t('app.dashboardPage.undoHint', 'You can undo this action within 5 seconds.'),
       action: {
-        label: 'Undo',
+        label: t('common.undo', 'Undo'),
         onClick: () => {
           if (pendingDeleteRef.current) {
             clearTimeout(pendingDeleteRef.current);
             pendingDeleteRef.current = null;
           }
-          toast.info('Delete cancelled');
+          toast.info(t('app.dashboardPage.deleteCancelled', 'Delete cancelled'));
         },
       },
     });
@@ -670,11 +672,11 @@ function DashboardPageContent() {
     const hasAnyScore = Object.values(effectiveHealthScores).some(s => (s.overallScore ?? 0) > 0);
     const hasTargetJob = resumes.some(r => r.target_job_title);
     return [
-      { id: 'first-resume', label: 'Create your first resume', description: 'Build a professional resume to get started.', done: resumes.length > 0, href: '/dashboard?action=create' },
-      { id: 'ats-check', label: 'Run an ATS check', description: 'See how well your resume scores with recruiters.', done: hasAnyScore, href: '/editor' },
-      { id: 'export', label: 'Export your resume', description: 'Download your resume as PDF or PNG.', done: exportedChecked, href: '/editor' },
-      { id: 'target-job', label: 'Set a target job', description: 'Tailor your resume for specific roles.', done: hasTargetJob, href: '/tailoring-hub' },
-      { id: 'portfolio', label: 'View your portfolio', description: 'Share your professional portfolio online.', done: !!profile?.portfolioEnabled, href: '/portfolio' },
+      { id: 'first-resume', label: t('app.dashboardPage.checklist.createResume', 'Create your first resume'), description: t('app.dashboardPage.checklist.createResumeDesc', 'Build a professional resume to get started.'), done: resumes.length > 0, href: '/dashboard?action=create' },
+      { id: 'ats-check', label: t('app.dashboardPage.checklist.atsCheck', 'Run an ATS check'), description: t('app.dashboardPage.checklist.atsCheckDesc', 'See how well your resume scores with recruiters.'), done: hasAnyScore, href: '/editor' },
+      { id: 'export', label: t('app.dashboardPage.checklist.export', 'Export your resume'), description: t('app.dashboardPage.checklist.exportDesc', 'Download your resume as PDF or PNG.'), done: exportedChecked, href: '/editor' },
+      { id: 'target-job', label: t('app.dashboardPage.checklist.targetJob', 'Set a target job'), description: t('app.dashboardPage.checklist.targetJobDesc', 'Tailor your resume for specific roles.'), done: hasTargetJob, href: '/tailoring-hub' },
+      { id: 'portfolio', label: t('app.dashboardPage.checklist.portfolio', 'View your portfolio'), description: t('app.dashboardPage.checklist.portfolioDesc', 'Share your professional portfolio online.'), done: !!profile?.portfolioEnabled, href: '/portfolio' },
     ];
   }, [resumes, effectiveHealthScores, exportedChecked, profile?.portfolioEnabled]);
 
@@ -713,9 +715,9 @@ function DashboardPageContent() {
     return (
       <div className="flex-1 flex flex-col">
         <div className="px-4 pt-6 pb-3">
-          <p className="text-sm font-medium text-foreground">Loading your workspace</p>
+          <p className="text-sm font-medium text-foreground">{t('app.loadingWorkspace', 'Loading your workspace')}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            We&apos;re syncing your resumes, scores, and recent activity.
+            {t('app.syncingWorkspaceDescription', "We're syncing your resumes, scores, and recent activity.")}
           </p>
         </div>
         <DashboardSkeleton />
@@ -727,9 +729,9 @@ function DashboardPageContent() {
     return (
       <div className="flex flex-1 flex-col min-h-0">
         <div className="px-4 pt-6 pb-3">
-          <p className="text-sm font-medium text-foreground">Loading your resumes</p>
+          <p className="text-sm font-medium text-foreground">{t('app.loadingResumes', 'Loading your resumes')}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Syncing your workspace from the cloud…
+            {t('app.syncingFromCloudDescription', 'Syncing your workspace from the cloud…')}
           </p>
         </div>
         <DashboardSkeleton />
@@ -745,12 +747,12 @@ function DashboardPageContent() {
           <AlertCircle className="w-8 h-8" />
         </div>
         <div>
-          <h2 className="text-xl font-bold">Something went wrong</h2>
-          <p className="text-muted-foreground max-w-xs mx-auto">We couldn't load your resumes. Please check your connection and try again.</p>
+          <h2 className="text-xl font-bold">{t('errors.somethingWentWrong', 'Something went wrong')}</h2>
+          <p className="text-muted-foreground max-w-xs mx-auto">{t('errors.couldNotLoadResumesDescription', "We couldn't load your resumes. Please check your connection and try again.")}</p>
         </div>
         <Button onClick={() => refetch()} variant="outline" className="gap-2">
           <RefreshCw className="w-4 h-4" />
-          Retry
+          {t('common.retry', 'Retry')}
         </Button>
       </div>
     );
@@ -812,15 +814,15 @@ function DashboardPageContent() {
                 <WifiOff className="w-8 h-8 text-muted-foreground" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg mb-1">You're offline</h3>
-                <p className="text-sm text-muted-foreground">Connect to the internet to load your resumes.</p>
+                <h3 className="font-semibold text-lg mb-1">{t('errors.youAreOffline', "You're offline")}</h3>
+                <p className="text-sm text-muted-foreground">{t('errors.connectToInternet', 'Connect to the internet to load your resumes.')}</p>
               </div>
               <button
                 onClick={() => refetch()}
                 className="text-sm text-primary hover:underline min-h-[44px] touch-manipulation flex items-center"
-                aria-label="Retry loading resumes"
+                aria-label={t('errors.retryLoadingResumes', 'Retry loading resumes')}
               >
-                Retry
+                {t('common.retry', 'Retry')}
               </button>
             </div>
           ) : resumesError && !resumes ? (
@@ -830,12 +832,12 @@ function DashboardPageContent() {
                 <AlertCircle className="w-8 h-8 text-destructive" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg mb-1">Something went wrong</h3>
-                <p className="text-sm text-muted-foreground">We couldn't load your resumes.</p>
+                <h3 className="font-semibold text-lg mb-1">{t('errors.somethingWentWrong', 'Something went wrong')}</h3>
+                <p className="text-sm text-muted-foreground">{t('errors.couldNotLoadResumes', "We couldn't load your resumes.")}</p>
               </div>
-              <Button variant="outline" onClick={() => refetch()} className="min-h-[44px] gap-2" aria-label="Retry loading resumes">
+              <Button variant="outline" onClick={() => refetch()} className="min-h-[44px] gap-2" aria-label={t('errors.retryLoadingResumes', 'Retry loading resumes')}>
                 <RefreshCw className="w-4 h-4" />
-                Tap to retry
+                {t('errors.tapToRetry', 'Tap to retry')}
               </Button>
             </div>
           ) : showEmptyDashboard ? (
@@ -903,7 +905,7 @@ function DashboardPageContent() {
                           value="all"
                           className="h-8 px-3 text-xs rounded-lg data-[state=active]:shadow-none data-[state=active]:bg-card data-[state=active]:border data-[state=active]:border-border/50"
                         >
-                          All
+                          {t('app.dashboardPage.tabAll', 'All')}
                           <Badge
                             variant="secondary"
                             className="ml-1.5 text-[10px] h-4 px-1 min-w-[1.25rem] justify-center tabular-nums"
@@ -915,7 +917,7 @@ function DashboardPageContent() {
                           value="normal"
                           className="h-8 px-3 text-xs rounded-lg data-[state=active]:shadow-none data-[state=active]:bg-card data-[state=active]:border data-[state=active]:border-border/50"
                         >
-                          Normal
+                          {t('app.dashboardPage.tabNormal', 'Normal')}
                           <Badge
                             variant="secondary"
                             className="ml-1.5 text-[10px] h-4 px-1 min-w-[1.25rem] justify-center tabular-nums"
@@ -927,7 +929,7 @@ function DashboardPageContent() {
                           value="tailored"
                           className="h-8 px-3 text-xs rounded-lg data-[state=active]:shadow-none data-[state=active]:bg-card data-[state=active]:border data-[state=active]:border-border/50"
                         >
-                          Tailored
+                          {t('app.dashboardPage.tabTailored', 'Tailored')}
                           <Badge
                             variant="secondary"
                             className="ml-1.5 text-[10px] h-4 px-1 min-w-[1.25rem] justify-center tabular-nums"
@@ -946,19 +948,19 @@ function DashboardPageContent() {
                         haptics.light();
                         setShowCreateDialog(true);
                       }}
-                      aria-label="Create new resume"
+                      aria-label={t('app.dashboardPage.newResume', 'Create new resume')}
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      New Resume
+                      {t('app.dashboardPage.newResume', 'New Resume')}
                     </Button>
                     <div className="relative min-w-0 sm:w-52">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                       <Input
-                        placeholder="Search resumes..."
+                        placeholder={t('app.dashboardPage.searchPlaceholder', 'Search resumes...')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="h-8 pl-7 text-xs rounded-lg border-border/50 bg-card/50"
-                        aria-label="Search recent resumes"
+                        aria-label={t('app.dashboardPage.searchPlaceholder', 'Search recent resumes')}
                       />
                     </div>
                     <DropdownMenu>
@@ -971,7 +973,7 @@ function DashboardPageContent() {
                             selectionMode ? 'text-primary bg-primary/10' : 'text-muted-foreground',
                           )}
                           onClick={() => haptics.light()}
-                          aria-label="Resume list actions"
+                          aria-label={t('app.dashboardPage.listActions', 'Resume list actions')}
                         >
                           <SlidersHorizontal className="w-3.5 h-3.5" />
                         </Button>
@@ -985,12 +987,12 @@ function DashboardPageContent() {
                             }}
                           >
                             <CheckSquare className="w-4 h-4 mr-2" />
-                            Select resumes
+                            {t('app.dashboardPage.selectResumes', 'Select resumes')}
                           </DropdownMenuItem>
                         ) : (
                           <>
                             <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                              {selectedIds.size} selected
+                              {t('app.dashboardPage.selectedCount', '{{count}} selected', { count: selectedIds.size })}
                             </DropdownMenuLabel>
                             <DropdownMenuItem
                               onClick={() => {
@@ -998,7 +1000,7 @@ function DashboardPageContent() {
                                 handleSelectAll();
                               }}
                             >
-                              Select all
+                              {t('common.selectAll', 'Select all')}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               disabled={selectedIds.size === 0}
@@ -1009,7 +1011,7 @@ function DashboardPageContent() {
                               }}
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
-                              Delete selected
+                              {t('app.dashboardPage.deleteSelected', 'Delete selected')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -1018,7 +1020,7 @@ function DashboardPageContent() {
                                 exitSelectionMode();
                               }}
                             >
-                              Cancel selection
+                              {t('app.dashboardPage.cancelSelection', 'Cancel selection')}
                             </DropdownMenuItem>
                           </>
                         )}
@@ -1042,21 +1044,21 @@ function DashboardPageContent() {
                           <div className="rounded-2xl border border-dashed border-border/50 bg-card/40 px-4 py-10 text-center">
                             <p className="text-sm font-medium text-foreground">
                               {deferredSearch && resumeListTab === 'all'
-                                ? `No resumes match "${deferredSearch}"`
+                                ? t('app.dashboardPage.noMatchSearch', 'No resumes match "{{q}}"', { q: deferredSearch })
                                 : resumeListTab === 'tailored'
-                                  ? 'No tailored resumes yet'
+                                  ? t('app.dashboardPage.noTailoredYet', 'No tailored resumes yet')
                                   : resumeListTab === 'normal'
-                                    ? 'No normal resumes yet'
-                                    : 'No resumes yet'}
+                                    ? t('app.dashboardPage.noNormalYet', 'No normal resumes yet')
+                                    : t('app.dashboardPage.noResumesYet', 'No resumes yet')}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1.5 max-w-sm mx-auto leading-relaxed">
                               {deferredSearch && resumeListTab === 'all'
-                                ? 'Try a different keyword or clear your search.'
+                                ? t('app.dashboardPage.tryDifferentKeyword', 'Try a different keyword or clear your search.')
                                 : resumeListTab === 'tailored'
-                                  ? 'Create a tailored copy from any master resume using Tailor to Job.'
+                                  ? t('app.dashboardPage.createTailoredHint', 'Create a tailored copy from any master resume using Tailor to Job.')
                                   : resumeListTab === 'normal'
-                                    ? 'Normal resumes are your original CVs — not job-specific tailored copies.'
-                                    : 'Create your first resume to get started.'}
+                                    ? t('app.dashboardPage.normalResumeHint', 'Normal resumes are your original CVs — not job-specific tailored copies.')
+                                    : t('app.dashboardPage.createFirstHint', 'Create your first resume to get started.')}
                             </p>
                             {deferredSearch && resumeListTab === 'all' && (
                               <Button
@@ -1065,7 +1067,7 @@ function DashboardPageContent() {
                                 onClick={() => setSearchQuery('')}
                                 className="mt-2 h-8"
                               >
-                                Clear search
+                              {t('app.dashboardPage.clearSearch', 'Clear search')}
                               </Button>
                             )}
                             {resumeListTab === 'tailored' && normalResumes.length > 0 && (
@@ -1077,7 +1079,7 @@ function DashboardPageContent() {
                                   if (master) handleTailorResume(master.$id);
                                 }}
                               >
-                                Tailor a resume
+                                {t('app.dashboardPage.tailorResume', 'Tailor a resume')}
                               </Button>
                             )}
                           </div>
@@ -1127,11 +1129,11 @@ function DashboardPageContent() {
                   {showTrustBanner && (
                     <div className="flex items-center gap-2 py-1.5 text-muted-foreground">
                       <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <p className="text-xs font-medium text-foreground flex-1">Your career data is encrypted, private, and never shared.</p>
+                      <p className="text-xs font-medium text-foreground flex-1">{t('app.dashboardPage.footerEncrypted', 'Your career data is encrypted, private, and never shared.')}</p>
                       <button
                         onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
                         className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-muted/50"
-                        aria-label="Dismiss"
+                        aria-label={t('common.dismiss', 'Dismiss')}
                       >
                         <X className="w-4 h-4 text-muted-foreground" />
                       </button>
@@ -1141,9 +1143,9 @@ function DashboardPageContent() {
                   {showProfileBanner && (
                     <div className="flex items-center gap-2 py-1.5">
                       <User className="w-4 h-4 text-primary shrink-0" />
-                      <p className="text-xs font-medium text-foreground flex-1">Complete your profile for the best experience.</p>
+                      <p className="text-xs font-medium text-foreground flex-1">{t('app.dashboardPage.footerCompleteProfile', 'Complete your profile for the best experience.')}</p>
                       <Button variant="outline" size="sm" onClick={() => navigate('/onboarding')} className="shrink-0 h-8 text-xs">
-                        Complete
+                        {t('common.complete', 'Complete')}
                       </Button>
                       <button
                         onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
@@ -1206,20 +1208,20 @@ function DashboardPageContent() {
       <AlertDialog open={!!deleteResumeId} onOpenChange={(open) => { if (!open && !deleteResume.isPending) setDeleteResumeId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
+            <AlertDialogTitle>{t('app.dashboardPage.deleteTitle', 'Delete Resume?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this resume. This action cannot be undone.
+              {t('app.dashboardPage.deleteDesc', 'This will permanently delete this resume. This action cannot be undone.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => haptics.light()} disabled={deleteResume.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => haptics.light()} disabled={deleteResume.isPending}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); confirmDelete(); }}
               disabled={deleteResume.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex items-center gap-2"
             >
               {deleteResume.isPending && <MiniSpinner size={14} />}
-              {deleteResume.isPending ? 'Deleting…' : 'Delete Permanently'}
+              {deleteResume.isPending ? t('app.dashboardPage.deleting', 'Deleting…') : t('app.dashboardPage.deletePermanently', 'Delete Permanently')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1229,18 +1231,18 @@ function DashboardPageContent() {
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogTitle>{t('app.dashboardPage.bulkDeleteTitle', 'Delete {{count}} Resume(s)?', { count: selectedIds.size })}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {selectedIds.size > 1 ? 'these resumes' : 'this resume'}. This action cannot be undone.
+              {t('app.dashboardPage.bulkDeleteDesc', 'This will permanently delete these resumes. This action cannot be undone.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => haptics.light()}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => haptics.light()}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmBulkDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete Permanently
+              {t('app.dashboardPage.deletePermanently', 'Delete Permanently')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1250,20 +1252,20 @@ function DashboardPageContent() {
       <AlertDialog open={!!duplicateResumeId} onOpenChange={(open) => { if (!open && !duplicateResume.isPending) setDuplicateResumeId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Duplicate Resume?</AlertDialogTitle>
+            <AlertDialogTitle>{t('app.dashboardPage.duplicateTitle', 'Duplicate Resume?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will create a copy of this resume with all its content.
+              {t('app.dashboardPage.duplicateDesc', 'This will create a copy of this resume with all its content.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => haptics.light()} disabled={duplicateResume.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => haptics.light()} disabled={duplicateResume.isPending}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); confirmDuplicate(); }}
               disabled={duplicateResume.isPending}
               className="inline-flex items-center gap-2"
             >
               {duplicateResume.isPending && <MiniSpinner size={14} />}
-              {duplicateResume.isPending ? 'Duplicating…' : 'Duplicate'}
+              {duplicateResume.isPending ? t('app.dashboardPage.duplicating', 'Duplicating…') : t('common.duplicate', 'Duplicate')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1340,7 +1342,7 @@ function DashboardPageContent() {
                   templateId: DEFAULT_RESUME_TEMPLATE_ID,
                 });
                 haptics.success();
-                toast.success('Resume created from LinkedIn!');
+                toast.success(t('app.dashboardPage.linkedInImported', 'Resume created from LinkedIn!'));
                 refetch();
                 navigate('/editor');
               }

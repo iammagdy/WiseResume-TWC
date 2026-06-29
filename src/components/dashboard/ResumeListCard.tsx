@@ -43,6 +43,8 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { useLocale } from '@/i18n/LocaleProvider';
+
 import { useResumeStore } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { ScoreRing } from './ScoreRing';
@@ -97,6 +99,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   presentation = 'default',
   onTailor,
 }: ResumeListCardProps) {
+  const { t, locale } = useLocale();
   const isAtlasRow = presentation === 'atlas-row';
   const isWorkspace = presentation === 'workspace';
   const isCompactRow = isAtlasRow || isWorkspace;
@@ -105,11 +108,11 @@ export const ResumeListCard = memo(function ResumeListCard({
     if (!healthScore) return null;
     const gaps = healthScore.keywordGaps?.length ?? 0;
     if (gaps > 0) {
-      return `${gaps} keyword gap${gaps === 1 ? '' : 's'} — tailor to align with your target role.`;
+      return t('app.resumeCard.keywordGapsCount', '{{count}} keyword gap(s) — tailor to align with your target role.', { count: gaps });
     }
     if (healthScore.topImprovement) return healthScore.topImprovement;
     return null;
-  }, [healthScore]);
+  }, [healthScore, t]);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -274,7 +277,7 @@ export const ResumeListCard = memo(function ResumeListCard({
         >
           <div className="flex items-center gap-2 text-success">
             <Copy className="w-5 h-5" />
-            <span className="font-medium text-sm">Duplicate</span>
+            <span className="font-medium text-sm">{t('common.duplicate', 'Duplicate')}</span>
           </div>
         </motion.div>
 
@@ -284,7 +287,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           style={{ opacity: deleteOpacity }}
         >
           <div className="flex items-center gap-2 text-destructive">
-            <span className="font-medium text-sm">Delete</span>
+            <span className="font-medium text-sm">{t('common.delete', 'Delete')}</span>
             <Trash2 className="w-5 h-5" />
           </div>
         </motion.div>
@@ -357,15 +360,15 @@ export const ResumeListCard = memo(function ResumeListCard({
                 className="flex items-center gap-1.5 text-success text-xs font-medium"
               >
                 <ArrowRight className="w-4 h-4" />
-                <span>Duplicate</span>
+                <span>{t('common.duplicate', 'Duplicate')}</span>
               </motion.div>
-              <span className="text-[11px] text-muted-foreground">swipe cards</span>
+              <span className="text-[11px] text-muted-foreground">{t('app.resumeCard.swipeCards', 'swipe cards')}</span>
               <motion.div
                 animate={{ x: [6, -6, 6] }}
                 transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
                 className="flex items-center gap-1.5 text-destructive text-xs font-medium"
               >
-                <span>Delete</span>
+                <span>{t('common.delete', 'Delete')}</span>
                 <ArrowLeft className="w-4 h-4" />
               </motion.div>
             </motion.div>
@@ -413,12 +416,12 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </h3>
                 {showMasterBadge && (
                   <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0 border-border/60 text-muted-foreground">
-                    Master
+                    {t('app.resumeCard.master', 'Master')}
                   </Badge>
                 )}
                 {showTailoredBadge && (
                   <Badge variant="secondary" className="text-[9px] h-4 px-1 shrink-0">
-                    Tailored
+                    {t('app.resumeCard.tailored', 'Tailored')}
                   </Badge>
                 )}
               </div>
@@ -429,12 +432,12 @@ export const ResumeListCard = memo(function ResumeListCard({
                 {resume.template && (
                   <span>
                     {resume.template.charAt(0).toUpperCase()}
-                    {resume.template.slice(1)} template
+                    {resume.template.slice(1)} {t('app.resumeCard.template', 'template')}
                   </span>
                 )}
                 <span>
                   {resume.template ? ' · ' : ''}
-                  Edited{' '}
+                  {t('app.resumeCard.edited', 'Edited')}{' '}
                   {safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), {
                     addSuffix: true,
                   })}
@@ -442,7 +445,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               </p>
               {aiInsightPreview && (
                 <p className="resume-workspace-card__insight mt-1 line-clamp-1">
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mr-1">Top suggestion:</span>
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mr-1">{t('app.resumeCard.topSuggestion', 'Top suggestion:')}</span>
                   {aiInsightPreview}
                 </p>
               )}
@@ -461,7 +464,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                 }}
               >
                 <Pencil className="w-3.5 h-3.5 mr-1" />
-                Edit
+                {t('common.edit', 'Edit')}
               </Button>
               {onTailor && (
                 <Button
@@ -474,7 +477,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   }}
                 >
                   <Wand2 className="w-3.5 h-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Tailor</span>
+                  <span className="hidden sm:inline">{t('common.tailor', 'Tailor')}</span>
                 </Button>
               )}
               <Button
@@ -485,7 +488,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   haptics.light();
                   setShowActionsSheet(true);
                 }}
-                aria-label="More options"
+                aria-label={t('app.resumeCard.moreOptions', 'More options')}
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
@@ -523,13 +526,13 @@ export const ResumeListCard = memo(function ResumeListCard({
                   {showMasterBadge && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-0.5 border-border text-muted-foreground shrink-0">
                       <Crown className="w-3 h-3" />
-                      Master
+                      {t('app.resumeCard.master', 'Master')}
                     </Badge>
                   )}
                   {showTailoredBadge && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-0.5 shrink-0 font-medium">
                       <GitBranch className="w-3 h-3" />
-                      Tailored
+                      {t('app.resumeCard.tailored', 'Tailored')}
                     </Badge>
                   )}
                 </div>
@@ -553,9 +556,9 @@ export const ResumeListCard = memo(function ResumeListCard({
                 )}
                 {healthScore && (
                   <p className="text-[11px] text-muted-foreground mt-1 tabular-nums sm:hidden">
-                    ATS {healthScore.overallScore}%
+                    {t('app.resumeCard.atsPercentage', 'ATS {{score}}%', { score: healthScore.overallScore })}
                     {healthScore.keywordGaps && healthScore.keywordGaps.length > 0
-                      ? ` · ${healthScore.keywordGaps.length} gap${healthScore.keywordGaps.length === 1 ? '' : 's'}`
+                      ? ` · ${t('app.resumeCard.keywordGapsCount', '{{count}} gap(s)', { count: healthScore.keywordGaps.length })}`
                       : ''}
                   </p>
                 )}
@@ -572,7 +575,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                 }}
               >
                 <Pencil className="w-4 h-4 mr-1.5" />
-                Edit
+                {t('common.edit', 'Edit')}
               </Button>
               {onTailor && (
                 <Button
@@ -585,7 +588,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   }}
                 >
                   <Wand2 className="w-4 h-4 mr-1.5" />
-                  Tailor
+                  {t('common.tailor', 'Tailor')}
                 </Button>
               )}
               <Button
@@ -596,7 +599,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   haptics.light();
                   setShowActionsSheet(true);
                 }}
-                aria-label="More options"
+                aria-label={t('app.resumeCard.moreOptions', 'More options')}
               >
                 <MoreVertical className="h-5 w-5" />
               </Button>
@@ -721,7 +724,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     className="text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0 border-amber-400/60 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
                   >
                     <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
-                    Default
+                    {t('app.resumeCard.default', 'Default')}
                   </Badge>
                 )}
               </div>
@@ -745,7 +748,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                       )}
                     >
                       <ShieldCheck className="w-2.5 h-2.5" />
-                      {matchScore}% Verified
+                      {t('app.resumeCard.verifiedScore', '{{score}}% Verified', { score: matchScore })}
                     </Badge>
                   )}
                 </button>
@@ -755,7 +758,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   onClick={(e) => { e.stopPropagation(); haptics.light(); setShowTargetJobSheet(true); }}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Set Target Job
+                  {t('app.resumeCard.setTargetJob', 'Set Target Job')}
                 </button>
               )}
 
@@ -768,12 +771,12 @@ export const ResumeListCard = memo(function ResumeListCard({
               <div className="flex items-center gap-3">
                 <span className="text-[13px] text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  Edited {safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), { addSuffix: true })}
+                  {t('app.resumeCard.editedTime', 'Edited {{time}}', { time: safeFormatDistanceToNow(resume.$updatedAt || resume.$createdAt || Date.now(), { addSuffix: true }) })}
                 </span>
                 {isPending && (
                   <span className="flex items-center gap-1 text-[10px] text-warning font-medium">
                     <CloudOff className="w-3 h-3" />
-                    Pending
+                    {t('app.resumeCard.pending', 'Pending')}
                   </span>
                 )}
               </div>
@@ -790,7 +793,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               haptics.light();
               setShowActionsSheet(true);
             }}
-            aria-label="More options"
+            aria-label={t('app.resumeCard.moreOptions', 'More options')}
           >
             <MoreVertical className="h-5 w-5" />
           </Button>
@@ -822,17 +825,17 @@ export const ResumeListCard = memo(function ResumeListCard({
 
           {/* View & Edit */}
           <div className="mt-4 space-y-1">
-            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">View & Edit</p>
+            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">{t('app.resumeCard.viewAndEdit', 'View & Edit')}</p>
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); navigateToEditor(`/resume/${resume.$id}`); }}>
-              <Eye className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Preview</span>
+              <Eye className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('common.preview', 'Preview')}</span>
             </button>
             {onRename && (
               <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); setTimeout(() => setIsRenaming(true), 350); }}>
-                <Pencil className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Rename</span>
+                <Pencil className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('common.rename', 'Rename')}</span>
               </button>
             )}
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onEdit(resume.$id); }}>
-              <Edit2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Edit</span>
+              <Edit2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('common.edit', 'Edit')}</span>
             </button>
           </div>
 
@@ -840,7 +843,7 @@ export const ResumeListCard = memo(function ResumeListCard({
 
           {/* Actions */}
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Actions</p>
+            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">{t('app.resumeCard.actions', 'Actions')}</p>
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => {
               haptics.light(); setShowActionsSheet(false);
               // Load resume into store and navigate to preview for download
@@ -850,23 +853,23 @@ export const ResumeListCard = memo(function ResumeListCard({
               if (resume.template_id) setSelectedTemplate(resume.template_id as import('@/types/resume').TemplateId);
               navigateToEditor('/preview?action=download');
             }}>
-              <Download className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Download PDF</span>
+              <Download className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('app.resumeCard.downloadPdf', 'Download PDF')}</span>
             </button>
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={async () => {
               haptics.light(); setShowActionsSheet(false);
               try {
                 await navigator.clipboard.writeText(`${getAppUrl()}/resume/${resume.$id}`);
-                toast.success('Link copied to clipboard');
-              } catch { toast.error('Failed to copy link'); }
+                toast.success(t('app.resumeCard.linkCopied', 'Link copied to clipboard'));
+              } catch { toast.error(t('app.resumeCard.failedToCopyLink', 'Failed to copy link')); }
             }}>
-              <Share2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Share</span>
+              <Share2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('common.share', 'Share')}</span>
             </button>
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onDuplicate(resume.$id); }}>
-              <Copy className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Duplicate</span>
+              <Copy className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('common.duplicate', 'Duplicate')}</span>
             </button>
             {onInterview && (
               <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onInterview(resume.$id); }}>
-                <Mic className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Practice Interview</span>
+                <Mic className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('app.resumeCard.practiceInterview', 'Practice Interview')}</span>
               </button>
             )}
             <button
@@ -875,11 +878,11 @@ export const ResumeListCard = memo(function ResumeListCard({
                 haptics.medium();
                 setDefaultResumeId(isDefault ? null : resume.$id);
                 setShowActionsSheet(false);
-                toast.success(isDefault ? 'Default resume cleared' : 'Set as default resume', { duration: 2000 });
+                toast.success(isDefault ? t('app.resumeCard.defaultCleared', 'Default resume cleared') : t('app.resumeCard.defaultSet', 'Set as default resume'), { duration: 2000 });
               }}
             >
               <Star className={`w-5 h-5 ${isDefault ? 'fill-amber-400 text-amber-500' : 'text-muted-foreground'}`} />
-              <span className="text-sm">{isDefault ? 'Unset as Default' : 'Set as Default Resume'}</span>
+              <span className="text-sm">{isDefault ? t('app.resumeCard.unsetAsDefault', 'Unset as Default') : t('app.resumeCard.setAsDefault', 'Set as Default Resume')}</span>
             </button>
           </div>
 
@@ -887,9 +890,9 @@ export const ResumeListCard = memo(function ResumeListCard({
 
           {/* Manage */}
           <div className="space-y-1 pb-2">
-            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Manage</p>
+            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">{t('app.resumeCard.manage', 'Manage')}</p>
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors text-destructive" onClick={() => { haptics.warning(); setShowActionsSheet(false); onDelete(resume.$id); }}>
-              <Trash2 className="w-5 h-5" /><span className="text-sm">Delete</span>
+              <Trash2 className="w-5 h-5" /><span className="text-sm">{t('common.delete', 'Delete')}</span>
             </button>
           </div>
         </SheetContent>

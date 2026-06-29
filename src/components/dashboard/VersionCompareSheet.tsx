@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface VersionCompareSheetProps {
   open: boolean;
@@ -55,6 +56,7 @@ function SkillsDiffDisplay({ diff }: { diff: SkillDiff }) {
 }
 
 function VersionColumn({ resume, label }: { resume: DatabaseResume; label: string }) {
+  const { t } = useLocale();
   return (
     <div className="space-y-4">
       <div>
@@ -68,13 +70,13 @@ function VersionColumn({ resume, label }: { resume: DatabaseResume; label: strin
 
       {/* Summary */}
       <div>
-        <h5 className="text-xs font-medium text-muted-foreground mb-1">Summary</h5>
-        <p className="text-sm">{resume.summary || 'No summary'}</p>
+        <h5 className="text-xs font-medium text-muted-foreground mb-1">{t('versionCompare.summary', 'Summary')}</h5>
+        <p className="text-sm">{resume.summary || t('versionCompare.noSummary', 'No summary')}</p>
       </div>
 
       {/* Skills */}
       <div>
-        <h5 className="text-xs font-medium text-muted-foreground mb-1">Skills</h5>
+        <h5 className="text-xs font-medium text-muted-foreground mb-1">{t('versionCompare.skills', 'Skills')}</h5>
         <div className="flex flex-wrap gap-1">
           {(resume.skills || []).map((s) => (
             <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
@@ -84,7 +86,7 @@ function VersionColumn({ resume, label }: { resume: DatabaseResume; label: strin
 
       {/* Experience */}
       <div>
-        <h5 className="text-xs font-medium text-muted-foreground mb-1">Experience</h5>
+        <h5 className="text-xs font-medium text-muted-foreground mb-1">{t('versionCompare.experience', 'Experience')}</h5>
         {(resume.experience || []).map((exp) => (
           <div key={exp.id} className="mb-2">
             <p className="text-sm font-medium">{exp.position} @ {exp.company}</p>
@@ -97,6 +99,7 @@ function VersionColumn({ resume, label }: { resume: DatabaseResume; label: strin
 }
 
 export function VersionCompareSheet({ open, onOpenChange, masterResume, tailoredVersions }: VersionCompareSheetProps) {
+  const { t } = useLocale();
   const allVersions = useMemo(() => [masterResume, ...tailoredVersions], [masterResume, tailoredVersions]);
   const [leftId, setLeftId] = useState(allVersions[0]?.id || '');
   const [rightId, setRightId] = useState(allVersions[1]?.id || allVersions[0]?.id || '');
@@ -124,27 +127,27 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
 
   const versionLabel = (r: DatabaseResume) =>
     r.id === masterResume.id
-      ? `Master: ${r.title}`
-      : `${r.target_company || 'Tailored'}: ${r.title}`;
+      ? t('versionCompare.labelMaster', 'Master: {{title}}', { title: r.title })
+      : t('versionCompare.labelTailored', '{{company}}: {{title}}', { company: r.target_company || t('versionCompare.tailoredFallback', 'Tailored'), title: r.title });
 
   // Desktop: side-by-side diff view
   const DiffView = () => (
     <div className="space-y-5">
       {/* Summary Diff */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Summary</h4>
+        <h4 className="text-sm font-medium mb-2">{t('versionCompare.summary', 'Summary')}</h4>
         <DiffDisplay diffs={summaryDiff} />
       </div>
 
       {/* Skills Diff */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Skills</h4>
+        <h4 className="text-sm font-medium mb-2">{t('versionCompare.skills', 'Skills')}</h4>
         <SkillsDiffDisplay diff={skillsDiff} />
       </div>
 
       {/* Experience comparison */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Experience</h4>
+        <h4 className="text-sm font-medium mb-2">{t('versionCompare.experience', 'Experience')}</h4>
         {(rightResume?.experience || []).map((exp, i) => {
           const origExp = (leftResume?.experience || [])[i];
           if (!origExp) return null;
@@ -166,7 +169,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2 text-lg">
             <GitCompare className="w-5 h-5 text-primary" />
-            Compare Versions
+            {t('versionCompare.compareVersions', 'Compare Versions')}
           </SheetTitle>
         </SheetHeader>
 
@@ -174,7 +177,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
         <div className={cn('gap-3 mb-4', isMobile ? 'space-y-2' : 'flex')}>
           <Select value={leftId} onValueChange={setLeftId}>
             <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Version 1" />
+              <SelectValue placeholder={t('versionCompare.version1', 'Version 1')} />
             </SelectTrigger>
             <SelectContent>
               {allVersions.map((r) => (
@@ -184,7 +187,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
           </Select>
           <Select value={rightId} onValueChange={setRightId}>
             <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Version 2" />
+              <SelectValue placeholder={t('versionCompare.version2', 'Version 2')} />
             </SelectTrigger>
             <SelectContent>
               {allVersions.map((r) => (
@@ -198,9 +201,9 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
         {isMobile ? (
           <Tabs defaultValue="diff" className="w-full">
             <TabsList className="w-full">
-              <TabsTrigger value="v1" className="flex-1">Version 1</TabsTrigger>
-              <TabsTrigger value="v2" className="flex-1">Version 2</TabsTrigger>
-              <TabsTrigger value="diff" className="flex-1">Diff</TabsTrigger>
+              <TabsTrigger value="v1" className="flex-1">{t('versionCompare.version1', 'Version 1')}</TabsTrigger>
+              <TabsTrigger value="v2" className="flex-1">{t('versionCompare.version2', 'Version 2')}</TabsTrigger>
+              <TabsTrigger value="diff" className="flex-1">{t('versionCompare.diff', 'Diff')}</TabsTrigger>
             </TabsList>
             <TabsContent value="v1" className="mt-4">
               <VersionColumn resume={leftResume} label={versionLabel(leftResume)} />
@@ -219,7 +222,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
             <div className="col-span-2 border-t border-border pt-4">
               <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                 <GitCompare className="w-4 h-4 text-primary" />
-                Changes
+                {t('versionCompare.changes', 'Changes')}
               </h3>
               <DiffView />
             </div>
@@ -234,7 +237,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
             onClick={() => handleUseVersion(leftResume)}
           >
             <Check className="w-4 h-4 mr-2" />
-            Use Version 1
+            {t('versionCompare.useVersion1', 'Use Version 1')}
           </Button>
           <Button
             variant="outline"
@@ -242,7 +245,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
             onClick={() => handleUseVersion(rightResume)}
           >
             <Check className="w-4 h-4 mr-2" />
-            Use Version 2
+            {t('versionCompare.useVersion2', 'Use Version 2')}
           </Button>
         </div>
       </SheetContent>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lightbulb, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const FEATURES = [
   {
@@ -36,6 +37,7 @@ const STORAGE_KEY = 'feature-discovery-dismissed';
 const INDEX_KEY = 'feature-discovery-index';
 
 export function FeatureDiscoveryCard() {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
@@ -67,7 +69,7 @@ export function FeatureDiscoveryCard() {
             localStorage.setItem(STORAGE_KEY, '1');
           }}
           className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-muted text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-          aria-label="Dismiss"
+          aria-label={t('common.dismiss', 'Dismiss')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -76,14 +78,14 @@ export function FeatureDiscoveryCard() {
             <Lightbulb className="w-4.5 h-4.5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-accent font-semibold uppercase tracking-wider mb-0.5">Did you know?</p>
-            <p className="text-sm font-semibold text-foreground">{feature.title}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{feature.description}</p>
+            <p className="text-[11px] text-accent font-semibold uppercase tracking-wider mb-0.5">{t('whatsNext.didYouKnow', 'Did you know?')}</p>
+            <p className="text-sm font-semibold text-foreground">{t(`featureTips.${index}.title`, feature.title)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t(`featureTips.${index}.description`, feature.description)}</p>
             <button
               onClick={() => { haptics.light(); navigate(feature.route); }}
               className="mt-2 text-xs font-medium text-primary flex items-center gap-1 min-h-[44px] touch-manipulation active:scale-95"
             >
-              Try it <ArrowRight className="w-3.5 h-3.5" />
+              {t('common.tryIt', 'Try it')} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

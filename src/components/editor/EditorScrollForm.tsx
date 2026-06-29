@@ -12,6 +12,7 @@ import { getSectionStatus } from '@/lib/resumeCompletionRules';
 import { ContactSectionSkeleton, SummarySectionSkeleton, ExperienceSectionSkeleton, EducationSectionSkeleton, SkillsSectionSkeleton, ListSectionSkeleton } from '@/components/editor/SectionSkeletons';
 import type { SectionId } from '@/types/resume';
 import type { ATSSuggestion, DeepResult } from '@/hooks/useATSSuggestions';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const ContactSection = lazyWithRetry(() => import('@/components/editor/ContactSection').then(m => ({ default: m.ContactSection })));
 const SummarySection = lazyWithRetry(() => import('@/components/editor/SummarySection').then(m => ({ default: m.SummarySection })));
@@ -29,20 +30,21 @@ const LanguagesSection = lazyWithRetry(() => import('@/components/editor/Languag
 
 interface MoreSectionConfig {
   icon: LucideIcon;
-  title: string;
+  titleKey: string;
+  defaultTitle: string;
   aiSection?: SectionType;
   Component: React.LazyExoticComponent<React.ComponentType>;
 }
 
 const MORE_SECTION_COMPONENTS: Record<string, MoreSectionConfig> = {
-  awards: { icon: Trophy, title: 'Awards & Achievements', aiSection: 'awards', Component: AwardsSection },
-  projects: { icon: Rocket, title: 'Projects', aiSection: 'projects', Component: ProjectsSection },
-  certifications: { icon: Award, title: 'Certifications', aiSection: 'certifications', Component: CertificationsSection },
-  publications: { icon: BookOpen, title: 'Publications', aiSection: 'publications', Component: PublicationsSection },
-  volunteering: { icon: Heart, title: 'Volunteering', aiSection: 'volunteering', Component: VolunteeringSection },
-  languages: { icon: Globe, title: 'Languages', aiSection: 'languages', Component: LanguagesSection },
-  hobbies: { icon: Palette, title: 'Hobbies & Interests', Component: HobbiesSection },
-  references: { icon: Users, title: 'References', Component: ReferencesSection },
+  awards: { icon: Trophy, titleKey: 'editor.sections.awardsTitle', defaultTitle: 'Awards & Achievements', aiSection: 'awards', Component: AwardsSection },
+  projects: { icon: Rocket, titleKey: 'editor.sections.projectsTitle', defaultTitle: 'Projects', aiSection: 'projects', Component: ProjectsSection },
+  certifications: { icon: Award, titleKey: 'editor.sections.certificationsTitle', defaultTitle: 'Certifications', aiSection: 'certifications', Component: CertificationsSection },
+  publications: { icon: BookOpen, titleKey: 'editor.sections.publicationsTitle', defaultTitle: 'Publications', aiSection: 'publications', Component: PublicationsSection },
+  volunteering: { icon: Heart, titleKey: 'editor.sections.volunteeringTitle', defaultTitle: 'Volunteering', aiSection: 'volunteering', Component: VolunteeringSection },
+  languages: { icon: Globe, titleKey: 'editor.sections.languagesTitle', defaultTitle: 'Languages', aiSection: 'languages', Component: LanguagesSection },
+  hobbies: { icon: Palette, titleKey: 'editor.sections.hobbiesTitle', defaultTitle: 'Hobbies & Interests', Component: HobbiesSection },
+  references: { icon: Users, titleKey: 'editor.sections.referencesTitle', defaultTitle: 'References', Component: ReferencesSection },
 };
 
 const CORE_SECTION_IDS = ['contact', 'summary', 'experience', 'education', 'skills'];
@@ -58,13 +60,14 @@ function MoreSubSectionContent({
   onToggle: () => void;
   onExpand: () => void;
 }) {
+  const { t } = useLocale();
   const config = MORE_SECTION_COMPONENTS[moreSubSection];
   if (!config) return null;
-  const { icon, title, aiSection, Component } = config;
+  const { icon, titleKey, defaultTitle, aiSection, Component } = config;
   return (
     <SectionCard
       icon={icon}
-      title={title}
+      title={t(titleKey, defaultTitle)}
       action={aiSection ? <SectionAIAction section={aiSection} onApplied={onExpand} /> : undefined}
       isOpen={isOpen}
       onToggle={onToggle}
@@ -111,6 +114,7 @@ export function EditorScrollForm({
   scrollContainerRef,
   expandSectionRef,
 }: EditorScrollFormProps) {
+  const { t } = useLocale();
   const [bannerDismissed, setBannerDismissed] = useState(
     () => !!localStorage.getItem(ONBOARDING_HINT_KEY)
   );
@@ -220,11 +224,11 @@ export function EditorScrollForm({
             <User className="w-4 h-4 text-primary" />
           </div>
           <p className="flex-1 leading-snug">
-            <span className="font-medium text-foreground">Welcome!</span> Fill in each section — changes save automatically.
+            <span className="font-medium text-foreground">{t('editor.onboarding.welcome', 'Welcome!')}</span> {t('editor.onboarding.fillSections', 'Fill in each section — changes save automatically.')}
           </p>
           <button
             onClick={handleDismissBanner}
-            aria-label="Dismiss hint"
+            aria-label={t('editor.onboarding.dismissHint', 'Dismiss hint')}
             className="shrink-0 p-1 rounded-md hover:bg-primary/10 active:scale-95 transition-transform touch-manipulation"
           >
             <X className="w-4 h-4 text-muted-foreground" />
@@ -236,8 +240,8 @@ export function EditorScrollForm({
       <section ref={setSectionRef('contact')} data-section-id="contact" data-section="editor-section-contact">
         <SectionCard
           icon={User}
-          title="Contact Information"
-          tip="Add your name, email, phone and LinkedIn — these appear at the top of your resume"
+          title={t('editor.sections.contactInfo', 'Contact Information')}
+          tip={t('editor.contact.sectionTip', 'Add your name, email, phone and LinkedIn — these appear at the top of your resume')}
           status={getSectionStatus(sectionScores.contact)}
           action={<SectionAIAction section="contact" onApplied={() => expandSection('contact')} />}
           isOpen={openSections['contact'] ?? false}
@@ -251,8 +255,8 @@ export function EditorScrollForm({
       <section ref={setSectionRef('summary')} data-section-id="summary" data-section="editor-section-summary">
         <SectionCard
           icon={AlignLeft}
-          title="Professional Summary"
-          tip="Write 2–4 sentences about your experience and what you're looking for"
+          title={t('editor.sections.professionalSummary', 'Professional Summary')}
+          tip={t('editor.summary.sectionTip', "Write 2–4 sentences about your experience and what you're looking for")}
           status={getSectionStatus(sectionScores.summary)}
           action={<SectionAIAction section="summary" onApplied={() => expandSection('summary')} />}
           isOpen={openSections['summary'] ?? false}
@@ -267,8 +271,8 @@ export function EditorScrollForm({
       <section ref={setSectionRef('experience')} data-section-id="experience" data-section="editor-section-experience">
         <SectionCard
           icon={Briefcase}
-          title="Work Experience"
-          tip="Add your most recent job first — click an entry to expand and edit it"
+          title={t('editor.sections.workExperience', 'Work Experience')}
+          tip={t('editor.experience.sectionTip', 'Add your most recent job first — click an entry to expand and edit it')}
           status={getSectionStatus(sectionScores.experience)}
           action={<SectionAIAction section="experience" onApplied={() => expandSection('experience')} />}
           isOpen={openSections['experience'] ?? false}
@@ -283,8 +287,8 @@ export function EditorScrollForm({
       <section ref={setSectionRef('education')} data-section-id="education" data-section="editor-section-education">
         <SectionCard
           icon={GraduationCap}
-          title="Education"
-          tip="List your highest degree first — GPA is optional"
+          title={t('editor.sections.educationTitle', 'Education')}
+          tip={t('editor.education.sectionTip', 'List your highest degree first — GPA is optional')}
           status={getSectionStatus(sectionScores.education)}
           action={<SectionAIAction section="education" onApplied={() => expandSection('education')} />}
           isOpen={openSections['education'] ?? false}
@@ -299,8 +303,8 @@ export function EditorScrollForm({
       <section ref={setSectionRef('skills')} data-section-id="skills" data-section="editor-section-skills">
         <SectionCard
           icon={Wrench}
-          title="Skills"
-          tip="Add 6–10 skills matching the jobs you're applying to"
+          title={t('editor.sections.skillsTitle', 'Skills')}
+          tip={t('editor.skills.sectionTip', "Add 6–10 skills matching the jobs you're applying to")}
           status={getSectionStatus(sectionScores.skills)}
           action={<SectionAIAction section="skills" onApplied={() => expandSection('skills')} />}
           isOpen={openSections['skills'] ?? false}
@@ -315,12 +319,12 @@ export function EditorScrollForm({
       {optionalSteps.map(step => {
         const config = MORE_SECTION_COMPONENTS[step.id];
         if (!config) return null;
-        const { icon, title, aiSection, Component } = config;
+        const { icon, titleKey, defaultTitle, aiSection, Component } = config;
         return (
           <section key={step.id} ref={setSectionRef(step.id)} data-section-id={step.id}>
             <SectionCard
               icon={icon}
-              title={title}
+              title={t(titleKey, defaultTitle)}
               action={aiSection ? <SectionAIAction section={aiSection} onApplied={() => expandSection(step.id)} /> : undefined}
               isOpen={openSections[step.id] ?? false}
               onToggle={() => toggleSection(step.id)}
@@ -337,7 +341,7 @@ export function EditorScrollForm({
           {!moreSubSection ? (
             <SectionCard
               icon={Plus}
-              title="More Sections"
+              title={t('editor.sections.moreSections', 'More Sections')}
               isCollapsible={false}
             >
               <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
@@ -345,7 +349,7 @@ export function EditorScrollForm({
           ) : (
             <div className="space-y-3">
               <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation min-h-[44px]">
-                All Sections
+                {t('editor.sections.allSections', 'All Sections')}
               </button>
               <Suspense fallback={<ListSectionSkeleton />}>
                 <MoreSubSectionContent

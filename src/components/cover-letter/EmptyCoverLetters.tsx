@@ -1,11 +1,14 @@
 import { motion } from 'framer-motion';
 import { FileText, Plus } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface EmptyCoverLettersProps {
   onCreateNew: () => void;
 }
 
 export function EmptyCoverLetters({ onCreateNew }: EmptyCoverLettersProps) {
+  const { t } = useLocale();
+
   return (
     <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
       <motion.div
@@ -15,9 +18,11 @@ export function EmptyCoverLetters({ onCreateNew }: EmptyCoverLettersProps) {
       >
         <FileText className="w-8 h-8 text-primary-foreground" />
       </motion.div>
-      <h3 className="font-semibold text-foreground text-lg mb-1">Write Your First Cover Letter</h3>
+      <h3 className="font-semibold text-foreground text-lg mb-1">
+        {t('app.coverLetters.writeFirst', 'Write Your First Cover Letter')}
+      </h3>
       <p className="text-sm text-muted-foreground mb-6 max-w-[260px]">
-        Create AI-powered cover letters tailored to any job posting in seconds.
+        {t('app.coverLetters.createDesc', 'Create AI-powered cover letters tailored to any job posting in seconds.')}
       </p>
       <motion.button
         whileTap={{ scale: 0.95 }}
@@ -26,7 +31,7 @@ export function EmptyCoverLetters({ onCreateNew }: EmptyCoverLettersProps) {
         className="gradient-primary text-primary-foreground px-6 py-3 rounded-2xl font-medium flex items-center justify-center gap-2 active:scale-95 min-h-[44px] touch-manipulation"
       >
         <Plus className="w-4 h-4" />
-        Create Cover Letter
+        {t('app.coverLetters.createBtn', 'Create Cover Letter')}
       </motion.button>
     </div>
   );

@@ -1,10 +1,10 @@
 {
   "individuals": "Individuals",
   "enterprises": "Enterprises",
-  "signIn": "Sign in",
-  "getStarted": "Get started",
-  "heroTitle": "Build a resume that gets you hired",
-  "heroDescription": "Create, tailor, and optimize a professional resume with AI.",
+  "signIn": "Sign In",
+  "getStarted": "Get Started",
+  "heroTitle": "Build a resume that lands your next job",
+  "heroDescription": "Build, customize, and optimize your resume professionally with the help of AI.",
   "features": "Features",
   "pricing": "Pricing",
   "privacy": "Privacy",
@@ -13,11 +13,211 @@
   "navigationMenu": "Navigation menu",
   "accountMenu": "Account menu",
   "join": "Join",
-  "joinWaitlist": "Join waitlist",
+  "joinWaitlist": "Join the waitlist",
   "individualHeroLead": "Stand out as a",
   "individualHeroWord": "candidate",
-  "wiseHireHeroLead": "Hire Smarter.",
-  "wiseHireHeroSecond": "Screen Faster.",
+  "wiseHireHeroLead": "Hire smart.",
+  "wiseHireHeroSecond": "Screen fast.",
   "arabicResumeTitle": "WiseResume AI - AI Resume Builder",
-  "arabicResumeDescription": "Build, tailor, and optimize job-winning resumes with AI."
+  "arabicResumeDescription": "Create, customize, and optimize your resume with AI helper.",
+  "standOutAsA": "Stand out as a",
+  "heroSubheading": "AI that builds, tailors, and lands your next job.",
+  "goToDashboard": "Go to Dashboard",
+  "getStartedFree": "Get Started Free",
+  "freeToStart": "Free to start",
+  "noCreditCard": "No credit card",
+  "aiPowered": "AI-powered",
+  "typewriterWords": {
+    "word0": "Senior Developer",
+    "word1": "Product Manager",
+    "word2": "Data Analyst",
+    "word3": "UX Designer",
+    "word4": "Data Engineer",
+    "word5": "Marketing Lead"
+  },
+  "trustEyebrow": "Privacy & security",
+  "trustTitle": "Your privacy is protected",
+  "trustSubtitle": "Specific protections built into the platform — not marketing language.",
+  "trustItems": {
+    "hiddenEmailTitle": "Your email stays hidden from bots",
+    "hiddenEmailBody": "Contact info on your portfolio is shielded from automated scrapers. Only real visitors clicking the button can reach you.",
+    "controlVisibilityTitle": "You control who sees your portfolio",
+    "controlVisibilityBody": "One toggle makes your portfolio public or private. No approval steps, no extra hoops.",
+    "aiNoSpamTitle": "AI can't be spammed on your behalf",
+    "aiNoSpamBody": "The AI chat on your portfolio page uses session tokens, so no one can run up costs using your public page.",
+    "resumeDataYoursTitle": "Your resume data is yours",
+    "resumeDataYoursBody": "Stored securely, never shared with third parties, and never used to train AI models."
+  },
+  "footerSecureNotice": "Your data is encrypted and secure",
+  "privacyPolicy": "Privacy Policy",
+  "termsOfService": "Terms of Service",
+  "fifteenTools": "15+ AI tools. One platform.",
+  "unfairAdvantage": "Your unfair advantage in the job market.",
+  "features": {
+    "editor": {
+      "badge": "AI Resume Editor",
+      "bigLabel": "Resume",
+      "title": "AI-Powered Resume Writing",
+      "desc": "Watch AI turn weak bullets into quantified achievements — with a live ATS score that updates as you write.",
+      "bullets": {
+        "0": "AI rewrites vague bullets into measurable, recruiter-ready results",
+        "1": "Live ATS score that updates with every edit",
+        "2": "One-click enhancement for any section of your resume"
+      }
+    },
+    "tailoring": {
+      "badge": "Smart Tailoring",
+      "bigLabel": "Tailoring",
+      "title": "Precision Resume Tailoring",
+      "desc": "Paste a job description and AI rewrites your resume to match in 30 seconds. See the before and after instantly.",
+      "bullets": {
+        "0": "Automatically matches keywords from any job description",
+        "1": "Before/after comparison shows exactly what changed",
+        "2": "Raises your ATS match score with precision"
+      }
+    },
+    "portfolio": {
+      "badge": "Live Portfolio",
+      "bigLabel": "Portfolio",
+      "title": "Public Portfolio Website",
+      "desc": "Turn your resume into a beautiful personal site with themes, projects, and a shareable link — zero design skills needed.",
+      "bullets": {
+        "0": "Auto-synced from your resume — always up to date",
+        "1": "Shareable link with a custom slug",
+        "2": "Themed layouts that update with one click"
+      }
+    },
+    "interview": {
+      "badge": "Interview Coach",
+      "bigLabel": "Interview",
+      "title": "AI Interview Practice",
+      "desc": "Get scored on real interview questions with AI feedback on every answer. Practice any role, any industry.",
+      "bullets": {
+        "0": "Real-time voice recognition — just speak naturally",
+        "1": "AI scores each answer and gives specific tips",
+        "2": "Practice any industry, role, or question type"
+      }
+    },
+    "tracker": {
+      "badge": "Application Tracker",
+      "bigLabel": "Tracker",
+      "title": "Kanban Job Tracker",
+      "desc": "Visualize every application at a glance. Drag cards across your pipeline and never lose track of an opportunity.",
+      "bullets": {
+        "0": "Kanban board with drag-and-drop pipeline stages",
+        "1": "Status history so you always know where things stand",
+        "2": "Analytics show your application funnel at a glance"
+      }
+    }
+  },
+  "wisehire": {
+    "nowInEarlyAccess": "Now in early access",
+    "hireSmarter": "Hire Smarter.",
+    "screenFaster": "Screen Faster.",
+    "builtFor": "Built for the ",
+    "typewriter": {
+      "word0": "Hiring Manager",
+      "word1": "Recruiter",
+      "word2": "HR Director",
+      "word3": "Head of People",
+      "word4": "Talent Partner"
+    },
+    "subheading": "AI that screens candidates, writes job descriptions, and surfaces your best hires — in minutes, not hours.",
+    "goToDashboard": "Go to Dashboard",
+    "joinWaitlist": "Join the Waitlist",
+    "seeInAction": "See it in action",
+    "onTheWaitlist": "on the waitlist",
+    "inviteOnly": "Invite-only access",
+    "freeTrial": "7-day free trial",
+    "noCreditCard": "No credit card",
+    "watchAiHandle": "Watch AI handle",
+    "theHeavyLifting": "the heavy lifting",
+    "demos": {
+      "brief": {
+        "label": "Brief Generator",
+        "desc": "AI reads a CV and produces a structured candidate brief with match score, strengths, red flags, and interview questions — in under 10 seconds."
+      },
+      "jd": {
+        "label": "JD Writer",
+        "desc": "Type a job title, click generate. AI writes a complete, bias-aware job description tailored to the role and your company voice."
+      },
+      "bulk": {
+        "label": "Bulk Screening",
+        "desc": "Upload multiple CVs at once. AI scores and ranks every applicant against your role criteria — no manual reading required."
+      },
+      "pool": {
+        "label": "Talent Pool",
+        "desc": "Never lose a great candidate. Build a searchable pool of past applicants you can re-engage for future roles instantly."
+      },
+      "offers": {
+        "label": "Offer Tracker",
+        "desc": "Track every offer from sent to signed. See salary, status, and next steps for each candidate in one live view."
+      },
+      "pipeline": {
+        "label": "Pipeline Board",
+        "desc": "Visualise your full hiring funnel with drag-and-drop kanban. Every candidate, every stage, every status — at a glance."
+      }
+    }
+  },
+  "header": {
+    "switchToEnglish": "Switch to English",
+    "switchToArabic": "Switch to Arabic",
+    "english": "English",
+    "arabic": "Arabic",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode",
+    "adminPanel": "Admin Panel"
+  },
+  "waitlistModal": {
+    "nameRequired": "Name is required",
+    "companyRequired": "Company is required",
+    "emailRequired": "Email is required",
+    "validEmail": "Enter a valid email",
+    "selectCompanySize": "Please select your company size",
+    "somethingWentWrong": "Something went wrong. Please try again.",
+    "enterEaCode": "Please enter your early access code.",
+    "enterEaEmail": "Please enter a valid work email.",
+    "workEmailRequired": "Please use a work email address.",
+    "emailUsedWiseResume": "This email is already used in WiseResume.",
+    "alreadyOnWaitlist": "You're already on the waitlist — we'll be in touch when your invite is ready.",
+    "couldNotCheckEmail": "Could not check this email. Please try again.",
+    "joinWaitlistAria": "Join the WiseHire waitlist",
+    "closeWaitlistAria": "Close waitlist modal",
+    "alreadyRegisteredWiseResume": "Already registered on WiseResume",
+    "alreadyOnListSuccess": "You're already on the list!",
+    "onListSuccess": "You're on the list!",
+    "alreadyRegisteredWiseResumeDesc": "This email is already registered on WiseResume. Sign in instead — WiseHire access is managed from your account.",
+    "alreadyOnListSuccessDesc": "We already have your details. We'll reach out when your invite is ready.",
+    "onListSuccessDesc": "We'll be in touch when your invite is ready. Check your inbox for a confirmation.",
+    "backToWaitlist": "Back to waitlist",
+    "earlyAccessBadge": "Early Access",
+    "enterEaCodeTitle": "Enter your early access code",
+    "enterEaCodeDesc": "Got a code? Skip the waitlist and set up your WiseHire account right now.",
+    "workEmailLabel": "Work Email",
+    "workEmailPlaceholder": "you@company.com",
+    "earlyAccessCodeLabel": "Early Access Code",
+    "eaCodePlaceholder": "WISE-XXXX",
+    "verifying": "Verifying…",
+    "continueEarlyAccess": "Continue with Early Access",
+    "wisehireEaBadge": "WiseHire — Early Access",
+    "joinWaitlistTitle": "Join the waitlist",
+    "joinWaitlistDesc": "Be first to access AI-powered hiring tools. No spam — we'll only reach out with your invite.",
+    "signInInstead": "Sign in instead",
+    "existingUserNote": "This email is already signed up on WiseResume.",
+    "yourNameLabel": "Your Name",
+    "namePlaceholder": "Jane Smith",
+    "companyNameLabel": "Company Name",
+    "companyNamePlaceholder": "Acme Corp",
+    "companySizeLabel": "Company Size",
+    "companySizeAria": "Company size",
+    "selectCompanySizePlaceholder": "Select company size…",
+    "companySizeOptionsAria": "Company size options",
+    "joining": "Joining…",
+    "checkingEmail": "Checking email…",
+    "joinWaitlistButton": "Join the Waitlist",
+    "noSpamNote": "No spam. No credit card. Invite-only early access.",
+    "alreadyHaveEaCode": "Already have an early access code?"
+  }
 }

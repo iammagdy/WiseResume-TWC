@@ -1,6 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Footer } from '@/components/landing/Footer';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface WiseHireClosingCTAProps {
   prefersReducedMotion: boolean | null;
@@ -8,6 +9,8 @@ interface WiseHireClosingCTAProps {
 }
 
 export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: WiseHireClosingCTAProps) {
+  const { t } = useLocale();
+
   return (
     <>
       <section
@@ -37,7 +40,7 @@ export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: Wis
               transition: 'color 0.35s ease',
             }}
           >
-            Get early access
+            {t('wisehire.closingCta.eyebrow', 'Get early access')}
           </p>
           <h2
             className="font-bold leading-tight"
@@ -49,13 +52,13 @@ export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: Wis
               transition: 'color 0.35s ease',
             }}
           >
-            Join the waitlist.<br />Hire smarter from day one.
+            {t('wisehire.closingCta.heading', 'Join the waitlist.')}<br />{t('wisehire.closingCta.headingLine2', 'Hire smarter from day one.')}
           </h2>
           <p
             className="max-w-md mx-auto text-sm mb-8"
             style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
           >
-            Invite-only early access. No credit card required. Cancel anytime.
+            {t('wisehire.closingCta.subtext', 'Invite-only early access. No credit card required. Cancel anytime.')}
           </p>
           <motion.button
             type="button"
@@ -66,7 +69,7 @@ export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: Wis
             whileTap={prefersReducedMotion ? {} : { scale: 0.97, boxShadow: '0 0 10px 2px rgba(29,78,216,0.25)' }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
-            Join the Waitlist
+            {t('wisehire.closingCta.button', 'Join the Waitlist')}
             <ArrowRight className="w-4 h-4" />
           </motion.button>
         </motion.div>

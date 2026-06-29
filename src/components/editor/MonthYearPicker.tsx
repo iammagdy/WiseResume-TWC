@@ -1,7 +1,8 @@
 import { memo, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useLocale } from '@/i18n/LocaleProvider';
 
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_SHORT_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const MONTH_NAME_TO_SHORT: Record<string, string> = {
   january: 'Jan', february: 'Feb', march: 'Mar', april: 'Apr', may: 'May', june: 'Jun',
@@ -103,6 +104,23 @@ export const MonthYearPicker = memo(function MonthYearPicker({
   disabled = false,
 }: MonthYearPickerProps) {
   const { month, year } = parseDateString(value);
+  const { t } = useLocale();
+
+  // Localized month labels — index matches MONTHS_SHORT_EN
+  const MONTHS_LOCALIZED = [
+    t('common.months.jan', 'Jan'),
+    t('common.months.feb', 'Feb'),
+    t('common.months.mar', 'Mar'),
+    t('common.months.apr', 'Apr'),
+    t('common.months.may', 'May'),
+    t('common.months.jun', 'Jun'),
+    t('common.months.jul', 'Jul'),
+    t('common.months.aug', 'Aug'),
+    t('common.months.sep', 'Sep'),
+    t('common.months.oct', 'Oct'),
+    t('common.months.nov', 'Nov'),
+    t('common.months.dec', 'Dec'),
+  ];
 
   const handleMonthChange = useCallback((m: string) => {
     const newVal = m === '__clear__' ? buildDateString('', year) : buildDateString(m, year);
@@ -122,14 +140,14 @@ export const MonthYearPicker = memo(function MonthYearPicker({
         disabled={disabled}
       >
         <SelectTrigger className="h-11 flex-1 min-w-0 text-sm">
-          <SelectValue placeholder="Month" />
+          <SelectValue placeholder={t('common.month', 'Month')} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__clear__">
-            <span className="text-muted-foreground italic">Month</span>
+            <span className="text-muted-foreground italic">{t('common.month', 'Month')}</span>
           </SelectItem>
-          {MONTHS_SHORT.map(m => (
-            <SelectItem key={m} value={m}>{m}</SelectItem>
+          {MONTHS_SHORT_EN.map((m, i) => (
+            <SelectItem key={m} value={m}>{MONTHS_LOCALIZED[i]}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -140,11 +158,11 @@ export const MonthYearPicker = memo(function MonthYearPicker({
         disabled={disabled}
       >
         <SelectTrigger className="h-11 flex-1 min-w-0 text-sm">
-          <SelectValue placeholder="Year" />
+          <SelectValue placeholder={t('common.year', 'Year')} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__clear__">
-            <span className="text-muted-foreground italic">Year</span>
+            <span className="text-muted-foreground italic">{t('common.year', 'Year')}</span>
           </SelectItem>
           {YEARS.map(y => (
             <SelectItem key={y} value={y}>{y}</SelectItem>

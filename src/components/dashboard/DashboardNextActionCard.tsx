@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const CATEGORY_LABELS: Record<keyof ResumeHealthScore['categories'], string> = {
   keywordOptimization: 'Keyword alignment',
@@ -127,6 +128,7 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
   onTailor,
   className,
 }: DashboardNextActionCardProps) {
+  const { t } = useLocale();
   const shouldReduceMotion = useReducedMotion();
   const insight = useMemo(() => buildInsight(healthScore), [healthScore]);
 
@@ -177,7 +179,7 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
 
       {insight.weakestLabel != null && insight.weakestScore != null && insight.weakestScore < 80 && (
         <div className="flex items-center justify-between gap-2 mb-3 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/50 text-[11px]">
-          <span className="text-muted-foreground">Weakest section</span>
+          <span className="text-muted-foreground">{t('dashboardNextAction.weakestSection', 'Weakest section')}</span>
           <span className="font-medium text-foreground tabular-nums">
             {insight.weakestLabel} · {insight.weakestScore}%
           </span>
@@ -194,7 +196,7 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
       {!healthScore && (
         <div className="flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/50">
           <Target className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden />
-          <span className="text-[11px] text-muted-foreground">Scores update as you edit</span>
+          <span className="text-[11px] text-muted-foreground">{t('dashboardNextAction.scoresUpdateAsYouEdit', 'Scores update as you edit')}</span>
         </div>
       )}
 

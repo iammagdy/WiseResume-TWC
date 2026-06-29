@@ -3,6 +3,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown, Sparkles, Lightbulb } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -103,6 +104,7 @@ function ProgressChip({
   onSave: () => void;
   onImproveSection: () => void;
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const color = getProgressColor(overallScore);
   const completedSections = steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length;
@@ -113,7 +115,7 @@ function ProgressChip({
       <PopoverTrigger asChild>
         <button
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-border bg-card shadow-soft-sm hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[44px]"
-          aria-label="Resume completion progress"
+          aria-label={t('editor.resumeProgress', 'Resume completion progress')}
           style={{ borderColor: color + '44' }}
         >
           <ScoreMiniRing score={overallScore} color={color} size={18} />
@@ -145,7 +147,7 @@ function ProgressChip({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold">Resume Progress</span>
+              <span className="text-sm font-semibold">{t('editor.resumeProgressTitle', 'Resume Progress')}</span>
             </div>
             <span className="text-sm font-bold" style={{ color }}>{overallScore}%</span>
           </div>
@@ -157,7 +159,7 @@ function ProgressChip({
             />
           </div>
           <div className="mt-1.5 text-xs text-muted-foreground">
-            {completedSections}/{totalSections} sections complete
+            {completedSections}/{totalSections} {t('editor.sectionsComplete', 'sections complete')}
           </div>
         </div>
 
@@ -168,27 +170,27 @@ function ProgressChip({
               {!isOnline ? (
                 <>
                   <CloudOff className="w-3 h-3 text-warning" />
-                  <span className="text-warning">Offline</span>
+                  <span className="text-warning">{t('errors.youAreOfflineState', 'Offline')}</span>
                 </>
               ) : isSaving ? (
                 <>
                   <Cloud className="w-3 h-3 animate-pulse" />
-                  <span>Saving…</span>
+                  <span>{t('editor.savingState', 'Saving…')}</span>
                 </>
               ) : showSavedCheck ? (
                 <>
                   <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
-                  <span className="text-success">Saved</span>
+                  <span className="text-success">{t('editor.savedState', 'Saved')}</span>
                 </>
               ) : hasUnsavedChanges ? (
                 <>
                   <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block animate-pulse" />
-                  <span className="text-warning">Unsaved changes</span>
+                  <span className="text-warning">{t('editor.unsavedChangesState', 'Unsaved changes')}</span>
                 </>
               ) : (
                 <>
                   <Cloud className="w-3 h-3 opacity-40" />
-                  <span>Auto-saved</span>
+                  <span>{t('editor.autoSavedState', 'Auto-saved')}</span>
                 </>
               )}
             </div>
@@ -205,7 +207,7 @@ function ProgressChip({
                 ) : (
                   <Save className="w-3 h-3" />
                 )}
-                Save
+                {t('common.save', 'Save')}
               </Button>
             )}
           </div>
@@ -266,6 +268,7 @@ export function EditorHeader({
   embeddedInWorkspace = false,
   onOpenTips,
 }: EditorHeaderProps) {
+  const { t } = useLocale();
   const progressColor = getProgressColor(overallScore);
 
   return (
@@ -284,7 +287,7 @@ export function EditorHeader({
             <button
               onClick={onBack}
               className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="Go back"
+              aria-label={t('common.back', 'Go back')}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -292,9 +295,9 @@ export function EditorHeader({
           <button
             type="button"
             className="flex items-center gap-1 min-w-0 max-w-[40vw] sm:max-w-[50vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
-            title={resumeTitle || 'Edit Resume'}
+            title={resumeTitle || t('editor.editResume', 'Edit Resume')}
             onClick={onTitleClick}
-            aria-label="Switch resume"
+            aria-label={t('editor.switchResume', 'Switch resume')}
           >
             <span
               className={cn(
@@ -302,7 +305,7 @@ export function EditorHeader({
                 embeddedInWorkspace ? 'text-sm sm:text-base' : 'text-h3',
               )}
             >
-              {resumeTitle || 'Edit Resume'}
+              {resumeTitle || t('editor.editResume', 'Edit Resume')}
             </span>
           </button>
           {/* Undo/Redo buttons */}
@@ -318,14 +321,14 @@ export function EditorHeader({
                       'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
                       canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
                     )}
-                    aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                    aria-label={canUndo ? t('editor.undoAction', 'Undo: {{description}}', { description: undoDescription }) : t('editor.nothingToUndo', 'Nothing to undo')}
                   >
                     <Undo2 className="w-4 h-4" />
                   </button>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                {canUndo ? t('editor.undoAction', 'Undo: {{description}}', { description: undoDescription }) : t('editor.nothingToUndo', 'Nothing to undo')}
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -339,14 +342,14 @@ export function EditorHeader({
                       'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
                       canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
                     )}
-                    aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                    aria-label={canRedo ? t('editor.redoAction', 'Redo: {{description}}', { description: redoDescription }) : t('editor.nothingToRedo', 'Nothing to redo')}
                   >
                     <Redo2 className="w-4 h-4" />
                   </button>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                {canRedo ? t('editor.redoAction', 'Redo: {{description}}', { description: redoDescription }) : t('editor.nothingToRedo', 'Nothing to redo')}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -356,12 +359,12 @@ export function EditorHeader({
                 <button
                   onClick={onVersionHistory}
                   className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex min-w-[44px] min-h-[44px] items-center justify-center"
-                  aria-label="Version history"
+                  aria-label={t('editor.versionHistory', 'Version history')}
                 >
                   <Clock className="w-4 h-4 text-muted-foreground" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Version history</TooltipContent>
+              <TooltipContent side="bottom">{t('editor.versionHistory', 'Version history')}</TooltipContent>
             </Tooltip>
           )}
           {/* Compact progress chip — always visible */}
@@ -384,7 +387,7 @@ export function EditorHeader({
           {pendingCountForResume > 0 && !isOnline && (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/30 shrink-0 select-none"
-              title={`${pendingCountForResume} change${pendingCountForResume > 1 ? 's' : ''} will sync when back online`}
+              title={t('editor.changesWillSyncOffline', '{{count}} changes will sync when back online', { count: pendingCountForResume })}
             >
               <CloudOff className="w-3 h-3" aria-hidden="true" />
               {pendingCountForResume}
@@ -393,10 +396,10 @@ export function EditorHeader({
           {pendingCountForResume > 0 && isOnline && (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/20 shrink-0 select-none animate-pulse"
-              title="Syncing changes…"
+              title={t('editor.syncingChanges', 'Syncing changes…')}
             >
               <Cloud className="w-3 h-3" aria-hidden="true" />
-              Syncing
+              {t('editor.syncingState', 'Syncing')}
             </span>
           )}
         </div>
@@ -407,18 +410,18 @@ export function EditorHeader({
                 type="button"
                 onClick={() => { haptics.light(); onImproveSection(); }}
                 className="editor-topbar-cta touch-manipulation active:scale-[0.98] inline-flex min-h-[44px]"
-                aria-label="Improve with AI"
+                aria-label={t('editor.improveWithAi', 'Improve with AI')}
               >
                 <Sparkles className="w-3.5 h-3.5" aria-hidden />
-                <span className="hidden lg:inline">Improve with AI</span>
-                <span className="lg:hidden">Improve</span>
+                <span className="hidden lg:inline">{t('editor.improveWithAi', 'Improve with AI')}</span>
+                <span className="lg:hidden">{t('editor.improveShort', 'Improve')}</span>
               </button>
               {onOpenTips && (
                 <button
                   type="button"
                   onClick={() => { haptics.light(); onOpenTips(); }}
                   className="editor-topbar-icon-btn touch-manipulation hidden md:inline-flex"
-                  aria-label="Editor tips and tools"
+                  aria-label={t('editor.tipsAndTools', 'Editor tips and tools')}
                 >
                   <Lightbulb className="w-4 h-4" aria-hidden />
                 </button>
@@ -427,7 +430,7 @@ export function EditorHeader({
                 type="button"
                 onClick={() => { haptics.light(); onOpenChat(); }}
                 className="editor-topbar-icon-btn touch-manipulation md:hidden"
-                aria-label="Open Wise AI"
+                aria-label={t('editor.openWiseAi', 'Open Wise AI')}
               >
                 <MessageSquare className="w-4 h-4 text-primary" aria-hidden />
               </button>
@@ -439,20 +442,20 @@ export function EditorHeader({
               <button
                 onClick={() => { onChangeTemplate(); haptics.light(); }}
                 className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
-                aria-label="Open template gallery"
+                aria-label={t('editor.openTemplateGallery', 'Open template gallery')}
                 data-track="editor-change-template"
               >
                 <LayoutGrid className="w-5 h-5" />
-                <span className="text-[9px] font-medium leading-none">Template</span>
+                <span className="text-[9px] font-medium leading-none">{t('editor.templateButton', 'Template')}</span>
               </button>
               <button
                 onClick={() => { onCustomize(); haptics.light(); }}
                 className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
-                aria-label="Open design customization"
+                aria-label={t('editor.openDesignCustomization', 'Open design customization')}
                 data-track="editor-customize-design"
               >
                 <Palette className="w-5 h-5" />
-                <span className="text-[9px] font-medium leading-none">Design</span>
+                <span className="text-[9px] font-medium leading-none">{t('editor.designButton', 'Design')}</span>
               </button>
             </>
           )}
@@ -465,21 +468,21 @@ export function EditorHeader({
               !embeddedInWorkspace && (showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'),
               embeddedInWorkspace && showPreview && 'border-primary/30 bg-primary/10 text-primary',
             )}
-            aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
+            aria-label={showPreview ? t('editor.hideLivePreview', 'Hide live preview') : t('editor.showLivePreview', 'Show live preview')}
           >
             {showPreview ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
             {!embeddedInWorkspace && (
-              <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Show'}</span>
+              <span className="text-[9px] font-medium leading-none">{showPreview ? t('common.hide', 'Hide') : t('common.show', 'Show')}</span>
             )}
           </button>
           {onImportProfile && !embeddedInWorkspace && (
             <button
               onClick={() => { onImportProfile(); haptics.light(); }}
               className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
-              aria-label="Import profile data"
+              aria-label={t('editor.importProfileData', 'Import profile data')}
             >
               <FileDown className="w-5 h-5" />
-              <span className="text-[9px] font-medium leading-none">Import</span>
+              <span className="text-[9px] font-medium leading-none">{t('common.import', 'Import')}</span>
             </button>
           )}
           {isAuthenticated && currentResumeId && embeddedInWorkspace && (
@@ -487,7 +490,7 @@ export function EditorHeader({
               type="button"
               onClick={() => { haptics.light(); onVersionHistory(); }}
               className="editor-topbar-icon-btn touch-manipulation"
-              aria-label="Version history"
+              aria-label={t('editor.versionHistory', 'Version history')}
             >
               <Clock className="w-4 h-4" aria-hidden />
             </button>
@@ -500,17 +503,17 @@ export function EditorHeader({
                 ? 'editor-topbar-chip text-primary border-primary/25 hover:bg-primary/10'
                 : 'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/8 hover:bg-primary/15 text-primary disabled:opacity-50',
             )}
-            aria-label="Export resume"
+            aria-label={t('editor.exportResume', 'Export resume')}
             data-track="editor-export"
           >
             {isQuickDownloading ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />}
-            {embeddedInWorkspace ? <span>Export</span> : <span className="text-[9px] font-semibold leading-none">Export</span>}
+            {embeddedInWorkspace ? <span>{t('common.export', 'Export')}</span> : <span className="text-[9px] font-semibold leading-none">{t('common.export', 'Export')}</span>}
           </button>
           {!embeddedInWorkspace && (
             <button
               onClick={onOpenChat}
               className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)] hover:bg-primary/15 active:scale-95"
-              aria-label="Open Wise AI Chat"
+              aria-label={t('editor.openWiseAiChat', 'Open Wise AI Chat')}
               data-track="editor-open-ai-chat"
             >
               <span className="relative">

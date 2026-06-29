@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { openWorkspaceSearch } from '@/lib/workspaceSearchEvents';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const DashboardUploadWidget = lazyWithRetry(() =>
   import('@/components/dashboard/DashboardUploadWidget').then((m) => ({
@@ -23,6 +24,8 @@ export const DashboardTopCommandBar = memo(function DashboardTopCommandBar({
   onOpenWiseAI,
   className,
 }: DashboardTopCommandBarProps) {
+  const { t } = useLocale();
+
   const openSearch = () => {
     haptics.selection();
     openWorkspaceSearch();
@@ -42,9 +45,9 @@ export const DashboardTopCommandBar = memo(function DashboardTopCommandBar({
             'focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/25',
             'transition-all duration-200 touch-manipulation',
           )}
-          aria-label="Search workspace"
+          aria-label={t('app.dashboardPage.searchPlaceholderCommand', 'Search resumes, keywords, tools...')}
         >
-          <span className="truncate">Search resumes, keywords, tools...</span>
+          <span className="truncate">{t('app.dashboardPage.searchPlaceholderCommand', 'Search resumes, keywords, tools...')}</span>
         </button>
         <kbd className="hidden sm:inline-flex absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/80 border border-border/50 rounded px-1.5 py-0.5 pointer-events-none">
           ⌘ K

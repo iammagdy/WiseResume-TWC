@@ -3,5 +3,13 @@
   "network": "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى.",
   "notFound": "تعذر العثور على هذه الصفحة.",
   "exportFailed": "تعذر تصدير الملف. يرجى المحاولة مرة أخرى.",
-  "missingTranslation": "الترجمة غير متاحة"
+  "missingTranslation": "الترجمة غير متاحة",
+  "somethingWentWrong": "حدث خطأ ما",
+  "couldNotLoadResumesDescription": "تعذر تحميل سيرك الذاتية. يرجى التحقق من اتصالك والمحاولة مرة أخرى.",
+  "couldNotLoadResumes": "تعذر تحميل سيرك الذاتية.",
+  "youAreOffline": "أنت غير متصل بالإنترنت",
+  "youAreOfflineState": "غير متصل",
+  "connectToInternet": "اتصل بالإنترنت لتحميل سيرك الذاتية.",
+  "retryLoadingResumes": "إعادة تحميل السير الذاتية",
+  "tapToRetry": "اضغط للمحاولة مجدداً"
 }

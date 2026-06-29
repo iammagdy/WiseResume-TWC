@@ -11,6 +11,7 @@ import {
 } from '@/components/landing/landingAnimations';
 import { featureSections } from '@/components/landing/wiseResumeFeatureData';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface WiseResumeContentProps {
   prefersReducedMotion: boolean | null;
@@ -19,6 +20,7 @@ interface WiseResumeContentProps {
 }
 
 export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentProps) {
+  const { t } = useLocale();
   const sectionItem = prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM;
   const [activeIdx, setActiveIdx] = useState(-1);
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -31,7 +33,9 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
   }, [prefersReducedMotion]);
   const total = featureSections.length;
   const clampedActiveIdx = Math.min(activeIdx, total - 1);
-  const activeLabel = clampedActiveIdx >= 0 ? featureSections[clampedActiveIdx]?.title : null;
+  const activeLabel = clampedActiveIdx >= 0 
+    ? t(`landing.features.${featureSections[clampedActiveIdx].id}.title`, featureSections[clampedActiveIdx].title) 
+    : null;
 
   return (
     <>
@@ -61,8 +65,8 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
                 className="font-bold leading-tight"
                 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', color: 'var(--lp-text)', letterSpacing: '-0.025em' }}
               >
-                15+ AI tools. One platform.<br />
-                <span style={{ color: 'var(--lp-eyebrow)' }}>Your unfair advantage in the job market.</span>
+                {t('landing.fifteenTools', '15+ AI tools. One platform.')}<br />
+                <span style={{ color: 'var(--lp-eyebrow)' }}>{t('landing.unfairAdvantage', 'Your unfair advantage in the job market.')}</span>
               </h2>
             </div>
             <div

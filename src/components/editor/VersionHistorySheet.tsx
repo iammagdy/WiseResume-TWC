@@ -9,6 +9,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface VersionHistorySheetProps {
   open: boolean;
@@ -17,10 +18,10 @@ interface VersionHistorySheetProps {
   onCompare?: (versionSnapshot: unknown) => void;
 }
 
-function formatVersionDate(dateStr: string): string {
+function formatVersionDate(dateStr: string, t: any): string {
   const date = new Date(dateStr);
-  if (isToday(date)) return `Today, ${format(date, 'h:mm a')}`;
-  if (isYesterday(date)) return `Yesterday, ${format(date, 'h:mm a')}`;
+  if (isToday(date)) return t('versionHistory.todayAt', 'Today, {{time}}', { time: format(date, 'h:mm a') });
+  if (isYesterday(date)) return t('versionHistory.yesterdayAt', 'Yesterday, {{time}}', { time: format(date, 'h:mm a') });
   return format(date, 'MMM d, h:mm a');
 }
 
@@ -31,11 +32,12 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
   const currentResume = useResumeStore((s) => s.currentResume);
   const [showCheckpointInput, setShowCheckpointInput] = useState(false);
   const [checkpointName, setCheckpointName] = useState('');
+  const { t } = useLocale();
 
   const handleRestore = (version: NonNullable<typeof versions>[number]) => {
     haptics.medium();
     setCurrentResume(version.snapshot);
-    toast.success(`Restored to version ${version.version_number}`);
+    toast.success(t('versionHistory.restoredToast', 'Restored to version {{number}}', { number: version.version_number }));
     onOpenChange(false);
   };
 
@@ -45,15 +47,21 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
     saveVersion.mutate({
       resumeId,
       snapshot: currentResume,
-      changeSummary: checkpointName || 'Manual checkpoint',
+      changeSummary: checkpointName || t('versionHistory.manualCheckpoint', 'Manual checkpoint'),
     });
     setCheckpointName('');
     setShowCheckpointInput(false);
-    toast.success('Checkpoint saved');
+    toast.success(t('versionHistory.savedToast', 'Checkpoint saved'));
   };
 
-  const isManualCheckpoint = (summary: string | null) => summary?.startsWith('Manual checkpoint') || summary?.startsWith('📌');
-  const isAICheckpoint = (summary: string | null) => summary?.toLowerCase().includes('ai') || summary?.toLowerCase().includes('tailor');
+  const isManualCheckpoint = (summary: string | null) =>
+    summary?.startsWith('Manual checkpoint') ||
+    summary?.startsWith('نقطة حفظ يدوية') ||
+    summary?.startsWith('📌');
+  const isAICheckpoint = (summary: string | null) =>
+    summary?.toLowerCase().includes('ai') ||
+    summary?.toLowerCase().includes('tailor') ||
+    summary?.includes('ذكاء');
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -61,7 +69,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
-            Version History
+            {t('versionHistory.title', 'Version History')}
           </SheetTitle>
         </SheetHeader>
 
@@ -70,7 +78,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
           {showCheckpointInput ? (
             <div className="flex items-center gap-2">
               <Input
-                placeholder="Checkpoint name (optional)"
+                placeholder={t('versionHistory.placeholder', 'Checkpoint name (optional)')}
                 value={checkpointName}
                 onChange={(e) => setCheckpointName(e.target.value)}
                 className="h-10 text-sm"
@@ -78,7 +86,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
                 autoFocus
               />
               <Button size="sm" onClick={handleCreateCheckpoint} disabled={saveVersion.isPending}>
-                Save
+                {t('versionHistory.save', 'Save')}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setShowCheckpointInput(false)}>
                 ✕
@@ -92,7 +100,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
               onClick={() => setShowCheckpointInput(true)}
             >
               <Plus className="w-4 h-4 mr-1.5" />
-              Create Checkpoint
+              {t('versionHistory.createBtn', 'Create Checkpoint')}
             </Button>
           )}
         </div>
@@ -113,8 +121,8 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
             ) : !versions?.length ? (
               <div className="text-center py-8">
                 <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">No versions saved yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Versions are saved automatically when you edit</p>
+                <p className="text-sm text-muted-foreground">{t('versionHistory.emptyTitle', 'No versions saved yet')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('versionHistory.emptyDesc', 'Versions are saved automatically when you edit')}</p>
               </div>
             ) : (
               versions.map((version) => (
@@ -141,10 +149,12 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
                         {isAICheckpoint(version.change_summary) && (
                           <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                         )}
-                        <p className="text-sm font-medium">Version {version.version_number}</p>
+                        <p className="text-sm font-medium">
+                          {t('versionHistory.version', 'Version {{number}}', { number: version.version_number })}
+                        </p>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {formatVersionDate(version.created_at)}
+                        {formatVersionDate(version.created_at, t)}
                       </p>
                       {version.change_summary && (
                         <p className="text-xs text-muted-foreground mt-1 truncate">{version.change_summary}</p>
@@ -159,7 +169,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
                           onClick={() => { haptics.light(); onCompare(version.snapshot); }}
                         >
                           <GitCompare className="w-3.5 h-3.5 mr-1" />
-                          Compare
+                          {t('versionHistory.compare', 'Compare')}
                         </Button>
                       )}
                       <Button
@@ -169,7 +179,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
                         onClick={() => handleRestore(version)}
                       >
                         <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                        Restore
+                        {t('versionHistory.restore', 'Restore')}
                       </Button>
                       <button
                         onClick={() => {

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import {
-  LayoutDashboard, Settings, LogOut, Sun, Moon, Menu, Tag, Zap, User, ShieldCheck,
+  LayoutDashboard, Settings, LogOut, Sun, Moon, Menu, Tag, Zap, User, ShieldCheck, Globe,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -15,6 +15,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useLocale } from '@/i18n/LocaleProvider';
 import { LanguageSwitcher } from '@/i18n/LanguageSwitcher';
+import { useAppSettings } from '@/hooks/useAppSettings';
+import { getLocalizedPublicPath } from '@/i18n/core';
 
 interface LandingHeaderProps {
   mode: 'jobseeker' | 'wisehire';
@@ -38,10 +40,11 @@ export function LandingHeader({
   onModeChange, onThemeToggle, onOpenWaitlist, onSignOut,
 }: LandingHeaderProps) {
   const navigate = useNavigate();
-  const { locale, t } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   const publicPath = (path: string) => locale === 'ar' ? `/ar${path === '/' ? '' : path}` : path;
   const { authAvailable } = useAuth();
   const isAdmin = useIsAdmin();
+  const appSettings = useAppSettings();
 
   const getInitials = () => {
     if (profile?.fullName) {
@@ -134,17 +137,37 @@ export function LandingHeader({
                   {t('landing.whatsNew')}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1.5"><LanguageSwitcher /></div>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Language toggle */}
+          {(appSettings.feature_arabic_locale || import.meta.env.DEV) && (
+            <button
+              className="lp-theme-toggle flex items-center justify-center gap-1.5 px-2.5"
+              onClick={() => {
+                triggerHaptic.light();
+                const nextLocale = locale === 'ar' ? 'en' : 'ar';
+                setLocale(nextLocale);
+                const nextPath = getLocalizedPublicPath(window.location.pathname, nextLocale);
+                if (nextPath !== window.location.pathname) {
+                  window.history.pushState({}, '', `${nextPath}${window.location.search}${window.location.hash}`);
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }
+              }}
+              aria-label={locale === 'ar' ? t('landing.header.switchToEnglish', 'Switch to English') : t('landing.header.switchToArabic', 'التحويل إلى العربية')}
+              title={locale === 'ar' ? t('landing.header.english', 'English') : t('landing.header.arabic', 'العربية')}
+            >
+              <Globe className="w-4 h-4" />
+              <span className="text-xs font-semibold select-none leading-none">{locale === 'ar' ? 'EN' : 'عربي'}</span>
+            </button>
+          )}
 
           {/* Theme toggle */}
           <button
             className="lp-theme-toggle"
             onClick={onThemeToggle}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={isDark ? 'Light mode' : 'Dark mode'}
+            aria-label={isDark ? t('landing.header.switchToLight', 'Switch to light mode') : t('landing.header.switchToDark', 'Switch to dark mode')}
+            title={isDark ? t('landing.header.lightMode', 'Light mode') : t('landing.header.darkMode', 'Dark mode')}
           >
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
@@ -200,7 +223,7 @@ export function LandingHeader({
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/devkit'); }}>
-                    <ShieldCheck className="w-4 h-4 mr-2 text-blue-500" /> Admin Panel
+                    <ShieldCheck className="w-4 h-4 mr-2 text-blue-500" /> {t('landing.header.adminPanel', 'Admin Panel')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
@@ -213,8 +236,6 @@ export function LandingHeader({
                 >
                   <LogOut className="w-4 h-4 me-2" /> {t('auth.signOut')}
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5"><LanguageSwitcher /></div>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : mode === 'jobseeker' ? (

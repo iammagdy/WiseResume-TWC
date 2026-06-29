@@ -1,29 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { EyeOff, Eye, ShieldCheck, Database } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-
-const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
-  {
-    icon: EyeOff,
-    headline: 'Your email stays hidden from bots',
-    body: 'Contact info on your portfolio is shielded from automated scrapers. Only real visitors clicking the button can reach you.',
-  },
-  {
-    icon: Eye,
-    headline: 'You control who sees your portfolio',
-    body: 'One toggle makes your portfolio public or private. No approval steps, no extra hoops.',
-  },
-  {
-    icon: ShieldCheck,
-    headline: "AI can't be spammed on your behalf",
-    body: 'The AI chat on your portfolio page uses session tokens, so no one can run up costs using your public page.',
-  },
-  {
-    icon: Database,
-    headline: 'Your resume data is yours',
-    body: 'Stored securely, never shared with third parties, and never used to train AI models.',
-  },
-];
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const ENTRY_DIRS = [
   { x: -90 },
@@ -56,6 +34,30 @@ function makeItemVariant(i: number, reduced: boolean | null) {
 
 export function TrustSection() {
   const prefersReducedMotion = useReducedMotion();
+  const { t } = useLocale();
+
+  const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
+    {
+      icon: EyeOff,
+      headline: t('landing.trustItems.hiddenEmailTitle', 'Your email stays hidden from bots'),
+      body: t('landing.trustItems.hiddenEmailBody', 'Contact info on your portfolio is shielded from automated scrapers. Only real visitors clicking the button can reach you.'),
+    },
+    {
+      icon: Eye,
+      headline: t('landing.trustItems.controlVisibilityTitle', 'You control who sees your portfolio'),
+      body: t('landing.trustItems.controlVisibilityBody', 'One toggle makes your portfolio public or private. No approval steps, no extra hoops.'),
+    },
+    {
+      icon: ShieldCheck,
+      headline: t('landing.trustItems.aiNoSpamTitle', "AI can't be spammed on your behalf"),
+      body: t('landing.trustItems.aiNoSpamBody', 'The AI chat on your portfolio page uses session tokens, so no one can run up costs using your public page.'),
+    },
+    {
+      icon: Database,
+      headline: t('landing.trustItems.resumeDataYoursTitle', 'Your resume data is yours'),
+      body: t('landing.trustItems.resumeDataYoursBody', 'Stored securely, never shared with third parties, and never used to train AI models.'),
+    },
+  ];
 
   const headingVariant = prefersReducedMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
@@ -96,7 +98,7 @@ export function TrustSection() {
               transition: 'color 0.3s ease',
             }}
           >
-            Privacy & security
+            {t('landing.trustEyebrow', 'Privacy & security')}
           </p>
           <h2
             id="trust-heading"
@@ -109,13 +111,13 @@ export function TrustSection() {
               transition: 'color 0.3s ease',
             }}
           >
-            Your privacy is protected
+            {t('landing.trustTitle', 'Your privacy is protected')}
           </h2>
           <p
             className="max-w-md mx-auto text-sm leading-relaxed"
             style={{ color: 'var(--lp-text-muted)', transition: 'color 0.3s ease' }}
           >
-            Specific protections built into the platform — not marketing language.
+            {t('landing.trustSubtitle', 'Specific protections built into the platform — not marketing language.')}
           </p>
         </motion.div>
 
