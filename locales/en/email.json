@@ -1,0 +1,10 @@
+{
+  "verifySubject": "Verify your WiseResume email address",
+  "verifyTitle": "Verify your email",
+  "verifyAction": "Verify email address",
+  "resetSubject": "Reset your WiseResume password",
+  "resetTitle": "Reset your password",
+  "resetAction": "Reset password",
+  "welcomeSubject": "Welcome to WiseResume",
+  "securityNote": "If you did not request this, you can safely ignore this email."
+}

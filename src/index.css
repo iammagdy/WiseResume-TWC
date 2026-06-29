@@ -4,6 +4,36 @@
 @tailwind components;
 @tailwind utilities;
 
+html[lang="ar"],
+html[lang="ar"] body {
+  font-family: "Noto Sans Arabic", "Inter", system-ui, sans-serif;
+}
+
+html[dir="rtl"] [data-mirror-rtl="true"] {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .rtl-no-uppercase {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+[data-resume-template][dir="rtl"] {
+  direction: rtl;
+  font-family: "Noto Sans Arabic", sans-serif;
+  text-align: start;
+}
+
+[data-resume-template][dir="rtl"] :is([data-contact-email], [data-contact-phone], a[href], code) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+[data-resume-template][dir="rtl"] :is(.uppercase, [class*="tracking-"]) {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* ── Lenis smooth-scroll reset (landing scroll fix) ───────────────────────
    The landing ScrollStack drives Lenis on the document (window-scroll mode).
    The official reset (`lenis/dist/lenis.css`, imported in main.tsx) sets

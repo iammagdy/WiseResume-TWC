@@ -7,6 +7,8 @@ import { computePreviewBreaks, getPageDimensionsForFormat } from '@/lib/pdfUtils
 import { normalizeBreakPositions } from '@/lib/exportPagePlan';
 import type { ResumeData } from '@/types/resume';
 import { cn } from '@/lib/utils';
+import { getPageCutsForLayout, setPageCutsForLayout } from '@/i18n/resumeLocale';
+import { getDefaultCustomization } from '@/lib/templateCustomization';
 
 const MIN_BREAK_GAP = 40;
 
@@ -33,16 +35,21 @@ export function PageBreakEditorDialog({
   const dragStartRef = useRef<{ clientY: number; breakY: number } | null>(null);
 
   const pageFormat = resumeData?.customization?.pageFormat ?? 'letter';
+  const templateId = resumeData?.templateId ?? 'modern';
+  const layoutCuts = useMemo(
+    () => getPageCutsForLayout(templateId, resumeData?.customization),
+    [templateId, resumeData?.customization],
+  );
   const pageDims = useMemo(() => getPageDimensionsForFormat(pageFormat), [pageFormat]);
 
   const customBreaks = useMemo(
     () =>
       normalizeBreakPositions(
-        resumeData?.customization?.customBreakPositions,
+        layoutCuts,
         totalHeight || 1,
         MIN_BREAK_GAP,
       ),
-    [resumeData?.customization?.customBreakPositions, totalHeight],
+    [layoutCuts, totalHeight],
   );
   const activeBreaks = customBreaks.length > 0 ? customBreaks : suggestedBreaks;
 
@@ -55,12 +62,8 @@ export function PageBreakEditorDialog({
     (positions: number[]) => {
       if (!resumeData) return;
       const normalized = normalizeBreakPositions(positions, totalHeight || 1, MIN_BREAK_GAP);
-      updateResume({
-        customization: {
-          ...resumeData.customization,
-          customBreakPositions: normalized,
-        } as typeof resumeData.customization,
-      });
+      const customization = resumeData.customization ?? getDefaultCustomization();
+      updateResume({ customization: setPageCutsForLayout(templateId, customization, normalized) });
     },
     [resumeData, totalHeight, updateResume],
   );
@@ -88,13 +91,9 @@ export function PageBreakEditorDialog({
     setSuggestedBreaks(normalized);
 
     // Auto-seed smart breaks if none are saved yet
-    if (!resumeData?.customization?.customBreakPositions?.length && normalized.length > 0) {
-      updateResume({
-        customization: {
-          ...resumeData?.customization,
-          customBreakPositions: normalized,
-        } as NonNullable<ResumeData['customization']>,
-      });
+    if (layoutCuts.length === 0 && normalized.length > 0 && resumeData) {
+      const customization = resumeData.customization ?? getDefaultCustomization();
+      updateResume({ customization: setPageCutsForLayout(templateId, customization, normalized) });
     }
   }, [open, templateElement]); // eslint-disable-line react-hooks/exhaustive-deps
 

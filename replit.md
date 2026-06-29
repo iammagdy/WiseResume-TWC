@@ -30,6 +30,10 @@ An AI-powered career platform with two products:
 - Server-side `server/db.ts` uses Drizzle ORM with the Replit PostgreSQL database
 - PDF export uses Puppeteer on the Express server
 - SSRF hardening on the `/api/fetch-url` proxy endpoint
+- Localization catalogs live in `locales/en` and `locales/ar`; `LocaleProvider` owns UI locale, HTML direction, local persistence, and signed-in preference synchronization.
+- Public Arabic URLs use `/ar/...`; authenticated routes are not prefixed. Each resume separately stores `customization.documentLocale`.
+- Arabic PDF and cover-letter export uses Chromium with bundled Noto Sans Arabic. Arabic DOCX uses RTL document/run properties, and Arabic LaTeX targets XeLaTeX while English remains pdflatex.
+- Page cuts are keyed by template, page format, document locale, fonts, and scale. Legacy page cuts are English-only fallback data.
 
 ## User Preferences
 - Keep existing code structure and patterns

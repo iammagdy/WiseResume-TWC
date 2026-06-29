@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { openExternal } from '@/lib/openExternal';
 import { account } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const AccountStatsCard = lazyWithRetry(() => import('./AccountStatsCard'));
 
@@ -53,6 +54,7 @@ function PlanBadge({ plan }: { plan: string }) {
 export const AccountSection = memo(function AccountSection({
     authProvider,
 }: AccountSectionProps) {
+    const { locale } = useLocale();
     const knownProviderLabel =
         authProvider === 'google' ? 'Google'
         : authProvider === 'github' ? 'GitHub'
@@ -89,7 +91,7 @@ export const AccountSection = memo(function AccountSection({
         try {
             // Send branded password-reset email via email-service function (bypasses Appwrite template).
             const { error: fnError } = await appwriteFunctions.invoke('email-service', {
-                body: { action: 'send-password-reset', email },
+                body: { action: 'send-password-reset', email, locale },
             });
             if (fnError) throw new Error(fnError.message);
             toast.success('Password reset link sent! Check your inbox.');

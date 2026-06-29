@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import wiseAiLogoDark from '@/assets/wiseresume-logo-dark.webp';
 import { useIsDark } from '@/hooks/useIsDark';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export type AuthBoldMode = 'signin' | 'signup' | 'forgot' | 'reset' | 'change';
 
@@ -54,8 +55,6 @@ export interface AuthBoldProps {
 
 const PRIMARY = '#9E1B22';
 const ACCENT = '#ef5a62';
-const TYPED_WORD = 'you are.';
-
 const STYLES = `
 .ab-root *{box-sizing:border-box;}
 .ab-root{
@@ -326,6 +325,8 @@ export function AuthBold({
   doneSlot,
   onSubmit,
 }: AuthBoldProps) {
+  const { direction, t } = useLocale();
+  const typedWord = t('auth.heroTyped');
   const isDarkPref = useIsDark();
   const [light, setLight] = useState(!isDarkPref);
   useEffect(() => {
@@ -405,7 +406,7 @@ export function AuthBold({
 
   useEffect(() => {
     if (reduced) {
-      setTyped(TYPED_WORD);
+      setTyped(typedWord);
       setCaret(false);
       setStat1('3.2×');
       setStat2('92');
@@ -416,8 +417,8 @@ export function AuthBold({
     let tw: number | undefined;
     const tick = () => {
       i += 1;
-      setTyped(TYPED_WORD.slice(0, i));
-      if (i < TYPED_WORD.length) {
+      setTyped(typedWord.slice(0, i));
+      if (i < typedWord.length) {
         tw = window.setTimeout(tick, 72);
       } else {
         tw = window.setTimeout(() => setCaret(false), 1500);
@@ -447,7 +448,7 @@ export function AuthBold({
       window.clearTimeout(cuStart);
       if (tw) window.clearTimeout(tw);
     };
-  }, [reduced]);
+  }, [reduced, typedWord]);
 
   useEffect(() => {
     if (reduced) return;
@@ -511,39 +512,39 @@ export function AuthBold({
   const showMismatch = showConfirm && confirm.length > 0 && password !== confirm;
 
   const cardTitle: Record<AuthBoldMode, string> = {
-    signin: 'Sign in',
-    signup: 'Create your account',
-    forgot: 'Reset your password',
-    reset: 'Set a new password',
-    change: 'Change password',
+    signin: t('auth.signIn'),
+    signup: t('auth.createYourAccount'),
+    forgot: t('auth.resetYourPassword'),
+    reset: t('auth.setNewPassword'),
+    change: t('auth.changePassword'),
   };
   const cardSub: Record<AuthBoldMode, string> = {
-    signin: 'Welcome back to WiseResume.',
-    signup: 'Start landing more interviews.',
-    forgot: "Enter your email — we'll send a reset link.",
-    reset: 'Choose a new password for your account.',
-    change: 'Update your account password.',
+    signin: t('auth.welcomeBack'),
+    signup: t('auth.signupSubtitle'),
+    forgot: t('auth.forgotSubtitle'),
+    reset: t('auth.resetSubtitle'),
+    change: t('auth.changeSubtitle'),
   };
   const submitLabel: Record<AuthBoldMode, string> = {
-    signin: 'Login',
-    signup: 'Create account',
-    forgot: 'Send reset link',
-    reset: 'Reset password',
-    change: 'Update password',
+    signin: t('auth.login'),
+    signup: t('auth.signUp'),
+    forgot: t('auth.sendResetLink'),
+    reset: t('auth.resetPassword'),
+    change: t('auth.updatePassword'),
   };
   const footPrompt: Record<AuthBoldMode, string> = {
-    signin: 'New to WiseResume?',
-    signup: 'Already have an account?',
-    forgot: 'Remembered it?',
-    reset: 'Remembered it?',
+    signin: t('auth.newToWiseResume'),
+    signup: t('auth.alreadyHaveAccount'),
+    forgot: t('auth.rememberedIt'),
+    reset: t('auth.rememberedIt'),
     change: '',
   };
   const footAction: Record<AuthBoldMode, string> = {
-    signin: 'Sign up',
-    signup: 'Sign in',
-    forgot: 'Back to sign in',
-    reset: 'Back to sign in',
-    change: 'Back to sign in',
+    signin: t('auth.signUpAction'),
+    signup: t('auth.signIn'),
+    forgot: t('auth.backToSignIn'),
+    reset: t('auth.backToSignIn'),
+    change: t('auth.backToSignIn'),
   };
 
   const onEmailFocus = () => {
@@ -592,7 +593,7 @@ export function AuthBold({
   const rootClass = `ab-root${light ? ' light' : ''} ${mode}`;
 
   return (
-    <div ref={rootRef} className={rootClass}>
+    <div ref={rootRef} className={rootClass} dir={direction}>
       <style>{STYLES}</style>
       <div className="ab-glow" />
       <div className="ab-glow2" />
@@ -604,7 +605,7 @@ export function AuthBold({
           className="ab-theme"
           type="button"
           onClick={() => setLight((v) => !v)}
-          aria-label="Toggle theme"
+          aria-label={t('auth.toggleTheme')}
         >
           {light ? <Moon /> : <Sun />}
         </button>
@@ -620,30 +621,30 @@ export function AuthBold({
           <div className="ab-hero">
             <div className="ab-pill ab-anim" style={{ ['--d' as string]: '80ms' }}>
               <span className="dot" />
-              Your career, leveled up
+              {t('auth.careerPill')}
             </div>
             <h1 className="ab-title ab-anim" style={{ ['--d' as string]: '160ms' }}>
-              Ready when
+              {t('auth.heroLead')}
               <br />
               <span className={`ab-grad${caret ? ' ab-caret' : ''}`}>{typed}</span>
             </h1>
             <p className="ab-sub ab-anim" style={{ ['--d' as string]: '240ms' }}>
-              Sign in and pick up where the AI left off — tailored, scored, ready to send.
+              {t('auth.heroDescription')}
             </p>
             <div className="ab-stats ab-anim" style={{ ['--d' as string]: '320ms' }}>
               <div className="ab-stat">
                 <div className="n">{stat1}</div>
-                <div className="l">more interviews</div>
+                <div className="l">{t('auth.moreInterviews')}</div>
               </div>
               <div className="ab-div" />
               <div className="ab-stat">
                 <div className="n">{stat2}</div>
-                <div className="l">avg ATS score</div>
+                <div className="l">{t('auth.averageAtsScore')}</div>
               </div>
             </div>
           </div>
 
-          <form className="ab-card ab-anim" style={{ ['--d' as string]: '260ms' }} onSubmit={handleSubmit}>
+          <form className="ab-card ab-anim" role="form" dir={direction} style={{ ['--d' as string]: '260ms' }} onSubmit={handleSubmit}>
             <div className="ab-scout" ref={scoutRef}>
               <div className="ab-think">
                 <span />
@@ -682,11 +683,12 @@ export function AuthBold({
               <>
                 {showName && (
                   <>
-                    <label className="ab-lab">Full name</label>
+                    <label className="ab-lab">{t('auth.fullName')}</label>
                     <div className="ab-field" style={{ marginBottom: 14 }}>
                       <User />
                       <input
                         type="text"
+                        dir="auto"
                         placeholder="Alex Johnson"
                         autoComplete="name"
                         value={name}
@@ -701,11 +703,12 @@ export function AuthBold({
 
                 {showEmail && (
                   <>
-                    <label className="ab-lab">Email</label>
+                    <label className="ab-lab">{t('auth.email')}</label>
                     <div className="ab-field" style={{ marginBottom: 14 }}>
                       <Mail />
                       <input
                         type="email"
+                        dir="ltr"
                         placeholder="you@email.com"
                         autoComplete="email"
                         value={email}
@@ -723,11 +726,12 @@ export function AuthBold({
 
                 {showCurrent && (
                   <>
-                    <label className="ab-lab">Current password</label>
+                    <label className="ab-lab">{t('auth.currentPassword')}</label>
                     <div className="ab-field" style={{ marginBottom: 14 }}>
                       <Lock />
                       <input
                         type="password"
+                        dir="ltr"
                         placeholder="••••••••"
                         autoComplete="current-password"
                         value={current}
@@ -744,11 +748,11 @@ export function AuthBold({
                   <>
                     <div className="ab-labrow">
                       <label className="ab-lab" style={{ margin: 0 }}>
-                        {isReset ? 'New password' : 'Password'}
+                        {isReset ? t('auth.newPassword') : t('auth.password')}
                       </label>
                       {showForgot && (
                         <button type="button" onClick={() => onModeChange?.('forgot')}>
-                          Forgot?
+                          {t('auth.forgotShort')}
                         </button>
                       )}
                     </div>
@@ -756,6 +760,7 @@ export function AuthBold({
                       <Lock />
                       <input
                         type={showPw ? 'text' : 'password'}
+                        dir="ltr"
                         placeholder="••••••••"
                         autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                         value={password}
@@ -777,7 +782,7 @@ export function AuthBold({
                             return next;
                           });
                         }}
-                        aria-label="Toggle password"
+                        aria-label={t('auth.togglePassword')}
                       >
                         {showPw ? <EyeOff /> : <Eye />}
                       </button>
@@ -788,12 +793,13 @@ export function AuthBold({
                 {showConfirm && (
                   <>
                     <label className="ab-lab" style={{ marginTop: 14 }}>
-                      {isReset ? 'Confirm new password' : 'Confirm password'}
+                      {isReset ? t('auth.confirmNewPassword') : t('auth.confirmPassword')}
                     </label>
                     <div className="ab-field">
                       <Lock />
                       <input
                         type={showPw ? 'text' : 'password'}
+                        dir="ltr"
                         placeholder="••••••••"
                         autoComplete="new-password"
                         value={confirm}
@@ -807,7 +813,7 @@ export function AuthBold({
                     {showMismatch && (
                       <p className="ab-mismatch">
                         <AlertCircle />
-                        Passwords don't match.
+                        {t('auth.passwordMismatch')}
                       </p>
                     )}
                   </>
@@ -818,24 +824,24 @@ export function AuthBold({
                     <span className={`ab-check${remember ? ' on' : ''}`}>
                       {remember && <Check />}
                     </span>
-                    <span>Keep me signed in</span>
+                    <span>{t('auth.keepSignedIn')}</span>
                   </div>
                 )}
 
                 <button className="ab-btn" type="submit" disabled={loading}>
-                  {loading ? 'Please wait…' : submitLabel[mode]}
-                  {!loading && <ArrowRight />}
+                  {loading ? t('auth.pleaseWait') : submitLabel[mode]}
+                  {!loading && <ArrowRight data-mirror-rtl="true" />}
                 </button>
 
                 {(mode === 'signin' || mode === 'signup') && (
                   <div className="ab-trust">
                     <span>
                       <CheckCircle2 />
-                      Free to start
+                      {t('auth.freeToStart')}
                     </span>
                     <span>
                       <CheckCircle2 />
-                      No credit card
+                      {t('auth.noCreditCard')}
                     </span>
                   </div>
                 )}

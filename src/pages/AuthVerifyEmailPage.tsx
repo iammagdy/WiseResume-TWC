@@ -14,6 +14,7 @@ import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { account } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0d0d1e 100%)';
 
@@ -30,6 +31,7 @@ type PageMode = 'pending' | 'ready-to-confirm' | 'confirming' | 'confirmed' | 'e
  *   scanners (Outlook Safe Links) do not consume the token on page load.
  */
 export default function AuthVerifyEmailPage() {
+  const { locale } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -79,7 +81,7 @@ export default function AuthVerifyEmailPage() {
     await queryClient.invalidateQueries({ queryKey: ['me'] });
     await refetchMe();
     setMode('confirmed');
-    void appwriteFunctions.invoke('email-service', { body: { action: 'send-welcome' } }).catch(() => {
+    void appwriteFunctions.invoke('email-service', { body: { action: 'send-welcome', locale } }).catch(() => {
       // Non-fatal
     });
     setTimeout(() => {
@@ -98,7 +100,7 @@ export default function AuthVerifyEmailPage() {
         const { data, error: fnError } = await appwriteFunctions.invoke<{
           emailVerification?: boolean;
         }>('email-service', {
-          body: { action: 'get-verification-status', userId },
+          body: { action: 'get-verification-status', userId, locale },
         });
         if (!fnError && data?.emailVerification === true) {
           toast.info('Your email is already verified. Taking you to the dashboard…');
@@ -156,7 +158,7 @@ export default function AuthVerifyEmailPage() {
         alreadyVerified?: boolean;
         error?: string;
       }>('email-service', {
-        body: { action: 'complete-email-verification', userId, secret },
+        body: { action: 'complete-email-verification', userId, secret, locale },
       });
 
       if (fnError) throw new Error(fnError.message);
@@ -215,7 +217,7 @@ export default function AuthVerifyEmailPage() {
     try {
       const { data, error: fnError } = await appwriteFunctions.invoke<{ alreadyVerified?: boolean; message?: string }>(
         'email-service',
-        { body: { action: 'send-verification' } },
+        { body: { action: 'send-verification', locale } },
       );
       if (fnError) throw new Error(fnError.message);
       if (data?.alreadyVerified) {

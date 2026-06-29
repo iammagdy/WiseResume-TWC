@@ -1,0 +1,15 @@
+{
+  "pageCutSetup": "Page Cut Setup",
+  "page": "Page {{current}} of {{total}}",
+  "madeWith": "Made with WiseResume",
+  "designedPdf": "PDF (Design-Enhanced)",
+  "atsPdf": "PDF (ATS-Optimized)",
+  "wordDocument": "Word Document",
+  "latexSource": "LaTeX Source",
+  "downloadPdf": "Download PDF",
+  "downloadDocx": "Download DOCX",
+  "automaticPagination": "Automatic pagination",
+  "addBreak": "Add break",
+  "smartReset": "Smart reset",
+  "clearBreaks": "Clear"
+}

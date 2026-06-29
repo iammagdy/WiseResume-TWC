@@ -13,3 +13,23 @@ export const SECTION_LABELS: Record<string, string> = {
   references: 'References',
   languages: 'Languages',
 };
+
+const ARABIC_SECTION_LABELS: Record<string, string> = {
+  summary: 'الملخص المهني',
+  experience: 'الخبرة العملية',
+  education: 'التعليم',
+  skills: 'المهارات',
+  certifications: 'الشهادات',
+  awards: 'الإنجازات',
+  projects: 'المشاريع',
+  publications: 'المنشورات',
+  volunteering: 'العمل التطوعي',
+  hobbies: 'الهوايات',
+  references: 'المراجع',
+  languages: 'اللغات',
+};
+
+export function getSectionLabel(sectionId: string, locale: 'en' | 'ar' = 'en'): string {
+  const labels = locale === 'ar' ? ARABIC_SECTION_LABELS : SECTION_LABELS;
+  return labels[sectionId] ?? SECTION_LABELS[sectionId] ?? sectionId;
+}

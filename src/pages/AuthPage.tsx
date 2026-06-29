@@ -9,10 +9,12 @@ import { AuthBold, type AuthBoldMode } from '@/components/auth/AuthBold';
 import { account as appwriteAccount, ID } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { upsertProfileIdentity } from '@/lib/profileSeed';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const SIGNUP_PLAN_KEY = 'signup_plan_intent';
 
 export default function AuthPage() {
+  const { locale } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, loading: authLoading, refreshSession } = useAuth();
@@ -78,7 +80,7 @@ export default function AuthPage() {
     setError(null);
     try {
       const { error: fnError } = await appwriteFunctions.invoke('email-service', {
-        body: { action: 'send-password-reset', email },
+        body: { action: 'send-password-reset', email, locale },
       });
       if (fnError) throw new Error(fnError.message);
       toast.success('Reset link sent! Check your inbox.');
@@ -111,7 +113,7 @@ export default function AuthPage() {
       }
       let emailSent = true;
       try {
-        await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification' } });
+        await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification', locale } });
       } catch {
         emailSent = false;
       }

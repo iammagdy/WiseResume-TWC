@@ -27,6 +27,8 @@ import { cn } from '@/lib/utils';
 import { SECTION_LABELS } from '@/lib/sectionLabels';
 import { PageBreakDialogPreview } from './PageBreakDialogPreview';
 import { toast } from 'sonner';
+import { getPageCutsForLayout, setPageCutsForLayout } from '@/i18n/resumeLocale';
+import { getDefaultCustomization } from '@/lib/templateCustomization';
 
 function getLiveTotalHeight(el: HTMLElement): number {
   return Math.max(el.scrollHeight || 0, el.offsetHeight || 0, 1);
@@ -83,12 +85,17 @@ export function ExportPageBreakSetup({
   const effectiveTemplate = templateElement ?? resolvedTemplate;
 
   const pageFormat = resumeData?.customization?.pageFormat ?? 'letter';
+  const templateId = resumeData?.templateId ?? 'modern';
+  const layoutCuts = useMemo(
+    () => getPageCutsForLayout(templateId, resumeData?.customization),
+    [templateId, resumeData?.customization],
+  );
   const pageDims = useMemo(() => getPageDimensionsForFormat(pageFormat), [pageFormat]);
   const savedBreaks = useMemo(
-    () => normalizeBreakPositions(resumeData?.customization?.customBreakPositions, totalHeight || 1, MIN_BREAK_GAP),
-    [resumeData?.customization?.customBreakPositions, totalHeight],
+    () => normalizeBreakPositions(layoutCuts, totalHeight || 1, MIN_BREAK_GAP),
+    [layoutCuts, totalHeight],
   );
-  const hasCustomBreaks = (resumeData?.customization?.customBreakPositions?.length ?? 0) > 0;
+  const hasCustomBreaks = layoutCuts.length > 0;
   const activeBreaks = hasCustomBreaks ? savedBreaks : [];
 
   const targetPreset: 'custom' | '1' | '2' | '3' = useMemo(() => {
@@ -116,12 +123,8 @@ export function ExportPageBreakSetup({
       liveHeight,
       MIN_BREAK_GAP,
     );
-    updateResume({
-      customization: {
-        ...resumeData.customization,
-        customBreakPositions: snapped,
-      } as typeof resumeData.customization,
-    });
+    const customization = resumeData.customization ?? getDefaultCustomization();
+    updateResume({ customization: setPageCutsForLayout(templateId, customization, snapped) });
   };
 
   useEffect(() => {
@@ -139,7 +142,10 @@ export function ExportPageBreakSetup({
       );
       setSuggestedBreaks(normalizeBreakPositions(smart, height || 1, MIN_BREAK_GAP));
     };
-    const timer = window.setTimeout(measure, 100);
+    const timer = window.setTimeout(() => {
+      const fontsReady = document.fonts?.ready ?? Promise.resolve();
+      void fontsReady.then(measure);
+    }, 100);
     const observer = new ResizeObserver(measure);
     observer.observe(effectiveTemplate);
     return () => {
@@ -155,7 +161,7 @@ export function ExportPageBreakSetup({
     }
     if (variant !== 'streamlined' || !defaultBreakSection || !effectiveTemplate || !resumeData) return;
     if (defaultBreakAppliedRef.current) return;
-    if ((resumeData.customization?.customBreakPositions?.length ?? 0) > 0) {
+    if (getPageCutsForLayout(templateId, resumeData.customization).length > 0) {
       defaultBreakAppliedRef.current = true;
       return;
     }

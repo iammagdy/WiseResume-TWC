@@ -1,0 +1,16 @@
+{
+  "sections": {
+    "summary": "الملخص المهني",
+    "experience": "الخبرة العملية",
+    "education": "التعليم",
+    "skills": "المهارات",
+    "certifications": "الشهادات",
+    "awards": "الجوائز",
+    "projects": "المشاريع",
+    "publications": "المنشورات",
+    "volunteering": "العمل التطوعي",
+    "hobbies": "الاهتمامات",
+    "references": "المراجع",
+    "languages": "اللغات"
+  }
+}

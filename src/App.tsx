@@ -8,6 +8,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { isAppHostname } from "@/hooks/usePublicPortfolio";
+import { LocaleProvider } from "@/i18n/LocaleProvider";
+import { LocaleAccountSync } from "@/i18n/LocaleAccountSync";
 
 const WallpaperPage = lazyWithRetry(() => import("./pages/WallpaperPage"));
 const ActAs = lazyWithRetry(() => import("./pages/ActAs"));
@@ -25,7 +27,7 @@ const AppLanding = lazyWithRetry(() => import("./AppLanding"));
 // non-landing URL directly).
 const AppInterior = lazyWithRetry(() => import("./AppInterior"));
 
-const LANDING_PATHS = new Set(["/", "/enterprises"]);
+const LANDING_PATHS = new Set(["/", "/enterprises", "/ar", "/ar/enterprises"]);
 function isLandingPath(pathname: string) {
   return LANDING_PATHS.has(pathname);
 }
@@ -52,8 +54,11 @@ const queryClient = new QueryClient({
 function isPublicStandalonePath(pathname: string) {
   return (
     pathname.startsWith("/p/") ||
+    pathname.startsWith("/ar/p/") ||
     pathname.startsWith("/share/") ||
+    pathname.startsWith("/ar/share/") ||
     pathname.startsWith("/l/") ||
+    pathname.startsWith("/ar/l/") ||
     pathname.startsWith("/auth/callback")
   );
 }
@@ -73,6 +78,8 @@ function InteriorMount({ onReady }: { onReady: () => void }) {
     <Routes>
       <Route path="/" element={<AppLanding />} />
       <Route path="/enterprises" element={<AppLanding />} />
+      <Route path="/ar" element={<AppLanding />} />
+      <Route path="/ar/enterprises" element={<AppLanding />} />
       <Route
         path="/wallpaper"
         element={
@@ -176,17 +183,20 @@ function SplashGate() {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <ErrorBoundary>
-            <BrowserRouter
-              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-            >
-              <SplashGate />
-            </BrowserRouter>
-          </ErrorBoundary>
-        </TooltipProvider>
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider>
+          <LocaleAccountSync />
+          <TooltipProvider>
+            <ErrorBoundary>
+              <BrowserRouter
+                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+              >
+                <SplashGate />
+              </BrowserRouter>
+            </ErrorBoundary>
+          </TooltipProvider>
+        </AuthProvider>
+      </LocaleProvider>
     </QueryClientProvider>
   );
 };

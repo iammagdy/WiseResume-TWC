@@ -418,13 +418,14 @@ function buildSegmentHtml(args: {
   footerHeightPx: number;
   pageNumber?: string;
   showBranding: boolean;
+  locale: 'en' | 'ar';
 }): string {
   const { head, body } = extractHtmlParts(args.sourceHtml);
   const pageHeightPx = args.contentHeightPx + args.footerHeightPx;
   const pageNumber = args.pageNumber ? escapeHtml(args.pageNumber) : '';
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${args.locale}" dir="${args.locale === 'ar' ? 'rtl' : 'ltr'}">
 <head>
 ${head}
 <style>
@@ -474,7 +475,7 @@ ${head}
   ${args.footerHeightPx > 0 ? `
     <div class="wr-export-page-footer">
       ${pageNumber && args.showBranding
-        ? `<span>${pageNumber} - Made with <a href="${EXPORT_BRAND_URL}">WiseResume</a></span>`
+        ? `<span>${pageNumber} - ${args.locale === 'ar' ? 'صُمم باستخدام' : 'Made with'} <a href="${EXPORT_BRAND_URL}">WiseResume</a></span>`
         : pageNumber
           ? `<span>${pageNumber}</span>`
           : args.showBranding
@@ -712,6 +713,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     customBreakPositions = [],
     totalContentHeightPx,
     layoutContentHeightPx,
+    locale: requestedLocale = 'en',
   } = req.body as {
     html?: string;
     pageFormat?: string;
@@ -724,7 +726,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
      *  validation — may be larger than totalContentHeightPx when trailing
      *  whitespace has been trimmed for final-page cropping. */
     layoutContentHeightPx?: number;
+    locale?: string;
   };
+  const locale: 'en' | 'ar' = requestedLocale === 'ar' ? 'ar' : 'en';
 
   if (!html || typeof html !== 'string') {
     return res.status(400).json({ error: 'bad_request', message: 'Missing html body' });
@@ -893,7 +897,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[pdf] rendering segment', segment.index + 1, '/',
         segments.length, 'start:', segment.startPx, 'h:', segment.heightPx);
       const pageLabel = showPageNumbers
-        ? `Page ${segment.index + 1} of ${segments.length}`
+        ? locale === 'ar'
+          ? `الصفحة ${segment.index + 1} من ${segments.length}`
+          : `Page ${segment.index + 1} of ${segments.length}`
         : undefined;
       const segHtml = buildSegmentHtml({
         sourceHtml: html,
@@ -903,6 +909,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         footerHeightPx: footerHeight,
         pageNumber: pageLabel,
         showBranding,
+        locale,
       });
       const buf = await renderHtmlToPdfBuffer(
         browser,

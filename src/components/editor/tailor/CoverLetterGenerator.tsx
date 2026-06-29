@@ -11,6 +11,7 @@ import { ResumeData, ContactInfo, CoverLetterHistory } from '@/types/resume';
 import { generateCoverLetter } from '@/lib/aiTailor';
 import { useResumeStore } from '@/store/resumeStore';
 import { generateCoverLetterNativePDF } from '@/lib/nativePdfGenerator';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
@@ -207,7 +208,7 @@ export function CoverLetterGenerator({
     if (!coverLetter || !resume) return;
     setIsDownloading(true);
     try {
-      const pdfBlob = await generateCoverLetterNativePDF(coverLetter, resume.contactInfo);
+      const pdfBlob = await generateCoverLetterNativePDF(coverLetter, resume.contactInfo, { locale: getDocumentLocale(resume) });
       await downloadFile({
         blob: pdfBlob,
         fileName: `Cover_Letter_${(jobCompany || 'Company').replace(/\s+/g, '_')}.pdf`,

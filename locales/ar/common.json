@@ -1,0 +1,23 @@
+{
+  "language": "اللغة",
+  "english": "الإنجليزية",
+  "arabic": "العربية",
+  "save": "حفظ",
+  "cancel": "إلغاء",
+  "close": "إغلاق",
+  "continue": "متابعة",
+  "back": "رجوع",
+  "next": "التالي",
+  "done": "تم",
+  "edit": "تعديل",
+  "delete": "حذف",
+  "copy": "نسخ",
+  "copied": "تم النسخ",
+  "download": "تنزيل",
+  "export": "تصدير",
+  "preview": "معاينة",
+  "search": "بحث",
+  "loading": "جارٍ التحميل",
+  "present": "حتى الآن",
+  "productSwitcher": "التبديل بين المنتجات"
+}

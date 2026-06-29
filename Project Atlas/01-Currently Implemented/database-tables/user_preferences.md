@@ -1,6 +1,6 @@
 # user_preferences
 
-**Last verified:** 2026-04-17
+**Last verified:** 2026-06-29
 **Type:** reference card
 **Sources:**
 - `src/integrations/supabase/types.ts` — `Tables.user_preferences.Row` (9 columns)
@@ -12,9 +12,9 @@
 
 ---
 
-**What it is:** User preferences including `ai_provider` (BYOK preference).
+**What it is:** User preferences including `ai_provider` (BYOK preference) and interface `language`.
 
-**Schema:** 9 columns per `Tables.user_preferences.Row` in `src/integrations/supabase/types.ts`. Columns: `ai_provider`, `biometric_enabled`, `biometric_timeout`, `default_template`, `id`, `onboarding_flags`, `pdf_defaults`, `updated_at`, `user_id`.
+**Schema:** Existing preference columns plus optional Appwrite `language` (`en` or `ar`). Run `npm run schema:i18n` with Appwrite admin credentials to create the attribute idempotently. Missing values default to English in application code.
 
 **Owner FK pattern:** `user_id` → `auth.users.id` (per `Tables.user_preferences.Row` in `types.ts`).
 

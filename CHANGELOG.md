@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-29 - Arabic locale and RTL export foundation
+
+- **Locale architecture** (`src/i18n/`, `locales/`): added English/Arabic catalogs, locale resolution and persistence, global `lang`/`dir`, bidirectional text helpers, public `/ar/...` routes, settings/landing language controls, and Appwrite `user_preferences` synchronization.
+- **CV document locale** (`src/types/resume.ts`, `src/i18n/resumeLocale.ts`): added a per-CV `documentLocale` independent from UI language and locale/font-aware page-cut fingerprints with legacy English fallback.
+- **Templates and exports** (`src/i18n/localizeResumeTemplate.ts`, PDF/DOCX/LaTeX generators): added Noto Sans Arabic, RTL heading localization across registered templates, Chromium Arabic PDF/cover-letter rendering, RTL DOCX defaults and LTR contact runs, and XeLaTeX Arabic output while retaining English pdflatex output.
+- **Public/auth communications**: added Arabic landing/auth copy, localized metadata and `hreflang`, locale-aware auth callbacks, and Arabic transactional verification/reset/welcome/security emails.
+- **Quality gates** (`scripts/check-i18n.mjs`, `docs/localization/ar-terminology.md`): added catalog parity, placeholder, empty-value, untranslated-value checks, approved terminology, and focused RTL/export regression coverage.
+
 ## 2026-06-29 - Public landing route and social preview reliability
 
 - **Landing route** (`src/pages/Index.tsx`, `src/App.tsx`): preserved `/` and `/enterprises` as public `AppLanding` routes for authenticated and unauthenticated visitors; account-type redirects remain limited to protected product routes.

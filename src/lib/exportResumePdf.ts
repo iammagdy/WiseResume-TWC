@@ -5,6 +5,9 @@ import { generateCustomizationCSS } from '@/lib/templateCustomization';
 import { getTemplateDesignDimensions } from '@/lib/templateDimensions';
 import type { ResumeData, TemplateId } from '@/types/resume';
 import type { NativePdfOptions } from '@/lib/nativePdfGenerator';
+import { getDocumentLocale, getPageCutsForLayout } from '@/i18n/resumeLocale';
+import { directionForLocale } from '@/i18n/core';
+import { localizeResumeTemplateElement } from '@/i18n/localizeResumeTemplate';
 
 const PAGE_WIDTHS = {
   letter: 612,
@@ -30,6 +33,10 @@ function mountOffscreenTemplate(resume: ResumeData, templateId: TemplateId, page
 
   const template = document.createElement('div');
   template.setAttribute('data-resume-template', '');
+  const locale = getDocumentLocale(resume);
+  template.lang = locale;
+  template.dir = directionForLocale(locale);
+  template.dataset.documentLocale = locale;
   template.style.width = `${pageWidth}px`;
   container.appendChild(template);
 
@@ -99,13 +106,15 @@ export async function exportResumePdfFromData(
   const mount = mountOffscreenTemplate(resume, templateId, pageWidth);
   try {
     await waitForRender(mount.template, options?.renderTimeoutMs ?? 4000);
+    localizeResumeTemplateElement(mount.template, getDocumentLocale(resume));
     const { renderTimeoutMs: _renderTimeoutMs, ...nativeOpts } = options ?? {};
-    const savedBreaks =
-      nativeOpts.customBreakPositions ?? resume.customization?.customBreakPositions;
+    const savedBreaks = nativeOpts.customBreakPositions
+      ?? getPageCutsForLayout(templateId, resume.customization);
     const { resolveExportBreakPositions } = await import('@/lib/pdfUtils');
     const customBreakPositions = resolveExportBreakPositions(mount.template, savedBreaks);
     return await generateNativePDF(mount.template, {
       pageFormat,
+      locale: getDocumentLocale(resume),
       ...nativeOpts,
       ...(customBreakPositions.length ? { customBreakPositions } : {}),
     });

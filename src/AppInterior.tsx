@@ -169,11 +169,17 @@ function CustomDomainPortfolioWrapper({ hostname }: { hostname: string }) {
 
 function useIsPublicRoute() {
   const location = useLocation();
+  const pathname = location.pathname.startsWith('/ar/')
+    ? location.pathname.slice(3)
+    : location.pathname;
   return (
-    location.pathname.startsWith('/p/') ||
-    location.pathname.startsWith('/share/') ||
-    location.pathname.startsWith('/l/') ||
-    location.pathname.startsWith('/auth/callback')
+    pathname.startsWith('/p/') ||
+    pathname.startsWith('/share/') ||
+    pathname.startsWith('/l/') ||
+    pathname.startsWith('/interview/report/') ||
+    pathname.startsWith('/auth/callback') ||
+    ['/pricing', '/whats-new', '/waitlist', '/enterprise', '/privacy-policy', '/terms-of-service', '/guides', '/examples'].includes(pathname) ||
+    pathname.startsWith('/guides/')
   );
 }
 
@@ -288,7 +294,7 @@ function AppRoutes() {
         onAuthenticate={authenticate} />);
   }
 
-  const isAuthRoute = location.pathname.startsWith('/auth');
+  const isAuthRoute = location.pathname.startsWith('/auth') || location.pathname.startsWith('/ar/auth');
 
   return (
     <>
@@ -305,20 +311,35 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
           <Route path="/enterprises" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
+          <Route path="/ar" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
+          <Route path="/ar/enterprises" element={<RouteEB><Suspense fallback={<LandingSkeleton />}><Index /></Suspense></RouteEB>} />
            <Route element={<AppShell />}>
                <Route path="/auth" element={<RouteEB><Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense></RouteEB>} />
                <Route path="/sign-in" element={<RouteEB><Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense></RouteEB>} />
               <Route path="/auth/callback" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense></RouteEB>} />
               <Route path="/auth/verify-email" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthVerifyEmailPage /></Suspense></RouteEB>} />
               <Route path="/auth/reset-password" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthResetPasswordPage /></Suspense></RouteEB>} />
+              <Route path="/ar/auth" element={<RouteEB><Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense></RouteEB>} />
+              <Route path="/ar/auth/callback" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense></RouteEB>} />
+              <Route path="/ar/auth/verify-email" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthVerifyEmailPage /></Suspense></RouteEB>} />
+              <Route path="/ar/auth/reset-password" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><AuthResetPasswordPage /></Suspense></RouteEB>} />
               <Route path="/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
                <Route path="/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
+              <Route path="/ar/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
+              <Route path="/ar/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
            </Route>
 
           <Route path="/pricing" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense></RouteEB>} />
           <Route path="/whats-new" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense></RouteEB>} />
           <Route path="/waitlist" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense></RouteEB>} />
           <Route path="/enterprise" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><EnterprisePage /></Suspense></RouteEB>} />
+          <Route path="/ar/pricing" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense></RouteEB>} />
+          <Route path="/ar/whats-new" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense></RouteEB>} />
+          <Route path="/ar/waitlist" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense></RouteEB>} />
+          <Route path="/ar/enterprise" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><EnterprisePage /></Suspense></RouteEB>} />
+          <Route path="/ar/guides" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense></RouteEB>} />
+          <Route path="/ar/guides/:slug" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense></RouteEB>} />
+          <Route path="/ar/examples" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense></RouteEB>} />
 
           <Route path="/wisehire/signup" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/signup-early-access/:code" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense></RouteEB>} />
@@ -401,6 +422,12 @@ function AppRoutes() {
         <Route path="/interview/report/:token" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><InterviewReportPage /></Suspense></RouteEB>} />
         <Route path="/p/:username" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense></RouteEB>} />
         <Route path="/l/:linkId" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense></RouteEB>} />
+        <Route path="/ar/share/:token" element={<RouteEB><Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense></RouteEB>} />
+        <Route path="/ar/share/brief/:shareToken" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PublicBriefPage /></Suspense></RouteEB>} />
+        <Route path="/ar/share/scorecard/:shareToken" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PublicScorecardPage /></Suspense></RouteEB>} />
+        <Route path="/ar/interview/report/:token" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><InterviewReportPage /></Suspense></RouteEB>} />
+        <Route path="/ar/p/:username" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense></RouteEB>} />
+        <Route path="/ar/l/:linkId" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense></RouteEB>} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/store-screenshots" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense></RouteEB>} />

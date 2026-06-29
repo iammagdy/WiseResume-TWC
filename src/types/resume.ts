@@ -112,6 +112,8 @@ export interface Reference {
 }
 
 export interface TemplateCustomization {
+  /** Language and direction of the CV itself. Independent from the app UI locale. */
+  documentLocale?: SupportedLocale;
   accentColor: string;
   fontHeading: string;
   fontBody: string;
@@ -127,6 +129,8 @@ export interface TemplateCustomization {
    * rendered at its exact height so the last page is never padded to A4/Letter.
    */
   customBreakPositions?: number[];
+  /** Page cuts keyed by template, page format, document locale, fonts, and scale. */
+  pageCutsByFingerprint?: Record<string, number[]>;
   /** Optional fine-tuning knobs surfaced through the Style Customization panel.
    *  All optional — when undefined, the template's natural styling is used. */
   headerAlign?: 'left' | 'center' | 'right';
@@ -487,3 +491,4 @@ export interface FixSuggestion {
    message: string;
    funFact?: string;
  }
+import type { SupportedLocale } from '@/i18n/core';

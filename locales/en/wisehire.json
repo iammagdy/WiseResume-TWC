@@ -1,0 +1,12 @@
+{
+  "dashboard": "WiseHire Dashboard",
+  "jobDescriptionWriter": "Job Description Writer",
+  "briefGenerator": "Brief Generator",
+  "roles": "Roles",
+  "pipeline": "Pipeline",
+  "bulkScreening": "Bulk Screening",
+  "scorecards": "Scorecards",
+  "talentPool": "Talent Pool",
+  "analytics": "Analytics",
+  "clients": "Clients"
+}

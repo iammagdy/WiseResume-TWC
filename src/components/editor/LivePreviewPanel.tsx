@@ -23,7 +23,10 @@ import { migrateTemplateId } from '@/lib/templateMigration';
 
 const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25] as const;
 
-import { SECTION_LABELS } from '@/lib/sectionLabels';
+import { SECTION_LABELS, getSectionLabel } from '@/lib/sectionLabels';
+import { directionForLocale } from '@/i18n/core';
+import { getDocumentLocale, getPageCutsForLayout } from '@/i18n/resumeLocale';
+import { localizeResumeTemplateElement } from '@/i18n/localizeResumeTemplate';
 import { resolvePageBreakTemplate } from '@/lib/resolvePageBreakTemplate';
 export { SECTION_LABELS };
 
@@ -108,9 +111,13 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const resumeRef = useRef<HTMLDivElement>(null);
   const pageCountBadgeRef = useRef<HTMLSpanElement>(null);
   const showPageCutHintPulse = usePageCutHintPulse();
-  const customBreakPositions = currentResume?.customization?.customBreakPositions;
-
   const safeTemplateId = migrateTemplateId(selectedTemplate);
+  const documentLocale = getDocumentLocale(currentResume);
+  const documentDirection = directionForLocale(documentLocale);
+  const customBreakPositions = useMemo(
+    () => getPageCutsForLayout(safeTemplateId, currentResume?.customization),
+    [safeTemplateId, currentResume?.customization],
+  );
   const TemplateComponent =
     templateComponents[safeTemplateId] ?? templateComponents.modern;
 
@@ -182,6 +189,11 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     resume: currentResume,
     onScaleComputed: handleFitScale,
   });
+
+  useEffect(() => {
+    if (!resumeRef.current) return;
+    localizeResumeTemplateElement(resumeRef.current, documentLocale);
+  }, [debouncedResume, documentLocale, safeTemplateId]);
 
   if (!currentResume) return null;
 
@@ -305,7 +317,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
                     : 'bg-primary/10 text-primary'
                 )}
               >
-                {SECTION_LABELS[section]}
+                {getSectionLabel(section, documentLocale)}
               </button>
             );
           })}
@@ -323,6 +335,9 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           <div
             ref={resumeRef}
             data-resume-template
+            lang={documentLocale}
+            dir={documentDirection}
+            data-document-locale={documentLocale}
             className="editor-preview-paper bg-white text-black mx-auto relative"
             style={{
               // Pin the template's CSS layout width to the PDF design width
@@ -345,6 +360,10 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               // accidentally override it (e.g. with width: 100%).
               maxWidth: `${previewDims.pageWidth}px`,
               minWidth: `${previewDims.pageWidth}px`,
+              direction: documentDirection,
+              fontFamily: documentLocale === 'ar'
+                ? '"Noto Sans Arabic", sans-serif'
+                : customizationStyle.fontFamily,
             } as CSSProperties}
           >
             {currentResume.customization && (

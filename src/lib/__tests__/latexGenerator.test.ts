@@ -146,4 +146,30 @@ describe('generateLatex — document structure', () => {
     expect(tex).toContain('\\begin{document}');
     expect(tex).toContain('\\end{document}');
   });
+
+  it('uses XeLaTeX, Noto Sans Arabic, RTL support, and Arabic headings for Arabic CVs', () => {
+    const resume = makeResume({
+      contactInfo: { fullName: 'عبد الرحمن القحطاني', email: 'user@example.com', phone: '+971501234567', location: 'دبي' },
+      summary: 'مدير المنتجات الرقمية - AI Platform',
+      experience: [{
+        id: '1',
+        company: 'شركة الحلول المتقدمة (AWS Partner)',
+        position: 'مدير المنتجات',
+        startDate: '2024-01',
+        endDate: '',
+        current: true,
+        description: 'قيادة المنتجات الرقمية.',
+        achievements: [],
+      }],
+      customization: { documentLocale: 'ar' } as ResumeData['customization'],
+    });
+
+    const tex = generateLatex(resume);
+    expect(tex).toContain('\\usepackage{fontspec}');
+    expect(tex).toContain('\\usepackage{polyglossia}');
+    expect(tex).toContain('\\setmainlanguage{arabic}');
+    expect(tex).toContain('Noto Sans Arabic');
+    expect(tex).toContain('\\section*{الملخص المهني}');
+    expect(tex).toContain('حتى الآن');
+  });
 });

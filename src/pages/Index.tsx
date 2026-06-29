@@ -20,6 +20,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { useWebMcp } from '@/hooks/useWebMcp';
+import { useLocale } from '@/i18n/LocaleProvider';
 /* Eagerly preload whichever hero chunk corresponds to the initial active
    product mode. Both heroes use React.lazy below so the inactive product
    subtree stays out of the entry chunk; this preload simply primes the
@@ -28,6 +29,7 @@ import { useWebMcp } from '@/hooks/useWebMcp';
 if (typeof window !== 'undefined') {
   const isWiseHire =
     window.location.pathname === '/enterprises' ||
+    window.location.pathname === '/ar/enterprises' ||
     new URLSearchParams(window.location.search).get('for') === 'companies';
   /* Kick off the LandingMotionStage chunk (which carries framer-motion)
      immediately, in parallel with the active hero chunk. Without this
@@ -69,6 +71,7 @@ function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
 }
 
 const Index = () => {
+  const { locale, t } = useLocale();
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
@@ -99,13 +102,13 @@ const Index = () => {
   const [tailorOpen, setTailorOpen] = useState(false);
   const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() => {
     if (typeof window === 'undefined') return 'jobseeker';
-    if (window.location.pathname === '/enterprises') return 'wisehire';
+    if (window.location.pathname === '/enterprises' || window.location.pathname === '/ar/enterprises') return 'wisehire';
     if (new URLSearchParams(window.location.search).get('for') === 'companies') return 'wisehire';
     return 'jobseeker';
   });
   const [displayProduct, setDisplayProduct] = useState<'jobseeker' | 'wisehire'>(() => {
     if (typeof window === 'undefined') return 'jobseeker';
-    if (window.location.pathname === '/enterprises') return 'wisehire';
+    if (window.location.pathname === '/enterprises' || window.location.pathname === '/ar/enterprises') return 'wisehire';
     if (new URLSearchParams(window.location.search).get('for') === 'companies') return 'wisehire';
     return 'jobseeker';
   });
@@ -134,18 +137,37 @@ const Index = () => {
 
   useEffect(() => {
     const isWH = mode === 'wisehire';
-    document.title = isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume AI — AI Resume Builder';
+    const isArabic = locale === 'ar';
+    document.title = isArabic && !isWH
+      ? t('landing.arabicResumeTitle')
+      : isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume AI — AI Resume Builder';
     const setMeta = (name: string, content: string) => {
       let el = document.querySelector<HTMLMetaElement>(`meta[property="${name}"]`) ??
                document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
       if (!el) { el = document.createElement('meta'); el.setAttribute(name.startsWith('og:') ? 'property' : 'name', name); document.head.appendChild(el); }
       el.setAttribute('content', content);
     };
-    setMeta('og:title', isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume AI — AI Resume Builder');
+    setMeta('og:title', document.title);
     setMeta('og:description', isWH
       ? 'AI-powered hiring platform. Brief Generator, JD Writer, Pipeline Board and more. Now in early access.'
-      : 'Build, tailor, and optimize job-winning resumes with AI.');
-    setMeta('og:url', isWH ? `${window.location.origin}/enterprises` : window.location.origin);
+      : isArabic ? t('landing.arabicResumeDescription') : 'Build, tailor, and optimize job-winning resumes with AI.');
+    const localizedPath = isWH
+      ? (isArabic ? '/ar/enterprises' : '/enterprises')
+      : (isArabic ? '/ar' : '/');
+    setMeta('og:url', `${window.location.origin}${localizedPath}`);
+
+    const setAlternate = (lang: string, href: string) => {
+      let link = document.querySelector<HTMLLinkElement>(`link[rel="alternate"][hreflang="${lang}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'alternate';
+        link.hreflang = lang;
+        document.head.appendChild(link);
+      }
+      link.href = href;
+    };
+    setAlternate('en', `${window.location.origin}${isWH ? '/enterprises' : '/'}`);
+    setAlternate('ar', `${window.location.origin}${isWH ? '/ar/enterprises' : '/ar'}`);
 
     /* Task #13: swap the favicon so the browser tab icon mirrors the active brand.
        The pre-React script in index.html already sets the correct icon
@@ -159,7 +181,7 @@ const Index = () => {
     };
     setLinkHref('app-favicon', favHref);
     setLinkHref('app-favicon-preload', favHref);
-  }, [mode]);
+  }, [locale, mode, t]);
 
   useEffect(() => {
     const hash = window.location.hash;

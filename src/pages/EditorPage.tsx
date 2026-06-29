@@ -23,6 +23,7 @@ import { LivePreviewPanel } from '@/components/editor/LivePreviewPanel';
 import { EditorResumeStrengthBar } from '@/components/editor/EditorResumeStrengthBar';
 import { StyleCustomizationPanel } from '@/components/editor/StyleCustomizationPanel';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations, useResume } from '@/hooks/useResumes';
@@ -354,7 +355,7 @@ export default function EditorPage() {
           const { generateCoverLetterNativePDF } = await import('@/lib/nativePdfGenerator');
           const { generatedCoverLetter } = useResumeStore.getState();
           if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
-          pdfBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, ...pdfOptions, onProgress });
+          pdfBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, ...pdfOptions, locale: getDocumentLocale(currentResume), onProgress });
           fileName = `${baseName}_Cover_Letter.pdf`;
         } else {
           const { generateCoverLetterNativePDF, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
@@ -366,7 +367,7 @@ export default function EditorPage() {
             const { generatedCoverLetter } = useResumeStore.getState();
             if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
             onProgress('capturing', 20);
-            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: true });
+            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, locale: getDocumentLocale(currentResume), showPageNumbers: false, showBranding: true });
             onProgress('capturing', 40);
             const customBreakPositions = currentResume.customization?.customBreakPositions;
             const resumeBlob = await exportResumePdf({

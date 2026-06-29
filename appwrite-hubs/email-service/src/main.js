@@ -314,7 +314,11 @@ async function resendSend({ to, subject, html, fromEmail, fromName }) {
 
 // ─── Email HTML builders ─────────────────────────────────────────────────────
 
-function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, securityNote, showCta = true, disclaimer = "If you didn't request this, you can safely ignore this email." }) {
+function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, securityNote, showCta = true, locale = 'en', disclaimer }) {
+  const isArabic = locale === 'ar';
+  const safeDisclaimer = disclaimer || (isArabic
+    ? 'إذا لم تطلب هذا الإجراء، يمكنك تجاهل هذه الرسالة بأمان.'
+    : "If you didn't request this, you can safely ignore this email.");
   const ctaSection = showCta ? `
               <!-- CTA Button -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
@@ -364,7 +368,7 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
               </table>` : '';
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isArabic ? 'ar' : 'en'}" dir="${isArabic ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -372,7 +376,7 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
   <title>${h1} - WiseResume</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body style="margin:0;padding:0;background:#09090b;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#ffffff;">
+<body style="margin:0;padding:0;background:#09090b;font-family:${isArabic ? "'Noto Sans Arabic',Tahoma,Arial" : "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial"},sans-serif;color:#ffffff;direction:${isArabic ? 'rtl' : 'ltr'};">
 
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#09090b;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
@@ -389,7 +393,7 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
                 <tr>
                   <td style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#a1a1aa;">${metaLabel}</td>
                   <td align="right" style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">
-                    <span style="display:inline-block;width:7px;height:7px;background-color:#ef4444;border-radius:999px;vertical-align:middle;margin-right:8px;"></span>Secure
+                    <span style="display:inline-block;width:7px;height:7px;background-color:#ef4444;border-radius:999px;vertical-align:middle;margin-right:8px;"></span>${isArabic ? 'آمن' : 'Secure'}
                   </td>
                 </tr>
               </table>
@@ -428,7 +432,7 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
                   <td style="padding:20px 24px;">
                     <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#d4d4d8;">${securityNote}</p>
                     <p style="margin:0;font-size:14px;line-height:1.6;color:#8b8b94;">
-                      ${disclaimer}
+                      ${safeDisclaimer}
                     </p>
                   </td>
                 </tr>
@@ -462,7 +466,18 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
 </html>`;
 }
 
-function verificationEmail(verifyUrl) {
+function verificationEmail(verifyUrl, locale = 'en') {
+  if (locale === 'ar') return emailShell({
+    locale,
+    metaLabel: 'تأكيد البريد الإلكتروني',
+    preheader: 'أكّد بريدك الإلكتروني لتفعيل مساحة عمل WiseResume.',
+    h1: 'أكّد بريدك الإلكتروني',
+    bodyCopy: 'أكّد بريدك الإلكتروني لتفعيل مساحة عمل WiseResume والبدء في إنشاء سيرة ذاتية احترافية.',
+    ctaLabel: 'تأكيد البريد الإلكتروني',
+    ctaUrl: verifyUrl,
+    securityNote: 'ستنتهي صلاحية هذا الرابط خلال <strong style="color:#ffffff;">24 ساعة</strong> حفاظاً على أمانك.',
+    showCta: true,
+  });
   return emailShell({
     metaLabel:   'Email Verification',
     preheader:   'Confirm your email to activate your WiseResume workspace.',
@@ -475,7 +490,18 @@ function verificationEmail(verifyUrl) {
   });
 }
 
-function passwordResetEmail(resetUrl) {
+function passwordResetEmail(resetUrl, locale = 'en') {
+  if (locale === 'ar') return emailShell({
+    locale,
+    metaLabel: 'استعادة كلمة المرور',
+    preheader: 'أعد تعيين كلمة مرور WiseResume، تنتهي صلاحية الرابط خلال ساعة.',
+    h1: 'إعادة تعيين كلمة المرور',
+    bodyCopy: 'تلقينا طلباً لإعادة تعيين كلمة مرور حسابك في WiseResume. اضغط أدناه لاختيار كلمة مرور جديدة.',
+    ctaLabel: 'إعادة تعيين كلمة المرور',
+    ctaUrl: resetUrl,
+    securityNote: 'ستنتهي صلاحية هذا الرابط خلال <strong style="color:#ffffff;">ساعة واحدة</strong> ولا يمكن استخدامه إلا مرة واحدة.',
+    showCta: true,
+  });
   return emailShell({
     metaLabel:   'Password Recovery',
     preheader:   'Reset your WiseResume password — link expires in 1 hour.',
@@ -488,8 +514,18 @@ function passwordResetEmail(resetUrl) {
   });
 }
 
-function passwordChangedEmail(name) {
+function passwordChangedEmail(name, locale = 'en') {
   const safeName = name || 'there';
+  if (locale === 'ar') return emailShell({
+    locale,
+    metaLabel: 'تنبيه أمني',
+    preheader: 'تم تغيير كلمة مرور WiseResume للتو.',
+    h1: 'تم تغيير كلمة المرور',
+    bodyCopy: `مرحباً ${safeName}، نؤكد لك أنه تم تغيير كلمة مرور حسابك في WiseResume.`,
+    securityNote: 'إذا أجريت هذا التغيير، فلا يلزم اتخاذ أي إجراء إضافي.',
+    disclaimer: 'إذا لم تُجرِ هذا التغيير، فأعد تعيين كلمة مرورك فوراً وتواصل مع contact@thewise.cloud.',
+    showCta: false,
+  });
   return emailShell({
     metaLabel:    'Security Alert',
     preheader:    'Your WiseResume password was just changed.',
@@ -501,9 +537,20 @@ function passwordChangedEmail(name) {
   });
 }
 
-function welcomeEmail(name, dashboardUrl) {
+function welcomeEmail(name, dashboardUrl, locale = 'en') {
   const safeUrl = dashboardUrl || `${FRONTEND_URL}/dashboard`;
   const safeName = name || 'there';
+  if (locale === 'ar') return emailShell({
+    locale,
+    metaLabel: 'مرحباً بك',
+    preheader: `مرحباً بك في WiseResume، ${safeName}!`,
+    h1: `مرحباً، ${safeName}!`,
+    bodyCopy: 'حسابك في WiseResume مفعّل وجاهز. ابدأ الآن في إنشاء سيرة ذاتية احترافية بمساعدة الذكاء الاصطناعي.',
+    ctaLabel: 'الانتقال إلى لوحة التحكم',
+    ctaUrl: safeUrl,
+    securityNote: 'وصلتك هذه الرسالة لأنك أكدت حسابك في WiseResume للتو.',
+    showCta: true,
+  });
   return emailShell({
     metaLabel:    'Welcome',
     preheader:    `Welcome to WiseResume, ${safeName}! Your AI-powered resume builder is ready.`,
@@ -519,6 +566,7 @@ function welcomeEmail(name, dashboardUrl) {
 // ─── Action handlers ──────────────────────────────────────────────────────────
 
 async function handleSendVerification({ req, res, log, error, body }) {
+  const locale = body?.locale === 'ar' ? 'ar' : 'en';
   // ── Get user JWT ────────────────────────────────────────────────────────────
   // Appwrite automatically injects this when the function is called via SDK
   // with an active user session.
@@ -541,7 +589,7 @@ async function handleSendVerification({ req, res, log, error, body }) {
   const acct = new sdk.Account(userClient);
 
   try {
-    const redirectUrl = `${FRONTEND_URL}/auth/verify-email`;
+    const redirectUrl = `${FRONTEND_URL}${locale === 'ar' ? '/ar' : ''}/auth/verify-email`;
     const sessionUser = await acct.get();
     userId = userId || sessionUser.$id;
 
@@ -565,8 +613,8 @@ async function handleSendVerification({ req, res, log, error, body }) {
       const verifyUrl = buildVerificationUrl(redirectUrl, token.userId, token.secret);
       await resendSend({
         to:      sessionUser.email,
-        subject: 'Verify your WiseResume email address',
-        html:    verificationEmail(verifyUrl),
+        subject: locale === 'ar' ? 'تأكيد بريدك الإلكتروني في WiseResume' : 'Verify your WiseResume email address',
+        html:    verificationEmail(verifyUrl, locale),
       });
       log(`Verification email sent via Resend (single token) to ${sessionUser.email}`);
       return json(res, { success: true, delivery: 'resend' });
@@ -597,6 +645,7 @@ async function handleSendVerification({ req, res, log, error, body }) {
 }
 
 async function handleSendPasswordReset({ req, res, log, error, body }) {
+  const locale = body?.locale === 'ar' ? 'ar' : 'en';
   const email = (body?.email || '').trim().toLowerCase();
 
   if (!email || !email.includes('@')) {
@@ -618,7 +667,7 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
   const acct = new sdk.Account(recoveryClient);
 
   try {
-    const redirectUrl = `${FRONTEND_URL}/auth/reset-password`;
+    const redirectUrl = `${FRONTEND_URL}${locale === 'ar' ? '/ar' : ''}/auth/reset-password`;
 
     // Returns a Token with .userId and .secret (secret is populated because this
     // request is API-keyed). This also triggers Appwrite's own recovery email —
@@ -636,8 +685,8 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
     const resetUrl = `${redirectUrl}?userId=${encodeURIComponent(token.userId)}&secret=${encodeURIComponent(token.secret)}`;
     await resendSend({
       to:      email,
-      subject: 'Reset your WiseResume password',
-      html:    passwordResetEmail(resetUrl),
+      subject: locale === 'ar' ? 'إعادة تعيين كلمة مرور WiseResume' : 'Reset your WiseResume password',
+      html:    passwordResetEmail(resetUrl, locale),
     });
 
     log(`Password reset email sent via Resend to ${email}`);
@@ -672,6 +721,7 @@ async function handleSendPasswordReset({ req, res, log, error, body }) {
 }
 
 async function handleSendWelcome({ req, res, log, error, body }) {
+  const locale = body?.locale === 'ar' ? 'ar' : 'en';
   // ── Get user JWT ────────────────────────────────────────────────────────────
   const userJwt = headerValue(req, body, ['x-appwrite-user-jwt', 'X-Appwrite-JWT']);
 
@@ -702,8 +752,8 @@ async function handleSendWelcome({ req, res, log, error, body }) {
     log(`Sending welcome email to ${user.email} (name: ${firstName})`);
     await resendSend({
       to:      user.email,
-      subject: 'Welcome to WiseResume — Your AI Resume Builder',
-      html:    welcomeEmail(firstName),
+      subject: locale === 'ar' ? 'مرحباً بك في WiseResume' : 'Welcome to WiseResume — Your AI Resume Builder',
+      html:    welcomeEmail(firstName, undefined, locale),
     });
 
     log(`Welcome email sent to ${user.email}`);
@@ -732,6 +782,7 @@ async function handleSendWelcome({ req, res, log, error, body }) {
  * "your password changed" notice — not data disclosure.
  */
 async function handleSendPasswordChanged({ req, res, log, error, body }) {
+  const locale = body?.locale === 'ar' ? 'ar' : 'en';
   const userJwt = headerValue(req, body, ['x-appwrite-user-jwt', 'X-Appwrite-JWT']);
 
   try {
@@ -761,8 +812,8 @@ async function handleSendPasswordChanged({ req, res, log, error, body }) {
     const firstName = displayName ? displayName.split(' ')[0] : email.split('@')[0];
     await resendSend({
       to:      email,
-      subject: 'Your WiseResume password was changed',
-      html:    passwordChangedEmail(firstName),
+      subject: locale === 'ar' ? 'تم تغيير كلمة مرور WiseResume' : 'Your WiseResume password was changed',
+      html:    passwordChangedEmail(firstName, locale),
     });
     log(`Password-changed notification sent to ${email}`);
   } catch (err) {

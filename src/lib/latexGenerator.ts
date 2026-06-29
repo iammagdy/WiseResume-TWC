@@ -1,5 +1,8 @@
 import type { ResumeData } from '@/types/resume';
 import { formatDateRangeDisplay } from '@/lib/dateUtils';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
+import { formatDocumentDate, type SupportedLocale } from '@/i18n/core';
+import { getSectionLabel } from '@/lib/sectionLabels';
 
 /**
  * Escapes all LaTeX special characters in a plain string in a single pass,
@@ -34,8 +37,9 @@ function escUrl(url: string | null | undefined): string {
   }
 }
 
-function formatDate(date: string | null | undefined): string {
+function formatDate(date: string | null | undefined, locale: SupportedLocale): string {
   if (!date) return '';
+  if (locale === 'ar') return esc(formatDocumentDate(date, locale));
   const d = new Date(date);
   if (isNaN(d.getTime())) return esc(date);
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -51,11 +55,23 @@ export function generateLatex(resume: ResumeData): string {
           awards, projects, publications, volunteering, languages, hobbies, references } = resume;
 
   const lines: string[] = [];
+  const locale = getDocumentLocale(resume);
+  const isArabic = locale === 'ar';
+  const pagePaper = resume.customization?.pageFormat === 'a4' ? 'a4paper' : 'letterpaper';
+  const heading = (sectionId: string) => getSectionLabel(sectionId, locale);
 
   // ─── Preamble (only article + geometry + hyperref) ───────────────────────
   lines.push(
-    '\\documentclass[11pt,letterpaper]{article}',
+    `\\documentclass[11pt,${pagePaper}]{article}`,
     '\\usepackage[margin=0.8in]{geometry}',
+    ...(isArabic ? [
+      '\\usepackage{fontspec}',
+      '\\usepackage{polyglossia}',
+      '\\setmainlanguage{arabic}',
+      '\\setotherlanguage{english}',
+      '\\setmainfont{Noto Sans Arabic}',
+      '\\newfontfamily\\arabicfont[Script=Arabic]{Noto Sans Arabic}',
+    ] : []),
     '\\usepackage{hyperref}',
     '',
     '\\hypersetup{colorlinks=true, urlcolor=blue, linkcolor=black}',
@@ -86,17 +102,17 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Summary ────────────────────────────────────────────────────────────────
   if (summary?.trim()) {
-    lines.push('\\section*{Professional Summary}');
+    lines.push(`\\section*{${heading('summary')}}`);
     lines.push(esc(summary));
     lines.push('');
   }
 
   // ─── Experience ─────────────────────────────────────────────────────────────
   if (experience?.length) {
-    lines.push('\\section*{Experience}');
+    lines.push(`\\section*{${heading('experience')}}`);
     for (const exp of experience) {
-      const start = formatDate(exp.startDate);
-      const end = exp.current ? 'Present' : formatDate(exp.endDate);
+      const start = formatDate(exp.startDate, locale);
+      const end = exp.current ? (isArabic ? 'حتى الآن' : 'Present') : formatDate(exp.endDate, locale);
       lines.push(
         `\\textbf{${esc(exp.position)}} --- \\textit{${esc(exp.company)}}` +
         (exp.account ? ` (${esc(exp.account)})` : '') +
@@ -119,10 +135,11 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Education ──────────────────────────────────────────────────────────────
   if (education?.length) {
-    lines.push('\\section*{Education}');
+    lines.push(`\\section*{${heading('education')}}`);
     for (const edu of education) {
-      const eduRange =
-        formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present') ?? '';
+      const eduRange = isArabic
+        ? [formatDocumentDate(edu.startDate, locale), formatDocumentDate(edu.endDate, locale)].filter(Boolean).join(' - ')
+        : formatDateRangeDisplay(edu.startDate, edu.endDate, edu.endDate === 'Present') ?? '';
       const degree = [esc(edu.degree), esc(edu.field)].filter(Boolean).join(' in ');
       lines.push(
         `\\textbf{${degree}} --- \\textit{${esc(edu.institution)}}${eduRange ? ` \\hfill ${esc(eduRange)}` : ''}`,
@@ -135,17 +152,17 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Skills ─────────────────────────────────────────────────────────────────
   if (skills?.length) {
-    lines.push('\\section*{Skills}');
+    lines.push(`\\section*{${heading('skills')}}`);
     lines.push(skills.map(esc).join(', '));
     lines.push('');
   }
 
   // ─── Certifications ─────────────────────────────────────────────────────────
   if (certifications?.length) {
-    lines.push('\\section*{Certifications}');
+    lines.push(`\\section*{${heading('certifications')}}`);
     lines.push('\\begin{itemize}');
     for (const cert of certifications) {
-      const date = formatDate(cert.date);
+      const date = formatDate(cert.date, locale);
       lines.push(`  \\item \\textbf{${esc(cert.name)}} --- ${esc(cert.issuer)}${date ? `, ${date}` : ''}`);
     }
     lines.push('\\end{itemize}');
@@ -154,7 +171,7 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Projects ───────────────────────────────────────────────────────────────
   if (projects?.length) {
-    lines.push('\\section*{Projects}');
+    lines.push(`\\section*{${heading('projects')}}`);
     for (const proj of projects) {
       const projRange =
         formatDateRangeDisplay(
@@ -181,10 +198,10 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Publications ───────────────────────────────────────────────────────────
   if (publications?.length) {
-    lines.push('\\section*{Publications}');
+    lines.push(`\\section*{${heading('publications')}}`);
     lines.push('\\begin{itemize}');
     for (const pub of publications) {
-      const date = formatDate(pub.date);
+      const date = formatDate(pub.date, locale);
       let entry = `\\textbf{${esc(pub.title)}}. ${esc(pub.publisher)}${date ? `, ${date}` : ''}.`;
       if (pub.coAuthors) entry += ` Co-authors: ${esc(pub.coAuthors)}.`;
       if (pub.url) entry += ` \\href{${escUrl(pub.url)}}{Link}.`;
@@ -196,7 +213,7 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Volunteering ───────────────────────────────────────────────────────────
   if (volunteering?.length) {
-    lines.push('\\section*{Volunteering}');
+    lines.push(`\\section*{${heading('volunteering')}}`);
     for (const vol of volunteering) {
       const volRange =
         formatDateRangeDisplay(
@@ -218,10 +235,10 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Awards ─────────────────────────────────────────────────────────────────
   if (awards?.length) {
-    lines.push('\\section*{Awards}');
+    lines.push(`\\section*{${heading('awards')}}`);
     lines.push('\\begin{itemize}');
     for (const award of awards) {
-      const date = formatDate(award.date);
+      const date = formatDate(award.date, locale);
       lines.push(`  \\item \\textbf{${esc(award.title)}} --- ${esc(award.issuer)}${date ? `, ${date}` : ''}`);
       if (award.description?.trim()) lines.push(`    \\\\ ${esc(award.description)}`);
     }
@@ -231,7 +248,7 @@ export function generateLatex(resume: ResumeData): string {
 
   // ─── Languages ──────────────────────────────────────────────────────────────
   if (languages?.length) {
-    lines.push('\\section*{Languages}');
+    lines.push(`\\section*{${heading('languages')}}`);
     lines.push(languages.map(l => `${esc(l.name)} (${esc(l.proficiency)})`).join(', '));
     lines.push('');
   }
@@ -239,22 +256,22 @@ export function generateLatex(resume: ResumeData): string {
   // ─── Hobbies ────────────────────────────────────────────────────────────────
   const visibleHobbies = hobbies?.filter(h => h.visible !== false);
   if (visibleHobbies?.length) {
-    lines.push('\\section*{Interests}');
+    lines.push(`\\section*{${isArabic ? getSectionLabel('hobbies', locale) : 'Interests'}}`);
     lines.push(visibleHobbies.map(h => esc(h.name)).join(', '));
     lines.push('');
   }
 
   // ─── References ─────────────────────────────────────────────────────────────
   if (references?.length) {
-    lines.push('\\section*{References}');
+    lines.push(`\\section*{${heading('references')}}`);
     const allOnRequest = references.every(r => r.availableOnRequest);
     if (allOnRequest) {
-      lines.push('Available upon request.');
+      lines.push(isArabic ? 'متاحة عند الطلب.' : 'Available upon request.');
     } else {
       lines.push('\\begin{itemize}');
       for (const ref of references) {
         if (ref.availableOnRequest) {
-          lines.push(`  \\item \\textbf{${esc(ref.name)}} --- Available upon request`);
+          lines.push(`  \\item \\textbf{${esc(ref.name)}} --- ${isArabic ? 'متاحة عند الطلب' : 'Available upon request'}`);
         } else {
           const detail = [esc(ref.title), esc(ref.company)].filter(Boolean).join(', ');
           const contact = [ref.email && `\\href{mailto:${escUrl(ref.email)}}{${esc(ref.email)}}`, esc(ref.phone)].filter(Boolean).join(', ');

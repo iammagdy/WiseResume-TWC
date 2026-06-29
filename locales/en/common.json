@@ -1,0 +1,23 @@
+{
+  "language": "Language",
+  "english": "English",
+  "arabic": "Arabic",
+  "save": "Save",
+  "cancel": "Cancel",
+  "close": "Close",
+  "continue": "Continue",
+  "back": "Back",
+  "next": "Next",
+  "done": "Done",
+  "edit": "Edit",
+  "delete": "Delete",
+  "copy": "Copy",
+  "copied": "Copied",
+  "download": "Download",
+  "export": "Export",
+  "preview": "Preview",
+  "search": "Search",
+  "loading": "Loading",
+  "present": "Present",
+  "productSwitcher": "Product switcher"
+}

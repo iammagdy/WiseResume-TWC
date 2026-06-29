@@ -3,6 +3,7 @@ import { render, type RenderOptions } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
+import { LocaleProvider } from "@/i18n/LocaleProvider";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -22,10 +23,12 @@ function AllProviders({ children, initialPath = "/" }: AllProvidersProps) {
   const queryClient = makeQueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        {children}
-        <Toaster />
-      </MemoryRouter>
+      <LocaleProvider initialLocale="en">
+        <MemoryRouter initialEntries={[initialPath]}>
+          {children}
+          <Toaster />
+        </MemoryRouter>
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }

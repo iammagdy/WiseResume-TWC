@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface LandingToggleProps {
   mode: 'jobseeker' | 'wisehire';
@@ -23,6 +24,7 @@ const RED_SHADOW = 'inset 0 0 0 1px rgba(158,27,34,0.55)';
 const BLUE_SHADOW = 'inset 0 0 0 1px rgba(29,78,216,0.55)';
 
 export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _uid = '', compact = false }: LandingToggleProps) {
+  const { locale, t } = useLocale();
   const [burstKey, setBurstKey] = useState(0);
   const [burstLeft, setBurstLeft] = useState('25%');
   const [burstColor, setBurstColor] = useState('rgba(158,27,34,0.65)');
@@ -39,7 +41,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
     const rect = e.currentTarget.getBoundingClientRect();
     const origin = { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
     onModeChange('jobseeker', origin);
-    window.history.pushState({}, '', '/');
+    window.history.pushState({}, '', locale === 'ar' ? '/ar' : '/');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
@@ -48,7 +50,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
     const rect = e.currentTarget.getBoundingClientRect();
     const origin = { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
     onModeChange('wisehire', origin);
-    window.history.pushState({}, '', '/enterprises');
+    window.history.pushState({}, '', locale === 'ar' ? '/ar/enterprises' : '/enterprises');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
@@ -137,7 +139,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
             transition: 'background 0.35s ease',
           }}
         />
-        <span style={{ position: 'relative', zIndex: 1 }}>Individuals</span>
+        <span style={{ position: 'relative', zIndex: 1 }}>{t('landing.individuals')}</span>
       </button>
 
       {/* Enterprises button */}
@@ -189,7 +191,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
             transition: 'background 0.35s ease',
           }}
         />
-        <span style={{ position: 'relative', zIndex: 1 }}>Enterprises</span>
+        <span style={{ position: 'relative', zIndex: 1 }}>{t('landing.enterprises')}</span>
       </button>
     </div>
   );
@@ -198,7 +200,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
     return (
       <div
         role="group"
-        aria-label="Product switcher"
+        aria-label={t('common.productSwitcher')}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}
       >
         {inner}
@@ -209,7 +211,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid: _
   return (
     <div
       role="group"
-      aria-label="Product switcher"
+      aria-label={t('common.productSwitcher')}
       style={{
         display: 'flex',
         alignItems: 'center',

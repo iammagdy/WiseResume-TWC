@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { generateNativePDF, PDFServerUnavailableError } from './nativePdfGenerator';
+import { generateCoverLetterNativePDF, generateNativePDF, PDFServerUnavailableError } from './nativePdfGenerator';
 
 function createPdfFetchMock() {
   return vi.fn((input: RequestInfo | URL) => {
@@ -99,5 +99,37 @@ describe('generateNativePDF', () => {
     const body = pdfNativeCallBody(fetchSpy);
     expect(body.totalContentHeightPx).toBe(1650);
     expect(body.customBreakPositions).toEqual([1225]);
+  });
+
+  it('sends Arabic locale and an RTL HTML document to Chromium', async () => {
+    const template = document.createElement('div');
+    template.innerHTML = '<section data-section="summary">الملخص المهني</section>';
+    Object.defineProperty(template, 'scrollHeight', { value: 400, configurable: true });
+    Object.defineProperty(template, 'offsetHeight', { value: 400, configurable: true });
+    const fetchSpy = createPdfFetchMock();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await generateNativePDF(template, { locale: 'ar' });
+
+    const body = pdfNativeCallBody(fetchSpy);
+    expect(body.locale).toBe('ar');
+    expect(body.html).toContain('<html lang="ar" dir="rtl">');
+    expect(body.html).toContain('font-family: "Noto Sans Arabic"');
+  });
+
+  it('routes Arabic cover letters through Chromium instead of StandardFonts', async () => {
+    const fetchSpy = createPdfFetchMock();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await generateCoverLetterNativePDF({
+      job_title: 'مدير المنتجات',
+      company: 'شركة الحلول المتقدمة',
+      content: 'السادة فريق التوظيف،\nيسعدني التقدم إلى الوظيفة.',
+    }, undefined, { locale: 'ar' });
+
+    const body = pdfNativeCallBody(fetchSpy);
+    expect(body.locale).toBe('ar');
+    expect(body.html).toContain('dir="rtl"');
+    expect(body.html).toContain('السادة فريق التوظيف');
   });
 });

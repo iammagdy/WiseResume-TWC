@@ -1,5 +1,7 @@
 import { RefObject, useEffect, useState, ReactNode } from 'react';
 import { motion } from 'framer-motion';
+import { localizeResumeTemplateElement } from '@/i18n/localizeResumeTemplate';
+import { directionForLocale, type SupportedLocale } from '@/i18n/core';
 
 const PDF_WIDTH = 612;
 
@@ -12,6 +14,7 @@ interface PreviewScaledWrapperProps {
   pageWidth?: number;
   pageHeight?: number;
   children: ReactNode;
+  documentLocale?: SupportedLocale;
 }
 
 /**
@@ -28,6 +31,7 @@ export function PreviewScaledWrapper({
   pageWidth = PDF_WIDTH,
   pageHeight = 792,
   children,
+  documentLocale = 'en',
 }: PreviewScaledWrapperProps) {
   const [templateHeight, setTemplateHeight] = useState(pageHeight);
 
@@ -63,6 +67,10 @@ export function PreviewScaledWrapper({
     return () => observer.disconnect();
   }, [resumeRef]);
 
+  useEffect(() => {
+    if (resumeRef.current) localizeResumeTemplateElement(resumeRef.current, documentLocale);
+  }, [children, documentLocale, resumeRef]);
+
   const displayScale = isGenerating ? 1 : previewScale;
   const wrapperHeight = templateHeight * displayScale;
 
@@ -77,6 +85,8 @@ export function PreviewScaledWrapper({
       <motion.div
         ref={resumeRef}
         data-resume-template
+        lang={documentLocale}
+        dir={directionForLocale(documentLocale)}
         data-capturing={isGenerating ? 'true' : undefined}
         className="bg-white text-black shadow-2xl relative"
         style={{

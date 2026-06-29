@@ -1,0 +1,15 @@
+{
+  "pageCutSetup": "إعداد فواصل الصفحات",
+  "page": "الصفحة {{current}} من {{total}}",
+  "madeWith": "أُنشئت باستخدام WiseResume",
+  "designedPdf": "ملف PDF بالتصميم الكامل",
+  "atsPdf": "ملف PDF محسّن لنظام تتبع المتقدمين",
+  "wordDocument": "مستند Word",
+  "latexSource": "ملف LaTeX المصدري",
+  "downloadPdf": "تنزيل ملف PDF",
+  "downloadDocx": "تنزيل ملف DOCX",
+  "automaticPagination": "تقسيم تلقائي للصفحات",
+  "addBreak": "إضافة فاصل",
+  "smartReset": "إعادة ضبط ذكية",
+  "clearBreaks": "مسح الفواصل"
+}

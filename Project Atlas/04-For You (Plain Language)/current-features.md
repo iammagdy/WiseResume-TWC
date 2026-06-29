@@ -1,6 +1,18 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-05-11 (Task #21 — Per-feature model picker in AI Master Switch)
+**Last verified:** 2026-06-29 (Arabic platform foundation)
+
+## Arabic platform support (2026-06-29)
+
+WiseResume and WiseHire now have an Arabic language foundation. Public Arabic pages use `/ar`, while signed-in app links remain unchanged. A language selector is available on the landing page and in Appearance settings, and the choice is remembered for signed-in and anonymous visitors.
+
+Each CV has its own language setting. Changing the app language does not translate or alter CV content. Arabic CVs use right-to-left layout and Noto Sans Arabic, with English contact details kept in the correct direction. Page-break choices are saved separately for each language, page size, font, scale, and template so English measurements are not reused for Arabic.
+
+Arabic resume PDFs and cover-letter PDFs use the browser-based export engine so Arabic letters remain connected and selectable. DOCX exports carry Arabic font and right-to-left document settings, and Arabic LaTeX exports use XeLaTeX; English LaTeX continues to use pdflatex. Verification, password-reset, welcome, and password-change emails can also be sent in Arabic.
+
+The Arabic rollout remains controlled by the `feature_arabic_locale` setting. Before broad release, the Arabic terminology must receive native Gulf-Arabic review and all template/export fixtures must complete visual QA.
+
+---
 
 ## AI gateway — per-feature provider routing (2026-05-09, Task #10)
 

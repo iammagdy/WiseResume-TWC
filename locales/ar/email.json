@@ -1,0 +1,10 @@
+{
+  "verifySubject": "تأكيد بريدك الإلكتروني في WiseResume",
+  "verifyTitle": "تأكيد البريد الإلكتروني",
+  "verifyAction": "تأكيد البريد الإلكتروني",
+  "resetSubject": "إعادة تعيين كلمة مرور WiseResume",
+  "resetTitle": "إعادة تعيين كلمة المرور",
+  "resetAction": "إعادة تعيين كلمة المرور",
+  "welcomeSubject": "مرحبًا بك في WiseResume",
+  "securityNote": "إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان."
+}

@@ -1,0 +1,7 @@
+{
+  "generic": "Something went wrong. Please try again.",
+  "network": "Check your connection and try again.",
+  "notFound": "We could not find that page.",
+  "exportFailed": "Export failed. Please try again.",
+  "missingTranslation": "Translation unavailable"
+}

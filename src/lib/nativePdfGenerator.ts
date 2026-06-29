@@ -5,6 +5,8 @@ import { cloneResumeTemplateElement } from '@/lib/exportDomUtils';
 import { getExportContentHeightPx } from '@/lib/exportLayoutMetrics';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { resolvePublicApiBase } from '@/lib/publicApiBase';
+import type { SupportedLocale } from '@/i18n/core';
+import { localizeResumeTemplateElement } from '@/i18n/localizeResumeTemplate';
 
 const BRANDING_URL = 'https://wiseresume.app';
 
@@ -22,6 +24,7 @@ export class PDFServerUnavailableError extends Error {
 }
 
 export interface GenerateNativePDFOptions {
+  locale?: SupportedLocale;
   pageFormat?: 'letter' | 'a4';
   showPageNumbers?: boolean;
   showBranding?: boolean;
@@ -34,10 +37,46 @@ export interface GenerateNativePDFOptions {
 export type NativePdfOptions = GenerateNativePDFOptions;
 
 export interface GenerateCoverLetterNativePDFOptions {
+  locale?: SupportedLocale;
   pageFormat?: 'letter' | 'a4';
   showPageNumbers?: boolean;
   showBranding?: boolean;
   onProgress?: OnProgressCallback;
+}
+
+function escapeHtmlText(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function buildArabicCoverLetterHTML(letter: unknown, pageFormat: 'letter' | 'a4'): Promise<string> {
+  const record = (letter ?? {}) as Record<string, unknown>;
+  const pageWidth = pageFormat === 'a4' ? 595 : 612;
+  const paragraphs = String(record.content ?? '')
+    .split(/\n+/)
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtmlText(paragraph)}</p>`)
+    .join('');
+  const css = await collectDocumentStyles();
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><style>
+${css}
+@page { size: ${pageFormat}; margin: 0; }
+html, body { margin: 0; width: ${pageWidth}px; background: #fff; direction: rtl; }
+body { box-sizing: border-box; padding: 56px; color: #18181b; font-family: "Noto Sans Arabic", sans-serif; font-size: 12px; line-height: 1.9; }
+h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; }
+h2 { margin: 0 0 28px; font-size: 14px; color: #52525b; font-weight: 500; }
+p { margin: 0 0 14px; white-space: pre-wrap; }
+</style></head>
+<body data-cover-letter-template>
+  <h1>${escapeHtmlText(record.job_title ?? record.title)}</h1>
+  ${record.company ? `<h2>${escapeHtmlText(record.company)}</h2>` : ''}
+  ${paragraphs}
+</body></html>`;
 }
 
 function getLiveLayoutHeightPx(templateEl: HTMLElement): number {
@@ -100,8 +139,10 @@ function buildSelfContainedHTML(
   templateHTML: string,
   css: string,
   pageFormat: 'letter' | 'a4',
-  opts: { atsMode?: boolean } = {},
+  opts: { atsMode?: boolean; locale?: SupportedLocale } = {},
 ): string {
+  const locale = opts.locale === 'ar' ? 'ar' : 'en';
+  const direction = locale === 'ar' ? 'rtl' : 'ltr';
   const pageWidthPx = pageFormat === 'a4' ? 595 : 612;
   const atsModeStyle = opts.atsMode
     ? `
@@ -113,7 +154,7 @@ function buildSelfContainedHTML(
     : '';
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${locale}" dir="${direction}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=${pageWidthPx}, initial-scale=1.0">
@@ -128,6 +169,8 @@ function buildSelfContainedHTML(
       padding: 0;
       width: ${pageWidthPx}px;
       background: #fff;
+      direction: ${direction};
+      ${locale === 'ar' ? 'font-family: "Noto Sans Arabic", sans-serif;' : ''}
     }
     a {
       color: inherit;
@@ -164,6 +207,7 @@ async function callPdfServer(
      *  custom break positions near the bottom of the content without
      *  rejecting them due to trailing-whitespace trimming. */
     layoutContentHeightPx?: number;
+    locale?: SupportedLocale;
   },
   onProgress?: OnProgressCallback,
   attempt = 0,
@@ -247,6 +291,7 @@ export async function generateNativePDF(
     showBranding = true,
     customBreakPositions,
     onProgress,
+    locale = 'en',
   } = options;
 
   onProgress?.('preparing', 5);
@@ -256,8 +301,10 @@ export async function generateNativePDF(
 
   onProgress?.('capturing', 20);
 
-  const templateHTML = cloneResumeTemplateElement(templateEl, pageWidthPx).outerHTML;
-  const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { atsMode });
+  const exportTemplate = cloneResumeTemplateElement(templateEl, pageWidthPx);
+  localizeResumeTemplateElement(exportTemplate, locale);
+  const templateHTML = exportTemplate.outerHTML;
+  const html = buildSelfContainedHTML(templateHTML, css, pageFormat, { atsMode, locale });
 
   // exportContentHeightPx: trailing-whitespace-trimmed height — used as the
   // render/crop height for the final PDF page (preserves the existing
@@ -299,6 +346,7 @@ export async function generateNativePDF(
     // safe validation height (not just the trimmed export height) so that
     // valid breaks near the bottom of the content are preserved.
     customBreakPositions: customBreakPositions ?? [],
+    locale,
   }, onProgress);
 }
 
@@ -307,8 +355,19 @@ export async function generateCoverLetterNativePDF(
   _contactInfo: ContactInfo | undefined,
   options: GenerateCoverLetterNativePDFOptions = {},
 ): Promise<Blob> {
-  const { onProgress } = options;
+  const { onProgress, locale = 'en', pageFormat = 'letter', showPageNumbers = true, showBranding = true } = options;
   onProgress?.('preparing', 10);
+
+  if (locale === 'ar') {
+    const html = await buildArabicCoverLetterHTML(letter, pageFormat);
+    return callPdfServer({
+      html,
+      pageFormat,
+      locale,
+      showPageNumbers,
+      showBranding,
+    }, onProgress);
+  }
 
   const { generateCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
   const bytes = await generateCoverLetterPDF(letter as Parameters<typeof generateCoverLetterPDF>[0]);

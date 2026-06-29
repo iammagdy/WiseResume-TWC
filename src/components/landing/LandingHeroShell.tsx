@@ -1,11 +1,13 @@
 import { TYPEWRITER_WORDS } from '@/hooks/useTypewriter';
 import { TypewriterHeadlineLine } from '@/components/landing/TypewriterHeadlineLine';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface LandingHeroShellProps {
   mode: 'jobseeker' | 'wisehire';
 }
 
 export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
+  const { locale, t } = useLocale();
   if (mode === 'wisehire') {
     return (
       <section
@@ -29,10 +31,10 @@ export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
           }}
         >
           <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-            Hire <span style={{ color: 'var(--lp-eyebrow)' }}>Smarter.</span>
+            {t('landing.wiseHireHeroLead')}
           </span>
           <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-            Screen <span style={{ color: 'var(--lp-eyebrow)' }}>Faster.</span>
+            {t('landing.wiseHireHeroSecond')}
           </span>
         </h1>
       </section>
@@ -65,9 +67,9 @@ export default function LandingHeroShell({ mode }: LandingHeroShellProps) {
           }}
         >
           <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-            Stand out as a
+            {t('landing.individualHeroLead')}
           </span>
-          <TypewriterHeadlineLine word={TYPEWRITER_WORDS[0]} />
+          <TypewriterHeadlineLine word={locale === 'ar' ? t('landing.individualHeroWord') : TYPEWRITER_WORDS[0]} />
         </h1>
       </div>
     </section>

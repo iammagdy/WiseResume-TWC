@@ -20,6 +20,7 @@ export interface AppSettings {
   feature_portfolio: boolean;
   feature_interview_coach: boolean;
   feature_career_advisor: boolean;
+  feature_arabic_locale: boolean;
   maintenance_window_start: string | null;
   maintenance_window_end: string | null;
 }
@@ -34,6 +35,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   feature_portfolio: true,
   feature_interview_coach: true,
   feature_career_advisor: true,
+  feature_arabic_locale: false,
   maintenance_window_start: null,
   maintenance_window_end: null,
 };

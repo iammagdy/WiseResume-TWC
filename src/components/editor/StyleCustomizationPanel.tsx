@@ -31,6 +31,8 @@ import {
   getDefaultCustomization,
 } from '@/lib/templateCustomization';
 import type { TemplateCustomization } from '@/types/resume';
+import { useLocale } from '@/i18n/LocaleProvider';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
 
 const DEFAULT_FONT_VALUE = '__default__';
 
@@ -40,6 +42,7 @@ interface StyleCustomizationPanelProps {
 }
 
 export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizationPanelProps) {
+  const { t } = useLocale();
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
 
@@ -93,6 +96,23 @@ export function StyleCustomizationPanel({ open, onOpenChange }: StyleCustomizati
             Tweaks apply to this resume only and update the preview live.
           </p>
         </SheetHeader>
+
+        <div className="mt-4 space-y-2 rounded-md border p-3">
+          <Label>{t('editor.documentLanguage')}</Label>
+          <Select
+            value={getDocumentLocale(currentResume)}
+            onValueChange={(value) => patch({ documentLocale: value as 'en' | 'ar' })}
+          >
+            <SelectTrigger aria-label={t('editor.documentLanguage')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">{t('common.english')}</SelectItem>
+              <SelectItem value="ar">{t('common.arabic')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">{t('editor.contentPreserved')}</p>
+        </div>
 
         <div className="mt-4 flex items-center justify-between rounded-md border p-3">
           <div className="space-y-0.5">

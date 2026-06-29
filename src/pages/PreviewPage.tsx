@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useResumeStore } from '@/store/resumeStore';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
 import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 import { migrateTemplateId } from '@/lib/templateMigration';
@@ -406,7 +407,7 @@ export default function PreviewPage() {
           case 'cover-letter': {
             if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
             const { generateCoverLetterNativePDF } = await import('@/lib/nativePdfGenerator');
-            pdfBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, ...pdfOptions, onProgress });
+            pdfBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, ...pdfOptions, locale: getDocumentLocale(currentResume), onProgress });
             fileName = `${baseName}_Cover_Letter.pdf`;
             break;
           }
@@ -426,7 +427,7 @@ export default function PreviewPage() {
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
             onProgress('capturing', 20);
-            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, showPageNumbers: false, showBranding: true });
+            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, locale: getDocumentLocale(currentResume), showPageNumbers: false, showBranding: true });
             onProgress('capturing', 40);
             const customBreakPositions = currentResume.customization?.customBreakPositions;
             const resumeBlob = await nativePdf(templateEl, {
@@ -710,6 +711,7 @@ export default function PreviewPage() {
             setPreviewScale={setPreviewScale}
             pageWidth={previewDims.pageWidth}
             pageHeight={previewDims.pageHeight}
+            documentLocale={getDocumentLocale(currentResume)}
           >
             <Suspense fallback={<TemplateSkeleton />}>
               {/*

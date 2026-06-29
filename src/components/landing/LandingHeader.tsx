@@ -13,6 +13,8 @@ import triggerHaptic from '@/lib/haptics';
 import { LandingToggle } from '@/components/landing/LandingToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useLocale } from '@/i18n/LocaleProvider';
+import { LanguageSwitcher } from '@/i18n/LanguageSwitcher';
 
 interface LandingHeaderProps {
   mode: 'jobseeker' | 'wisehire';
@@ -36,6 +38,8 @@ export function LandingHeader({
   onModeChange, onThemeToggle, onOpenWaitlist, onSignOut,
 }: LandingHeaderProps) {
   const navigate = useNavigate();
+  const { locale, t } = useLocale();
+  const publicPath = (path: string) => locale === 'ar' ? `/ar${path === '/' ? '' : path}` : path;
   const { authAvailable } = useAuth();
   const isAdmin = useIsAdmin();
 
@@ -102,7 +106,7 @@ export function LandingHeader({
             <DropdownMenuTrigger asChild>
               <button
                 className={`lp-theme-toggle ${isAuthenticated ? 'hidden sm:inline-flex' : ''}`}
-                aria-label="Navigation menu"
+                aria-label={t('landing.navigationMenu')}
               >
                 <Menu className="w-4 h-4" />
               </button>
@@ -115,21 +119,23 @@ export function LandingHeader({
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                 >
-                  <Tag className="w-4 h-4 mr-2" />
-                  Pricing
+                  <Tag className="w-4 h-4 me-2" />
+                  {t('landing.pricing')}
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onClick={() => navigate('/pricing')}>
-                  <Tag className="w-4 h-4 mr-2" />
-                  Pricing
+                <DropdownMenuItem onClick={() => navigate(publicPath('/pricing'))}>
+                  <Tag className="w-4 h-4 me-2" />
+                  {t('landing.pricing')}
                 </DropdownMenuItem>
               )}
               {mode === 'jobseeker' && (
-                <DropdownMenuItem onClick={() => navigate('/whats-new')}>
-                  <Zap className="w-4 h-4 mr-2" />
-                  What's New
+                <DropdownMenuItem onClick={() => navigate(publicPath('/whats-new'))}>
+                  <Zap className="w-4 h-4 me-2" />
+                  {t('landing.whatsNew')}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5"><LanguageSwitcher /></div>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -148,7 +154,7 @@ export function LandingHeader({
           ) : isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
+                <button className="touch-manipulation active:scale-95 transition-transform" aria-label={t('landing.accountMenu')}>
                   <Avatar className="h-8 w-8" style={{ border: '1px solid var(--lp-border-card)' }}>
                     <AvatarImage src={profile?.avatarUrl ?? undefined} />
                     <AvatarFallback
@@ -175,22 +181,22 @@ export function LandingHeader({
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
                     >
-                      <Tag className="w-4 h-4 mr-2" /> Pricing
+                      <Tag className="w-4 h-4 me-2" /> {t('landing.pricing')}
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/pricing'); }}>
-                      <Tag className="w-4 h-4 mr-2" /> Pricing
+                    <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate(publicPath('/pricing')); }}>
+                      <Tag className="w-4 h-4 me-2" /> {t('landing.pricing')}
                     </DropdownMenuItem>
                   )}
                   {mode === 'jobseeker' && (
-                    <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/whats-new'); }}>
-                      <Zap className="w-4 h-4 mr-2" /> What's New
+                    <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate(publicPath('/whats-new')); }}>
+                      <Zap className="w-4 h-4 me-2" /> {t('landing.whatsNew')}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                 </div>
                 <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}>
-                  <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+                  <LayoutDashboard className="w-4 h-4 me-2" /> {t('app.dashboard')}
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/devkit'); }}>
@@ -198,22 +204,24 @@ export function LandingHeader({
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
-                  <Settings className="w-4 h-4 mr-2" /> Settings
+                  <Settings className="w-4 h-4 me-2" /> {t('app.settings')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={async () => { triggerHaptic.medium(); await onSignOut(); navigate('/'); }}
                 >
-                  <LogOut className="w-4 h-4 mr-2" /> Sign Out
+                  <LogOut className="w-4 h-4 me-2" /> {t('auth.signOut')}
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5"><LanguageSwitcher /></div>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : mode === 'jobseeker' ? (
             <button
               onClick={() => {
                 triggerHaptic.light();
-                void navigate('/auth?mode=login');
+                void navigate(`${publicPath('/auth')}?mode=login`);
               }}
               className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 hover:brightness-110 active:scale-[0.98]"
               style={{
@@ -223,7 +231,7 @@ export function LandingHeader({
                 boxShadow: '0 1px 8px rgba(158,27,34,0.45), 0 6px 18px rgba(158,27,34,0.18)',
               }}
             >
-              Sign In
+              {t('landing.signIn')}
             </button>
           ) : (
             <button
@@ -235,8 +243,8 @@ export function LandingHeader({
                 border: '1px solid #1D4ED8',
               }}
             >
-              <span className="sm:hidden">Join</span>
-              <span className="hidden sm:inline">Join Waitlist</span>
+              <span className="sm:hidden">{t('landing.join')}</span>
+              <span className="hidden sm:inline">{t('landing.joinWaitlist')}</span>
             </button>
           )}
         </div>

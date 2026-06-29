@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { AuthBold } from '../AuthBold';
+import { LocaleProvider } from '@/i18n/LocaleProvider';
 
 beforeEach(() => {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -17,6 +18,19 @@ beforeEach(() => {
 });
 
 describe('AuthBold', () => {
+  it('renders Arabic sign-in copy with RTL layout and LTR credentials', () => {
+    renderWithProviders(
+      <LocaleProvider initialLocale="ar">
+        <AuthBold mode="signin" onSubmit={vi.fn()} />
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'تسجيل الدخول' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'دخول' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('you@email.com')).toHaveAttribute('dir', 'ltr');
+    expect(screen.getByRole('form')).toHaveAttribute('dir', 'rtl');
+  });
+
   it('renders the sign-in card with email + password fields and a Login submit', () => {
     const onSubmit = vi.fn();
     renderWithProviders(<AuthBold mode="signin" onSubmit={onSubmit} />);

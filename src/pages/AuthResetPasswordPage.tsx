@@ -8,8 +8,10 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AuthBold } from '@/components/auth/AuthBold';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export default function AuthResetPasswordPage() {
+  const { locale } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -43,7 +45,7 @@ export default function AuthResetPasswordPage() {
       await appwriteAccount.updateRecovery(userId, secret, password);
       try {
         await appwriteFunctions.invoke('email-service', {
-          body: { action: 'send-password-changed', userId },
+          body: { action: 'send-password-changed', userId, locale },
         });
       } catch {
         /* notification is non-critical */
@@ -59,7 +61,7 @@ export default function AuthResetPasswordPage() {
     }
   };
 
-  const backToSignIn = () => navigate('/auth?mode=login', { replace: true });
+  const backToSignIn = () => navigate(`${locale === 'ar' ? '/ar' : ''}/auth?mode=login`, { replace: true });
 
   let doneSlot: React.ReactNode | undefined;
   if (!isValidLink) {

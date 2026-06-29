@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { account } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { useLocale } from '@/i18n/LocaleProvider';
 import {
     Dialog,
     DialogContent,
@@ -32,6 +33,7 @@ interface ChangePasswordDialogProps {
  * session, so the function derives the recipient from the session JWT).
  */
 export function ChangePasswordDialog({ open, onOpenChange, onForgotPassword }: ChangePasswordDialogProps) {
+    const { locale } = useLocale();
     const [current, setCurrent] = useState('');
     const [next, setNext] = useState('');
     const [confirm, setConfirm] = useState('');
@@ -64,7 +66,7 @@ export function ChangePasswordDialog({ open, onOpenChange, onForgotPassword }: C
             // recipient from the session JWT). Never block success on the email.
             try {
                 await appwriteFunctions.invoke('email-service', {
-                    body: { action: 'send-password-changed' },
+                    body: { action: 'send-password-changed', locale },
                 });
             } catch {
                 /* notification is non-critical */

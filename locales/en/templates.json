@@ -1,0 +1,16 @@
+{
+  "sections": {
+    "summary": "Professional Summary",
+    "experience": "Work Experience",
+    "education": "Education",
+    "skills": "Skills",
+    "certifications": "Certifications",
+    "awards": "Awards",
+    "projects": "Projects",
+    "publications": "Publications",
+    "volunteering": "Volunteering",
+    "hobbies": "Interests",
+    "references": "References",
+    "languages": "Languages"
+  }
+}
