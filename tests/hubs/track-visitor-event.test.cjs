@@ -5,7 +5,7 @@
 
 const assert = require('node:assert/strict');
 const hub = require('../../appwrite-hubs/track-visitor-event/src/main.js');
-const { sanitize, BOT_UA, ALLOWED_EVENT_TYPES, rateLimitKey, isRateLimited, RL_MAX_PER_WINDOW } = hub.__test;
+const { sanitize, BOT_UA, ALLOWED_EVENT_TYPES, rateLimitKey, isRateLimited, RL_MAX_PER_WINDOW, hashAnonId } = hub.__test;
 
 // sanitize: rejects unknown event types, keeps allowlisted fields, truncates.
 assert.equal(sanitize({ event_type: 'evil' }), null, 'unknown event_type rejected');
@@ -15,6 +15,24 @@ assert.equal(clean.event_type, 'page_view');
 assert.equal(clean.page, '/x');
 assert.equal(clean.bogus, undefined, 'unknown field dropped');
 assert.ok(ALLOWED_EVENT_TYPES.has('page_view'));
+
+const privacy = sanitize({
+  event_type: 'page_view',
+  page: '/pricing',
+  anon_id: 'anon-1',
+  consent_state: 'pending',
+  occurred_at: '2026-06-30T12:00:00.000Z',
+  is_internal: false,
+  is_bot: false,
+  identity_version: 'v2',
+});
+assert.equal(privacy.consent_state, 'pending');
+assert.equal(privacy.occurred_at, '2026-06-30T12:00:00.000Z');
+assert.equal(privacy.is_internal, false);
+assert.equal(privacy.is_bot, false);
+assert.equal(privacy.identity_version, 'v2');
+assert.equal(hashAnonId('anon-1', ''), null, 'identity linking stays disabled without a secret');
+assert.match(hashAnonId('anon-1', 'test-secret'), /^[a-f0-9]{64}$/, 'identity links store a one-way HMAC');
 
 // bot guard
 assert.equal(BOT_UA.test('Mozilla/5.0 (compatible; Googlebot/2.1)'), true, 'bot detected');

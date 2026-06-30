@@ -1,6 +1,14 @@
 # What Wise Cloud Can Do Today
 
-**Last verified:** 2026-06-29 (Arabic platform foundation)
+**Last verified:** 2026-06-30 (Admin analytics and signup visibility)
+
+## Trustworthy traffic and signup visibility (2026-06-30)
+
+**What was the situation:** The admin dashboard mixed page views, anonymous visitors, active accounts, and signups, so some cards repeated the same number and could not be opened for details.
+
+**What changed:** Traffic now separates sessions, page views, unique visitors, signed-in active users, and new Appwrite account registrations. Users has a dedicated Signups view with search and filters, while metric cards identify their source and warn when a range is incomplete.
+
+**What you'll notice:** You can see how many sessions happened today in Cairo time, inspect recent session journeys, find newly registered accounts, and distinguish anonymous traffic from real signed-in users. Persistent tracking before consent remains disabled until privacy approval.
 
 ## Arabic platform support (2026-06-29)
 

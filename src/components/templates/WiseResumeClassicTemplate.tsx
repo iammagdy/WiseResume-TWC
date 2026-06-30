@@ -145,7 +145,11 @@ function normalizeClassicData(resume: ClassicResumeInput): ClassicData {
       detail: exp.account,
       start: exp.startDate,
       end: exp.current ? 'Present' : exp.endDate,
-      highlights: [...(exp.achievements ?? []), ...(exp.responsibilities ?? [])].filter(Boolean),
+      highlights: [
+        ...(exp.description ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+        ...(exp.achievements ?? []),
+        ...(exp.responsibilities ?? []),
+      ].filter((highlight, highlightIndex, highlights) => highlights.indexOf(highlight) === highlightIndex),
     })),
     education: (resume.education ?? []).map((edu, index) => ({
       id: edu.id || `education-${index}`,

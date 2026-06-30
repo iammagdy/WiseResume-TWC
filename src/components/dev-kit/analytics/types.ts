@@ -4,10 +4,12 @@ export interface KpiPair {
   current: number;
   previous: number;
 }
+export interface NullableKpiPair { current: number | null; previous: number | null }
 
 export interface RangeKpis {
   views: KpiPair;
   activeUsers: KpiPair;
+  signups: NullableKpiPair;
   aiCredits: KpiPair;
   portfolioViews: KpiPair;
   stickiness: number;

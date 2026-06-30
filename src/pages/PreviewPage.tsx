@@ -18,7 +18,7 @@ import { getDocumentLocale } from '@/i18n/resumeLocale';
 import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 import { migrateTemplateId } from '@/lib/templateMigration';
-import { dbToResumeData, useResume } from '@/hooks/useResumes';
+import { dbToResumeData, useResume, useResumeMutations } from '@/hooks/useResumes';
 
 import { templateComponentMap } from '@/lib/templateComponentMap';
 
@@ -97,14 +97,16 @@ export default function PreviewPage() {
   );
   const [autoExportFallback, setAutoExportFallback] = useState<string | null>(null);
   const resumeIdFromUrl = searchParams.get('id');
+  const bootstrappedResumeIdRef = useRef<string | null>(null);
+  const { updateResume: persistResume } = useResumeMutations();
 
   const needsResumeBootstrap =
-    !!resumeIdFromUrl && (!currentResume || currentResume.id !== resumeIdFromUrl);
+    !!resumeIdFromUrl && bootstrappedResumeIdRef.current !== resumeIdFromUrl;
   const {
     data: bootstrapResumeDoc,
     isLoading: isBootstrapResumeLoading,
     isFetching: isBootstrapResumeFetching,
-  } = useResume(needsResumeBootstrap ? resumeIdFromUrl : null);
+  } = useResume(resumeIdFromUrl);
 
   const isBootstrapPending =
     !!resumeIdFromUrl &&
@@ -114,7 +116,11 @@ export default function PreviewPage() {
     !needsResumeBootstrap || !!bootstrapResumeDoc || (!isBootstrapResumeLoading && !isBootstrapResumeFetching);
 
   const isPreviewReady =
-    !!currentResume && (!resumeIdFromUrl || currentResume.id === resumeIdFromUrl);
+    !!currentResume &&
+    (!resumeIdFromUrl || (
+      currentResume.id === resumeIdFromUrl &&
+      bootstrappedResumeIdRef.current === resumeIdFromUrl
+    ));
 
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
@@ -125,22 +131,35 @@ export default function PreviewPage() {
 
   useEffect(() => {
     if (!resumeIdFromUrl || !bootstrapResumeDoc) return;
+    if (bootstrappedResumeIdRef.current === resumeIdFromUrl) return;
     const loadedResume = dbToResumeData(bootstrapResumeDoc);
+    bootstrappedResumeIdRef.current = resumeIdFromUrl;
     setCurrentResume(loadedResume);
     setCurrentResumeId(loadedResume.id ?? resumeIdFromUrl);
     setSelectedTemplate(
       migrateTemplateId(
-        (bootstrapResumeDoc.template || loadedResume.templateId || selectedTemplate) as string,
+        (bootstrapResumeDoc.template || loadedResume.templateId) as string,
       ) as TemplateId,
     );
   }, [
     bootstrapResumeDoc,
     resumeIdFromUrl,
-    selectedTemplate,
     setCurrentResume,
     setCurrentResumeId,
     setSelectedTemplate,
   ]);
+
+  const handleTemplateApplied = useCallback(async (templateId: TemplateId) => {
+    if (!currentResume?.id) return;
+    try {
+      await persistResume.mutateAsync({
+        resumeId: currentResume.id,
+        updates: { templateId },
+      });
+    } catch {
+      toast.error('Could not save the selected template. Please try again.');
+    }
+  }, [currentResume?.id, persistResume]);
 
   useEffect(() => {
     const el = resumeRef.current;
@@ -906,6 +925,7 @@ export default function PreviewPage() {
         <TemplateSelector
           open={showTemplateSheet}
           onOpenChange={setShowTemplateSheet}
+          onTemplateApplied={handleTemplateApplied}
         />
         <PageBreakSetupDialog
           open={pageBreakOpen}

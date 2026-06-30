@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { AdminSignupsPanel } from './AdminSignupsPanel';
 
 export interface AdminUser {
   $id: string;
@@ -94,6 +95,7 @@ export const AdminUsersPanel = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [usersView, setUsersView] = useState<'all' | 'signups'>('all');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
@@ -162,7 +164,12 @@ export const AdminUsersPanel = () => {
         'admin-devkit-data',
         {
           headers: devKitAuthHeaders(),
-          body: { action: 'list-users-page', page: p, pageSize: PAGE_SIZE, sortField },
+          body: {
+            action: 'list-users-page', page: p, pageSize: PAGE_SIZE, sortField,
+            search: searchTerm,
+            sort: sortBy === 'joined' ? 'joined_desc' : 'active_desc',
+            filters: filter === 'all' ? {} : filter === 'suspended' ? { status: 'suspended' } : { plan: filter },
+          },
         },
       );
       const result = unwrapAdminResponse<{ users?: AdminUser[]; total?: number }>(tuple, 'admin-devkit-data');
@@ -181,11 +188,14 @@ export const AdminUsersPanel = () => {
     } finally {
       setLoading(false);
     }
-  }, [sortBy]);
+  }, [sortBy, searchTerm, filter]);
 
   useEffect(() => {
-    fetchPage(page);
-    fetchGlobalStats();
+    const timer = window.setTimeout(() => {
+      fetchPage(page);
+      fetchGlobalStats();
+    }, 250);
+    return () => window.clearTimeout(timer);
   }, [fetchPage, fetchGlobalStats, page]);
 
   const refresh = () => {
@@ -508,6 +518,16 @@ export const AdminUsersPanel = () => {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  if (usersView === 'signups') {
+    return <div className="space-y-5">
+      <div className="inline-flex rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="User management views">
+        <button role="tab" aria-selected={false} className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-foreground" onClick={() => setUsersView('all')}>All users</button>
+        <button role="tab" aria-selected className="rounded-lg bg-background px-4 py-2 text-sm font-medium shadow-sm" onClick={() => setUsersView('signups')}>Signups</button>
+      </div>
+      <AdminSignupsPanel />
+    </div>;
+  }
+
   if (loading && users.length === 0) {
     return <DevKitLoading text="Loading real-time user data…" />;
   }
@@ -525,6 +545,10 @@ export const AdminUsersPanel = () => {
 
   return (
     <div className="space-y-5 min-h-0">
+      <div className="inline-flex rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="User management views">
+        <button role="tab" aria-selected className="rounded-lg bg-background px-4 py-2 text-sm font-medium shadow-sm" onClick={() => setUsersView('all')}>All users</button>
+        <button role="tab" aria-selected={false} className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-foreground" onClick={() => setUsersView('signups')}>Signups</button>
+      </div>
       <ActAsDialog session={actAsSession} onClose={() => setActAsSession(null)} />
       {drawerUser && (
         <UserDetailDrawer

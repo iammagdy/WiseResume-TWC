@@ -10,7 +10,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards';
+import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards.js';
 // @sparticuz/chromium v120+ is ESM-only. Vercel's ncc bundler outputs CJS, so a
 // static import would cause ERR_MODULE_NOT_FOUND at runtime. Dynamic import()
 // makes ncc treat it as external — Node.js loads it as ESM from node_modules.

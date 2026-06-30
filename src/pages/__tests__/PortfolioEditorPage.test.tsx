@@ -4,6 +4,7 @@ import { mockProfile, mockResumes } from "../../test/mocks/data";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
+import { LocaleProvider } from "@/i18n/LocaleProvider";
 
 vi.mock("bcryptjs", () => ({
   default: {
@@ -109,7 +110,9 @@ const queryClient = new QueryClient({
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <MemoryRouter>
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <LocaleProvider initialLocale="en">
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </LocaleProvider>
   </MemoryRouter>
 );
 

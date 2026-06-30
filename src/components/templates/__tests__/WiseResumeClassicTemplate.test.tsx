@@ -90,4 +90,22 @@ describe('WiseResume Classic template', () => {
     expect(container.querySelector('[data-resume-template]')).toBeTruthy();
     expect(container.textContent).not.toContain('—');
   });
+
+  it('renders editable experience description text alongside imported highlights', () => {
+    const resume = {
+      ...sampleResume,
+      experience: [{
+        ...sampleResume.experience[0],
+        description: 'Led the product roadmap and customer discovery.',
+        achievements: ['Improved conversion by 20%.'],
+        responsibilities: ['Managed release planning.'],
+      }],
+    };
+
+    render(<WiseResumeClassicTemplate resume={resume} />);
+
+    expect(screen.getByText('Led the product roadmap and customer discovery.')).toBeInTheDocument();
+    expect(screen.getByText('Improved conversion by 20%.')).toBeInTheDocument();
+    expect(screen.getByText('Managed release planning.')).toBeInTheDocument();
+  });
 });

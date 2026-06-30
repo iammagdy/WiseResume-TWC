@@ -162,10 +162,25 @@ async function run() {
   await sleep(200);
   await ensureBooleanAttr(VISITOR_EVENTS_ID, 'is_returning', false);
   await sleep(200);
+  await ensureStringAttr(VISITOR_EVENTS_ID, 'consent_state', 16, false);
+  await sleep(200);
+  await ensureStringAttr(VISITOR_EVENTS_ID, 'occurred_at', 32, false);
+  await sleep(200);
+  await ensureBooleanAttr(VISITOR_EVENTS_ID, 'is_internal', false);
+  await sleep(200);
+  await ensureBooleanAttr(VISITOR_EVENTS_ID, 'is_bot', false);
+  await sleep(200);
+  await ensureStringAttr(VISITOR_EVENTS_ID, 'identity_version', 16, false);
+  await sleep(200);
 
   // Safe indexes on normal attributes only (NOT on $createdAt — system field)
   await ensureIndex(VISITOR_EVENTS_ID, 'idx_visitor_events_page', 'page');
   await sleep(200);
+  await ensureIndex(VISITOR_EVENTS_ID, 'idx_visitor_events_session', 'session_id');
+  await sleep(200);
+  await ensureIndex(VISITOR_EVENTS_ID, 'idx_visitor_events_anon', 'anon_id');
+  await sleep(200);
+  await ensureIndex(VISITOR_EVENTS_ID, 'idx_visitor_events_user', 'user_id');
 
   // Note: $createdAt index is NOT supported by Appwrite (system field).
   // Time-range queries use sdk.Query.greaterThanEqual('$createdAt', ...) which

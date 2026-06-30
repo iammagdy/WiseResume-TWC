@@ -143,7 +143,10 @@ export const useResumeStore = create<ResumeState>()(
 
       setPendingSummaryGeneration: (pending) => set({ pendingSummaryGeneration: pending }),
 
-      setCurrentResume: (resume) => set({ currentResume: resume }),
+      setCurrentResume: (resume) => set({
+        currentResume: resume,
+        ...(resume ? { selectedTemplate: migrateTemplateId(resume.templateId) } : {}),
+      }),
       setCurrentResumeId: (id) => set({ currentResumeId: id }),
       setIsSaving: (saving) => set({ isSaving: saving }),
       setLastSavedAt: (date) => set({ lastSavedAt: date }),

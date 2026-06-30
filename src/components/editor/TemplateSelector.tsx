@@ -16,7 +16,7 @@ import { useProfile, CareerLevel } from '@/hooks/useProfile';
 interface TemplateSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTemplateApplied?: () => void;
+  onTemplateApplied?: (templateId: TemplateId) => void;
 }
 
 const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
@@ -72,7 +72,7 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
       }
     }
     onOpenChange(false);
-    onTemplateApplied?.();
+    onTemplateApplied?.(id);
   };
 
   // Use sample data if no resume loaded

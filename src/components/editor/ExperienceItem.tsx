@@ -78,6 +78,19 @@ export const ExperienceItem = memo(function ExperienceItem({
     onUpdate(exp.id, { description: e.target.value });
   }, [exp.id, onUpdate]);
 
+  const importedHighlights = useMemo(
+    () => [...(exp.achievements ?? []), ...(exp.responsibilities ?? [])].filter(Boolean).join('\n'),
+    [exp.achievements, exp.responsibilities],
+  );
+
+  const handleHighlightsChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const highlights = e.target.value
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    onUpdate(exp.id, { achievements: highlights, responsibilities: [] });
+  }, [exp.id, onUpdate]);
+
   const handleDelete = useCallback(() => {
     onDelete(exp.id);
   }, [exp.id, onDelete]);
@@ -99,8 +112,9 @@ export const ExperienceItem = memo(function ExperienceItem({
   const hasBracketPlaceholders = useMemo(() => {
     const BRACKET_RE = /\[[^\]]*?\]/;
     return BRACKET_RE.test(exp.description || '') ||
-      (exp.achievements || []).some(a => BRACKET_RE.test(a));
-  }, [exp.description, exp.achievements]);
+      (exp.achievements || []).some(a => BRACKET_RE.test(a)) ||
+      (exp.responsibilities || []).some(a => BRACKET_RE.test(a));
+  }, [exp.description, exp.achievements, exp.responsibilities]);
 
   const [hasTouched, setHasTouched] = useState(false);
   const handleFieldBlur = useCallback(() => setHasTouched(true), []);
@@ -297,6 +311,24 @@ export const ExperienceItem = memo(function ExperienceItem({
                 placeholder={t('editor.experience.descriptionPlaceholder', 'Describe your responsibilities and achievements...')}
                 className="min-h-[120px] resize-none text-base"
               />
+              {(importedHighlights || exp.achievements || exp.responsibilities) && (
+                <div className="mt-3">
+                  <Label htmlFor={`exp-${exp.id}-highlights`} className="text-sm">
+                    {t('editor.experience.highlightsLabel', 'Highlights / imported bullet points')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">
+                    {t('editor.experience.highlightsTip', 'One bullet per line. These points appear in the CV preview and export.')}
+                  </p>
+                  <Textarea
+                    id={`exp-${exp.id}-highlights`}
+                    dir="auto"
+                    value={importedHighlights}
+                    onChange={handleHighlightsChange}
+                    placeholder={t('editor.experience.highlightsPlaceholder', 'One bullet point per line')}
+                    className="min-h-[120px] resize-y text-base"
+                  />
+                </div>
+              )}
               {hasBracketPlaceholders && (
                 <div className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-warning-foreground mt-2">
                   <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-warning" />

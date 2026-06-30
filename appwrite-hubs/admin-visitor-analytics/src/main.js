@@ -22,6 +22,7 @@
 
 const sdk = require('node-appwrite');
 const crypto = require('crypto');
+const { cairoDayBounds, summarizeVisitorEvents, buildMetricMeta, aggregateByCairoDay } = require('./metrics.cjs');
 
 // ─── Config ────────────────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ async function fetchAll(databases, collectionId, queries = []) {
 }
 
 function todayStartIso() {
-  return new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+  return cairoDayBounds(new Date()).from;
 }
 
 async function fetchTotalEventCount(databases) {
@@ -274,11 +275,19 @@ function computeSessions(docs, pageNum) {
         pageCount: 0,
         eventCount: 0,
         durationSeconds: 0,
+        pages: [],
+        referrer: d.referrer || null,
+        utm_source: d.utm_source || null,
+        utm_medium: d.utm_medium || null,
+        utm_campaign: d.utm_campaign || null,
       };
     }
     const sess = sessionMap[sid];
     sess.eventCount++;
-    if (d.event_type === 'page_view') sess.pageCount++;
+    if (d.event_type === 'page_view') {
+      sess.pageCount++;
+      if (d.page && !sess.pages.includes(d.page)) sess.pages.push(d.page);
+    }
     if (d.$createdAt < sess.firstSeen) sess.firstSeen = d.$createdAt;
     if (d.$createdAt > sess.lastSeen) sess.lastSeen = d.$createdAt;
   }
@@ -556,7 +565,7 @@ function ago(ms) {
 /** ISO boundary for range string */
 function rangeStart(range) {
   const map = {
-    today: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
+    today: cairoDayBounds(new Date()).from,
     '24h': ago(24 * 3600000),
     '7d':  ago(7  * 86400000),
     '30d': ago(30 * 86400000),
@@ -740,6 +749,43 @@ async function handleDashboard(databases, range, pageNum) {
     perfMetrics: perfMetrics || { avgLoadMs: null, avgFcpMs: null, p75LoadMs: null, fast: 0, ok: 0, slow: 0, count: 0 },
     errors: Object.keys(errors).length > 0 ? errors : undefined,
   };
+}
+
+async function handleSummary(databases, range) {
+  const { docs, todayDocs, truncated } = await loadRangeDocs(databases, range);
+  const today = summarizeVisitorEvents(todayDocs);
+  const selectedRange = summarizeVisitorEvents(docs);
+  return {
+    today,
+    range: selectedRange,
+    bounds: cairoDayBounds(new Date()),
+    meta: {
+      ...buildMetricMeta({ truncated, source: 'visitor_events' }),
+      generatedAt: new Date().toISOString(),
+      eventsInRange: docs.length,
+    },
+  };
+}
+
+async function handleRetentionMaintenance(databases) {
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
+  const expiredEvents = await fetchAll(databases, COLLECTION_VISITOR_EVENTS, [sdk.Query.lessThan('$createdAt', cutoff)]);
+  const aggregates = aggregateByCairoDay(expiredEvents);
+  for (const day of aggregates) {
+    const payload = {
+      date: day.date, timezone: 'Africa/Cairo', sessions: day.sessions,
+      page_views: day.pageViews, unique_visitors: day.uniqueVisitors,
+      authenticated_active_users: day.authenticatedActiveUsers, signups: 0,
+      generated_at: new Date().toISOString(),
+    };
+    const id = `day_${day.date}`;
+    try { await databases.createDocument(DB_ID, 'visitor_daily_aggregates', id, payload); }
+    catch (error) { if (error && error.code === 409) await databases.updateDocument(DB_ID, 'visitor_daily_aggregates', id, payload); else throw error; }
+  }
+  for (const event of expiredEvents) await databases.deleteDocument(DB_ID, COLLECTION_VISITOR_EVENTS, event.$id).catch(() => undefined);
+  const expiredLinks = await fetchAll(databases, 'visitor_identity_links', [sdk.Query.lessThan('linked_at', cutoff)]);
+  for (const link of expiredLinks) await databases.deleteDocument(DB_ID, 'visitor_identity_links', link.$id).catch(() => undefined);
+  return { cutoff, aggregatedDays: aggregates.length, deletedEvents: expiredEvents.length, deletedIdentityLinks: expiredLinks.length, truncated: expiredEvents.length >= MAX_TOTAL_DOCS };
 }
 
 function getISOWeekLabel(date) {
@@ -958,6 +1004,16 @@ module.exports = async ({ req, res, log, error }) => {
 
       case 'sessions': {
         const data = await handleSessions(databases, range, body.page_num || 0);
+        return res.json({ success: true, data });
+      }
+
+      case 'summary': {
+        const data = await handleSummary(databases, range);
+        return res.json({ success: true, data });
+      }
+
+      case 'retention-maintenance': {
+        const data = await handleRetentionMaintenance(databases);
         return res.json({ success: true, data });
       }
 

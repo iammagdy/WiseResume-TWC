@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-26
+**Last verified:** 2026-06-30
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -2867,3 +2867,10 @@ The repository had multiple competing documentation surfaces. Some older docs st
 
 ### Verification
 This was a documentation-only change. No application code was changed and no runtime test suite was required.
+## 2026-06-30 - DevKit analytics accuracy and signup visibility
+
+- Separated sessions, page views, anonymous visitors, authenticated active users, and Auth signups into independent metrics with explicit sources and partial-data status.
+- Added an Appwrite Auth-backed Signups view under Users plus global server-side user search, filters and sorting.
+- Added privacy-gated identity linking, 90-day raw analytics retention, daily aggregate schema, and account-deletion cleanup.
+- Added regression coverage for Cairo day boundaries, metric definitions, user queries, tracking metadata, bots, throttling, and one-way identity hashes.
+- Verification completed with a successful production build and 744 passing Vitest tests (1 todo, 1 skipped).

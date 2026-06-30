@@ -34,6 +34,8 @@ An AI-powered career platform with two products:
 - Public Arabic URLs use `/ar/...`; authenticated routes are not prefixed. Each resume separately stores `customization.documentLocale`.
 - Arabic PDF and cover-letter export uses Chromium with bundled Noto Sans Arabic. Arabic DOCX uses RTL document/run properties, and Arabic LaTeX targets XeLaTeX while English remains pdflatex.
 - Page cuts are keyed by template, page format, document locale, fonts, and scale. Legacy page cuts are English-only fallback data.
+- DevKit analytics uses `Africa/Cairo` day boundaries and keeps sessions, page views, anonymous visitors, authenticated users, and Appwrite Auth signups as separate metrics. Raw visitor events and one-way identity links have a 90-day retention path, with older traffic rolled into `visitor_daily_aggregates`.
+- Persistent pre-consent visitor identity is guarded by `VITE_ENABLE_PRECONSENT_PERSISTENT_ID=false` and requires `ANALYTICS_IDENTITY_SECRET` plus privacy/legal approval before activation.
 
 ## User Preferences
 - Keep existing code structure and patterns

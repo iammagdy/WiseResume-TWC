@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-06-30 - Keep resume edits, templates, and imported bullets consistent
+
+- **Resume selection state** (`src/store/resumeStore.ts`, `src/components/dashboard/ResumeListCard.tsx`): loading a resume now synchronizes its saved template, while dashboard PDF actions open an ID-addressed authoritative preview instead of overwriting the active resume with a stale list snapshot.
+- **Preview template flow** (`src/pages/PreviewPage.tsx`, `src/components/editor/TemplateSelector.tsx`): URL previews always fetch the requested resume, bootstrap once per resume, wait for authoritative data before export, and persist template changes without the bootstrap effect reverting them.
+- **Imported experience content** (`src/components/editor/ExperienceItem.tsx`, `src/components/templates/WiseResumeClassicTemplate.tsx`): exposed imported achievements/responsibilities as editable newline-separated highlights and made WiseResume Classic render the editable description together with those highlights.
+- **Regression coverage** (`PreviewPage.test.tsx`, `EditorComponents-D2.test.tsx`, `WiseResumeClassicTemplate.test.tsx`, `resumeStore.template.test.ts`): covered same-ID refresh, non-reverting/persisted template selection, template synchronization, visible imported bullets, and Classic description rendering.
+
+## 2026-06-30 - Restore production PDF function startup
+
+- **Vercel PDF endpoint** (`api/export/pdf-native.ts`): changed the shared SSRF guard import to an explicit `.js` runtime specifier so Node.js can resolve the compiled module inside the Vercel serverless function bundle.
+- **Regression coverage** (`src/lib/security/pdfNativeRuntimeImports.test.ts`): added a packaging contract that rejects extensionless relative runtime imports in the PDF function.
+- **Verification**: reproduced production `POST /api/export/pdf-native` failures as `ERR_MODULE_NOT_FOUND`, passed the focused Vitest and TypeScript checks, generated the Vercel function bundle, confirmed the compiled guard file is included, and loaded/invoked the bundled handler successfully.
+
+## 2026-06-30 - Accurate DevKit analytics and signup administration
+
+- **Analytics contracts** (`appwrite-hubs/admin-visitor-analytics/src/metrics.cjs`, `admin-visitor-analytics/src/main.js`): added Cairo-day boundaries, distinct session/page-view/visitor/authenticated-user metrics, completeness metadata, session detail, retention aggregation, and 90-day raw-event cleanup.
+- **Auth-backed signups and user queries** (`appwrite-hubs/admin-devkit-data/src/user-query.cjs`, `admin-devkit-data/src/main.js`): added `list-signups`/`signup-summary`, global server-side search/filter/sort, Appwrite Auth signup totals, attribution enrichment, and analytics identity cleanup during account deletion.
+- **DevKit UI** (`AnalyticsPanel.tsx`, `AdminSignupsPanel.tsx`, `AdminUsersPanel.tsx`): replaced ambiguous KPI fallbacks with six source-labelled metrics, partial-data warnings and drill-downs; added Users > Signups with date, verification, profile, resume and search filters.
+- **Tracking and schema** (`visitorTrack.ts`, `track-visitor-event`, `setup_visitor_events_schema.cjs`, `setup_admin_analytics_schema.cjs`): added privacy state fields, feature-gated persistent pre-consent identity, HMAC identity links, visitor aggregate collections, retention fields and indexes.
+- **Verification**: added focused hub tests for Cairo boundaries, metric semantics, global user queries, privacy metadata, HMAC identity handling, bot exclusion and rate limiting; `npm run build` passed and the full Vitest suite completed with 744 passed, 1 todo, and 1 skipped.
+
 ## 2026-06-30 - Arabic authenticated-app recovery sweep
 
 - **Arabic recovery pass** (`src/pages/*`, `src/components/*`, `locales/ar/*`): repaired broken Arabic catalog values, removed `????`/corrupted key values from critical authenticated-app surfaces, and normalized the highest-impact settings, profile, applications, upload/import, portfolio editor, dashboard, and WiseHire shell UI onto `useLocale()` + `t(...)`.

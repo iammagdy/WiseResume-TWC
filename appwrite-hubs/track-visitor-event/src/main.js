@@ -30,11 +30,13 @@ const crypto = require('crypto');
 
 const DB_ID = 'main';
 const VISITOR_EVENTS_ID = 'visitor_events';
+const VISITOR_IDENTITY_LINKS_ID = 'visitor_identity_links';
 const ENDPOINT =
   process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID =
   process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
 const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+const IDENTITY_SECRET = process.env.ANALYTICS_IDENTITY_SECRET || '';
 
 const MAX_EVENTS_PER_REQUEST = 20;
 const ALLOWED_EVENT_TYPES = new Set(['page_view', 'click', 'section_view', 'feature_use', 'session_end', 'perf']);
@@ -43,7 +45,7 @@ const BOT_UA =
 // Optional attributes that may not exist on the collection yet. The write
 // strips these and retries on an unknown-attribute error so ingestion never
 // fails just because the schema has not been extended.
-const OPTIONAL_FIELDS = ['referrer', 'os', 'duration_ms', 'label', 'utm_source', 'utm_medium', 'utm_campaign', 'is_returning'];
+const OPTIONAL_FIELDS = ['referrer', 'os', 'duration_ms', 'label', 'utm_source', 'utm_medium', 'utm_campaign', 'is_returning', 'consent_state', 'occurred_at', 'is_internal', 'is_bot', 'identity_version'];
 
 // ── Server-side country resolution ──────────────────────────────────────────
 // Appwrite injects x-appwrite-country-code and x-appwrite-client-ip headers.
@@ -183,11 +185,40 @@ function sanitize(ev) {
     utm_medium: str(ev.utm_medium, 64),
     utm_campaign: str(ev.utm_campaign, 128),
     is_returning: typeof ev.is_returning === 'boolean' ? ev.is_returning : undefined,
+    consent_state: ['pending', 'granted', 'rejected'].includes(ev.consent_state) ? ev.consent_state : undefined,
+    occurred_at: str(ev.occurred_at, 32),
+    is_internal: typeof ev.is_internal === 'boolean' ? ev.is_internal : undefined,
+    is_bot: typeof ev.is_bot === 'boolean' ? ev.is_bot : undefined,
+    identity_version: str(ev.identity_version, 16),
   };
   for (const key of Object.keys(doc)) {
     if (doc[key] === undefined) delete doc[key];
   }
   return doc;
+}
+
+function hashAnonId(anonId, secret = IDENTITY_SECRET) {
+  if (!anonId || !secret) return null;
+  return crypto.createHmac('sha256', secret).update(String(anonId)).digest('hex');
+}
+
+async function linkIdentity(databases, doc) {
+  if (!doc.user_id || !doc.anon_id) return;
+  const anonHash = hashAnonId(doc.anon_id);
+  if (!anonHash) return;
+  const documentId = anonHash.slice(0, 36);
+  const payload = {
+    anon_id_hash: anonHash,
+    user_id: doc.user_id,
+    linked_at: new Date().toISOString(),
+    consent_state: doc.consent_state || 'pending',
+    identity_version: doc.identity_version || 'v2',
+  };
+  try {
+    await databases.createDocument(DB_ID, VISITOR_IDENTITY_LINKS_ID, documentId, payload);
+  } catch (e) {
+    if (e && e.code === 409) await databases.updateDocument(DB_ID, VISITOR_IDENTITY_LINKS_ID, documentId, payload);
+  }
 }
 
 async function writeEvent(databases, doc) {
@@ -257,6 +288,7 @@ async function handler({ req, res, error }) {
     }
     try {
       await writeEvent(databases, doc);
+      await linkIdentity(databases, doc).catch(() => undefined);
       written += 1;
     } catch (e) {
       if (error) error(`visitor_events write failed: ${(e && e.message) || e}`);
@@ -267,4 +299,4 @@ async function handler({ req, res, error }) {
 }
 
 module.exports = handler;
-module.exports.__test = { sanitize, BOT_UA, ALLOWED_EVENT_TYPES, rateLimitKey, isRateLimited, RL_MAX_PER_WINDOW };
+module.exports.__test = { sanitize, BOT_UA, ALLOWED_EVENT_TYPES, rateLimitKey, isRateLimited, RL_MAX_PER_WINDOW, hashAnonId };

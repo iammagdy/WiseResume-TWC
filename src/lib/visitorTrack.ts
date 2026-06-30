@@ -161,6 +161,11 @@ export interface VisitorEvent {
   utm_medium?: string;
   utm_campaign?: string;
   is_returning?: boolean;
+  consent_state: 'pending' | 'granted' | 'rejected';
+  occurred_at: string;
+  is_internal: boolean;
+  is_bot: boolean;
+  identity_version: 'v2';
 }
 
 // ---------------------------------------------------------------------------
@@ -223,14 +228,26 @@ export function setVisitorUserId(id: string | null): void {
 function buildBaseEvent(useConsented: boolean): Omit<VisitorEvent, 'event_type' | 'page'> {
   const ua = navigator.userAgent;
   const country = getCachedCountry();
+  const persistentPreConsent = import.meta.env.VITE_ENABLE_PRECONSENT_PERSISTENT_ID === 'true';
+  const usePersistentIdentity = useConsented || persistentPreConsent;
+  let consentState: VisitorEvent['consent_state'] = 'pending';
+  try {
+    const stored = localStorage.getItem(CONSENT_KEY);
+    if (stored === 'granted' || stored === 'rejected') consentState = stored;
+  } catch { /* ignore */ }
   return {
-    anon_id:     useConsented ? getOrCreateAnonId() : getEphemeralId(),
-    user_id:     useConsented ? _userId : null,
+    anon_id:     usePersistentIdentity ? getOrCreateAnonId() : getEphemeralId(),
+    user_id:     usePersistentIdentity ? _userId : null,
     session_id:  getOrCreateSessionId(),
     referrer:    document.referrer || undefined,
     device_type: detectDevice(ua),
     browser:     detectBrowser(ua),
     os:          detectOS(ua),
+    consent_state: consentState,
+    occurred_at: new Date().toISOString(),
+    is_internal: false,
+    is_bot: false,
+    identity_version: 'v2',
     ...(country ? { country } : {}),
     ...(_utmParams.utm_source ? { utm_source: _utmParams.utm_source } : {}),
     ...(_utmParams.utm_medium ? { utm_medium: _utmParams.utm_medium } : {}),

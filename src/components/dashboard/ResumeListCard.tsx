@@ -846,12 +846,11 @@ export const ResumeListCard = memo(function ResumeListCard({
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">{t('app.resumeCard.actions', 'Actions')}</p>
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => {
               haptics.light(); setShowActionsSheet(false);
-              // Load resume into store and navigate to preview for download
-              const { setCurrentResumeId, setCurrentResume, setSelectedTemplate } = useResumeStore.getState();
+              // Let preview fetch the authoritative document. Reusing the card
+              // snapshot here can overwrite edits while the dashboard list is refetching.
+              const { setCurrentResumeId } = useResumeStore.getState();
               setCurrentResumeId(resume.$id);
-              setCurrentResume(dbToResumeData(resume));
-              if (resume.template_id) setSelectedTemplate(resume.template_id as import('@/types/resume').TemplateId);
-              navigateToEditor('/preview?action=download');
+              navigateToEditor(`/preview?id=${encodeURIComponent(resume.$id)}&action=download`);
             }}>
               <Download className="w-5 h-5 text-muted-foreground" /><span className="text-sm">{t('app.resumeCard.downloadPdf', 'Download PDF')}</span>
             </button>

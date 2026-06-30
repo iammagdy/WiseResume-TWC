@@ -3,6 +3,7 @@
 const sdk = require('node-appwrite');
 const axios = require('axios');
 const crypto = require('crypto');
+const { normalizeUserQuery, filterAndSortUsers } = require('./user-query.cjs');
 
 const DB_ID = 'main';
 const SESSION_TTL_MS = 60 * 60 * 1000;
@@ -800,16 +801,21 @@ async function handleGlobalStats(log) {
 }
 
 async function handleListUsersPage(body, log) {
-  const pageSize = Math.min(Math.max(1, Number(body.pageSize || body.per_page) || 25), 100);
+  const normalized = normalizeUserQuery({
+    ...body,
+    sort: body.sort || (body.sortField === '$updatedAt' ? 'active_desc' : 'joined_desc'),
+  });
+  const pageSize = normalized.pageSize;
   const requestedPage = Number(body.page);
   const page = Number.isFinite(requestedPage)
     ? Math.max(0, requestedPage > 0 && body.per_page ? requestedPage - 1 : requestedPage)
     : 0;
-  const search = String(body.search || body.query || '').trim().toLowerCase();
+  const search = normalized.search;
   const filterUnconfirmed = body.filter_unconfirmed === true;
+  const hasServerFilters = Object.keys(normalized.filters).length > 0;
 
   let authPage;
-  if (search || filterUnconfirmed) {
+  if (search || filterUnconfirmed || hasServerFilters) {
     // Cap at 2000 to prevent the unbounded pagination loop from hitting the
     // function timeout on large user bases. Search/filter is client-side.
     const MAX_SEARCH_USERS = 2000;
@@ -831,12 +837,37 @@ async function handleListUsersPage(body, log) {
         String(u.name || '').toLowerCase().includes(search)
       );
     }
+    const [filterProfilesPage, filterSubsPage] = await Promise.all([
+      safeList(null, 'profiles', [sdk.Query.limit(500)]),
+      safeList(null, 'subscriptions', [sdk.Query.limit(500)]),
+    ]);
+    const filterProfiles = new Map((filterProfilesPage.documents || []).map(profile => [profile.user_id, profile]));
+    const filterSubs = new Map((filterSubsPage.documents || []).map(subscription => [subscription.user_id, subscription]));
+    const enrich = new Map(users.map(user => {
+      const profile = filterProfiles.get(user.$id) || null;
+      const subscription = filterSubs.get(user.$id) || null;
+      return [user.$id, {
+        profile,
+        plan: subscription?.effective_plan || subscription?.plan || profile?.plan || 'free',
+        isSuspended: profile?.is_suspended === true,
+        accountType: profile?.account_type || 'job_seeker',
+        lastActive: user.$updatedAt || user.$createdAt,
+      }];
+    }));
+    users = filterAndSortUsers(users, normalized, enrich);
     authPage = {
       users: users.slice(page * pageSize, page * pageSize + pageSize),
       total: users.length,
     };
   } else {
-    authPage = await listUsers([sdk.Query.limit(pageSize), sdk.Query.offset(page * pageSize)]);
+    const orderQuery = normalized.sort === 'joined_asc'
+      ? sdk.Query.orderAsc('$createdAt')
+      : normalized.sort === 'active_asc'
+        ? sdk.Query.orderAsc('$updatedAt')
+        : normalized.sort === 'active_desc'
+          ? sdk.Query.orderDesc('$updatedAt')
+          : sdk.Query.orderDesc('$createdAt');
+    authPage = await listUsers([orderQuery, sdk.Query.limit(pageSize), sdk.Query.offset(page * pageSize)]);
   }
 
   const userIds = authPage.users.map(u => u.$id);
@@ -898,6 +929,83 @@ async function handleListUsersPage(body, log) {
       };
     }),
     total: authPage.total,
+  };
+}
+
+async function handleListSignups(body, log) {
+  const query = normalizeUserQuery(body);
+  const auth = await listAllAuthUsers();
+  const profilesPage = await safeList(null, 'profiles', [sdk.Query.limit(500)]);
+  const subscriptionsPage = await safeList(null, 'subscriptions', [sdk.Query.limit(500)]);
+  const resumesPage = await safeList(null, 'resumes', [sdk.Query.limit(500)]);
+  const eventsPage = await safeList(null, 'visitor_events', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(5000)]);
+  const profiles = new Map((profilesPage.documents || []).map(profile => [profile.user_id, profile]));
+  const subscriptions = new Map((subscriptionsPage.documents || []).map(subscription => [subscription.user_id, subscription]));
+  const resumeCountMap = new Map();
+  for (const resume of resumesPage.documents || []) resumeCountMap.set(resume.user_id, (resumeCountMap.get(resume.user_id) || 0) + 1);
+  const activity = new Map();
+  for (const event of eventsPage.documents || []) {
+    if (!event.user_id) continue;
+    const current = activity.get(event.user_id);
+    if (!current || event.$createdAt > current.lastActive) {
+      activity.set(event.user_id, {
+        lastActive: event.$createdAt,
+        source: event.utm_source || null,
+        medium: event.utm_medium || null,
+        campaign: event.utm_campaign || null,
+        anonId: event.anon_id || null,
+      });
+    }
+  }
+  const enrich = new Map(auth.users.map(user => {
+    const profile = profiles.get(user.$id) || null;
+    const subscription = subscriptions.get(user.$id) || null;
+    const event = activity.get(user.$id) || null;
+    return [user.$id, {
+      profile,
+      plan: subscription?.effective_plan || subscription?.plan || profile?.plan || 'free',
+      isSuspended: profile?.is_suspended === true,
+      accountType: profile?.account_type || 'job_seeker',
+      lastActive: event?.lastActive || user.$updatedAt || user.$createdAt,
+      resumeCount: resumeCountMap.get(user.$id) || 0,
+    }];
+  }));
+  const filtered = filterAndSortUsers(auth.users, query, enrich);
+  const start = query.page * query.pageSize;
+  const pageUsers = filtered.slice(start, start + query.pageSize);
+  const users = pageUsers.map((user, index) => {
+    const extra = enrich.get(user.$id) || {};
+    const profile = extra.profile || null;
+    const event = activity.get(user.$id) || null;
+    return {
+      user_id: user.$id,
+      email: user.email || null,
+      full_name: profile?.full_name || user.name || null,
+      signed_up_at: user.$createdAt,
+      last_active_at: extra.lastActive || null,
+      email_verified: Boolean(user.emailVerification),
+      signup_method: user.provider || 'email',
+      source: event?.source || null,
+      medium: event?.medium || null,
+      campaign: event?.campaign || null,
+      profile_status: profile ? 'present' : 'missing',
+      onboarding_status: profile?.onboarding_completed ? 'completed' : 'pending',
+      resume_count: extra.resumeCount || 0,
+      plan: extra.plan || 'free',
+    };
+  });
+  const { from, to } = body;
+  const signupSummaryUsers = auth.users.filter(user => (!from || user.$createdAt >= from) && (!to || user.$createdAt < to));
+  log(`list-signups: ${users.length}/${filtered.length} returned`);
+  return {
+    users,
+    total: filtered.length,
+    summary: {
+      signups: signupSummaryUsers.length,
+      verified: signupSummaryUsers.filter(user => user.emailVerification).length,
+      unverified: signupSummaryUsers.filter(user => !user.emailVerification).length,
+    },
+    meta: { timezone: 'Africa/Cairo', generatedAt: isoNow(), source: 'appwrite_auth', complete: auth.users.length === auth.total, truncated: auth.users.length !== auth.total },
   };
 }
 
@@ -1767,7 +1875,7 @@ async function handleDeleteUser(body, log) {
   if (!target_user_id) throw new Error('Missing target_user_id');
   await auditLog(databases, 'delete-user', { target_user_id, actor_email });
   const cleanup = {};
-  for (const collectionId of ['subscriptions', 'ai_credits', 'notifications']) {
+  for (const collectionId of ['subscriptions', 'ai_credits', 'notifications', 'visitor_identity_links', 'visitor_events']) {
     cleanup[collectionId] = await deleteUserOwnedDocuments(databases, collectionId, target_user_id);
   }
   const profile = await getProfileDoc(databases, target_user_id);
@@ -2497,6 +2605,8 @@ async function handleAnalytics(body, log) {
   const prevPageViews = prevDocs.filter(d => d.event_type === 'page_view');
   const anonIds = new Set(currentDocs.map(d => d.anon_id).filter(Boolean));
   const prevAnonIds = new Set(prevDocs.map(d => d.anon_id).filter(Boolean));
+  const authenticatedIds = new Set(currentDocs.map(d => d.user_id).filter(Boolean));
+  const prevAuthenticatedIds = new Set(prevDocs.map(d => d.user_id).filter(Boolean));
   const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
   const ydaySince  = new Date(Date.now() - 86400000);
   ydaySince.setHours(0, 0, 0, 0);
@@ -2504,6 +2614,7 @@ async function handleAnalytics(body, log) {
   const ydayDocs   = currentDocs.filter(d => d.$createdAt >= ydaySince.toISOString() && d.$createdAt < todaySince);
   const todayUsers = new Set(todayDocs.map(d => d.anon_id).filter(Boolean));
   const ydayUsers  = new Set(ydayDocs.map(d => d.anon_id).filter(Boolean));
+  const todayAuthenticatedUsers = new Set(todayDocs.map(d => d.user_id).filter(Boolean));
 
   // Activity series (views + users per bucket)
   const seriesMap = {};
@@ -2580,6 +2691,10 @@ async function handleAnalytics(body, log) {
   const signupsLast14Days = Object.entries(signupByDay)
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));
+  const [currentSignupPage, previousSignupPage] = await Promise.all([
+    listUsers([sdk.Query.greaterThanEqual('$createdAt', since), sdk.Query.limit(1)]).catch(() => ({ total: null })),
+    listUsers([sdk.Query.greaterThanEqual('$createdAt', prevSince), sdk.Query.lessThan('$createdAt', since), sdk.Query.limit(1)]).catch(() => ({ total: null })),
+  ]);
 
   // ── AI credits for the selected range (from ai_request_logs) ──────────────
   const [credLogsRes, prevCredLogsRes, todayCredRes, ydayCredRes] = await Promise.all([
@@ -2646,15 +2761,16 @@ async function handleAnalytics(body, log) {
     bucket,
     rangeKpis: {
       views: { current: pageViews.length, previous: prevPageViews.length },
-      activeUsers: { current: anonIds.size, previous: prevAnonIds.size },
+      activeUsers: { current: authenticatedIds.size, previous: prevAuthenticatedIds.size },
+      signups: { current: currentSignupPage.total, previous: previousSignupPage.total },
       aiCredits: { current: rangeCredits, previous: prevRangeCredits },
       portfolioViews: {
         current: pageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
         previous: prevPageViews.filter(d => d.page && d.page.startsWith('/p/')).length,
       },
-      stickiness: (todayUsers.size > 0 && anonIds.size > 0) ? Math.round((todayUsers.size / anonIds.size) * 100) : 0,
-      dau: todayUsers.size,
-      wau: anonIds.size,
+      stickiness: (todayAuthenticatedUsers.size > 0 && authenticatedIds.size > 0) ? Math.round((todayAuthenticatedUsers.size / authenticatedIds.size) * 100) : 0,
+      dau: todayAuthenticatedUsers.size,
+      wau: authenticatedIds.size,
     },
     activitySeries,
     dauRollingSeries: activitySeries.map(p => ({ date: p.date, value: p.users })),
@@ -2767,6 +2883,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'overview-stats') data = await handleOverviewStats(log);
     else if (action === 'global-stats') data = await handleGlobalStats(log);
     else if (action === 'list-users-page') data = await handleListUsersPage(body, log);
+    else if (action === 'list-signups' || action === 'signup-summary') data = await handleListSignups(body, log);
     else if (action === 'purge-orphans') data = await handlePurgeOrphans(body, log);
     else if (action === 'list-audit-logs') data = await handleListAuditLogs(body, log);
     else if (action === 'list-discount-codes') data = await handleListDiscountCodes(log);

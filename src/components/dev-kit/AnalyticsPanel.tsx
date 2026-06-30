@@ -5,6 +5,7 @@ import {
   RefreshCw, BarChart2, Users, Eye, Zap, Globe, Lock, TrendingUp, Activity,
   Smartphone, Link2, MapPin, Calendar, Layers, FileText,
   HeartPulse, AlertCircle, Download, BrainCircuit, CheckCircle2, Clock,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getDevKitToken, useDevKitSession } from '@/contexts/DevKitSessionContext';
@@ -60,6 +61,10 @@ interface VisitorDashboard {
   live?: { liveCount: number };
   perfMetrics?: { avgLoadMs: number | null; avgFcpMs: number | null; p75LoadMs: number | null; fast: number; ok: number; slow: number; count: number };
   errors?: Record<string, string>;
+  totals?: { pageviews: number; uniqueVisitors: number; sessions: number };
+  windows?: Record<string, { visits: number; uniques: number; sessions: number }>;
+  sessions?: { sessions: Array<{ session_id: string; anon_id: string; user_id?: string | null; firstSeen: string; lastSeen: string; pageCount: number; pages: string[]; country?: string; device_type?: string; browser?: string; referrer?: string; durationSeconds?: number }>; total: number };
+  meta?: { truncated?: boolean; eventsInRange?: number };
 }
 
 interface HealthData {
@@ -102,6 +107,7 @@ export function AnalyticsPanel() {
   const [range, setRange] = useState<AnalyticsRange>('7d');
   const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
 
   const isDev = isDevEnvironment();
 
@@ -222,7 +228,7 @@ export function AnalyticsPanel() {
   // Growth funnel data
   const funnelSteps = useMemo(() => {
     const visitors = visitorData?.kpis?.totalVisits ?? data?.rangeKpis.views.current ?? 0;
-    const signups = data?.rangeKpis.activeUsers.current ?? 0;
+    const signups = data?.rangeKpis.signups.current ?? 0;
     const resumeEvents = data?.topFeaturesRanged.find(f => f.name.includes('resume') || f.name.includes('editor'))?.count ?? 0;
     const aiUsage = data?.rangeKpis.aiCredits.current ?? 0;
     const tailorEvents = data?.topFeaturesRanged.find(f => f.name.includes('tailor'))?.count ?? 0;
@@ -329,6 +335,11 @@ export function AnalyticsPanel() {
 
       {data && (
         <>
+          {visitorData?.meta?.truncated && (
+            <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+              This range reached the 5,000-event safety limit. Totals are partial; narrow the date range for exact detail.
+            </div>
+          )}
           {/* A. Hero summary */}
           <div className="rounded-xl border border-border bg-muted/20 p-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
@@ -337,7 +348,7 @@ export function AnalyticsPanel() {
               </span>
               <span className="text-muted-foreground">visitor events</span>
               <span className="text-muted-foreground/40">·</span>
-              <span className="font-medium text-foreground">{data.rangeKpis.activeUsers.current.toLocaleString()}</span>
+              <span className="font-medium text-foreground">{data.rangeKpis.activeUsers.current?.toLocaleString() ?? 'Unavailable'}</span>
               <span className="text-muted-foreground">active users</span>
               <span className="text-muted-foreground/40">·</span>
               <span className="font-medium text-foreground">{data.rangeKpis.aiCredits.current.toLocaleString()}</span>
@@ -356,28 +367,34 @@ export function AnalyticsPanel() {
           </div>
 
           {/* B. KPI strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             <KpiCard
-              label="Visits today" value={(visitorData?.kpis?.totalVisitsToday ?? data.pageViewsToday).toLocaleString()}
-              sub="page views" icon={Globe} accent="primary" hideDelta
+              label="Sessions today" value={visitorData?.windows?.today?.sessions?.toLocaleString() ?? ''}
+              unavailable={!visitorData?.windows?.today} sub="Africa/Cairo · visitor_events" icon={Globe} accent="primary" hideDelta onClick={() => setSelectedMetric('sessions')}
             />
             <KpiCard
-              label="Unique visitors" value={(visitorData?.kpis?.uniqueVisitors ?? data.rangeKpis.activeUsers.current).toLocaleString()}
-              sub={`in ${rangeLabel[range]}`} icon={Users} accent="green" hideDelta
+              label="Page views today" value={visitorData?.kpis?.totalVisitsToday?.toLocaleString() ?? ''}
+              unavailable={!visitorData} sub="Africa/Cairo · visitor_events" icon={Eye} accent="purple" hideDelta onClick={() => setSelectedMetric('pageviews')}
             />
             <KpiCard
-              label="Active users" value={data.rangeKpis.activeUsers.current.toLocaleString()}
-              sub={`vs previous ${rangeLabel[range]}`}
+              label="Unique visitors today" value={visitorData?.kpis?.uniqueVisitorsToday?.toLocaleString() ?? ''}
+              unavailable={!visitorData} sub="anonymous browsers · visitor_events" icon={Users} accent="green" hideDelta onClick={() => setSelectedMetric('visitors')}
+            />
+            <KpiCard
+              label="New signups" value={data.rangeKpis.signups.current?.toLocaleString() ?? ''}
+              unavailable={data.rangeKpis.signups.current == null} sub={`in ${rangeLabel[range]} · Appwrite Auth`} icon={Users} accent="green"
+              current={data.rangeKpis.signups.current} previous={data.rangeKpis.signups.previous} onClick={() => setSelectedMetric('signups')}
+            />
+            <KpiCard
+              label="Authenticated active users" value={data.rangeKpis.activeUsers.current?.toLocaleString() ?? ''}
+              unavailable={data.rangeKpis.activeUsers.current == null} sub={`in ${rangeLabel[range]} · visitor_events.user_id`}
               icon={Activity} accent="blue"
               current={data.rangeKpis.activeUsers.current} previous={data.rangeKpis.activeUsers.previous}
-              hideDelta={!showDelta}
+              hideDelta={!showDelta} onClick={() => setSelectedMetric('active-users')}
             />
             <KpiCard
-              label="AI credits" value={data.rangeKpis.aiCredits.current.toLocaleString()}
-              sub={`vs previous ${rangeLabel[range]}`}
-              icon={Zap} accent="amber"
-              current={data.rangeKpis.aiCredits.current} previous={data.rangeKpis.aiCredits.previous}
-              hideDelta={!showDelta}
+              label="Signup conversion" value={visitorData?.totals?.sessions && data.rangeKpis.signups.current != null ? `${Math.round((data.rangeKpis.signups.current / visitorData.totals.sessions) * 100)}%` : ''}
+              unavailable={!visitorData?.totals?.sessions || data.rangeKpis.signups.current == null} sub="signups / sessions" icon={TrendingUp} accent="rose" hideDelta onClick={() => setSelectedMetric('conversion')}
             />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -709,6 +726,34 @@ export function AnalyticsPanel() {
             </div>
           </SectionCard>
         </>
+      )}
+      {selectedMetric && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label={`${selectedMetric} details`}>
+          <div className="w-full max-w-3xl max-h-[80vh] overflow-auto rounded-2xl border border-border bg-card p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold capitalize">{selectedMetric.replace('-', ' ')} details</h3>
+                <p className="text-xs text-muted-foreground mt-1">Africa/Cairo · refreshed {lastLoadedAt?.toLocaleTimeString() ?? 'now'}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedMetric(null)} aria-label="Close metric details"><X className="w-4 h-4" /></Button>
+            </div>
+            {selectedMetric === 'sessions' && (
+              <div className="mt-5 space-y-2">
+                {(visitorData?.sessions?.sessions ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No session details are available for this range.</p> :
+                  (visitorData?.sessions?.sessions ?? []).slice(0, 25).map(session => (
+                    <div key={session.session_id} className="rounded-xl border border-border p-3 text-xs">
+                      <div className="flex flex-wrap justify-between gap-2"><span className="font-mono">{session.session_id}</span><span>{new Date(session.firstSeen).toLocaleString()}</span></div>
+                      <div className="mt-2 text-muted-foreground">{session.pageCount} pages · {session.country || 'Unknown country'} · {session.device_type || 'Unknown device'} · {session.browser || 'Unknown browser'} · {session.user_id ? 'Signed in' : 'Anonymous'}</div>
+                      <div className="mt-1 truncate">{session.pages?.join(' → ')}</div>
+                    </div>
+                  ))}
+              </div>
+            )}
+            {selectedMetric !== 'sessions' && (
+              <p className="mt-5 text-sm text-muted-foreground">This metric is sourced from {selectedMetric === 'signups' ? 'Appwrite Auth' : 'visitor_events'} and no substitute metric is used when that source is unavailable.</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,22 @@
 
 **Last verified:** 2026-06-30
 
+## Resume previews now keep the right edits, template, and imported bullet points (2026-06-30)
+
+**What was the situation:** Opening or exporting a resume could show an older copy, use a previously selected template, undo a template choice, or display imported work bullet points that were hidden from the editor.
+
+**What changed:** Preview and export now load the selected resume directly from its saved record without replacing recent edits with an older dashboard copy. Template choices stay attached to that resume, and imported work bullet points are visible in the editor as one editable point per line.
+
+**What you'll notice:** The Kareem resume opens with WiseResume Classic, saved summary and skill changes remain consistent between editor and preview, template changes remain selected, and the work points shown in the CV can be edited or removed.
+
+## PDF downloads can start correctly on the live website again (2026-06-30)
+
+**What was the situation:** The live PDF download service stopped before it could create a file because one of its safety checks could not be found after deployment.
+
+**What changed:** The download service now points to that safety check in the exact format required by the live hosting environment, and an automated check prevents the same deployment mistake from returning.
+
+**What you'll notice:** Once this fix is deployed, choosing PDF export on the live website can reach the document renderer instead of immediately ending with an error.
+
 ## Arabic mode is now much more complete across the signed-in app (2026-06-30)
 
 **What was the situation:** Arabic mode had been added, but many signed-in screens still showed English labels, mixed placeholders, broken `????` text, and English activity timestamps after switching to Arabic.

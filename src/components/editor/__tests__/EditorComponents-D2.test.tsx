@@ -27,6 +27,7 @@ vi.mock("@/hooks/useResumeNudges", () => ({
 import { ContactSection } from "@/components/editor/ContactSection";
 import { SkillsSection } from "@/components/editor/SkillsSection";
 import { ExperienceSection } from "@/components/editor/ExperienceSection";
+import { ExperienceItem } from "@/components/editor/ExperienceItem";
 import { mockResumeStore } from "@/test/mocks/zustandStores";
 import type { ResumeData } from "@/types/resume";
 
@@ -168,6 +169,32 @@ describe("ExperienceSection (D2)", () => {
     renderWithProviders(<ExperienceSection />);
     expect(screen.getByText("Tech Corp")).toBeInTheDocument();
     expect(screen.getByText("Senior Engineer")).toBeInTheDocument();
+  });
+
+  it("shows imported achievements and responsibilities so they can be edited", () => {
+    renderWithProviders(<ExperienceItem
+      exp={{
+        ...mockExperience[0],
+        achievements: ["Improved performance by 40%"],
+        responsibilities: ["Managed daily operations"],
+      }}
+      index={0}
+      totalLength={1}
+      isExpanded
+      isEnhancing={false}
+      entryNudges={[]}
+      onToggleExpand={vi.fn()}
+      onUpdate={vi.fn()}
+      onDelete={vi.fn()}
+      onMoveUp={vi.fn()}
+      onMoveDown={vi.fn()}
+      onAIAction={vi.fn()}
+      onDismissNudge={vi.fn()}
+    />);
+
+    expect(Array.from(document.querySelectorAll("textarea"), (field) => field.value)).toContain(
+      "Improved performance by 40%\nManaged daily operations",
+    );
   });
 
   it("shows empty state when no experience", () => {

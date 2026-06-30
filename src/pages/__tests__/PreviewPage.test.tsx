@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- test mocks */
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,8 @@ const mockResumeQuery = vi.hoisted(() => ({
   isLoading: false,
   isFetching: false,
 }));
+const useResumeMock = vi.hoisted(() => vi.fn(() => mockResumeQuery));
+const persistTemplateMock = vi.hoisted(() => vi.fn().mockResolvedValue({ $id: 'resume-1' }));
 
 const generateAndDownloadDOCX = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 const generateNativePDFMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Blob(['pdf'])));
@@ -34,7 +36,8 @@ vi.mock('@/store/resumeStore', () => ({
 }));
 
 vi.mock('@/hooks/useResumes', () => ({
-  useResume: vi.fn(() => mockResumeQuery),
+  useResume: useResumeMock,
+  useResumeMutations: () => ({ updateResume: { mutateAsync: persistTemplateMock } }),
   dbToResumeData: vi.fn((doc: any) => ({
     id: doc.$id,
     templateId: doc.template || 'modern',
@@ -53,6 +56,12 @@ vi.mock('@/hooks/useResumes', () => ({
     references: [],
     languages: [],
   })),
+}));
+
+vi.mock('@/components/editor/TemplateSelector', () => ({
+  TemplateSelector: ({ open, onTemplateApplied }: { open: boolean; onTemplateApplied?: (id: string) => void }) => open ? (
+    <button onClick={() => onTemplateApplied?.('classic')}>Apply Classic</button>
+  ) : null,
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -190,6 +199,8 @@ describe('PreviewPage URL bootstrap', () => {
     generateAndDownloadDOCX.mockClear();
     generateNativePDFMock.mockClear();
     downloadFileMock.mockClear();
+    useResumeMock.mockClear();
+    persistTemplateMock.mockClear();
     (globalThis as any).ResizeObserver = class {
       observe() {}
       disconnect() {}
@@ -466,5 +477,42 @@ describe('PreviewPage URL bootstrap', () => {
     // After bootstrap, the store should hold resume-1, not the stale resume
     expect(mockResumeState.currentResume?.id).toBe('resume-1');
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('fetches the URL resume even when the store already contains the same id', () => {
+    mockResumeState.currentResume = { ...makeResumeDoc(), id: 'resume-1', summary: 'Stale summary' } as any;
+    render(makeTree('/preview?id=resume-1'));
+
+    expect(useResumeMock).toHaveBeenCalledWith('resume-1');
+  });
+
+  it('does not re-bootstrap stale database data when the user changes template', async () => {
+    mockResumeQuery.data = makeResumeDoc();
+    const view = render(makeTree('/preview?id=resume-1'));
+
+    await waitFor(() => expect(mockResumeState.setCurrentResume).toHaveBeenCalledTimes(1));
+    mockResumeState.selectedTemplate = 'classic';
+    view.rerender(makeTree('/preview?id=resume-1'));
+
+    expect(mockResumeState.setCurrentResume).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists a template selected from preview', async () => {
+    mockResumeState.currentResume = {
+      ...makeResumeDoc(),
+      id: 'resume-1',
+      templateId: 'modern',
+      contactInfo: JSON.parse(makeResumeDoc().contact_info),
+      experience: [], education: [], skills: [],
+    } as any;
+    render(makeTree('/preview'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Classic' }));
+
+    await waitFor(() => expect(persistTemplateMock).toHaveBeenCalledWith({
+      resumeId: 'resume-1',
+      updates: { templateId: 'classic' },
+    }));
   });
 });
