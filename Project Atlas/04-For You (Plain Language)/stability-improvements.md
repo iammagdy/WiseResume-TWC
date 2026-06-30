@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-06-29
+**Last verified:** 2026-06-30
+
+## Arabic mode is now much more complete across the signed-in app (2026-06-30)
+
+**What was the situation:** Arabic mode had been added, but many signed-in screens still showed English labels, mixed placeholders, broken `????` text, and English activity timestamps after switching to Arabic.
+
+**What changed:** The high-traffic signed-in areas were repaired together instead of one screen at a time. Settings, profile, applications, imported jobs, dashboard activity/insights, portfolio editor, top-bar AI labels, and major WiseHire shell labels were moved onto the shared locale system and the damaged Arabic catalog entries were repaired. A new automated Arabic coverage check was also added to catch obvious English UI strings before they slip back in.
+
+**What you'll notice:** Arabic mode should now look far more complete in the main signed-in flow, especially on the pages that were still visibly mixed in the screenshots. Relative activity times now follow Arabic too. Some lower-priority pages and secondary tools still need a follow-up pass before the entire product can be called fully Arabic end-to-end.
 
 ## Shared links now show a reliable WiseResume preview without changing the landing destination (2026-06-29)
 

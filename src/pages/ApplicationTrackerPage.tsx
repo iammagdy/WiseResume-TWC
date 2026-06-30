@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FollowUpEmailSheet } from '@/components/applications/FollowUpEmailSheet';
 import { HiredCelebrationModal } from '@/components/dashboard/HiredCelebrationModal';
 import { toast } from 'sonner';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const STAGES: { key: ApplicationStatus; label: string }[] = [
   { key: 'saved', label: 'Saved' },
@@ -29,6 +30,7 @@ const STAGES: { key: ApplicationStatus; label: string }[] = [
 const STAGE_ORDER: Record<string, number> = { saved: 0, applied: 1, screening: 2, interviewing: 3, offer: 4, rejected: -1 };
 
 export default function ApplicationTrackerPage() {
+  const { t } = useLocale();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -95,7 +97,7 @@ export default function ApplicationTrackerPage() {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
         <BackButton />
         <div className="flex flex-col min-w-0 flex-1">
-          <h1 className="text-lg font-bold truncate">Application Details</h1>
+          <h1 className="text-lg font-bold truncate">{t('app.applicationTrackerPage.title', 'Application Details')}</h1>
           <Breadcrumb items={['Activity', 'Application Details']} links={['/applications']} />
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { grantConsent, rejectConsent, hasConsentDecision } from '@/lib/visitorTrack';
 import { X } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 /**
  * GDPR-compliant consent banner for WiseResume app usage.
@@ -9,6 +10,7 @@ import { X } from 'lucide-react';
  * portfolio, share, or short-link pages where visitors are not platform users.
  */
 export function ConsentBanner() {
+  const { t } = useLocale();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -35,17 +37,16 @@ export function ConsentBanner() {
   return (
     <div
       role="dialog"
-      aria-label="Cookie consent"
+      aria-label={t('app.consentBanner.ariaLabel')}
       className="fixed bottom-0 left-0 right-0 z-[9998] p-4 md:p-6"
     >
       <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">We use analytics cookies</p>
+          <p className="text-sm font-semibold text-foreground">{t('app.consentBanner.title')}</p>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            We track anonymous usage data to improve the product — page views, feature usage, and navigation patterns.
-            No personal data is sold. You can opt out at any time.{' '}
+            {t('app.consentBanner.description')}{' '}
             <a href="/privacy-policy" className="underline hover:text-foreground transition-colors">
-              Privacy policy
+              {t('app.consentBanner.privacyPolicy')}
             </a>
           </p>
         </div>
@@ -56,18 +57,18 @@ export function ConsentBanner() {
             onClick={handleDecline}
             className="text-xs h-8"
           >
-            Decline
+            {t('app.consentBanner.decline')}
           </Button>
           <Button
             size="sm"
             onClick={handleAccept}
             className="text-xs h-8"
           >
-            Accept
+            {t('app.consentBanner.accept')}
           </Button>
           <button
             onClick={handleDecline}
-            aria-label="Dismiss"
+            aria-label={t('common.dismiss')}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           >
             <X className="w-3.5 h-3.5" />

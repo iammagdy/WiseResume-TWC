@@ -93,5 +93,47 @@
     "headingLine2": "وظّف بذكاء من اليوم الأول.",
     "subtext": "وصول مبكر بالدعوة فقط. لا يلزم بطاقة ائتمانية. إلغاء في أي وقت.",
     "button": "انضم لقائمة الانتظار"
+  },
+  "dashboardPage": {
+    "title": "لوحة التحكم",
+    "subtitle": "مرحباً بعودتك. إليك نظرة سريعة على التوظيف لديك.",
+    "nudge": {
+      "title": "أكمل إعداد الشركة",
+      "description": "أكمل الإعداد لفتح مساحة WiseHire الكاملة. يستغرق ذلك نحو دقيقتين."
+    }
+  },
+  "dashboardPageCopy": {
+    "title": "لوحة التحكم",
+    "subtitle": "مرحباً بعودتك. إليك نظرة سريعة على التوظيف لديك.",
+    "nudge": {
+      "title": "أكمل إعداد الشركة",
+      "description": "أكمل الإعداد لفتح مساحة WiseHire الكاملة. يستغرق ذلك نحو دقيقتين."
+    }
+  },
+  "shell": {
+    "comingSoonToast": "سيتوفر {{label}} في الإصدار القادم.",
+    "navigationAria": "تنقل WiseHire",
+    "soon": "قريباً",
+    "userFallback": "مستخدم الموارد البشرية",
+    "openNavigation": "فتح التنقل",
+    "theme": {
+      "light": "الوضع الفاتح",
+      "dark": "الوضع الداكن"
+    },
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "jdWriter": "كاتب الوصف الوظيفي",
+      "briefGenerator": "منشئ الملخص",
+      "roles": "الأدوار",
+      "pipeline": "مسار التوظيف",
+      "bulkScreen": "فرز جماعي",
+      "scorecardTemplates": "قوالب بطاقات التقييم",
+      "cvMasking": "إخفاء بيانات السيرة",
+      "talentPool": "قاعدة المواهب",
+      "clients": "العملاء",
+      "analytics": "التحليلات",
+      "settings": "الإعدادات",
+      "subscription": "الاشتراك"
+    }
   }
 }

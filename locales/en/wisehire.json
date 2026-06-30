@@ -93,5 +93,47 @@
     "headingLine2": "Hire smarter from day one.",
     "subtext": "Invite-only early access. No credit card required. Cancel anytime.",
     "button": "Join the Waitlist"
+  },
+  "dashboardPage": {
+    "title": "Dashboard",
+    "subtitle": "Welcome back ? here's your hiring overview.",
+    "nudge": {
+      "title": "Complete your company setup",
+      "description": "Finish onboarding to unlock your full WiseHire workspace ? takes about 2 minutes."
+    }
+  },
+  "dashboardPageCopy": {
+    "title": "Dashboard",
+    "subtitle": "Welcome back. Here's your hiring overview.",
+    "nudge": {
+      "title": "Complete your company setup",
+      "description": "Finish onboarding to unlock your full WiseHire workspace. It takes about 2 minutes."
+    }
+  },
+  "shell": {
+    "comingSoonToast": "{{label}} is coming in the next release.",
+    "navigationAria": "WiseHire navigation",
+    "soon": "Soon",
+    "userFallback": "HR User",
+    "openNavigation": "Open navigation",
+    "theme": {
+      "light": "Light mode",
+      "dark": "Dark mode"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "jdWriter": "JD Writer",
+      "briefGenerator": "Brief Generator",
+      "roles": "Roles",
+      "pipeline": "Pipeline",
+      "bulkScreen": "Bulk Screen",
+      "scorecardTemplates": "SC Templates",
+      "cvMasking": "CV Masking",
+      "talentPool": "Talent Pool",
+      "clients": "Clients",
+      "analytics": "Analytics",
+      "settings": "Settings",
+      "subscription": "Subscription"
+    }
   }
 }

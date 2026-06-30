@@ -10,6 +10,7 @@ import type { PlanKey } from '@/lib/planConfig';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const FEATURES = [
   {
@@ -30,6 +31,7 @@ const FEATURES = [
 ] as const;
 
 export const AIEngineSection = memo(function AIEngineSection() {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPremium } = usePlan();
@@ -74,18 +76,18 @@ export const AIEngineSection = memo(function AIEngineSection() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-primary/90">
-              AI Engine
+              {t('app.settingsPage.aiEngine.eyebrow', 'AI Engine')}
             </p>
             <h3 className="text-lg font-semibold text-foreground leading-tight mt-0.5">
-              WiseResume AI Pool
+              {t('app.settingsPage.aiEngine.title', 'WiseResume AI Pool')}
             </h3>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              All AI features run on our managed infrastructure — fast, secure, and always on.
+              {t('app.settingsPage.aiEngine.subtitle', 'All AI features run on our managed infrastructure — fast, secure, and always on.')}
             </p>
             <div className="inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
               <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                Pool active
+                {t('app.settingsPage.aiEngine.poolActive', 'Pool active')}
               </span>
             </div>
           </div>
@@ -98,22 +100,26 @@ export const AIEngineSection = memo(function AIEngineSection() {
       {/* Usage */}
       <div className="px-4 sm:px-5 py-4 border-t border-border/40 bg-muted/20">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <p className="text-sm font-medium text-foreground">Today&apos;s AI usage</p>
+          <p className="text-sm font-medium text-foreground">
+            {t('app.settingsPage.aiEngine.usageTitle', "Today's AI usage")}
+          </p>
           <span className="text-[11px] font-medium text-muted-foreground px-2 py-0.5 rounded-md bg-background/80 border border-border/50">
-            {planLabel} plan
+            {t('app.settingsPage.aiEngine.planBadge', '{{plan}} plan', { plan: planLabel })}
           </span>
         </div>
         {creditsLoading ? (
           <Skeleton className="h-2 w-full rounded-full" />
         ) : isUnlimited || isPremium ? (
           <p className="text-sm text-muted-foreground">
-            {isPremium ? 'Unlimited AI actions on your plan.' : 'Generous daily limits included.'}
+            {isPremium
+              ? t('app.settingsPage.aiEngine.unlimited', 'Unlimited AI actions on your plan.')
+              : t('app.settingsPage.aiEngine.generousLimits', 'Generous daily limits included.')}
           </p>
         ) : (
           <>
             <div className="flex items-baseline justify-between text-xs text-muted-foreground mb-2">
-              <span>{used} actions used</span>
-              <span>{limit} daily limit</span>
+              <span>{t('app.settingsPage.aiEngine.usedCount', '{{count}} actions used', { count: used })}</span>
+              <span>{t('app.settingsPage.aiEngine.dailyLimit', '{{count}} daily limit', { count: limit ?? 0 })}</span>
             </div>
             <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/40">
               <div
@@ -123,7 +129,7 @@ export const AIEngineSection = memo(function AIEngineSection() {
                 aria-valuenow={used}
                 aria-valuemin={0}
                 aria-valuemax={limit ?? 0}
-                aria-label="Daily AI usage"
+                aria-label={t('app.settingsPage.aiEngine.usageAria', 'Daily AI usage')}
               />
             </div>
             {usageHigh && (
@@ -135,7 +141,7 @@ export const AIEngineSection = memo(function AIEngineSection() {
                 }}
                 className="mt-2.5 text-xs font-semibold text-primary hover:underline touch-manipulation"
               >
-                Upgrade for higher limits →
+                {t('app.settingsPage.aiEngine.upgradeLimits', 'Upgrade for higher limits →')}
               </button>
             )}
           </>
@@ -162,8 +168,7 @@ export const AIEngineSection = memo(function AIEngineSection() {
         <div className="flex items-start gap-2.5 px-3 py-3 rounded-xl bg-muted/40 border border-border/50">
           <Shield className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            We never store your resume data for model training. Requests are processed securely and
-            only used to generate your output.
+            {t('app.settingsPage.aiEngine.privacyNote', 'We never store your resume data for model training. Requests are processed securely and only used to generate your output.')}
           </p>
         </div>
         <button
@@ -179,8 +184,12 @@ export const AIEngineSection = memo(function AIEngineSection() {
           )}
         >
           <div>
-            <p className="text-sm font-semibold text-foreground">Open AI Studio</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Tailor, enhance, and more</p>
+            <p className="text-sm font-semibold text-foreground">
+              {t('app.settingsPage.aiEngine.openStudioTitle', 'Open AI Studio')}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t('app.settingsPage.aiEngine.openStudioDescription', 'Tailor, enhance, and more')}
+            </p>
           </div>
           <ChevronRight className="w-4 h-4 text-primary shrink-0" aria-hidden />
         </button>

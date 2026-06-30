@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { client } from '@/lib/appwrite';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocale } from '@/i18n/LocaleProvider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ type FilterTab = 'all' | 'unread' | 'applications' | 'system';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: notifications = [] } = useNotifications();
@@ -57,10 +59,10 @@ export default function NotificationsPage() {
   };
 
   const TABS: { key: FilterTab; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'unread', label: 'Unread' },
-    { key: 'applications', label: 'Applications' },
-    { key: 'system', label: 'System' },
+    { key: 'all', label: t('app.notificationsPage.tabs.all', 'الكل') },
+    { key: 'unread', label: t('app.notificationsPage.tabs.unread', 'غير المقروءة') },
+    { key: 'applications', label: t('app.notificationsPage.tabs.applications', 'الطلبات') },
+    { key: 'system', label: t('app.notificationsPage.tabs.system', 'النظام') },
   ];
 
   return (
@@ -70,16 +72,16 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-3">
           <BackButton />
           <Bell className="w-5 h-5 text-primary" />
-          <h1 className="text-page-title flex-1">Notifications</h1>
+          <h1 className="text-page-title flex-1">{t('app.notificationsPage.title', 'الإشعارات')}</h1>
           <div className="flex items-center gap-1">
             {notifications.some(n => !n.is_read) && (
-              <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate(undefined, { onSuccess: () => toast.success('All notifications marked as read') })} className="gap-1 text-xs">
-                <CheckCheck className="w-3.5 h-3.5" /> Read all
+              <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate(undefined, { onSuccess: () => toast.success(t('app.notificationsPage.toasts.markedRead', 'تم تعليم كل الإشعارات كمقروءة')) })} className="gap-1 text-xs">
+                <CheckCheck className="w-3.5 h-3.5" /> {t('app.notificationsPage.actions.readAll', 'قراءة الكل')}
               </Button>
             )}
             {notifications.length > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setShowClearConfirm(true)} className="text-destructive gap-1 text-xs">
-                <Trash2 className="w-3.5 h-3.5" /> Clear
+                <Trash2 className="w-3.5 h-3.5" /> {t('app.notificationsPage.actions.clear', 'مسح')}
               </Button>
             )}
           </div>
@@ -107,8 +109,8 @@ export default function NotificationsPage() {
           {filtered.length === 0 ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <Bell className="w-12 h-12 mb-3 opacity-30" />
-              <p className="font-medium">No notifications yet</p>
-              <p className="text-sm mt-1">You're all caught up!</p>
+              <p className="font-medium">{t('app.notificationsPage.empty.title', 'لا توجد إشعارات بعد')}</p>
+              <p className="text-sm mt-1">{t('app.notificationsPage.empty.description', 'أنت مطّلع على كل شيء حالياً!')}</p>
             </motion.div>
           ) : (
             (() => {
@@ -116,8 +118,8 @@ export default function NotificationsPage() {
               filtered.forEach(n => {
                 const d = new Date(n.$createdAt);
                 let label = format(d, 'MMMM d, yyyy');
-                if (isToday(d)) label = 'Today';
-                else if (isYesterday(d)) label = 'Yesterday';
+                if (isToday(d)) label = t('app.notificationsPage.groups.today', 'اليوم');
+                else if (isYesterday(d)) label = t('app.notificationsPage.groups.yesterday', 'أمس');
                 else if (isThisWeek(d)) label = format(d, 'EEEE');
                 const existing = groups.find(g => g.label === label);
                 if (existing) existing.items.push(n);
@@ -148,7 +150,7 @@ export default function NotificationsPage() {
                           <p className="text-sm font-semibold">{n.title}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {safeFormatDistanceToNow(n.$createdAt, { addSuffix: true }, 'Recently')}
+                            {safeFormatDistanceToNow(n.$createdAt, { addSuffix: true }, t('app.notificationsPage.groups.recently', 'قبل قليل'))}
                           </p>
                         </div>
                         {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}
@@ -166,15 +168,15 @@ export default function NotificationsPage() {
       <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+            <AlertDialogTitle>{t('app.notificationsPage.clearDialog.title', 'مسح كل الإشعارات؟')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove all your notifications. This action cannot be undone.
+              {t('app.notificationsPage.clearDialog.description', 'سيؤدي هذا إلى حذف كل إشعاراتك نهائياً. لا يمكن التراجع عن هذا الإجراء.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel', 'إلغاء')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => clearAll.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Clear All
+              {t('app.notificationsPage.clearDialog.confirm', 'مسح الكل')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -30,13 +30,13 @@
     "createFirstHint": "Create your first resume to get started.",
     "deleteTitle": "Delete Resume?",
     "deleteDesc": "This will permanently delete this resume. This action cannot be undone.",
-    "deleting": "Deleting\u2026",
+    "deleting": "Deleting…",
     "deletePermanently": "Delete Permanently",
     "bulkDeleteTitle": "Delete {{count}} Resume(s)?",
     "bulkDeleteDesc": "This will permanently delete these resumes. This action cannot be undone.",
     "duplicateTitle": "Duplicate Resume?",
     "duplicateDesc": "This will create a copy of this resume with all its content.",
-    "duplicating": "Duplicating\u2026",
+    "duplicating": "Duplicating…",
     "linkedInImported": "Resume created from LinkedIn!",
     "checklist": {
       "createResume": "Create your first resume",
@@ -146,7 +146,11 @@
   },
   "dashboard": "Dashboard",
   "resumes": "Resumes",
-  "templates": "Templates",
+  "templates": {
+    "modern": "Modern",
+    "classic": "Classic",
+    "minimal": "Minimal"
+  },
   "applications": "Applications",
   "tailoringHub": "Tailoring Hub",
   "interview": "Interview Coach",
@@ -181,6 +185,8 @@
   "membershipProBadge": "Pro",
   "topBar": {
     "importJob": "Import Job",
+    "importJobAria": "Import a job",
+    "actionsAria": "Workspace actions",
     "closeWiseAI": "Close Wise AI",
     "askWiseAI": "Ask Wise AI",
     "wiseAI": "Wise AI",
@@ -276,19 +282,45 @@
       "featHistory": "Version history & restore"
     },
     "tools": {
-      "tailor": { "label": "Smart Tailor" },
-      "enhance": { "label": "Enhance" },
-      "onepage": { "label": "1-Page Wizard" },
-      "humanizer": { "label": "Humanize" },
-      "job-match": { "label": "Tailoring Hub" },
-      "ab-compare": { "label": "A/B Compare" },
-      "recruiter": { "label": "Recruiter Sim" },
-      "skills-gap": { "label": "Skills Gap" },
-      "career": { "label": "Career Plan" },
-      "interview": { "label": "Interview Prep" },
-      "company-briefing": { "label": "Company Briefing" },
-      "linkedin": { "label": "LinkedIn" },
-      "cover-letters": { "label": "Cover Letters" }
+      "tailor": {
+        "label": "Smart Tailor"
+      },
+      "enhance": {
+        "label": "Enhance"
+      },
+      "onepage": {
+        "label": "1-Page Wizard"
+      },
+      "humanizer": {
+        "label": "Humanize"
+      },
+      "job-match": {
+        "label": "Tailoring Hub"
+      },
+      "ab-compare": {
+        "label": "A/B Compare"
+      },
+      "recruiter": {
+        "label": "Recruiter Sim"
+      },
+      "skills-gap": {
+        "label": "Skills Gap"
+      },
+      "career": {
+        "label": "Career Plan"
+      },
+      "interview": {
+        "label": "Interview Prep"
+      },
+      "company-briefing": {
+        "label": "Company Briefing"
+      },
+      "linkedin": {
+        "label": "LinkedIn"
+      },
+      "cover-letters": {
+        "label": "Cover Letters"
+      }
     },
     "workflows": {
       "tailor-for-job": {
@@ -403,11 +435,6 @@
     "styleCompact": "Compact",
     "styleCreative": "Creative"
   },
-  "templates": {
-    "modern": "Modern",
-    "classic": "Classic",
-    "minimal": "Minimal"
-  },
   "search": {
     "untitledResume": "Untitled resume",
     "tailoredResume": "Tailored resume",
@@ -520,7 +547,7 @@
     "importTitle": "Import Profile",
     "importDesc": "LinkedIn, Indeed, Xing & more",
     "pasteTitle": "Build from Text",
-    "pasteDesc": "Paste any career notes, bio, or freeform text",
+    "pasteDesc": "Works with rough notes, copy-pasted bios, or any career text you have on hand.",
     "duplicateTitle": "Duplicate Existing",
     "duplicateDesc": "Copy and customize a resume",
     "expLabel": "What's your experience level?",
@@ -556,7 +583,6 @@
     "createTailored": "Create Tailored",
     "careerText": "Your career text",
     "pastePlaceholder": "Paste anything — job history, a bio, notes, or bullet points. The AI will structure it into a full resume.",
-    "pasteDesc": "Works with rough notes, copy-pasted bios, or any career text you have on hand.",
     "structuring": "Structuring your career history…",
     "generating": "Generating…",
     "generateResume": "Generate Resume",
@@ -574,7 +600,194 @@
   "common": {
     "dismiss": "Dismiss",
     "tryIt": "Try it",
-    "status": "Status"
+    "status": "Status",
+    "cancel": "Cancel",
+    "continue": "Continue"
+  },
+  "settingsPage": {
+    "userId": {
+      "title": "Tap to copy your User ID",
+      "label": "Your User ID",
+      "description": "Share this ID with support if you need help with your account.",
+      "copied": "Copied",
+      "copy": "Copy"
+    },
+    "toasts": {
+      "signedOut": "Signed out successfully",
+      "dataDeleted": "All data deleted",
+      "linkCopied": "Link copied to clipboard",
+      "onboardingReset": "Onboarding reset — redirecting"
+    },
+    "share": {
+      "title": "WiseResume",
+      "text": "Build a professional resume in minutes with AI-powered writing assistance."
+    },
+    "userFallback": "User",
+    "plan": {
+      "free": "Free plan · Redeem a coupon to upgrade",
+      "paid": "{{plan}} plan · Manage subscription"
+    },
+    "sections": {
+      "account": {
+        "title": "Account",
+        "description": "Plan, usage, and sign-in"
+      },
+      "aiEngine": {
+        "title": "AI Engine",
+        "description": "Model and writing preferences"
+      },
+      "preferences": {
+        "title": "Preferences",
+        "description": "Theme and export defaults"
+      },
+      "notifications": {
+        "title": "Notifications"
+      },
+      "privacy": {
+        "title": "Privacy & Security"
+      },
+      "support": {
+        "title": "Support",
+        "description": "Help, updates, and feedback"
+      },
+      "danger": {
+        "title": "Danger Zone"
+      }
+    },
+    "signOut": {
+      "label": "Sign Out",
+      "description": "End your session on this device",
+      "confirmTitle": "Sign out?",
+      "confirmDescription": "You'll need to sign in again to access your data."
+    },
+    "guest": {
+      "title": "Welcome, Guest",
+      "description": "Create a free account to unlock more.",
+      "cta": "Get Started Free",
+      "signIn": "Sign in to unlock all features"
+    },
+    "account": {
+      "planTitle": "Your Plan",
+      "expires": "Expires {{date}}",
+      "upgrade": "Upgrade",
+      "subscriptionLabel": "Subscription",
+      "subscriptionDescription": "Manage your plan and usage",
+      "inviteLabel": "Invite Friends",
+      "inviteDescription": "Earn rewards by sharing WiseResume",
+      "managePasswordLabel": "Manage Sign-in & Password",
+      "providerPassword": "Update your password through your {{provider}} account",
+      "providerPasswordSettings": "Update your password in your {{provider}} account settings.",
+      "passwordDescription": "Change your account password",
+      "resetMissingEmail": "We could not find your account email. Use Forgot Password on the login screen.",
+      "resetSent": "Password reset link sent! Check your inbox.",
+      "resetFailed": "Failed to send reset email"
+    },
+    "accountStats": {
+      "resumes": "Resumes",
+      "coverLetters": "Cover Letters",
+      "applications": "Applications",
+      "memberSince": "Member since {{date}}",
+      "membership": {
+        "founding": "Founding Member",
+        "early": "Early Adopter",
+        "member": "Member",
+        "new": "New Member"
+      }
+    },
+    "aiEngine": {
+      "eyebrow": "AI Engine",
+      "title": "WiseResume AI Pool",
+      "subtitle": "All AI features run on our managed infrastructure — fast, secure, and always on.",
+      "poolActive": "Pool active",
+      "usageTitle": "Today's AI usage",
+      "planBadge": "{{plan}} plan",
+      "unlimited": "Unlimited AI actions on your plan.",
+      "generousLimits": "Generous daily limits included.",
+      "usedCount": "{{count}} actions used",
+      "dailyLimit": "{{count}} daily limit",
+      "usageAria": "Daily AI usage",
+      "upgradeLimits": "Upgrade for higher limits →",
+      "privacyNote": "We never store your resume data for model training. Requests are processed securely and only used to generate your output.",
+      "openStudioTitle": "Open AI Studio",
+      "openStudioDescription": "Tailor, enhance, and more"
+    },
+    "privacy": {
+      "statusStrict": "Strict",
+      "statusStandard": "Standard",
+      "faceId": "Face ID",
+      "irisLock": "Iris Lock",
+      "fingerprintLock": "Fingerprint Lock",
+      "protectResumes": "Protect your resumes",
+      "requireAfter": "Require Authentication After",
+      "immediately": "Immediately",
+      "thirtySeconds": "30 seconds",
+      "oneMinute": "1 minute",
+      "fiveMinutes": "5 minutes",
+      "analyticsLabel": "Usage Analytics",
+      "analyticsDescription": "Help improve WiseResume with anonymous usage data",
+      "footer": "Your resumes are stored securely and never sold to third parties."
+    },
+    "exports": {
+      "pdfTitle": "PDF Export Settings",
+      "pdfSummary": "{{format}}, badge {{badge}}",
+      "simple": "Simple",
+      "full": "Full",
+      "on": "on",
+      "off": "off",
+      "showPageNumbers": "Show Page Numbers",
+      "pageNumbersDescription": "Display in PDF footer",
+      "format": "Format",
+      "simpleFormat": "Simple (1)",
+      "fullFormat": "Full (1 of 3)",
+      "badgeTitle": "WiseResume Badge",
+      "badgeDescription": "Prestige stamp on exports",
+      "exportResumes": "Export Resumes",
+      "manageExports": "Manage Exports",
+      "signInDescription": "Sign in to backup and export your resumes"
+    },
+    "notifications": {
+      "autoSaveToasts": "Auto-save Toasts",
+      "autoSaveDescription": "Show save confirmations",
+      "showLabel": "Show:",
+      "always": "Always",
+      "errorsOnly": "Errors Only",
+      "aiTips": "AI Enhancement Tips",
+      "aiTipsDescription": "Proactive improvement suggestions",
+      "frequency": "Frequency:",
+      "onDemand": "On-Demand",
+      "daily": "Daily",
+      "weekly": "Weekly"
+    }
+  },
+  "notificationsPage": {
+    "title": "Notifications",
+    "tabs": {
+      "all": "All",
+      "unread": "Unread",
+      "applications": "Applications",
+      "system": "System"
+    },
+    "actions": {
+      "readAll": "Read all",
+      "clear": "Clear"
+    },
+    "toasts": {
+      "markedRead": "All notifications marked as read"
+    },
+    "empty": {
+      "title": "No notifications yet",
+      "description": "You're all caught up!"
+    },
+    "groups": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "recently": "Recently"
+    },
+    "clearDialog": {
+      "title": "Clear all notifications?",
+      "description": "This will permanently remove all your notifications. This action cannot be undone.",
+      "confirm": "Clear All"
+    }
   },
   "whatsNext": {
     "createFirst": "Create your first resume",
@@ -656,5 +869,268 @@
   "dashboardNextAction": {
     "weakestSection": "Weakest section",
     "scoresUpdateAsYouEdit": "Scores update as you edit"
+  },
+  "profilePage": {
+    "title": "My Profile",
+    "userFallback": "Your Name",
+    "updated": "Updated {{time}}",
+    "editDetails": "Edit account & professional details",
+    "profileImported": "Profile imported — open the editor to use your data",
+    "myResumes": "My Resumes",
+    "stats": {
+      "resumes": "Resumes",
+      "applications": "Applications"
+    },
+    "completion": {
+      "title": "Profile Completion",
+      "banner": "Profile {{count}}% complete",
+      "bannerDescription": "Finish setup for better AI suggestions",
+      "complete": "Complete",
+      "hint": "💡 {{hint}}",
+      "done": "Your profile is complete! 🎉"
+    },
+    "portfolio": {
+      "title": "My Portfolio Website",
+      "liveBadge": "🟢 Live",
+      "draftBadge": "Draft",
+      "createDescription": "Create your personal portfolio site",
+      "totalViews": "👁 {{count}} total views",
+      "outOfDateTitle": "Portfolio may be out of date",
+      "outOfDateDescription": "Your resume was updated after the portfolio was last synced.",
+      "syncing": "Syncing…",
+      "resyncNow": "Re-sync now",
+      "resynced": "Portfolio re-synced with your resume",
+      "resyncError": "Failed to re-sync portfolio",
+      "setupCta": "Set Up Portfolio",
+      "setupUsernameFirst": "Set up your portfolio username first",
+      "shareTitle": "{{name}} Portfolio",
+      "urlCopied": "Portfolio URL copied!",
+      "liveSuccess": "Portfolio is now live!",
+      "liveError": "Failed to update portfolio status",
+      "inactiveTitle": "Portfolio is inactive",
+      "inactiveDescription": "Your portfolio website is currently in draft mode. Visitors won't be able to see it until you make it live.",
+      "shareAnyway": "Share Anyway",
+      "goLive": "Go Live & Share",
+      "goLiveLoading": "Going Live…"
+    }
+  },
+  "uploadPage": {
+    "title": "Upload Resume",
+    "urlImport": {
+      "title": "Import from a URL"
+    },
+    "tips": {
+      "title": "Tips for best results"
+    }
+  },
+  "applicationsPage": {
+    "title": "Application Tracker",
+    "mobileTitle": "My Applications",
+    "recentActivity": "Recent Activity",
+    "quickAdd": "Quick Add",
+    "tabs": {
+      "applications": "My Applications"
+    }
+  },
+  "applicationTrackerPage": {
+    "title": "Application Details"
+  },
+  "consentBanner": {
+    "ariaLabel": "Cookie consent",
+    "title": "We use analytics cookies",
+    "description": "We track anonymous usage data to improve the product — page views, feature usage, and navigation patterns. No personal data is sold. You can opt out at any time.",
+    "privacyPolicy": "Privacy policy",
+    "accept": "Accept",
+    "decline": "Decline"
+  },
+  "tailoringHubPage": {
+    "overviewAria": "Tailoring overview",
+    "hero": {
+      "eyebrow": "AI Tailoring Hub",
+      "title": "Your job tailoring command center",
+      "description": "Save postings, track tailored versions, and launch a new tailoring session when you are ready — without jumping straight into a form.",
+      "start": "Start new tailoring",
+      "import": "Import job posting"
+    },
+    "stats": {
+      "savedJobs": { "label": "Saved jobs", "hint": "Postings in your workspace" },
+      "tailoredCvs": { "label": "Tailored CVs", "hint": "Versions created for roles" },
+      "sessions": { "label": "Tailoring sessions", "hint": "Recent match and rewrite runs" }
+    },
+    "savedJobs": {
+      "title": "Saved jobs",
+      "subtitle": "Import once, reuse for every tailoring run",
+      "import": "Import",
+      "loading": "Loading saved jobs…",
+      "emptyTitle": "No saved jobs yet",
+      "emptyDescription": "Import a LinkedIn, Indeed, or careers URL to build your library."
+    },
+    "recent": {
+      "title": "Recent tailoring",
+      "subtitle": "Jump back into results and compare scores",
+      "loading": "Loading history…",
+      "emptyTitle": "No tailoring history yet",
+      "emptyDescription": "Your completed sessions and match scores will appear here.",
+      "start": "Start tailoring"
+    },
+    "tailored": {
+      "title": "Tailored CVs",
+      "subtitle": "Resume versions generated for specific job postings",
+      "count": "{{count}} resume versions linked to saved roles",
+      "loading": "Loading tailored resumes…",
+      "emptyTitle": "No tailored CVs yet",
+      "emptyDescription": "Start a session to generate a job-specific version of your resume.",
+      "jobLabel": "{{title}}{{company}}",
+      "resumeLabel": "Tailored resume"
+    }
+  },
+  "applicationsPageCopy": {
+    "title": "Application Tracker",
+    "mobileTitle": "My Applications",
+    "subtitle": "Track saved jobs, applications, and follow-ups in one place.",
+    "tabs": {
+      "applications": "Applications",
+      "savedJobs": "Saved Jobs"
+    },
+    "upgrade": {
+      "description": "Track your applications, saved jobs, and follow-up work from one place.",
+      "feature0": "Pipeline view from applied to offer",
+      "feature1": "Resume match rate for saved jobs",
+      "feature2": "Activity streak and application stats",
+      "feature3": "Follow-up reminders and email drafts",
+      "feature4": "Saved jobs with AI match scores"
+    },
+    "searchAria": "Search jobs",
+    "quickAddAria": "Quick add application",
+    "quickAdd": "Quick Add",
+    "listViewAria": "List view",
+    "boardViewAria": "Board view",
+    "views": {
+      "list": "List",
+      "board": "Board"
+    },
+    "recentActivity": "Recent Activity",
+    "sections": {
+      "applications": "Applications"
+    },
+    "toasts": {
+      "refreshed": "Activity refreshed"
+    },
+    "jobs": {
+      "tailorResume": "Tailor Resume",
+      "markApplied": "Mark Applied",
+      "noMatchesTitle": "No jobs match filters",
+      "noMatchesDescription": "Try adjusting your filters"
+    },
+    "cards": {
+      "appliedOn": "Applied {{date}}",
+      "interviewOn": "Interview: {{date}}",
+      "deadlineSoon": "Deadline soon",
+      "followUpDue": "Follow-up due",
+      "staleDays": "Stale · {{count}}d",
+      "prepRequiresResume": "Please select or create a resume first to start interview prep.",
+      "prep": "Prep",
+      "followUp": "Follow-up"
+    },
+    "emptyApplications": {
+      "title": "Add your first application",
+      "description": "Track every job you apply to — stay organized and never miss a follow-up.",
+      "helper": "Start with company name, role, and status. Takes under 5 seconds.",
+      "fullForm": "Full Form"
+    },
+    "filteredEmpty": {
+      "title": "No {{status}} applications",
+      "description": "Try a different filter",
+      "showAll": "Show All",
+      "add": "+ Add"
+    },
+    "emptySavedJobs": {
+      "title": "Track your job hunt",
+      "description": "Keep all your applications organized in one place. Add your first application to get started.",
+      "primaryCta": "Add application",
+      "secondaryCta": "Save a job",
+      "jobsTitle": "No saved jobs yet",
+      "jobsDescription": "Jobs you save from the AI Studio or Resume Tailoring flow appear here automatically.",
+      "jobsHelper": "You can also save jobs manually or search to find new ones.",
+      "goToAiStudio": "Go to AI Studio",
+      "tailorResume": "Tailor a Resume"
+    },
+    "insights": {
+      "title": "AI Insights",
+      "staleApplications": "{{count}} application{{suffix}} had no movement in 14+ days — consider sending a follow-up or refreshing your approach.",
+      "noApplicationsThisWeek": "You haven't applied to anything this week — even one application keeps the momentum going.",
+      "lowResponseRate": "Your response rate is {{score}}% — keep applying and tailor each resume to push it higher.",
+      "strongResponseRate": "Strong {{score}}% response rate! Your applications are landing well — keep the quality up.",
+      "streakOneDay": "You were active yesterday — keep the streak alive today!",
+      "streakMultiDay": "{{count}}-day activity streak — great consistency, keep it going!",
+      "weeklyGoal": "You're {{count}} application{{suffix}} away from your weekly goal of {{goal}} — you're almost there!",
+      "empty": "Start logging your job applications to unlock personalised insights and track your progress over time."
+    },
+    "timeline": {
+      "searchPlaceholder": "Search by job title or company…",
+      "noMatches": "No matching entries",
+      "emptyJourneyTitle": "Your career journey starts here",
+      "emptyJourneyDescription": "Create a resume, tailor it for jobs, and track your applications — all in one place",
+      "emptyJourneyCta": "Start building your resume",
+      "filters": {
+        "all": "All",
+        "applied": "Applied",
+        "tailored": "Tailored",
+        "coverLetter": "Cover letter",
+        "resume": "Resume"
+      },
+      "groups": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This week",
+        "earlier": "Earlier"
+      }
+    }
+  },
+  "importJobSheet": {
+    "title": "Import job posting",
+    "description": "Paste a listing URL — we fetch the page, extract role details with AI, and save it to your workspace for tailoring.",
+    "sourcesTitle": "Supported job sources",
+    "sourcesAria": "Supported job boards",
+    "clipboardReady": "Link ready from clipboard",
+    "urlLabel": "Job posting URL",
+    "urlPlaceholder": "https://www.linkedin.com/jobs/view/…",
+    "paste": "Paste",
+    "urlHint": "Works with major job boards and public careers pages.",
+    "errors": {
+      "clipboardDenied": "Clipboard access was denied. Paste the link manually.",
+      "authPending": "Still signing you in — please try again in a moment.",
+      "signInRequired": "Sign in to import and save job postings.",
+      "invalidUrl": "Enter a valid job URL.",
+      "generic": "Something went wrong. Check the link and try again."
+    }
+  },
+  "portfolioEditor": {
+    "header": {
+      "eyebrow": "Public profile",
+      "title": "Portfolio studio",
+      "viewTitle": "View public portfolio",
+      "viewLive": "View live"
+    },
+    "saveBar": {
+      "publishChanges": "Publish changes",
+      "saveAndPublish": "Save & Publish",
+      "saveDraftPrimary": "Save Draft",
+      "saveDraftSecondary": "Save draft",
+      "fixUsernameErrors": "Fix username errors before saving",
+      "savingDraft": "Saving draft…",
+      "publishing": "Publishing…"
+    },
+    "statusBar": {
+      "unpublishedChanges": "Unpublished changes — use Publish in the bar below to go live",
+      "live": "Live",
+      "draft": "Draft",
+      "strengthTitle": "Portfolio strength · {{score}}%",
+      "allChecksPassed": "All checks passed.",
+      "strengthAria": "Portfolio strength",
+      "setUsername": "Set a username to get your public URL",
+      "copyUrlAria": "Copy portfolio URL",
+      "openQrAria": "Open QR code"
+    }
   }
 }

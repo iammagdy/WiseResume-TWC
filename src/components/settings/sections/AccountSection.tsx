@@ -54,7 +54,7 @@ function PlanBadge({ plan }: { plan: string }) {
 export const AccountSection = memo(function AccountSection({
     authProvider,
 }: AccountSectionProps) {
-    const { locale } = useLocale();
+    const { locale, t } = useLocale();
     const knownProviderLabel =
         authProvider === 'google' ? 'Google'
         : authProvider === 'github' ? 'GitHub'
@@ -63,8 +63,8 @@ export const AccountSection = memo(function AccountSection({
         : null;
     const passwordRowDescription =
         knownProviderLabel && knownProviderLabel !== 'email'
-            ? `Update your password through your ${knownProviderLabel} account`
-            : 'Change your account password';
+            ? t('app.settingsPage.account.providerPassword', 'Update your password through your {{provider}} account', { provider: knownProviderLabel })
+            : t('app.settingsPage.account.passwordDescription', 'Change your account password');
     const navigate = useNavigate();
     const [changePwOpen, setChangePwOpen] = useState(false);
     const { user } = useAuth();
@@ -85,7 +85,7 @@ export const AccountSection = memo(function AccountSection({
     const sendResetEmail = useCallback(async () => {
         const email = user?.email?.trim();
         if (!email) {
-            toast.error('We could not find your account email. Use Forgot Password on the login screen.');
+            toast.error(t('app.settingsPage.account.resetMissingEmail', 'We could not find your account email. Use Forgot Password on the login screen.'));
             return;
         }
         try {
@@ -94,11 +94,11 @@ export const AccountSection = memo(function AccountSection({
                 body: { action: 'send-password-reset', email, locale },
             });
             if (fnError) throw new Error(fnError.message);
-            toast.success('Password reset link sent! Check your inbox.');
+            toast.success(t('app.settingsPage.account.resetSent', 'Password reset link sent! Check your inbox.'));
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to send reset email');
+            toast.error(err instanceof Error ? err.message : t('app.settingsPage.account.resetFailed', 'Failed to send reset email'));
         }
-    }, [user?.email]);
+    }, [user?.email, locale, t]);
 
     const handleManageSignInPassword = useCallback(async () => {
         haptics.light();
@@ -117,7 +117,7 @@ export const AccountSection = memo(function AccountSection({
                     return;
                 }
                 const label = provider.charAt(0).toUpperCase() + provider.slice(1);
-                toast.info(`Update your password in your ${label} account settings.`);
+                toast.info(t('app.settingsPage.account.providerPasswordSettings', 'Update your password in your {{provider}} account settings.', { provider: label }));
                 return;
             }
         } catch {
@@ -145,11 +145,15 @@ export const AccountSection = memo(function AccountSection({
                 <div className="flex items-center gap-2">
                     <Crown className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div>
-                        <p className="text-xs font-medium text-muted-foreground leading-tight">Your Plan</p>
+                        <p className="text-xs font-medium text-muted-foreground leading-tight">
+                            {t('app.settingsPage.account.planTitle', 'Your Plan')}
+                        </p>
                         <div className="flex items-center gap-2 mt-0.5">
                             <PlanBadge plan={effectivePlan} />
                             {renewalDateStr && (
-                                <span className="text-[11px] text-muted-foreground">Expires {renewalDateStr}</span>
+                                <span className="text-[11px] text-muted-foreground">
+                                    {t('app.settingsPage.account.expires', 'Expires {{date}}', { date: renewalDateStr })}
+                                </span>
                             )}
                         </div>
                     </div>
@@ -159,7 +163,7 @@ export const AccountSection = memo(function AccountSection({
                         onClick={() => { haptics.light(); navigate('/subscription'); }}
                         className="text-xs font-semibold text-primary hover:underline touch-manipulation"
                     >
-                        Upgrade
+                        {t('app.settingsPage.account.upgrade', 'Upgrade')}
                     </button>
                 )}
             </div>
@@ -168,8 +172,8 @@ export const AccountSection = memo(function AccountSection({
                 {/* Subscription */}
                 <SettingsRow
                     type="navigation"
-                    label="Subscription"
-                    description="Manage your plan and usage"
+                    label={t('app.settingsPage.account.subscriptionLabel', 'Subscription')}
+                    description={t('app.settingsPage.account.subscriptionDescription', 'Manage your plan and usage')}
                     icon={<Crown className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/subscription'); }}
                 />
@@ -177,15 +181,15 @@ export const AccountSection = memo(function AccountSection({
                 {/* Referral */}
                 <SettingsRow
                     type="navigation"
-                    label="Invite Friends"
-                    description="Earn rewards by sharing WiseResume"
+                    label={t('app.settingsPage.account.inviteLabel', 'Invite Friends')}
+                    description={t('app.settingsPage.account.inviteDescription', 'Earn rewards by sharing WiseResume')}
                     icon={<Gift className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/referral'); }}
                 />
                 <Separator className="ml-[52px] bg-border/30" />
                 <SettingsRow
                     type="navigation"
-                    label="Manage Sign-in & Password"
+                    label={t('app.settingsPage.account.managePasswordLabel', 'Manage Sign-in & Password')}
                     description={passwordRowDescription}
                     icon={<KeyRound className="w-4 h-4" />}
                     onClick={handleManageSignInPassword}

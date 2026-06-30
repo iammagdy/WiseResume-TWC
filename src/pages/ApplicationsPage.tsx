@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 import { isBefore, addDays, differenceInDays } from 'date-fns';
 import { safeFormatDate } from '@/lib/dateUtils';
@@ -82,13 +83,13 @@ function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: {job: Jo
           onClick={(e) => {e.stopPropagation();haptics.light();onTailor();}}
           className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95">
           
-          <Scissors className="w-3 h-3" /> Tailor Resume
+          <Scissors className="w-3 h-3" /> {t('app.applicationsPageCopy.jobs.tailorResume', 'تخصيص السيرة الذاتية')}
         </button>
         <button
           onClick={(e) => {e.stopPropagation();haptics.light();onMarkApplied();}}
           className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1.5 rounded-lg bg-success/10 hover:bg-success/15 transition-colors min-h-[44px] touch-manipulation active:scale-95">
           
-          <CheckCircle2 className="w-3 h-3" /> Mark Applied
+          <CheckCircle2 className="w-3 h-3" /> {t('app.applicationsPageCopy.jobs.markApplied', 'تم التقديم')}
         </button>
       </div>
     </div>);
@@ -96,6 +97,7 @@ function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: {job: Jo
 }
 
 export default function ApplicationsPage() {
+  const { t } = useLocale();
   const { createApplication } = useJobApplicationMutations();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -243,33 +245,33 @@ export default function ApplicationsPage() {
     await queryClient.invalidateQueries({ queryKey: ['jobs'] });
     await queryClient.invalidateQueries({ queryKey: ['job-applications'] });
     haptics.success();
-    toast.success('Activity refreshed');
+    toast.success(t('app.applicationsPageCopy.toasts.refreshed', 'Activity refreshed'));
   }, [queryClient]);
 
   // Auth guard handled by ProtectedRoute
 
   const TABS: {key: TabKey;label: string;}[] = [
-  { key: 'applications', label: 'My Applications' },
-  { key: 'jobs', label: 'Saved Jobs' }];
+  { key: 'applications', label: t('app.applicationsPageCopy.tabs.applications', 'الطلبات') },
+  { key: 'jobs', label: t('app.applicationsPageCopy.tabs.savedJobs', 'الوظائف المحفوظة') }];
 
 
   const hasActiveFilters = filters.query || filters.jobTypes.length > 0 || filters.location;
 
-  // Feature gate: Application Tracker is Pro+
+  // Feature gate: tracker is Pro+
   if (planLoading) return null;
   if (!isPro) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <UpgradeWall
           requiredPlan="pro"
-          featureName="Application Tracker"
-          description="Track all your job applications in one place with status updates and activity insights."
+          featureName={t('app.applicationsPageCopy.title', 'متابعة طلبات التوظيف')}
+          description={t('app.applicationsPageCopy.upgrade.description', 'تابع طلباتك والوظائف المحفوظة وخطوات المتابعة من مكان واحد.')}
           features={[
-            'Pipeline view: Applied → Screening → Offer',
-            'Resume match rate for saved jobs',
-            'Activity streak & application stats',
-            'Follow-up reminders & email drafts',
-            'Saved jobs with AI match scores',
+            'عرض المسار: تم التقديم ← الفرز ← العرض',
+            t('app.applicationsPageCopy.upgrade.feature1', 'نسبة توافق السيرة مع الوظائف المحفوظة'),
+            t('app.applicationsPageCopy.upgrade.feature2', 'إحصاءات النشاط وسجل التقديم'),
+            t('app.applicationsPageCopy.upgrade.feature3', 'تذكيرات المتابعة ومسودات البريد'),
+            t('app.applicationsPageCopy.upgrade.feature4', 'وظائف محفوظة مع درجات التوافق'),
           ]}
         />
       </div>
@@ -279,22 +281,22 @@ export default function ApplicationsPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-4 applications-workspace">
       <header className="dashboard-workspace-greeting px-4 sm:px-6 pt-4 pb-2 hidden lg:block">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">Workspace</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground mt-1">Application Tracker</h1>
-        <p className="text-sm text-muted-foreground mt-1 max-w-xl">Track saved jobs, applications, and follow-ups in one place.</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">{t('app.workspace', 'مساحة العمل')}</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground mt-1">{t('app.applicationsPageCopy.title', 'متابعة طلبات التوظيف')}</h1>
+        <p className="text-sm text-muted-foreground mt-1 max-w-xl">{t('app.applicationsPageCopy.subtitle', 'تابع الوظائف المحفوظة والطلبات وخطوات المتابعة من مكان واحد.')}</p>
       </header>
       {/* Mobile header */}
       <header className="lg:hidden shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between lg:max-w-none mx-auto w-full">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
-            <h1 className="text-page-title">My Applications</h1>
+            <h1 className="text-page-title">{t('app.applicationsPageCopy.mobileTitle', 'طلباتي')}</h1>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => {haptics.light();setShowSearch(true);}}
               className={`relative p-2.5 rounded-xl hover:bg-muted/50 transition-all touch-manipulation ${hasActiveFilters ? 'text-primary' : 'text-muted-foreground'}`}
-              aria-label="Search jobs">
+              aria-label={t('app.applicationsPageCopy.searchAria', 'البحث في الوظائف')}>
               
               <Search className="w-5 h-5" />
               {hasActiveFilters &&
@@ -304,7 +306,7 @@ export default function ApplicationsPage() {
             <button
               onClick={() => navigate('/notifications')}
               className="relative p-2.5 rounded-xl hover:bg-muted/50 text-muted-foreground transition-all touch-manipulation"
-              aria-label="Notifications">
+              aria-label={t('app.settingsPage.sections.notifications.title', 'الإشعارات')}>
               
               <Bell className="w-5 h-5" />
               {unreadCount > 0 &&
@@ -348,27 +350,27 @@ export default function ApplicationsPage() {
                 <button
                   onClick={() => { haptics.medium(); setShowQuickAdd(true); }}
                   className="flex items-center gap-1.5 px-3 h-9 rounded-xl gradient-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-transform touch-manipulation shrink-0"
-                  aria-label="Quick add application"
+                  aria-label={t('app.applicationsPageCopy.quickAddAria', 'إضافة طلب بسرعة')}
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  Quick Add
+                  {t('app.applicationsPageCopy.quickAdd', 'إضافة سريعة')}
                 </button>
                 <div className="flex items-center gap-0.5 bg-muted/60 border border-border rounded-xl p-1 shrink-0">
                   <button
                     onClick={() => handleViewChange('list')}
-                    aria-label="List view"
+                    aria-label={t('app.applicationsPageCopy.listViewAria', 'عرض القائمة')}
                     className={`flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-all touch-manipulation ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <List className="w-3.5 h-3.5" />
-                    List
+                    {t('app.applicationsPageCopy.views.list', 'قائمة')}
                   </button>
                   <button
                     onClick={() => handleViewChange('board')}
-                    aria-label="Board view"
+                    aria-label={t('app.applicationsPageCopy.boardViewAria', 'عرض اللوحة')}
                     className={`flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-all touch-manipulation ${view === 'board' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <LayoutGrid className="w-3.5 h-3.5" />
-                    Board
+                    {t('app.applicationsPageCopy.views.board', 'لوحة')}
                   </button>
                 </div>
               </div>
@@ -387,11 +389,11 @@ export default function ApplicationsPage() {
               {/* Streak + Weekly Goal */}
               <ActivityStreak />
 
-              {/* Recent Activity */}
+              {/* Activity */}
               <div id="activity-timeline">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
-                  <h2 className="text-sm font-semibold">Recent Activity</h2>
+                  <h2 className="text-sm font-semibold">{t('app.applicationsPageCopy.recentActivity', 'النشاط الأخير')}</h2>
                 </div>
                 <ActivityTimeline />
               </div>
@@ -399,7 +401,7 @@ export default function ApplicationsPage() {
               {/* Application Cards */}
               {applications.length > 0 ?
             <div className="space-y-2">
-                  <h2 className="text-sm font-semibold text-muted-foreground">Applications</h2>
+                  <h2 className="text-sm font-semibold text-muted-foreground">{t('app.applicationsPageCopy.sections.applications', 'الطلبات')}</h2>
                   {applications.map((app) => {
                 const isInterviewing = app.status === 'interviewing' || app.status === 'screening';
                 const remindDue = app.remind_at && isBefore(new Date(app.remind_at), addDays(new Date(), 1));
@@ -425,28 +427,28 @@ export default function ApplicationsPage() {
                             {app.applied_at &&
                         <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <Calendar className="w-3 h-3" />
-                                Applied {safeFormatDate(app.applied_at, 'MMM d, yyyy')}
+                                {t('app.applicationsPageCopy.cards.appliedOn', 'تم التقديم {{date}}', { date: safeFormatDate(app.applied_at, 'MMM d, yyyy') })}
                               </p>
                         }
                             {app.deadline && isInterviewing &&
                         <p className="text-[11px] text-primary flex items-center gap-1 mt-0.5">
                                 <Calendar className="w-3 h-3" />
-                                Interview: {safeFormatDate(app.deadline, 'MMM d, h:mm a')}
+                                {t('app.applicationsPageCopy.cards.interviewOn', 'المقابلة {{date}}', { date: safeFormatDate(app.deadline, 'MMM d, h:mm a') })}
                               </p>
                         }
                             {deadlineSoon &&
                         <Badge variant="secondary" className="text-[10px] mt-1 bg-destructive/15 text-destructive border-destructive/30">
-                                Deadline soon
+                                {t('app.applicationsPageCopy.cards.deadlineSoon', 'الموعد النهائي قريب')}
                               </Badge>
                         }
                             {remindDue &&
                         <Badge variant="secondary" className="text-[10px] mt-1 bg-warning/15 text-warning border-warning/30">
-                                Follow-up due
+                                {t('app.applicationsPageCopy.cards.followUpDue', 'حان وقت المتابعة')}
                               </Badge>
                         }
                             {isStale &&
                         <Badge variant="secondary" className="text-[10px] mt-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
-                                Stale · {daysStale}d
+                                {t('app.applicationsPageCopy.cards.stale', 'دون تحديث منذ {{days}} يوم', { days: daysStale })}
                               </Badge>
                         }
                           </div>
@@ -460,21 +462,21 @@ export default function ApplicationsPage() {
                         onClick={() => {
                           haptics.light();
                           if (!primaryResume || !primaryResume.contactInfo?.fullName) {
-                            toast.error('Please select or create a resume first to start interview prep.');
+                            toast.error(t('app.applicationsPageCopy.cards.prepRequiresResume', 'اختر أو أنشئ سيرة ذاتية أولاً لبدء التحضير للمقابلة.'));
                           } else {
                             navigate('/interview');
                           }
                         }}
                         className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95">
                         
-                              <Mic className="w-3 h-3" /> Prep
+                              <Mic className="w-3 h-3" /> {t('app.applicationsPageCopy.cards.prep', 'تحضير')}
                             </button>
                       }
                           <button
                         onClick={() => {haptics.light();setFollowUpApp({ company: app.company, jobTitle: app.job_title });}}
                         className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium px-2 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors min-h-[44px] touch-manipulation active:scale-95">
                         
-                            <Mail className="w-3 h-3" /> Follow-up
+                            <Mail className="w-3 h-3" /> {t('app.applicationsPageCopy.cards.followUp', 'متابعة')}
                           </button>
                         </div>
                       </div>);
@@ -488,25 +490,25 @@ export default function ApplicationsPage() {
                     <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 shadow-md">
                       <FileText className="w-8 h-8 text-primary-foreground" />
                     </div>
-                    <h3 className="text-base font-semibold mb-1">Add your first application</h3>
+                    <h3 className="text-base font-semibold mb-1">{t('app.applicationsPageCopy.emptyApplications.title', 'أضف أول طلب وظيفة')}</h3>
                     <p className="text-sm text-muted-foreground mb-2 max-w-[260px]">
-                      Track every job you apply to — stay organized and never miss a follow-up.
+                      {t('app.applicationsPageCopy.emptyApplications.description', 'Track every job you apply to — stay organized and never miss a follow-up.')}
                     </p>
                     <p className="text-xs text-muted-foreground mb-6 max-w-[260px]">
-                      Start with company name, role, and status. Takes under 5 seconds.
+                      {t('app.applicationsPageCopy.emptyApplications.helper', 'Start with company name, role, and status. Takes under 5 seconds.')}
                     </p>
                     <div className="flex flex-col gap-3 w-full max-w-[260px]">
                       <button
                   onClick={() => {haptics.medium();setShowQuickAdd(true);}}
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md">
                   
-                          <Zap className="w-4 h-4" /> Quick Add
+                          <Zap className="w-4 h-4" /> {t('app.applicationsPageCopy.quickAdd', 'إضافة سريعة')}
                         </button>
                       <button
                   onClick={() => {haptics.light();setShowAdd(true);}}
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-muted text-foreground text-sm font-medium min-h-[44px] touch-manipulation active:scale-95">
                   
-                          <Plus className="w-4 h-4" /> Full Form
+                          <Plus className="w-4 h-4" /> {t('app.applicationsPageCopy.emptyApplications.fullForm', 'النموذج الكامل')}
                         </button>
                     </div>
                   </div>) : (
@@ -517,21 +519,21 @@ export default function ApplicationsPage() {
                       <FileText className="w-4 h-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">No {statusFilter} applications</p>
-                      <p className="text-xs text-muted-foreground">Try a different filter</p>
+                      <p className="text-sm font-medium">{t('app.applicationsPageCopy.filteredEmpty.title', 'No {{status}} applications', { status: statusFilter })}</p>
+                      <p className="text-xs text-muted-foreground">{t('app.applicationsPageCopy.filteredEmpty.description', 'Try a different filter')}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button
                   onClick={() => {haptics.light();setStatusFilter('all');}}
                   className="px-3 py-2 rounded-full bg-muted text-foreground text-xs font-medium min-h-[44px] touch-manipulation active:scale-95">
                   
-                        Show All
+                        {t('app.applicationsPageCopy.filteredEmpty.showAll', 'Show All')}
                       </button>
                       <button
                   onClick={() => {haptics.light();setShowQuickAdd(true);}}
                   className="px-3 py-2 rounded-full bg-primary/10 text-primary text-xs font-medium min-h-[44px] touch-manipulation active:scale-95">
                   
-                        + Add
+                        {t('app.applicationsPageCopy.filteredEmpty.add', '+ Add')}
                       </button>
                     </div>
                   </div>)
@@ -582,8 +584,8 @@ export default function ApplicationsPage() {
             hasActiveFilters ? (
             <div className="items-center justify-center text-muted-foreground py-[30px] my-[50px] flex flex-col">
                   <Briefcase className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="font-medium">No jobs match filters</p>
-                  <p className="text-sm mt-1">Try adjusting your filters</p>
+                  <p className="font-medium">{t('app.applicationsPageCopy.jobs.noMatchesTitle', 'لا توجد وظائف تطابق عوامل التصفية')}</p>
+                  <p className="text-sm mt-1">{t('app.applicationsPageCopy.jobs.noMatchesDescription', 'جرّب تعديل عوامل التصفية')}</p>
                 </div>) : (
 
             /* Informative empty state for Saved Jobs */
@@ -591,38 +593,38 @@ export default function ApplicationsPage() {
                   <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 shadow-md">
                     <Briefcase className="w-8 h-8 text-primary-foreground" />
                   </div>
-                  <h3 className="text-base font-semibold mb-2">No saved jobs yet</h3>
+                  <h3 className="text-base font-semibold mb-2">{t('app.applicationsPageCopy.emptySavedJobs.jobsTitle', 'No saved jobs yet')}</h3>
                   <p className="text-sm text-muted-foreground mb-1 max-w-[280px]">
-                    Jobs you save from the AI Studio or Resume Tailoring flow appear here automatically.
+                    {t('app.applicationsPageCopy.emptySavedJobs.jobsDescription', 'Jobs you save from the AI Studio or Resume Tailoring flow appear here automatically.')}
                   </p>
                   <p className="text-xs text-muted-foreground mb-6 max-w-[260px]">
-                    You can also save jobs manually or search to find new ones.
+                    {t('app.applicationsPageCopy.emptySavedJobs.jobsHelper', 'You can also save jobs manually or search to find new ones.')}
                   </p>
                   <div className="flex flex-col gap-3 w-full max-w-[280px]">
                     <button
                   onClick={() => {haptics.medium();navigate('/ai-studio');}}
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md">
                   
-                        <Wand2 className="w-4 h-4" /> Go to AI Studio
+                        <Wand2 className="w-4 h-4" /> {t('app.applicationsPageCopy.emptySavedJobs.goToAiStudio', 'الانتقال إلى استوديو الذكاء')}
                       </button>
                     <button
                   onClick={() => {haptics.light();navigate('/editor?tailor=true');}}
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-muted text-foreground text-sm font-medium min-h-[44px] touch-manipulation active:scale-95">
                   
-                        <BookOpen className="w-4 h-4" /> Tailor a Resume
+                        <BookOpen className="w-4 h-4" /> {t('app.applicationsPageCopy.emptySavedJobs.tailorResume', 'تخصيص سيرة ذاتية')}
                       </button>
                     <div className="flex gap-2 justify-center mt-1">
                       <button
                   onClick={() => {haptics.light();setShowSearch(true);}}
                   className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation">
                   
-                          <Search className="w-3.5 h-3.5" /> Search Jobs
+                          <Search className="w-3.5 h-3.5" /> {t('app.applicationsPageCopy.emptySavedJobs.searchJobs', 'البحث عن وظائف')}
                         </button>
                       <button
                   onClick={() => {haptics.light();setShowSaveJob(true);}}
                   className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation">
                   
-                          <Plus className="w-3.5 h-3.5" /> Add Manually
+                          <Plus className="w-3.5 h-3.5" /> {t('app.applicationsPageCopy.emptySavedJobs.addManually', 'إضافة يدوية')}
                         </button>
                     </div>
                     <button
@@ -645,7 +647,7 @@ export default function ApplicationsPage() {
       <button
         onClick={() => {haptics.medium();setShowSaveJob(true);}}
         className="fixed bottom-[calc(7.5rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        aria-label="Save new job">
+        aria-label={t('app.applicationsPageCopy.emptySavedJobs.saveNewJobAria', 'حفظ وظيفة جديدة')}>
         
           <Plus className="w-6 h-6 text-primary-foreground" />
         </button>
@@ -680,10 +682,10 @@ export default function ApplicationsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FlaskConical className="w-4 h-4 text-muted-foreground" />
-              Sample Job Listings
+              {t('app.applicationsPageCopy.sampleJobs.title', 'نماذج لوظائف')}
             </DialogTitle>
             <DialogDescription>
-              These are example job listings to show you what the tracker looks like. Add your own real jobs using "Add Manually" or "Search Jobs" above.
+              {t('app.applicationsPageCopy.sampleJobs.description', 'هذه أمثلة لوظائف لتوضيح شكل المتابعة. أضف وظائفك الحقيقية باستخدام الإضافة اليدوية أو البحث عن وظائف أعلاه.')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2">
@@ -705,7 +707,7 @@ export default function ApplicationsPage() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Ready to track real applications? Use the buttons above to add your own.
+            {t('app.applicationsPageCopy.sampleJobs.footer', 'جاهز لتتبع طلباتك الحقيقية؟ استخدم الأزرار أعلاه لإضافة وظائفك.')}
           </p>
         </DialogContent>
       </Dialog>

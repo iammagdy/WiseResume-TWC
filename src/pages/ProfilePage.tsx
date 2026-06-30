@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { formatDistanceToNow } from 'date-fns';
+import { useLocale } from '@/i18n/LocaleProvider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,7 @@ import {
 import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
 
 export default function ProfilePage() {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { user, authSettled } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id);
@@ -93,17 +95,17 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
 
   const doPortfolioShare = async () => {
     if (!profile?.username) {
-      toast.error('Set up your portfolio username first');
+      toast.error(t('app.profilePage.portfolio.setupUsernameFirst', 'أضف اسم مستخدم للملف العام أولاً'));
       return;
     }
     const url = getPortfolioUrl(profile.username);
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${displayName || 'My'} Portfolio`, url });
+        await navigator.share({ title: t('app.profilePage.portfolio.shareTitle', 'ملف {{name}}', { name: displayName || 'ملفي' }), url });
       } catch { /* Sharing failed or cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
-      toast.success('Portfolio URL copied!');
+      toast.success(t('app.profilePage.portfolio.urlCopied', 'تم نسخ رابط الملف العام'));
     }
     haptics.light();
   };
@@ -113,18 +115,18 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
     setIsGoingLive(true);
     try {
       await updateProfile({ portfolioEnabled: true });
-      toast.success('Portfolio is now live!');
+      toast.success(t('app.profilePage.portfolio.liveSuccess', 'أصبح الملف العام متاحاً الآن'));
       setDraftWarningOpen(false);
       await doPortfolioShare();
     } catch {
-      toast.error('Failed to update portfolio status');
+      toast.error(t('app.profilePage.portfolio.liveError', 'تعذر تحديث حالة الملف العام'));
     } finally {
       setIsGoingLive(false);
     }
   };
 
   const handleLinkedInImport = (_data: ProfileData) => {
-    toast.success('Profile imported — open the editor to use your data');
+    toast.success(t('app.profilePage.profileImported', 'تم استيراد الملف الشخصي. افتح المحرر لاستخدام بياناتك.'));
     haptics.success();
   };
 
@@ -150,9 +152,9 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
           lastSyncedFromResumeAt: new Date().toISOString(),
         },
       });
-      toast.success('Portfolio re-synced with your resume');
+      toast.success(t('app.profilePage.portfolio.resynced', 'تمت مزامنة الملف العام مع سيرتك الذاتية من جديد'));
     } catch {
-      toast.error('Failed to re-sync portfolio');
+      toast.error(t('app.profilePage.portfolio.resyncError', 'تعذرت إعادة مزامنة الملف العام'));
     } finally {
       setIsResyncing(false);
     }
@@ -165,7 +167,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
         <div className="flex items-center gap-3">
           <BackButton />
           <User className="w-5 h-5 text-primary" />
-          <h1 className="text-page-title truncate">My Profile</h1>
+          <h1 className="text-page-title truncate">{t('app.profilePage.title', 'ملفي الشخصي')}</h1>
         </div>
       </header>
 
@@ -177,8 +179,8 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">Profile {completion}% complete</p>
-              <p className="text-xs text-muted-foreground">Finish setup for better AI suggestions</p>
+              <p className="text-sm font-medium text-foreground">{t('app.profilePage.completion.banner', 'اكتمل ملفك بنسبة {{count}}%', { count: completion })}</p>
+              <p className="text-xs text-muted-foreground">{t('app.profilePage.completion.bannerDescription', 'أكمل الإعداد لتحصل على اقتراحات ذكاء اصطناعي أفضل')}</p>
             </div>
             <Button
               variant="default"
@@ -190,7 +192,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
                 navigate('/onboarding');
               }}
             >
-              {isNavigatingToOnboarding ? 'Loading...' : 'Complete'}
+              {isNavigatingToOnboarding ? t('common.loading', 'جارٍ التحميل...') : t('app.profilePage.completion.complete', 'إكمال')}
             </Button>
           </div>
         )}
@@ -204,7 +206,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
             showLabel
           />
            <div>
-            <h2 className="text-2xl font-bold text-foreground">{displayName || 'Your Name'}</h2>
+            <h2 className="text-2xl font-bold text-foreground">{displayName || t('app.profilePage.userFallback', 'اسمك')}</h2>
             {profile?.jobTitle &&
             <p className="text-sm font-medium text-muted-foreground">{profile.jobTitle}</p>
             }
@@ -218,34 +220,34 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
             {profile?.updatedAt &&
             <p className="text-[10px] text-muted-foreground/60 mt-1 flex items-center justify-center gap-1">
                 <Clock className="w-2.5 h-2.5" />
-                Updated {formatDistanceToNow(new Date(profile.updatedAt), { addSuffix: true })}
+                {t('app.profilePage.updated', 'آخر تحديث {{time}}', { time: formatDistanceToNow(new Date(profile.updatedAt), { addSuffix: true }) })}
               </p>
             }
           </div>
         </div>
 
-        {/* Profile Completion */}
+        {/* Profile completion */}
         <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">Profile Completion</h3>
+            <h3 className="font-semibold text-foreground">{t('app.profilePage.completion.title', 'اكتمال الملف الشخصي')}</h3>
             <span className="text-sm text-primary font-medium">{completion}%</span>
           </div>
           <Progress value={completion} className="h-2" />
           <p className="text-xs text-muted-foreground">
-            {nextTip ? `💡 ${nextTip.hint}` : 'Your profile is complete! 🎉'}
+            {nextTip ? t('app.profilePage.completion.hint', '💡 {{hint}}', { hint: nextTip.hint }) : t('app.profilePage.completion.done', 'ملفك الشخصي مكتمل! 🎉')}
           </p>
           <Button variant="secondary" size="sm" className="w-full text-slate-50" onClick={() => setEditOpen(true)}>
-            <Edit2 className="w-4 h-4 mr-2" /> Edit account &amp; professional details
+            <Edit2 className="w-4 h-4 mr-2" /> {t('app.profilePage.editDetails', 'تعديل بيانات الحساب والتفاصيل المهنية')}
           </Button>
         </div>
 
         {/* Actions — Edit, Import Profile */}
         <div className="grid grid-cols-2 gap-3">
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
-            <Edit2 className="w-4 h-4 mr-2" /> Edit
+            <Edit2 className="w-4 h-4 mr-2" /> {t('common.edit', 'Edit')}
           </Button>
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setLinkedinOpen(true); }}>
-            <FileDown className="w-4 h-4 mr-2" /> Import
+            <FileDown className="w-4 h-4 mr-2" /> {t('common.import', 'Import')}
           </Button>
         </div>
 
@@ -258,40 +260,40 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-foreground text-sm">My Portfolio Website</h3>
+                  <h3 className="font-semibold text-foreground text-sm">{t('app.profilePage.portfolio.title', 'موقعي الاحترافي')}</h3>
                   <Badge variant={profile?.portfolioEnabled ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                    {profile?.portfolioEnabled ? '🟢 Live' : 'Draft'}
+                    {profile?.portfolioEnabled ? t('app.profilePage.portfolio.liveBadge', '🟢 مباشر') : t('app.profilePage.portfolio.draftBadge', 'مسودة')}
                   </Badge>
                 </div>
                 {profile?.username ?
                 <p className="text-xs text-muted-foreground truncate">WiseResume/{profile.username}</p> :
-                <p className="text-xs text-muted-foreground">Create your personal portfolio site</p>
+                <p className="text-xs text-muted-foreground">{t('app.profilePage.portfolio.createDescription', 'أنشئ موقع ملفك الاحترافي الشخصي')}</p>
                 }
               </div>
             </div>
           </div>
           {profile?.views != null && profile.views > 0 &&
           <p className="text-xs text-muted-foreground flex items-center gap-1">
-              👁 <span className="font-semibold text-foreground">{profile.views}</span> total views
+              {t('app.profilePage.portfolio.totalViews', '👁 {{count}} مشاهدة إجمالية', { count: profile.views })}
             </p>
           }
           {isPortfolioStale && (
             <div className="flex items-start gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground">Portfolio may be out of date</p>
-                <p className="text-[11px] text-muted-foreground">Your resume was updated after the portfolio was last synced.</p>
+                <p className="text-xs font-medium text-foreground">{t('app.profilePage.portfolio.outOfDateTitle', 'قد يكون الملف العام غير محدث')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('app.profilePage.portfolio.outOfDateDescription', 'تم تحديث سيرتك الذاتية بعد آخر مزامنة للملف العام.')}</p>
               </div>
               <LoadingButton
                 variant="outline"
                 size="sm"
                 isLoading={isResyncing}
-                loadingText="Syncing…"
+                loadingText={t('app.profilePage.portfolio.syncing', 'جارٍ المزامنة...')}
                 spinnerSize={12}
                 className="shrink-0 h-7 text-[11px] px-2 border-amber-500/40 hover:bg-amber-500/10"
                 onClick={handleResyncPortfolio}
               >
-                Re-sync now
+                {t('app.profilePage.portfolio.resyncNow', 'إعادة المزامنة الآن')}
               </LoadingButton>
             </div>
           )}
@@ -303,7 +305,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
               rel="noopener noreferrer"
               onClick={() => haptics.light()}
               className="inline-flex items-center justify-center h-9 rounded-xl text-xs active:scale-95 touch-manipulation border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3">
-                <ExternalLink className="w-3.5 h-3.5 mr-1" /> Preview
+                <ExternalLink className="w-3.5 h-3.5 mr-1" /> {t('common.preview', 'Preview')}
               </a>
             }
             {profile?.username &&
@@ -312,7 +314,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
               size="sm"
               className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
               onClick={handlePortfolioShare}>
-                <Share2 className="w-3.5 h-3.5 mr-1" /> Share
+                <Share2 className="w-3.5 h-3.5 mr-1" /> {t('common.share', 'Share')}
               </Button>
             }
             <Button
@@ -321,7 +323,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
               className={`h-9 rounded-xl text-xs active:scale-95 touch-manipulation ${!(profile?.username) ? 'col-span-3' : ''}`}
               onClick={() => { haptics.light(); navigate('/portfolio'); }}>
               <Edit2 className="w-3.5 h-3.5 mr-1" />
-              {profile?.username ? 'Edit' : 'Set Up Portfolio'}
+              {profile?.username ? t('common.edit', 'تعديل') : t('app.profilePage.portfolio.setupCta', 'إعداد الملف العام')}
             </Button>
           </div>
         </div>
@@ -331,12 +333,12 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
           <div className="bg-card border border-border shadow-soft rounded-2xl p-4 text-center">
             <FileText className="w-6 h-6 text-primary mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
-            <p className="text-xs text-muted-foreground">Resumes</p>
+            <p className="text-xs text-muted-foreground">{t('app.profilePage.stats.resumes', 'السير الذاتية')}</p>
           </div>
           <div className="bg-card border border-border shadow-soft rounded-2xl p-4 text-center">
             <Briefcase className="w-6 h-6 text-primary mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{applications.length}</p>
-            <p className="text-xs text-muted-foreground">Applications</p>
+            <p className="text-xs text-muted-foreground">{t('app.profilePage.stats.applications', 'الطلبات')}</p>
           </div>
         </div>
 
@@ -346,7 +348,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
         {/* Resume Portfolio */}
         {resumes.length > 0 &&
         <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">My Resumes</h3>
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('app.profilePage.myResumes', 'سيري الذاتية')}</h3>
             <div className="space-y-3">
               {resumes.map((resume) =>
             <ResumeListCard
@@ -382,15 +384,15 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
       <AlertDialog open={draftWarningOpen} onOpenChange={setDraftWarningOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Portfolio is inactive</AlertDialogTitle>
+            <AlertDialogTitle>{t('app.profilePage.portfolio.inactiveTitle', 'الملف العام غير منشور')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Your portfolio website is currently in draft mode. Visitors won't be able to see it until you make it live.
+              {t('app.profilePage.portfolio.inactiveDescription', 'موقع ملفك العام ما زال في وضع المسودة. لن يتمكن الزوار من رؤيته حتى تنشره.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <Button variant="outline" onClick={async () => { setDraftWarningOpen(false); await doPortfolioShare(); }}>
-              Share Anyway
+              {t('app.profilePage.portfolio.shareAnyway', 'مشاركة على أي حال')}
             </Button>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleGoLive(); }}
@@ -398,7 +400,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
               className="inline-flex items-center gap-2"
             >
               {isGoingLive && <MiniSpinner size={14} />}
-              {isGoingLive ? 'Going Live…' : 'Go Live & Share'}
+              {isGoingLive ? t('app.profilePage.portfolio.goLiveLoading', 'جارٍ النشر...') : t('app.profilePage.portfolio.goLive', 'نشر ومشاركة')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

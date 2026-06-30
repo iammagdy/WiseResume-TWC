@@ -8129,3 +8129,56 @@ Manual checks still pending:
 ### Short handover summary
 
 The recovery work separated a frozen mixed session into scoped commits, protected `main` with the missing `DevKitUI.tsx` dependency hotfix, deployed only the required `admin-devkit-data` Appwrite function, added the missing WiseHire `profiles.account_type` field, updated Magdy's account type to `hr`, confirmed Vercel production is live on `19d3b813`, and left only manual browser verification outstanding.
+
+---
+
+## 2026-06-30 - Arabic coverage recovery sweep
+
+### Scope completed in this session
+
+- Restored the authenticated Arabic experience across the highest-impact surfaces shown in the owner screenshots.
+- Kept the existing locale architecture (`LocaleProvider`, persisted locale, translation catalogs) and fixed consistency issues on top of it rather than rewriting i18n.
+
+### Gaps found
+
+- Remaining hardcoded English was still present in signed-in settings, profile, applications, upload/import, imported-jobs widgets, portfolio editor, dashboard activity/intelligence, top-bar AI labels, and parts of the WiseHire shell.
+- Several Arabic catalog values were corrupted or effectively untranslated, including visible `????`, broken interpolation values, and English-only placeholders.
+- Some activity/imported-job/dashboard labels were being generated in helper files instead of always coming from translation catalogs, which allowed Arabic mode to fall back to English.
+- Relative activity timestamps were still rendering in English (`about 1 month ago`) even when the app locale was Arabic.
+
+### Major fixes completed
+
+- Localized the critical signed-in pages and shared components that were still visibly mixed in Arabic mode:
+  - `SettingsPage`, `ProfilePage`, `ApplicationsPage`, `NotificationsPage`, `UploadPage`, `PortfolioEditorPage`
+  - imported-job and saved-job widgets/dialogs
+  - portfolio editor header/save/status bars
+  - dashboard saved jobs, activity insights/timeline, and top workspace controls
+  - Wise workspace / WiseHire shared navigation labels
+- Repaired damaged Arabic catalog entries in `locales/ar/app.json` and related locale files that were causing broken Arabic output.
+- Added a focused Arabic coverage guardrail:
+  - `scripts/check-arabic-coverage.mjs`
+  - `src/i18n/__tests__/criticalArabicCoverage.test.ts`
+- Updated relative-time formatting so Arabic mode no longer defaults to English time phrases in dashboard/activity surfaces.
+
+### Validation run in this session
+
+- Passed: `npm run test:i18n`
+- Passed: `npm run test:i18n:coverage`
+- Passed: `npm run test -- src/i18n/__tests__/criticalArabicCoverage.test.ts`
+- Passed: `npm run build`
+
+### Git / workspace state at handoff
+
+- Working branch during implementation: `codex/arabic-coverage-recovery`
+- Validation was clean on the working branch after the recovery pass.
+- Documentation was updated in:
+  - `CHANGELOG.md`
+  - `Project Atlas/CHANGELOG.md`
+  - `Project Atlas/04-For You (Plain Language)/stability-improvements.md`
+  - `Project Atlas/MASTER_HANDOVER_2026.md`
+
+### Residual untranslated scope
+
+- This session recovered the critical authenticated Arabic path, but it did **not** finish every remaining English literal across the full repository.
+- Follow-up sweep still needed for lower-priority or secondary surfaces, including some AI/interview/editor/supporting components and a few non-critical product pages outside the recovered path.
+- Do not claim “full repo Arabic completion” until those remaining surfaces are audited and verified in-browser.

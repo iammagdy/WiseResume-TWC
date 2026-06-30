@@ -6,6 +6,7 @@ import { JobActivityStats } from '@/hooks/useJobActivityStats';
 import { useActivityStreak, weeklyGoalKey } from '@/hooks/useActivityStreak';
 import { useAuth } from '@/hooks/useAuth';
 import { useJobApplications } from '@/hooks/useJobApplications';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface Nudge {
   icon: React.ElementType;
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function ActivityInsightsCard({ stats }: Props) {
+  const { t } = useLocale();
   const { data: applications = [] } = useJobApplications();
   const shouldReduceMotion = useReducedMotion();
   const { user } = useAuth();
@@ -59,12 +61,19 @@ export function ActivityInsightsCard({ stats }: Props) {
       return ref && differenceInDays(now, new Date(ref)) >= 14;
     });
     if (staleApps.length > 0) {
-      result.push({
-        icon: AlertCircle,
-        message: `${staleApps.length} application${staleApps.length > 1 ? 's have' : ' has'} had no movement in 14+ days — consider sending a follow-up or refreshing your approach.`,
-        type: 'warning',
-      });
-    }
+        result.push({
+          icon: AlertCircle,
+          message: t(
+            'app.applicationsPageCopy.insights.staleApplications',
+            '{{count}} application{{suffix}} had no movement in 14+ days — consider sending a follow-up or refreshing your approach.',
+            {
+              count: staleApps.length,
+              suffix: staleApps.length > 1 ? 's have' : ' has',
+            },
+          ),
+          type: 'warning',
+        });
+      }
 
     // Rule 2: Zero applications this week
     const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -72,25 +81,36 @@ export function ActivityInsightsCard({ stats }: Props) {
       a => a.applied_at && new Date(a.applied_at) >= thisWeekStart
     );
     if (thisWeekApps.length === 0 && applications.length > 0) {
-      result.push({
-        icon: Target,
-        message: "You haven't applied to anything this week — even one application keeps the momentum going.",
-        type: 'tip',
-      });
-    }
+        result.push({
+          icon: Target,
+          message: t(
+            'app.applicationsPageCopy.insights.noApplicationsThisWeek',
+            "You haven't applied to anything this week — even one application keeps the momentum going.",
+          ),
+          type: 'tip',
+        });
+      }
 
     // Rule 3: Response rate commentary
     if (stats.responseRate > 0) {
       if (stats.responseRate < 20) {
         result.push({
           icon: TrendingUp,
-          message: `Your response rate is ${stats.responseRate}% — keep applying and tailor each resume to push it higher.`,
+          message: t(
+            'app.applicationsPageCopy.insights.lowResponseRate',
+            'Your response rate is {{score}}% — keep applying and tailor each resume to push it higher.',
+            { score: stats.responseRate },
+          ),
           type: 'info',
         });
       } else if (stats.responseRate >= 30) {
         result.push({
           icon: Zap,
-          message: `Strong ${stats.responseRate}% response rate! Your applications are landing well — keep the quality up.`,
+          message: t(
+            'app.applicationsPageCopy.insights.strongResponseRate',
+            'Strong {{score}}% response rate! Your applications are landing well — keep the quality up.',
+            { score: stats.responseRate },
+          ),
           type: 'success',
         });
       }
@@ -98,36 +118,54 @@ export function ActivityInsightsCard({ stats }: Props) {
 
     // Rule 4: Streak encouragement — uses broader activity streak (same source as streak card)
     if (streak > 0) {
-      result.push({
-        icon: Zap,
-        message: streak === 1
-          ? `You were active yesterday — keep the streak alive today!`
-          : `${streak}-day activity streak — great consistency, keep it going!`,
-        type: 'success',
-      });
-    }
+        result.push({
+          icon: Zap,
+          message: streak === 1
+            ? t(
+                'app.applicationsPageCopy.insights.streakOneDay',
+                'You were active yesterday — keep the streak alive today!',
+              )
+            : t(
+                'app.applicationsPageCopy.insights.streakMultiDay',
+                '{{count}}-day activity streak — great consistency, keep it going!',
+                { count: streak },
+              ),
+          type: 'success',
+        });
+      }
 
     // Rule 5: Close to weekly goal nudge
     const remaining = weeklyGoal - thisWeekApps.length;
     if (thisWeekApps.length > 0 && remaining > 0 && remaining <= 2) {
-      result.push({
-        icon: Target,
-        message: `You're ${remaining} application${remaining > 1 ? 's' : ''} away from your weekly goal of ${weeklyGoal} — you're almost there!`,
-        type: 'success',
-      });
-    }
+        result.push({
+          icon: Target,
+          message: t(
+            'app.applicationsPageCopy.insights.weeklyGoal',
+            "You're {{count}} application{{suffix}} away from your weekly goal of {{goal}} — you're almost there!",
+            {
+              count: remaining,
+              suffix: remaining > 1 ? 's' : '',
+              goal: weeklyGoal,
+            },
+          ),
+          type: 'success',
+        });
+      }
 
     // Fallback: zero-history motivational nudge
     if (result.length === 0) {
-      result.push({
-        icon: Lightbulb,
-        message: 'Start logging your job applications to unlock personalised insights and track your progress over time.',
-        type: 'info',
-      });
-    }
+        result.push({
+          icon: Lightbulb,
+          message: t(
+            'app.applicationsPageCopy.insights.empty',
+            'Start logging your job applications to unlock personalised insights and track your progress over time.',
+          ),
+          type: 'info',
+        });
+      }
 
     return result.slice(0, 3);
-  }, [applications, stats, streak, weeklyGoal]);
+  }, [applications, stats, streak, weeklyGoal, t]);
 
   if (stats.isLoading) {
     return (
@@ -154,7 +192,9 @@ export function ActivityInsightsCard({ stats }: Props) {
         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
           <Lightbulb className="w-4 h-4 text-primary" />
         </div>
-        <p className="text-sm font-semibold">AI Insights</p>
+        <p className="text-sm font-semibold">
+          {t('app.applicationsPageCopy.insights.title', 'AI Insights')}
+        </p>
       </div>
       <div className="space-y-2">
         {nudges.map((nudge, i) => {

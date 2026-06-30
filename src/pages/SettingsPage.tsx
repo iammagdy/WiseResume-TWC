@@ -30,6 +30,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsProfileHero } from '@/components/settings/SettingsProfileHero';
 import { withAvatarCacheBust } from '@/lib/avatarStorage';
 import { SettingsFooter } from '@/components/settings/SettingsFooter';
+import { useLocale } from '@/i18n/LocaleProvider';
 import '@/components/settings/settings-workspace.css';
 
 // Lazy-loaded sheets
@@ -53,6 +54,7 @@ import { ChangelogDialog } from '@/components/settings/ChangelogDialog';
 import { AboutDialog } from '@/components/settings/AboutDialog';
 
 function UserIdCard({ userId }: { userId: string }) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     navigator.clipboard.writeText(userId).then(() => {
@@ -64,20 +66,23 @@ function UserIdCard({ userId }: { userId: string }) {
     <button
       onClick={handleCopy}
       className="settings-user-id w-full flex items-start justify-between gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left touch-manipulation"
-      title="Tap to copy your User ID"
+      title={t('app.settingsPage.userId.title', 'انسخ معرّف المستخدم')}
     >
       <div className="min-w-0">
-        <p className="text-xs font-medium text-muted-foreground mb-0.5">Your User ID</p>
+        <p className="text-xs font-medium text-muted-foreground mb-0.5">{t('app.settingsPage.userId.label', 'معرّف المستخدم')}</p>
         <p className="font-mono text-xs text-foreground truncate">{userId}</p>
-        <p className="text-xs text-muted-foreground mt-1">Share this ID with support if you need help with your account.</p>
+        <p className="text-xs text-muted-foreground mt-1">{t('app.settingsPage.userId.description', 'شارِك هذا المعرّف مع الدعم إذا احتجت إلى مساعدة في حسابك.')}</p>
       </div>
-      <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{copied ? '✓ Copied' : 'Copy'}</span>
+      <span className="text-xs text-muted-foreground shrink-0 mt-0.5">
+        {copied ? t('app.settingsPage.userId.copied', 'تم النسخ') : t('app.settingsPage.userId.copy', 'نسخ')}
+      </span>
     </button>
   );
 }
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const { user, loading, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id);
   const { plan } = usePlan();
@@ -142,21 +147,21 @@ export default function SettingsPage() {
   const handleSignOut = useCallback(() => {
     signOut();
     navigate('/');
-    toast.success('Signed out successfully');
+    toast.success(t('app.settingsPage.toasts.signedOut', 'تم تسجيل الخروج بنجاح'));
   }, [signOut, navigate]);
 
   const handleDataDeleted = useCallback(async () => {
     try {
       await signOut();
     } catch { /* sign-out after delete is best-effort */ }
-    toast.success('All data deleted');
+    toast.success(t('app.settingsPage.toasts.dataDeleted', 'تم حذف جميع البيانات'));
     window.location.replace('/');
   }, [signOut]);
 
   const handleShareApp = useCallback(async () => {
     const shareData = {
-      title: 'WiseResume',
-      text: 'Build a professional resume in minutes with AI-powered writing assistance.',
+      title: t('app.settingsPage.share.title', 'WiseResume'),
+      text: t('app.settingsPage.share.text', 'أنشئ سيرة ذاتية احترافية خلال دقائق بمساعدة الذكاء الاصطناعي.'),
       url: getAppUrl()
     };
     haptics.light();
@@ -165,7 +170,7 @@ export default function SettingsPage() {
     } else {
       try {
         await navigator.clipboard.writeText(shareData.url);
-        toast.success('Link copied to clipboard');
+        toast.success(t('app.settingsPage.toasts.linkCopied', 'تم نسخ الرابط'));
       } catch { /* clipboard unavailable */ }
     }
   }, []);
@@ -185,11 +190,13 @@ export default function SettingsPage() {
     return 'U';
   };
 
-  const displayName = profile?.fullName || user?.email || 'User';
+  const displayName = profile?.fullName || user?.email || t('app.settingsPage.userFallback', 'مستخدم');
   const planCta =
     plan === 'free'
-      ? 'Free plan · Redeem a coupon to upgrade'
-      : `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan · Manage subscription`;
+      ? t('app.settingsPage.plan.free', 'الخطة المجانية · استخدم كوبوناً للترقية')
+      : t('app.settingsPage.plan.paid', 'خطة {{plan}} · إدارة الاشتراك', {
+          plan: `${plan.charAt(0).toUpperCase() + plan.slice(1)}`,
+        });
 
   if (loading) return <SettingsSkeleton />;
 
@@ -216,14 +223,14 @@ export default function SettingsPage() {
           )}
 
           {user && (
-            <SettingsSection title="Account" description="Plan, usage, and sign-in">
+            <SettingsSection title={t('app.settingsPage.sections.account.title', 'الحساب')} description={t('app.settingsPage.sections.account.description', 'الخطة والاستخدام وتسجيل الدخول')}>
               <AccountSection authProvider="Appwrite" />
               <UserIdCard userId={user.id} />
               <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-soft">
                 <SettingsRow
                   type="button"
-                  label="Sign Out"
-                  description="End your session on this device"
+                  label={t('app.settingsPage.signOut.label', 'تسجيل الخروج')}
+                  description={t('app.settingsPage.signOut.description', 'إنهاء جلستك على هذا الجهاز')}
                   icon={<LogOut className="w-4 h-4" />}
                   onClick={() => setSignOutConfirmOpen(true)}
                 />
@@ -232,12 +239,12 @@ export default function SettingsPage() {
           )}
 
           {user && (
-            <SettingsSection title="AI Engine" description="Model and writing preferences">
+            <SettingsSection title={t('app.settingsPage.sections.aiEngine.title', 'محرك الذكاء الاصطناعي')} description={t('app.settingsPage.sections.aiEngine.description', 'النموذج وتفضيلات الكتابة')}>
               <AIEngineSection />
             </SettingsSection>
           )}
 
-          <SettingsSection title="Preferences" description="Theme and export defaults">
+          <SettingsSection title={t('app.settingsPage.sections.preferences.title', 'التفضيلات')} description={t('app.settingsPage.sections.preferences.description', 'السمة وإعدادات التصدير الافتراضية')}>
             <AppearanceSection />
             <EditorExportSection
               isSignedIn={!!user}
@@ -246,11 +253,11 @@ export default function SettingsPage() {
             />
           </SettingsSection>
 
-          <SettingsSection title="Notifications">
+          <SettingsSection title={t('app.settingsPage.sections.notifications.title', 'الإشعارات')}>
             <NotificationsSection />
           </SettingsSection>
 
-          <SettingsSection title="Privacy & Security">
+          <SettingsSection title={t('app.settingsPage.sections.privacy.title', 'الخصوصية والأمان')}>
             <PrivacySection
               onOpenBiometricTimeout={() => setBiometricTimeoutOpen(true)}
               onBiometricToggle={handleBiometricToggle}
@@ -258,7 +265,7 @@ export default function SettingsPage() {
             {user && <TalentPoolDiscoverableCard />}
           </SettingsSection>
 
-          <SettingsSection title="Support" description="Help, updates, and feedback">
+          <SettingsSection title={t('app.settingsPage.sections.support.title', 'الدعم')} description={t('app.settingsPage.sections.support.description', 'المساعدة والتحديثات والملاحظات')}>
             <AboutSection
               isSignedIn={!!user}
               appVersion={appVersion}
@@ -281,7 +288,7 @@ export default function SettingsPage() {
                 } else {
                   localStorage.removeItem('wr-onboarding-seen');
                 }
-                toast.success('Onboarding reset — redirecting…');
+                toast.success(t('app.settingsPage.toasts.onboardingReset', 'تمت إعادة ضبط الإعداد الأولي · جارٍ التحويل'));
                 navigate('/onboarding');
               }}
               onRateApp={handleRateApp}
@@ -292,7 +299,7 @@ export default function SettingsPage() {
           </SettingsSection>
 
           {user && (
-            <SettingsSection title="Danger Zone" variant="danger">
+            <SettingsSection title={t('app.settingsPage.sections.danger.title', 'منطقة حساسة')} variant="danger">
               <DangerZoneSection
                 onDeleteData={() => setDeleteDialogOpen(true)}
               />
@@ -349,12 +356,12 @@ export default function SettingsPage() {
       <AlertDialog open={signOutConfirmOpen} onOpenChange={setSignOutConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Sign out?</AlertDialogTitle>
-            <AlertDialogDescription>You'll need to sign in again to access your data.</AlertDialogDescription>
+            <AlertDialogTitle>{t('app.settingsPage.signOut.confirmTitle', 'تسجيل الخروج؟')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('app.settingsPage.signOut.confirmDescription', 'ستحتاج إلى تسجيل الدخول مرة أخرى للوصول إلى بياناتك.')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground">Sign Out</AlertDialogAction>
+            <AlertDialogCancel>{t('common.cancel', 'إلغاء')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground">{t('app.settingsPage.signOut.label', 'تسجيل الخروج')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -366,6 +373,7 @@ export default function SettingsPage() {
 }
 
 function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
+  const { t } = useLocale();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('wr-settings-guest-cta-dismissed') === '1');
   return (
     <AnimatePresence mode="wait">
@@ -376,14 +384,14 @@ function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
           <div className="flex items-center gap-4">
             <AppIcon size={32} />
             <div>
-              <p className="font-medium">Welcome, Guest</p>
-              <p className="text-sm text-muted-foreground">Create a free account to unlock more.</p>
+              <p className="font-medium">{t('app.settingsPage.guest.title', 'مرحباً بك')}</p>
+              <p className="text-sm text-muted-foreground">{t('app.settingsPage.guest.description', 'أنشئ حساباً مجانياً لفتح المزيد من المزايا.')}</p>
             </div>
           </div>
-          <Button size="sm" onClick={() => navigate('/auth?mode=signup')} className="w-full mt-4">Get Started Free</Button>
+          <Button size="sm" onClick={() => navigate('/auth?mode=signup')} className="w-full mt-4">{t('app.settingsPage.guest.cta', 'ابدأ مجاناً')}</Button>
         </motion.div> :
       <div className="settings-card-group overflow-hidden">
-          <SettingsRow type="navigation" label="Sign in to unlock all features" onClick={() => navigate('/auth?mode=login')} />
+          <SettingsRow type="navigation" label={t('app.settingsPage.guest.signIn', 'سجّل الدخول لفتح جميع المزايا')} onClick={() => navigate('/auth?mode=login')} />
         </div>
       }
     </AnimatePresence>

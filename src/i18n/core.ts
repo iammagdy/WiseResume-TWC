@@ -132,13 +132,20 @@ function getNestedValue(source: unknown, path: readonly string[]): string | unde
 export function translate(
   key: string,
   locale: SupportedLocale,
-  variables: Record<string, string | number> = {},
+  fallbackOrVariables?: string | Record<string, string | number>,
+  maybeVariables?: Record<string, string | number>,
 ): string {
+  const fallback = typeof fallbackOrVariables === 'string' ? fallbackOrVariables : undefined;
+  const variables =
+    typeof fallbackOrVariables === 'string'
+      ? (maybeVariables ?? {})
+      : (fallbackOrVariables ?? {});
   const [namespace, ...path] = key.split('.');
   const localeCatalog = catalogs[locale] as Record<string, unknown>;
   const fallbackCatalog = catalogs.en as Record<string, unknown>;
   const raw = getNestedValue(localeCatalog[namespace], path)
     ?? getNestedValue(fallbackCatalog[namespace], path)
+    ?? fallback
     ?? key;
   return raw.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(variables[name] ?? `{{${name}}}`));
 }

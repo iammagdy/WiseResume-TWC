@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { useSettingsStore } from '@/store/settingsStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const CloudSyncBadge = lazyWithRetry(() => import('./CloudSyncBadge'));
 
@@ -23,6 +24,7 @@ export const EditorExportSection = memo(function EditorExportSection({
     onManageExports,
     onNavigateAuth,
 }: EditorExportSectionProps) {
+    const { t } = useLocale();
     const [pdfOpen, setPdfOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
     const { pdfDefaults, setPdfDefaults } = useSettingsStore();
@@ -36,9 +38,16 @@ export const EditorExportSection = memo(function EditorExportSection({
                         <Download className="w-4 h-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0 text-left">
-                        <p className="text-sm font-medium">PDF Export Settings</p>
+                        <p className="text-sm font-medium">{t('app.settingsPage.exports.pdfTitle', 'PDF Export Settings')}</p>
                         <p className="text-xs text-muted-foreground">
-                            {pdfDefaults.pageNumberFormat === 'simple' ? 'Simple' : 'Full'}, Badge {pdfDefaults.showBranding !== false ? 'on' : 'off'}
+                            {t('app.settingsPage.exports.pdfSummary', '{{format}}, badge {{badge}}', {
+                                format: pdfDefaults.pageNumberFormat === 'simple'
+                                    ? t('app.settingsPage.exports.simple', 'Simple')
+                                    : t('app.settingsPage.exports.full', 'Full'),
+                                badge: pdfDefaults.showBranding !== false
+                                    ? t('app.settingsPage.exports.on', 'on')
+                                    : t('app.settingsPage.exports.off', 'off'),
+                            })}
                         </p>
                     </div>
                     <ChevronDown className={cn(
@@ -50,8 +59,8 @@ export const EditorExportSection = memo(function EditorExportSection({
                     <div className="px-4 pb-4 space-y-3">
                         <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
                             <div className="space-y-0.5">
-                                <Label htmlFor="settings-page-numbers" className="text-sm font-medium">Show Page Numbers</Label>
-                                <p className="text-xs text-muted-foreground">Display in PDF footer</p>
+                                <Label htmlFor="settings-page-numbers" className="text-sm font-medium">{t('app.settingsPage.exports.showPageNumbers', 'Show Page Numbers')}</Label>
+                                <p className="text-xs text-muted-foreground">{t('app.settingsPage.exports.pageNumbersDescription', 'Display in PDF footer')}</p>
                             </div>
                             <Switch
                                 id="settings-page-numbers"
@@ -64,7 +73,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                         </div>
                         {pdfDefaults.showPageNumbers !== false && (
                             <div className="p-3 rounded-xl bg-muted space-y-2">
-                                <Label className="text-sm font-medium">Format</Label>
+                                <Label className="text-sm font-medium">{t('app.settingsPage.exports.format', 'Format')}</Label>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => { haptics.light(); setPdfDefaults({ pageNumberFormat: 'simple' }); }}
@@ -75,7 +84,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                                                 : 'border-border bg-background hover:border-primary/50'
                                         )}
                                     >
-                                        Simple (1)
+                                        {t('app.settingsPage.exports.simpleFormat', 'Simple (1)')}
                                     </button>
                                     <button
                                         onClick={() => { haptics.light(); setPdfDefaults({ pageNumberFormat: 'full' }); }}
@@ -86,7 +95,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                                                 : 'border-border bg-background hover:border-primary/50'
                                         )}
                                     >
-                                        Full (1 of 3)
+                                        {t('app.settingsPage.exports.fullFormat', 'Full (1 of 3)')}
                                     </button>
                                 </div>
                             </div>
@@ -94,9 +103,9 @@ export const EditorExportSection = memo(function EditorExportSection({
                         <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
                             <div className="space-y-0.5">
                                 <Label htmlFor="settings-branding" className="text-sm font-medium flex items-center gap-1.5">
-                                    <span className="text-primary">✦</span> WiseResume Badge
+                                    <span className="text-primary">✦</span> {t('app.settingsPage.exports.badgeTitle', 'WiseResume Badge')}
                                 </Label>
-                                <p className="text-xs text-muted-foreground">Prestige stamp on exports</p>
+                                <p className="text-xs text-muted-foreground">{t('app.settingsPage.exports.badgeDescription', 'Prestige stamp on exports')}</p>
                             </div>
                             <Switch
                                 id="settings-branding"
@@ -120,7 +129,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                         <Database className="w-4 h-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0 text-left">
-                        <p className="text-sm font-medium">Export Resumes</p>
+                        <p className="text-sm font-medium">{t('app.settingsPage.exports.exportResumes', 'Export Resumes')}</p>
                     </div>
                     <Suspense fallback={null}>
                         <CloudSyncBadge isSignedIn={isSignedIn} />
@@ -139,13 +148,15 @@ export const EditorExportSection = memo(function EditorExportSection({
                                 onClick={onManageExports}
                             >
                                 <Database className="w-4 h-4 mr-2" />
-                                Manage Exports
+                                {t('app.settingsPage.exports.manageExports', 'Manage Exports')}
                             </Button>
                         ) : (
                             <div className="flex flex-col items-center gap-3 py-2">
-                                <p className="text-sm text-muted-foreground text-center">Sign in to backup and export your resumes</p>
+                                <p className="text-sm text-muted-foreground text-center">
+                                    {t('app.settingsPage.exports.signInDescription', 'Sign in to backup and export your resumes')}
+                                </p>
                                 <Button size="sm" onClick={onNavigateAuth}>
-                                    Sign in
+                                    {t('app.settingsPage.guest.signIn', 'Sign in')}
                                 </Button>
                             </div>
                         )}

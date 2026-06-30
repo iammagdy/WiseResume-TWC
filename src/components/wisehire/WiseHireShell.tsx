@@ -27,6 +27,7 @@ import { TrialCountdownBadge } from '@/components/wisehire/TrialCountdownBadge';
 import { Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface NavItem {
   label: string;
@@ -59,6 +60,7 @@ interface WiseHireShellProps {
 export function WiseHireShell({ children }: WiseHireShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLocale();
   const { user, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -76,7 +78,7 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
 
   function handleNavClick(item: NavItem) {
     if (item.comingSoon) {
-      toast.info(`${item.label} is coming in the next release.`);
+      toast.info(t('wisehire.shell.comingSoonToast', '{{label}} is coming in the next release.', { label: item.label }));
       setMobileOpen(false);
       return;
     }
@@ -93,6 +95,22 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
     : user?.email
       ? user.email[0].toUpperCase()
       : '?';
+
+  const navItems: NavItem[] = [
+    { ...NAV_ITEMS[0], label: t('wisehire.shell.nav.dashboard', 'Dashboard') },
+    { ...NAV_ITEMS[1], label: t('wisehire.shell.nav.jdWriter', 'JD Writer') },
+    { ...NAV_ITEMS[2], label: t('wisehire.shell.nav.briefGenerator', 'Brief Generator') },
+    { ...NAV_ITEMS[3], label: t('wisehire.shell.nav.roles', 'Roles') },
+    { ...NAV_ITEMS[4], label: t('wisehire.shell.nav.pipeline', 'Pipeline') },
+    { ...NAV_ITEMS[5], label: t('wisehire.shell.nav.bulkScreen', 'Bulk Screen') },
+    { ...NAV_ITEMS[6], label: t('wisehire.shell.nav.scorecardTemplates', 'SC Templates') },
+    { ...NAV_ITEMS[7], label: t('wisehire.shell.nav.cvMasking', 'CV Masking') },
+    { ...NAV_ITEMS[8], label: t('wisehire.shell.nav.talentPool', 'Talent Pool') },
+    { ...NAV_ITEMS[9], label: t('wisehire.shell.nav.clients', 'Clients') },
+    { ...NAV_ITEMS[10], label: t('wisehire.shell.nav.analytics', 'Analytics') },
+    { ...NAV_ITEMS[11], label: t('wisehire.shell.nav.settings', 'Settings') },
+    { ...NAV_ITEMS[12], label: t('wisehire.shell.nav.subscription', 'Subscription') },
+  ];
 
   const Sidebar = (
     <div className="flex flex-col h-full relative border-r border-slate-200 dark:border-slate-800 w-60 shrink-0">
@@ -112,8 +130,8 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label="WiseHire navigation">
-        {NAV_ITEMS.map((item) => {
+      <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label={t('wisehire.shell.navigationAria', 'WiseHire navigation')}>
+        {navItems.map((item) => {
           const active = isActive(item);
           const Icon = item.icon;
           return (
@@ -137,7 +155,7 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
               <span className="flex-1 truncate">{item.label}</span>
               {item.comingSoon && (
                 <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
-                  Soon
+                  {t('wisehire.shell.soon', 'Soon')}
                 </span>
               )}
               {active && <ChevronRight className="h-3 w-3 text-blue-500 shrink-0" />}
@@ -152,10 +170,10 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
         <button
           onClick={toggleTheme}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={isDark ? t('app.topBar.switchToLight', 'Switch to light mode') : t('app.topBar.switchToDark', 'Switch to dark mode')}
         >
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {isDark ? 'Light mode' : 'Dark mode'}
+          {isDark ? t('wisehire.shell.theme.light', 'Light mode') : t('wisehire.shell.theme.dark', 'Dark mode')}
         </button>
 
         {/* User row */}
@@ -165,7 +183,7 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
-              {user?.name ?? user?.email ?? 'HR User'}
+              {user?.name ?? user?.email ?? t('wisehire.shell.userFallback', 'HR User')}
             </p>
             {user?.name && user.email && (
               <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
@@ -174,7 +192,7 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
           <button
             onClick={handleSignOut}
             className="shrink-0 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-            aria-label="Sign out"
+            aria-label={t('app.settingsPage.signOut.label', 'Sign Out')}
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -216,7 +234,7 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
             <button
               onClick={() => setMobileOpen(true)}
               className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Open navigation"
+              aria-label={t('wisehire.shell.openNavigation', 'Open navigation')}
             >
               <Menu className="h-5 w-5" />
             </button>

@@ -24,7 +24,11 @@ interface LocaleContextValue {
   locale: SupportedLocale;
   direction: TextDirection;
   setLocale: (locale: SupportedLocale) => void;
-  t: (key: string, variables?: Record<string, string | number>) => string;
+  t: (
+    key: string,
+    fallbackOrVariables?: string | Record<string, string | number>,
+    maybeVariables?: Record<string, string | number>,
+  ) => string;
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
@@ -97,7 +101,8 @@ export function LocaleProvider({
     locale,
     direction,
     setLocale,
-    t: (key, variables) => translate(key, locale, variables),
+    t: (key, fallbackOrVariables, maybeVariables) =>
+      translate(key, locale, fallbackOrVariables, maybeVariables),
   }), [direction, locale, setLocale]);
 
   return (

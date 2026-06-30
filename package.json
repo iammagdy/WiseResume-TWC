@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:i18n": "node scripts/check-i18n.mjs",
+    "test:i18n:coverage": "node scripts/check-arabic-coverage.mjs",
     "schema:i18n": "node scripts/ensure-arabic-locale-schema.mjs",
     "server": "tsx server/index.ts",
     "server:dev": "tsx --watch server/index.ts",

@@ -26,26 +26,27 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
   const pageTitle = getPageTitle(pathname) ?? 'WiseResume';
   const showPlanBadge = !planLoading && (plan === 'premium' || plan === 'pro');
 
-  const keyMap: Record<string, string> = {
-    'Dashboard': 'app.dashboard',
-    'Editor': 'common.editor',
-    'AI Tools': 'app.aiStudioNavLabel',
-    'Tailoring Hub': 'app.tailoringHub',
-    'Activity': 'app.applications',
-    'Portfolio': 'app.portfolio',
-    'Settings': 'app.settings',
-    'Profile': 'app.profile',
-    'Notifications': 'app.notifications',
-    'Templates': 'app.templates',
-    'Examples': 'app.examples',
-    'Guides': 'app.guides',
-    'Help': 'app.help',
-    'Analytics': 'app.analytics',
-    'Subscription': 'app.subscription',
-    'Invite Friends': 'app.referral',
-    'Achievements': 'app.achievements',
-  };
-  const translatedTitle = keyMap[pageTitle] ? t(keyMap[pageTitle]) : pageTitle;
+  const pathKeyMap: Array<[string, string]> = [
+    ['/dashboard', 'app.dashboard'],
+    ['/editor', 'common.editor'],
+    ['/ai-studio', 'app.aiStudioNavLabel'],
+    ['/tailor', 'app.tailoringHub'],
+    ['/applications', 'app.applications'],
+    ['/portfolio', 'app.portfolio'],
+    ['/settings', 'app.settings'],
+    ['/profile', 'app.profile'],
+    ['/notifications', 'app.notifications'],
+    ['/templates', 'app.templates'],
+    ['/examples', 'app.examples'],
+    ['/guides', 'app.guides'],
+    ['/help', 'app.help'],
+    ['/analytics', 'app.analytics'],
+    ['/subscription', 'app.subscription'],
+    ['/referral', 'app.referral'],
+    ['/achievements', 'app.achievements'],
+  ];
+  const matchedKey = pathKeyMap.find(([prefix]) => pathname.startsWith(prefix))?.[1];
+  const translatedTitle = matchedKey ? t(matchedKey) : pageTitle;
 
   return (
     <header
@@ -54,7 +55,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
         'pt-[env(safe-area-inset-top,0px)]',
         className,
       )}
-      aria-label="Workspace actions"
+      aria-label={t('app.topBar.actionsAria', 'إجراءات مساحة العمل')}
     >
       <GlassSurface className="absolute inset-0 app-shell-nav-glass" blur={18} saturate={165} />
       <div
@@ -115,11 +116,11 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               'border border-border/80 bg-card/80 text-foreground',
               'hover:bg-muted/60 active:scale-[0.98] transition-all touch-manipulation',
             )}
-            aria-label="Import a job"
+            aria-label={t('app.topBar.importJobAria', 'استيراد وظيفة')}
           >
             <Briefcase className="w-4 h-4 shrink-0 sm:hidden" aria-hidden />
             <Plus className="w-4 h-4 shrink-0 hidden sm:block" aria-hidden />
-            <span className="hidden sm:inline leading-none">{t('app.topBar.importJob', 'Import Job')}</span>
+            <span className="hidden sm:inline leading-none">{t('app.topBar.importJob', 'استيراد وظيفة')}</span>
           </button>
 
           <span className="w-px h-6 bg-border/60 hidden sm:block" aria-hidden />
@@ -138,16 +139,16 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               wiseChatOpen &&
                 'border-primary/45 bg-primary/12 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]',
             )}
-            aria-label={wiseChatOpen ? t('app.topBar.closeWiseAI', 'Close Wise AI') : t('app.topBar.askWiseAI', 'Ask Wise AI')}
+            aria-label={wiseChatOpen ? t('app.topBar.closeWiseAI', 'إغلاق مساعد وايز') : t('app.topBar.askWiseAI', 'اسأل مساعد وايز')}
             aria-pressed={wiseChatOpen}
           >
             <span className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 shrink-0">
               <MessageCircle className="w-3.5 h-3.5 text-primary" aria-hidden />
             </span>
             <span className="hidden md:inline bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent font-semibold">
-              {t('app.topBar.wiseAI', 'Wise AI')}
+              {t('app.topBar.wiseAI', 'مساعد وايز')}
             </span>
-            <span className="md:hidden font-semibold text-primary">{t('app.topBar.wiseAIShort', 'AI')}</span>
+            <span className="md:hidden font-semibold text-primary">{t('app.topBar.wiseAIShort', 'المساعد')}</span>
           </button>
 
           <button
@@ -160,7 +161,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               'inline-flex items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
               'text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation',
             )}
-            aria-label={isDark ? t('app.topBar.switchToLight', 'Switch to light mode') : t('app.topBar.switchToDark', 'Switch to dark mode')}
+            aria-label={isDark ? t('app.topBar.switchToLight', 'التبديل إلى الوضع الفاتح') : t('app.topBar.switchToDark', 'التبديل إلى الوضع الداكن')}
           >
             <span className="relative flex items-center justify-center w-4 h-4">
               <Sun
