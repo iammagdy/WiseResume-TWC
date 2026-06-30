@@ -17,4 +17,13 @@ describe('pdf-native Vercel runtime imports', () => {
       )),
     );
   });
+
+  it('uses a statically traceable Chromium import so Vercel ships its binaries', () => {
+    const source = readFileSync(resolve(process.cwd(), 'api/export/pdf-native.ts'), 'utf8');
+
+    expect(source).toMatch(
+      /import\s+chromium\s+from\s+['"]@sparticuz\/chromium['"];?/,
+    );
+    expect(source).not.toContain("new Function('specifier', 'return import(specifier)')");
+  });
 });

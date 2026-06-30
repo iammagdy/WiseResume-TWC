@@ -12,11 +12,11 @@
 
 ## PDF downloads can start correctly on the live website again (2026-06-30)
 
-**What was the situation:** The live PDF download service stopped before it could create a file because one of its safety checks could not be found after deployment.
+**What was the situation:** The live PDF download service stopped before it could create a file because one safety check and then the browser engine used to render the document were missing from the deployed function.
 
-**What changed:** The download service now points to that safety check in the exact format required by the live hosting environment, and an automated check prevents the same deployment mistake from returning.
+**What changed:** The download service now points to the safety check in the exact format required by the live hosting environment. Its browser engine is also imported in a way that makes the hosting platform package the engine and its executable files. Automated checks protect both requirements.
 
-**What you'll notice:** Once this fix is deployed, choosing PDF export on the live website can reach the document renderer instead of immediately ending with an error.
+**What you'll notice:** Choosing PDF export on the live website can start the packaged document renderer instead of immediately ending with an unavailable error.
 
 ## Arabic mode is now much more complete across the signed-in app (2026-06-30)
 

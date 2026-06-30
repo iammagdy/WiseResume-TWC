@@ -10,8 +10,9 @@
 ## 2026-06-30 - Restore production PDF function startup
 
 - **Vercel PDF endpoint** (`api/export/pdf-native.ts`): changed the shared SSRF guard import to an explicit `.js` runtime specifier so Node.js can resolve the compiled module inside the Vercel serverless function bundle.
+- **Chromium packaging** (`api/export/pdf-native.ts`): replaced the dependency-hiding indirect import with a statically traceable Chromium import, ensuring Vercel includes the package and its compressed browser binaries in the PDF function.
 - **Regression coverage** (`src/lib/security/pdfNativeRuntimeImports.test.ts`): added a packaging contract that rejects extensionless relative runtime imports in the PDF function.
-- **Verification**: reproduced production `POST /api/export/pdf-native` failures as `ERR_MODULE_NOT_FOUND`, passed the focused Vitest and TypeScript checks, generated the Vercel function bundle, confirmed the compiled guard file is included, and loaded/invoked the bundled handler successfully.
+- **Verification**: reproduced both production startup failures (`ERR_MODULE_NOT_FOUND` for the shared guard and the missing `@sparticuz/chromium` package), passed the focused regression tests, generated the production Vercel bundle, and confirmed the deployed-function artifact contains Chromium's package metadata and compressed executable assets.
 
 ## 2026-06-30 - Accurate DevKit analytics and signup administration
 

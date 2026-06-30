@@ -10,19 +10,14 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import chromium from '@sparticuz/chromium';
 import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards.js';
-// @sparticuz/chromium v120+ is ESM-only. Vercel's ncc bundler outputs CJS, so a
-// static import would cause ERR_MODULE_NOT_FOUND at runtime. Dynamic import()
-// makes ncc treat it as external — Node.js loads it as ESM from node_modules.
-// vercel.json includeFiles ensures the ESM files ship with the function bundle.
-// Keep puppeteer-core dynamic as well so simple 405/400 responses do not crash
-// when Vercel is resolving the serverless bundle.
+// The static Chromium import is intentional: Vercel's file tracer must see the
+// dependency so it ships the package and its compressed browser binaries.
+// Keep puppeteer-core lazy because simple validation responses do not need it.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _puppeteer: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _chromium: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _pdfLib: any;
+let _pdfLib: typeof import('pdf-lib') | undefined;
 
 export const config = {
   api: {
@@ -375,16 +370,6 @@ function buildExportPageSegments(args: {
   }
 
   return segments;
-}
-
-async function importExternalModule<T = unknown>(specifier: string): Promise<T> {
-  // Vercel's ncc bundler must not relocate @sparticuz/chromium, because the
-  // package resolves its compressed Chromium binaries relative to its own
-  // package directory. An indirect import keeps it external; vercel.json
-  // includeFiles ships node_modules/@sparticuz/chromium/** with the function.
-  const importer = new Function('specifier', 'return import(specifier)') as
-    (specifier: string) => Promise<T>;
-  return importer(specifier);
 }
 
 async function loadPdfLib() {
@@ -748,13 +733,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       _puppeteer = (await import('puppeteer-core') as { default: unknown }).default;
       console.log('[pdf] step: puppeteer-core ok');
     }
-    if (!_chromium) {
-      console.log('[pdf] step: import @sparticuz/chromium');
-      _chromium = (await importExternalModule<{ default: unknown }>('@sparticuz/chromium')).default;
-      console.log('[pdf] step: chromium module ok, type:', typeof _chromium);
-    }
     const puppeteer = _puppeteer;
-    const chromium = _chromium;
 
     console.log('[pdf] step: get chromium args, count:', chromium.args?.length);
     console.log('[pdf] step: get executablePath');
@@ -763,9 +742,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[pdf] step: launch browser');
     browser = await puppeteer.launch({
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
       executablePath: execPath,
-      headless: chromium.headless,
+      headless: true,
     });
     console.log('[pdf] step: browser launched');
 
@@ -800,7 +778,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const layout = await measureExportLayout(browser, html, dims.widthPx);
     const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
     const requestedLayoutHeight =
-      Number.isFinite(layoutContentHeightPx) && layoutContentHeightPx > 0
+      typeof layoutContentHeightPx === 'number' && Number.isFinite(layoutContentHeightPx) && layoutContentHeightPx > 0
         ? Math.round(layoutContentHeightPx)
         : 0;
     contentHeight = Math.max(Math.round(contentHeight), requestedLayoutHeight, measuredHeight, contentPageHeight);
