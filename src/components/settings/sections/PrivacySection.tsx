@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { Fingerprint, ScanFace, Eye } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface PrivacySectionProps {
     onOpenBiometricTimeout: () => void;
@@ -16,6 +17,7 @@ export const PrivacySection = memo(function PrivacySection({
     onOpenBiometricTimeout,
     onBiometricToggle,
 }: PrivacySectionProps) {
+    const { t } = useLocale();
     const {
         analyticsEnabled,
         setAnalyticsEnabled,
@@ -25,7 +27,9 @@ export const PrivacySection = memo(function PrivacySection({
 
     const { isAvailable: biometricAvailable, biometryType } = useBiometricLock(biometricLockEnabled);
 
-    const privacyStatus = !analyticsEnabled ? 'Strict' : 'Standard';
+    const privacyStatus = !analyticsEnabled
+        ? t('app.settingsPage.privacy.statusStrict', 'Strict')
+        : t('app.settingsPage.privacy.statusStandard', 'Standard');
 
     const getBiometryIcon = () => {
         if (biometryType === 'faceId') return ScanFace;
@@ -34,9 +38,9 @@ export const PrivacySection = memo(function PrivacySection({
     };
 
     const getBiometryLabel = () => {
-        if (biometryType === 'faceId') return 'Face ID';
-        if (biometryType === 'iris') return 'Iris Lock';
-        return 'Fingerprint Lock';
+        if (biometryType === 'faceId') return t('app.settingsPage.privacy.faceId', 'Face ID');
+        if (biometryType === 'iris') return t('app.settingsPage.privacy.irisLock', 'Iris Lock');
+        return t('app.settingsPage.privacy.fingerprintLock', 'Fingerprint Lock');
     };
 
     const BiometryIcon = getBiometryIcon();
@@ -57,7 +61,7 @@ export const PrivacySection = memo(function PrivacySection({
                         <SettingsRow
                             type="toggle"
                             label={getBiometryLabel()}
-                            description="Protect your resumes"
+                            description={t('app.settingsPage.privacy.protectResumes', 'Protect your resumes')}
                             icon={<BiometryIcon className="w-4 h-4" />}
                             checked={biometricLockEnabled}
                             onCheckedChange={onBiometricToggle}
@@ -67,11 +71,11 @@ export const PrivacySection = memo(function PrivacySection({
                                 <Separator className="ml-[52px] bg-border/30" />
                                 <SettingsRow
                                     type="navigation"
-                                    label="Require Authentication After"
+                                    label={t('app.settingsPage.privacy.requireAfter', 'Require Authentication After')}
                                     value={
-                                        biometricLockTimeout === 0 ? 'Immediately' :
-                                            biometricLockTimeout === 30000 ? '30 seconds' :
-                                                biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
+                                        biometricLockTimeout === 0 ? t('app.settingsPage.privacy.immediately', 'Immediately') :
+                                            biometricLockTimeout === 30000 ? t('app.settingsPage.privacy.thirtySeconds', '30 seconds') :
+                                                biometricLockTimeout === 60000 ? t('app.settingsPage.privacy.oneMinute', '1 minute') : t('app.settingsPage.privacy.fiveMinutes', '5 minutes')
                                     }
                                     icon={<Clock className="w-4 h-4" />}
                                     onClick={onOpenBiometricTimeout}
@@ -85,8 +89,8 @@ export const PrivacySection = memo(function PrivacySection({
                 {/* Analytics toggle */}
                 <SettingsRow
                     type="toggle"
-                    label="Usage Analytics"
-                    description="Help improve WiseResume with anonymous usage data"
+                    label={t('app.settingsPage.privacy.analyticsLabel', 'Usage Analytics')}
+                    description={t('app.settingsPage.privacy.analyticsDescription', 'Help improve WiseResume with anonymous usage data')}
                     icon={<Activity className="w-4 h-4" />}
                     checked={analyticsEnabled}
                     onCheckedChange={setAnalyticsEnabled}
@@ -94,7 +98,7 @@ export const PrivacySection = memo(function PrivacySection({
             </div>
 
             <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
-                Your resumes are stored securely and never sold to third parties.
+                {t('app.settingsPage.privacy.footer', 'Your resumes are stored securely and never sold to third parties.')}
             </p>
         </>
     );

@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { logWorkspaceActivity } from '@/store/workspaceActivityStore';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const CLIPBOARD_KEY = 'wr-clipboard-job-detect';
 
@@ -43,7 +44,7 @@ function normalizeUrl(raw: string): string {
 function validateJobUrl(raw: string): { valid: boolean; normalized: string; error?: string; hint?: string } {
   const normalized = normalizeUrl(raw);
   if (!normalized) {
-    return { valid: false, normalized: '', error: 'Paste a job posting link to continue.' };
+    return { valid: false, normalized: '', error: 'الصق رابط إعلان الوظيفة للمتابعة.' };
   }
 
   try {
@@ -79,6 +80,7 @@ interface ImportJobSheetProps {
 }
 
 export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { user, authReady } = useAuth();
   const [url, setUrl] = useState('');
@@ -144,7 +146,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
     if (!navigator.clipboard) return;
     haptics.light();
     navigator.clipboard.readText().then(applyClipboardText).catch(() => {
-      setErrorMessage('Clipboard access was denied. Paste the link manually.');
+      setErrorMessage(t('app.importJobSheet.errors.clipboardDenied', 'تم رفض الوصول إلى الحافظة. الصق الرابط يدوياً.'));
       setStage('error');
     });
   };
@@ -152,19 +154,19 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
   const handleAnalyze = async () => {
     if (!authReady) {
       setStage('error');
-      setErrorMessage('Still signing you in — please try again in a moment.');
+      setErrorMessage(t('app.importJobSheet.errors.authPending', 'Still signing you in — please try again in a moment.'));
       return;
     }
 
     if (!user) {
       setStage('error');
-      setErrorMessage('Sign in to import and save job postings.');
+      setErrorMessage(t('app.importJobSheet.errors.signInRequired', 'Sign in to import and save job postings.'));
       return;
     }
 
     if (!validation.valid) {
       setStage('error');
-      setErrorMessage(validation.error ?? 'Enter a valid job URL.');
+      setErrorMessage(validation.error ?? t('app.importJobSheet.errors.invalidUrl', 'Enter a valid job URL.'));
       return;
     }
 
@@ -190,7 +192,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
       haptics.warning();
       setStage('error');
       setErrorMessage(
-        err instanceof Error ? err.message : 'Something went wrong. Check the link and try again.',
+        err instanceof Error ? err.message : t('app.importJobSheet.errors.generic', 'Something went wrong. Check the link and try again.'),
       );
     }
   };
@@ -214,11 +216,13 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
               <span className="import-job-sheet__icon flex items-center justify-center w-9 h-9 rounded-xl shrink-0">
                 <Link2 className="w-4 h-4 text-primary" aria-hidden />
               </span>
-              Import job posting
+              {t('app.importJobSheet.title', 'استيراد إعلان وظيفة')}
             </SheetTitle>
             <SheetDescription className="text-sm text-muted-foreground leading-relaxed pl-[2.875rem]">
-              Paste a listing URL — we fetch the page, extract role details with AI, and save it to
-              your workspace for tailoring.
+              {t(
+                'app.importJobSheet.description',
+                'الصق رابط الإعلان وسنجلب الصفحة ونستخرج تفاصيل الدور بالذكاء الاصطناعي ثم نحفظها في مساحة العمل للتخصيص.',
+              )}
             </SheetDescription>
           </SheetHeader>
         </div>
@@ -234,8 +238,10 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                 className="space-y-4"
               >
                 <div className="import-job-sheet__sources space-y-2.5 rounded-xl px-3.5 py-3">
-                  <p className="text-xs font-medium text-foreground/90">Supported job sources</p>
-                  <ul className="flex flex-wrap gap-2" role="list" aria-label="Supported job boards">
+                  <p className="text-xs font-medium text-foreground/90">
+                    {t('app.importJobSheet.sourcesTitle', 'Supported job sources')}
+                  </p>
+                  <ul className="flex flex-wrap gap-2" role="list" aria-label={t('app.importJobSheet.sourcesAria', 'Supported job boards')}>
                     {SUPPORTED_SITES.map(({ label, match }) => {
                       const isActive =
                         validation.valid && validation.normalized.toLowerCase().includes(match);
@@ -259,7 +265,9 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                   <div className="import-job-sheet__detected flex items-start gap-3 rounded-xl px-3.5 py-3">
                     <Clipboard className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">Link ready from clipboard</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {t('app.importJobSheet.clipboardReady', 'الرابط جاهز من الحافظة')}
+                      </p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{validation.normalized}</p>
                     </div>
                   </div>
@@ -267,7 +275,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
 
                 <div className="space-y-2">
                   <label htmlFor="import-job-url" className="text-xs font-medium text-muted-foreground">
-                    Job posting URL
+                    {t('app.importJobSheet.urlLabel', 'Job posting URL')}
                   </label>
                   <div className="relative">
                     <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -284,7 +292,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                         if (stage === 'error') setStage('idle');
                       }}
                       onKeyDown={handleKeyDown}
-                      placeholder="https://www.linkedin.com/jobs/view/…"
+                      placeholder={t('app.importJobSheet.urlPlaceholder', 'https://www.linkedin.com/jobs/view/…')}
                       className="import-job-sheet__input w-full pl-10 pr-24 py-3.5 rounded-xl border text-[16px] bg-card/80"
                       aria-invalid={url.trim().length > 0 && !validation.valid}
                       aria-describedby="import-job-url-hint"
@@ -296,7 +304,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                         className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                       >
                         <Clipboard className="w-3.5 h-3.5" />
-                        Paste
+                        {t('app.importJobSheet.paste', 'لصق')}
                       </button>
                     )}
                   </div>
@@ -309,7 +317,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                   >
                     {url.trim() && !validation.valid
                       ? validation.error
-                      : validation.hint ?? 'Works with major job boards and public careers pages.'}
+                      : validation.hint ?? t('app.importJobSheet.urlHint', 'يعمل مع أبرز منصات الوظائف وصفحات التوظيف العامة.')}
                   </p>
                 </div>
 
@@ -337,7 +345,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                   <div className="import-job-sheet__loader-ring flex items-center justify-center w-14 h-14 rounded-2xl">
                     <MiniSpinner size={28} className="text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-foreground">Importing job…</p>
+                  <p className="text-sm font-medium text-foreground">جارٍ استيراد الوظيفة...</p>
                   <p className="text-xs text-muted-foreground text-center max-w-xs">
                     This uses our live job-import service — fetch, parse, and save. Usually 10–20s.
                   </p>
@@ -460,7 +468,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
             <Switch
               checked={clipboardEnabled}
               onCheckedChange={handleToggleClipboard}
-              aria-label="Enable clipboard job link detection"
+              aria-label="تفعيل اكتشاف روابط الوظائف من الحافظة"
             />
           </div>
         )}

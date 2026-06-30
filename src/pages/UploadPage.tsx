@@ -25,8 +25,10 @@ import type { ResumeData } from '@/types/resume';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 import { useResumeUpload } from '@/hooks/useResumeUpload';
 import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export default function UploadPage() {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
@@ -162,7 +164,7 @@ export default function UploadPage() {
           useATSScoreHistoryStore.getState().addScore(newResume.id, importATSScore);
         }
       } catch {
-        toast.error('Failed to save your resume. Please try again.', { duration: 5000 });
+        toast.error('تعذر حفظ سيرتك الذاتية. حاول مرة أخرى.', { duration: 5000 });
         isContinuingRef.current = false;
         return;
       }
@@ -234,7 +236,7 @@ export default function UploadPage() {
           certifications: [],
           templateId: DEFAULT_RESUME_TEMPLATE_ID,
         },
-        title: 'My Resume',
+        title: 'سيرتي الذاتية',
       });
       setCurrentResumeId(newResume.id);
       setCurrentResume({
@@ -286,16 +288,16 @@ export default function UploadPage() {
 
   const handleUrlImport = useCallback(async (rawUrl: string) => {
     const trimmed = rawUrl.trim();
-    if (!trimmed) { setUrlError('Please paste a URL first.'); return; }
+    if (!trimmed) { setUrlError('الصق الرابط أولاً.'); return; }
     const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        setUrlError('Only http and https URLs are supported.');
+        setUrlError('يتم دعم روابط http و https فقط.');
         return;
       }
     } catch {
-      setUrlError("That doesn't look like a valid URL.");
+      setUrlError('هذا لا يبدو كرابط صالح.');
       return;
     }
     setUrlError(null);
@@ -308,7 +310,7 @@ export default function UploadPage() {
       });
       if (!proxyRes.ok) {
         const errBody = await proxyRes.json().catch(() => ({}));
-        const msg = (errBody as { error?: string }).error || `Could not fetch the page (${proxyRes.status}).`;
+        const msg = (errBody as { error?: string }).error || `تعذر جلب الصفحة (${proxyRes.status}).`;
         setUrlError(msg);
         toast.error(msg, { duration: 5000 });
         return;
@@ -317,7 +319,7 @@ export default function UploadPage() {
 
       const text = extractTextFromHTML(html);
       if (!text.trim() || text.length < 50) {
-        setUrlError('No readable text found on this page. Try a direct PDF or Word link instead.');
+        setUrlError('لم يتم العثور على نص قابل للقراءة في هذه الصفحة. جرّب رابط PDF أو Word مباشر بدلاً من ذلك.');
         return;
       }
 
@@ -333,7 +335,7 @@ export default function UploadPage() {
       setUrlInput('');
     } catch (err) {
       if (!(err instanceof Error && err.message === 'AI_UNREACHABLE')) {
-        const msg = err instanceof Error ? err.message : 'Failed to import from URL.';
+        const msg = err instanceof Error ? err.message : 'تعذر الاستيراد من الرابط.';
         toast.error(msg, { duration: 5000 });
       }
     }
@@ -351,17 +353,17 @@ export default function UploadPage() {
           <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Upload className="w-3.5 h-3.5 text-primary" aria-hidden />
           </div>
-          <h1 className="text-page-title truncate">Upload Resume</h1>
+          <h1 className="text-page-title truncate">{t('app.uploadPage.title', 'رفع السيرة الذاتية')}</h1>
         </div>
       </header>
 
       <div className="lg:hidden shrink-0 px-4 pt-4 pb-2 text-center">
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-primary mb-2 px-3 py-1 rounded-full bg-primary/8 border border-primary/12">
           <Upload className="w-3 h-3" aria-hidden />
-          Resume Import
+          استيراد السيرة الذاتية
         </span>
         <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
-          Upload any format — we&apos;ll parse, structure, and score it automatically
+          ارفع بأي صيغة وسنقوم بالتحليل والتنظيم والتقييم تلقائياً
         </p>
       </div>
 
@@ -370,7 +372,7 @@ export default function UploadPage() {
           <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm text-foreground">
-              <span className="font-medium">Please double-check these fields:</span>{' '}
+              <span className="font-medium">يرجى مراجعة هذه الحقول:</span>{' '}
               <span className="text-muted-foreground">{lowConfidenceFields.join(', ')}</span>
             </p>
           </div>
@@ -381,7 +383,7 @@ export default function UploadPage() {
         <div className="mx-4 mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/25 flex items-start gap-3 shadow-soft-sm">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-foreground mb-1">We had trouble reading your document</h4>
+            <h4 className="font-semibold text-sm text-foreground mb-1">واجهنا مشكلة في قراءة مستندك</h4>
             <p className="text-sm text-muted-foreground mb-3">{parseRecoveryWarnings.join(' ')}</p>
             <div className="flex flex-col xs:flex-row gap-2 sm:flex-row">
               <Button
@@ -390,14 +392,14 @@ export default function UploadPage() {
                 className="min-h-[44px] flex-1 sm:flex-none"
                 onClick={() => { setShowParseRecoveryBanner(false); handleTryDifferentFile(); }}
               >
-                Try a different file
+                جرّب ملفاً مختلفاً
               </Button>
               <Button
                 size="sm"
                 className="min-h-[44px] flex-1 sm:flex-none"
                 onClick={() => { setShowParseRecoveryBanner(false); handleStartBlankResume(); }}
               >
-                Fill in manually
+                أكمل يدوياً
               </Button>
             </div>
           </div>
@@ -436,13 +438,13 @@ export default function UploadPage() {
               <div className="hidden lg:flex flex-col items-center text-center mb-7 pt-2">
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-primary mb-3 px-3 py-1 rounded-full bg-primary/8 border border-primary/12">
                   <Upload className="w-3 h-3" aria-hidden />
-                  Resume Import
+                  استيراد السيرة الذاتية
                 </span>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">
-                  Bring your resume into the workspace
+                  أضف سيرتك الذاتية إلى مساحة العمل
                 </h1>
                 <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-                  Upload any format — we'll parse, structure, and score it automatically
+                  ارفع بأي صيغة وسنقوم بالتحليل والتنظيم والتقييم تلقائياً
                 </p>
               </div>
 
@@ -472,16 +474,16 @@ export default function UploadPage() {
                       )}
                     </motion.div>
                     <h2 className="text-lg font-bold tracking-tight text-foreground mb-1.5 text-center">
-                      {isDragging ? 'Drop to upload' : 'Upload your resume'}
+                      {isDragging ? 'أفلِت للرفع' : 'ارفع سيرتك الذاتية'}
                     </h2>
                     <p className="text-muted-foreground text-center text-sm mb-5 max-w-[260px] leading-relaxed">
                       {isDragging
-                        ? 'Release to start importing'
+                        ? 'اترك الملف لبدء الاستيراد'
                         : "Drag & drop or browse — we'll parse and score it automatically"}
                     </p>
                     <span className="inline-flex items-center justify-center mb-5 w-full sm:w-auto min-w-[200px] min-h-[44px] rounded-xl bg-primary text-primary-foreground text-sm font-semibold px-5 pointer-events-none"
                       style={{ boxShadow: '0 4px 14px -2px hsl(var(--primary)/0.35)' }}>
-                      Browse files
+                      تصفح الملفات
                     </span>
                     <div className="flex items-center gap-1.5 flex-wrap justify-center">
                       {['PDF', 'Word', 'Image', 'JSON', 'HTML'].map((fmt) => (
@@ -492,7 +494,7 @@ export default function UploadPage() {
                           {fmt}
                         </span>
                       ))}
-                      <span className="text-xs text-muted-foreground/70">· max 10 MB</span>
+                      <span className="text-xs text-muted-foreground/70">· الحد الأقصى 10 ميجابايت</span>
                     </div>
                   </div>
                 )}
@@ -515,7 +517,7 @@ export default function UploadPage() {
                       <LinkIcon className="w-3.5 h-3.5 text-primary" aria-hidden />
                     </div>
                     <label htmlFor="resume-url-input" className="text-sm font-semibold text-foreground">
-                      Import from a URL
+                      {t('app.uploadPage.urlImport.title', 'استيراد من رابط')}
                     </label>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -527,7 +529,7 @@ export default function UploadPage() {
                       onChange={(e) => { setUrlInput(e.target.value); if (urlError) setUrlError(null); }}
                       placeholder="https://example.com/my-resume.pdf"
                       className="flex-1 min-w-0"
-                      aria-label="Resume URL"
+                      aria-label="رابط السيرة الذاتية"
                       disabled={isProcessing}
                     />
                     <Button
@@ -535,14 +537,14 @@ export default function UploadPage() {
                       className="min-h-[44px] sm:min-w-[120px] shrink-0"
                       disabled={isProcessing || !urlInput.trim()}
                     >
-                      {isProcessing ? <MiniSpinner size={16} /> : 'Import'}
+                      {isProcessing ? <MiniSpinner size={16} /> : 'استيراد'}
                     </Button>
                   </div>
                   {urlError && (
                     <p className="mt-2 text-xs text-destructive">{urlError}</p>
                   )}
                   <p className="mt-2.5 text-xs text-muted-foreground">
-                    LinkedIn PDFs, portfolio pages, or any public resume link — same parser applies.
+                    ملفات LinkedIn PDF، وصفحات الملف العام، أو أي رابط عام للسيرة الذاتية يعمل مع نفس أداة التحليل.
                   </p>
                 </motion.form>
               )}
@@ -561,14 +563,14 @@ export default function UploadPage() {
                       <Sparkles className="w-3 h-3 text-primary" aria-hidden />
                     </div>
                     <h3 id="upload-tips-heading" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      Tips for best results
+                      {t('app.uploadPage.tips.title', 'نصائح للحصول على أفضل نتيجة')}
                     </h3>
                   </div>
                   <ul className="text-sm text-muted-foreground space-y-2.5">
                     {[
-                      'Text-based PDFs and Word docs parse fastest',
-                      'Simple formatting improves field detection accuracy',
-                      'Photos and scans are supported via OCR',
+                      'ملفات PDF النصية ومستندات Word تُحلَّل بأسرع شكل',
+                      'التنسيق البسيط يحسّن دقة اكتشاف الحقول',
+                      'الصور وعمليات المسح مدعومة عبر OCR',
                     ].map((tip) => (
                       <li key={tip} className="flex items-start gap-3">
                         <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary/50 shrink-0 flex-none" aria-hidden />

@@ -9,10 +9,12 @@ import { RecentBriefs } from '@/components/wisehire/dashboard/RecentBriefs';
 import { QuickActions } from '@/components/wisehire/dashboard/QuickActions';
 import { PipelineBreakdown } from '@/components/wisehire/dashboard/PipelineBreakdown';
 import { RecentActivity } from '@/components/wisehire/dashboard/RecentActivity';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const NUDGE_DISMISSED_KEY = 'wh_onboarding_nudge_dismissed';
 
 export default function WiseHireDashboardPage() {
+  const { t } = useLocale();
   const { data: account } = useWiseHireAccount();
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
     try { return sessionStorage.getItem(NUDGE_DISMISSED_KEY) === '1'; } catch { return false; }
@@ -35,10 +37,10 @@ export default function WiseHireDashboardPage() {
         {/* Page header */}
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Dashboard
+            {t('wisehire.dashboardPageCopy.title', 'لوحة التحكم')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Welcome back — here's your hiring overview.
+            {t('wisehire.dashboardPageCopy.subtitle', 'مرحباً بعودتك. إليك نظرة سريعة على التوظيف لديك.')}
           </p>
         </div>
 
@@ -46,9 +48,9 @@ export default function WiseHireDashboardPage() {
         {showNudge && (
           <div className="relative flex items-center gap-4 bg-blue-700 text-white rounded-2xl px-5 py-4 shadow-sm">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold mb-0.5">Complete your company setup</p>
+              <p className="text-sm font-semibold mb-0.5">{t('wisehire.dashboardPageCopy.nudge.title', 'أكمل إعداد الشركة')}</p>
               <p className="text-xs opacity-80 leading-relaxed">
-                Finish onboarding to unlock your full WiseHire workspace — takes about 2 minutes.
+                {t('wisehire.dashboardPageCopy.nudge.description', 'أكمل الإعداد لفتح مساحة WiseHire الكاملة. يستغرق ذلك نحو دقيقتين.')}
               </p>
             </div>
             <Link to="/wisehire/onboarding" className="shrink-0">
@@ -57,14 +59,14 @@ export default function WiseHireDashboardPage() {
                 variant="secondary"
                 className="text-blue-700 font-semibold whitespace-nowrap"
               >
-                Continue
+                {t('common.continue', 'Continue')}
                 <ChevronRight className="h-3.5 w-3.5 ml-1" />
               </Button>
             </Link>
             <button
               onClick={dismissNudge}
               className="absolute top-3 right-3 text-white/60 hover:text-white transition-colors"
-              aria-label="Dismiss"
+              aria-label={t('common.dismiss', 'Dismiss')}
             >
               <X className="h-3.5 w-3.5" />
             </button>

@@ -7,6 +7,7 @@ import { usePlan } from '@/hooks/usePlan';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useWiseWorkspaceStore } from '@/store/wiseWorkspaceStore';
+import { useLocale } from '@/i18n/LocaleProvider';
 import {
   WORKSPACE_NAV_ITEMS,
   isWorkspaceNavActive,
@@ -17,6 +18,7 @@ interface WiseWorkspaceNavPaneProps {
 }
 
 export function WiseWorkspaceNavPane({ compact = false }: WiseWorkspaceNavPaneProps) {
+  const { t } = useLocale();
   const location = useLocation();
   const navigate = useNavigate();
   const { isPro, isLoading: planLoading } = usePlan();
@@ -29,8 +31,8 @@ export function WiseWorkspaceNavPane({ compact = false }: WiseWorkspaceNavPanePr
   const handleNav = (item: (typeof WORKSPACE_NAV_ITEMS)[number]) => {
     haptics.selection();
     if (item.proGated && !planLoading && !isPro) {
-      toast.info('Upgrade to Pro to unlock this feature', {
-        action: { label: 'Upgrade', onClick: () => navigate('/subscription') },
+      toast.info(t('wisehire.shell.toasts.upgradeRequired', 'قم بالترقية إلى Pro لفتح هذه الميزة'), {
+        action: { label: t('wisehire.shell.toasts.upgrade', 'ترقية'), onClick: () => navigate('/subscription') },
       });
       navigate('/subscription');
       return;
@@ -40,10 +42,10 @@ export function WiseWorkspaceNavPane({ compact = false }: WiseWorkspaceNavPanePr
         const latest = resumes[0];
         setCurrentResumeId(latest.$id);
         setCurrentResume(dbToResumeData(latest));
-        toast.info('Loading your latest resume…');
+        toast.info(t('app.activity.loadingLatestResume', 'جارٍ تحميل أحدث سيرة ذاتية لديك...'));
         navigate('/editor');
       } else {
-        toast.info("No resumes yet — let's create one!");
+        toast.info(t('app.dashboardPage.noResumesYet', 'لا توجد سير ذاتية بعد. لننشئ واحدة!'));
         navigate('/dashboard?action=create');
       }
       return;
@@ -52,7 +54,7 @@ export function WiseWorkspaceNavPane({ compact = false }: WiseWorkspaceNavPanePr
   };
 
   return (
-    <nav className="flex flex-col flex-1 min-h-0 py-2" aria-label="Workspace navigation">
+    <nav className="flex flex-col flex-1 min-h-0 py-2" aria-label={t('app.workspaceNavigation', 'تنقل مساحة العمل')}>
       <div className={cn('flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto', compact ? 'px-1' : 'px-2')}>
         {WORKSPACE_NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -105,7 +107,7 @@ export function WiseWorkspaceNavPane({ compact = false }: WiseWorkspaceNavPanePr
           )}
         >
           <MessageCircle className={cn(compact ? 'w-5 h-5' : 'w-4 h-4 shrink-0')} aria-hidden />
-          <span className={cn(compact ? 'text-[9px] text-center' : 'text-sm')}>Wise AI</span>
+          <span className={cn(compact ? 'text-[9px] text-center' : 'text-sm')}>{t('app.topBar.wiseAI', 'مساعد وايز')}</span>
         </button>
       </div>
     </nav>

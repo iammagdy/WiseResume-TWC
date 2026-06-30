@@ -2,6 +2,7 @@ import { Globe, Copy, Check, QrCode, ExternalLink, PenLine } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface StrengthTip {
   ok: boolean;
@@ -33,6 +34,7 @@ export function StatusBar({
   strengthMissing,
   hasUnpublishedChanges = false,
 }: StatusBarProps) {
+  const { t } = useLocale();
   const strengthColor =
     strengthScore < 40
       ? 'text-destructive'
@@ -55,7 +57,10 @@ export function StatusBar({
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300">
             <PenLine className="w-4 h-4 shrink-0" aria-hidden />
             <span className="text-xs font-medium leading-snug">
-              Unpublished changes — use Publish in the bar below to go live
+              {t(
+                'app.portfolioEditor.statusBar.unpublishedChanges',
+                'توجد تغييرات غير منشورة. استخدم زر النشر أدناه لتفعيلها.',
+              )}
             </span>
           </div>
         )}
@@ -76,7 +81,9 @@ export function StatusBar({
               )}
               aria-hidden
             />
-            {portfolioEnabled ? 'Live' : 'Draft'}
+            {portfolioEnabled
+              ? t('app.portfolioEditor.statusBar.live', 'مباشر')
+              : t('app.portfolioEditor.statusBar.draft', 'مسودة')}
           </span>
 
           <TooltipProvider>
@@ -95,7 +102,9 @@ export function StatusBar({
               </TooltipTrigger>
               <TooltipContent side="bottom" align="start" className="max-w-[260px] p-3 space-y-1.5">
                 <p className="text-xs font-semibold">
-                  Portfolio strength · {strengthScore}%
+                  {t('app.portfolioEditor.statusBar.strengthTitle', 'قوة الملف العام · {{score}}%', {
+                    score: strengthScore,
+                  })}
                 </p>
                 {strengthMissing.length > 0 ? (
                   <ul className="space-y-1">
@@ -106,7 +115,9 @@ export function StatusBar({
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">All checks passed.</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('app.portfolioEditor.statusBar.allChecksPassed', 'كل الفحوصات مكتملة.')}
+                  </p>
                 )}
               </TooltipContent>
             </Tooltip>
@@ -121,7 +132,7 @@ export function StatusBar({
             aria-valuenow={strengthScore}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Portfolio strength"
+            aria-label={t('app.portfolioEditor.statusBar.strengthAria', 'قوة الملف العام')}
           />
         </div>
 
@@ -138,7 +149,9 @@ export function StatusBar({
               <ExternalLink className="w-3 h-3 shrink-0 text-primary" aria-hidden />
             </a>
           ) : (
-            <span className="flex-1 text-xs text-muted-foreground italic">Set a username to get your public URL</span>
+            <span className="flex-1 text-xs text-muted-foreground italic">
+              {t('app.portfolioEditor.statusBar.setUsername', 'أضف اسم مستخدم للحصول على رابطك العام')}
+            </span>
           )}
 
           {actualPortfolioUrl && (
@@ -148,7 +161,7 @@ export function StatusBar({
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-lg"
                 onClick={onCopyUrl}
-                aria-label="Copy portfolio URL"
+                aria-label={t('app.portfolioEditor.statusBar.copyUrlAria', 'نسخ رابط الملف العام')}
               >
                 {copied ? (
                   <Check className="w-3.5 h-3.5 text-primary" aria-hidden />
@@ -161,7 +174,7 @@ export function StatusBar({
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-lg"
                 onClick={onOpenQR}
-                aria-label="Open QR code"
+                aria-label={t('app.portfolioEditor.statusBar.openQrAria', 'فتح رمز QR')}
               >
                 <QrCode className="w-3.5 h-3.5" aria-hidden />
               </Button>

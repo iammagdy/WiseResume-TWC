@@ -19,6 +19,7 @@ import { useResumes, type DatabaseResume } from '@/hooks/useResumes';
 import { isTailoredResume } from '@/lib/resumeLineage';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface TailoringHubLandingProps {
   persistedTailoredIds: Set<string>;
@@ -123,7 +124,7 @@ function TailoredCvRow({
   onClick,
 }: {
   resume: DatabaseResume;
-  jobLabel?: string;
+  jobLabel: string;
   onClick: () => void;
 }) {
   return (
@@ -134,7 +135,7 @@ function TailoredCvRow({
       <span className="min-w-0 flex-1 text-left">
         <span className="block text-sm font-semibold text-foreground truncate">{resume.title}</span>
         <span className="block text-xs text-muted-foreground truncate">
-          {jobLabel ?? 'Tailored resume'}
+          {jobLabel}
           {resume.$updatedAt ? ` · ${formatDate(resume.$updatedAt)}` : ''}
         </span>
       </span>
@@ -149,6 +150,7 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
   onImportJob,
   onSelectSavedJob,
 }: TailoringHubLandingProps) {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { data: jobs = [], isLoading: jobsLoading, isFetched: jobsFetched } = useJobs();
   const showSavedJobsEmpty = jobsFetched && !jobsLoading && jobs.length === 0;
@@ -188,44 +190,41 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
     <div className="th-hub">
       <section className="th-hub-hero">
         <div className="th-hub-hero__copy">
-          <p className="th-hub-hero__eyebrow">AI Tailoring Hub</p>
-          <h2 className="th-hub-hero__title">Your job tailoring command center</h2>
-          <p className="th-hub-hero__desc">
-            Save postings, track tailored versions, and launch a new tailoring session when you are ready —
-            without jumping straight into a form.
-          </p>
+          <p className="th-hub-hero__eyebrow">{t('app.tailoringHubPage.hero.eyebrow')}</p>
+          <h2 className="th-hub-hero__title">{t('app.tailoringHubPage.hero.title')}</h2>
+          <p className="th-hub-hero__desc">{t('app.tailoringHubPage.hero.description')}</p>
         </div>
         <div className="th-hub-hero__actions">
           <Button type="button" size="lg" className="th-hub-hero__cta h-11 rounded-xl" onClick={handleStart}>
             <Wand2 className="w-4 h-4 mr-2" aria-hidden />
-            Start new tailoring
+            {t('app.tailoringHubPage.hero.start')}
           </Button>
           <Button type="button" variant="outline" size="lg" className="h-11 rounded-xl" onClick={onImportJob}>
             <Link2 className="w-4 h-4 mr-2" aria-hidden />
-            Import job posting
+            {t('app.tailoringHubPage.hero.import')}
           </Button>
         </div>
       </section>
 
-      <section className="th-hub-stats" aria-label="Tailoring overview">
+      <section className="th-hub-stats" aria-label={t('app.tailoringHubPage.overviewAria')}>
         <HubStatCard
-          label="Saved jobs"
+          label={t('app.tailoringHubPage.stats.savedJobs.label')}
           value={jobsLoading ? '…' : jobs.length}
-          hint="Postings in your workspace"
+          hint={t('app.tailoringHubPage.stats.savedJobs.hint')}
           icon={Bookmark}
           tone="sky"
         />
         <HubStatCard
-          label="Tailored CVs"
+          label={t('app.tailoringHubPage.stats.tailoredCvs.label')}
           value={resumesLoading ? '…' : tailoredResumes.length}
-          hint="Versions created for roles"
+          hint={t('app.tailoringHubPage.stats.tailoredCvs.hint')}
           icon={FileStack}
           tone="violet"
         />
         <HubStatCard
-          label="Tailoring sessions"
+          label={t('app.tailoringHubPage.stats.sessions.label')}
           value={historyLoading ? '…' : history.length}
-          hint="Recent match & rewrite runs"
+          hint={t('app.tailoringHubPage.stats.sessions.hint')}
           icon={Sparkles}
           tone="rose"
         />
@@ -235,23 +234,23 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
         <section className="th-hub-panel">
           <header className="th-hub-panel__head">
             <div>
-              <h3 className="th-hub-panel__title">Saved jobs</h3>
-              <p className="th-hub-panel__subtitle">Import once, reuse for every tailoring run</p>
+              <h3 className="th-hub-panel__title">{t('app.tailoringHubPage.savedJobs.title')}</h3>
+              <p className="th-hub-panel__subtitle">{t('app.tailoringHubPage.savedJobs.subtitle')}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" className="h-8 text-xs shrink-0" onClick={onImportJob}>
               <Plus className="w-3.5 h-3.5 mr-1" aria-hidden />
-              Import
+              {t('app.tailoringHubPage.savedJobs.import')}
             </Button>
           </header>
           <div className="th-hub-panel__body">
             {jobsLoading ? (
-              <p className="th-hub-empty">Loading saved jobs…</p>
+              <p className="th-hub-empty">{t('app.tailoringHubPage.savedJobs.loading')}</p>
             ) : showSavedJobsEmpty ? (
               <div className="th-hub-empty-block">
-                <p className="text-sm font-medium text-foreground">No saved jobs yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Import a LinkedIn, Indeed, or careers URL to build your library.</p>
+                <p className="text-sm font-medium text-foreground">{t('app.tailoringHubPage.savedJobs.emptyTitle')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('app.tailoringHubPage.savedJobs.emptyDescription')}</p>
                 <Button type="button" size="sm" className="mt-3 h-8 rounded-lg text-xs" onClick={onImportJob}>
-                  Import job posting
+                  {t('app.tailoringHubPage.hero.import')}
                 </Button>
               </div>
             ) : (
@@ -274,19 +273,19 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
         <section className="th-hub-panel">
           <header className="th-hub-panel__head">
             <div>
-              <h3 className="th-hub-panel__title">Recent tailoring</h3>
-              <p className="th-hub-panel__subtitle">Jump back into results and compare scores</p>
+              <h3 className="th-hub-panel__title">{t('app.tailoringHubPage.recent.title')}</h3>
+              <p className="th-hub-panel__subtitle">{t('app.tailoringHubPage.recent.subtitle')}</p>
             </div>
           </header>
           <div className="th-hub-panel__body">
             {historyLoading ? (
-              <p className="th-hub-empty">Loading history…</p>
+              <p className="th-hub-empty">{t('app.tailoringHubPage.recent.loading')}</p>
             ) : history.length === 0 ? (
               <div className="th-hub-empty-block">
-                <p className="text-sm font-medium text-foreground">No tailoring history yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Your completed sessions and match scores will appear here.</p>
+                <p className="text-sm font-medium text-foreground">{t('app.tailoringHubPage.recent.emptyTitle')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('app.tailoringHubPage.recent.emptyDescription')}</p>
                 <Button type="button" size="sm" variant="outline" className="mt-3 h-8 rounded-lg text-xs" onClick={handleStart}>
-                  Start tailoring
+                  {t('app.tailoringHubPage.recent.start')}
                 </Button>
               </div>
             ) : (
@@ -316,22 +315,22 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
       <section className="th-hub-panel th-hub-panel--wide">
         <header className="th-hub-panel__head">
           <div>
-            <h3 className="th-hub-panel__title">Tailored CVs</h3>
+            <h3 className="th-hub-panel__title">{t('app.tailoringHubPage.tailored.title')}</h3>
             <p className="th-hub-panel__subtitle">
               {tailoredResumes.length > 0
-                ? `${tailoredResumes.length} resume${tailoredResumes.length !== 1 ? 's' : ''} linked to saved roles`
-                : 'Resume versions generated for specific job postings'}
+                ? t('app.tailoringHubPage.tailored.count', { count: tailoredResumes.length })
+                : t('app.tailoringHubPage.tailored.subtitle')}
             </p>
           </div>
         </header>
         <div className="th-hub-panel__body">
           {resumesLoading ? (
-            <p className="th-hub-empty">Loading tailored resumes…</p>
+            <p className="th-hub-empty">{t('app.tailoringHubPage.tailored.loading')}</p>
           ) : tailoredResumes.length === 0 ? (
             <div className="th-hub-empty-block">
-              <p className="text-sm font-medium text-foreground">No tailored CVs yet</p>
+              <p className="text-sm font-medium text-foreground">{t('app.tailoringHubPage.tailored.emptyTitle')}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Start a session to generate a job-specific version of your resume.
+                {t('app.tailoringHubPage.tailored.emptyDescription')}
               </p>
             </div>
           ) : (
@@ -339,8 +338,11 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
               {tailoredResumes.slice(0, 8).map((resume) => {
                 const meta = historyByResumeId.get(resume.$id);
                 const jobLabel = meta
-                  ? `${meta.jobTitle}${meta.company ? ` @ ${meta.company}` : ''}`
-                  : undefined;
+                  ? t('app.tailoringHubPage.tailored.jobLabel', {
+                      title: meta.jobTitle,
+                      company: meta.company || '',
+                    })
+                  : t('app.tailoringHubPage.tailored.resumeLabel');
                 return (
                   <TailoredCvRow
                     key={resume.$id}

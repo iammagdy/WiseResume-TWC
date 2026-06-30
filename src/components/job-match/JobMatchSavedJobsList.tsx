@@ -2,6 +2,7 @@ import { Building2, Briefcase, ChevronRight, Link2, Plus } from 'lucide-react';
 import { useJobs, type Job } from '@/hooks/useJobs';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 function formatDate(iso: string): string {
   try {
@@ -27,12 +28,17 @@ function SavedJobItem({
   selected: boolean;
   onClick: () => void;
 }) {
+  const { t } = useLocale();
+
   return (
     <button
       type="button"
       className={cn('jmw-history-item', selected && 'ring-1 ring-primary/40 bg-primary/5')}
       onClick={onClick}
-      aria-label={`Load ${job.title} at ${job.company} for tailoring`}
+      aria-label={t('app.tailoringHubPage.savedJobs.openAria', 'افتح {{title}} في {{company}}', {
+        title: job.title,
+        company: job.company,
+      })}
     >
       <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 shrink-0">
         <Briefcase className="w-4 h-4 text-primary" aria-hidden />
@@ -56,6 +62,7 @@ export function JobMatchSavedJobsList({
   onImportJob,
   className,
 }: JobMatchSavedJobsListProps) {
+  const { t } = useLocale();
   const { data: jobs = [], isLoading } = useJobs();
 
   return (
@@ -64,7 +71,7 @@ export function JobMatchSavedJobsList({
         <div className="flex items-center gap-2 min-w-0">
           <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden />
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Saved jobs
+            {t('app.tailoringHubPage.savedJobs.title', 'الوظائف المحفوظة')}
           </p>
         </div>
         {onImportJob ? (
@@ -76,25 +83,29 @@ export function JobMatchSavedJobsList({
             onClick={onImportJob}
           >
             <Plus className="w-3 h-3 mr-1" aria-hidden />
-            Import
+            {t('app.tailoringHubPage.savedJobs.import', 'استيراد')}
           </Button>
         ) : null}
       </div>
 
       {isLoading ? (
         <div className="rounded-xl border border-dashed border-border/50 bg-card/30 px-4 py-6 text-center">
-          <p className="text-xs text-muted-foreground">Loading saved jobs…</p>
+          <p className="text-xs text-muted-foreground">
+            {t('app.tailoringHubPage.savedJobs.loading', 'جارٍ تحميل الوظائف المحفوظة...')}
+          </p>
         </div>
       ) : jobs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/50 bg-card/30 px-4 py-5 text-center space-y-2">
-          <p className="text-sm font-medium text-foreground">No saved jobs yet</p>
+          <p className="text-sm font-medium text-foreground">
+            {t('app.tailoringHubPage.savedJobs.emptyTitle', 'لا توجد وظائف محفوظة بعد')}
+          </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Import a posting URL to parse role details and keep them here for tailoring.
+            {t('app.tailoringHubPage.savedJobs.emptyDescription', 'استورد رابط إعلان وظيفة لاستخراج تفاصيل الدور والاحتفاظ بها هنا من أجل التخصيص.')}
           </p>
           {onImportJob ? (
             <Button type="button" size="sm" className="h-8 rounded-lg text-xs" onClick={onImportJob}>
               <Link2 className="w-3.5 h-3.5 mr-1.5" aria-hidden />
-              Import job posting
+              {t('app.tailoringHubPage.hero.import', 'استيراد إعلان وظيفة')}
             </Button>
           ) : null}
         </div>

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { haptics } from '@/lib/haptics';
 import { motion } from 'framer-motion';
 import { useState, useMemo } from 'react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface TimelineEntry {
   id: string;
@@ -26,14 +27,6 @@ interface TimelineEntry {
 }
 
 type FilterKey = 'all' | 'applied' | 'tailored' | 'cover_letter' | 'resume';
-
-const FILTER_CHIPS: { key: FilterKey; label: string }[] = [
-  { key: 'all',          label: 'All' },
-  { key: 'applied',      label: 'Applied' },
-  { key: 'tailored',     label: 'Tailored' },
-  { key: 'cover_letter', label: 'Cover Letter' },
-  { key: 'resume',       label: 'Resume' },
-];
 
 function entryMatchesFilter(entry: TimelineEntry, filter: FilterKey): boolean {
   switch (filter) {
@@ -52,16 +45,16 @@ function safeDate(dateStr: string | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function getGroup(dateStr: string): string {
+function getGroup(dateStr: string): 'today' | 'yesterday' | 'thisWeek' | 'earlier' {
   const d = safeDate(dateStr);
-  if (!d) return 'Earlier';
-  if (isToday(d)) return 'Today';
-  if (isYesterday(d)) return 'Yesterday';
-  if (isThisWeek(d, { weekStartsOn: 1 })) return 'This week';
-  return 'Earlier';
+  if (!d) return 'earlier';
+  if (isToday(d)) return 'today';
+  if (isYesterday(d)) return 'yesterday';
+  if (isThisWeek(d, { weekStartsOn: 1 })) return 'thisWeek';
+  return 'earlier';
 }
 
-const GROUP_ORDER = ['Today', 'Yesterday', 'This week', 'Earlier'];
+const GROUP_ORDER: Array<'today' | 'yesterday' | 'thisWeek' | 'earlier'> = ['today', 'yesterday', 'thisWeek', 'earlier'];
 
 const typeConfig = {
   resume_created:  { icon: FilePlus2,    label: 'Created',      bg: 'bg-primary/10',  fg: 'text-primary' },
@@ -101,10 +94,24 @@ interface ResumeDocFields {
 }
 
 export function ActivityTimeline() {
+  const { t } = useLocale();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const filterChips: { key: FilterKey; label: string }[] = [
+    { key: 'all', label: t('app.applicationsPageCopy.timeline.filters.all', 'All') },
+    { key: 'applied', label: t('app.applicationsPageCopy.timeline.filters.applied', 'Applied') },
+    { key: 'tailored', label: t('app.applicationsPageCopy.timeline.filters.tailored', 'Tailored') },
+    { key: 'cover_letter', label: t('app.applicationsPageCopy.timeline.filters.coverLetter', 'Cover letter') },
+    { key: 'resume', label: t('app.applicationsPageCopy.timeline.filters.resume', 'Resume') },
+  ];
+  const groupLabels: Record<(typeof GROUP_ORDER)[number], string> = {
+    today: t('app.applicationsPageCopy.timeline.groups.today', 'Today'),
+    yesterday: t('app.applicationsPageCopy.timeline.groups.yesterday', 'Yesterday'),
+    thisWeek: t('app.applicationsPageCopy.timeline.groups.thisWeek', 'This week'),
+    earlier: t('app.applicationsPageCopy.timeline.groups.earlier', 'Earlier'),
+  };
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['activity-timeline', user?.id],
@@ -223,10 +230,14 @@ export function ActivityTimeline() {
   }, [entries, activeFilter, searchQuery]);
 
   const grouped = useMemo(() => {
-    const map: Record<string, TimelineEntry[]> = {};
+    const map: Record<(typeof GROUP_ORDER)[number], TimelineEntry[]> = {
+      today: [],
+      yesterday: [],
+      thisWeek: [],
+      earlier: [],
+    };
     for (const entry of filtered) {
       const g = getGroup(entry.date);
-      if (!map[g]) map[g] = [];
       map[g].push(entry);
     }
     return GROUP_ORDER.filter(g => map[g]?.length).map(g => ({ group: g, items: map[g] }));
@@ -258,15 +269,20 @@ export function ActivityTimeline() {
             <Scissors className="w-4 h-4 text-accent-foreground" />
           </div>
         </div>
-        <h3 className="text-base font-semibold mb-1">Your career journey starts here</h3>
+        <h3 className="text-base font-semibold mb-1">
+          {t('app.applicationsPageCopy.timeline.emptyJourneyTitle', 'Your career journey starts here')}
+        </h3>
         <p className="text-sm text-muted-foreground mb-5 max-w-[280px]">
-          Create a resume, tailor it for jobs, and track your applications — all in one place
+          {t(
+            'app.applicationsPageCopy.timeline.emptyJourneyDescription',
+            'Create a resume, tailor it for jobs, and track your applications — all in one place',
+          )}
         </p>
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-xl px-5 py-3 min-h-[44px] transition-colors active:scale-95 touch-manipulation shadow-sm"
         >
-          Start building your resume
+          {t('app.applicationsPageCopy.timeline.emptyJourneyCta', 'Start building your resume')}
         </button>
       </motion.div>
     );
@@ -281,14 +297,14 @@ export function ActivityTimeline() {
           type="text"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search by job title or company…"
+          placeholder={t('app.applicationsPageCopy.timeline.searchPlaceholder', 'Search by job title or company…')}
           className="w-full pl-9 pr-3 h-9 rounded-xl bg-muted/50 border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
         />
       </div>
 
       {/* Filter chips */}
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5 -mx-0.5 px-0.5">
-        {FILTER_CHIPS.map(chip => (
+        {filterChips.map(chip => (
           <button
             key={chip.key}
             onClick={() => { haptics.selection(); setActiveFilter(chip.key); }}
@@ -305,12 +321,14 @@ export function ActivityTimeline() {
 
       {/* Grouped entries */}
       {grouped.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">No matching entries</p>
+        <p className="text-sm text-muted-foreground text-center py-8">
+          {t('app.applicationsPageCopy.timeline.noMatches', 'No matching entries')}
+        </p>
       ) : (
         grouped.map(({ group, items }) => (
           <div key={group}>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2 sticky top-0 bg-background/80 backdrop-blur-sm py-1 -mx-1 z-10">
-              {group}
+              {groupLabels[group]}
             </p>
             <div className="space-y-2">
               {items.map((entry, i) => {

@@ -56,6 +56,7 @@ import { PortfolioEditorHeader } from '@/components/portfolio/editor/PortfolioEd
 import { PortfolioTabStrip, type PortfolioEditorTab } from '@/components/portfolio/editor/PortfolioTabStrip';
 import { PortfolioQuickActions } from '@/components/portfolio/editor/PortfolioQuickActions';
 import { PortfolioPreviewPanel } from '@/components/portfolio/editor/PortfolioPreviewPanel';
+import { useLocale } from '@/i18n/LocaleProvider';
 import '@/components/portfolio/editor/portfolio-editor-workspace.css';
 
 
@@ -74,6 +75,7 @@ const PORTFOLIO_PASSWORD_MIN_LENGTH = 8;
 const PORTFOLIO_EXTRAS_MAX_BYTES = 200_000;
 
 export default function PortfolioEditorPage() {
+  const { t } = useLocale();
   const { user } = useAuth();
   const { isPro, isPremium } = usePlan();
   const isPaidUser = isPro || isPremium;
@@ -1146,7 +1148,7 @@ export default function PortfolioEditorPage() {
     await navigator.clipboard.writeText(portfolioCanonicalUrl);
     setCopied(true);
     haptics.light();
-    toast.success('Link copied!');
+    toast.success(t('app.portfolioEditor.statusBar.linkCopied', 'تم نسخ الرابط'));
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -1178,15 +1180,15 @@ export default function PortfolioEditorPage() {
           // URL without having to retry.
           try {
             await navigator.clipboard.writeText(portfolioCanonicalUrl);
-            toast.success('Link copied to clipboard instead.');
+            toast.success(t('app.portfolioEditor.statusBar.linkCopiedFallback', 'تم نسخ الرابط إلى الحافظة بدلاً من ذلك.'));
           } catch {
-            toast.error('Could not share or copy the link. Please try again.');
+            toast.error(t('app.portfolioEditor.statusBar.linkCopyError', 'تعذرت مشاركة الرابط أو نسخه. حاول مرة أخرى.'));
           }
         }
       }
     } else {
       await navigator.clipboard.writeText(portfolioCanonicalUrl);
-      toast.success('Link copied!');
+      toast.success(t('app.portfolioEditor.statusBar.linkCopied', 'تم نسخ الرابط'));
     }
   };
 
@@ -1202,10 +1204,10 @@ export default function PortfolioEditorPage() {
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
 
-      toast.success('Portfolio restored successfully!');
+      toast.success(t('app.portfolioEditor.history.restored', 'تمت استعادة الملف العام بنجاح'));
       setShowHistory(false);
     } catch {
-      toast.error('Failed to restore portfolio. Please try again.');
+      toast.error(t('app.portfolioEditor.history.restoreError', 'تعذرت استعادة الملف العام. حاول مرة أخرى.'));
     } finally {
       setIsRestoringHistory(false);
     }
@@ -1225,20 +1227,26 @@ export default function PortfolioEditorPage() {
   const skillsRemaining = Math.max(0, SKILL_THRESHOLD - skillsCount);
   const skillsTip =
     skillsRemaining > 0
-      ? `${skillsRemaining} more skill${skillsRemaining === 1 ? '' : 's'} needed for full strength (${skillsCount}/${SKILL_THRESHOLD})`
-      : `Add at least ${SKILL_THRESHOLD} skills to your resume`;
+      ? t('app.portfolioEditor.strength.skillsRemaining', 'أضف {{count}} مهارة أخرى للوصول إلى القوة الكاملة ({{current}}/{{target}})', {
+          count: skillsRemaining,
+          current: skillsCount,
+          target: SKILL_THRESHOLD,
+        })
+      : t('app.portfolioEditor.strength.skillsMinimum', 'أضف ما لا يقل عن {{count}} مهارات إلى سيرتك الذاتية', {
+          count: SKILL_THRESHOLD,
+        });
   const strengthChecks = [
-    { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings -> Profile' },
-    { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
-    { ok: username.length >= usernameRules.min_length, tip: 'Set a portfolio username' },
-    { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
-    { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
-    { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
-    { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
-    { ok: hasExperience, tip: 'Add work experience to your resume' },
+    { ok: !!profile?.avatarUrl, tip: t('app.portfolioEditor.strength.photoTip', 'أضف صورة شخصية من الإعدادات > الملف الشخصي') },
+    { ok: bio.length >= 50, tip: t('app.portfolioEditor.strength.bioTip', 'اكتب نبذة لا تقل عن 50 حرفاً') },
+    { ok: username.length >= usernameRules.min_length, tip: t('app.portfolioEditor.strength.usernameTip', 'اختر اسم مستخدم للملف العام') },
+    { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: t('app.portfolioEditor.strength.contactTip', 'أضف رابطاً اجتماعياً واحداً على الأقل أو بريداً للتواصل') },
+    { ok: availabilityHeadline.length > 0, tip: t('app.portfolioEditor.strength.availabilityTip', 'أضف عنواناً يوضح حالة التوفر') },
+    { ok: metaTitle.length > 0, tip: t('app.portfolioEditor.strength.metaTitleTip', 'أضف عنوان صفحة مخصصاً لتحسين الظهور') },
+    { ok: metaDescription.length > 0, tip: t('app.portfolioEditor.strength.metaDescriptionTip', 'أضف وصفاً تعريفياً للصفحة') },
+    { ok: hasExperience, tip: t('app.portfolioEditor.strength.experienceTip', 'أضف خبرة عملية إلى سيرتك الذاتية') },
     { ok: skillsCount >= SKILL_THRESHOLD, tip: skillsTip },
-    { ok: services.length > 0, tip: 'Add services to showcase what you offer' },
-    { ok: testimonials.length > 0, tip: 'Add testimonials to build credibility' },
+    { ok: services.length > 0, tip: t('app.portfolioEditor.strength.servicesTip', 'أضف خدمات لإبراز ما تقدمه') },
+    { ok: testimonials.length > 0, tip: t('app.portfolioEditor.strength.testimonialsTip', 'أضف شهادات لبناء المصداقية') },
   ];
 
   const completionItems = buildCompletionItems({
@@ -1262,16 +1270,16 @@ export default function PortfolioEditorPage() {
   // conflated ("Publish to go live" appeared even when score was 100), which
   // confused users into thinking they still had unfinished work.
   const strengthLabel = portfolioEnabled
-    ? 'Live'
+    ? t('app.portfolioEditor.strength.live', 'مباشر')
     : strengthScore === 100
-    ? 'Ready to publish'
+    ? t('app.portfolioEditor.strength.readyToPublish', 'جاهز للنشر')
     : strengthScore >= 70
-    ? 'Almost ready'
+    ? t('app.portfolioEditor.strength.almostReady', 'قارب على الجاهزية')
     : strengthScore < 40
-    ? 'Needs work'
+    ? t('app.portfolioEditor.strength.needsWork', 'يحتاج إلى تحسين')
     : strengthScore < 70
-    ? 'Good'
-    : 'Strong';
+    ? t('app.portfolioEditor.strength.good', 'جيد')
+    : t('app.portfolioEditor.strength.strong', 'قوي');
 
 
   return (
@@ -1316,7 +1324,7 @@ export default function PortfolioEditorPage() {
                 {portfolioEnabled && portfolioCanonicalUrl ? (
                   <iframe
                     src={portfolioCanonicalUrl}
-                    title="Mobile portfolio preview"
+                    title={t('app.portfolioEditor.preview.mobileTitle', 'معاينة الملف العام على الهاتف')}
                     sandbox="allow-scripts allow-same-origin"
                     style={{
                       width: 390,
@@ -1332,8 +1340,8 @@ export default function PortfolioEditorPage() {
                     <Smartphone className="w-8 h-8 text-muted-foreground/50" aria-hidden />
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {!username
-                        ? 'Set a username to see a mobile preview'
-                        : 'Publish your portfolio to preview on mobile'}
+                        ? t('app.portfolioEditor.preview.setUsernameFirst', 'أضف اسم مستخدم لرؤية معاينة الهاتف')
+                        : t('app.portfolioEditor.preview.publishFirst', 'انشر ملفك العام لمعاينته على الهاتف')}
                     </p>
                   </div>
                 )}
@@ -1364,7 +1372,7 @@ export default function PortfolioEditorPage() {
             onClick={() => { haptics.light(); setFullPreviewOpen(true); }}
           >
             <Maximize2 className="w-4 h-4 mr-2" aria-hidden />
-            Full preview
+            {t('app.portfolioEditor.preview.fullPreview', 'معاينة كاملة')}
           </Button>
         )}
 
@@ -1508,8 +1516,8 @@ export default function PortfolioEditorPage() {
               onMetaDescriptionChange={setMetaDescription}
               onGenerateSEO={handleGenerateSEO}
               generatingSEO={generatingSEO}
-              seoPlaceholderName={profile?.fullName || 'Name'}
-              seoPlaceholderTitle={profile?.jobTitle || 'Job Title'}
+              seoPlaceholderName={profile?.fullName || t('app.portfolioEditor.more.placeholderName', 'الاسم')}
+              seoPlaceholderTitle={profile?.jobTitle || t('app.portfolioEditor.more.placeholderTitle', 'المسمى الوظيفي')}
               onOpenCareerCard={() => setShowCareerCard(true)}
               hasLivePortfolio={portfolioEnabled && !!username}
               linkedinUrl={linkedinUrl}
@@ -1572,7 +1580,7 @@ export default function PortfolioEditorPage() {
       <Sheet open={fullPreviewOpen} onOpenChange={setFullPreviewOpen}>
         <SheetContent side="bottom" className="h-[90dvh] p-0 flex flex-col">
           <SheetHeader className="px-4 py-3 border-b border-border shrink-0">
-            <SheetTitle>Portfolio preview</SheetTitle>
+            <SheetTitle>{t('app.portfolioEditor.preview.title', 'معاينة الملف العام')}</SheetTitle>
           </SheetHeader>
           {portfolioCanonicalUrl && (
             <iframe

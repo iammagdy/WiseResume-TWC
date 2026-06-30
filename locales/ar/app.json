@@ -53,7 +53,7 @@
     "searchPlaceholderCommand": "ابحث في السير الذاتية، الكلمات المفتاحية، الأدوات...",
     "toolbarSubtitle": "إليك ما يمكنك تحسينه بعد ذلك عبر سيرك الذاتية وطلبات توظيفك.",
     "viewAtsScoresAria": "عرض درجات ATS لجميع سيرك الذاتية",
-    "acrossResumesCount": "عبر {{count}} سيرة ذاتية",
+    "acrossResumesCount": "عبر {{count}} سيرة ذاتية{{suffix}}",
     "scoringResumes": "جاري فحص السير الذاتية...",
     "runAtsOnResumes": "تشغيل فحص ATS على سيرك الذاتية",
     "vsLast7Days": "مقارنة بآخر 7 أيام",
@@ -146,7 +146,11 @@
   },
   "dashboard": "لوحة التحكم",
   "resumes": "السير الذاتية",
-  "templates": "القوالب",
+  "templates": {
+    "modern": "حديث",
+    "classic": "كلاسيك",
+    "minimal": "بسيط"
+  },
   "applications": "طلبات التوظيف",
   "tailoringHub": "مركز تخصيص السيرة الذاتية",
   "interview": "مدرب المقابلات",
@@ -181,10 +185,12 @@
   "membershipProBadge": "برو",
   "topBar": {
     "importJob": "استيراد وظيفة",
+    "importJobAria": "استيراد وظيفة",
+    "actionsAria": "إجراءات مساحة العمل",
     "closeWiseAI": "إغلاق Wise AI",
     "askWiseAI": "اسأل Wise AI",
-    "wiseAI": "Wise AI",
-    "wiseAIShort": "AI",
+    "wiseAI": "مساعد وايز",
+    "wiseAIShort": "المساعد",
     "switchToLight": "التبديل إلى الوضع الفاتح",
     "switchToDark": "التبديل إلى الوضع الداكن"
   },
@@ -276,19 +282,45 @@
       "featHistory": "سجل النسخ السابقة واستعادتها"
     },
     "tools": {
-      "tailor": { "label": "المخصّص الذكي" },
-      "enhance": { "label": "التحسين الفوري" },
-      "onepage": { "label": "معالج الصفحة الواحدة" },
-      "humanizer": { "label": "إضفاء الطابع الإنساني" },
-      "job-match": { "label": "مركز التخصيص" },
-      "ab-compare": { "label": "مقارنة أ/ب" },
-      "recruiter": { "label": "محاكي الموظِف" },
-      "skills-gap": { "label": "فجوة المهارات" },
-      "career": { "label": "المستشار المهني" },
-      "interview": { "label": "التدريب على المقابلات" },
-      "company-briefing": { "label": "ملخص الشركة" },
-      "linkedin": { "label": "لينكد إن" },
-      "cover-letters": { "label": "خطابات التغطية" }
+      "tailor": {
+        "label": "المخصّص الذكي"
+      },
+      "enhance": {
+        "label": "التحسين الفوري"
+      },
+      "onepage": {
+        "label": "معالج الصفحة الواحدة"
+      },
+      "humanizer": {
+        "label": "إضفاء الطابع الإنساني"
+      },
+      "job-match": {
+        "label": "مركز التخصيص"
+      },
+      "ab-compare": {
+        "label": "مقارنة أ/ب"
+      },
+      "recruiter": {
+        "label": "محاكي الموظِف"
+      },
+      "skills-gap": {
+        "label": "فجوة المهارات"
+      },
+      "career": {
+        "label": "المستشار المهني"
+      },
+      "interview": {
+        "label": "التدريب على المقابلات"
+      },
+      "company-briefing": {
+        "label": "ملخص الشركة"
+      },
+      "linkedin": {
+        "label": "لينكد إن"
+      },
+      "cover-letters": {
+        "label": "خطابات التغطية"
+      }
     },
     "workflows": {
       "tailor-for-job": {
@@ -403,11 +435,6 @@
     "styleCompact": "مدمج",
     "styleCreative": "إبداعي"
   },
-  "templates": {
-    "modern": "حديث",
-    "classic": "كلاسيك",
-    "minimal": "بسيط"
-  },
   "search": {
     "untitledResume": "سيرة ذاتية بدون عنوان",
     "tailoredResume": "سيرة ذاتية مخصصة",
@@ -520,7 +547,7 @@
     "importTitle": "استيراد ملف شخصي",
     "importDesc": "LinkedIn أو Indeed أو Xing وغيرها",
     "pasteTitle": "إنشاء من نص",
-    "pasteDesc": "الصق أي ملاحظات مهنية، سيرة ذاتية، أو نص مهني حر",
+    "pasteDesc": "يعمل مع الملاحظات البسيطة، النبذ المنسوخة، أو أي نصوص مهنية متوفرة لديك.",
     "duplicateTitle": "تكرار سيرة موجودة",
     "duplicateDesc": "نسخ وتخصيص سيرة ذاتية حالية",
     "expLabel": "ما هو مستوى خبرتك المهنية؟",
@@ -556,7 +583,6 @@
     "createTailored": "إنشاء نسخة مخصصة",
     "careerText": "تفاصيل مسيرتك المهنية",
     "pastePlaceholder": "الصق أي شيء — تاريخك المهني، نبذة شخصية، ملاحظات، أو نقاط مهنية. سيقوم الذكاء الاصطناعي بتنظيمها في سيرة ذاتية متكاملة.",
-    "pasteDesc": "يعمل مع الملاحظات البسيطة، النبذ المنسوخة، أو أي نصوص مهنية متوفرة لديك.",
     "structuring": "جاري تنظيم تاريخك المهني...",
     "generating": "جاري التوليد...",
     "generateResume": "توليد السيرة الذاتية",
@@ -574,7 +600,9 @@
   "common": {
     "dismiss": "تجاهل",
     "tryIt": "جربها",
-    "status": "الحالة"
+    "status": "الحالة",
+    "cancel": "إلغاء",
+    "continue": "متابعة"
   },
   "whatsNext": {
     "createFirst": "أنشئ سيرتك الذاتية الأولى",
@@ -643,7 +671,7 @@
     "skills": "المهارات",
     "experience": "الخبرات المهنية",
     "labelMaster": "الرئيسية: {{title}}",
-    "labelTailored": "{{company}}: {{title}}",
+    "labelTailored": "{{title}} ?? {{company}}",
     "tailoredFallback": "مخصصة",
     "compareVersions": "مقارنة النسخ",
     "version1": "النسخة 1",
@@ -656,5 +684,453 @@
   "dashboardNextAction": {
     "weakestSection": "القسم الأضعف",
     "scoresUpdateAsYouEdit": "تتحدث الدرجات أثناء قيامك بالتعديل"
+  },
+  "settingsPage": {
+    "userId": {
+      "title": "اضغط لنسخ معرّف المستخدم",
+      "label": "معرّف المستخدم الخاص بك",
+      "description": "شارك هذا المعرّف مع الدعم إذا احتجت إلى مساعدة في حسابك.",
+      "copied": "تم النسخ",
+      "copy": "نسخ"
+    },
+    "toasts": {
+      "signedOut": "تم تسجيل الخروج بنجاح",
+      "dataDeleted": "تم حذف جميع البيانات",
+      "linkCopied": "تم نسخ الرابط",
+      "onboardingReset": "تمت إعادة ضبط الإعداد الأولي، جارٍ التحويل"
+    },
+    "share": {
+      "title": "WiseResume",
+      "text": "أنشئ سيرة ذاتية احترافية خلال دقائق بمساعدة الذكاء الاصطناعي."
+    },
+    "userFallback": "مستخدم",
+    "plan": {
+      "free": "الخطة المجانية · استخدم كوبوناً للترقية",
+      "paid": "خطة {{plan}} · إدارة الاشتراك"
+    },
+    "sections": {
+      "account": {
+        "title": "الحساب",
+        "description": "الخطة والاستخدام وتسجيل الدخول"
+      },
+      "aiEngine": {
+        "title": "محرك الذكاء الاصطناعي",
+        "description": "النموذج وتفضيلات الكتابة"
+      },
+      "preferences": {
+        "title": "التفضيلات",
+        "description": "السمة وإعدادات التصدير الافتراضية"
+      },
+      "notifications": {
+        "title": "الإشعارات"
+      },
+      "privacy": {
+        "title": "الخصوصية والأمان"
+      },
+      "support": {
+        "title": "الدعم",
+        "description": "المساعدة والتحديثات والملاحظات"
+      },
+      "danger": {
+        "title": "منطقة حساسة"
+      }
+    },
+    "signOut": {
+      "label": "تسجيل الخروج",
+      "description": "إنهاء جلستك على هذا الجهاز",
+      "confirmTitle": "تسجيل الخروج؟",
+      "confirmDescription": "ستحتاج إلى تسجيل الدخول مرة أخرى للوصول إلى بياناتك."
+    },
+    "guest": {
+      "title": "مرحباً بك كزائر",
+      "description": "أنشئ حساباً مجانياً لفتح المزيد.",
+      "cta": "ابدأ مجاناً",
+      "signIn": "سجّل الدخول لفتح جميع الميزات"
+    },
+    "account": {
+      "planTitle": "خطتك",
+      "expires": "ينتهي في {{date}}",
+      "upgrade": "ترقية",
+      "subscriptionLabel": "الاشتراك",
+      "subscriptionDescription": "إدارة الخطة والاستخدام",
+      "inviteLabel": "دعوة الأصدقاء",
+      "inviteDescription": "اكسب مكافآت عبر مشاركة WiseResume",
+      "managePasswordLabel": "إدارة تسجيل الدخول وكلمة المرور",
+      "providerPassword": "حدّث كلمة المرور من خلال حساب {{provider}}",
+      "providerPasswordSettings": "حدّث كلمة المرور من إعدادات حساب {{provider}}.",
+      "passwordDescription": "غيّر كلمة مرور حسابك",
+      "resetMissingEmail": "تعذر العثور على بريد حسابك. استخدم نسيت كلمة المرور في شاشة تسجيل الدخول.",
+      "resetSent": "تم إرسال رابط إعادة تعيين كلمة المرور. تحقّق من بريدك.",
+      "resetFailed": "فشل إرسال رسالة إعادة التعيين"
+    },
+    "accountStats": {
+      "resumes": "السير الذاتية",
+      "coverLetters": "خطابات التغطية",
+      "applications": "الطلبات",
+      "memberSince": "عضو منذ {{date}}",
+      "membership": {
+        "founding": "عضو مؤسس",
+        "early": "من أوائل المستخدمين",
+        "member": "عضو",
+        "new": "عضو جديد"
+      }
+    },
+    "aiEngine": {
+      "eyebrow": "محرك الذكاء الاصطناعي",
+      "title": "مجمع WiseResume للذكاء الاصطناعي",
+      "subtitle": "تعمل كل مزايا الذكاء الاصطناعي على بنيتنا المُدارة: سريعة وآمنة ومتاحة دائماً.",
+      "poolActive": "المجمع نشط",
+      "usageTitle": "استخدام الذكاء الاصطناعي اليوم",
+      "planBadge": "خطة {{plan}}",
+      "unlimited": "استخدامات غير محدودة للذكاء الاصطناعي ضمن خطتك.",
+      "generousLimits": "تشمل خطتك حدوداً يومية سخية.",
+      "usedCount": "تم استخدام {{count}} إجراء",
+      "dailyLimit": "الحد اليومي {{count}}",
+      "usageAria": "استخدام الذكاء الاصطناعي اليومي",
+      "upgradeLimits": "رقِّ للحصول على حدود أعلى ←",
+      "privacyNote": "لا نخزّن بيانات سيرتك الذاتية لتدريب النماذج. تتم معالجة الطلبات بشكل آمن وتُستخدم فقط لإنشاء النتيجة المطلوبة.",
+      "openStudioTitle": "افتح استوديو الذكاء الاصطناعي",
+      "openStudioDescription": "خصّص، حسّن، والمزيد"
+    },
+    "privacy": {
+      "statusStrict": "صارم",
+      "statusStandard": "قياسي",
+      "faceId": "التعرّف على الوجه",
+      "irisLock": "قفل القزحية",
+      "fingerprintLock": "قفل البصمة",
+      "protectResumes": "احمِ سيرك الذاتية",
+      "requireAfter": "اطلب المصادقة بعد",
+      "immediately": "فوراً",
+      "thirtySeconds": "30 ثانية",
+      "oneMinute": "دقيقة واحدة",
+      "fiveMinutes": "5 دقائق",
+      "analyticsLabel": "تحليلات الاستخدام",
+      "analyticsDescription": "ساعد في تحسين WiseResume ببيانات استخدام مجهولة",
+      "footer": "يتم تخزين سيرك الذاتية بأمان ولا تُباع لأي أطراف خارجية."
+    },
+    "exports": {
+      "pdfTitle": "إعدادات تصدير PDF",
+      "pdfSummary": "{{format}}، الشارة {{badge}}",
+      "simple": "بسيط",
+      "full": "كامل",
+      "on": "مفعلة",
+      "off": "متوقفة",
+      "showPageNumbers": "إظهار أرقام الصفحات",
+      "pageNumbersDescription": "عرضها في تذييل ملف PDF",
+      "format": "التنسيق",
+      "simpleFormat": "بسيط (1)",
+      "fullFormat": "كامل (1 من 3)",
+      "badgeTitle": "شارة WiseResume",
+      "badgeDescription": "ختم مميز على الملفات المصدّرة",
+      "exportResumes": "تصدير السير الذاتية",
+      "manageExports": "إدارة التصدير",
+      "signInDescription": "سجّل الدخول لنسخ سيرك الذاتية احتياطياً وتصديرها"
+    },
+    "notifications": {
+      "autoSaveToasts": "إشعارات الحفظ التلقائي",
+      "autoSaveDescription": "إظهار تأكيدات الحفظ",
+      "showLabel": "إظهار:",
+      "always": "دائماً",
+      "errorsOnly": "الأخطاء فقط",
+      "aiTips": "نصائح التحسين بالذكاء الاصطناعي",
+      "aiTipsDescription": "اقتراحات استباقية للتحسين",
+      "frequency": "التكرار:",
+      "onDemand": "عند الطلب",
+      "daily": "يومي",
+      "weekly": "أسبوعي"
+    }
+  },
+  "notificationsPage": {
+    "title": "الإشعارات",
+    "tabs": {
+      "all": "الكل",
+      "unread": "غير المقروءة",
+      "applications": "طلبات التوظيف",
+      "system": "النظام"
+    },
+    "actions": {
+      "readAll": "قراءة الكل",
+      "clear": "مسح"
+    },
+    "toasts": {
+      "markedRead": "تم وضع علامة مقروء على كل الإشعارات"
+    },
+    "empty": {
+      "title": "لا توجد إشعارات بعد",
+      "description": "أنت على اطلاع بكل شيء!"
+    },
+    "groups": {
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "recently": "مؤخراً"
+    },
+    "clearDialog": {
+      "title": "مسح كل الإشعارات؟",
+      "description": "سيؤدي هذا إلى إزالة جميع إشعاراتك نهائياً. لا يمكن التراجع عن هذا الإجراء.",
+      "confirm": "مسح الكل"
+    }
+  },
+  "profilePage": {
+    "title": "ملفي الشخصي",
+    "userFallback": "اسمك",
+    "updated": "تم التحديث {{time}}",
+    "editDetails": "تعديل تفاصيل الحساب والملف المهني",
+    "profileImported": "تم استيراد الملف الشخصي — افتح المحرر لاستخدام بياناتك",
+    "myResumes": "سيري الذاتية",
+    "stats": {
+      "resumes": "السير الذاتية",
+      "applications": "الطلبات"
+    },
+    "completion": {
+      "title": "اكتمال الملف الشخصي",
+      "banner": "الملف الشخصي مكتمل بنسبة {{count}}%",
+      "bannerDescription": "أكمل الإعداد للحصول على اقتراحات ذكاء اصطناعي أفضل",
+      "complete": "إكمال",
+      "hint": "نصيحة: {{hint}}",
+      "done": "ملفك الشخصي مكتمل! 🎉"
+    },
+    "portfolio": {
+      "title": "موقع ملف أعمالي",
+      "liveBadge": "🟢 مباشر",
+      "draftBadge": "مسودة",
+      "createDescription": "أنشئ موقع ملف أعمالك الشخصي",
+      "totalViews": "👁 {{count}} إجمالي المشاهدات",
+      "outOfDateTitle": "قد يكون ملف الأعمال غير محدث",
+      "outOfDateDescription": "تم تحديث سيرتك الذاتية بعد آخر مزامنة لملف الأعمال.",
+      "syncing": "جارٍ المزامنة…",
+      "resyncNow": "إعادة المزامنة الآن",
+      "resynced": "تمت إعادة مزامنة ملف الأعمال مع سيرتك الذاتية",
+      "resyncError": "فشلت إعادة مزامنة ملف الأعمال",
+      "setupCta": "إعداد ملف الأعمال",
+      "setupUsernameFirst": "أكمل اسم المستخدم الخاص بملف الأعمال أولاً",
+      "shareTitle": "ملف أعمال {{name}}",
+      "urlCopied": "تم نسخ رابط ملف الأعمال!",
+      "liveSuccess": "أصبح ملف الأعمال مباشراً الآن!",
+      "liveError": "فشل تحديث حالة ملف الأعمال",
+      "inactiveTitle": "ملف الأعمال غير مفعل",
+      "inactiveDescription": "موقع ملف الأعمال الخاص بك في وضع المسودة حالياً. لن يتمكن الزوار من رؤيته حتى تقوم بنشره.",
+      "shareAnyway": "مشاركة على أي حال",
+      "goLive": "انشر وشارك",
+      "goLiveLoading": "جارٍ النشر…"
+    }
+  },
+  "uploadPage": {
+    "title": "رفع السيرة الذاتية",
+    "urlImport": {
+      "title": "الاستيراد من رابط"
+    },
+    "tips": {
+      "title": "نصائح للحصول على أفضل النتائج"
+    }
+  },
+  "applicationsPage": {
+    "title": "متابعة الطلبات",
+    "mobileTitle": "طلباتي",
+    "recentActivity": "النشاط الأخير",
+    "quickAdd": "إضافة سريعة",
+    "tabs": {
+      "applications": "الطلبات"
+    }
+  },
+  "applicationTrackerPage": {
+    "title": "تفاصيل الطلب"
+  },
+  "consentBanner": {
+    "ariaLabel": "موافقة ملفات الارتباط",
+    "title": "نستخدم ملفات ارتباط للتحليلات",
+    "description": "نرصد بيانات استخدام مجهولة لتحسين المنتج مثل الصفحات التي تزورها والميزات التي تستخدمها وأنماط التنقل. لا يتم بيع أي بيانات شخصية ويمكنك إلغاء الاشتراك في أي وقت.",
+    "privacyPolicy": "سياسة الخصوصية",
+    "accept": "موافقة",
+    "decline": "رفض"
+  },
+  "tailoringHubPage": {
+    "overviewAria": "نظرة عامة على التخصيص",
+    "hero": {
+      "eyebrow": "مركز التخصيص بالذكاء الاصطناعي",
+      "title": "مركز قيادة تخصيص الوظائف",
+      "description": "احفظ الإعلانات وتابع النسخ المخصصة وابدأ جلسة تخصيص جديدة عندما تكون جاهزاً دون الدخول مباشرة إلى نموذج.",
+      "start": "ابدأ تخصيصاً جديداً",
+      "import": "استيراد إعلان وظيفة"
+    },
+    "stats": {
+      "savedJobs": { "label": "الوظائف المحفوظة", "hint": "إعلانات داخل مساحة عملك" },
+      "tailoredCvs": { "label": "السير المخصصة", "hint": "نسخ تم إنشاؤها للأدوار" },
+      "sessions": { "label": "جلسات التخصيص", "hint": "أحدث عمليات المطابقة وإعادة الكتابة" }
+    },
+    "savedJobs": {
+      "title": "الوظائف المحفوظة",
+      "subtitle": "استورد مرة واحدة واستخدمها في كل جلسة تخصيص",
+      "import": "استيراد",
+      "loading": "جارٍ تحميل الوظائف المحفوظة…",
+      "emptyTitle": "لا توجد وظائف محفوظة بعد",
+      "emptyDescription": "استورد رابطاً من لينكدإن أو إنديد أو صفحة وظائف لبناء مكتبتك."
+    },
+    "recent": {
+      "title": "آخر جلسات التخصيص",
+      "subtitle": "ارجع سريعاً إلى النتائج وقارن الدرجات",
+      "loading": "جارٍ تحميل السجل…",
+      "emptyTitle": "لا يوجد سجل تخصيص بعد",
+      "emptyDescription": "ستظهر هنا الجلسات المكتملة ودرجات المطابقة.",
+      "start": "ابدأ التخصيص"
+    },
+    "tailored": {
+      "title": "السير الذاتية المخصصة",
+      "subtitle": "نسخ سيرة ذاتية تم إنشاؤها لوظائف محددة",
+      "count": "{{count}} نسخة سيرة مرتبطة بوظائف محفوظة",
+      "loading": "جارٍ تحميل السير المخصصة…",
+      "emptyTitle": "لا توجد سير مخصصة بعد",
+      "emptyDescription": "ابدأ جلسة لإنشاء نسخة مخصصة من سيرتك الذاتية.",
+      "jobLabel": "{{title}} في {{company}}",
+      "resumeLabel": "سيرة ذاتية مخصصة"
+    }
+  },
+  "applicationsPageCopy": {
+    "title": "متابعة طلبات التوظيف",
+    "mobileTitle": "طلباتي",
+    "subtitle": "تابع الوظائف المحفوظة والطلبات وخطوات المتابعة من مكان واحد.",
+    "tabs": {
+      "applications": "الطلبات",
+      "savedJobs": "الوظائف المحفوظة"
+    },
+    "upgrade": {
+      "description": "تابع طلباتك والوظائف المحفوظة وخطوات المتابعة من مكان واحد.",
+      "feature0": "عرض مسار التقديم حتى العرض",
+      "feature1": "نسبة توافق السيرة مع الوظائف المحفوظة",
+      "feature2": "إحصاءات النشاط وسجل التقديم",
+      "feature3": "تذكيرات المتابعة ومسودات البريد",
+      "feature4": "وظائف محفوظة مع درجات التوافق"
+    },
+    "searchAria": "البحث في الوظائف",
+    "quickAddAria": "إضافة طلب بسرعة",
+    "quickAdd": "إضافة سريعة",
+    "listViewAria": "عرض القائمة",
+    "boardViewAria": "عرض اللوحة",
+    "views": {
+      "list": "قائمة",
+      "board": "لوحة"
+    },
+    "recentActivity": "النشاط الأخير",
+    "sections": {
+      "applications": "الطلبات"
+    },
+    "toasts": {
+      "refreshed": "تم تحديث النشاط"
+    },
+    "jobs": {
+      "tailorResume": "تخصيص السيرة",
+      "markApplied": "وضع كمقدَّم",
+      "noMatchesTitle": "لا توجد وظائف تطابق عوامل التصفية",
+      "noMatchesDescription": "جرّب تعديل عوامل التصفية"
+    },
+    "cards": {
+      "appliedOn": "تم التقديم في {{date}}",
+      "interviewOn": "المقابلة: {{date}}",
+      "deadlineSoon": "الموعد النهائي قريب",
+      "followUpDue": "المتابعة مستحقة",
+      "staleDays": "راكد · {{count}} يوم",
+      "prepRequiresResume": "يرجى اختيار سيرة ذاتية أو إنشاؤها أولاً لبدء التحضير للمقابلة.",
+      "prep": "تحضير",
+      "followUp": "متابعة"
+    },
+    "emptyApplications": {
+      "title": "أضف أول طلب تقديم",
+      "description": "تابع كل وظيفة تتقدم لها — وابق منظماً ولا تفوّت أي متابعة.",
+      "helper": "ابدأ باسم الشركة والدور والحالة. يستغرق أقل من 5 ثوانٍ.",
+      "fullForm": "النموذج الكامل"
+    },
+    "filteredEmpty": {
+      "title": "لا توجد طلبات {{status}}",
+      "description": "جرّب عامل تصفية مختلفاً",
+      "showAll": "عرض الكل",
+      "add": "+ إضافة"
+    },
+    "emptySavedJobs": {
+      "title": "تابع رحلة بحثك عن العمل",
+      "description": "احتفظ بكل طلباتك في مكان واحد. أضف أول طلب لتبدأ.",
+      "primaryCta": "إضافة طلب",
+      "secondaryCta": "حفظ وظيفة",
+      "jobsTitle": "لا توجد وظائف محفوظة بعد",
+      "jobsDescription": "ستظهر هنا تلقائياً الوظائف التي تحفظها من استوديو الذكاء الاصطناعي أو مسار تخصيص السيرة الذاتية.",
+      "jobsHelper": "يمكنك أيضاً حفظ الوظائف يدوياً أو استخدام البحث للعثور على وظائف جديدة.",
+      "goToAiStudio": "الانتقال إلى استوديو الذكاء الاصطناعي",
+      "tailorResume": "تخصيص سيرة ذاتية"
+    },
+    "insights": {
+      "title": "رؤى الذكاء الاصطناعي",
+      "staleApplications": "{{count}} طلب{{suffix}} لم يشهد أي حركة منذ أكثر من 14 يوماً — فكّر في إرسال متابعة أو تحديث أسلوبك.",
+      "noApplicationsThisWeek": "لم تتقدم لأي وظيفة هذا الأسبوع — حتى طلب واحد يحافظ على الزخم.",
+      "lowResponseRate": "معدل الرد لديك هو {{score}}% — واصل التقديم وخصّص كل سيرة لرفعه.",
+      "strongResponseRate": "معدل رد قوي {{score}}%! طلباتك تحقق نتائج جيدة — حافظ على الجودة.",
+      "streakOneDay": "كنت نشطاً أمس — حافظ على السلسلة اليوم!",
+      "streakMultiDay": "سلسلة نشاط لمدة {{count}} أيام — استمر على هذا الثبات الرائع!",
+      "weeklyGoal": "أنت على بُعد {{count}} طلب{{suffix}} من هدفك الأسبوعي البالغ {{goal}} — أوشكت على الوصول!",
+      "empty": "ابدأ بتسجيل طلباتك الوظيفية لفتح رؤى مخصصة ومتابعة تقدمك مع الوقت."
+    },
+    "timeline": {
+      "searchPlaceholder": "ابحث حسب المسمى الوظيفي أو الشركة…",
+      "noMatches": "لا توجد نتائج مطابقة",
+      "emptyJourneyTitle": "رحلتك المهنية تبدأ هنا",
+      "emptyJourneyDescription": "أنشئ سيرة ذاتية، خصّصها للوظائف، وتابع طلباتك — كل ذلك في مكان واحد",
+      "emptyJourneyCta": "ابدأ ببناء سيرتك الذاتية",
+      "filters": {
+        "all": "الكل",
+        "applied": "تم التقديم",
+        "tailored": "مخصص",
+        "coverLetter": "خطاب تغطية",
+        "resume": "سيرة ذاتية"
+      },
+      "groups": {
+        "today": "اليوم",
+        "yesterday": "أمس",
+        "thisWeek": "هذا الأسبوع",
+        "earlier": "أقدم"
+      }
+    }
+  },
+  "importJobSheet": {
+    "title": "استيراد إعلان وظيفة",
+    "description": "الصق رابط إعلان الوظيفة وسنجلب الصفحة ونستخرج تفاصيل الدور بالذكاء الاصطناعي ثم نحفظها في مساحة عملك للتخصيص.",
+    "sourcesTitle": "مصادر الوظائف المدعومة",
+    "sourcesAria": "لوحات الوظائف المدعومة",
+    "clipboardReady": "الرابط جاهز من الحافظة",
+    "urlLabel": "رابط إعلان الوظيفة",
+    "urlPlaceholder": "linkedin.com/jobs/view/example",
+    "paste": "لصق",
+    "urlHint": "يعمل مع أشهر مواقع الوظائف وصفحات الوظائف العامة.",
+    "errors": {
+      "clipboardDenied": "تم رفض الوصول إلى الحافظة. ألصق الرابط يدوياً.",
+      "authPending": "ما زال تسجيل الدخول جارياً — حاول مرة أخرى بعد لحظة.",
+      "signInRequired": "سجّل الدخول لاستيراد إعلانات الوظائف وحفظها.",
+      "invalidUrl": "أدخل رابط وظيفة صالحاً.",
+      "generic": "حدث خطأ ما. تحقّق من الرابط ثم حاول مرة أخرى."
+    }
+  },
+  "portfolioEditor": {
+    "header": {
+      "eyebrow": "الملف العام",
+      "title": "استوديو ملف الأعمال",
+      "viewTitle": "عرض ملف الأعمال العام",
+      "viewLive": "عرض مباشر"
+    },
+    "saveBar": {
+      "publishChanges": "نشر التغييرات",
+      "saveAndPublish": "حفظ ونشر",
+      "saveDraftPrimary": "حفظ كمسودة",
+      "saveDraftSecondary": "حفظ المسودة",
+      "fixUsernameErrors": "أصلح أخطاء اسم المستخدم قبل الحفظ",
+      "savingDraft": "جارٍ حفظ المسودة…",
+      "publishing": "جارٍ النشر…"
+    },
+    "statusBar": {
+      "unpublishedChanges": "توجد تغييرات غير منشورة — استخدم زر النشر أدناه لتصبح مباشرة",
+      "live": "مباشر",
+      "draft": "مسودة",
+      "strengthTitle": "قوة الملف · {{score}}%",
+      "allChecksPassed": "تم اجتياز جميع الفحوصات.",
+      "strengthAria": "قوة الملف",
+      "setUsername": "حدّد اسم مستخدم للحصول على رابطك العام",
+      "copyUrlAria": "نسخ رابط ملف الأعمال",
+      "openQrAria": "فتح رمز QR"
+    }
   }
 }

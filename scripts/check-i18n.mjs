@@ -6,9 +6,18 @@ const namespaces = (await readdir(resolve(root, 'en'))).filter((file) => file.en
 const allowedIdentical = new Set(['WiseResume', 'WiseHire', 'ATS', 'LinkedIn', 'GitHub', 'A4']);
 
 function flatten(value, prefix = '', output = new Map()) {
+  if (Array.isArray(value)) {
+    value.forEach((child, index) => {
+      const path = prefix ? `${prefix}.${index}` : String(index);
+      if (child && typeof child === 'object') flatten(child, path, output);
+      else output.set(path, child);
+    });
+    return output;
+  }
+
   for (const [key, child] of Object.entries(value)) {
     const path = prefix ? `${prefix}.${key}` : key;
-    if (child && typeof child === 'object' && !Array.isArray(child)) flatten(child, path, output);
+    if (child && typeof child === 'object') flatten(child, path, output);
     else output.set(path, child);
   }
   return output;

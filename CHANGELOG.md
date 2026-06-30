@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-30 - Arabic authenticated-app recovery sweep
+
+- **Arabic recovery pass** (`src/pages/*`, `src/components/*`, `locales/ar/*`): repaired broken Arabic catalog values, removed `????`/corrupted key values from critical authenticated-app surfaces, and normalized the highest-impact settings, profile, applications, upload/import, portfolio editor, dashboard, and WiseHire shell UI onto `useLocale()` + `t(...)`.
+- **Dynamic localization leaks** (`src/components/dashboard/*`, `src/components/jobs/*`, `src/components/job-match/*`, `src/components/wise-workspace/*`, `src/lib/dateUtils.ts`): localized helper-driven labels, imported-job widgets, saved-job dialogs/lists, top-bar and workspace AI labels, and made relative-time rendering respect Arabic mode instead of defaulting to English.
+- **Guardrails** (`scripts/check-arabic-coverage.mjs`, `src/i18n/__tests__/criticalArabicCoverage.test.ts`): added a targeted Arabic coverage audit and representative render coverage for critical authenticated surfaces so obvious English literals are caught before they regress.
+- **Verification**: `npm run test:i18n`, `npm run test:i18n:coverage`, `npm run test -- src/i18n/__tests__/criticalArabicCoverage.test.ts`, and `npm run build` all passed on June 30, 2026.
+- **Residual scope**: broader repo-wide English still remains outside this recovered critical path, especially in lower-priority pages and auxiliary AI/interview/supporting components; those areas need a follow-up Arabic completion pass.
+
 ## 2026-06-29 - Arabic locale and RTL export foundation
 
 - **Locale architecture** (`src/i18n/`, `locales/`): added English/Arabic catalogs, locale resolution and persistence, global `lang`/`dir`, bidirectional text helpers, public `/ar/...` routes, settings/landing language controls, and Appwrite `user_preferences` synchronization.

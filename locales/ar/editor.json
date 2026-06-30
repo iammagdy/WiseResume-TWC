@@ -1,7 +1,16 @@
 {
   "documentLanguage": "لغة السيرة الذاتية",
   "contentPreserved": "لن يؤدي تغيير هذا الإعداد إلى ترجمة محتوى سيرتك الذاتية.",
-  "addSection": "إضافة قسم",
+  "addSection": {
+    "awardsDesc": "الجوائز والتكريمات",
+    "projectsDesc": "مشاريع شخصية ومهنية",
+    "certificationsDesc": "التراخيص والاعتمادات",
+    "publicationsDesc": "أوراق بحثية ومقالات",
+    "volunteeringDesc": "خدمة مجتمعية",
+    "languagesDesc": "اللغات التي تتحدث بها",
+    "hobbiesDesc": "اهتمامات وهوايات",
+    "referencesDesc": "مراجع مهنية"
+  },
   "enhanceWithAi": "تحسين بالذكاء الاصطناعي",
   "resumePreview": "معاينة السيرة الذاتية",
   "style": "التنسيق",
@@ -16,7 +25,22 @@
   "savedState": "تم الحفظ",
   "unsavedChangesState": "تغييرات غير محفوظة",
   "autoSavedState": "تم الحفظ تلقائياً",
-  "versionHistory": "سجل الإصدارات",
+  "versionHistory": {
+    "title": "سجل النسخ",
+    "placeholder": "اسم نقطة الحفظ (اختياري)",
+    "save": "حفظ",
+    "createBtn": "إنشاء نقطة حفظ",
+    "emptyTitle": "لم يتم حفظ أي نسخ بعد",
+    "emptyDesc": "يتم حفظ النسخ تلقائياً عند قيامك بالتعديل",
+    "version": "النسخة {{number}}",
+    "compare": "مقارنة",
+    "restore": "استعادة",
+    "manualCheckpoint": "نقطة حفظ يدوية",
+    "restoredToast": "تمت الاستعادة إلى النسخة {{number}}",
+    "savedToast": "تم حفظ نقطة الحفظ",
+    "todayAt": "اليوم، {{time}}",
+    "yesterdayAt": "أمس، {{time}}"
+  },
   "improveWithAi": "تحسين بالذكاء الاصطناعي",
   "improveShort": "تحسين",
   "tipsAndTools": "نصائح وأدوات المحرر",
@@ -46,105 +70,16 @@
   "upgradeShort": "ترقية →",
   "mobileTabEdit": "تحرير",
   "contact": {
-    "addInfoTitle": "أضف معلومات الاتصال الخاصة بك",
-    "startBtn": "ابدأ بإضافة بياناتك",
-    "fullName": "الاسم الكامل",
-    "fullNamePlaceholder": "أحمد محمد",
-    "fullNameRequired": "الاسم الكامل مطلوب",
-    "nameMinLen": "يجب أن يكون الاسم حرفين على الأقل",
-    "nameMaxLen": "يجب أن يكون الاسم أقل من 100 حرف",
-    "email": "البريد الإلكتروني",
-    "emailPlaceholder": "example@domain.com",
-    "emailRequired": "البريد الإلكتروني مطلوب",
-    "emailInvalid": "يرجى إدخال بريد إلكتروني صحيح",
-    "secondEmail": "بريد إلكتروني إضافي (اختياري)",
-    "secondEmailPlaceholder": "work@domain.com",
-    "phone": "رقم الهاتف",
-    "phonePlaceholder": "+966 50 123 4567",
-    "phoneInvalid": "رقم الهاتف غير صحيح",
-    "location": "الموقع (المدينة والبلد)",
-    "locationPlaceholder": "الرياض، السعودية",
-    "linkedin": "لينكد إن (اختياري)",
-    "linkedinPlaceholder": "اسم المستخدم",
-    "linkedinInvalid": "اسم المستخدم غير صحيح",
-    "github": "جيت هاب (اختياري)",
-    "githubPlaceholder": "اسم المستخدم",
-    "githubInvalid": "اسم المستخدم غير صحيح",
-    "portfolio": "الموقع الشخصي (اختياري)",
-    "portfolioPlaceholder": "https://mywebsite.com",
-    "portfolioInvalid": "يرجى إدخال رابط إنترنت صحيح"
+    "sectionTip": "أضف اسمك وبريدك الإلكتروني ورقم هاتفك ولينكد إن — ستظهر في أعلى سيرتك الذاتية"
   },
   "experience": {
-    "title": "الخبرة العملية",
-    "boostAll": "تحسين الكل بالذكاء الاصطناعي",
-    "addWithAi": "إضافة بالذكاء الاصطناعي",
-    "add": "إضافة",
-    "emptyTitle": "أضف خبراتك العملية",
-    "addFirstJob": "أضف وظيفتك الأولى",
-    "importLinkedIn": "استيراد من لينكد إن",
-    "positionLabel": "المسمى الوظيفي",
-    "positionPlaceholder": "مثال: مدير مشاريع",
-    "positionDefault": "الوظيفة {{index}}",
-    "companyLabel": "الشركة",
-    "companyPlaceholder": "اسم الشركة",
-    "companyDefault": "اسم الشركة",
-    "accountLabel": "الحساب / العميل (اختياري)",
-    "accountPlaceholder": "مثال: أرامكو، سابك — العميل الذي قدمت له الخدمة",
-    "accountSuffix": "({{account}} حساب)",
-    "startDate": "تاريخ البدء",
-    "endDate": "تاريخ الانتهاء",
-    "present": "حتى الآن",
-    "currentSwitch": "أعمل هنا حالياً",
-    "descriptionLabel": "الوصف الوظيفي",
-    "descriptionPlaceholder": "صف مسؤولياتك وإنجازاتك في هذا العمل...",
-    "descriptionTip": "نصيحة: ابدأ كل سطر بفعل حركة — مثل \"أدرت\"، \"طوّرت\"، \"حسّنت\" — واذكر أرقاماً أو مقاييس كلما أمكن ذلك.",
-    "missingDetails": "إضافة مسمى الوظيفة وتاريخ البدء يساعد الذكاء الاصطناعي على العمل بشكل أفضل ويمنع الحقول الفارغة في تصدير الـ PDF.",
-    "reversedDates": "تاريخ الانتهاء يسبق تاريخ البدء — يرجى التحقق من هذه الفترة قبل التصدير.",
-    "enhancedTitle": "تحسين الخبرة",
-    "importLinkedIn": "استيراد من لينكد إن",
-    "useExample": "استخدام إدخال تجريبي",
-    "atCompany": "{{position}} في {{company}}"
+    "sectionTip": "أضف وظيفتك الأحدث أولاً — انقر على إدخال لتوسيعه وتحريره"
   },
   "education": {
-    "title": "التعليم",
-    "importLinkedIn": "استيراد من لينكد إن",
-    "useExample": "استخدام نموذج جاهز",
-    "add": "إضافة",
-    "emptyTitle": "أضف مؤهلاتك التعليمية",
-    "addEducationBtn": "إضافة مؤهل تعليمي",
-    "selfTaughtBtn": "دراسة ذاتية / تعليم عبر الإنترنت",
-    "selfTaughtInstitution": "دراسة ذاتية / تعليم عبر الإنترنت",
-    "selfTaughtDegree": "الشهادات والمسارات المهنية",
-    "degreeDefault": "المؤهل الدراسي {{index}}",
-    "institutionDefault": "اسم الجهة التعليمية",
-    "institutionLabel": "المؤسسة التعليمية",
-    "institutionPlaceholder": "اسم الجامعة أو المعهد",
-    "degreeLabel": "الشهادة / الدرجة العلمية",
-    "degreePlaceholder": "بكالوريوس",
-    "fieldLabel": "التخصص الدراسي",
-    "fieldPlaceholder": "علوم الحاسب",
-    "startDate": "تاريخ البدء",
-    "endDate": "تاريخ الانتهاء",
-    "present": "حتى الآن",
-    "gpaLabel": "المعدل التراكمي (اختياري)",
-    "gpaPlaceholder": "4.5/5.0",
-    "descriptionLabel": "وصف إضافي (اختياري)",
-    "descriptionPlaceholder": "وصف موجز لدراستك، أو الأنشطة، أو المواد الدراسية ذات الصلة...",
-    "remove": "حذف"
+    "sectionTip": "اذكر أعلى درجة علمية أولاً — المعدل التراكمي اختياري"
   },
   "skills": {
-    "title": "المهارات",
-    "placeholder": "أضف مهارة...",
-    "emptyTitle": "أضف مهاراتك الأساسية",
-    "addSkillsBtn": "أضف مهاراتك",
-    "aiSuggestBtn": "اقتراح المهارات بالذكاء الاصطناعي",
-    "suggestedForYou": "مقترح لك",
-    "basedOnExperience": "بناءً على مسمياتك الوظيفية وخبرتك:",
-    "basedOnTargetJob": "بناءً على الوصف الوظيفي المستهدف:",
-    "commonSkills": "المهارات الشائعة",
-    "technicalCategory": "تقنية",
-    "softCategory": "مهارات شخصية / ناعمة",
-    "languagesCategory": "لغات"
+    "sectionTip": "أضف 6-10 مهارات تتناسب مع الوظائف التي تتقدم إليها"
   },
   "sections": {
     "contact": "بيانات الاتصال",
@@ -186,10 +121,7 @@
     "prev": "السابق",
     "next": "التالي",
     "preview": "معاينة",
-    "loading": "جار التحميل\u2026"
-  },
-  "contact": {
-    "sectionTip": "أضف اسمك وبريدك الإلكتروني ورقم هاتفك ولينكد إن — ستظهر في أعلى سيرتك الذاتية"
+    "loading": "جار التحميل…"
   },
   "summary": {
     "sectionTip": "اكتب 2-4 جمل عن خبرتك وما تبحث عنه",
@@ -206,31 +138,12 @@
     "errorRequired": "الملخص المهني مطلوب",
     "errorTooShort": "يجب أن يكون الملخص 50 حرفاً على الأقل"
   },
-  "experience": {
-    "sectionTip": "أضف وظيفتك الأحدث أولاً — انقر على إدخال لتوسيعه وتحريره"
-  },
-  "education": {
-    "sectionTip": "اذكر أعلى درجة علمية أولاً — المعدل التراكمي اختياري"
-  },
-  "skills": {
-    "sectionTip": "أضف 6-10 مهارات تتناسب مع الوظائف التي تتقدم إليها"
-  },
-  "addSection": {
-    "awardsDesc": "الجوائز والتكريمات",
-    "projectsDesc": "مشاريع شخصية ومهنية",
-    "certificationsDesc": "التراخيص والاعتمادات",
-    "publicationsDesc": "أوراق بحثية ومقالات",
-    "volunteeringDesc": "خدمة مجتمعية",
-    "languagesDesc": "اللغات التي تتحدث بها",
-    "hobbiesDesc": "اهتمامات وهوايات",
-    "referencesDesc": "مراجع مهنية"
-  },
   "ats": {
     "atsTips": "نصائح ATS",
     "writingTips": "نصائح الكتابة",
-    "analyzing": "جار التحليل\u2026",
-    "optimizing": "جار التحسين\u2026",
-    "finalizing": "جار الإنهاء\u2026",
+    "analyzing": "جار التحليل…",
+    "optimizing": "جار التحسين…",
+    "finalizing": "جار الإنهاء…",
     "keywordOverlapNote": "اقتراحات بناء على تطابق الكلمات المفتاحية مع وصف وظيفتك — ليس تخطيط النموذج أو نتائج أدوات ATS الخارجية.",
     "aiOptimizedReady": "محتوى محسّن بالذكاء الاصطناعي جاهز",
     "applyChanges": "تطبيق التغييرات",
@@ -238,13 +151,13 @@
     "deepAnalyzeDesc": "يعيد كتابة هذا القسم ليتناسب بشكل أفضل مع الوظيفة المستهدفة",
     "tailorToJob": "خصص هذا القسم لإعلان وظيفة",
     "tailorDesc": "الصق وصف وظيفة من أي إعلان تتقدم إليه، وسيعيد الذكاء الاصطناعي كتابة هذا القسم ليتطابق مع كلماته المفتاحية ومتطلباته.",
-    "pasteJobDesc": "لصق وصف الوظيفة \u2190",
+    "pasteJobDesc": "لصق وصف الوظيفة ←",
     "skillAdded": "تمت إضافة \"{{skill}}\" إلى المهارات",
     "skillExists": "المهارة موجودة بالفعل"
   },
   "ai": {
     "aiAssist": "مساعد الذكاء الاصطناعي",
-    "generatingWait": "جار التوليد بالذكاء الاصطناعي\u060c يرجى الانتظار\u2026"
+    "generatingWait": "جار التوليد بالذكاء الاصطناعي، يرجى الانتظار…"
   },
   "hobbies": {
     "emptyTip": "أضف هواياتك واهتماماتك",
@@ -286,7 +199,7 @@
     "expiryLabel": "تاريخ الانتهاء (اختياري)",
     "expiryPlaceholder": "يناير 2027",
     "credLabel": "معرف الشهادة (اختياري)",
-    "credPlaceholder": "ABC123XYZ"
+    "credPlaceholder": "مثال: CERT-123"
   },
   "projects": {
     "emptyTip": "اعرض مشاريعك وإنجازاتك",
@@ -362,21 +275,5 @@
     "descriptionPlaceholder": "صف دورك والأثر الذي تركته...",
     "hoursLabel": "عدد الساعات (اختياري)",
     "hoursPlaceholder": "+200 ساعة"
-  },
-  "versionHistory": {
-    "title": "سجل النسخ",
-    "placeholder": "اسم نقطة الحفظ (اختياري)",
-    "save": "حفظ",
-    "createBtn": "إنشاء نقطة حفظ",
-    "emptyTitle": "لم يتم حفظ أي نسخ بعد",
-    "emptyDesc": "يتم حفظ النسخ تلقائياً عند قيامك بالتعديل",
-    "version": "النسخة {{number}}",
-    "compare": "مقارنة",
-    "restore": "استعادة",
-    "manualCheckpoint": "نقطة حفظ يدوية",
-    "restoredToast": "تمت الاستعادة إلى النسخة {{number}}",
-    "savedToast": "تم حفظ نقطة الحفظ",
-    "todayAt": "اليوم، {{time}}",
-    "yesterdayAt": "أمس، {{time}}"
   }
 }

@@ -1,7 +1,16 @@
 {
   "documentLanguage": "CV language",
   "contentPreserved": "Changing this setting does not translate your content.",
-  "addSection": "Add section",
+  "addSection": {
+    "awardsDesc": "Awards & achievements",
+    "projectsDesc": "Personal & work projects",
+    "certificationsDesc": "Licenses & credentials",
+    "publicationsDesc": "Papers & articles",
+    "volunteeringDesc": "Community service",
+    "languagesDesc": "Languages you speak",
+    "hobbiesDesc": "Interests & hobbies",
+    "referencesDesc": "Professional references"
+  },
   "enhanceWithAi": "Enhance with AI",
   "resumePreview": "Resume preview",
   "style": "Style",
@@ -16,7 +25,22 @@
   "savedState": "Saved",
   "unsavedChangesState": "Unsaved changes",
   "autoSavedState": "Auto-saved",
-  "versionHistory": "Version history",
+  "versionHistory": {
+    "title": "Version History",
+    "placeholder": "Checkpoint name (optional)",
+    "save": "Save",
+    "createBtn": "Create Checkpoint",
+    "emptyTitle": "No versions saved yet",
+    "emptyDesc": "Versions are saved automatically when you edit",
+    "version": "Version {{number}}",
+    "compare": "Compare",
+    "restore": "Restore",
+    "manualCheckpoint": "Manual checkpoint",
+    "restoredToast": "Restored to version {{number}}",
+    "savedToast": "Checkpoint saved",
+    "todayAt": "Today, {{time}}",
+    "yesterdayAt": "Yesterday, {{time}}"
+  },
   "improveWithAi": "Improve with AI",
   "improveShort": "Improve",
   "tipsAndTools": "Editor tips and tools",
@@ -37,114 +61,25 @@
   "changesWillSyncOffline": "{{count}} changes will sync when back online",
   "syncingChanges": "Syncing changes…",
   "syncingState": "Syncing",
-  "defaultResumeBanner": "This is your default resume \u2014 edits apply directly. Use Tailor to create a safe copy for a specific job.",
-  "trialResumeBanner": "Trial resume \u2014 expires in {{hours}}h. Saving your first edit will end the trial period.",
+  "defaultResumeBanner": "This is your default resume — edits apply directly. Use Tailor to create a safe copy for a specific job.",
+  "trialResumeBanner": "Trial resume — expires in {{hours}}h. Saving your first edit will end the trial period.",
   "upgradeToKeepForeverAria": "Upgrade your plan to keep this resume forever",
-  "upgradeToKeepForever": "Upgrade to keep forever \u2192",
-  "trialExpiredBanner": "Your free trial has ended. This resume is read-only \u2014 upgrade to Pro to keep making changes.",
+  "upgradeToKeepForever": "Upgrade to keep forever →",
+  "trialExpiredBanner": "Your free trial has ended. This resume is read-only — upgrade to Pro to keep making changes.",
   "upgradeToContinueAria": "Upgrade to Pro to continue editing",
-  "upgradeShort": "Upgrade \u2192",
+  "upgradeShort": "Upgrade →",
   "mobileTabEdit": "Edit",
   "contact": {
-    "addInfoTitle": "Add your contact information",
-    "startBtn": "Start Adding Your Info",
-    "fullName": "Full Name",
-    "fullNamePlaceholder": "John Doe",
-    "fullNameRequired": "Full name is required",
-    "nameMinLen": "Name must be at least 2 characters",
-    "nameMaxLen": "Name must be less than 100 characters",
-    "email": "Email",
-    "emailPlaceholder": "john@example.com",
-    "emailRequired": "Email is required",
-    "emailInvalid": "Please enter a valid email",
-    "secondEmail": "Second Email (optional)",
-    "secondEmailPlaceholder": "work@example.com",
-    "phone": "Phone",
-    "phonePlaceholder": "+1 (555) 123-4567",
-    "phoneInvalid": "Invalid phone",
-    "location": "Location",
-    "locationPlaceholder": "New York, NY",
-    "linkedin": "LinkedIn (optional)",
-    "linkedinPlaceholder": "johndoe",
-    "linkedinInvalid": "Invalid username",
-    "github": "GitHub (optional)",
-    "githubPlaceholder": "johndoe",
-    "githubInvalid": "Invalid username",
-    "portfolio": "Portfolio (optional)",
-    "portfolioPlaceholder": "https://johndoe.com",
-    "portfolioInvalid": "Please enter a valid URL"
+    "sectionTip": "Add your name, email, phone and LinkedIn — these appear at the top of your resume"
   },
   "experience": {
-    "title": "Experience",
-    "boostAll": "Boost All with AI",
-    "addWithAi": "Add with AI",
-    "add": "Add",
-    "emptyTitle": "Add your work experience",
-    "addFirstJob": "Add Your First Job",
-    "importLinkedIn": "Import from LinkedIn",
-    "positionLabel": "Position",
-    "positionPlaceholder": "Job Title",
-    "positionDefault": "Position {{index}}",
-    "companyLabel": "Company",
-    "companyPlaceholder": "Company Name",
-    "companyDefault": "Company name",
-    "accountLabel": "Account / Client (optional)",
-    "accountPlaceholder": "e.g., Verizon, AT&T — the client you served at this company",
-    "accountSuffix": "({{account}} Account)",
-    "startDate": "Start Date",
-    "endDate": "End Date",
-    "present": "Present",
-    "currentSwitch": "Currently working here",
-    "descriptionLabel": "Description",
-    "descriptionPlaceholder": "Describe your responsibilities and achievements...",
-    "descriptionTip": "Tip: Start each line with an action verb — e.g. \"Led\", \"Built\", \"Improved\" — and include a result or metric where possible.",
-    "missingDetails": "Adding a position title and start date helps AI features work better and prevents empty entries in your PDF export.",
-    "reversedDates": "End date is before the start date — check this range before exporting.",
-    "enhancedTitle": "Enhanced Experience",
-    "importLinkedIn": "Import from LinkedIn",
-    "useExample": "Use Example Entry",
-    "atCompany": "{{position}} at {{company}}"
+    "sectionTip": "Add your most recent job first — tap an entry to expand and edit it"
   },
   "education": {
-    "title": "Education",
-    "importLinkedIn": "Import from LinkedIn",
-    "useExample": "Use Example Entry",
-    "add": "Add",
-    "emptyTitle": "Add your education",
-    "addEducationBtn": "Add Education",
-    "selfTaughtBtn": "I'm Self-Taught",
-    "selfTaughtInstitution": "Self-Taught / Online Learning",
-    "selfTaughtDegree": "Professional Certifications & Courses",
-    "degreeDefault": "Degree {{index}}",
-    "institutionDefault": "Institution name",
-    "institutionLabel": "Institution",
-    "institutionPlaceholder": "University Name",
-    "degreeLabel": "Degree",
-    "degreePlaceholder": "Bachelor's",
-    "fieldLabel": "Field of Study",
-    "fieldPlaceholder": "Computer Science",
-    "startDate": "Start Date",
-    "endDate": "End Date",
-    "present": "Present",
-    "gpaLabel": "GPA (optional)",
-    "gpaPlaceholder": "3.8/4.0",
-    "descriptionLabel": "Description (optional)",
-    "descriptionPlaceholder": "Brief description of your program, thesis, or relevant coursework...",
-    "remove": "Remove"
+    "sectionTip": "List your highest degree first — GPA is optional"
   },
   "skills": {
-    "title": "Skills",
-    "placeholder": "Add a skill...",
-    "emptyTitle": "List your key skills",
-    "addSkillsBtn": "Add Your Skills",
-    "aiSuggestBtn": "AI Suggest Skills",
-    "suggestedForYou": "Suggested for you",
-    "basedOnExperience": "Based on your job titles and experience:",
-    "basedOnTargetJob": "Based on your target job description:",
-    "commonSkills": "Common Skills",
-    "technicalCategory": "Technical",
-    "softCategory": "Soft Skills",
-    "languagesCategory": "Languages"
+    "sectionTip": "Add 6–10 skills matching the jobs you're applying to"
   },
   "sections": {
     "contact": "Contact",
@@ -179,20 +114,17 @@
   },
   "onboarding": {
     "welcome": "Welcome!",
-    "fillSectionsSteps": "Fill in each section using the steps above \u2014 changes save automatically.",
+    "fillSectionsSteps": "Fill in each section using the steps above — changes save automatically.",
     "dismissHint": "Dismiss hint"
   },
   "nav": {
     "prev": "Prev",
     "next": "Next",
     "preview": "Preview",
-    "loading": "Loading\u2026"
-  },
-  "contact": {
-    "sectionTip": "Add your name, email, phone and LinkedIn \u2014 these appear at the top of your resume"
+    "loading": "Loading…"
   },
   "summary": {
-    "sectionTip": "Write 2\u20134 sentences about your experience and what you're looking for",
+    "sectionTip": "Write 2–4 sentences about your experience and what you're looking for",
     "emptyTitle": "Write your professional summary",
     "startWriting": "Start Writing",
     "letAiWrite": "Let AI Write This",
@@ -206,45 +138,26 @@
     "errorRequired": "Professional summary is required",
     "errorTooShort": "Summary should be at least 50 characters"
   },
-  "experience": {
-    "sectionTip": "Add your most recent job first \u2014 tap an entry to expand and edit it"
-  },
-  "education": {
-    "sectionTip": "List your highest degree first \u2014 GPA is optional"
-  },
-  "skills": {
-    "sectionTip": "Add 6\u201310 skills matching the jobs you're applying to"
-  },
-  "addSection": {
-    "awardsDesc": "Awards & achievements",
-    "projectsDesc": "Personal & work projects",
-    "certificationsDesc": "Licenses & credentials",
-    "publicationsDesc": "Papers & articles",
-    "volunteeringDesc": "Community service",
-    "languagesDesc": "Languages you speak",
-    "hobbiesDesc": "Interests & hobbies",
-    "referencesDesc": "Professional references"
-  },
   "ats": {
     "atsTips": "ATS Tips",
     "writingTips": "Writing Tips",
-    "analyzing": "Analyzing\u2026",
-    "optimizing": "Optimizing\u2026",
-    "finalizing": "Finalizing\u2026",
-    "keywordOverlapNote": "Suggestions based on keyword overlap with your job description \u2014 not template layout or external ATS-tool scores.",
+    "analyzing": "Analyzing…",
+    "optimizing": "Optimizing…",
+    "finalizing": "Finalizing…",
+    "keywordOverlapNote": "Suggestions based on keyword overlap with your job description — not template layout or external ATS-tool scores.",
     "aiOptimizedReady": "AI Optimized Content Ready",
     "applyChanges": "Apply Changes",
     "deepAnalyze": "Deep Analyze",
     "deepAnalyzeDesc": "Rewrites this section to better match your target job",
     "tailorToJob": "Tailor this section to a job posting",
     "tailorDesc": "Paste a job description from any posting you're applying to, and AI will rewrite this section to match its keywords and requirements.",
-    "pasteJobDesc": "Paste job description \u2192",
+    "pasteJobDesc": "Paste job description →",
     "skillAdded": "Added \"{{skill}}\" to skills",
     "skillExists": "Skill already exists"
   },
   "ai": {
     "aiAssist": "AI Assist",
-    "generatingWait": "Generating with AI, please wait\u2026"
+    "generatingWait": "Generating with AI, please wait…"
   },
   "hobbies": {
     "emptyTip": "Add your hobbies & interests",
@@ -362,21 +275,5 @@
     "descriptionPlaceholder": "Describe your impact...",
     "hoursLabel": "Hours (optional)",
     "hoursPlaceholder": "200+"
-  },
-  "versionHistory": {
-    "title": "Version History",
-    "placeholder": "Checkpoint name (optional)",
-    "save": "Save",
-    "createBtn": "Create Checkpoint",
-    "emptyTitle": "No versions saved yet",
-    "emptyDesc": "Versions are saved automatically when you edit",
-    "version": "Version {{number}}",
-    "compare": "Compare",
-    "restore": "Restore",
-    "manualCheckpoint": "Manual checkpoint",
-    "restoredToast": "Restored to version {{number}}",
-    "savedToast": "Checkpoint saved",
-    "todayAt": "Today, {{time}}",
-    "yesterdayAt": "Yesterday, {{time}}"
   }
 }

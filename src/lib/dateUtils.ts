@@ -3,6 +3,7 @@
  */
 
 import { format as dateFnsFormat, formatDistanceToNow as dateFnsDistanceToNow, isValid, parseISO } from 'date-fns';
+import { LOCALE_STORAGE_KEY, normalizeLocale } from '@/i18n/core';
 
 const MONTH_MAP: Record<string, number> = {
   jan: 0, january: 0,
@@ -335,6 +336,50 @@ function toValidDate(value: string | number | Date | null | undefined): Date | n
   return isValid(d) ? d : null;
 }
 
+function readRelativeLocale(): 'en' | 'ar' {
+  if (typeof document !== 'undefined') {
+    const fromDom = normalizeLocale(document.documentElement.lang || document.documentElement.dataset.locale);
+    if (fromDom) return fromDom;
+  }
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const stored = normalizeLocale(localStorage.getItem(LOCALE_STORAGE_KEY));
+      if (stored) return stored;
+    } catch {
+      // ignore storage access failures
+    }
+  }
+  if (typeof navigator !== 'undefined') {
+    for (const lang of navigator.languages ?? []) {
+      const normalized = normalizeLocale(lang);
+      if (normalized) return normalized;
+    }
+  }
+  return 'en';
+}
+
+function formatRelativeTimeIntl(target: Date, locale: 'en' | 'ar', addSuffix: boolean): string {
+  const diffSeconds = Math.round((target.getTime() - Date.now()) / 1000);
+  const absSeconds = Math.abs(diffSeconds);
+
+  const unitTable: Array<{ limit: number; divisor: number; unit: Intl.RelativeTimeFormatUnit }> = [
+    { limit: 60, divisor: 1, unit: 'second' },
+    { limit: 3600, divisor: 60, unit: 'minute' },
+    { limit: 86400, divisor: 3600, unit: 'hour' },
+    { limit: 2592000, divisor: 86400, unit: 'day' },
+    { limit: 31536000, divisor: 2592000, unit: 'month' },
+    { limit: Number.POSITIVE_INFINITY, divisor: 31536000, unit: 'year' },
+  ];
+
+  const match = unitTable.find((entry) => absSeconds < entry.limit) ?? unitTable[unitTable.length - 1];
+  const value = Math.round(diffSeconds / match.divisor);
+  const rtf = new Intl.RelativeTimeFormat(locale === 'ar' ? 'ar' : 'en', {
+    numeric: 'auto',
+    style: 'long',
+  });
+  return addSuffix ? rtf.format(value, match.unit) : rtf.formatToParts(value, match.unit).map((part) => part.value).join('');
+}
+
 /**
  * Safe wrapper around date-fns `format`. Returns `fallback` when `value` is
  * null, undefined, or cannot be parsed into a valid Date.
@@ -358,5 +403,10 @@ export function safeFormatDistanceToNow(
   fallback = '—',
 ): string {
   const d = toValidDate(value);
-  return d ? dateFnsDistanceToNow(d, opts) : fallback;
+  if (!d) return fallback;
+  const locale = readRelativeLocale();
+  if (locale === 'ar') {
+    return formatRelativeTimeIntl(d, locale, Boolean(opts?.addSuffix));
+  }
+  return dateFnsDistanceToNow(d, opts);
 }

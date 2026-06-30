@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export default function AccountStatsCard({ resumes, coverLetters, applications, createdAt }: {
     resumes: number;
@@ -8,24 +9,25 @@ export default function AccountStatsCard({ resumes, coverLetters, applications, 
     applications: number;
     createdAt?: string;
 }) {
+    const { t, locale } = useLocale();
     const cardRef = useRef<HTMLDivElement>(null);
     const countRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const hasAnimated = useRef(false);
 
     const stats = [
-        { value: resumes, label: 'Resumes' },
-        { value: coverLetters, label: 'Cover Letters' },
-        { value: applications, label: 'Applications' },
+        { value: resumes, label: t('app.settingsPage.accountStats.resumes', 'Resumes') },
+        { value: coverLetters, label: t('app.settingsPage.accountStats.coverLetters', 'Cover Letters') },
+        { value: applications, label: t('app.settingsPage.accountStats.applications', 'Applications') },
     ];
 
     // Membership tier
     const membershipTier = (() => {
         if (!createdAt) return null;
         const months = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24 * 30));
-        if (months >= 12) return 'Founding Member';
-        if (months >= 6) return 'Early Adopter';
-        if (months >= 1) return 'Member';
-        return 'New Member';
+        if (months >= 12) return t('app.settingsPage.accountStats.membership.founding', 'Founding Member');
+        if (months >= 6) return t('app.settingsPage.accountStats.membership.early', 'Early Adopter');
+        if (months >= 1) return t('app.settingsPage.accountStats.membership.member', 'Member');
+        return t('app.settingsPage.accountStats.membership.new', 'New Member');
     })();
 
     useEffect(() => {
@@ -84,7 +86,9 @@ export default function AccountStatsCard({ resumes, coverLetters, applications, 
             </div>
             {createdAt && (
                 <p className="text-[10px] text-muted-foreground text-center mt-2">
-                    Member since {new Date(createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {t('app.settingsPage.accountStats.memberSince', 'Member since {{date}}', {
+                        date: new Date(createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'long', year: 'numeric' }),
+                    })}
                 </p>
             )}
         </div>

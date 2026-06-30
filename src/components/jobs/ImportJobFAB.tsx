@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface ImportJobFABProps {
   offsetClass: string;
@@ -7,6 +8,8 @@ interface ImportJobFABProps {
 }
 
 export function ImportJobFAB({ offsetClass, onOpen }: ImportJobFABProps) {
+  const { t } = useLocale();
+
   return (
     <button
       onClick={onOpen}
@@ -16,10 +19,10 @@ export function ImportJobFAB({ offsetClass, onOpen }: ImportJobFABProps) {
         'active:scale-95 transition-all touch-manipulation',
         offsetClass
       )}
-      aria-label="Import a job"
+      aria-label={t('app.topBar.importJobAria', 'استيراد وظيفة')}
     >
       <Plus className="w-4 h-4" />
-      <span className="text-sm font-medium">Import Job</span>
+      <span className="text-sm font-medium">{t('app.topBar.importJob', 'استيراد وظيفة')}</span>
     </button>
   );
 }

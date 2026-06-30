@@ -2810,6 +2810,28 @@ The root cause was a live Appwrite Web platform mismatch, not bad credentials or
 
 ---
 
+## 2026-06-30 - Arabic authenticated-app recovery sweep
+
+### Summary
+Recovered the highest-impact signed-in Arabic experience by fixing broken locale wiring, repairing corrupted Arabic catalog values, localizing shared helper-driven UI, and adding an Arabic coverage guardrail for critical authenticated surfaces.
+
+### What changed
+- Repaired Arabic catalog corruption and placeholder/key mismatches in the app and WiseHire locale files.
+- Localized remaining visible English on the main signed-in surfaces: settings, profile, applications, upload/import, portfolio editor, dashboard activity/insights, imported-jobs widgets, and shared AI/top-bar labels.
+- Made dashboard/activity relative-time text respect Arabic instead of defaulting to English.
+- Added and verified a focused Arabic coverage script plus critical render tests for representative authenticated surfaces.
+
+### Verification
+- `npm run test:i18n`
+- `npm run test:i18n:coverage`
+- `npm run test -- src/i18n/__tests__/criticalArabicCoverage.test.ts`
+- `npm run build`
+
+### Remaining scope
+This session recovered the critical authenticated Arabic path, but it did not finish every lower-priority English literal across the entire repository. Some secondary pages and helper components still need a follow-up completion pass.
+
+---
+
 ## 2026-05-12 - Atlas A-to-Z source map
 
 ### Summary

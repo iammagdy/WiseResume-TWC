@@ -1,6 +1,7 @@
 import { ExternalLink, Globe } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface PortfolioEditorHeaderProps {
   onBeforeBack?: () => boolean;
@@ -15,6 +16,8 @@ export function PortfolioEditorHeader({
   portfolioCanonicalUrl,
   className,
 }: PortfolioEditorHeaderProps) {
+  const { t } = useLocale();
+
   return (
     <header
       className={cn(
@@ -29,10 +32,10 @@ export function PortfolioEditorHeader({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80 leading-none">
-            Public profile
+            {t('app.portfolioEditor.header.eyebrow', 'الملف العام')}
           </p>
           <h1 className="text-base sm:text-lg font-semibold text-foreground truncate leading-tight mt-1">
-            Portfolio studio
+            {t('app.portfolioEditor.header.title', 'استوديو الملف العام')}
           </h1>
         </div>
         {portfolioEnabled && portfolioCanonicalUrl && (
@@ -45,10 +48,12 @@ export function PortfolioEditorHeader({
               'border border-primary/25 bg-primary/5 text-primary',
               'hover:bg-primary/10 transition-colors',
             )}
-            title="View public portfolio"
+            title={t('app.portfolioEditor.header.viewTitle', 'عرض الملف العام')}
           >
             <ExternalLink className="w-3.5 h-3.5" aria-hidden />
-            <span className="hidden sm:inline">View live</span>
+            <span className="hidden sm:inline">
+              {t('app.portfolioEditor.header.viewLive', 'عرض المباشر')}
+            </span>
           </a>
         )}
       </div>

@@ -10,6 +10,7 @@ function Probe() {
       <span data-testid="locale">{locale}</span>
       <span data-testid="direction">{direction}</span>
       <span>{t('common.download')}</span>
+      <span data-testid="fallback">{t('landing.nonexistentCopy', 'Localized fallback')}</span>
       <BidiText data-testid="email">name@example.com</BidiText>
       <button onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}>switch</button>
     </div>
@@ -46,5 +47,10 @@ describe('LocaleProvider', () => {
   it('keeps email addresses left-to-right inside Arabic content', () => {
     render(<LocaleProvider initialLocale="ar"><Probe /></LocaleProvider>);
     expect(screen.getByTestId('email')).toHaveAttribute('dir', 'ltr');
+  });
+
+  it('returns the provided fallback string when a translation key is missing', () => {
+    render(<LocaleProvider initialLocale="ar"><Probe /></LocaleProvider>);
+    expect(screen.getByTestId('fallback')).toHaveTextContent('Localized fallback');
   });
 });

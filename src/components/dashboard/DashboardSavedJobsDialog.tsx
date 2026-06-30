@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useJobs, type Job } from '@/hooks/useJobs';
 import { buildTailoringHubJobUrl } from '@/hooks/useSavedJobPostings';
 import { haptics } from '@/lib/haptics';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface DashboardSavedJobsDialogProps {
   open: boolean;
@@ -29,12 +30,17 @@ function formatDate(iso: string): string {
 }
 
 function SavedJobRow({ job, onOpen }: { job: Job; onOpen: (job: Job) => void }) {
+  const { t } = useLocale();
+
   return (
     <button
       type="button"
       className="w-full rounded-xl border border-border/50 bg-card/60 p-3.5 text-left transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
       onClick={() => onOpen(job)}
-      aria-label={`Open ${job.title} at ${job.company}`}
+      aria-label={t('app.tailoringHubPage.savedJobs.openAria', 'افتح {{title}} في {{company}}', {
+        title: job.title,
+        company: job.company,
+      })}
     >
       <div className="flex items-start gap-3">
         <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 shrink-0">
@@ -48,7 +54,11 @@ function SavedJobRow({ job, onOpen }: { job: Job; onOpen: (job: Job) => void }) 
             {job.location ? ` · ${job.location}` : ''}
           </p>
           {job.created_at ? (
-            <p className="text-[10px] text-muted-foreground/80 mt-1">Saved {formatDate(job.created_at)}</p>
+            <p className="text-[10px] text-muted-foreground/80 mt-1">
+              {t('app.tailoringHubPage.savedJobs.savedOn', 'تم الحفظ {{date}}', {
+                date: formatDate(job.created_at),
+              })}
+            </p>
           ) : null}
         </div>
         <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-2" aria-hidden />
@@ -62,6 +72,7 @@ export const DashboardSavedJobsDialog = memo(function DashboardSavedJobsDialog({
   onOpenChange,
   onImportJob,
 }: DashboardSavedJobsDialogProps) {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const { data: jobs = [], isLoading } = useJobs();
   const savedCount = jobs.length;
@@ -82,29 +93,43 @@ export const DashboardSavedJobsDialog = memo(function DashboardSavedJobsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl max-h-[min(90vh,640px)] flex flex-col p-0 gap-0" fullScreenOnMobile>
         <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 shrink-0 text-left">
-          <DialogTitle>Saved jobs</DialogTitle>
+          <DialogTitle>{t('app.tailoringHubPage.savedJobs.title', 'الوظائف المحفوظة')}</DialogTitle>
           <DialogDescription>
             {savedCount > 0
-              ? `${savedCount} job posting${savedCount !== 1 ? 's' : ''} in your workspace · open one to tailor a resume`
-              : 'Import a job posting to save role details for tailoring and match scoring.'}
+              ? t(
+                  'app.tailoringHubPage.savedJobs.dialogDescriptionCount',
+                  'لديك {{count}} وظيفة محفوظة في مساحة العمل. افتح واحدة لتخصيص السيرة الذاتية.',
+                  { count: savedCount, suffix: savedCount !== 1 ? 's' : '' },
+                )
+              : t(
+                  'app.tailoringHubPage.savedJobs.dialogDescriptionEmpty',
+                  'استورد إعلان وظيفة لحفظ تفاصيل الدور من أجل التخصيص واحتساب درجة التوافق.',
+                )}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 min-h-0 px-4 sm:px-6 pb-5">
           {isLoading ? (
             <div className="rounded-xl border border-dashed border-border/50 bg-card/30 px-4 py-8 text-center">
-              <p className="text-sm text-muted-foreground">Loading saved jobs…</p>
+              <p className="text-sm text-muted-foreground">
+                {t('app.tailoringHubPage.savedJobs.loading', 'جارٍ تحميل الوظائف المحفوظة...')}
+              </p>
             </div>
           ) : savedCount === 0 ? (
             <div className="rounded-xl border border-dashed border-border/50 bg-card/30 px-4 py-8 text-center space-y-3">
-              <p className="text-sm font-medium text-foreground">No saved jobs yet</p>
+              <p className="text-sm font-medium text-foreground">
+                {t('app.tailoringHubPage.savedJobs.emptyTitle', 'لا توجد وظائف محفوظة بعد')}
+              </p>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
-                Paste a LinkedIn, Indeed, or careers page URL to import a posting into your workspace.
+                {t(
+                  'app.tailoringHubPage.savedJobs.emptyDescription',
+                  'الصق رابط LinkedIn أو Indeed أو صفحة وظائف لاستيراد الإعلان إلى مساحة العمل.',
+                )}
               </p>
               {onImportJob ? (
                 <Button type="button" size="sm" className="h-9 rounded-lg" onClick={handleImport}>
                   <Link2 className="w-3.5 h-3.5 mr-1.5" aria-hidden />
-                  Import job posting
+                  {t('app.tailoringHubPage.hero.import', 'استيراد إعلان وظيفة')}
                 </Button>
               ) : null}
             </div>
@@ -121,7 +146,7 @@ export const DashboardSavedJobsDialog = memo(function DashboardSavedJobsDialog({
           <div className="shrink-0 px-4 sm:px-6 py-3.5 border-t border-border/40">
             <Button type="button" variant="outline" className="w-full h-10 rounded-xl" onClick={handleImport}>
               <Plus className="w-4 h-4 mr-2" aria-hidden />
-              Import another job
+              {t('app.tailoringHubPage.savedJobs.importAnother', 'استيراد وظيفة أخرى')}
             </Button>
           </div>
         ) : null}

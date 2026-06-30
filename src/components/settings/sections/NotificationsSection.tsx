@@ -5,8 +5,10 @@ import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export const NotificationsSection = memo(function NotificationsSection() {
+    const { t } = useLocale();
     const {
         showAutoSaveToasts,
         setShowAutoSaveToasts,
@@ -22,15 +24,15 @@ export const NotificationsSection = memo(function NotificationsSection() {
         <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
             <SettingsRow
                 type="toggle"
-                label="Auto-save Toasts"
-                description="Show save confirmations"
+                label={t('app.settingsPage.notifications.autoSaveToasts', 'Auto-save Toasts')}
+                description={t('app.settingsPage.notifications.autoSaveDescription', 'Show save confirmations')}
                 icon={showAutoSaveToasts ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                 checked={showAutoSaveToasts}
                 onCheckedChange={setShowAutoSaveToasts}
             />
             {showAutoSaveToasts && (
                 <div className="px-4 pb-3 pt-1">
-                    <p className="text-xs text-muted-foreground mb-2 pl-11">Show:</p>
+                    <p className="text-xs text-muted-foreground mb-2 pl-11">{t('app.settingsPage.notifications.showLabel', 'Show:')}</p>
                     <div className="flex gap-2 pl-11">
                         {(['always', 'errors-only'] as const).map((mode) => (
                             <button
@@ -43,7 +45,9 @@ export const NotificationsSection = memo(function NotificationsSection() {
                                         : 'border-border bg-background hover:border-primary/50'
                                 )}
                             >
-                                {mode === 'always' ? 'Always' : 'Errors Only'}
+                                {mode === 'always'
+                                  ? t('app.settingsPage.notifications.always', 'Always')
+                                  : t('app.settingsPage.notifications.errorsOnly', 'Errors Only')}
                             </button>
                         ))}
                     </div>
@@ -52,15 +56,15 @@ export const NotificationsSection = memo(function NotificationsSection() {
             <Separator className="ml-[52px] bg-border/30" />
             <SettingsRow
                 type="toggle"
-                label="AI Enhancement Tips"
-                description="Proactive improvement suggestions"
+                label={t('app.settingsPage.notifications.aiTips', 'AI Enhancement Tips')}
+                description={t('app.settingsPage.notifications.aiTipsDescription', 'Proactive improvement suggestions')}
                 icon={<Sparkles className="w-4 h-4" />}
                 checked={showAIEnhancementTips}
                 onCheckedChange={setShowAIEnhancementTips}
             />
             {showAIEnhancementTips && (
                 <div className="px-4 pb-3 pt-1">
-                    <p className="text-xs text-muted-foreground mb-2 pl-11">Frequency:</p>
+                    <p className="text-xs text-muted-foreground mb-2 pl-11">{t('app.settingsPage.notifications.frequency', 'Frequency:')}</p>
                     <div className="flex gap-2 pl-11">
                         {(['daily', 'weekly', 'on-demand'] as const).map((freq) => (
                             <button
@@ -73,7 +77,11 @@ export const NotificationsSection = memo(function NotificationsSection() {
                                         : 'border-border bg-background hover:border-primary/50'
                                 )}
                             >
-                                {freq === 'on-demand' ? 'On-Demand' : freq.charAt(0).toUpperCase() + freq.slice(1)}
+                                {freq === 'on-demand'
+                                  ? t('app.settingsPage.notifications.onDemand', 'On-Demand')
+                                  : freq === 'daily'
+                                    ? t('app.settingsPage.notifications.daily', 'Daily')
+                                    : t('app.settingsPage.notifications.weekly', 'Weekly')}
                             </button>
                         ))}
                     </div>

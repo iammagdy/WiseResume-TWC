@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Briefcase, Plus, Search } from 'lucide-react';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface EmptyApplicationsProps {
   onAddApplication: () => void;
@@ -7,6 +8,8 @@ interface EmptyApplicationsProps {
 }
 
 export function EmptyApplications({ onAddApplication, onSaveJob }: EmptyApplicationsProps) {
+  const { t } = useLocale();
+
   return (
     <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
       <motion.div
@@ -16,9 +19,14 @@ export function EmptyApplications({ onAddApplication, onSaveJob }: EmptyApplicat
       >
         <Briefcase className="w-8 h-8 text-primary-foreground" />
       </motion.div>
-      <h3 className="font-semibold text-foreground text-lg mb-1">Track Your Job Hunt</h3>
+      <h3 className="font-semibold text-foreground text-lg mb-1">
+        {t('app.applicationsPageCopy.emptySavedJobs.title', 'Track your job hunt')}
+      </h3>
       <p className="text-sm text-muted-foreground mb-6 max-w-[260px]">
-        Keep all your applications organized in one place. Add your first application to get started.
+        {t(
+          'app.applicationsPageCopy.emptySavedJobs.description',
+          'Keep all your applications organized in one place. Add your first application to get started.',
+        )}
       </p>
       <div className="flex flex-col gap-3 w-full max-w-[240px]">
         <motion.button
@@ -28,7 +36,7 @@ export function EmptyApplications({ onAddApplication, onSaveJob }: EmptyApplicat
           className="gradient-primary text-primary-foreground px-6 py-3 rounded-2xl font-medium flex items-center justify-center gap-2 active:scale-95 min-h-[44px] touch-manipulation"
         >
           <Plus className="w-4 h-4" />
-          Add Application
+          {t('app.applicationsPageCopy.emptySavedJobs.primaryCta', 'Add application')}
         </motion.button>
         <motion.button
           whileTap={{ scale: 0.95 }}
@@ -37,7 +45,7 @@ export function EmptyApplications({ onAddApplication, onSaveJob }: EmptyApplicat
           className="bg-muted text-foreground px-6 py-3 rounded-2xl font-medium flex items-center justify-center gap-2 active:scale-95 min-h-[44px] touch-manipulation"
         >
           <Search className="w-4 h-4" />
-          Save a Job
+          {t('app.applicationsPageCopy.emptySavedJobs.secondaryCta', 'Save a job')}
         </motion.button>
       </div>
     </div>

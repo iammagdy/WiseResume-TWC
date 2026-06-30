@@ -1,14 +1,6 @@
 import { Sparkles, Target, Wand2, Mic, PenTool, BarChart3 } from 'lucide-react';
 import { useReducedMotion } from 'framer-motion';
-
-const ITEMS = [
-  { icon: Sparkles, label: 'AI Resume Writing', color: '#818CF8' },
-  { icon: Target, label: 'ATS Score Analysis', color: '#34D399' },
-  { icon: Wand2, label: 'Smart Tailoring', color: '#60A5FA' },
-  { icon: Mic, label: 'Interview Coaching', color: '#FB923C' },
-  { icon: PenTool, label: 'Cover Letters', color: '#C084FC' },
-  { icon: BarChart3, label: 'Application Tracker', color: '#F472B6' },
-];
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface FeatureTickerProps {
   lpMode?: boolean;
@@ -23,7 +15,16 @@ const Dot = () => (
 );
 
 export function FeatureTicker({ lpMode }: FeatureTickerProps) {
+  const { t } = useLocale();
   const prefersReducedMotion = useReducedMotion();
+  const items = [
+    { icon: Sparkles, label: t('landing.featureTicker.resumeWriting'), color: '#818CF8' },
+    { icon: Target, label: t('landing.featureTicker.atsScore'), color: '#34D399' },
+    { icon: Wand2, label: t('landing.featureTicker.smartTailoring'), color: '#60A5FA' },
+    { icon: Mic, label: t('landing.featureTicker.interviewCoaching'), color: '#FB923C' },
+    { icon: PenTool, label: t('landing.featureTicker.coverLetters'), color: '#C084FC' },
+    { icon: BarChart3, label: t('landing.featureTicker.applicationTracker'), color: '#F472B6' },
+  ];
 
   if (prefersReducedMotion) {
     return (
@@ -31,7 +32,7 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
         className="flex items-center justify-center gap-6 flex-wrap py-5 px-4"
         style={{ background: lpMode ? 'var(--lp-bg)' : 'hsl(var(--background))' }}
       >
-        {ITEMS.map(({ icon: Icon, label, color }) => (
+        {items.map(({ icon: Icon, label, color }) => (
           <span
             key={label}
             className="flex items-center gap-2 text-sm"
@@ -45,7 +46,7 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
     );
   }
 
-  const allItems = [...ITEMS, ...ITEMS];
+  const allItems = [...items, ...items];
 
   return (
     <div
@@ -54,7 +55,7 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
         background: lpMode ? 'var(--lp-bg)' : 'hsl(var(--background))',
         transition: 'background 0.3s ease',
       }}
-      aria-label="Features overview"
+      aria-label={t('landing.featureTicker.ariaLabel')}
       tabIndex={0}
     >
       <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]">
