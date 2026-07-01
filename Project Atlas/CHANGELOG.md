@@ -1,6 +1,6 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-06-30
+**Last verified:** 2026-07-01
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
@@ -8,6 +8,17 @@
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 **Canonical owner:** this file
+
+---
+
+## 2026-07-01 - Legal routes: privacy/terms pages moved outside app shell (commit `88cc80ca`)
+
+Routes for `/privacy-policy`, `/terms-of-service`, `/ar/privacy-policy`, and
+`/ar/terms-of-service` were moved from inside `<AppShell>` to top-level public
+routes so they render as standalone pages (no sidebar/nav). One-file change in
+`src/AppInterior.tsx`. No backend/Appwrite/Auth/AI changes.
+
+Validation: `tsc --noEmit` PASS, `npm run build` PASS.
 
 ---
 
