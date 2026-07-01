@@ -2,6 +2,24 @@
 
 ---
 
+## Session Log - 2026-07-01 (Live export recovery - branch `main`)
+
+### Outcome
+- Fixed `/api/app-settings` production startup with the ESM runtime import `../server/appSettingsFetch.js` in product commit `2a086f91`.
+- Embedded Arabic webfonts in product commit `9eca6759`, then fixed template font precedence in product commit `59fba152` after real PDF rendering exposed blank Arabic glyphs.
+- Production deployment `dpl_5vMBz2ZdkUFHDpWxwASFcW1EUmQU` reached READY and served `wiseresume.app`.
+
+### Evidence
+- Full validation passed: TypeScript; production build; 132 files / 768 tests; focused Preview/export tests; `test:i18n`; and `test:i18n:coverage`.
+- A fresh Chromium profile with downloads enabled captured real download events for Designed PDF, ATS PDF, and DOCX.
+- Saved evidence: Designed PDF 101,012 bytes; ATS PDF 25,367 bytes; DOCX 8,109 bytes. PDF signatures, DOCX ZIP/package entries, Arabic XML/RTL markup, filenames, and non-zero sizes passed.
+- Rendered Designed and ATS pages showed connected Arabic in correct RTL order with mixed Latin terms. No Appwrite deployment or configuration change occurred.
+
+### Residual launch item
+- Arabic legal copy is technically present but remains `OWNER/LEGAL REVIEW NEEDED` before launch approval.
+
+---
+
 ## Session Log - 2026-06-29 (Editor and UI Localization — branch `main`)
 
 ### Goal

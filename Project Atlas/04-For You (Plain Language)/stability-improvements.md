@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-07-01
 
+## Live settings and Arabic PDF text now work on production (2026-07-01)
+
+**What was the situation:** The live website could not load its shared settings because the hosting runtime could not resolve one code import. After that was repaired, live downloads started correctly, but the production PDF browser still omitted Arabic letters because the resume template's English font overrode the embedded Arabic font.
+
+**What changed:** The settings endpoint now uses the import format required by the live runtime. Arabic PDF exports carry their font inside the request and apply it to the whole Arabic document, including text that previously inherited the template's English font.
+
+**What was verified:** In a fresh production browser session, Designed PDF, ATS PDF, and Word each generated a real saved file. Both PDFs were opened as images and showed connected, correctly ordered Arabic alongside `Google Analytics` and `SEO`; the Word file contained the expected package files and RTL Arabic markup. No Appwrite service or configuration was changed.
+
 ## Downloads now prove what they can, and Arabic public pages are complete (2026-07-01)
 
 **What was the situation:** Some download paths could announce success after only attempting to start a save, Arabic legal pages showed English, English guides/examples required sign-in, and several Arabic landing mockups still used English content or left-origin motion.

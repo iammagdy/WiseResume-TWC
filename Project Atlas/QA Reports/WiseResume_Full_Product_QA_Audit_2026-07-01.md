@@ -4,6 +4,22 @@
 **Mode:** Read-only product QA audit; no product code, backend, data, auth, AI, payment, deployment, or user-account changes were made.
 **Audited revision:** `71171141` on `main`; target commit `88cc80ca` is its direct functional predecessor.
 
+## Live export completion addendum - 2026-07-01
+
+**Final status: PASS for the approved live export recovery scope.**
+
+The first production blocker was `/api/app-settings`: Vercel Node could not resolve the extensionless `../server/appSettingsFetch` import and returned HTTP 500 with `ERR_MODULE_NOT_FOUND`. Product commit `2a086f91` changed it to `../server/appSettingsFetch.js`; deployment `dpl_9wfQ19N9NmRe2HH8p6m6vz14VPqx` reached READY, the endpoint returned HTTP 200, and subsequent runtime logs contained no matching module error.
+
+Fresh-browser testing then captured real Designed PDF, ATS PDF, and DOCX download events. Rendering the PDFs exposed a second production-only defect: Arabic glyphs were absent. Vercel Chromium blocks external resources and has no suitable system fallback. Commit `9eca6759` embedded Noto Sans Arabic assets, but visual inspection still failed because template-level Open Sans declarations overrode the inherited Arabic font. Commit `59fba152` added a locale-scoped descendant override. Deployment `dpl_5vMBz2ZdkUFHDpWxwASFcW1EUmQU` reached READY and passed the repeated clean-browser test.
+
+| Live production artifact | Size | Acceptance evidence |
+|---|---:|---|
+| Designed PDF | 101,012 bytes | Real download event; `%PDF`; rendered page shows connected, correctly ordered Arabic and mixed `Google Analytics` / `SEO` |
+| ATS PDF | 25,367 bytes | Real download event; `%PDF`; rendered page shows connected, correctly ordered Arabic and mixed Latin terms |
+| DOCX | 8,109 bytes | Real download event; `PK` ZIP; `[Content_Types].xml` and `word/document.xml`; Arabic content and bidi/RTL markup |
+
+Validation passed: `npx tsc --noEmit`; `npm run build`; full Vitest (132 files passed, 1 skipped; 768 tests passed, 1 todo); focused Preview/export suite (17 tests); `npm run test:i18n`; and `npm run test:i18n:coverage`. Both i18n scripts existed. No Appwrite deployment, Appwrite configuration/environment/schema/permission change, payment test, destructive account action, or credential disclosure occurred. Arabic legal copy remains `OWNER/LEGAL REVIEW NEEDED` for launch approval.
+
 ## Implementation addendum - 2026-07-01
 
 **Current technical status: LOCAL IMPLEMENTATION PASS; LIVE DEPLOYMENT VERIFICATION PENDING.** The findings in the original read-only audit below were used as the reproduction baseline and have now been addressed in product commit `b21caf99`.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-01 - Restore live settings and Arabic PDF rendering
+
+- **Vercel settings endpoint** (`api/app-settings.ts`): changed the shared runtime import to the Node/Vercel ESM-compatible `.js` specifier. A focused packaging regression test now rejects the extensionless import that caused production `ERR_MODULE_NOT_FOUND` responses.
+- **Arabic server PDFs** (`src/lib/nativePdfGenerator.ts`): embedded the Noto Sans Arabic webfont assets into Arabic export HTML and forced that font across localized template descendants, preventing template-specific Open Sans rules from dropping Arabic glyphs in Vercel Chromium.
+- **Verification**: TypeScript, production build, 132 test files / 768 tests, 17 focused export tests, and both i18n scripts passed. Production deployment `dpl_5vMBz2ZdkUFHDpWxwASFcW1EUmQU` produced real clean-browser downloads: Designed PDF (101,012 bytes), ATS PDF (25,367 bytes), and DOCX (8,109 bytes). Both PDFs were rendered and visually inspected with connected, correctly ordered Arabic and mixed Latin terms.
+- **Safety**: no Appwrite deployment or Appwrite environment/schema/permission change was made.
+
 ## 2026-07-01 - Reliable exports and complete Arabic public flows
 
 - **Export truthfulness** (`src/lib/downloadUtils.ts`, preview/editor/tailoring/dashboard export paths): replaced optimistic download handling with explicit triggered/cancelled/failed outcomes, rejected empty or malformed PDF/DOCX artifacts, and stopped success feedback when a trigger fails. URL export actions now wait for resume bootstrap and require a user-activated download CTA because timer-driven browser downloads can be silently blocked.
