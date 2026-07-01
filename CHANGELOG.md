@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-02 - Repair Tailoring history and honest Arabic public content
+
+- **Tailoring persistence** (`TailoringHubPage`, `useCombinedTailorHistory`, `TailoringHubResultPage`, `tailoringResumeMetadata`): removed the unauthorized browser write to the server-only `tailor_history` collection, persisted compact lineage/result metadata in the tailored resume customization field, synthesized cross-device history from resume documents, and retained legacy history as a read fallback.
+- **Arabic public routes** (`GuidesPage`, `GuidePage`, `ExamplesPage`): replaced English content rendered under Arabic RTL routes with explicit Arabic review-status shells while leaving English routes unchanged.
+- **Regression coverage**: added metadata mapping/preservation and Arabic/English route behavior tests. TypeScript, production build, 14 focused tests, and whitespace validation passed.
+- **Production QA**: fresh logout/login, invalid-login feedback, session refresh, education, skills, and autosave passed. Fresh file upload and export artifacts remain blocked by browser attachment/download capture limitations.
+
 ## 2026-07-02 - Fresh credentialed end-to-end QA follow-up
 
 - **Auth/session** (`https://wiseresume.app`): verified invalid-login inline feedback, fresh login, refresh persistence, logout, and a second successful login with the QA account.

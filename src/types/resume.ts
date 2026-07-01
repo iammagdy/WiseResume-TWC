@@ -144,7 +144,10 @@ export interface TemplateCustomization {
    *  are skipped and the template renders with its natural designer styling.
    *  Undefined is treated as ON (true) for backward compatibility with existing
    *  resumes that were customized before this flag existed. */
-  enabled?: boolean;
+    enabled?: boolean;
+    /** Durable metadata for a tailored copy. Stored with the resume because
+     * tailor_history is intentionally server-write-only. */
+    tailoring?: TailoringResumeMetadata;
   /** Auto-fit mode: when set, useFitToPages computes fontScale automatically so
    *  the rendered resume occupies this many pages (or shows a warning if even
    *  the minimum scale isn't enough). When set, the manual Font Size slider in
@@ -320,12 +323,27 @@ export interface TailorHistory {
   jobUrl?: string | null;
   /** ID of the newly created tailored resume document in Appwrite. */
   tailoredResumeId?: string | null;
-  tailorResult: EnhancedTailorResult;
+  tailorResult?: EnhancedTailorResult;
   scoreBeforeAfter: { before: number; after: number };
   /** Verified match score from validate-tailor (or generator fallback). Stored when the resume is saved. */
   verifiedScore?: number | null;
   appliedSections: TailorSectionId[];
   createdAt: string;
+}
+
+export interface TailoringResumeMetadata {
+  sourceResumeId?: string;
+  jobTitle: string;
+  company: string;
+  jobUrl?: string | null;
+  scoreBeforeAfter: { before: number; after: number };
+  appliedSections: TailorSectionId[];
+  intensity?: string;
+  createdAt: string;
+  tailorResult?: Partial<EnhancedTailorResult> & {
+    changedSections?: string[];
+    bulletTransformations?: unknown[];
+  };
 }
 
 export type TailorStep = 

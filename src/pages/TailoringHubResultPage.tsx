@@ -37,6 +37,8 @@ import {
 } from '@/lib/tailorJobContext';
 import type { SuperTailorResult, TailorSectionId } from '@/types/resume';
 import type { ChangeSummary } from '@/lib/tailorMerge';
+import { tailoringMetadataFromResume } from '@/lib/tailoringResumeMetadata';
+import type { TailoringResumeMetadata } from '@/types/resume';
 import '@/components/job-match/job-match-workspace.css';
 
 interface ResultState {
@@ -62,8 +64,9 @@ export function resolveTailoringResultState(params: {
   }>;
   resumeId?: string;
   appwriteEntry?: Record<string, unknown> | null;
+  resumeMetadata?: TailoringResumeMetadata | null;
 }): ResultState {
-  const { locationState, tailorHistory, resumeId, appwriteEntry } = params;
+  const { locationState, tailorHistory, resumeId, appwriteEntry, resumeMetadata } = params;
   if (
     locationState &&
     (
@@ -85,6 +88,17 @@ export function resolveTailoringResultState(params: {
       jobUrl: entry.jobUrl,
       scoreBeforeAfter: entry.scoreBeforeAfter,
       appliedSections: entry.appliedSections,
+    };
+  }
+
+  if (resumeMetadata) {
+    return {
+      jobTitle: resumeMetadata.jobTitle,
+      company: resumeMetadata.company,
+      jobUrl: resumeMetadata.jobUrl,
+      scoreBeforeAfter: resumeMetadata.scoreBeforeAfter,
+      appliedSections: resumeMetadata.appliedSections,
+      intensity: resumeMetadata.intensity,
     };
   }
 
@@ -139,6 +153,7 @@ export default function JobMatchResultPage() {
     () => (dbResume ? dbToResumeData(dbResume) : null),
     [dbResume],
   );
+  const resumeMetadata = useMemo(() => tailoringMetadataFromResume(dbResume), [dbResume]);
 
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(
     () => migrateTemplateId(dbResume?.template),
@@ -192,8 +207,9 @@ export default function JobMatchResultPage() {
     locationState: Object.keys(resultState).length ? resultState : null,
     tailorHistory: [],
     resumeId,
+    resumeMetadata,
     appwriteEntry: appwriteEntry as Record<string, unknown> | null,
-  }), [appwriteEntry, resultState, resumeId]);
+  }), [appwriteEntry, resultState, resumeId, resumeMetadata]);
 
   const jobContext = useMemo(
     () => resolveTailorJobContext({
@@ -279,12 +295,14 @@ export default function JobMatchResultPage() {
     return parent ? dbToResumeData(parent) : null;
   }, [allResumes, dbResume?.parent_resume_id]);
 
-  // B8: prefer the fast local Zustand entry, but fall back to the compact rich-diff
-  // persisted on the tailor_history doc so the result survives hard refresh and is
-  // available cross-device / after the local 10-entry cap rolls off.
+  // Prefer the fast local entry, then the durable metadata stored on the tailored
+  // resume, with the legacy history document as a read-only fallback.
   const tailorResult = useMemo<SuperTailorResult | undefined>(() => {
     if (tailorHistoryEntry?.tailorResult) {
       return tailorHistoryEntry.tailorResult as SuperTailorResult;
+    }
+    if (resumeMetadata?.tailorResult) {
+      return resumeMetadata.tailorResult as SuperTailorResult;
     }
     const raw = (appwriteEntry as Record<string, unknown> | null)?.tailor_result;
     if (typeof raw === 'string' && raw) {
@@ -295,7 +313,7 @@ export default function JobMatchResultPage() {
       }
     }
     return undefined;
-  }, [tailorHistoryEntry, appwriteEntry]);
+  }, [tailorHistoryEntry, resumeMetadata, appwriteEntry]);
   const canCompare = !!(resume && sourceResume);
 
   const appliedSections = useMemo((): TailorSectionId[] => {

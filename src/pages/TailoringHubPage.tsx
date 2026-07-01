@@ -25,6 +25,7 @@ import { aiErrorToastMessage, isAIError } from '@/lib/aiErrorParser';
 import { activityTracker } from '@/lib/activityTracker';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { buildTailoringCustomization } from '@/lib/tailoringResumeMetadata';
 
 import {
   type SuperTailorResult,
@@ -409,6 +410,16 @@ export default function JobMatchWorkspacePage() {
 
       const jobTitle = parsedJobInfo?.title ?? 'Job';
       const company = parsedJobInfo?.company ?? '';
+      const scoreBeforeAfter = { before: scoreBefore, after: scoreAfter };
+      const tr = tailorResult as SuperTailorResult;
+      const compactDiff = {
+        keyChanges: Array.isArray(tr?.keyChanges) ? tr.keyChanges.slice(0, 24) : [],
+        bulletTransformations: Array.isArray(tr?.bulletTransformations) ? tr.bulletTransformations.slice(0, 30) : [],
+        changedSections: changeSummary?.changedSections ?? [],
+        missingSkills: Array.isArray(tr?.missingSkills) ? tr.missingSkills.slice(0, 24) : [],
+      };
+      if (JSON.stringify(compactDiff).length > 60000) compactDiff.bulletTransformations = [];
+      const createdAt = new Date().toISOString();
 
       // Save as new resume document
       const newTitle = `${originalResume.contactInfo.fullName || 'Resume'} — ${jobTitle}${company ? ` @ ${company}` : ''} (Tailored)`;
@@ -429,12 +440,22 @@ export default function JobMatchWorkspacePage() {
           projects: JSON.stringify(merged.projects ?? []),
           awards: JSON.stringify(merged.awards ?? []),
           template: migrateTemplateId(merged.templateId),
+          customization: JSON.stringify(buildTailoringCustomization(merged.customization, {
+            sourceResumeId: currentResumeId ?? undefined,
+            jobTitle,
+            company,
+            jobUrl: jobUrl || null,
+            scoreBeforeAfter,
+            appliedSections: enabledSections,
+            intensity,
+            createdAt,
+            tailorResult: compactDiff,
+          })),
         },
       );
       const newResumeId = (doc as { $id: string }).$id;
 
       // Persist tailor history with validated change data
-      const scoreBeforeAfter = { before: scoreBefore, after: scoreAfter };
       addTailorHistory(
         {
           jobTitle,
@@ -476,65 +497,6 @@ export default function JobMatchWorkspacePage() {
       // Clear persisted job description so workspace starts fresh next session
       setJobDescription('');
 
-      // B8: persist a COMPACT rich-diff so the Tailoring Result page survives a
-      // hard refresh and works cross-device (the full result also lives in the
-      // local Zustand store as the fast path). Arrays are capped and the whole
-      // payload is dropped to a safe subset if it would exceed the attribute size.
-      const tr = tailorResult as SuperTailorResult;
-      const compactDiff = {
-        keyChanges: Array.isArray(tr?.keyChanges) ? tr.keyChanges.slice(0, 24) : [],
-        bulletTransformations: Array.isArray(tr?.bulletTransformations) ? tr.bulletTransformations.slice(0, 30) : [],
-        changedSections: changeSummary?.changedSections ?? [],
-        missingSkills: Array.isArray(tr?.missingSkills) ? tr.missingSkills.slice(0, 24) : [],
-      };
-      let tailorResultJson = JSON.stringify(compactDiff);
-      if (tailorResultJson.length > 60000) {
-        // Drop the largest field rather than risk truncating mid-JSON.
-        tailorResultJson = JSON.stringify({ ...compactDiff, bulletTransformations: [] });
-      }
-
-      // E-6 / B9: Persist to Appwrite tailor_history. Non-blocking (navigation
-      // already happened) but resilient: one retry after a short delay handles a
-      // transient JWT warm-up race before surfacing a warning to the user.
-      const tailorHistoryPayload = {
-        user_id: user.id,
-        job_title: jobTitle,
-        company: company || '',
-        job_url: jobUrl || null,
-        tailored_resume_id: newResumeId,
-        source_resume_id: currentResumeId ?? null,
-        score_before: scoreBeforeAfter.before,
-        score_after: scoreBeforeAfter.after,
-        applied_sections: JSON.stringify(enabledSections),
-        intensity,
-        status: 'completed',
-        job_description: jobDescription.slice(0, 5000),
-        tailor_result: tailorResultJson,
-      };
-      void (async () => {
-        const write = (payload: Record<string, unknown>) =>
-          databases.createDocument(DATABASE_ID, COLLECTIONS.tailor_history, ID.unique(), payload);
-        try {
-          await write(tailorHistoryPayload);
-        } catch (firstErr: unknown) {
-          // Schema-safe degradation: if the additive `tailor_result` attribute is
-          // not on the collection yet (frontend deployed before the schema script
-          // ran), retry WITHOUT it so the core history row still records — no
-          // regression vs the pre-B8 write. Otherwise retry the full payload once
-          // after a short delay (transient JWT warm-up).
-          const msg = firstErr instanceof Error ? firstErr.message.toLowerCase() : '';
-          const unknownAttr = msg.includes('unknown attribute') || msg.includes('tailor_result');
-          await new Promise((r) => setTimeout(r, unknownAttr ? 0 : 1500));
-          const { tailor_result, ...corePayload } = tailorHistoryPayload;
-          void tailor_result;
-          try {
-            await write(unknownAttr ? corePayload : tailorHistoryPayload);
-          } catch (err: unknown) {
-            console.warn('[TailoringHub] tailor_history write failed after retry (non-blocking):', err);
-            toast.warning('Your tailored resume was saved, but it may not show in Tailoring history until history storage is fixed.');
-          }
-        }
-      })();
     } catch (err: unknown) {
       if (abort.signal.aborted) return;
       const msg = isAIError(err)

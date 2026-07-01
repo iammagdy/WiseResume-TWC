@@ -8,9 +8,11 @@ import { getGuides, GUIDE_CATEGORIES, type GuideCategory, type Guide } from '@/l
 import { useGuidesStore } from '@/store/guidesStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 export default function GuidesPage() {
   const navigate = useNavigate();
+  const { locale } = useLocale();
   const [allGuides, setAllGuides] = useState<Guide[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<GuideCategory | 'all'>('all');
@@ -45,6 +47,26 @@ export default function GuidesPage() {
 
   const categoryLabel = (cat: GuideCategory) =>
     GUIDE_CATEGORIES.find((c) => c.id === cat)?.label ?? cat;
+
+  if (locale === 'ar') {
+    return (
+      <div className="flex-1 flex flex-col min-h-0" dir="rtl">
+        <header className="pt-3 pb-2 px-4 flex items-center gap-3 border-b border-border">
+          <BackButton />
+          <h1 className="text-lg font-bold">أدلة التطور المهني</h1>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-6 text-center">
+          <div className="max-w-lg rounded-2xl border border-border bg-card p-6">
+            <BookOpen className="mx-auto mb-4 h-10 w-10 text-primary" aria-hidden="true" />
+            <p className="font-semibold">نعمل على مراجعة النسخة العربية بعناية.</p>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground">
+              المحتوى التفصيلي للأدلة متاح حالياً بالإنجليزية ويخضع للمراجعة قبل نشر النسخة العربية.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">

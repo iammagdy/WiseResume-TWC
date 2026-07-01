@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-07-02
 
+## Tailoring history and Arabic public pages now fail honestly and recover safely (2026-07-02)
+
+**What was the situation:** A successful tailoring run warned that its history could not be saved, while Arabic guide and example pages displayed English content in a right-to-left layout.
+
+**What changed:** Tailoring history now travels with the saved tailored resume, using permissions the signed-in person already has. Arabic guide and example routes now clearly state that reviewed Arabic content is still being prepared instead of presenting English as Arabic.
+
+**What you'll notice:** Tailored results can return to history after refresh without a false storage warning, and Arabic visitors receive a clear, truthful content-status message. Fresh file uploads and downloads still need one more check in a browser that can attach and capture files.
+
 ## Fresh sign-in, AI tailoring, and portfolio checks exposed remaining launch blockers (2026-07-02)
 
 **What was the situation:** The previous broad check could not safely prove account actions because its saved sign-in had expired.

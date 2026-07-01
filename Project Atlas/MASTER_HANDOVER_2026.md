@@ -2,6 +2,26 @@
 
 ---
 
+## Session Log - 2026-07-02 (Credentialed E2E remediation)
+
+### Outcome
+- Repaired both verified P1 findings without weakening Appwrite permissions.
+- Tailored resume documents now carry compact history/result metadata; the Hub derives history from those authorized documents and uses legacy history rows only as fallback.
+- Arabic guides, guide details, and examples now show an honest Arabic review-status shell instead of English content under RTL.
+- No Appwrite hub or permission deployment is required.
+
+### Live verification
+- Fresh logout, invalid-login inline error, valid login, and refresh persistence passed.
+- Disposable education and skills edits autosaved and survived refresh.
+- Premium usage was displayed as unlimited; no numeric credit deduction was available to double-deduct.
+- Export UI reached the final Designed PDF download control, but the connected browser produced no download event or fresh saved file.
+
+### Validation and verdict
+- TypeScript, production build, 3 focused test files / 14 tests, and `git diff --check` passed.
+- Verdict: `READY_WITH_WARNINGS` pending reliable fresh upload/export file evidence and a repeat of the public contact challenge.
+
+---
+
 ## Session Log - 2026-07-02 (Fresh credentialed E2E QA follow-up)
 
 ### Passed

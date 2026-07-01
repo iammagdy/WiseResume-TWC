@@ -8,12 +8,14 @@ import { getGuideBySlug, getGuidesByCategory, GUIDE_CATEGORIES, type Guide } fro
 import { useGuidesStore } from '@/store/guidesStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 const FONT_SIZES = { sm: 'text-sm leading-relaxed', md: 'text-base leading-relaxed', lg: 'text-lg leading-loose' } as const;
 
 export default function GuidePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { locale } = useLocale();
   const [guide, setGuide] = useState<Guide | null | undefined>(undefined); // undefined = loading
   const [related, setRelated] = useState<Guide[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -49,6 +51,25 @@ export default function GuidePage() {
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
+
+  if (locale === 'ar') {
+    return (
+      <div className="flex-1 flex flex-col min-h-0" dir="rtl">
+        <header className="pt-3 pb-2 px-4 flex items-center gap-3 border-b border-border">
+          <BackButton />
+          <h1 className="text-lg font-bold">الدليل المهني قيد المراجعة</h1>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-6 text-center">
+          <div className="max-w-lg rounded-2xl border border-border bg-card p-6">
+            <p className="font-semibold">هذا الدليل غير منشور بالعربية بعد.</p>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground">
+              المحتوى متاح حالياً بالإنجليزية ويخضع للمراجعة المهنية واللغوية قبل نشر النسخة العربية.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   // Loading state
   if (guide === undefined) {

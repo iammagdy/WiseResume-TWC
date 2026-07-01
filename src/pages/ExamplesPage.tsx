@@ -10,11 +10,14 @@ import { ExampleIdeasSheet } from '@/components/examples/ExampleIdeasSheet';
 import { getResumeExamples } from '@/lib/resumeExamples';
 import { INDUSTRIES, EXPERIENCE_LEVELS } from '@/types/resumeExamples';
 import type { ResumeExample, Industry, ExperienceLevel } from '@/types/resumeExamples';
+import { useLocale } from '@/i18n/LocaleProvider';
+import { BookOpen } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 
 export default function ExamplesPage() {
   const navigate = useNavigate();
+  const { locale } = useLocale();
   const [allExamples, setAllExamples] = useState<ResumeExample[]>([]);
   const [selectedIndustry, setSelectedIndustry] = useState<Industry | 'All'>('All');
   const [selectedLevel, setSelectedLevel] = useState<ExperienceLevel | 'All'>('All');
@@ -71,6 +74,26 @@ export default function ExamplesPage() {
     setDetailExample(null);
     setIdeasExample(ex);
   }, []);
+
+  if (locale === 'ar') {
+    return (
+      <div className="min-h-full flex flex-col" dir="rtl">
+        <header className="pt-3 pb-2 px-4 flex items-center gap-3 border-b border-border">
+          <BackButton />
+          <h1 className="text-fluid-lg font-bold">أمثلة للسير الذاتية</h1>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-6 text-center">
+          <div className="max-w-lg rounded-2xl border border-border bg-card p-6">
+            <BookOpen className="mx-auto mb-4 h-10 w-10 text-primary" aria-hidden="true" />
+            <p className="font-semibold">مكتبة الأمثلة العربية قيد المراجعة.</p>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground">
+              نعرض النسخة العربية بعد مراجعة الأمثلة مهنياً ولغوياً. يمكنك حالياً تصفح المكتبة الإنجليزية.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full flex flex-col">

@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import type { TailorHistory } from '@/types/resume';
+import { useResumes } from '@/hooks/useResumes';
+import { historyFromTailoredResume } from '@/lib/tailoringResumeMetadata';
 
 function mapDocToHistory(doc: Record<string, unknown>): TailorHistory {
   let appliedSections: string[] = [];
@@ -32,6 +34,7 @@ function mapDocToHistory(doc: Record<string, unknown>): TailorHistory {
 export function useCombinedTailorHistory(limit = 20) {
   const { user, authReady } = useAuth();
   const localHistory = useResumeStore((s) => s.tailorHistory) || [];
+  const { data: resumes = [], isLoading: resumesLoading } = useResumes();
 
   const { data: dbHistory = [], isLoading: dbLoading, isFetched } = useQuery({
     queryKey: ['tailor-history-list', user?.id],
@@ -49,7 +52,7 @@ export function useCombinedTailorHistory(limit = 20) {
         );
         return res.documents.map((doc) => mapDocToHistory(doc as unknown as Record<string, unknown>));
       } catch (err) {
-        console.error('[useCombinedTailorHistory] failed to load:', err);
+        void err;
         return [];
       }
     },
@@ -59,7 +62,10 @@ export function useCombinedTailorHistory(limit = 20) {
 
   const history = useMemo(() => {
     const list = [...localHistory];
-    dbHistory.forEach((dbEntry) => {
+    const resumeHistory = resumes
+      .map((resume) => historyFromTailoredResume(resume))
+      .filter((entry): entry is TailorHistory => entry !== null);
+    [...resumeHistory, ...dbHistory].forEach((dbEntry) => {
       const hasDuplicate = list.some(
         (h) =>
           h.id === dbEntry.id ||
@@ -72,7 +78,7 @@ export function useCombinedTailorHistory(limit = 20) {
       const timeB = new Date(b.createdAt || 0).getTime();
       return timeB - timeA;
     });
-  }, [localHistory, dbHistory]);
+  }, [localHistory, dbHistory, resumes]);
 
-  return { history, isLoading: !authReady || (dbLoading && history.length === 0) || (!isFetched && history.length === 0) };
+  return { history, isLoading: !authReady || ((dbLoading || resumesLoading) && history.length === 0) || (!isFetched && history.length === 0) };
 }
