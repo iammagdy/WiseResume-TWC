@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-06-30
+**Last verified:** 2026-07-01
+
+## Downloads now prove what they can, and Arabic public pages are complete (2026-07-01)
+
+**What was the situation:** Some download paths could announce success after only attempting to start a save, Arabic legal pages showed English, English guides/examples required sign-in, and several Arabic landing mockups still used English content or left-origin motion.
+
+**What changed:** PDF and Word files are validated before download, failed/cancelled triggers no longer show success, and link-driven exports use a visible download button so the browser receives a real user action. Arabic privacy/terms, landing demos, card direction, and the remaining Settings labels were localized. Guides and examples are now public without workspace navigation.
+
+**What was verified:** A disposable Arabic resume was saved, reloaded, previewed, and exported as Designed PDF, ATS PDF, and DOCX. The files were non-empty and structurally valid; rendered PDFs showed readable connected Arabic and mixed English technical terms, and the Word package contained Arabic RTL metadata. The legal translation still needs formal owner/legal approval before launch, but that approval does not block the technical fix.
 
 ## Resume previews now keep the right edits, template, and imported bullet points (2026-06-30)
 

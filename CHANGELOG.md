@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-01 - Reliable exports and complete Arabic public flows
+
+- **Export truthfulness** (`src/lib/downloadUtils.ts`, preview/editor/tailoring/dashboard export paths): replaced optimistic download handling with explicit triggered/cancelled/failed outcomes, rejected empty or malformed PDF/DOCX artifacts, and stopped success feedback when a trigger fails. URL export actions now wait for resume bootstrap and require a user-activated download CTA because timer-driven browser downloads can be silently blocked.
+- **Arabic product completion** (`src/i18n/legalContent.ts`, landing demos, Settings catalogs): added coherent Arabic privacy/terms content, locale-specific landing mock data and right-origin card animation, document-locale propagation through PDF/DOCX exports, and repaired Settings labels found during browser QA. Arabic legal copy is technically complete but remains `OWNER/LEGAL REVIEW NEEDED` before launch.
+- **Public content routing** (`src/AppInterior.tsx`): moved English guides, guide details, and examples outside authentication and `AppShell`, matching their Arabic public routes while preserving error boundaries and loading fallbacks.
+- **Verification**: TypeScript, production build, 130 test files / 766 tests, focused Preview tests, and both existing i18n scripts passed. Browser QA produced and inspected real Designed PDF (158,029 bytes), ATS PDF (54,984 bytes), and DOCX (8,109 bytes) files for an Arabic resume; PDF glyphs rendered correctly and DOCX contained the required package entries plus RTL markup.
+
 ## 2026-06-30 - Keep resume edits, templates, and imported bullets consistent
 
 - **Resume selection state** (`src/store/resumeStore.ts`, `src/components/dashboard/ResumeListCard.tsx`): loading a resume now synchronizes its saved template, while dashboard PDF actions open an ID-addressed authoritative preview instead of overwriting the active resume with a stale list snapshot.

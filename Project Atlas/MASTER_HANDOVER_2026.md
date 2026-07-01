@@ -8182,3 +8182,15 @@ The recovery work separated a frozen mixed session into scoped commits, protecte
 - This session recovered the critical authenticated Arabic path, but it did **not** finish every remaining English literal across the full repository.
 - Follow-up sweep still needed for lower-priority or secondary surfaces, including some AI/interview/editor/supporting components and a few non-critical product pages outside the recovered path.
 - Do not claim “full repo Arabic completion” until those remaining surfaces are audited and verified in-browser.
+
+## 2026-07-01 - Full i18n/export/RTL QA implementation
+
+- Product commit: `b21caf99` (`fix: harden exports and complete Arabic product flows`).
+- Public routing: English `/guides`, `/guides/:slug`, and `/examples` are public and shell-free; workspace routes remain protected.
+- Arabic: standalone privacy/terms contain Arabic, all landing demo datasets are localized with right-origin cards, Settings language persists `lang=ar` / `dir=rtl`, and the disposable resume `سيرة ذاتية عربية للاختبار - آمن للحذف` is intentionally preserved.
+- Export evidence: Designed PDF 158,029 bytes (`%PDF`), ATS PDF 54,984 bytes (`%PDF`), DOCX 8,109 bytes (`PK`, `[Content_Types].xml`, `word/document.xml`, RTL/bidirectional markup). Both PDFs were rendered to images and visually checked for connected, readable Arabic and mixed Latin text.
+- Validation: `npx tsc --noEmit`, `npm run build`, `npm test -- --run` (130 files passed, 1 skipped; 766 tests passed, 1 todo), focused Preview tests (11 passed), `npm run test:i18n`, and `npm run test:i18n:coverage` all passed. Both i18n scripts existed; no replacement tests were needed.
+- Browser note: required download listeners were attached, but the in-app automation bridge did not surface download events. Saved-file timestamps, sizes, signatures, package inspection, text extraction, and PDF rendering supplied the physical evidence. After repeated downloads, Chrome's automatic-download quota suppressed further files in that same session; initial normal-control files remain valid evidence. Use a fresh browser context for live-domain verification.
+- Launch item: Arabic legal copy is `OWNER/LEGAL REVIEW NEEDED`. Technical completion is not blocked because Arabic legal routes no longer render English.
+- No Appwrite deployment or payment/destructive-account testing occurred.
+- Remaining gate before final completion: documentation commit, clean-tree check, safe sync/push to `main`, Vercel observation, then fresh-context live-domain route/i18n and real Designed PDF/ATS PDF/DOCX verification. If live export fails, return to the fix/test cycle and create separate product and documentation amendments.
