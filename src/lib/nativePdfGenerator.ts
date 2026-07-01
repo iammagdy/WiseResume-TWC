@@ -210,6 +210,12 @@ function buildSelfContainedHTML(
     }
     ${atsModeStyle}
     ${css}
+    ${locale === 'ar' ? `
+      [data-document-locale="ar"],
+      [data-document-locale="ar"] * {
+        font-family: "Noto Sans Arabic", sans-serif !important;
+      }
+    ` : ''}
   </style>
 </head>
 <body>

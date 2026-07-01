@@ -115,6 +115,8 @@ describe('generateNativePDF', () => {
     expect(body.locale).toBe('ar');
     expect(body.html).toContain('<html lang="ar" dir="rtl">');
     expect(body.html).toContain('font-family: "Noto Sans Arabic"');
+    expect(body.html).toContain('[data-document-locale="ar"] *');
+    expect(body.html).toContain('font-family: "Noto Sans Arabic", sans-serif !important;');
   });
 
   it('routes Arabic cover letters through Chromium instead of StandardFonts', async () => {
