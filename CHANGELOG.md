@@ -6,6 +6,7 @@
 - **Arabic public routes** (`GuidesPage`, `GuidePage`, `ExamplesPage`): replaced English content rendered under Arabic RTL routes with explicit Arabic review-status shells while leaving English routes unchanged.
 - **Regression coverage**: added metadata mapping/preservation and Arabic/English route behavior tests. TypeScript, production build, 14 focused tests, and whitespace validation passed.
 - **Production QA**: fresh logout/login, invalid-login feedback, session refresh, education, skills, and autosave passed. Fresh file upload and export artifacts remain blocked by browser attachment/download capture limitations.
+- **Deployment**: Vercel production deployment `dpl_Gtfc8YqNuSLZqontqbQBGjdpURsa` reached `READY`; live Arabic guide, guide-detail, and example routes displayed the reviewed Arabic shell.
 
 ## 2026-07-02 - Fresh credentialed end-to-end QA follow-up
 

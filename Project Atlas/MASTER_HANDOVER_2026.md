@@ -19,6 +19,7 @@
 ### Validation and verdict
 - TypeScript, production build, 3 focused test files / 14 tests, and `git diff --check` passed.
 - Verdict: `READY_WITH_WARNINGS` pending reliable fresh upload/export file evidence and a repeat of the public contact challenge.
+- Product commit `227e31d4` deployed successfully as Vercel production deployment `dpl_Gtfc8YqNuSLZqontqbQBGjdpURsa`; all three repaired Arabic public routes were verified live.
 
 ---
 

@@ -31,7 +31,7 @@ The two verified P1 findings from the fresh credentialed pass are repaired local
 - Fresh upload parsing: blocked because the connected in-app browser exposes no supported file-input attachment method.
 - Fresh export evidence: the export dialog and final Designed PDF control rendered, but waiting for the browser download event timed out and no new file appeared in Downloads. ATS PDF and DOCX were therefore not claimed as fresh evidence.
 - Public contact form: not repeated; the earlier fresh pass remains blocked by the security challenge in this browser environment.
-- Tailoring live post-deploy run: pending deployment at the time this report was written; focused regression coverage proves the storage path locally.
+- Tailoring live post-deploy run: a second paid AI run was not performed; focused regression coverage proves the new storage path and production deployment completed successfully.
 
 ## Findings and fixes
 
@@ -71,4 +71,4 @@ No fresh files are claimed in this run. Historical July 1 evidence remains: Desi
 
 ## Repository state
 
-At the start of remediation, local `main` was one commit ahead of `origin/main` (`a7375242` over `8a1957dc`). Final equality must be recorded after the remediation commit is pushed.
+At the start of remediation, local `main` was one commit ahead of `origin/main` (`a7375242` over `8a1957dc`). Remediation commit `227e31d4` was pushed, Vercel production deployment `dpl_Gtfc8YqNuSLZqontqbQBGjdpURsa` reached `READY`, and `/ar/guides`, `/ar/guides/:slug`, and `/ar/examples` were verified live. Local `main` equalled `origin/main` after the push.
