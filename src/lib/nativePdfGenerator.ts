@@ -60,7 +60,7 @@ async function buildArabicCoverLetterHTML(letter: unknown, pageFormat: 'letter' 
     .filter(Boolean)
     .map((paragraph) => `<p>${escapeHtmlText(paragraph)}</p>`)
     .join('');
-  const css = await collectDocumentStyles();
+  const css = await inlineArabicFontAssets(await collectDocumentStyles());
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"><style>
@@ -133,6 +133,38 @@ async function collectDocumentStyles(): Promise<string> {
   }
 
   return parts.join('\n');
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunks: string[] = [];
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
+  }
+  return btoa(chunks.join(''));
+}
+
+export async function inlineArabicFontAssets(css: string): Promise<string> {
+  const fontUrls = [...new Set(
+    [...css.matchAll(/url\((['"]?)([^'")]*noto-sans-arabic[^'")]*\.woff2?(?:\?[^'")]*)?)\1\)/gi)]
+      .map((match) => match[2]),
+  )];
+  let inlined = css;
+
+  await Promise.all(fontUrls.map(async (url) => {
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) return;
+      const mimeType = response.headers.get('content-type') || 'font/woff2';
+      const dataUrl = `data:${mimeType};base64,${arrayBufferToBase64(await response.arrayBuffer())}`;
+      inlined = inlined.split(url).join(dataUrl);
+    } catch {
+      // Keep the original URL. The server request guard will reject it safely,
+      // and export validation/browser QA will surface missing glyphs.
+    }
+  }));
+
+  return inlined;
 }
 
 function buildSelfContainedHTML(
@@ -296,7 +328,10 @@ export async function generateNativePDF(
 
   onProgress?.('preparing', 5);
 
-  const css = await collectDocumentStyles();
+  const collectedCss = await collectDocumentStyles();
+  const css = locale === 'ar'
+    ? await inlineArabicFontAssets(collectedCss)
+    : collectedCss;
   const pageWidthPx = pageFormat === 'a4' ? 595 : 612;
 
   onProgress?.('capturing', 20);
