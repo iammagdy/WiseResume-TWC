@@ -1,6 +1,14 @@
 # Project Atlas Changelog
 
-**Last verified:** 2026-07-01
+## 2026-07-02 - Comprehensive post-fix QA and readiness pass
+
+- Re-ran production smoke coverage for public content, authenticated workspace routes, Arabic upload content, and 390x844 responsive layouts.
+- Confirmed `/api/app-settings` returns HTTP 200 and public `/guides` and `/examples` populate without an authentication gate.
+- Passed TypeScript, production build, 132 Vitest files / 768 tests, catalog parity, and Arabic critical-surface coverage.
+- Recorded the existing repository-wide lint baseline of 256 errors and 180 warnings; no new product-code defect was isolated in this pass.
+- No Appwrite hub changed and no Appwrite deployment was required.
+
+**Last verified:** 2026-07-02
 **Type:** changelog
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`

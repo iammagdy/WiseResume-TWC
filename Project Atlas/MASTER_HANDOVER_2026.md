@@ -2,6 +2,32 @@
 
 ---
 
+## Session Log - 2026-07-02 (Comprehensive post-fix QA - branch `main`)
+
+### Tested
+- Production homepage, dashboard, upload, editor, Tailoring Hub, preview, guides, examples, and `/api/app-settings`.
+- Mobile reflow at 390x844 for landing, dashboard, upload, Tailoring Hub, and examples.
+- TypeScript, production build, full Vitest suite, i18n parity, and Arabic critical-surface coverage.
+
+### Outcome
+- No verified P0/P1 product-code issue was found. Public guides/examples populated after their normal asynchronous initialization, and sampled mobile routes had no horizontal overflow.
+- `/api/app-settings` returned HTTP 200 with JSON.
+- No product or Appwrite hub code changed; Appwrite deployment was not required.
+
+### Validation
+- `npx tsc --noEmit`: pass.
+- `npm run build`: pass, with existing large-chunk warnings.
+- `npm run test -- --run`: 132 files passed, 1 skipped; 768 tests passed, 1 todo.
+- `npm run test:i18n` and `npm run test:i18n:coverage`: pass.
+- `npm run lint`: existing baseline failure, 256 errors and 180 warnings.
+
+### Remaining risks and next steps
+- The QA session emitted unauthorized Appwrite background-call warnings, so login/logout recovery, AI credit mutation, upload parsing side effects, portfolio publication/contact, and fresh export generation were not repeated in this pass.
+- Arabic legal copy still requires owner/legal approval.
+- Run a controlled credentialed end-to-end session with disposable data before launch approval; do not test payments or account deletion.
+
+---
+
 ## Session Log - 2026-07-01 (Live export recovery - branch `main`)
 
 ### Outcome

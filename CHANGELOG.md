@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-02 - Comprehensive post-fix QA verification
+
+- **Production smoke QA** (`https://wiseresume.app`): verified the homepage, authenticated dashboard, upload, editor, Tailoring Hub, preview, guides, examples, and mobile layouts at 390x844. Public guide/example content populated after asynchronous initialization and protected routes loaded in the existing QA session.
+- **Runtime settings** (`/api/app-settings`): confirmed HTTP 200 with a JSON response on production.
+- **Validation**: `npx tsc --noEmit`, `npm run build`, 132 Vitest files / 768 tests, `test:i18n`, and `test:i18n:coverage` passed. Repository-wide lint remains a pre-existing baseline failure (256 errors, 180 warnings), including generated `.vercel` output, fixtures, and existing source findings.
+- **Scope**: no product or Appwrite hub code changed; no Appwrite deployment was required. Existing July 1 real-file export evidence remains current for Designed PDF (101,012 bytes), ATS PDF (25,367 bytes), and DOCX (8,109 bytes).
+
 ## 2026-07-01 - Restore live settings and Arabic PDF rendering
 
 - **Vercel settings endpoint** (`api/app-settings.ts`): changed the shared runtime import to the Node/Vercel ESM-compatible `.js` specifier. A focused packaging regression test now rejects the extensionless import that caused production `ERR_MODULE_NOT_FOUND` responses.

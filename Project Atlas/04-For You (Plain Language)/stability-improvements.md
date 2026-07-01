@@ -1,6 +1,14 @@
 # Stability Improvements — What's Getting Better Behind the Scenes
 
-**Last verified:** 2026-07-01
+**Last verified:** 2026-07-02
+
+## The wider product passed a fresh post-fix check (2026-07-02)
+
+**What was the situation:** The recent download, Arabic, public-content, and live-settings repairs needed a broader follow-up check across the product.
+
+**What changed:** The live website, signed-in workspace, public guides and examples, Arabic upload experience, and key phone-sized layouts were checked again. The live settings service also returned normally. No additional product repair was needed in this pass.
+
+**What you'll notice:** The sampled pages load without horizontal phone overflow, and guides and examples remain public. Some account-connected actions still need a fresh controlled test session before launch approval.
 
 ## Live settings and Arabic PDF text now work on production (2026-07-01)
 
