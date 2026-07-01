@@ -1,5 +1,14 @@
 # Project Atlas Changelog
 
+## 2026-07-02 - Fresh credentialed E2E QA follow-up
+
+- Passed fresh login/logout/re-login, failed-login feedback, and refresh persistence.
+- Created and persisted a disposable resume, completed one live editor AI improvement, and ran live Tailoring Hub AI with meaningful changes and an honest 50 to 85 score delta.
+- Passed portfolio publishing, password protection, public unlock, restoration to public access, and visible private-field checks.
+- Confirmed two high-severity launch warnings: Tailoring history storage reports itself broken, and Arabic guide/example routes render English content.
+- Fresh download-file and upload-parser evidence remain incomplete because the in-app browser did not expose saved files or local file attachment.
+- Final verdict: `NOT_READY` until the P1 findings and fresh file evidence are closed.
+
 ## 2026-07-02 - Comprehensive post-fix QA and readiness pass
 
 - Re-ran production smoke coverage for public content, authenticated workspace routes, Arabic upload content, and 390x844 responsive layouts.

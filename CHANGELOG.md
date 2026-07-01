@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-02 - Fresh credentialed end-to-end QA follow-up
+
+- **Auth/session** (`https://wiseresume.app`): verified invalid-login inline feedback, fresh login, refresh persistence, logout, and a second successful login with the QA account.
+- **Resume and AI** (`CreateResumeDialog`, Editor, AI summary enhancement): created `QA Launch Readiness 2026-07-02`, persisted a summary and experience after refresh, applied a substantive AI summary improvement, and confirmed the Premium credit state remained `Unlimited` before and after the action.
+- **Tailoring Hub** (`/tailoring-hub`, `/tailoring-hub/result/6a459e7c002c3d85f954`): produced a materially changed tailored resume (50 to 85, +35), verified refresh/direct URL persistence and legacy `/tailor`; production displayed an explicit warning that Tailoring history storage is broken.
+- **Portfolio** (`/portfolio`, `/p/explore-test-123-updated-001`): published successfully, verified public rendering, temporary password protection, wrong/correct password behavior, restored public access, and found no owner email, `user_id`, `password_hash`, or `portfolio_settings` strings in the public DOM.
+- **Readiness**: recorded `NOT_READY`. `/ar/guides` and `/ar/examples` remain English under RTL; fresh PDF/DOCX file evidence and file-upload parsing were not completed in the in-app browser; the public contact security challenge was blocked by the browser environment with clear recovery messaging.
+
 ## 2026-07-02 - Comprehensive post-fix QA verification
 
 - **Production smoke QA** (`https://wiseresume.app`): verified the homepage, authenticated dashboard, upload, editor, Tailoring Hub, preview, guides, examples, and mobile layouts at 390x844. Public guide/example content populated after asynchronous initialization and protected routes loaded in the existing QA session.

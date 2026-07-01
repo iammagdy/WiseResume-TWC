@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-07-02
 
+## Fresh sign-in, AI tailoring, and portfolio checks exposed remaining launch blockers (2026-07-02)
+
+**What was the situation:** The previous broad check could not safely prove account actions because its saved sign-in had expired.
+
+**What changed:** A fresh sign-in was used to create a test resume, improve it with AI, tailor it to a real job description, publish and password-protect a test portfolio, and then restore that portfolio to public access. The main flows worked, but tailoring history warned that its storage is broken, and Arabic guides and examples still showed English text.
+
+**What you'll notice:** Sign-in recovery, saved resume text, AI output, direct tailoring results, and portfolio privacy behaved correctly. Launch approval should wait until tailoring history, Arabic public content, and a fresh file upload/download check are completed.
+
 ## The wider product passed a fresh post-fix check (2026-07-02)
 
 **What was the situation:** The recent download, Arabic, public-content, and live-settings repairs needed a broader follow-up check across the product.

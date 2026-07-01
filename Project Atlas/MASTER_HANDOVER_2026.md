@@ -2,6 +2,36 @@
 
 ---
 
+## Session Log - 2026-07-02 (Fresh credentialed E2E QA follow-up)
+
+### Passed
+- Fresh invalid login, valid login, refresh persistence, logout, and second login.
+- Disposable resume creation plus summary/experience autosave and refresh persistence.
+- One live editor AI summary improvement with a usable result; Premium usage remained `Unlimited` before and after.
+- Live Tailoring Hub run: source score 50, result score 85, +35; summary, Skills, and Experience showed substantive changes. Direct result URL and refresh passed; legacy `/tailor` loaded.
+- Portfolio publish, public route, temporary password gate, wrong-password feedback, correct unlock, and restoration to public access.
+- Public DOM contained no owner email, `user_id`, `password_hash`, or `portfolio_settings` strings.
+- Arabic landing/privacy pages used `lang=ar`, `dir=rtl`, and had no sampled horizontal overflow.
+
+### Verified findings
+- **P1 - Tailoring history reliability:** the successful run displayed: `Your tailored resume was saved, but it may not show in Tailoring history until history storage is fixed.` The result itself persisted by direct URL and refresh, but the Hub cannot be considered fully reliable while its history write path is knowingly degraded.
+- **P1 - Arabic public-content parity:** `/ar/guides` and `/ar/examples` use RTL but render English headings, filters, and content. Authenticated `/upload`, `/editor`, and `/tailoring-hub` reverted to English because the production Arabic language control is feature-gated off.
+- **P2 - Contact form verification gap:** the public portfolio form rendered and validated inputs, but its security challenge was blocked by the browser environment. The UI clearly instructed the visitor to refresh or disable blockers.
+
+### Unproven in this run
+- Local PDF/DOCX attachment was unavailable through the in-app browser's file picker interface, so fresh upload parsing was not completed.
+- Designed PDF and ATS PDF reached their final download controls, but no browser download event or new saved file was observable. DOCX was not claimed as fresh evidence. July 1 file evidence remains valid historical evidence only.
+- Education and Skills editing were not completed end-to-end; summary and experience were persisted.
+
+### Verdict and next steps
+- Verdict: `NOT_READY`.
+- Repair and verify the Tailoring history write/read path.
+- Localize `/ar/guides` and `/ar/examples`, and confirm the intended production language-switch feature flag.
+- Re-run uploads and all three exports in a browser profile that supports native file attachment and download capture.
+- Re-run the public contact form where the security challenge is not blocked.
+
+---
+
 ## Session Log - 2026-07-02 (Comprehensive post-fix QA - branch `main`)
 
 ### Tested
