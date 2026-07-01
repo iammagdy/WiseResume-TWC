@@ -1,5 +1,5 @@
 import { ResumeData } from '@/types/resume';
-import { downloadFile } from '@/lib/downloadUtils';
+import { downloadFile, validateDocxBlob } from '@/lib/downloadUtils';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { formatDateRangeDisplay } from '@/lib/dateUtils';
 import { getDocumentLocale } from '@/i18n/resumeLocale';
@@ -272,6 +272,7 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
     sections: [{ children: sections }],
   });
   const blob = await Packer.toBlob(doc);
+  await validateDocxBlob(blob);
   const baseName = resume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume';
   const result = await downloadFile({
     blob,

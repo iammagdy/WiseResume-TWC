@@ -616,6 +616,7 @@ export function CreateResumeDialog({
                 <ArrowRight className="w-5 h-5 text-muted-foreground" />
               </motion.button>
             )}
+          </div>
                 ) : mode === 'blank' && blankStep === 'intake' ? (
           /* Guided Intake Step */
           <div className="space-y-4 py-4">
@@ -732,7 +733,7 @@ export function CreateResumeDialog({
                 {t('createResumeDialog.continue', 'Continue')}
               </Button>
             </div>
-          </div>    </div>
+          </div>
         ) : mode === 'blank' && blankStep === 'title' ? (
           /* Title Step */
           <div className="space-y-4 py-4">

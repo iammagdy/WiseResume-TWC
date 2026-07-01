@@ -2,6 +2,8 @@ import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Globe } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useInView } from '@/hooks/useInView';
+import { useLocale } from '@/i18n/LocaleProvider';
+import { landingDemoCopy } from './landingDemoCopy';
 
 const THEME_ACCENTS = [
   'hsl(var(--primary))',
@@ -10,6 +12,8 @@ const THEME_ACCENTS = [
 ];
 
 export function PortfolioDemo() {
+  const { locale } = useLocale();
+  const copy = landingDemoCopy[locale].portfolio;
   const prefersReducedMotion = useReducedMotion();
   const [animStep, setAnimStep] = useState(prefersReducedMotion ? 5 : 0);
   const [themeIdx, setThemeIdx] = useState(0);
@@ -90,7 +94,7 @@ export function PortfolioDemo() {
                     className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-semibold text-card"
                     style={{ background: accent }}
                   >
-                    Product Designer · Open to work
+                    {copy.badge}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -98,7 +102,7 @@ export function PortfolioDemo() {
           </div>
 
           <div className="space-y-1.5">
-            {['Experience', 'Skills', 'Projects'].map((label, i) => (
+            {copy.sections.map((label, i) => (
               <AnimatePresence key={label}>
                 {show(4) && (
                   <motion.div
@@ -118,7 +122,7 @@ export function PortfolioDemo() {
           </div>
 
           <div className="flex items-center justify-end gap-1.5 pt-1">
-            <span className="text-[8px] text-muted-foreground/50 mr-0.5">Theme</span>
+            <span className="text-[8px] text-muted-foreground/50 me-0.5">{copy.theme}</span>
             {THEME_ACCENTS.map((color, i) => (
               <motion.div
                 key={i}

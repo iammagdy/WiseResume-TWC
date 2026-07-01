@@ -605,6 +605,10 @@
     "continue": "Continue"
   },
   "settingsPage": {
+    "profileHero": {
+      "yourAccount": "Your account",
+      "editDetails": "Edit profile details"
+    },
     "userId": {
       "title": "Tap to copy your User ID",
       "label": "Your User ID",

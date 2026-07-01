@@ -1,6 +1,8 @@
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useInView } from '@/hooks/useInView';
+import { useLocale } from '@/i18n/LocaleProvider';
+import { landingDemoCopy } from './landingDemoCopy';
 
 const COLUMNS = ['Applied', 'Interview', 'Offer'] as const;
 type Column = typeof COLUMNS[number];
@@ -27,6 +29,8 @@ const MOVES: Array<{ id: string; to: Column }> = [
 ];
 
 export function TrackerDemo() {
+  const { locale } = useLocale();
+  const copy = landingDemoCopy[locale].tracker;
   const prefersReducedMotion = useReducedMotion();
   const [cards, setCards] = useState<Card[]>(INITIAL_CARDS);
   const [moveIdx, setMoveIdx] = useState(0);
@@ -66,8 +70,8 @@ export function TrackerDemo() {
         </div>
 
         <div className="flex items-center justify-between px-4 py-1.5 border-b border-border">
-          <span className="text-[11px] font-semibold text-foreground">Job Tracker</span>
-          <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">Example</span>
+          <span className="text-[11px] font-semibold text-foreground">{copy.title}</span>
+          <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">{copy.example}</span>
         </div>
 
         <div className="px-3 py-3 min-h-[200px]">
@@ -75,7 +79,7 @@ export function TrackerDemo() {
             {COLUMNS.map((col) => (
               <div key={col} className="flex flex-col gap-1.5">
                 <p className={`text-[8px] font-semibold uppercase tracking-wider text-center pb-1 ${colColors[col]}`}>
-                  {col}
+                  {copy.columns[col]}
                 </p>
                 <div className="min-h-[120px] flex flex-col gap-1.5">
                   <AnimatePresence>
@@ -90,7 +94,7 @@ export function TrackerDemo() {
                         className={`rounded-lg border p-1.5 ${card.color}`}
                       >
                         <p className="text-[9px] font-semibold leading-none">{card.company}</p>
-                        <p className="text-[8px] opacity-70 mt-0.5">{card.role}</p>
+                        <p className="text-[8px] opacity-70 mt-0.5">{copy.roles[card.role as keyof typeof copy.roles]}</p>
                       </motion.div>
                     ))}
                   </AnimatePresence>

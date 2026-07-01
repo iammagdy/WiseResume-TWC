@@ -229,7 +229,7 @@ export default function EditorPage() {
     setIsQuickDownloading(true);
     try {
       const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
-      const { downloadFile } = await import('@/lib/downloadUtils');
+      const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
       const templateEl = document.querySelector('[data-resume-template]') as HTMLElement | null;
       if (!templateEl) throw new Error('Resume template not visible');
       const customBreakPositions = currentResume.customization?.customBreakPositions;
@@ -237,12 +237,15 @@ export default function EditorPage() {
         pageFormat: (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4',
         showPageNumbers: true,
         showBranding: true,
+        locale: getDocumentLocale(currentResume),
         ...(customBreakPositions?.length ? { customBreakPositions } : {}),
       });
       const fileName = `${sanitizeFileName(currentResume.contactInfo?.fullName ?? '')}_Resume.pdf`;
-      await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
+      await validatePdfBlob(pdfBlob);
+      const result = await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
+      if (!result.success) throw new Error(result.cancelled ? 'Download cancelled' : 'Download trigger failed');
       haptics.success();
-      toast.success('PDF downloaded');
+      toast.success('PDF download started');
     } catch {
       haptics.error();
       toast.error('Download failed');
@@ -269,14 +272,15 @@ export default function EditorPage() {
           ? sanitizeFileName(customFileName)
           : sanitizeFileName(currentResume.contactInfo?.fullName ?? '');
         const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
-        const { downloadFile } = await import('@/lib/downloadUtils');
+        const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
 
         if (type === 'docx') {
           onProgress('preparing', 10); onProgress('finalizing', 50);
           const { generateAndDownloadDOCX } = await import('@/lib/docxGenerator');
           const success = await generateAndDownloadDOCX(currentResume);
           onProgress('downloading', 100);
-          if (success) { toast.success('Word document downloaded!'); setShowExport(false); }
+          if (success) { toast.success('Word document download started.'); setShowExport(false); }
+          else toast.error('Word document download could not be started.');
           return;
         }
 
@@ -355,7 +359,7 @@ export default function EditorPage() {
         };
 
         if (type === 'ats-pdf') {
-          pdfBlob = await exportResumePdf({ pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, onProgress });
+          pdfBlob = await exportResumePdf({ pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, locale: getDocumentLocale(currentResume), onProgress });
           fileName = `${baseName}_Resume_ATS.pdf`;
         } else if (type === 'cover-letter') {
           const { generateCoverLetterNativePDF } = await import('@/lib/nativePdfGenerator');
@@ -367,7 +371,7 @@ export default function EditorPage() {
           const { generateCoverLetterNativePDF, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
 
           if (type === 'one-page') {
-            pdfBlob = await exportResumePdf({ pageFormat, onePage: true, showPageNumbers, showBranding, onProgress });
+            pdfBlob = await exportResumePdf({ pageFormat, onePage: true, showPageNumbers, showBranding, locale: getDocumentLocale(currentResume), onProgress });
             fileName = `${baseName}_Resume_OnePage.pdf`;
           } else if (type === 'combined') {
             const { generatedCoverLetter } = useResumeStore.getState();
@@ -380,6 +384,7 @@ export default function EditorPage() {
               pageFormat,
               showPageNumbers: false,
               showBranding: true,
+              locale: getDocumentLocale(currentResume),
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
             });
@@ -392,6 +397,7 @@ export default function EditorPage() {
               pageFormat,
               showPageNumbers,
               showBranding,
+              locale: getDocumentLocale(currentResume),
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
             });
@@ -400,10 +406,11 @@ export default function EditorPage() {
         }
 
         onProgress('downloading', 95);
+        await validatePdfBlob(pdfBlob);
         const result = await downloadFile({ blob: pdfBlob, fileName });
         if (result.cancelled) { toast.info('Download cancelled. Tap download again to save your PDF.'); return; }
         if (result.success) {
-          const msgs: Record<string, string> = { 'resume': 'Resume downloaded!', 'cover-letter': 'Cover letter downloaded!', 'combined': 'Application package downloaded!', 'one-page': 'One-page resume downloaded!', 'ats-pdf': 'ATS-optimized PDF downloaded!' };
+          const msgs: Record<string, string> = { 'resume': 'Resume download started.', 'cover-letter': 'Cover letter download started.', 'combined': 'Application package download started.', 'one-page': 'One-page resume download started.', 'ats-pdf': 'ATS-optimized PDF download started.' };
           toast.success(msgs[type] || 'Downloaded!');
           if (result.method === 'data-url' || result.method === 'open') toast.info('If the file did not save, use the share icon to "Save to Files"', { duration: 6000 });
         }

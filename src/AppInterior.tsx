@@ -336,6 +336,9 @@ function AppRoutes() {
           <Route path="/ar/guides" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense></RouteEB>} />
           <Route path="/ar/guides/:slug" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense></RouteEB>} />
           <Route path="/ar/examples" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense></RouteEB>} />
+          <Route path="/guides" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense></RouteEB>} />
+          <Route path="/guides/:slug" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense></RouteEB>} />
+          <Route path="/examples" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense></RouteEB>} />
           <Route path="/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
           <Route path="/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
           <Route path="/ar/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense></RouteEB>} />
@@ -387,13 +390,10 @@ function AppRoutes() {
                 <Route path="/cover-letter/new" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/cover-letter/edit/:id" element={<RouteEB><FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/cover-letter" element={<RouteEB><LegacyCoverLetterRedirect /></RouteEB>} />
-                <Route path="/examples" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense></RouteEB>} />
                 <Route path="/career" element={<RouteEB><FeatureGate enabled={appSettings.feature_career_advisor}><Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense></FeatureGate></RouteEB>} />
                 <Route path="/resignation-letters" element={<RouteEB><Suspense fallback={<ResignationLettersSkeleton />}><ResignationLettersPage /></Suspense></RouteEB>} />
                 <Route path="/resignation-letter/new" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ResignationLetterNewPage /></Suspense></RouteEB>} />
                 <Route path="/resignation-letter/edit/:id" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><ResignationLetterEditPage /></Suspense></RouteEB>} />
-                <Route path="/guides" element={<RouteEB><Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense></RouteEB>} />
-                <Route path="/guides/:slug" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense></RouteEB>} />
                  <Route path="/ai-studio" element={<RouteEB><FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate></RouteEB>} />
                  <Route path="/ai-studio/:tool" element={<RouteEB><FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate></RouteEB>} />
                  <Route path="/help" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><HelpPage /></Suspense></RouteEB>} />

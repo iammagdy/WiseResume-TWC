@@ -35,7 +35,7 @@ import { PageCountBadge } from '@/components/editor/export/PageCountBadge';
 import { PageCutHint, usePageCutHintPulse } from '@/components/editor/export/PageCutHint';
 import { resolvePageBreakTemplate } from '@/lib/resolvePageBreakTemplate';
 import { PageBreakSetupDialog } from '@/components/editor/export/PageBreakSetupDialog';
-import { downloadFile } from '@/lib/downloadUtils';
+import { downloadFile, validatePdfBlob } from '@/lib/downloadUtils';
 import { useExportProgress } from '@/hooks/useExportProgress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -234,13 +234,10 @@ export default function PreviewPage() {
         return next;
       }, { replace: true });
 
-      if (!currentResume) { setAutoExportFallback(action); return; }
-      // DOCX export does not need the rendered template element
-      if (action === 'docx') { handleExport('docx', true); return; }
-      // PDF exports need the template DOM node; show fallback CTA if not available
-      if (!resumeRef.current) { setAutoExportFallback(action); return; }
-      if (action === 'ats-pdf') handleExport('ats-pdf', false);
-      else handleExport('resume', true);
+      // Browser download APIs require a trusted user activation. A timer-driven anchor click
+      // can be silently blocked while still looking successful to application code, so URL
+      // actions resolve to an explicit CTA after bootstrap instead of claiming a download.
+      setAutoExportFallback(action);
     }, 800);
     // No cleanup returned — timer lives in autoExportTimerRef and is cancelled on unmount only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -329,10 +326,10 @@ export default function PreviewPage() {
           const success = await generateAndDownloadDOCX(currentResume);
           onProgress('downloading', 100);
           if (success) {
-            toast.success('Word document downloaded!');
+            toast.success('Word document download started.');
             setShowExportSheet(false);
             incrementPositiveActions();
-          }
+          } else toast.error('Word document download could not be started.');
           return;
         }
 
@@ -435,7 +432,7 @@ export default function PreviewPage() {
             const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
-            pdfBlob = await nativePdf(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, onProgress });
+            pdfBlob = await nativePdf(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, locale: getDocumentLocale(currentResume), onProgress });
             fileName = `${baseName}_Resume_ATS.pdf`;
             break;
           }
@@ -453,6 +450,7 @@ export default function PreviewPage() {
               pageFormat,
               showPageNumbers: false,
               showBranding: true,
+              locale: getDocumentLocale(currentResume),
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
             });
@@ -466,7 +464,7 @@ export default function PreviewPage() {
             const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
-            pdfBlob = await nativePdf(templateEl, { pageFormat, onePage: true, showPageNumbers, showBranding, onProgress });
+            pdfBlob = await nativePdf(templateEl, { pageFormat, onePage: true, showPageNumbers, showBranding, locale: getDocumentLocale(currentResume), onProgress });
             fileName = `${baseName}_Resume_OnePage.pdf`;
             break;
           }
@@ -481,6 +479,7 @@ export default function PreviewPage() {
               pageFormat,
               showPageNumbers,
               showBranding,
+              locale: getDocumentLocale(currentResume),
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
             });
@@ -490,6 +489,7 @@ export default function PreviewPage() {
         }
 
         onProgress('downloading', 95);
+        await validatePdfBlob(pdfBlob);
         const result = await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
 
         if (result.cancelled) {
@@ -499,12 +499,12 @@ export default function PreviewPage() {
 
         if (result.success) {
           const successMessages: Record<string, string> = {
-            'resume': 'Resume downloaded!',
+            'resume': 'Resume download started.',
             'cover-letter': 'Cover letter downloaded!',
             'combined': 'Application package downloaded!',
             'one-page': 'One-page resume downloaded!',
             'docx': 'Word document downloaded!',
-            'ats-pdf': 'ATS-optimized PDF downloaded!',
+            'ats-pdf': 'ATS-optimized PDF download started.',
             'linkedin': 'LinkedIn format copied!',
             'plain-text': 'Plain text downloaded!',
             'share-link': 'Share link generated!',

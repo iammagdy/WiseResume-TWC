@@ -2,9 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { useInView } from '@/hooks/useInView';
-
-const BEFORE_TEXT = 'Managed team projects and tasks';
-const AFTER_TEXT = 'Led cross-functional team of 8, delivering 3 projects 2 weeks ahead of schedule, saving $120K in operational costs';
+import { useLocale } from '@/i18n/LocaleProvider';
+import { landingDemoCopy } from './landingDemoCopy';
 
 const TYPING_SPEED = 55; // ms per char
 const PAUSE_AFTER_TYPE = 600;
@@ -15,6 +14,8 @@ const HOLD_DURATION = 2500;
 type Phase = 'typing' | 'enhancing' | 'enhanced' | 'scoring' | 'hold';
 
 export function EditorDemo() {
+  const { locale } = useLocale();
+  const copy = landingDemoCopy[locale].editor;
   const prefersReducedMotion = useReducedMotion();
   const [phase, setPhase] = useState<Phase>('typing');
   const [typed, setTyped] = useState('');
@@ -46,15 +47,15 @@ export function EditorDemo() {
   // Typing phase
   useEffect(() => {
     if (prefersReducedMotion || phase !== 'typing' || !inView) return;
-    if (typed.length < BEFORE_TEXT.length) {
+    if (typed.length < copy.before.length) {
       timerRef.current = setTimeout(() => {
-        setTyped(BEFORE_TEXT.slice(0, typed.length + 1));
+        setTyped(copy.before.slice(0, typed.length + 1));
       }, TYPING_SPEED);
     } else {
       timerRef.current = setTimeout(() => setPhase('enhancing'), PAUSE_AFTER_TYPE);
     }
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [phase, typed, prefersReducedMotion, inView]);
+  }, [phase, typed, prefersReducedMotion, inView, copy.before]);
 
   // Enhancing → enhanced
   useEffect(() => {
@@ -103,9 +104,9 @@ export function EditorDemo() {
   const showAfter = phase === 'enhanced' || phase === 'scoring' || phase === 'hold';
   const aiActive = phase === 'enhancing';
   const displayText = prefersReducedMotion
-    ? AFTER_TEXT
+    ? copy.after
     : showAfter
-      ? AFTER_TEXT
+      ? copy.after
       : typed;
   const displayScore = prefersReducedMotion ? 92 : score;
 
@@ -129,7 +130,7 @@ export function EditorDemo() {
       {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-1.5 border-b border-border">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-foreground">Resume Editor</span>
+            <span className="text-[11px] font-semibold text-foreground">{copy.title}</span>
             <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">Example</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -186,7 +187,7 @@ export function EditorDemo() {
                   transition={{ duration: 0.4 }}
                   className="text-foreground/90"
                 >
-                  {AFTER_TEXT}
+                  {copy.after}
                 </motion.p>
               ) : aiActive ? (
                 <motion.div
@@ -227,7 +228,7 @@ export function EditorDemo() {
               transition={{ duration: 0.5, repeat: aiActive ? Infinity : 0 }}
             >
               <Sparkles className="w-3 h-3" />
-              AI Enhance
+              {copy.enhance}
             </motion.div>
           </div>
 

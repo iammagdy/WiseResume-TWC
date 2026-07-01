@@ -2,23 +2,14 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Mic } from 'lucide-react';
 import { useInView } from '@/hooks/useInView';
-
-const QA = [
-  {
-    q: 'Tell me about a time you led a project under tight deadlines.',
-    a: 'I led a 4-person team to ship a redesign in 3 weeks, cutting scope strategically to meet the launch date.',
-    score: 88,
-  },
-  {
-    q: 'How do you handle conflicting priorities?',
-    a: 'I use an impact vs. effort matrix to stack-rank tasks, then align with stakeholders on trade-offs.',
-    score: 92,
-  },
-];
+import { useLocale } from '@/i18n/LocaleProvider';
+import { landingDemoCopy } from './landingDemoCopy';
 
 type Phase = 'question' | 'listening' | 'answered' | 'scored' | 'hold';
 
 export function InterviewDemo() {
+  const { locale } = useLocale();
+  const copy = landingDemoCopy[locale].interview;
   const prefersReducedMotion = useReducedMotion();
   const [qaIdx, setQaIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>('question');
@@ -43,7 +34,7 @@ export function InterviewDemo() {
     const t = setTimeout(() => {
       setPhase((p) => {
         if (p === 'hold') {
-          setQaIdx((i) => (i + 1) % QA.length);
+          setQaIdx((i) => (i + 1) % copy.qa.length);
         }
         return next[p];
       });
@@ -51,7 +42,7 @@ export function InterviewDemo() {
     return () => clearTimeout(t);
   }, [phase, inView, prefersReducedMotion]);
 
-  const qa = QA[qaIdx];
+  const qa = copy.qa[qaIdx];
   const circumference = 2 * Math.PI * 14;
   const offset = circumference - (qa.score / 100) * circumference;
 
@@ -66,8 +57,8 @@ export function InterviewDemo() {
         </div>
 
         <div className="flex items-center justify-between px-4 py-1.5 border-b border-border">
-          <span className="text-[11px] font-semibold text-foreground">Interview Coach</span>
-          <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">Example</span>
+          <span className="text-[11px] font-semibold text-foreground">{copy.title}</span>
+          <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">{copy.example}</span>
         </div>
 
         <div className="px-4 py-3 space-y-3 min-h-[200px]">
@@ -81,7 +72,7 @@ export function InterviewDemo() {
               transition={{ duration: 0.3 }}
               className="rounded-xl rounded-tl-sm bg-muted p-2.5 border border-border"
             >
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">AI Interviewer</p>
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{copy.interviewer}</p>
               <p className="text-[10px] text-foreground leading-relaxed">{qa.q}</p>
             </motion.div>
           </AnimatePresence>
@@ -95,7 +86,7 @@ export function InterviewDemo() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="rounded-xl rounded-tr-sm bg-primary/8 border border-primary/20 p-2.5 ml-4"
+                className="rounded-xl rounded-tr-sm bg-primary/8 border border-primary/20 p-2.5 ms-4"
               >
                 <p className="text-[10px] text-foreground leading-relaxed">{qa.a}</p>
               </motion.div>
@@ -129,8 +120,8 @@ export function InterviewDemo() {
                   <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-foreground">{qa.score}</span>
                 </div>
                 <div>
-                  <p className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">Strong answer!</p>
-                  <p className="text-[9px] text-muted-foreground">Add specific metrics to score higher</p>
+                  <p className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">{copy.strong}</p>
+                  <p className="text-[9px] text-muted-foreground">{copy.tip}</p>
                 </div>
               </motion.div>
             )}
@@ -146,7 +137,7 @@ export function InterviewDemo() {
             >
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] font-medium">
                 <Mic className="w-3 h-3 animate-pulse" />
-                Listening...
+                {copy.listening}
               </div>
             </motion.div>
           )}

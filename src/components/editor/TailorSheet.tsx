@@ -700,15 +700,20 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     setIsDownloadingPdf(true);
     try {
       const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
-      const { downloadFile } = await import('@/lib/downloadUtils');
+      const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
       if (!tailoredTemplateRef.current) throw new Error('Template not ready');
       const pageFormat = (appliedMergedResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
       const blob = await generateNativePDF(tailoredTemplateRef.current, { pageFormat });
+      await validatePdfBlob(blob);
       const name = appliedMergedResume.contactInfo?.fullName || 'Resume';
       const jobSuffix = appliedJobInfo?.title ? `_${appliedJobInfo.title}` : '';
       const fileName = `${name}${jobSuffix}_Tailored.pdf`.replace(/\s+/g, '_');
-      await downloadFile({ blob, fileName });
-      toast.success('PDF downloaded!');
+      const result = await downloadFile({ blob, fileName, mimeType: 'application/pdf' });
+      if (!result.success) {
+        if (result.cancelled) return;
+        throw new Error('Download failed');
+      }
+      toast.success('PDF download started');
     } catch (err) {
       editorLogger.error('[TailorSheet] PDF download failed:', err);
       toast.error('Failed to download PDF');

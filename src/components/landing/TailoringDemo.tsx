@@ -2,13 +2,14 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import { useInView } from '@/hooks/useInView';
-
-const BEFORE_KEYWORDS = ['managed', 'worked on', 'helped with', 'responsible for'];
-const AFTER_KEYWORDS = ['spearheaded', 'delivered', 'optimized', 'drove 40% growth'];
+import { useLocale } from '@/i18n/LocaleProvider';
+import { landingDemoCopy } from './landingDemoCopy';
 
 type Phase = 'before' | 'injecting' | 'after' | 'hold';
 
 export function TailoringDemo() {
+  const { locale } = useLocale();
+  const copy = landingDemoCopy[locale].tailoring;
   const prefersReducedMotion = useReducedMotion();
   const [phase, setPhase] = useState<Phase>('before');
   const [injectIdx, setInjectIdx] = useState(0);
@@ -29,11 +30,11 @@ export function TailoringDemo() {
 
   useEffect(() => {
     if (phase !== 'injecting' || prefersReducedMotion || !inView) return;
-    if (injectIdx < BEFORE_KEYWORDS.length - 1) {
+    if (injectIdx < copy.before.length - 1) {
       const t = setTimeout(() => setInjectIdx((i) => i + 1), 400);
       return () => clearTimeout(t);
     }
-  }, [phase, injectIdx, prefersReducedMotion, inView]);
+  }, [phase, injectIdx, prefersReducedMotion, inView, copy.before.length]);
 
   const showAfter = phase === 'after' || phase === 'hold';
   const showBefore = phase === 'before' || phase === 'injecting';
@@ -49,16 +50,16 @@ export function TailoringDemo() {
         </div>
 
         <div className="flex items-center justify-between px-4 py-1.5 border-b border-border">
-          <span className="text-[11px] font-semibold text-foreground">Smart Tailoring</span>
-          <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">Example</span>
+          <span className="text-[11px] font-semibold text-foreground">{copy.title}</span>
+          <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">{copy.example}</span>
         </div>
 
         <div className="px-4 py-3 space-y-3 min-h-[200px]">
           {/* Job description snippet */}
           <div className="rounded-lg bg-muted p-2.5 border border-border">
-            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Job Description</p>
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{copy.job}</p>
             <div className="space-y-1">
-              {['Senior Product Manager', 'Growth focus', 'Data-driven'].map((t) => (
+              {copy.role.map((t) => (
                 <div key={t} className="flex items-center gap-1.5">
                   <div className="w-1 h-1 rounded-full bg-blue-500/60" />
                   <span className="text-[9px] text-foreground/70">{t}</span>
@@ -70,10 +71,10 @@ export function TailoringDemo() {
           {/* Before / After keywords */}
           <div>
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {showAfter ? 'After tailoring' : 'Your keywords'}
+              {showAfter ? copy.afterLabel : copy.beforeLabel}
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {(showAfter ? AFTER_KEYWORDS : BEFORE_KEYWORDS).map((kw, i) => (
+              {(showAfter ? copy.after : copy.before).map((kw, i) => (
                 <AnimatePresence key={kw} mode="wait">
                   <motion.span
                     key={showAfter ? 'after-' + kw : 'before-' + kw}
@@ -106,7 +107,7 @@ export function TailoringDemo() {
                   className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-medium"
                 >
                   <Wand2 className="w-3 h-3 animate-spin" />
-                  Injecting keywords...
+                  {copy.injecting}
                 </motion.div>
               ) : showAfter ? (
                 <motion.div
@@ -116,7 +117,7 @@ export function TailoringDemo() {
                   exit={{ opacity: 0 }}
                   className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium"
                 >
-                  ✓ Match score improved
+                  ✓ {copy.done}
                 </motion.div>
               ) : (
                 <motion.div
@@ -126,7 +127,7 @@ export function TailoringDemo() {
                   exit={{ opacity: 0 }}
                   className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-[10px] font-medium"
                 >
-                  Ready to tailor
+                  {copy.ready}
                 </motion.div>
               )}
             </AnimatePresence>

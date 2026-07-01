@@ -67,16 +67,21 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
     haptics.light();
     try {
       const { exportResumePdfFromData } = await import('@/lib/exportResumePdf');
-      const { downloadFile } = await import('@/lib/downloadUtils');
+      const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
       const resumeData = dbToResumeData(resume);
       const blob = await exportResumePdfFromData(
         resumeData,
         migrateTemplateId(resume.template_id),
         { showPageNumbers: true, showBranding: true },
       );
+      await validatePdfBlob(blob);
       const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
-      await downloadFile({ blob, fileName });
-      toast.success('PDF downloaded');
+      const result = await downloadFile({ blob, fileName, mimeType: 'application/pdf' });
+      if (!result.success) {
+        if (result.cancelled) return;
+        throw new Error('Download failed');
+      }
+      toast.success('PDF download started');
     } catch (e) {
       console.error('[ResumeListSheet] PDF download failed', e);
       toast.error('Failed to download PDF');

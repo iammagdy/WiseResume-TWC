@@ -1,6 +1,7 @@
 import { ChevronRight, Settings } from 'lucide-react';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface SettingsProfileHeroProps {
   plan: string;
@@ -27,6 +28,7 @@ export function SettingsProfileHero({
   onEditSettings,
   className,
 }: SettingsProfileHeroProps) {
+  const { t } = useLocale();
   return (
     <div className={cn('settings-profile-hero', className)}>
       <div className="settings-profile-hero__glow" aria-hidden />
@@ -44,7 +46,9 @@ export function SettingsProfileHero({
             showLabel
           />
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">Your account</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">
+              {t('app.settingsPage.profileHero.yourAccount', 'Your account')}
+            </p>
             <p className="text-lg font-semibold text-foreground truncate leading-tight mt-0.5">{displayName}</p>
             {email && (
               <p className="text-sm text-muted-foreground truncate mt-0.5">{email}</p>
@@ -70,7 +74,7 @@ export function SettingsProfileHero({
             className="flex w-full items-center justify-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
           >
             <Settings className="w-3.5 h-3.5" aria-hidden />
-            Edit profile details
+            {t('app.settingsPage.profileHero.editDetails', 'Edit profile details')}
           </button>
         </div>
       )}

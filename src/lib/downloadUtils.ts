@@ -12,8 +12,9 @@ interface DownloadFileOptions {
   maxRetries?: number;
 }
 
-interface DownloadResult {
+export interface DownloadResult {
   success: boolean;
+  outcome: 'triggered' | 'cancelled' | 'failed';
   cancelled?: boolean;
   method: 'share' | 'open' | 'anchor' | 'data-url';
 }
@@ -30,6 +31,9 @@ const isAndroid = () => /Android/i.test(navigator.userAgent);
  */
 export async function downloadFile(options: DownloadFileOptions): Promise<DownloadResult> {
   const { blob, fileName, mimeType, maxRetries = 1 } = options;
+  if (blob.size === 0) {
+    return { success: false, outcome: 'failed', method: 'anchor' };
+  }
   const effectiveMimeType = mimeType || blob.type || 'application/octet-stream';
 
   if (isIOS()) {
@@ -56,10 +60,10 @@ async function downloadIOS(
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         await navigator.share({ files: [file], title: fileName });
-        return { success: true, method: 'share' };
+        return { success: true, outcome: 'triggered', method: 'share' };
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
-          return { success: false, cancelled: true, method: 'share' };
+          return { success: false, outcome: 'cancelled', cancelled: true, method: 'share' };
         }
         if (attempt < maxRetries) continue;
         // Fall through to next method
@@ -74,7 +78,7 @@ async function downloadIOS(
     if (newTab) {
       // Revoke after a delay to let the tab load — 5 minutes for large PDFs on slow connections
       setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
-      return { success: true, method: 'open' };
+      return { success: true, outcome: 'triggered', method: 'open' };
     }
   } catch {
     // popup blocked
@@ -90,10 +94,10 @@ async function downloadIOS(
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    return { success: true, method: 'data-url' };
+    return { success: true, outcome: 'triggered', method: 'data-url' };
   } catch {
     URL.revokeObjectURL(url);
-    return { success: false, method: 'data-url' };
+    return { success: false, outcome: 'failed', method: 'data-url' };
   }
 }
 
@@ -108,12 +112,14 @@ function downloadMobile(blob: Blob, fileName: string): DownloadResult {
     link.click();
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000); // 5 minutes for large PDFs
-    return { success: true, method: 'anchor' };
+    return { success: true, outcome: 'triggered', method: 'anchor' };
   } catch {
     // Fallback to window.open if anchor fails
-    window.open(url, '_blank');
+    const opened = window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000); // 5 minutes for large PDFs
-    return { success: true, method: 'open' };
+    return opened
+      ? { success: true, outcome: 'triggered', method: 'open' }
+      : { success: false, outcome: 'failed', method: 'open' };
   }
 }
 
@@ -123,13 +129,36 @@ function downloadDesktop(blob: Blob, fileName: string): DownloadResult {
   link.href = url;
   link.download = fileName;
   document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  // Some embedded Chromium shells do not begin consuming the blob until after
-  // the click task has completed. Revoking immediately can cancel the download
-  // while still letting the caller show a success toast.
-  setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
-  return { success: true, method: 'anchor' };
+  try {
+    link.click();
+    return { success: true, outcome: 'triggered', method: 'anchor' };
+  } catch {
+    URL.revokeObjectURL(url);
+    return { success: false, outcome: 'failed', method: 'anchor' };
+  } finally {
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+  }
+}
+
+export async function validatePdfBlob(blob: Blob): Promise<void> {
+  if (blob.size === 0) throw new Error('PDF artifact is empty.');
+  if (blob.size < 64) throw new Error('PDF artifact is too small to be valid.');
+  const signature = new TextDecoder().decode(await blob.slice(0, 5).arrayBuffer());
+  if (signature !== '%PDF-') throw new Error('PDF artifact has an invalid signature.');
+}
+
+export async function validateDocxBlob(blob: Blob): Promise<void> {
+  if (blob.size === 0) throw new Error('DOCX artifact is empty.');
+  const signature = new Uint8Array(await blob.slice(0, 2).arrayBuffer());
+  if (signature[0] !== 0x50 || signature[1] !== 0x4b) {
+    throw new Error('DOCX artifact has an invalid ZIP signature.');
+  }
+  const { default: JSZip } = await import('jszip');
+  const zip = await JSZip.loadAsync(blob);
+  if (!zip.file('[Content_Types].xml') || !zip.file('word/document.xml')) {
+    throw new Error('DOCX package is missing required document entries.');
+  }
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {

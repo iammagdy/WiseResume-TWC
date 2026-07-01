@@ -78,6 +78,10 @@ const DemoFallback = () => (
   </div>
 );
 
+export function resolveFeatureEntryOrigin(locale: 'en' | 'ar', _configuredDirection: 'ltr' | 'rtl'): 'left' | 'right' {
+  return locale === 'ar' ? 'right' : 'left';
+}
+
 interface DemoErrorBoundaryState { hasError: boolean; retryCount: number }
 class DemoErrorBoundary extends Component<{ children: ReactNode }, DemoErrorBoundaryState> {
   constructor(props: { children: ReactNode }) {
@@ -125,7 +129,8 @@ class DemoErrorBoundary extends Component<{ children: ReactNode }, DemoErrorBoun
 export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const { t, locale } = useLocale();
   const BadgeIcon = data.badge.icon;
-  const isRtl = locale === 'ar' ? data.direction === 'ltr' : data.direction === 'rtl';
+  const entryOrigin = resolveFeatureEntryOrigin(locale, data.direction);
+  const isRtl = entryOrigin === 'right';
   const sectionBg = BAND_BG[data.bandColor ?? 'dark1'];
   const prefersReducedMotion = useReducedMotion();
 
@@ -267,6 +272,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       id={`feature-${data.id}`}
       aria-label={title}
       data-section={`feature-${data.id}`}
+      data-locale={locale}
+      data-entry-origin={entryOrigin}
+      dir={isRtl ? 'rtl' : 'ltr'}
       style={{
         background: sectionBg,
         width: '100%',
@@ -312,8 +320,8 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
             className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"
             style={{ direction: isRtl ? 'rtl' : 'ltr' }}
           >
-            <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'right' : 'left'}>{textCard}</div>
-            <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'left' : 'right'}>{mediaCard}</div>
+            <div style={{ direction: isRtl ? 'rtl' : 'ltr' }} data-direction={isRtl ? 'right' : 'left'}>{textCard}</div>
+            <div style={{ direction: isRtl ? 'rtl' : 'ltr' }} data-direction={isRtl ? 'left' : 'right'}>{mediaCard}</div>
           </div>
           <div>{bulletsCard}</div>
         </motion.div>

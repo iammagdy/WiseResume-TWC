@@ -332,7 +332,7 @@ export function TailorQuickPdfExportDialog({
 
       const { exportResumePdfFromData } = await import('@/lib/exportResumePdf');
 
-      const { downloadFile } = await import('@/lib/downloadUtils');
+      const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
 
 
 
@@ -373,6 +373,8 @@ export function TailorQuickPdfExportDialog({
         ? await generateNativePDF(templateEl, exportOpts)
 
         : await exportResumePdfFromData(latest, safeTemplateId, exportOpts);
+
+      await validatePdfBlob(pdfBlob);
 
 
 
@@ -420,7 +422,7 @@ export function TailorQuickPdfExportDialog({
 
       haptics.success();
 
-      toast.success('PDF downloaded');
+      toast.success('PDF download started');
 
       onOpenChange(false);
 

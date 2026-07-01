@@ -686,6 +686,10 @@
     "scoresUpdateAsYouEdit": "تتحدث الدرجات أثناء قيامك بالتعديل"
   },
   "settingsPage": {
+    "profileHero": {
+      "yourAccount": "حسابك",
+      "editDetails": "تعديل بيانات الملف الشخصي"
+    },
     "userId": {
       "title": "اضغط لنسخ معرّف المستخدم",
       "label": "معرّف المستخدم الخاص بك",

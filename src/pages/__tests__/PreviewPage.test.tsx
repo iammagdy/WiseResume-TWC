@@ -28,8 +28,8 @@ const useResumeMock = vi.hoisted(() => vi.fn(() => mockResumeQuery));
 const persistTemplateMock = vi.hoisted(() => vi.fn().mockResolvedValue({ $id: 'resume-1' }));
 
 const generateAndDownloadDOCX = vi.hoisted(() => vi.fn().mockResolvedValue(true));
-const generateNativePDFMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Blob(['pdf'])));
-const downloadFileMock = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, method: 'download' }));
+const generateNativePDFMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Blob(['%PDF-1.7\n' + 'x'.repeat(128)], { type: 'application/pdf' })));
+const downloadFileMock = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true, outcome: 'triggered', method: 'anchor' }));
 
 vi.mock('@/store/resumeStore', () => ({
   useResumeStore: () => mockResumeState,
@@ -124,6 +124,7 @@ vi.mock('@/lib/nativePdfGenerator', () => ({
 
 vi.mock('@/lib/downloadUtils', () => ({
   downloadFile: downloadFileMock,
+  validatePdfBlob: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/components/editor/PreviewScaledWrapper', () => ({
@@ -306,7 +307,7 @@ describe('PreviewPage URL bootstrap', () => {
     );
   }
 
-  it('action=docx does not export before bootstrap and calls generateAndDownloadDOCX after', async () => {
+  it('action=docx waits for bootstrap and requires a user click before exporting', async () => {
     vi.useFakeTimers();
     mockResumeQuery.isLoading = true;
 
@@ -338,11 +339,14 @@ describe('PreviewPage URL bootstrap', () => {
       await Promise.resolve();
     });
 
+    expect(generateAndDownloadDOCX).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Download DOCX' }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(generateAndDownloadDOCX).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
   });
 
-  it('action=download does not export before bootstrap and triggers PDF export after', async () => {
+  it('action=download waits for bootstrap and requires a user click before exporting', async () => {
     vi.useFakeTimers();
     mockResumeQuery.isLoading = true;
 
@@ -370,13 +374,15 @@ describe('PreviewPage URL bootstrap', () => {
       await Promise.resolve();
     });
 
-    // PDF export should have been triggered (resumeRef is attached via PreviewScaledWrapper mock)
+    expect(generateNativePDFMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(generateNativePDFMock).toHaveBeenCalledTimes(1);
     expect(downloadFileMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
   });
 
-  it('action=ats-pdf does not export before bootstrap and triggers ATS PDF export after', async () => {
+  it('action=ats-pdf waits for bootstrap and requires a user click before exporting', async () => {
     vi.useFakeTimers();
     mockResumeQuery.isLoading = true;
 
@@ -404,6 +410,9 @@ describe('PreviewPage URL bootstrap', () => {
       await Promise.resolve();
     });
 
+    expect(generateNativePDFMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Download ATS PDF' }));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(generateNativePDFMock).toHaveBeenCalledTimes(1);
     // ATS mode passes atsMode: true
     expect(generateNativePDFMock).toHaveBeenCalledWith(
@@ -414,7 +423,7 @@ describe('PreviewPage URL bootstrap', () => {
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
   });
 
-  it('action is not executed before the 800ms timer fires (not cleared early)', async () => {
+  it('action reveals a user-activated fallback after the 800ms timer', async () => {
     vi.useFakeTimers();
     // Bootstrap completes immediately (data already available)
     mockResumeQuery.data = makeResumeDoc();
@@ -438,7 +447,8 @@ describe('PreviewPage URL bootstrap', () => {
       await Promise.resolve();
     });
 
-    expect(generateAndDownloadDOCX).toHaveBeenCalledTimes(1);
+    expect(generateAndDownloadDOCX).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeInTheDocument();
   });
 
   it('normal /preview without action does not trigger auto-export', async () => {
