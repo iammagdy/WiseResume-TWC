@@ -207,9 +207,10 @@ export function EditProfileSheet({
       haptics.success();
       toast.success('Avatar updated');
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
       console.error('Avatar upload error:', error);
       haptics.error();
-      toast.error('Failed to upload avatar');
+      toast.error(`Failed to upload avatar: ${msg}`);
     } finally {
       setIsUploading(false);
       setSelectedImageFile(null);
