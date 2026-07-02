@@ -12,14 +12,14 @@
 - Rebuilt the project successfully (`npm run build`), updated source hashes, and redeployed the `ai-gateway` Appwrite hub.
 
 ### Owner Actions Required (Blockers — Cannot Be Set by Code)
-- Manual verification of the branded contact email layout and popover dropdown in production by the owner.
+- None (Owner manually verified all additions in production: contact form submits successfully, branded email is received, notifications are visible in the owner UI, and the Bell popover works correctly on desktop).
 
 ### Validation
 - TypeScript: 0 errors. Production build: PASS. Hub syntax: PASS.
 - Idempotent schema security script successfully runs and verifies.
 
 ### Status
-`READY_FOR_OWNER_VERIFICATION`
+`VERIFIED_READY`
 
 ---
 
@@ -34,14 +34,14 @@
 - No other hubs, frontend code, or environment settings were changed.
 
 ### Owner Actions Required (Blockers — Cannot Be Set by Code)
-- Manual verification of the Turnstile challenge on the live domain (`https://wiseresume.app/p/magdy`) by the owner is required.
+- None (Turnstile fix verified via successful form submission by the owner in production).
 
 ### Validation
 - TypeScript: 0 errors. Production build: PASS. Hub syntax: PASS.
 - Appwrite deployment completed successfully.
 
 ### Status
-`READY_FOR_OWNER_VERIFICATION`
+`VERIFIED_READY`
 
 ---
 

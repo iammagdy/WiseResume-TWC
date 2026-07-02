@@ -6,7 +6,7 @@
 - **Idempotent Setup Script**: Codified the collection security settings in `scripts/setup_portfolio_security.cjs` to make the configuration reproducible.
 - **Branded Email Template**: Implemented a branded HTML email layout for `portfolio_contact` submissions in `appwrite-hubs/ai-gateway/src/main.js` with WiseResume colors (#9E1B22), visitor details, and a call-to-action button to check in-app notifications.
 - **Bell Popover UX**: Implemented a YouTube-style Popover dropdown for the top-bar Bell icon in `src/components/layout/AppWorkspaceTopBar.tsx` for desktop users, featuring the 5 latest notifications with specialized type icons, unread badge, and a footer link to `/notifications`. Mobile Bell retains direct navigation behavior for safety.
-- **Acceptance Status**: `READY_FOR_OWNER_VERIFICATION` (pending manual verification of email delivery and top-bar Popover interaction by the owner in production).
+- **Acceptance Status**: `VERIFIED_READY` (Manual verification successfully passed by the owner; contact form, branded emails, notifications, and Bell popover dropdown are fully working in production).
 
 ## 2026-07-03 - Portfolio Contact Form Turnstile Fix
 
@@ -14,7 +14,7 @@
 - **API Version Correction**: Corrected the endpoint URL to `https://challenges.cloudflare.com/turnstile/v0/siteverify` in `appwrite-hubs/ai-gateway/src/main.js`.
 - **Infrastructure Validation**: Recomputed source hashes in `src/lib/devkit/sourceHashes.generated.json`. Verified Node.js syntax, TypeScript (`npx tsc --noEmit`), and production build (`npm run build`) all pass.
 - **Appwrite Deployment**: Successfully ran GitHub Actions workflow "Deploy Appwrite Hubs" targeting only `ai-gateway` (Run ID: `28626574102`, Job ID: `84894323958`), resulting in a successful deployment.
-- **Verdict**: `READY_FOR_OWNER_VERIFICATION` (pending manual verification of the Turnstile challenge on the live domain by the owner).
+- **Verdict**: `VERIFIED_READY` (Turnstile fix verified via successful form submission by the owner in production).
 
 ---
 
