@@ -17,7 +17,8 @@ export function avatarFilePermissions(userId: string): string[] {
 
 /** Public view URL for an avatar file — usable in `<img>` without a session JWT. */
 export function getAvatarViewUrl(fileId: string): string {
-  return storage.getFileView(BUCKETS.avatars, fileId).href;
+  // SDK v25: getFileView() returns a plain string URL (not a URL object).
+  return storage.getFileView({ bucketId: BUCKETS.avatars, fileId });
 }
 
 /** Append a version token so browsers refresh after re-uploading the same file ID. */
@@ -37,12 +38,17 @@ export async function uploadUserAvatar(userId: string, blob: Blob): Promise<stri
   const file = new File([blob], 'avatar.png', { type: 'image/png' });
 
   try {
-    await storage.deleteFile(BUCKETS.avatars, fileId);
+    await storage.deleteFile({ bucketId: BUCKETS.avatars, fileId });
   } catch {
-    /* first upload */
+    /* first upload — file doesn't exist yet */
   }
 
-  await storage.createFile(BUCKETS.avatars, fileId, file, avatarFilePermissions(userId));
+  await storage.createFile({
+    bucketId: BUCKETS.avatars,
+    fileId,
+    file,
+    permissions: avatarFilePermissions(userId),
+  });
 
   return getAvatarViewUrl(fileId);
 }

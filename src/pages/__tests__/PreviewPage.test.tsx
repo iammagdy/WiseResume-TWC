@@ -107,7 +107,7 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@/lib/appwrite', () => ({
-  storage: { createFile: vi.fn(), getFileView: vi.fn(() => ({ href: '' })) },
+  storage: { createFile: vi.fn(), getFileView: vi.fn(() => '') },
   ID: { unique: vi.fn(() => 'unique-id') },
 }));
 

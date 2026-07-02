@@ -224,7 +224,7 @@ export function EditProfileSheet({
     try {
       // Delete avatar from Appwrite Storage (ignore errors if already gone)
       const fileId = avatarFileIdForUser(userId);
-      try { await storage.deleteFile(BUCKETS.avatars, fileId); } catch { /* already deleted */ }
+      try { await storage.deleteFile({ bucketId: BUCKETS.avatars, fileId }); } catch { /* already deleted */ }
       
       // Clear local state
       setAvatarUrl('');
