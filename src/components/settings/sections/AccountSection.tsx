@@ -67,7 +67,7 @@ export const AccountSection = memo(function AccountSection({
             : t('app.settingsPage.account.passwordDescription', 'Change your account password');
     const navigate = useNavigate();
     const [changePwOpen, setChangePwOpen] = useState(false);
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
     const { data: applications = [] } = useJobApplications();
@@ -199,9 +199,10 @@ export const AccountSection = memo(function AccountSection({
             <ChangePasswordDialog
                 open={changePwOpen}
                 onOpenChange={setChangePwOpen}
-                onForgotPassword={() => {
+                onForgotPassword={async () => {
                     setChangePwOpen(false);
-                    void sendResetEmail();
+                    const email = user?.email || '';
+                    await signOut(`/auth?mode=forgot&email=${encodeURIComponent(email)}`);
                 }}
             />
         </div>

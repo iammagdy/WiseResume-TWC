@@ -650,6 +650,10 @@ async function ensureAdminDeployHubsVariables() {
 
 async function ensureEmailServiceVariables() {
     const emailVarSources = ['admin-email', 'admin-testmail', 'admin-devkit-data', 'admin-deploy-hubs'];
+    const otpSecret = process.env.PASSWORD_RESET_OTP_SECRET || await firstExistingVariableValue(emailVarSources, 'PASSWORD_RESET_OTP_SECRET');
+    if (!otpSecret) {
+        throw new Error('PASSWORD_RESET_OTP_SECRET is required to deploy email-service');
+    }
     const emailServiceVars = [
         ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
         ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'],
@@ -659,6 +663,7 @@ async function ensureEmailServiceVariables() {
         ['RESEND_FROM_EMAIL', process.env.RESEND_FROM_EMAIL || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_EMAIL') || 'noreply@thewise.cloud'],
         ['RESEND_FROM_NAME', process.env.RESEND_FROM_NAME || await firstExistingVariableValue(emailVarSources, 'RESEND_FROM_NAME') || 'WiseResume'],
         ['FRONTEND_URL', process.env.FRONTEND_URL || 'https://wiseresume.app'],
+        ['PASSWORD_RESET_OTP_SECRET', otpSecret],
     ];
     for (const [key, value] of emailServiceVars) {
         await ensureVariable('email-service', key, value);
@@ -771,7 +776,11 @@ async function syncVariablesForHubs(hubIds) {
     if (couponsTargets.length) await ensureCouponsWiseHireVariables(couponsTargets);
 
     if (selected.has('admin-deploy-hubs')) await ensureAdminDeployHubsVariables();
-    if (selected.has('email-service')) await ensureEmailServiceVariables();
+    if (selected.has('email-service')) {
+        await ensureEmailServiceVariables();
+        console.log('\nEnsuring password_reset_otps schema...');
+        execSync('node scripts/setup_password_reset_otps_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
 
     // Portfolio functions
     if (selected.has('portfolio-gate')) await ensurePortfolioGateVariables();

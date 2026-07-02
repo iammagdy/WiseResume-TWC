@@ -206,8 +206,16 @@ async function run() {
   console.log('\n📋 Ensuring function...');
   await ensureFunction();
 
+  console.log('\n📋 Ensuring password_reset_otps collection schema...');
+  execSync('node scripts/setup_password_reset_otps_schema.cjs', { stdio: 'inherit' });
+
   // 3. Set variables
   console.log('\n🔑 Setting function variables...');
+  const OTP_SECRET = process.env.PASSWORD_RESET_OTP_SECRET;
+  if (!OTP_SECRET) {
+    console.error('❌ PASSWORD_RESET_OTP_SECRET is required to deploy email-service');
+    process.exit(1);
+  }
   await ensureVariable('APPWRITE_API_KEY',    API_KEY);
   await ensureVariable('APPWRITE_ENDPOINT',   ENDPOINT);
   await ensureVariable('APPWRITE_PROJECT_ID', PROJECT_ID);
@@ -219,6 +227,7 @@ async function run() {
   // and the host MUST be registered as an Appwrite Web Platform — otherwise
   // account.createRecovery() rejects the redirect URL and no reset email is sent.
   await ensureVariable('FRONTEND_URL',        process.env.FRONTEND_URL       || 'https://wiseresume.app');
+  await ensureVariable('PASSWORD_RESET_OTP_SECRET', OTP_SECRET);
 
   // 4. Deploy
   console.log('\n📤 Uploading deployment...');

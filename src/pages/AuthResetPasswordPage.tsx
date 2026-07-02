@@ -28,7 +28,7 @@ export default function AuthResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const isValidLink = !!userId && !!secret;
+  const isValidLink = false;
 
   const handleReset = async () => {
     if (password !== confirm) {
@@ -62,6 +62,7 @@ export default function AuthResetPasswordPage() {
   };
 
   const backToSignIn = () => navigate(`${locale === 'ar' ? '/ar' : ''}/auth?mode=login`, { replace: true });
+  const goToForgotPassword = () => navigate(`${locale === 'ar' ? '/ar' : ''}/auth?mode=forgot`, { replace: true });
 
   let doneSlot: React.ReactNode | undefined;
   if (!isValidLink) {
@@ -73,7 +74,7 @@ export default function AuthResetPasswordPage() {
         </p>
         <button
           type="button"
-          onClick={backToSignIn}
+          onClick={goToForgotPassword}
           style={{
             width: '100%',
             height: 50,
@@ -86,7 +87,7 @@ export default function AuthResetPasswordPage() {
             marginTop: 8,
           }}
         >
-          Back to sign in
+          Request new reset code
         </button>
       </>
     );

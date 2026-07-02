@@ -139,7 +139,7 @@ export function ChangePasswordDialog({ open, onOpenChange, onForgotPassword }: C
                     <button
                         type="button"
                         onClick={onForgotPassword}
-                        className="text-xs text-primary hover:underline"
+                        className="text-xs text-primary hover:underline cursor-pointer"
                     >
                         Forgot your current password?
                     </button>

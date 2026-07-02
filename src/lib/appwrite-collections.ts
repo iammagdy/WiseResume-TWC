@@ -44,6 +44,7 @@ export const COLLECTIONS = {
   impersonation_revocations:         'impersonation_revocations',
   kinde_events:                      'kinde_events',
   signup_otps:                       'signup_otps',
+  password_reset_otps:               'password_reset_otps',
   token_exchanges:                   'token_exchanges',
   user_api_keys:                     'user_api_keys',
 

@@ -51,13 +51,22 @@ describe('AuthBold', () => {
     expect(screen.queryByText('Keep me signed in')).not.toBeInTheDocument();
   });
 
-  it('renders forgot mode with only email and a "Send reset link" button', () => {
-    renderWithProviders(<AuthBold mode="forgot" onSubmit={vi.fn()} />);
+  it('renders forgot mode with only email and a "Send verification code" button in email step', () => {
+    renderWithProviders(<AuthBold mode="forgot" forgotStep="email" onSubmit={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: 'Reset your password' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('you@email.com')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('••••••••')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /send reset link/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send verification code/i })).toBeInTheDocument();
+  });
+
+  it('renders forgot mode with verification code field and a "Verify code" button in otp step', () => {
+    renderWithProviders(<AuthBold mode="forgot" forgotStep="otp" otp="123456" onSubmit={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { name: 'Reset your password' })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('you@email.com')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('6-digit code')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /verify code/i })).toBeInTheDocument();
   });
 
   it('renders reset mode with two password fields and no email field', () => {

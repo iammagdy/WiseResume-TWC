@@ -41,6 +41,9 @@ export interface AuthBoldProps {
   onConfirmChange?: (value: string) => void;
   current?: string;
   onCurrentChange?: (value: string) => void;
+  forgotStep?: 'email' | 'otp';
+  otp?: string;
+  onOtpChange?: (value: string) => void;
 
   remember?: boolean;
   onRememberChange?: (value: boolean) => void;
@@ -317,6 +320,9 @@ export function AuthBold({
   onConfirmChange,
   current = '',
   onCurrentChange,
+  forgotStep = 'email',
+  otp = '',
+  onOtpChange,
   remember = true,
   onRememberChange,
   loading = false,
@@ -504,7 +510,7 @@ export function AuthBold({
 
   const isReset = mode === 'reset' || mode === 'change';
   const showName = mode === 'signup';
-  const showEmail = mode === 'signin' || mode === 'signup' || mode === 'forgot';
+  const showEmail = (mode === 'signin' || mode === 'signup' || mode === 'forgot') && !(mode === 'forgot' && forgotStep === 'otp');
   const showCurrent = mode === 'change';
   const showPassword = mode !== 'forgot';
   const showConfirm = mode === 'signup' || isReset;
@@ -521,14 +527,14 @@ export function AuthBold({
   const cardSub: Record<AuthBoldMode, string> = {
     signin: t('auth.welcomeBack'),
     signup: t('auth.signupSubtitle'),
-    forgot: t('auth.forgotSubtitle'),
+    forgot: forgotStep === 'otp' ? t('auth.forgotOtpSubtitle') : t('auth.forgotSubtitle'),
     reset: t('auth.resetSubtitle'),
     change: t('auth.changeSubtitle'),
   };
   const submitLabel: Record<AuthBoldMode, string> = {
     signin: t('auth.login'),
     signup: t('auth.signUp'),
-    forgot: t('auth.sendResetLink'),
+    forgot: forgotStep === 'otp' ? t('auth.verifyCode') : t('auth.sendVerificationCode'),
     reset: t('auth.resetPassword'),
     change: t('auth.updatePassword'),
   };
@@ -715,10 +721,30 @@ export function AuthBold({
                         onFocus={onEmailFocus}
                         onBlur={onBlur}
                         onChange={(e) => {
-                          onEmailInput();
-                          onEmailChange?.(e.target.value);
+                           onEmailInput();
+                           onEmailChange?.(e.target.value);
                         }}
                         required
+                      />
+                    </div>
+                  </>
+                )}
+
+                {mode === 'forgot' && forgotStep === 'otp' && (
+                  <>
+                    <label className="ab-lab">{t('auth.verificationCode')}</label>
+                    <div className="ab-field" style={{ marginBottom: 14 }}>
+                      <Lock />
+                      <input
+                        type="text"
+                        dir="ltr"
+                        placeholder={t('auth.verificationCodePlaceholder')}
+                        value={otp}
+                        onFocus={onEmailFocus}
+                        onBlur={onBlur}
+                        onChange={onText(onOtpChange)}
+                        required
+                        maxLength={6}
                       />
                     </div>
                   </>

@@ -644,80 +644,8 @@ async function handleSendVerification({ req, res, log, error, body }) {
   }
 }
 
-async function handleSendPasswordReset({ req, res, log, error, body }) {
-  const locale = body?.locale === 'ar' ? 'ar' : 'en';
-  const email = (body?.email || '').trim().toLowerCase();
-
-  if (!email || !email.includes('@')) {
-    return json(res, { error: 'Valid email address required' }, 400);
-  }
-
-  // ── Create an API-keyed Account client for createRecovery ──────────────────
-  // createRecovery() only returns the token .secret to SERVER-SIDE (API-keyed)
-  // requests. Called as a pure public client the secret comes back EMPTY, so the
-  // branded link becomes `…/auth/reset-password?userId=…&secret=` and the reset
-  // page rejects it as "invalid or already used". The API key is REQUIRED for the
-  // branded email to carry a working link.
-  const apiKey = appwriteApiKey();
-  const recoveryClient = new sdk.Client()
-    .setEndpoint(ENDPOINT)
-    .setProject(PROJECT_ID);
-  if (apiKey) recoveryClient.setKey(apiKey);
-
-  const acct = new sdk.Account(recoveryClient);
-
-  try {
-    const redirectUrl = `${FRONTEND_URL}${locale === 'ar' ? '/ar' : ''}/auth/reset-password`;
-
-    // Returns a Token with .userId and .secret (secret is populated because this
-    // request is API-keyed). This also triggers Appwrite's own recovery email —
-    // blank the Console "Reset password" template to a single space to suppress it.
-    const token = await acct.createRecovery(email, redirectUrl);
-
-    if (!token.secret) {
-      // Without a secret the link cannot work. This means the function has no
-      // APPWRITE_API_KEY (or it lacks scope) — surface it instead of emailing a
-      // broken link that lands on "invalid or already used".
-      error(`send-password-reset: createRecovery returned no secret for ${email} — set APPWRITE_API_KEY on the email-service function. No email sent.`);
-      return json(res, { success: true });
-    }
-
-    const resetUrl = `${redirectUrl}?userId=${encodeURIComponent(token.userId)}&secret=${encodeURIComponent(token.secret)}`;
-    await resendSend({
-      to:      email,
-      subject: locale === 'ar' ? 'إعادة تعيين كلمة مرور WiseResume' : 'Reset your WiseResume password',
-      html:    passwordResetEmail(resetUrl, locale),
-    });
-
-    log(`Password reset email sent via Resend to ${email}`);
-
-  } catch (err) {
-    const msg  = err instanceof Error ? err.message : String(err);
-    const code = (err && typeof err.code === 'number') ? err.code : 0;
-    const type = (err && typeof err.type === 'string') ? err.type : '';
-
-    // IMPORTANT: Always return success for password reset.
-    // Revealing whether an email exists is a security vulnerability.
-    //
-    // BUT only a genuinely unknown email is an expected, benign outcome. Everything
-    // else (redirect URL host not in the project's Platform allowlist, rate limit,
-    // SMTP/Resend failure, …) is a real misconfiguration that previously matched the
-    // broad `/invalid/i` test and was silently logged as benign — making a fully
-    // broken reset flow look identical to success. Surface those as errors so they
-    // appear in the function logs and can actually be diagnosed.
-    const isUnknownUser = code === 404
-      || /user_not_found/i.test(type)
-      || /could not be found|no such user/i.test(msg);
-
-    if (isUnknownUser) {
-      log(`Password reset requested for unknown email: ${email} — returning silent success`);
-    } else {
-      error(`send-password-reset failed for ${email}: ${msg} (type=${type || 'n/a'}, code=${code || 'n/a'})`);
-    }
-  }
-
-  // Always return success — never reveal whether the email is registered.
-  return json(res, { success: true });
+async function handleSendPasswordReset({ res }) {
+  return json(res, { error: 'Link-based password reset is disabled. Please use the verification code flow.' }, 400);
 }
 
 async function handleSendWelcome({ req, res, log, error, body }) {
@@ -984,6 +912,435 @@ async function handleSendTest({ req, res, log, error, body }) {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
+const DB_ID = 'main';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function getOtpSecret() {
+  const secret = process.env.PASSWORD_RESET_OTP_SECRET;
+  if (!secret) {
+    throw new Error('PASSWORD_RESET_OTP_SECRET is not configured on the serverless environment.');
+  }
+  return secret;
+}
+
+function passwordResetOtpEmail(otpCode, locale = 'en') {
+  const isArabic = locale === 'ar';
+  const h1 = isArabic ? 'رمز التحقق لإعادة تعيين كلمة المرور' : 'Reset Verification Code';
+  const metaLabel = isArabic ? 'استعادة الحساب' : 'Account Recovery';
+  const preheader = isArabic 
+    ? `رمز التحقق الخاص بك هو ${otpCode}. ينتهي الرمز خلال 15 دقيقة.` 
+    : `Your verification code is ${otpCode}. Expires in 15 minutes.`;
+  const bodyCopy = isArabic 
+    ? 'تلقينا طلباً لإعادة تعيين كلمة مرور حسابك في WiseResume. استخدم رمز التحقق التالي لإكمال العملية:' 
+    : 'We received a request to reset the password for your WiseResume account. Use the following verification code to complete the process:';
+  const securityNote = isArabic 
+    ? 'يرجى نسخ هذا الرمز ولصقه في صفحة إعادة تعيين كلمة المرور. الرمز صالح لمدة <strong>15 دقيقة</strong> ويمكن استخدامه لمرة واحدة فقط.' 
+    : 'Please copy this code and enter it back in the reset password section. This code is valid for <strong>15 minutes</strong> and can only be used once.';
+
+  const ctaSection = `
+              <!-- OTP Display Box -->
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 24px auto;">
+                <tr>
+                  <td align="center" bgcolor="#1f1f24" style="border: 1px solid #2f2f37; border-radius: 14px; padding: 20px 40px; box-shadow: 0 8px 16px rgba(0,0,0,0.4);">
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; color: #ef4444; letter-spacing: 6px; user-select: all;">${otpCode}</span>
+                  </td>
+                </tr>
+              </table>
+              <div align="center" style="margin-bottom: 34px;">
+                <!-- Visual Copy Label -->
+                <span style="display: inline-block; padding: 10px 20px; background-color: #9E1B22; border-radius: 8px; color: #ffffff; font-size: 14px; font-weight: 700; user-select: none;">Copy this code</span>
+                <p style="font-size: 12px; color: #71717a; margin-top: 8px; margin-bottom: 0;">Double-click or long-press the code above to copy it.</p>
+              </div>
+  `;
+
+  const safeDisclaimer = isArabic
+    ? 'إذا لم تطلب هذا الإجراء، يمكنك تجاهل هذه الرسالة بأمان.'
+    : "If you didn't request this, you can safely ignore this email.";
+
+  return `<!DOCTYPE html>
+<html lang="${isArabic ? 'ar' : 'en'}" dir="${isArabic ? 'rtl' : 'ltr'}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${h1} - WiseResume</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#09090b;font-family:${isArabic ? "'Noto Sans Arabic',Tahoma,Arial" : "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial"},sans-serif;color:#ffffff;direction:${isArabic ? 'rtl' : 'ltr'};">
+
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#09090b;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#09090b">
+    <tr>
+      <td align="center" style="padding:48px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#141416"
+               style="max-width:620px;width:100%;background:linear-gradient(180deg,#141416 0%,#0d0d10 100%);border:1px solid rgba(158,27,34,0.35);border-radius:28px;">
+          <tr>
+            <td style="padding:34px 34px 42px;">
+
+              <!-- Meta row -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
+                <tr>
+                  <td style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#a1a1aa;">${metaLabel}</td>
+                  <td align="right" style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">
+                    <span style="display:inline-block;width:7px;height:7px;background-color:#ef4444;border-radius:999px;vertical-align:middle;margin-right:8px;"></span>${isArabic ? 'آمن' : 'Secure'}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:42px;">
+                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
+              </table>
+
+              <!-- Logo -->
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 18px auto;">
+                <tr>
+                  <td align="center" width="72" style="width:72px;background-color:#121216;border:1px solid rgba(239,68,68,0.45);border-radius:18px;padding:17px;">
+                    <img src="https://wiseresume.app/email-logo.png" width="38" height="38" alt="WiseResume" style="display:block;border:0;width:38px;height:38px;">
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Brand -->
+              <p style="margin:0 0 30px;text-align:center;font-size:25px;letter-spacing:-0.03em;color:#ffffff;">
+                Wise<span style="color:#ef4444;">Resume</span>
+              </p>
+
+              <!-- Heading -->
+              <h1 style="margin:0 0 18px;text-align:center;font-size:42px;line-height:1.08;font-weight:800;letter-spacing:-0.045em;color:#ffffff;">${h1}</h1>
+
+              <!-- Body copy -->
+              <p style="margin:0 auto 38px;max-width:470px;text-align:center;font-size:17px;line-height:1.65;color:#d4d4d8;">${bodyCopy}</p>
+
+              ${ctaSection}
+
+              <!-- Security notice -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:18px;margin-bottom:34px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#d4d4d8;">${securityNote}</p>
+                    <p style="margin:0;font-size:14px;line-height:1.6;color:#8b8b94;">
+                      ${safeDisclaimer}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
+              </table>
+
+              <!-- Footer -->
+              <p style="margin:0 0 20px;text-align:center;font-size:15px;color:#a1a1aa;">
+                Build <span style="color:#ef4444;">smarter</span>. Get hired <span style="color:#ef4444;">faster</span>.
+              </p>
+              <p style="margin:0 0 18px;text-align:center;font-size:13px;color:#71717a;">&copy; 2026 WiseResume. All rights reserved.</p>
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
+}
+
+async function handleSendPasswordResetOtp({ req, res, log, error, body }) {
+  const locale = body?.locale === 'ar' ? 'ar' : 'en';
+  const email = (body?.email || '').trim().toLowerCase();
+  const clientIp = headerValue(req, body, ['x-forwarded-for', 'x-real-ip', 'client-ip']) || '127.0.0.1';
+  const userAgent = (headerValue(req, body, ['user-agent']) || '').slice(0, 512);
+
+  if (!email || !email.includes('@')) {
+    return json(res, { error: 'Valid email address required' }, 400);
+  }
+
+  let secret;
+  try {
+    secret = getOtpSecret();
+  } catch (err) {
+    error(`OTP configuration error: ${err.message}`);
+    return json(res, { error: 'Internal server configuration error' }, 500);
+  }
+
+  const apiKey = appwriteApiKey();
+  const adminClient = new sdk.Client()
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT_ID)
+    .setKey(apiKey);
+
+  const db = new sdk.Databases(adminClient);
+  const users = new sdk.Users(adminClient);
+
+  try {
+    const now = new Date();
+
+    // 1. Cooldown check (60 seconds)
+    const recentOtps = await db.listDocuments(DB_ID, 'password_reset_otps', [
+      sdk.Query.equal('email', email),
+      sdk.Query.greaterThan('created_at', new Date(Date.now() - 60000).toISOString()),
+      sdk.Query.equal('used', false),
+    ]);
+
+    if (recentOtps.total > 0) {
+      return json(res, { error: 'Please wait 60 seconds before requesting another code.' }, 429);
+    }
+
+    // 2. Check if user exists (silent exit for non-existing user)
+    let userExists = false;
+    try {
+      const userList = await users.list([sdk.Query.equal('email', email)]);
+      if (userList.total > 0) {
+        userExists = true;
+      }
+    } catch (usersErr) {
+      error(`Users list check failed: ${usersErr.message}`);
+    }
+
+    if (!userExists) {
+      // Timing parity: Perform a synthetic hash calculation and sleep
+      const dummyCode = '987654';
+      crypto.createHmac('sha256', secret).update(dummyCode).digest('hex');
+      await sleep(100);
+      log(`Password reset OTP requested for unregistered email: ${email} (silently bypassed)`);
+      return json(res, { success: true });
+    }
+
+    // 3. Revoke all old unused OTPs
+    const activeOtps = await db.listDocuments(DB_ID, 'password_reset_otps', [
+      sdk.Query.equal('email', email),
+      sdk.Query.equal('used', false),
+      sdk.Query.isNull('revoked_at'),
+    ]);
+
+    for (const doc of activeOtps.documents) {
+      await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+        revoked_at: now.toISOString(),
+      });
+    }
+
+    // 4. Generate 6-digit OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = crypto.createHmac('sha256', secret).update(otpCode).digest('hex');
+
+    // 5. Store OTP document (with clientIp and sanitized userAgent)
+    await db.createDocument(DB_ID, 'password_reset_otps', sdk.ID.unique(), {
+      email,
+      otp_hash: otpHash,
+      purpose: 'password_reset',
+      attempts: 0,
+      max_attempts: 5,
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      used: false,
+      created_at: now.toISOString(),
+      request_ip: clientIp.slice(0, 64),
+      device_metadata: userAgent,
+    });
+
+    // 6. Send OTP email via Resend
+    await resendSend({
+      to: email,
+      subject: locale === 'ar' ? 'رمز التحقق لإعادة تعيين كلمة المرور' : 'Password Reset Verification Code',
+      html: passwordResetOtpEmail(otpCode, locale),
+    });
+
+    log(`Password reset OTP sent to ${email}`);
+    return json(res, { success: true });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`send-password-reset-otp failed: ${msg}`);
+    return json(res, { error: 'Failed to send password reset code.' }, 500);
+  }
+}
+
+async function handleVerifyPasswordResetOtp({ req, res, log, error, body }) {
+  const email = (body?.email || '').trim().toLowerCase();
+  const otp = (body?.otp || '').trim();
+
+  if (!email || !otp) {
+    return json(res, { error: 'Email and OTP code are required' }, 400);
+  }
+
+  let secret;
+  try {
+    secret = getOtpSecret();
+  } catch (err) {
+    error(`OTP configuration error: ${err.message}`);
+    return json(res, { error: 'Internal server error' }, 500);
+  }
+
+  const apiKey = appwriteApiKey();
+  const adminClient = new sdk.Client()
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT_ID)
+    .setKey(apiKey);
+
+  const db = new sdk.Databases(adminClient);
+
+  try {
+    const now = new Date().toISOString();
+
+    const otps = await db.listDocuments(DB_ID, 'password_reset_otps', [
+      sdk.Query.equal('email', email),
+      sdk.Query.equal('used', false),
+      sdk.Query.isNull('revoked_at'),
+      sdk.Query.greaterThan('expires_at', now),
+      sdk.Query.orderDesc('created_at'),
+      sdk.Query.limit(1),
+    ]);
+
+    if (otps.total === 0) {
+      return json(res, { error: 'Invalid or expired code.' }, 400);
+    }
+
+    const doc = otps.documents[0];
+
+    let attempts = doc.attempts;
+    if (attempts >= doc.max_attempts) {
+      await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+        revoked_at: new Date().toISOString(),
+      });
+      return json(res, { error: 'Too many failed attempts. Please request a new code.' }, 400);
+    }
+
+    attempts += 1;
+    await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, { attempts });
+
+    if (attempts >= doc.max_attempts) {
+      await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+        revoked_at: new Date().toISOString(),
+      });
+    }
+
+    // Timing-safe check
+    const inputHash = crypto.createHmac('sha256', secret).update(otp).digest('hex');
+    const inputBuffer = Buffer.from(inputHash);
+    const storedBuffer = Buffer.from(doc.otp_hash);
+    const isMatch = inputBuffer.length === storedBuffer.length && crypto.timingSafeEqual(inputBuffer, storedBuffer);
+
+    if (!isMatch) {
+      return json(res, { error: 'Invalid code.' }, 400);
+    }
+
+    // OTP correct! Generate challenge token & save challenge_token_hash
+    const rawChallengeToken = crypto.randomBytes(32).toString('hex');
+    const challengeTokenHash = crypto.createHmac('sha256', secret).update(rawChallengeToken).digest('hex');
+
+    await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+      challenge_token_hash: challengeTokenHash,
+      challenge_expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    });
+
+    log(`OTP verified successfully for ${email}. Challenge generated.`);
+    return json(res, { success: true, challengeToken: rawChallengeToken });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`verify-password-reset-otp failed: ${msg}`);
+    return json(res, { error: 'Verification failed.' }, 500);
+  }
+}
+
+async function handleCompletePasswordReset({ res, log, error, body }) {
+  const email = (body?.email || '').trim().toLowerCase();
+  const challengeToken = (body?.challengeToken || '').trim();
+  const password = body?.password;
+
+  if (!email || !challengeToken || !password) {
+    return json(res, { error: 'Email, challenge token, and new password are required' }, 400);
+  }
+
+  if (password.length < 8) {
+    return json(res, { error: 'Password must be at least 8 characters long.' }, 400);
+  }
+
+  let secret;
+  try {
+    secret = getOtpSecret();
+  } catch (err) {
+    error(`OTP configuration error: ${err.message}`);
+    return json(res, { error: 'Internal server error' }, 500);
+  }
+
+  const apiKey = appwriteApiKey();
+  const adminClient = new sdk.Client()
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT_ID)
+    .setKey(apiKey);
+
+  const db = new sdk.Databases(adminClient);
+  const users = new sdk.Users(adminClient);
+
+  try {
+    const now = new Date().toISOString();
+    const challengeTokenHash = crypto.createHmac('sha256', secret).update(challengeToken).digest('hex');
+
+    const otps = await db.listDocuments(DB_ID, 'password_reset_otps', [
+      sdk.Query.equal('email', email),
+      sdk.Query.equal('challenge_token_hash', challengeTokenHash),
+      sdk.Query.equal('used', false),
+      sdk.Query.isNull('revoked_at'),
+      sdk.Query.greaterThan('challenge_expires_at', now),
+    ]);
+
+    if (otps.total === 0) {
+      return json(res, { error: 'Invalid or expired reset challenge. Please request a new code.' }, 400);
+    }
+
+    const doc = otps.documents[0];
+
+    // timing-safe challenge comparison
+    const challengeBuffer = Buffer.from(challengeTokenHash);
+    const storedChallengeBuffer = Buffer.from(doc.challenge_token_hash);
+    const isChallengeMatch = challengeBuffer.length === storedChallengeBuffer.length && crypto.timingSafeEqual(challengeBuffer, storedChallengeBuffer);
+
+    if (!isChallengeMatch) {
+      return json(res, { error: 'Security verification failed.' }, 400);
+    }
+
+    // Look up user ID and update password
+    const userList = await users.list([sdk.Query.equal('email', email)]);
+    if (userList.total === 0) {
+      return json(res, { error: 'User account not found.' }, 404);
+    }
+
+    const appwriteUser = userList.users[0];
+    await users.updatePassword(appwriteUser.$id, password);
+
+    // Consume challenge & mark used
+    await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+      used: true,
+      used_at: new Date().toISOString(),
+      challenge_token_hash: '', // clear challenge hash to prevent reuse
+    });
+
+    // Send email alert
+    try {
+      await resendSend({
+        to: email,
+        subject: body?.locale === 'ar' ? 'تم تغيير كلمة المرور' : 'Password changed',
+        html: passwordChangedEmail(appwriteUser.name, body?.locale),
+      });
+    } catch (emailErr) {
+      error(`Failed to send password-changed email to ${email}: ${emailErr.message}`);
+    }
+
+    log(`Password reset completed successfully for user ID ${appwriteUser.$id} (${email})`);
+    return json(res, { success: true });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`reset-password-with-otp failed: ${msg}`);
+    return json(res, { error: 'Failed to reset password.' }, 500);
+  }
+}
+
 module.exports = async ({ req, res, log, error }) => {
   if (req.method !== 'POST') {
     return json(res, { error: 'Method not allowed' }, 405);
@@ -1002,6 +1359,15 @@ module.exports = async ({ req, res, log, error }) => {
 
     case 'send-password-reset':
       return handleSendPasswordReset({ req, res, log, error, body });
+
+    case 'send-password-reset-otp':
+      return handleSendPasswordResetOtp({ req, res, log, error, body });
+
+    case 'verify-password-reset-otp':
+      return handleVerifyPasswordResetOtp({ req, res, log, error, body });
+
+    case 'reset-password-with-otp':
+      return handleCompletePasswordReset({ res, log, error, body });
 
     case 'send-welcome':
       return handleSendWelcome({ req, res, log, error, body });

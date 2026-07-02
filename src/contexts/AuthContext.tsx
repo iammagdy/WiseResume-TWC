@@ -26,7 +26,7 @@ export interface AppUser {
 export interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  signOut: (redirectPath?: string) => Promise<void>;
   refreshSession: () => Promise<AppUser | null>;
   isAuthenticated: boolean;
   isImpersonating: boolean;
@@ -160,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, queryClient]);
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (redirectPath?: string) => {
     logAudit('auth', 'signed_out');
     queryClient.clear();
     clearAllPersistedCaches();
@@ -175,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await appwriteAccount.deleteSession('current');
     } catch (e) {}
-    window.location.replace('/');
+    window.location.replace(redirectPath || '/');
   }, [queryClient, persistSessionUser]);
 
   const authSettled = sessionValidated && !appwriteLoading;
