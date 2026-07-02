@@ -216,6 +216,7 @@ jobs:
           JINA_READER_API_KEY: ${{ secrets.JINA_READER_API_KEY }}
           JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
           PORTFOLIO_JWT_SECRET: ${{ secrets.PORTFOLIO_JWT_SECRET }}
+          PASSWORD_RESET_OTP_SECRET: ${{ secrets.PASSWORD_RESET_OTP_SECRET }}
           HUB_TARGET: ${{ github.event.inputs.target || 'all' }}
         run: |
           if [ "${HUB_TARGET}" = "all" ]; then
