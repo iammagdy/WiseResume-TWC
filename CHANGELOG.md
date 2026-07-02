@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-02 - Enforce English-default application localization
+
+- **Locale resolution** (`src/i18n/core.ts`): removed browser-language auto-selection. Locale precedence is now `/ar` route, explicit account preference, explicit persisted preference, then English.
+- **Fallback safety** (`translate`): English calls no longer render Arabic caller fallbacks when an English catalog key is missing; missing copy resolves to a safe caller fallback or the key.
+- **Catalog completion** (`locales/en/app.json`, `locales/en/wisehire.json`): added English copy for Upload, Portfolio, saved jobs, workspace navigation, application tracking, Import Job, validation, and toast/error surfaces. Arabic parity entries preserve explicit Arabic mode.
+- **Raw copy cleanup** (`UploadPage`, `ApplicationsPage`, `ImportJobSheet`, `AppWorkspaceTopBar`): replaced unguarded Arabic UI copy and repaired Profile/Templates page titles.
+- **Locale-aware dates** (`TailoringHubLanding`): dates now use the application locale instead of the browser locale.
+- **Regression coverage**: added static English-catalog coverage, critical-surface checks, locale precedence/fallback tests, and Tailoring Hub date tests.
+- **Production verification**: an `ar-AE` browser without a saved choice defaulted to English/LTR. Ten authenticated English routes showed zero app-owned Arabic copy. Vercel deployment `dpl_DBgj7huV93ctRSDHq3dUWz7i2e1b` reached `READY`.
+- **Infrastructure**: no backend, Appwrite, auth, AI, payment, schema, or permission changes.
+
 ## 2026-07-02 - Complete final file evidence and repair native PDF layout
 
 - **Native PDF pagination** (`api/export/pdf-native.ts`, `server/index.ts`): stopped treating the full-page layout sentinel as trimmed content height, preventing footer-only second pages on short resumes.

@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-07-02
 
+## English sessions now stay completely English (2026-07-02)
+
+**What was the situation:** Some English pages, messages, and dates could appear in Arabic because the app followed the browser language or used Arabic text when an English phrase was missing.
+
+**What changed:** English is now the default unless someone explicitly chooses Arabic or opens an Arabic public page. Missing English phrases can no longer silently fall back to Arabic, and dates follow the language selected inside WiseResume.
+
+**What you'll notice:** Upload, Portfolio, saved jobs, workspace titles, notifications, settings, applications, and tailoring history remain English throughout an English session. Arabic resumes and other text written by the user are still shown exactly as written. No account, payment, artificial-intelligence, or backend behavior changed.
+
 ## Final upload and download checks are complete (2026-07-02)
 
 **What was the situation:** The previous browser could not attach local resume files or prove that downloaded files really existed. The stronger file check then found that short PDFs could gain an empty footer page and that a wide resume design could lose text at the right edge.

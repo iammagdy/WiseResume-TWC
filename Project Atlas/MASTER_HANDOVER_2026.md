@@ -2,6 +2,26 @@
 
 ---
 
+## Session Log - 2026-07-02 (English-default localization hardening)
+
+### Outcome
+- Repaired a P1 localization leak where English sessions could show Arabic page copy, toasts, validation messages, and browser-localized dates.
+- English is now the default. Arabic remains available only through `/ar`, an explicit account preference, or an explicit saved local preference.
+- Browser language no longer changes the default application language.
+
+### Production evidence
+- An `ar-AE` browser with no saved locale opened English/LTR with no Arabic UI.
+- Upload, Portfolio, Profile, Templates, Applications, Notifications, Settings, Dashboard, Tailoring Hub, and the new resignation-letter page passed in an authenticated English session.
+- User-authored Arabic resume titles remained unchanged and were excluded from app-copy findings.
+- Production deployment `dpl_DBgj7huV93ctRSDHq3dUWz7i2e1b` for commit `2de4a91a` reached `READY`.
+
+### Validation and infrastructure
+- Localization/affected tests, catalog checks, TypeScript, production build, and whitespace validation passed.
+- No backend, Appwrite, schema, permission, auth, AI, or payment deployment is needed.
+- Detailed report: `Project Atlas/QA Reports/WiseResume_English_Default_Localization_QA_2026-07-02.md`.
+
+---
+
 ## Session Log - 2026-07-02 (Final launch evidence QA)
 
 ### Outcome

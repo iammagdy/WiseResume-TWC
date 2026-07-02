@@ -1,5 +1,14 @@
 # Project Atlas Changelog
 
+## 2026-07-02 - English-default localization hardening
+
+- Made English the default independently of browser language while preserving explicit Arabic preferences and `/ar` routes.
+- Prevented missing English translation keys from displaying Arabic fallback copy.
+- Completed English copy for Upload, Portfolio, saved jobs, workspace navigation, Applications, Import Job, and related messages.
+- Fixed Tailoring Hub dates that inherited the browser's Arabic locale during an English session.
+- Production verification passed ten authenticated routes plus an Arabic-preference clean browser default check.
+- No backend or Appwrite deployment was required.
+
 ## 2026-07-02 - Final launch evidence and PDF export repairs
 
 - Completed fresh production PDF/DOCX upload parsing and captured real Designed PDF, ATS PDF, and DOCX downloads.
