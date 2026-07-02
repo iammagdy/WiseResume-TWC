@@ -8,7 +8,10 @@ import { getPageTitle } from '@/lib/pageTitles';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useLocale } from '@/i18n/LocaleProvider';
-import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { useUnreadNotificationCount, useNotifications, useNotificationMutations, type Notification } from '@/hooks/useNotifications';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Eye, Heart, Mail, Settings } from 'lucide-react';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 
 interface AppWorkspaceTopBarProps {
   onImportJob: () => void;
@@ -25,6 +28,9 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
   const { plan, isLoading: planLoading } = usePlan();
   const navigate = useNavigate();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const { data: notifications = [], isLoading: isLoadingNotifs } = useNotifications();
+  const { markAsRead } = useNotificationMutations();
+  const recentNotifs = notifications.slice(0, 5);
 
   const pageTitle = getPageTitle(pathname) ?? 'WiseResume';
   const showPlanBadge = !planLoading && (plan === 'premium' || plan === 'pro');
@@ -154,7 +160,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
             <span className="md:hidden font-semibold text-primary">{t('app.topBar.wiseAIShort', 'المساعد')}</span>
           </button>
 
-          {/* PORT-NOTIF-09: Bell icon — navigates to /notifications, shows dot badge when unread > 0 */}
+          {/* Mobile Bell: navigates directly */}
           <button
             type="button"
             onClick={() => {
@@ -162,7 +168,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               navigate('/notifications');
             }}
             className={cn(
-              'relative inline-flex items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
+              'relative inline-flex md:hidden items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
               'text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation',
             )}
             aria-label={t('app.topBar.notifications', 'Notifications')}
@@ -175,6 +181,100 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               />
             )}
           </button>
+
+          {/* Desktop Bell: opens popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                }}
+                className={cn(
+                  'relative hidden md:inline-flex items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
+                  'text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation',
+                )}
+                aria-label={t('app.topBar.notifications', 'Notifications')}
+              >
+                <Bell className="w-4 h-4" aria-hidden />
+                {(unreadCount ?? 0) > 0 && (
+                  <span
+                    className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-primary"
+                    aria-label={`${unreadCount} unread`}
+                  />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0 overflow-hidden border border-border bg-popover text-popover-foreground shadow-soft-lg rounded-xl z-50" align="end" sideOffset={8}>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
+                <span className="text-sm font-semibold text-foreground">{t('app.notifications', 'Notifications')}</span>
+                {unreadCount > 0 && (
+                  <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    {unreadCount} {t('app.notifications.unread', 'unread')}
+                  </span>
+                )}
+              </div>
+              <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
+                {isLoadingNotifs ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    {t('common.loading', 'Loading...')}
+                  </div>
+                ) : recentNotifs.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
+                    <Bell className="w-8 h-8 text-muted-foreground/30" />
+                    <span>{t('app.notificationsPage.empty.title', 'No notifications')}</span>
+                  </div>
+                ) : (
+                  recentNotifs.map(n => {
+                    const iconBg = n.type === 'portfolio_visit' ? 'bg-blue-500/15 text-blue-500' :
+                                   n.type === 'portfolio_interest' ? 'bg-rose-500/15 text-rose-500' :
+                                   n.type === 'portfolio_message' ? 'bg-emerald-500/15 text-emerald-500' :
+                                   'bg-muted text-muted-foreground';
+                    const icon = n.type === 'portfolio_visit' ? <Eye className="w-3.5 h-3.5" /> :
+                                 n.type === 'portfolio_interest' ? <Heart className="w-3.5 h-3.5" /> :
+                                 n.type === 'portfolio_message' ? <Mail className="w-3.5 h-3.5" /> :
+                                 <Settings className="w-3.5 h-3.5" />;
+                    return (
+                      <div
+                        key={n.$id}
+                        onClick={() => {
+                          if (!n.is_read) markAsRead.mutate(n.$id);
+                          if (n.link) navigate(n.link);
+                        }}
+                        className={cn(
+                          'p-3 flex items-start gap-2.5 cursor-pointer hover:bg-muted/50 transition-colors text-left',
+                          !n.is_read ? 'bg-primary/[0.02]' : 'opacity-70'
+                        )}
+                      >
+                        <div className={cn('w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5', iconBg)}>
+                          {icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn('text-xs font-semibold truncate', !n.is_read ? 'text-foreground' : 'text-muted-foreground')}>{n.title}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{n.message}</p>
+                          <p className="text-[9px] text-muted-foreground/80 mt-1">
+                            {safeFormatDistanceToNow(n.$createdAt, { addSuffix: true }, t('app.notificationsPage.groups.recently', 'just now'))}
+                          </p>
+                        </div>
+                        {!n.is_read && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-2" />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="p-2 border-t border-border bg-muted/10 text-center">
+                <button
+                  type="button"
+                  onClick={() => navigate('/notifications')}
+                  className="w-full text-xs font-semibold text-primary hover:underline py-1.5"
+                >
+                  {t('app.notifications.viewAll', 'All notifications')}
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <span className="w-px h-6 bg-border/60 hidden sm:block" aria-hidden />
 

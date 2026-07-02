@@ -465,6 +465,60 @@ function buildContactEmailHtml({ senderName, senderEmail, msgType, msgBody, meta
   <p style="margin:12px 0 0;font-size:12px;color:#64748b">From: ${escapeHtml(senderName || senderEmail || 'unknown')}</p>
 </div>`.trim();
     }
+    if (msgType === 'portfolio_contact') {
+      const portfolioUsername = asString(meta.portfolio_username);
+      return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>New portfolio message</title>
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div style="background:#9E1B22;padding:24px 32px;text-align:center;">
+      <span style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">WiseResume</span>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#111827;font-weight:700;">New Portfolio Message</h2>
+      <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
+        You received a new message through your public portfolio page${portfolioUsername ? ` (<strong>${escapeHtml(portfolioUsername)}</strong>)` : ''}.
+      </p>
+      
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin-bottom:24px;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+          <tr>
+            <td style="padding:4px 0;font-weight:600;color:#4b5563;width:120px;vertical-align:top;">Sender Name:</td>
+            <td style="padding:4px 0;color:#111827;">${escapeHtml(senderName || meta.visitor_name || 'Anonymous visitor')}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;font-weight:600;color:#4b5563;vertical-align:top;">Sender Email:</td>
+            <td style="padding:4px 0;color:#111827;">
+              <a href="mailto:${escapeHtml(senderEmail)}" style="color:#9E1B22;text-decoration:none;">${escapeHtml(senderEmail)}</a>
+            </td>
+          </tr>
+        </table>
+        
+        <div style="border-top:1px solid #e5e7eb;padding-top:16px;">
+          <p style="margin:0 0 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Message:</p>
+          <div style="color:#374151;line-height:1.6;font-size:14px;white-space:pre-wrap;">${escapeHtml(msgBody)}</div>
+        </div>
+      </div>
+      
+      <div style="text-align:center;margin:32px 0 16px;">
+        <a href="https://wiseresume.app/notifications" style="display:inline-block;background:#9E1B22;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;box-shadow:0 2px 4px rgba(158,27,34,0.2);">
+          View In-App Notifications
+        </a>
+      </div>
+    </div>
+    <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center;">
+      This email was sent by WiseResume. Cloudflare Turnstile secured the visitor submission.
+    </div>
+  </div>
+</body>
+</html>
+`.trim();
+    }
     const lines = [];
     if (senderName) lines.push(`<p><strong>From:</strong> ${escapeHtml(senderName)} &lt;${escapeHtml(senderEmail)}&gt;</p>`);
     else if (senderEmail) lines.push(`<p><strong>From:</strong> ${escapeHtml(senderEmail)}</p>`);
