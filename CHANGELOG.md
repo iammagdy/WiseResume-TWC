@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-02 - Complete final file evidence and repair native PDF layout
+
+- **Native PDF pagination** (`api/export/pdf-native.ts`, `server/index.ts`): stopped treating the full-page layout sentinel as trimmed content height, preventing footer-only second pages on short resumes.
+- **Fixed-width template export** (`src/lib/exportDomUtils.ts`): fit cloned descendants that match the source template width to the native PDF canvas, preventing horizontal text clipping when an 816px template is exported at 612px.
+- **Regression coverage** (`pdfNativeTrimmedHeight.test.ts`, `exportDomUtils.test.ts`): locked both failure modes with focused tests.
+- **Production evidence**: fresh PDF and DOCX uploads parsed successfully; Designed PDF (28,441 bytes), ATS PDF (29,165 bytes), and DOCX (8,277 bytes) were captured from real browser downloads. Both PDFs are one visually complete page and the DOCX is a valid 20-entry package.
+- **Deployment**: Vercel production deployment `dpl_65gKMajyQgySLU81CRCugoC9trHZ` for commit `8a0be13f` reached `READY` and was reverified at `wiseresume.app`.
+- **Readiness**: final verdict `LAUNCH_READY`; automated contact submission remains unproven because Turnstile rejected the automation environment while the UI failed closed with clear guidance.
+
 ## 2026-07-02 - Repair Tailoring history and honest Arabic public content
 
 - **Tailoring persistence** (`TailoringHubPage`, `useCombinedTailorHistory`, `TailoringHubResultPage`, `tailoringResumeMetadata`): removed the unauthorized browser write to the server-only `tailor_history` collection, persisted compact lineage/result metadata in the tailored resume customization field, synthesized cross-device history from resume documents, and retained legacy history as a read fallback.

@@ -1,5 +1,14 @@
 # Project Atlas Changelog
 
+## 2026-07-02 - Final launch evidence and PDF export repairs
+
+- Completed fresh production PDF/DOCX upload parsing and captured real Designed PDF, ATS PDF, and DOCX downloads.
+- Fixed a footer-only second PDF page caused by using the full-page layout sentinel as content height.
+- Fixed horizontal PDF text clipping by fitting fixed-width template descendants to the native export canvas.
+- Reverified production after deployment: both PDFs are one-page and visually complete; the DOCX is a valid 20-entry package.
+- The portfolio contact form failed closed when Turnstile rejected the automated environment; no message was sent and sampled private fields were absent from the public DOM.
+- Final verdict: `LAUNCH_READY` with a human-browser contact challenge completion retained as a non-blocking follow-up.
+
 ## 2026-07-02 - Fresh credentialed E2E QA follow-up
 
 - Passed fresh login/logout/re-login, failed-login feedback, and refresh persistence.

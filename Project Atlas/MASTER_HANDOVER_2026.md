@@ -2,6 +2,31 @@
 
 ---
 
+## Session Log - 2026-07-02 (Final launch evidence QA)
+
+### Outcome
+- Verdict: `LAUNCH_READY`.
+- Fresh production PDF and DOCX uploads parsed into the editor with explicit review guidance.
+- Fresh Designed PDF, ATS PDF, and DOCX downloads were captured as real files and validated structurally; both PDFs were rendered and visually inspected.
+- Two export defects discovered by the evidence run were fixed: a footer-only second page (P2) and fixed-width horizontal text clipping (P1).
+
+### Production evidence
+- Designed PDF: 28,441 bytes, one valid and visually complete page.
+- ATS PDF: 29,165 bytes, one valid and visually complete page.
+- DOCX: 8,277 bytes, valid 20-entry Office package with no corrupt entry.
+- Production deployment `dpl_65gKMajyQgySLU81CRCugoC9trHZ` for commit `8a0be13f` reached `READY` and served the corrected files from `wiseresume.app`.
+
+### Contact-form limitation
+- The public form accepted disposable values but Cloudflare Turnstile rejected the automated environment. The app failed closed, kept Send disabled, and showed clear recovery guidance.
+- No contact message was sent. No owner email, `user_id`, password hash, portfolio settings, or checked private field appeared in the public DOM.
+
+### Validation
+- TypeScript and production build passed after the fixes.
+- Focused export regression tests and whitespace validation passed.
+- Detailed report: `Project Atlas/QA Reports/WiseResume_Final_Launch_Evidence_QA_2026-07-02.md`.
+
+---
+
 ## Session Log - 2026-07-02 (Credentialed E2E remediation)
 
 ### Outcome

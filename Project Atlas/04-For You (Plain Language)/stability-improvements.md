@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-07-02
 
+## Final upload and download checks are complete (2026-07-02)
+
+**What was the situation:** The previous browser could not attach local resume files or prove that downloaded files really existed. The stronger file check then found that short PDFs could gain an empty footer page and that a wide resume design could lose text at the right edge.
+
+**What changed:** PDF and Word resumes were uploaded through a real file input and their imported content was checked in the editor. The PDF service now measures only actual content and fits wide designs to the export page before generating the file.
+
+**What was verified:** Fresh Designed PDF, ATS PDF, and Word files were saved from the live website. Both PDFs are one complete page with the full summary visible, and the Word file opens as a valid document package. The public contact form also protected the user correctly when its anti-bot check rejected automation: it kept Send disabled and showed recovery guidance. The final recommendation is `LAUNCH_READY`.
+
 ## Tailoring history and Arabic public pages now fail honestly and recover safely (2026-07-02)
 
 **What was the situation:** A successful tailoring run warned that its history could not be saved, while Arabic guide and example pages displayed English content in a right-to-left layout.
