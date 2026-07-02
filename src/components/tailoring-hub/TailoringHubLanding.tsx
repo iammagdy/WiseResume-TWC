@@ -20,6 +20,7 @@ import { isTailoredResume } from '@/lib/resumeLineage';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useLocale } from '@/i18n/LocaleProvider';
+import type { SupportedLocale } from '@/i18n/core';
 
 interface TailoringHubLandingProps {
   persistedTailoredIds: Set<string>;
@@ -28,9 +29,13 @@ interface TailoringHubLandingProps {
   onSelectSavedJob: (job: Job) => void;
 }
 
-function formatDate(iso: string): string {
+export function formatTailoringHubDate(iso: string, locale: SupportedLocale): string {
   try {
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(iso).toLocaleDateString(locale === 'ar' ? 'ar' : 'en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   } catch {
     return '';
   }
@@ -69,7 +74,7 @@ function HubStatCard({
   );
 }
 
-function SavedJobRow({ job, onClick }: { job: Job; onClick: () => void }) {
+function SavedJobRow({ job, locale, onClick }: { job: Job; locale: SupportedLocale; onClick: () => void }) {
   return (
     <button type="button" className="th-hub-list-item" onClick={onClick}>
       <span className="th-hub-list-item__icon">
@@ -79,7 +84,7 @@ function SavedJobRow({ job, onClick }: { job: Job; onClick: () => void }) {
         <span className="block text-sm font-semibold text-foreground truncate">{job.title}</span>
         <span className="block text-xs text-muted-foreground truncate">
           {job.company}
-          {job.created_at ? ` · ${formatDate(job.created_at)}` : ''}
+          {job.created_at ? ` · ${formatTailoringHubDate(job.created_at, locale)}` : ''}
         </span>
       </span>
       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden />
@@ -121,10 +126,12 @@ function HistoryRow({
 function TailoredCvRow({
   resume,
   jobLabel,
+  locale,
   onClick,
 }: {
   resume: DatabaseResume;
   jobLabel: string;
+  locale: SupportedLocale;
   onClick: () => void;
 }) {
   return (
@@ -136,7 +143,7 @@ function TailoredCvRow({
         <span className="block text-sm font-semibold text-foreground truncate">{resume.title}</span>
         <span className="block text-xs text-muted-foreground truncate">
           {jobLabel}
-          {resume.$updatedAt ? ` · ${formatDate(resume.$updatedAt)}` : ''}
+          {resume.$updatedAt ? ` · ${formatTailoringHubDate(resume.$updatedAt, locale)}` : ''}
         </span>
       </span>
       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden />
@@ -150,7 +157,7 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
   onImportJob,
   onSelectSavedJob,
 }: TailoringHubLandingProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const navigate = useNavigate();
   const { data: jobs = [], isLoading: jobsLoading, isFetched: jobsFetched } = useJobs();
   const showSavedJobsEmpty = jobsFetched && !jobsLoading && jobs.length === 0;
@@ -259,6 +266,7 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
                   <SavedJobRow
                     key={job.id}
                     job={job}
+                    locale={locale}
                     onClick={() => {
                       haptics.selection();
                       onSelectSavedJob(job);
@@ -294,7 +302,7 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
                   <HistoryRow
                     key={entry.id}
                     title={entry.jobTitle}
-                    subtitle={`${entry.company}${entry.createdAt ? ` · ${formatDate(entry.createdAt)}` : ''}`}
+                    subtitle={`${entry.company}${entry.createdAt ? ` · ${formatTailoringHubDate(entry.createdAt, locale)}` : ''}`}
                     score={entry.scoreBeforeAfter?.after}
                     onClick={() => {
                       haptics.light();
@@ -348,6 +356,7 @@ export const TailoringHubLanding = memo(function TailoringHubLanding({
                     key={resume.$id}
                     resume={resume}
                     jobLabel={jobLabel}
+                    locale={locale}
                     onClick={() => {
                       haptics.light();
                       navigate(`/tailoring-hub/result/${resume.$id}`);
