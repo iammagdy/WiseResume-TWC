@@ -22,4 +22,22 @@ describe('cloneResumeTemplateElement', () => {
     expect(clone.style.width).toBe('612px');
     expect(clone.innerHTML).toContain('Summary');
   });
+
+  it('fits fixed-width page children to the PDF design width', () => {
+    const template = document.createElement('div');
+    template.style.width = '816px';
+    const page = document.createElement('article');
+    page.style.width = '816px';
+    page.textContent = 'A summary that must wrap instead of being clipped.';
+    template.appendChild(page);
+    Object.defineProperty(template, 'offsetWidth', { value: 816 });
+    Object.defineProperty(page, 'offsetWidth', { value: 816 });
+
+    const clone = cloneResumeTemplateElement(template, 612);
+    const clonedPage = clone.querySelector('article') as HTMLElement;
+
+    expect(clone.style.width).toBe('612px');
+    expect(clonedPage.style.width).toBe('612px');
+    expect(clonedPage.style.maxWidth).toBe('612px');
+  });
 });

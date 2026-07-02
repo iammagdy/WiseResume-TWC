@@ -22,6 +22,20 @@ export function cloneResumeTemplateElement(
   clone.querySelectorAll<HTMLElement>('[style*="opacity"], [style*="visibility"], [style*="transform"]').forEach(forcePdfVisible);
 
   const width = designWidth ?? (templateEl.offsetWidth || 612);
+  const sourceWidth = templateEl.offsetWidth || width;
+  if (sourceWidth > width + 1) {
+    const sourceNodes = Array.from(templateEl.querySelectorAll<HTMLElement>('*'));
+    const cloneNodes = Array.from(clone.querySelectorAll<HTMLElement>('*'));
+    sourceNodes.forEach((sourceNode, index) => {
+      if (Math.abs(sourceNode.offsetWidth - sourceWidth) > 1) return;
+      const cloneNode = cloneNodes[index];
+      if (!cloneNode) return;
+      cloneNode.style.width = `${width}px`;
+      cloneNode.style.maxWidth = `${width}px`;
+      cloneNode.style.minWidth = `${width}px`;
+      cloneNode.style.boxSizing = 'border-box';
+    });
+  }
   clone.style.width = `${width}px`;
   clone.style.maxWidth = `${width}px`;
   clone.style.minWidth = `${width}px`;
