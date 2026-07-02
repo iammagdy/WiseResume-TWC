@@ -227,12 +227,22 @@ export function AnalyticsPanel() {
 
   // Growth funnel data
   const funnelSteps = useMemo(() => {
-    const visitors = visitorData?.kpis?.totalVisits ?? data?.rangeKpis.views.current ?? 0;
-    const signups = data?.rangeKpis.signups.current ?? 0;
-    const resumeEvents = data?.topFeaturesRanged.find(f => f.name.includes('resume') || f.name.includes('editor'))?.count ?? 0;
-    const aiUsage = data?.rangeKpis.aiCredits.current ?? 0;
-    const tailorEvents = data?.topFeaturesRanged.find(f => f.name.includes('tailor'))?.count ?? 0;
-    const exportEvents = data?.topFeaturesRanged.find(f => f.name.includes('export') || f.name.includes('share'))?.count ?? 0;
+    if (!data?.rangeKpis) {
+      return [
+        { label: 'Visitors', count: visitorData?.kpis?.totalVisits ?? 0 },
+        { label: 'Signups', count: 0 },
+        { label: 'Created Resume', count: 0 },
+        { label: 'Used AI', count: 0 },
+        { label: 'Tailored', count: 0 },
+        { label: 'Exported/Shared', count: 0 },
+      ];
+    }
+    const visitors = visitorData?.kpis?.totalVisits ?? data.rangeKpis.views?.current ?? 0;
+    const signups = data.rangeKpis.signups?.current ?? 0;
+    const resumeEvents = data.topFeaturesRanged?.find(f => f.name.includes('resume') || f.name.includes('editor'))?.count ?? 0;
+    const aiUsage = data.rangeKpis.aiCredits?.current ?? 0;
+    const tailorEvents = data.topFeaturesRanged?.find(f => f.name.includes('tailor'))?.count ?? 0;
+    const exportEvents = data.topFeaturesRanged?.find(f => f.name.includes('export') || f.name.includes('share'))?.count ?? 0;
     return [
       { label: 'Visitors', count: visitors },
       { label: 'Signups', count: signups },
@@ -344,17 +354,17 @@ export function AnalyticsPanel() {
           <div className="rounded-xl border border-border bg-muted/20 p-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
               <span className="font-medium text-foreground">
-                {visitorData?.kpis?.totalVisits.toLocaleString() ?? data.rangeKpis.views.current.toLocaleString()}
+                {visitorData?.kpis?.totalVisits?.toLocaleString() ?? data?.rangeKpis?.views?.current?.toLocaleString() ?? '0'}
               </span>
               <span className="text-muted-foreground">visitor events</span>
               <span className="text-muted-foreground/40">·</span>
-              <span className="font-medium text-foreground">{data.rangeKpis.activeUsers.current?.toLocaleString() ?? 'Unavailable'}</span>
+              <span className="font-medium text-foreground">{data?.rangeKpis?.activeUsers?.current?.toLocaleString() ?? 'Unavailable'}</span>
               <span className="text-muted-foreground">active users</span>
               <span className="text-muted-foreground/40">·</span>
-              <span className="font-medium text-foreground">{data.rangeKpis.aiCredits.current.toLocaleString()}</span>
+              <span className="font-medium text-foreground">{data?.rangeKpis?.aiCredits?.current?.toLocaleString() ?? '0'}</span>
               <span className="text-muted-foreground">AI credits</span>
               <span className="text-muted-foreground/40">·</span>
-              <span className="font-medium text-foreground">{data.rangeKpis.portfolioViews.current.toLocaleString()}</span>
+              <span className="font-medium text-foreground">{data?.rangeKpis?.portfolioViews?.current?.toLocaleString() ?? '0'}</span>
               <span className="text-muted-foreground">portfolio views</span>
               {visitorData?.kpis?.topCountry && (
                 <>
@@ -381,34 +391,34 @@ export function AnalyticsPanel() {
               unavailable={!visitorData} sub="anonymous browsers · visitor_events" icon={Users} accent="green" hideDelta onClick={() => setSelectedMetric('visitors')}
             />
             <KpiCard
-              label="New signups" value={data.rangeKpis.signups.current?.toLocaleString() ?? ''}
-              unavailable={data.rangeKpis.signups.current == null} sub={`in ${rangeLabel[range]} · Appwrite Auth`} icon={Users} accent="green"
-              current={data.rangeKpis.signups.current} previous={data.rangeKpis.signups.previous} onClick={() => setSelectedMetric('signups')}
+              label="New signups" value={data?.rangeKpis?.signups?.current?.toLocaleString() ?? ''}
+              unavailable={data?.rangeKpis?.signups?.current == null} sub={`in ${rangeLabel[range]} · Appwrite Auth`} icon={Users} accent="green"
+              current={data?.rangeKpis?.signups?.current} previous={data?.rangeKpis?.signups?.previous} onClick={() => setSelectedMetric('signups')}
             />
             <KpiCard
-              label="Authenticated active users" value={data.rangeKpis.activeUsers.current?.toLocaleString() ?? ''}
-              unavailable={data.rangeKpis.activeUsers.current == null} sub={`in ${rangeLabel[range]} · visitor_events.user_id`}
+              label="Authenticated active users" value={data?.rangeKpis?.activeUsers?.current?.toLocaleString() ?? ''}
+              unavailable={data?.rangeKpis?.activeUsers?.current == null} sub={`in ${rangeLabel[range]} · visitor_events.user_id`}
               icon={Activity} accent="blue"
-              current={data.rangeKpis.activeUsers.current} previous={data.rangeKpis.activeUsers.previous}
+              current={data?.rangeKpis?.activeUsers?.current} previous={data?.rangeKpis?.activeUsers?.previous}
               hideDelta={!showDelta} onClick={() => setSelectedMetric('active-users')}
             />
             <KpiCard
-              label="Signup conversion" value={visitorData?.totals?.sessions && data.rangeKpis.signups.current != null ? `${Math.round((data.rangeKpis.signups.current / visitorData.totals.sessions) * 100)}%` : ''}
-              unavailable={!visitorData?.totals?.sessions || data.rangeKpis.signups.current == null} sub="signups / sessions" icon={TrendingUp} accent="rose" hideDelta onClick={() => setSelectedMetric('conversion')}
+              label="Signup conversion" value={visitorData?.totals?.sessions && data?.rangeKpis?.signups?.current != null ? `${Math.round((data.rangeKpis.signups.current / visitorData.totals.sessions) * 100)}%` : ''}
+              unavailable={!visitorData?.totals?.sessions || data?.rangeKpis?.signups?.current == null} sub="signups / sessions" icon={TrendingUp} accent="rose" hideDelta onClick={() => setSelectedMetric('conversion')}
             />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiCard label="DAU" value={data.rangeKpis.dau.toLocaleString()} sub="last 24h"
+            <KpiCard label="DAU" value={data?.rangeKpis?.dau?.toLocaleString() ?? '0'} sub="last 24h"
               icon={Activity} accent="blue" hideDelta />
-            <KpiCard label="WAU" value={data.rangeKpis.wau.toLocaleString()} sub="last 7 days"
+            <KpiCard label="WAU" value={data?.rangeKpis?.wau?.toLocaleString() ?? '0'} sub="last 7 days"
               icon={Users} accent="blue" hideDelta />
-            <KpiCard label="Stickiness" value={`${data.rangeKpis.stickiness}%`} sub="DAU / WAU"
+            <KpiCard label="Stickiness" value={data?.rangeKpis?.stickiness != null ? `${data.rangeKpis.stickiness}%` : '0%'} sub="DAU / WAU"
               icon={TrendingUp} accent="rose" hideDelta />
             <KpiCard
-              label="Portfolio views" value={data.rangeKpis.portfolioViews.current.toLocaleString()}
+              label="Portfolio views" value={data?.rangeKpis?.portfolioViews?.current?.toLocaleString() ?? '0'}
               sub={`vs previous ${rangeLabel[range]}`}
               icon={Eye} accent="purple"
-              current={data.rangeKpis.portfolioViews.current} previous={data.rangeKpis.portfolioViews.previous}
+              current={data?.rangeKpis?.portfolioViews?.current} previous={data?.rangeKpis?.portfolioViews?.previous}
               hideDelta={!showDelta}
             />
           </div>
@@ -450,14 +460,14 @@ export function AnalyticsPanel() {
           {/* D. Traffic & active users chart — full width */}
           <SectionCard
             title="Traffic & active users"
-            description={`Events and unique active users per ${data.bucket}, with 7-day rolling average where applicable.`}
+            description={`Events and unique active users per ${data?.bucket ?? 'day'}, with 7-day rolling average where applicable.`}
             icon={BarChart2}
           >
-            {data.activitySeries.length === 0 ? <EmptyState /> : (
+            {(data?.activitySeries ?? []).length === 0 ? <EmptyState /> : (
               <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={data.activitySeries.map((p, idx) => ({
+                <AreaChart data={(data.activitySeries ?? []).map((p, idx) => ({
                   ...p,
-                  rolling: data.dauRollingSeries[idx]?.value ?? p.users,
+                  rolling: (data.dauRollingSeries ?? [])[idx]?.value ?? p.users,
                   label: formatShortDate(p.date, data.bucket),
                 }))} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
                   <defs>
@@ -513,9 +523,9 @@ export function AnalyticsPanel() {
               description="UTC hour-of-day vs day-of-week. Darker = more events."
               icon={Calendar}
             >
-              {(visitorData?.heatmap ?? data.heatmap).flat().every(v => v === 0)
+              {(visitorData?.heatmap ?? data?.heatmap ?? []).flat().every(v => v === 0)
                 ? <EmptyState />
-                : <HeatmapDowHour matrix={visitorData?.heatmap ?? data.heatmap} />}
+                : <HeatmapDowHour matrix={visitorData?.heatmap ?? data?.heatmap ?? []} />}
             </SectionCard>
           </div>
 
@@ -560,9 +570,9 @@ export function AnalyticsPanel() {
               description="From registered user profiles (all-time)"
               icon={Globe}
             >
-              {data.countryRanking.length === 0
+              {(data?.countryRanking ?? []).length === 0
                 ? <EmptyState message="No profile country data yet" />
-                : <RankedList items={data.countryRanking.map(c => ({ name: formatUnknown(c.country), count: c.count }))} maxItems={8} />
+                : <RankedList items={(data.countryRanking ?? []).map(c => ({ name: formatUnknown(c.country), count: c.count }))} maxItems={8} />
               }
             </SectionCard>
 
@@ -581,22 +591,22 @@ export function AnalyticsPanel() {
           {/* G. AI usage section */}
           <SectionCard
             title="AI usage"
-            description={`Credits used: ${data.rangeKpis.aiCredits.current.toLocaleString()} · Most-used AI tools`}
+            description={`Credits used: ${data?.rangeKpis?.aiCredits?.current?.toLocaleString() ?? '0'} · Most-used AI tools`}
             icon={BrainCircuit}
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="text-center">
-                    <div className="text-xl font-bold text-foreground tabular-nums">{data.aiCreditsToday.toLocaleString()}</div>
+                    <div className="text-xl font-bold text-foreground tabular-nums">{data?.aiCreditsToday?.toLocaleString() ?? '0'}</div>
                     <div className="text-[10px] text-muted-foreground">Credits today</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl font-bold text-foreground tabular-nums">{data.aiCreditsYesterday.toLocaleString()}</div>
+                    <div className="text-xl font-bold text-foreground tabular-nums">{data?.aiCreditsYesterday?.toLocaleString() ?? '0'}</div>
                     <div className="text-[10px] text-muted-foreground">Yesterday</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl font-bold text-foreground tabular-nums">{data.rangeKpis.aiCredits.current.toLocaleString()}</div>
+                    <div className="text-xl font-bold text-foreground tabular-nums">{data?.rangeKpis?.aiCredits?.current?.toLocaleString() ?? '0'}</div>
                     <div className="text-[10px] text-muted-foreground">In range</div>
                   </div>
                 </div>

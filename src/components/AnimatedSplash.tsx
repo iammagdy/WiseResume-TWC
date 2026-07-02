@@ -66,7 +66,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
 
   useEffect(() => {
     if (window.location.pathname === '/editor') {
-      import('../pages/EditorPage');
+      import('../pages/EditorPage').catch(() => {});
     }
   }, []);
 

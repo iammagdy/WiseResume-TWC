@@ -34,6 +34,9 @@ export function initMonitoring(): void {
     environment: ENV,
     release: __APP_VERSION__,
     sendDefaultPii: false,
+    ignoreErrors: [
+      'Object Not Found Matching Id',
+    ],
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.browserProfilingIntegration(),

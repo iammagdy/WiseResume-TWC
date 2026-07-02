@@ -451,9 +451,9 @@ function PrefetchOnIdle() {
       return;
     }
     const prefetch = () => {
-      void import("./pages/DashboardPage");
-      void import("./pages/UploadPage");
-      void import("./pages/EditorPage");
+      import("./pages/DashboardPage").catch(() => {});
+      import("./pages/UploadPage").catch(() => {});
+      import("./pages/EditorPage").catch(() => {});
     };
     if (typeof requestIdleCallback !== 'undefined') {
       const id = requestIdleCallback(prefetch, { timeout: 4000 });

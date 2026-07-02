@@ -12,6 +12,7 @@ import triggerHaptic from '@/lib/haptics';
 // from the landing entry chunk and only fetched once the motion stage
 // chunk arrives.
 import { useEffect, useState, useRef, useCallback, startTransition, lazy, Suspense } from 'react';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -36,11 +37,11 @@ if (typeof window !== 'undefined') {
      warm-up, the motion stage only starts downloading once <Suspense>
      reads the lazy import, which adds an extra waterfall step between
      the LpFallback wallpaper and the hero painting. */
-  void import('@/components/landing/LandingMotionStage');
+  void import('@/components/landing/LandingMotionStage').catch(() => {});
   if (isWiseHire) {
-    void import('@/components/landing/wisehire/WiseHireHero');
+    void import('@/components/landing/wisehire/WiseHireHero').catch(() => {});
   } else {
-    void import('@/components/landing/WiseResumeContent');
+    void import('@/components/landing/WiseResumeContent').catch(() => {});
   }
 }
 
@@ -50,11 +51,11 @@ if (typeof window !== 'undefined') {
    landing entry chunk. The dialogs (WaitlistModal, QuickTailorSheet)
    are also lazy: they're invisible on first paint and only mount on
    user action. */
-const LandingMotionStage = lazy(() => import('@/components/landing/LandingMotionStage'));
-const WaitlistModal = lazy(() =>
+const LandingMotionStage = lazyWithRetry(() => import('@/components/landing/LandingMotionStage'));
+const WaitlistModal = lazyWithRetry(() =>
   import('@/components/landing/WaitlistModal').then((m) => ({ default: m.WaitlistModal }))
 );
-const QuickTailorSheet = lazy(() =>
+const QuickTailorSheet = lazyWithRetry(() =>
   import('@/components/landing/QuickTailorSheet').then((m) => ({ default: m.QuickTailorSheet }))
 );
 /* Task #15 (LCP fix): static hero shell rendered as the Suspense fallback
