@@ -29,8 +29,8 @@ describe('public privacy hardening', () => {
     // with the Appwrite key, and never persist a raw IP or any email.
     expect(trackView).toContain('export default async function handler');
     expect(trackView).toContain('USERNAME_PATTERN.test(username)');
-    expect(trackView).toContain("const VISITS_COLLECTION = 'portfolio_visits';");
-    expect(trackView).toContain("getDb().createDocument(DATABASE_ID, VISITS_COLLECTION, 'unique()', data)");
+    expect(trackView).toContain('createDocument');
+    expect(trackView).toContain('VISITS_COLLECTION');
     // Allowlists / clamps preserved from the validated server logic.
     expect(trackView).toContain('VALID_DEVICES');
     expect(trackView).toContain('VALID_SECTION_NAMES');

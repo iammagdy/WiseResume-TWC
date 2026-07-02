@@ -777,7 +777,11 @@
       "all": "All",
       "unread": "Unread",
       "applications": "Applications",
-      "system": "System"
+      "system": "System",
+      "visits": "Visits",
+      "interests": "Interests",
+      "messages": "Messages",
+      "ai": "AI / Resume"
     },
     "actions": {
       "readAll": "Read all",
@@ -788,7 +792,14 @@
     },
     "empty": {
       "title": "No notifications yet",
-      "description": "You're all caught up!"
+      "description": "You're all caught up!",
+      "all": "You're all caught up!",
+      "unread": "No unread notifications.",
+      "visits": "No portfolio visits yet. Share your portfolio link to start seeing visitors.",
+      "interests": "No one has shown interest yet.",
+      "messages": "No portfolio messages yet.",
+      "ai_resume": "No AI or resume events yet.",
+      "system": "No system notifications."
     },
     "groups": {
       "today": "Today",

@@ -8370,7 +8370,7 @@ The recovery work separated a frozen mixed session into scoped commits, protecte
 - Follow-up sweep still needed for lower-priority or secondary surfaces, including some AI/interview/editor/supporting components and a few non-critical product pages outside the recovered path.
 - Do not claim “full repo Arabic completion” until those remaining surfaces are audited and verified in-browser.
 
-## 2026-07-01 - Full i18n/export/RTL QA implementation
+## 2026-07-02 - Full i18n/export/RTL QA implementation
 
 - Product commit: `b21caf99` (`fix: harden exports and complete Arabic product flows`).
 - Public routing: English `/guides`, `/guides/:slug`, and `/examples` are public and shell-free; workspace routes remain protected.
@@ -8381,3 +8381,13 @@ The recovery work separated a frozen mixed session into scoped commits, protecte
 - Launch item: Arabic legal copy is `OWNER/LEGAL REVIEW NEEDED`. Technical completion is not blocked because Arabic legal routes no longer render English.
 - No Appwrite deployment or payment/destructive-account testing occurred.
 - Remaining gate before final completion: documentation commit, clean-tree check, safe sync/push to `main`, Vercel observation, then fresh-context live-domain route/i18n and real Designed PDF/ATS PDF/DOCX verification. If live export fails, return to the fix/test cycle and create separate product and documentation amendments.
+
+## 2026-07-02 - Fix Portfolio Contact and Notification flows
+
+- **Turnstile Error Recovery** (`PortfolioContactForm.tsx`): resolved the issue where verification gets stuck requiring a page refresh by adding a 6-second timeout watchdog that resets and recovers the Turnstile widget cleanly. Removed console debug statements.
+- **Notification Schema Fallback** (`ai-gateway`, `public-share`): implemented a link-retry fallback in the Appwrite function notifications helper. If the live database notifications collection schema is missing the `link` attribute, the creation retry automatically strips the attribute and writes the notification successfully, preventing silent delivery failures.
+- **Portfolio Visit Tracking Permissions** (`api/track-portfolio-view.ts`): reordered the tracking backend to resolve the owner user ID first, write the visit document with owner-only read permissions (`Permission.read(Role.user(ownerUserId))`), and trigger the `portfolio_visit` notification.
+- **Unread Badge & Notifications UI** (`AppWorkspaceTopBar.tsx`, `NotificationsPage.tsx`): added a Bell icon and unread indicator badge to the authenticated app top bar, wired 7 filter tabs (All, Unread, Visits, Interests, Messages, AI/Resume, System), and color-coded Lucide icons.
+- **i18n & Test Parity** (`locales/en/app.json`, `locales/ar/app.json`, `NotificationsPage.tsx`, `publicPrivacyHardening.test.ts`): translated all fallback notification tabs and empty state strings to Arabic, populated both localization catalogs, verified full key parity, and updated security unit test expectations to support owner-only read permissions.
+- **Validation**: `npx tsc --noEmit` passed, production build passed, 813 Vitest tests passed, hub syntax checks passed, and source hashes were regenerated.
+

@@ -303,7 +303,11 @@ async function verifyTurnstileToken(token, req) {
       params.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 },
     );
-    return { ok: result.data?.success === true };
+    const success = result.data?.success === true;
+    if (!success) {
+      console.warn('[turnstile] Verification failed. Response data:', JSON.stringify(result.data));
+    }
+    return { ok: success };
   } catch (err) {
     console.warn('[turnstile] verification error:', err?.message);
     return { ok: false };
@@ -315,27 +319,35 @@ async function verifyTurnstileToken(token, req) {
 // Uses a link-retry pattern: first attempt includes the `link` field; if Appwrite
 // returns an "Unknown attribute" error (the field is absent from the live schema),
 // the write is retried without `link` so the notification is not lost.
+// Explicitly sets document-level read, update, and delete permissions for the owner.
 // Never throws — all errors are caught and logged with sanitized codes only.
 async function createOwnerNotification(db, { user_id, type, title, message, link }) {
   const baseData = { user_id, type, title, message, is_read: false };
+  const permissions = [
+    sdk.Permission.read(sdk.Role.user(user_id)),
+    sdk.Permission.update(sdk.Role.user(user_id)),
+    sdk.Permission.delete(sdk.Role.user(user_id))
+  ];
   if (link) {
     try {
-      await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), { ...baseData, link });
+      await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), { ...baseData, link }, permissions);
+      console.log(`[notify] Owner notification created successfully (type=${type})`);
       return;
     } catch (e) {
       const isUnknownAttr = e?.code === 400 &&
         /unknown attribute|invalid attribute/i.test(e?.message ?? '');
       if (!isUnknownAttr) {
-        console.warn('[notify] owner notification write failed:', e?.code ?? 'unknown');
+        console.warn('[notify] Owner notification write failed:', e?.code ?? 'unknown', e?.message);
         return;
       }
-      console.warn('[notify] link attribute absent from notifications schema — retrying without link');
+      console.warn('[notify] Link attribute absent from notifications schema — retrying without link');
     }
   }
   try {
-    await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), baseData);
+    await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), baseData, permissions);
+    console.log(`[notify] Owner notification created successfully (no-link retry, type=${type})`);
   } catch (e) {
-    console.warn('[notify] owner notification write failed (no-link retry):', e?.code ?? 'unknown');
+    console.warn('[notify] Owner notification write failed (no-link retry):', e?.code ?? 'unknown', e?.message);
   }
 }
 

@@ -101,27 +101,35 @@ async function createVisitNotification(db: Databases, ownerUserId: string): Prom
     message: 'Someone viewed your public portfolio.',
     is_read: false,
   };
+  const permissions = [
+    Permission.read(Role.user(ownerUserId)),
+    Permission.update(Role.user(ownerUserId)),
+    Permission.delete(Role.user(ownerUserId)),
+  ];
   try {
     await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), {
       ...baseData,
       link: '/notifications',
-    });
+    }, permissions);
+    console.log(`[track-portfolio-view] Visit notification created for owner="${ownerUserId}"`);
     return;
   } catch (e) {
     const err = e as { code?: number; message?: string };
     const isUnknownAttr = err?.code === 400 &&
       /unknown attribute|invalid attribute/i.test(err?.message ?? '');
     if (!isUnknownAttr) {
-      console.error(`[track-portfolio-view] notification write failed (code: ${err?.code ?? 'unknown'})`);
+      console.error(`[track-portfolio-view] notification write failed (code: ${err?.code ?? 'unknown'}, message: ${err?.message})`);
       return;
     }
     console.warn('[track-portfolio-view] link attribute absent from notifications schema — retrying without link');
   }
   try {
-    await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), baseData);
+    await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), baseData, permissions);
+    console.log(`[track-portfolio-view] Visit notification created successfully (no-link retry, owner="${ownerUserId}")`);
   } catch (e) {
-    const code = (e as { code?: number })?.code ?? 'unknown';
-    console.error(`[track-portfolio-view] notification write failed no-link retry (code: ${code})`);
+    const code = (e as { code?: number; message?: string })?.code ?? 'unknown';
+    const msg = (e as { message?: string })?.message ?? '';
+    console.error(`[track-portfolio-view] notification write failed no-link retry (code: ${code}, message: ${msg})`);
   }
 }
 

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 declare global {
@@ -25,9 +26,9 @@ type FormStatus = 'idle' | 'sending' | 'success' | 'error';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_MESSAGE_LENGTH = 4;
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 export function PortfolioContactForm({ username, accentColor, ownerName }: PortfolioContactFormProps) {
+  const TURNSTILE_SITE_KEY = (import.meta.env as any)['VITE_TURNSTILE_SITE_KEY'] as string | undefined;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -55,9 +56,8 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       return `Message must be at least ${MIN_MESSAGE_LENGTH} characters.`;
     }
     if (TURNSTILE_SITE_KEY && !turnstileToken) {
-      if (turnstileStatus === 'error') return 'Security check failed to load. Refresh the page and try again.';
-      if (turnstileStatus === 'loading') return 'Complete the security check below.';
-      return 'Complete the security check below.';
+      if (turnstileStatus === 'error') return 'Security check failed. Please click retry.';
+      return 'Checking security…';
     }
     return null;
   }, [status, name, email, message, turnstileToken, turnstileStatus]);
@@ -73,14 +73,17 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         callback: (token: string) => {
           setTurnstileToken(token);
           setTurnstileStatus('ready');
+          setErrorMsg('');
         },
         'expired-callback': () => {
           setTurnstileToken(null);
           setTurnstileStatus('loading');
+          setErrorMsg('Security check expired. Please verify again.');
         },
         'error-callback': () => {
           setTurnstileToken(null);
           setTurnstileStatus('error');
+          setErrorMsg('Security check failed. Please click retry.');
         },
       });
       setTurnstileStatus('loading');
@@ -139,11 +142,12 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         const friendlyMsg = msg.includes('Too many')
           ? 'Too many messages sent. Please wait a few minutes.'
           : /security check|captcha/i.test(msg)
-            ? 'Couldn’t complete the security check. Please refresh the page and try again.'
+            ? 'Security check failed. Please try again.'
             : msg;
         if (TURNSTILE_SITE_KEY && window.turnstile && turnstileWidgetIdRef.current) {
           window.turnstile.reset(turnstileWidgetIdRef.current);
           setTurnstileToken(null);
+          setTurnstileStatus('loading');
         }
         setErrorMsg(friendlyMsg);
         setStatus('error');
@@ -154,6 +158,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       if (TURNSTILE_SITE_KEY && window.turnstile && turnstileWidgetIdRef.current) {
         window.turnstile.reset(turnstileWidgetIdRef.current);
         setTurnstileToken(null);
+        setTurnstileStatus('loading');
       }
       setErrorMsg(netMsg);
       setStatus('error');
@@ -313,14 +318,32 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           <div className="space-y-2">
             <div ref={turnstileContainerRef} className="flex justify-center min-h-[65px]" />
             {turnstileStatus === 'loading' && (
-              <p className="text-[11px] text-center" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                Loading security check…
+              <p className="text-[11px] text-center animate-pulse" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                Checking security…
               </p>
             )}
             {turnstileStatus === 'error' && (
-              <p className="text-[11px] text-center text-amber-400">
-                Security check could not load. Refresh the page or disable ad blockers, then try again.
-              </p>
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-[11px] text-center text-amber-400">
+                  Security check failed. Please try again.
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (window.turnstile && turnstileWidgetIdRef.current) {
+                      window.turnstile.reset(turnstileWidgetIdRef.current);
+                      setTurnstileToken(null);
+                      setTurnstileStatus('loading');
+                      setErrorMsg('');
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8 px-3 rounded-lg border-white/20 hover:bg-white/5 text-[--pf-fg]"
+                >
+                  Retry security check
+                </Button>
+              </div>
             )}
           </div>
         )}

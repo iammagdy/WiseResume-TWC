@@ -63,15 +63,7 @@ function getNotifIconBg(type: string) {
   return 'bg-muted text-muted-foreground';
 }
 
-const EMPTY_MESSAGES: Record<FilterTab, string> = {
-  all:       "You're all caught up!",
-  unread:    'No unread notifications.',
-  visits:    'No portfolio visits yet. Share your portfolio link to start seeing visitors.',
-  interests: 'No one has shown interest yet.',
-  messages:  'No portfolio messages yet.',
-  ai_resume: 'No AI or resume events yet.',
-  system:    'No system notifications.',
-};
+
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -119,19 +111,32 @@ export default function NotificationsPage() {
     );
   }).sort((a, b) => new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime());
 
+  const getEmptyMessage = (tab: FilterTab) => {
+    const messages: Record<FilterTab, string> = {
+      all:       t('app.notificationsPage.empty.all', 'أنت مطلع على كل شيء!'),
+      unread:    t('app.notificationsPage.empty.unread', 'لا توجد إشعارات غير مقروءة.'),
+      visits:    t('app.notificationsPage.empty.visits', 'لا توجد زيارات للملف الشخصي بعد. شارك رابط ملفك الشخصي لبدء رؤية الزوار.'),
+      interests: t('app.notificationsPage.empty.interests', 'لم يظهر أحد اهتماماً بعد.'),
+      messages:  t('app.notificationsPage.empty.messages', 'لا توجد رسائل للملف الشخصي بعد.'),
+      ai_resume: t('app.notificationsPage.empty.ai_resume', 'لا توجد أحداث للذكاء الاصطناعي أو السير الذاتية بعد.'),
+      system:    t('app.notificationsPage.empty.system', 'لا توجد إشعارات من النظام.'),
+    };
+    return messages[tab];
+  };
+
   const handleClick = (n: Notification) => {
     if (!n.is_read) markAsRead.mutate(n.$id);
     if (n.link) navigate(n.link);
   };
 
   const TABS: { key: FilterTab; label: string }[] = [
-    { key: 'all',       label: t('app.notificationsPage.tabs.all',       'All') },
-    { key: 'unread',    label: t('app.notificationsPage.tabs.unread',    'Unread') },
-    { key: 'visits',    label: t('app.notificationsPage.tabs.visits',    'Visits') },
-    { key: 'interests', label: t('app.notificationsPage.tabs.interests', 'Interests') },
-    { key: 'messages',  label: t('app.notificationsPage.tabs.messages',  'Messages') },
-    { key: 'ai_resume', label: t('app.notificationsPage.tabs.ai',        'AI / Resume') },
-    { key: 'system',    label: t('app.notificationsPage.tabs.system',    'System') },
+    { key: 'all',       label: t('app.notificationsPage.tabs.all',       'الكل') },
+    { key: 'unread',    label: t('app.notificationsPage.tabs.unread',    'غير المقروءة') },
+    { key: 'visits',    label: t('app.notificationsPage.tabs.visits',    'الزيارات') },
+    { key: 'interests', label: t('app.notificationsPage.tabs.interests', 'المهتمين') },
+    { key: 'messages',  label: t('app.notificationsPage.tabs.messages',  'الرسائل') },
+    { key: 'ai_resume', label: t('app.notificationsPage.tabs.ai',        'الذكاء الاصطناعي') },
+    { key: 'system',    label: t('app.notificationsPage.tabs.system',    'النظام') },
   ];
 
   return (
@@ -141,16 +146,16 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-3">
           <BackButton />
           <Bell className="w-5 h-5 text-primary" />
-          <h1 className="text-page-title flex-1">{t('app.notificationsPage.title', 'Notifications')}</h1>
+          <h1 className="text-page-title flex-1">{t('app.notificationsPage.title', 'الإشعارات')}</h1>
           <div className="flex items-center gap-1">
             {notifications.some(n => !n.is_read) && (
-              <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate(undefined, { onSuccess: () => toast.success(t('app.notificationsPage.toasts.markedRead', 'All notifications marked as read')) })} className="gap-1 text-xs">
-                <CheckCheck className="w-3.5 h-3.5" /> {t('app.notificationsPage.actions.readAll', 'Mark all read')}
+              <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate(undefined, { onSuccess: () => toast.success(t('app.notificationsPage.toasts.markedRead', 'تم تحديد جميع الإشعارات كمقروءة')) })} className="gap-1 text-xs">
+                <CheckCheck className="w-3.5 h-3.5" /> {t('app.notificationsPage.actions.readAll', 'تحديد الكل كمقروء')}
               </Button>
             )}
             {notifications.length > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setShowClearConfirm(true)} className="text-destructive gap-1 text-xs">
-                <Trash2 className="w-3.5 h-3.5" /> {t('app.notificationsPage.actions.clear', 'Clear')}
+                <Trash2 className="w-3.5 h-3.5" /> {t('app.notificationsPage.actions.clear', 'مسح')}
               </Button>
             )}
           </div>
@@ -178,9 +183,9 @@ export default function NotificationsPage() {
           {filtered.length === 0 ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <Bell className="w-12 h-12 mb-3 opacity-30" />
-              <p className="font-medium">{t('app.notificationsPage.empty.title', 'No notifications')}</p>
+              <p className="font-medium">{t('app.notificationsPage.empty.title', 'لا توجد إشعارات')}</p>
               <p className="text-sm mt-1 text-center max-w-xs">
-                {EMPTY_MESSAGES[filter]}
+                {getEmptyMessage(filter)}
               </p>
             </motion.div>
           ) : (
@@ -189,8 +194,8 @@ export default function NotificationsPage() {
               filtered.forEach(n => {
                 const d = new Date(n.$createdAt);
                 let label = format(d, 'MMMM d, yyyy');
-                if (isToday(d)) label = t('app.notificationsPage.groups.today', 'Today');
-                else if (isYesterday(d)) label = t('app.notificationsPage.groups.yesterday', 'Yesterday');
+                if (isToday(d)) label = t('app.notificationsPage.groups.today', 'اليوم');
+                else if (isYesterday(d)) label = t('app.notificationsPage.groups.yesterday', 'أمس');
                 else if (isThisWeek(d)) label = format(d, 'EEEE');
                 const existing = groups.find(g => g.label === label);
                 if (existing) existing.items.push(n);
@@ -219,7 +224,7 @@ export default function NotificationsPage() {
                           <p className="text-sm font-semibold">{n.title}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {safeFormatDistanceToNow(n.$createdAt, { addSuffix: true }, t('app.notificationsPage.groups.recently', 'just now'))}
+                            {safeFormatDistanceToNow(n.$createdAt, { addSuffix: true }, t('app.notificationsPage.groups.recently', 'الآن'))}
                           </p>
                         </div>
                         {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}
@@ -237,15 +242,15 @@ export default function NotificationsPage() {
       <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('app.notificationsPage.clearDialog.title', 'Clear all notifications?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('app.notificationsPage.clearDialog.title', 'مسح جميع الإشعارات؟')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('app.notificationsPage.clearDialog.description', 'This will permanently delete all your notifications. This action cannot be undone.')}
+              {t('app.notificationsPage.clearDialog.description', 'سيؤدي هذا إلى حذف جميع الإشعارات نهائياً. لا يمكن التراجع عن هذا الإجراء.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel', 'إلغاء')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => clearAll.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {t('app.notificationsPage.clearDialog.confirm', 'Clear all')}
+              {t('app.notificationsPage.clearDialog.confirm', 'مسح الكل')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

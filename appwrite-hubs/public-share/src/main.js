@@ -129,27 +129,35 @@ function getClientIpFromReq(req) {
 // PORT-NOTIF-04: server-side owner notification helper (mirrors ai-gateway implementation).
 // Creates a document in the `notifications` collection on behalf of the owner.
 // Uses a link-retry pattern so a missing `link` schema attribute does not lose the notification.
+// Explicitly sets document-level read, update, and delete permissions for the owner.
 // Never throws — all errors are caught and logged with sanitized codes only.
 async function createOwnerNotification(db, { user_id, type, title, message, link }) {
   const baseData = { user_id, type, title, message, is_read: false };
+  const permissions = [
+    sdk.Permission.read(sdk.Role.user(user_id)),
+    sdk.Permission.update(sdk.Role.user(user_id)),
+    sdk.Permission.delete(sdk.Role.user(user_id))
+  ];
   if (link) {
     try {
-      await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), { ...baseData, link });
+      await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), { ...baseData, link }, permissions);
+      console.log(`[notify] Owner notification created successfully (type=${type})`);
       return;
     } catch (e) {
       const isUnknownAttr = e?.code === 400 &&
         /unknown attribute|invalid attribute/i.test(e?.message ?? '');
       if (!isUnknownAttr) {
-        console.warn('[notify] owner notification write failed:', e?.code ?? 'unknown');
+        console.warn('[notify] Owner notification write failed:', e?.code ?? 'unknown', e?.message);
         return;
       }
-      console.warn('[notify] link attribute absent from notifications schema — retrying without link');
+      console.warn('[notify] Link attribute absent from notifications schema — retrying without link');
     }
   }
   try {
-    await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), baseData);
+    await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), baseData, permissions);
+    console.log(`[notify] Owner notification created successfully (no-link retry, type=${type})`);
   } catch (e) {
-    console.warn('[notify] owner notification write failed (no-link retry):', e?.code ?? 'unknown');
+    console.warn('[notify] Owner notification write failed (no-link retry):', e?.code ?? 'unknown', e?.message);
   }
 }
 
@@ -463,15 +471,18 @@ function safeReferrerHostname(referrer) {
 async function handlePortfolioInterest(db, body, res) {
   const username = normalizeUsername(body.username);
   if (!username) {
+    console.warn('[interest] Rejecting request - invalid username:', body.username);
     return res.json({ status: 'error', message: 'Invalid portfolio username.' }, 400);
   }
   const token = asString(body.token);
   if (!INTEREST_TOKEN_RE.test(token)) {
+    console.warn('[interest] Rejecting request - invalid token format');
     return res.json({ status: 'error', message: 'Invalid token.' }, 400);
   }
 
   const profile = await getPortfolioProfile(db, username);
   if (!profile) {
+    console.warn(`[interest] Rejecting request - profile not found or disabled for "${username}"`);
     return res.json({ status: 'error', message: 'Portfolio not found.' }, 404);
   }
 
@@ -481,6 +492,7 @@ async function handlePortfolioInterest(db, body, res) {
     sdk.Query.limit(1),
   ]);
   if ((existing.documents?.length ?? 0) > 0) {
+    console.log(`[interest] Duplicate interest click ignored for user="${profile.user_id}" token="${token}"`);
     return res.json({ status: 'success', data: { ok: true, duplicate: true } });
   }
 
@@ -490,9 +502,12 @@ async function handlePortfolioInterest(db, body, res) {
 
   try {
     await db.createDocument(DB_ID, PORTFOLIO_INTERACTIONS_COLLECTION_ID, sdk.ID.unique(), data);
+    console.log(`[interest] Interaction document created successfully for user="${profile.user_id}"`);
+
     // PORT-NOTIF-05: notify owner on first-time interest only (not on the duplicate path above).
     // Owner user_id is resolved from the profile doc server-side, never from the public payload.
     if (profile.user_id) {
+      console.log(`[interest] Triggering owner notification for user="${profile.user_id}"`);
       await createOwnerNotification(db, {
         user_id: profile.user_id,
         type: 'portfolio_interest',
@@ -500,12 +515,16 @@ async function handlePortfolioInterest(db, body, res) {
         message: 'Someone showed interest in your portfolio.',
         link: '/notifications',
       });
+    } else {
+      console.warn(`[interest] Owner notification skipped - profile has no user_id for "${username}"`);
     }
     return res.json({ status: 'success', data: { ok: true } });
   } catch (e) {
     if (/unique|duplicate|already exists/i.test(e.message || '')) {
+      console.log(`[interest] Duplicate document race condition caught for token="${token}"`);
       return res.json({ status: 'success', data: { ok: true, duplicate: true } });
     }
+    console.error('[interest] Interaction write failed:', e.message || e);
     throw e;
   }
 }
