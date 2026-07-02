@@ -14,6 +14,20 @@ test.describe('Production Portfolio Tracing & Diagnostics Verification', () => {
       console.log(`[Browser Console] [${msg.type()}] ${text}`);
     });
 
+    page.on('requestfailed', request => {
+      console.log(`[Request Failed] URL: ${request.url()} | Error: ${request.failure()?.errorText}`);
+    });
+
+    page.on('response', response => {
+      const url = response.url();
+      if (url.endsWith('.js') || url.includes('/assets/')) {
+        console.log(`[JS Loaded] URL: ${url} | Status: ${response.status()}`);
+      }
+      if (response.status() >= 400) {
+        console.log(`[Bad Response] URL: ${url} | Status: ${response.status()}`);
+      }
+    });
+
     console.log('[E2E Test] Navigating to home to set localStorage debug flag...');
     await page.goto('/');
     await page.evaluate(() => {
@@ -24,12 +38,22 @@ test.describe('Production Portfolio Tracing & Diagnostics Verification', () => {
     await page.goto('/p/magdy');
     await page.waitForLoadState('domcontentloaded');
 
+    const debugFlag = await page.evaluate(() => localStorage.getItem('wiseresume-debug'));
+    console.log(`[E2E Test] wiseresume-debug value on /p/magdy: ${debugFlag}`);
+
     console.log('[E2E Test] Waiting for "I\'m Interested" button to be visible...');
     const interestBtn = page.locator('button[data-track="portfolio-interested"]');
     await expect(interestBtn).toBeVisible({ timeout: 15000 });
 
     console.log('[E2E Test] Waiting 6 seconds for early tracking ping...');
     await page.waitForTimeout(6000);
+
+    // Print all captured console logs
+    console.log('[E2E Test] --- ALL CAPTURED BROWSER CONSOLE LOGS ---');
+    consoleLogs.forEach((log, index) => {
+      console.log(`  ${index + 1}: ${log}`);
+    });
+    console.log('[E2E Test] -----------------------------------------');
 
     // Verify early ping console output
     const hasMountLog = consoleLogs.some(log => log.includes('[portfolio-tracking]') && log.includes('Hook effect mounted'));

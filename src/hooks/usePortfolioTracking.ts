@@ -85,7 +85,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       correlationId,
     };
 
-    if (isDebug) console.log('[portfolio-tracking] sendTrackingBeacon manual invoke', payload);
+    if (isDebug) console.warn('[portfolio-tracking] sendTrackingBeacon manual invoke', payload);
     fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -120,7 +120,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
     const correlationId = visitSessionId;
 
     if (isDebug) {
-      console.log(`[portfolio-tracking] [${correlationId}] Hook effect mounted for ${capturedUsername}. sessionStorage sessionId: ${visitSessionId}`);
+      console.warn(`[portfolio-tracking] [${correlationId}] Hook effect mounted for ${capturedUsername}. sessionStorage sessionId: ${visitSessionId}`);
     }
 
     const buildPayload = (action: 'visit_start' | 'visit_end') => {
@@ -160,7 +160,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
 
       const payload = buildPayload('visit_start');
       if (isDebug) {
-        console.log(`[portfolio-tracking] [${correlationId}] Sending 4-second early ping...`);
+        console.warn(`[portfolio-tracking] [${correlationId}] Sending 4-second early ping...`);
       }
 
       try {
@@ -175,7 +175,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
           if (data?.visitDocId) {
             visitDocIdRef.current = data.visitDocId;
             if (isDebug) {
-              console.log(`[portfolio-tracking] [${correlationId}] Early ping created visitDocId: ${data.visitDocId}`);
+              console.warn(`[portfolio-tracking] [${correlationId}] Early ping created visitDocId: ${data.visitDocId}`);
             }
           }
         } else if (isDebug) {
@@ -206,7 +206,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
         shouldSend = true;
       } else {
         if (isDebug) {
-          console.log(`[portfolio-tracking] [${correlationId}] Final ping skipped (early ping failed/no doc ID)`);
+          console.warn(`[portfolio-tracking] [${correlationId}] Final ping skipped (early ping failed/no doc ID)`);
         }
         shouldSend = false;
       }
@@ -219,7 +219,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       };
 
       if (isDebug) {
-        console.log(`[portfolio-tracking] [${correlationId}] Sending final ping. action: ${action!}, visitDocId: ${visitDocId || 'none'}`);
+        console.warn(`[portfolio-tracking] [${correlationId}] Sending final ping. action: ${action!}, visitDocId: ${visitDocId || 'none'}`);
       }
 
       const url = `${resolvePublicApiBase()}/api/track-portfolio-view`;
@@ -245,7 +245,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
 
     const onHide = () => {
       if (isDebug) {
-        console.log(`[portfolio-tracking] [${correlationId}] visibilitychange / pagehide triggered`);
+        console.warn(`[portfolio-tracking] [${correlationId}] visibilitychange / pagehide triggered`);
       }
       sendFinalPing();
     };
@@ -258,7 +258,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onHide);
       if (isDebug) {
-        console.log(`[portfolio-tracking] [${correlationId}] Hook effect cleanup (unmount)`);
+        console.warn(`[portfolio-tracking] [${correlationId}] Hook effect cleanup (unmount)`);
       }
       sendFinalPing();
     };

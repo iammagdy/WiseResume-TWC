@@ -203,17 +203,17 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
     const duplicateLocalToken = !!localStorage.getItem(`portfolio-interest-sent:${username}`);
 
     if (isDebug) {
-      console.log(`[pf-interest] [${correlationId}] handleInterest triggered. hasInterestToken: ${hasInterestToken}, duplicateLocalToken: ${duplicateLocalToken}`);
+      console.warn(`[pf-interest] [${correlationId}] handleInterest triggered. hasInterestToken: ${hasInterestToken}, duplicateLocalToken: ${duplicateLocalToken}`);
     }
 
     try {
       if (isDebug) {
-        console.log(`[pf-interest] [${correlationId}] Invoking sendPortfolioInterest...`);
+        console.warn(`[pf-interest] [${correlationId}] Invoking sendPortfolioInterest...`);
       }
       const result = await sendPortfolioInterest(username, token, correlationId);
 
       if (isDebug) {
-        console.log(`[pf-interest] [${correlationId}] sendPortfolioInterest result: ok=${result.ok}, duplicate=${result.duplicate}`);
+        console.warn(`[pf-interest] [${correlationId}] sendPortfolioInterest result: ok=${result.ok}, duplicate=${result.duplicate}`);
       }
 
       if (!result.ok) {
