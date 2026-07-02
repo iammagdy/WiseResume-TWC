@@ -2,6 +2,53 @@
 
 ---
 
+## Session Log - 2026-07-02 (Portfolio Contact + Notifications System)
+
+### Outcome
+- Fixed a P1 runtime crash in the contact form: `verifyTurnstileToken()` called `log()` at module scope in `ai-gateway/src/main.js`, but `log` is a handler-closure parameter. Fixed by replacing two calls with `console.warn()`.
+- Repaired the portfolio visit recording pipeline: `api/track-portfolio-view.ts` now resolves the portfolio owner `user_id` from `profiles` before writing the visit, passes `Permission.read(Role.user(ownerUserId))` to `createDocument` for owner-only frontend reads, and creates a `portfolio_visit` in-app notification after each successful write.
+- Wired `portfolio_interest` notification in the `public-share` Appwrite hub (first-time only; duplicate token clicks are silently absorbed).
+- Wired `portfolio_message` notification in the `ai-gateway` Appwrite hub (portfolio_contact flow only; after confirmed email delivery).
+- All three notification paths use a shared `createOwnerNotification()` helper with a link-retry pattern: attempts with `link` field first; retries without `link` on Appwrite "Unknown attribute" error so the notification is never lost.
+- Added Bell icon + unread dot badge to `AppWorkspaceTopBar.tsx`, navigating to `/notifications`.
+- Expanded `NotificationsPage.tsx` from 4 to 7 filter tabs: All, Unread, Visits, Interests, Messages, AI/Resume, System. Type-specific colour-coded icons. Per-filter empty state messages. English-primary labels.
+- 10 new focused unit tests for the notification filter logic — all passing.
+- Source hashes regenerated for `ai-gateway` and `public-share`.
+
+### Visit Timing (Documented Behavior)
+Visits are recorded on `visibilitychange` / `pagehide` / unmount, not on page load. Owner notifications appear after the visitor hides or closes the portfolio tab. Early-ping with dedup is deferred to Phase B.
+
+### Owner Actions Required (Blockers — Cannot Be Set by Code)
+- `APPWRITE_API_KEY` in Vercel Production → required for all `/api/*.ts` serverless functions
+- `APPWRITE_PROJECT_ID` in Vercel Production → `69fd362b001eb325a192`
+- `VITE_TURNSTILE_SITE_KEY` in Vercel Production → pairs with Appwrite `TURNSTILE_SECRET_KEY`
+
+### Acceptance Criterion (Not Complete Until All Three Verified)
+- Real public portfolio visit creates a `portfolio_visits` document
+- Portfolio Editor Visitors tab shows that visit to the authenticated owner
+- `/notifications` shows a `portfolio_visit` notification for the owner
+
+### Validation
+- TypeScript: 0 errors. Production build: PASS (1m 32s). Hub syntax: PASS. Whitespace: PASS.
+- 10/10 new tests + 106/106 existing tests PASS.
+- Source hashes regenerated.
+
+### Hub Deployment (AFTER Vercel READY)
+```bash
+node scripts/deploy_hubs.cjs --only=public-share
+node scripts/deploy_hubs.cjs --only=ai-gateway
+```
+
+### Phase B (Deferred)
+- AI/resume event notifications (tailoring, resume_import, ai_credit)
+- Early visit-start ping with session-level dedup
+- `referrer` vs `ref` field name mismatch in `docToVisit()` (cosmetic)
+
+### Detail
+`Project Atlas/QA Reports/WiseResume_Portfolio_Notifications_System_2026-07-02.md`
+
+---
+
 ## Session Log - 2026-07-02 (English-default localization hardening)
 
 ### Outcome

@@ -121,12 +121,36 @@ function getClientIpFromReq(req) {
   if (cfIp) return cfIp;
   const realIp = typeof h['x-real-ip'] === 'string' ? h['x-real-ip'].trim() : null;
   if (realIp) return realIp;
-  const xff = h['x-forwarded-for'];
-  if (typeof xff === 'string') {
-    const first = xff.split(',')[0].trim();
-    if (first) return first;
-  }
+  const forwarded = h['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
   return 'unknown';
+}
+
+// PORT-NOTIF-04: server-side owner notification helper (mirrors ai-gateway implementation).
+// Creates a document in the `notifications` collection on behalf of the owner.
+// Uses a link-retry pattern so a missing `link` schema attribute does not lose the notification.
+// Never throws — all errors are caught and logged with sanitized codes only.
+async function createOwnerNotification(db, { user_id, type, title, message, link }) {
+  const baseData = { user_id, type, title, message, is_read: false };
+  if (link) {
+    try {
+      await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), { ...baseData, link });
+      return;
+    } catch (e) {
+      const isUnknownAttr = e?.code === 400 &&
+        /unknown attribute|invalid attribute/i.test(e?.message ?? '');
+      if (!isUnknownAttr) {
+        console.warn('[notify] owner notification write failed:', e?.code ?? 'unknown');
+        return;
+      }
+      console.warn('[notify] link attribute absent from notifications schema — retrying without link');
+    }
+  }
+  try {
+    await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), baseData);
+  } catch (e) {
+    console.warn('[notify] owner notification write failed (no-link retry):', e?.code ?? 'unknown');
+  }
 }
 
 async function checkPortfolioSessionRateLimit(db, ip) {
@@ -466,6 +490,17 @@ async function handlePortfolioInterest(db, body, res) {
 
   try {
     await db.createDocument(DB_ID, PORTFOLIO_INTERACTIONS_COLLECTION_ID, sdk.ID.unique(), data);
+    // PORT-NOTIF-05: notify owner on first-time interest only (not on the duplicate path above).
+    // Owner user_id is resolved from the profile doc server-side, never from the public payload.
+    if (profile.user_id) {
+      await createOwnerNotification(db, {
+        user_id: profile.user_id,
+        type: 'portfolio_interest',
+        title: 'New portfolio interest',
+        message: 'Someone showed interest in your portfolio.',
+        link: '/notifications',
+      });
+    }
     return res.json({ status: 'success', data: { ok: true } });
   } catch (e) {
     if (/unique|duplicate|already exists/i.test(e.message || '')) {

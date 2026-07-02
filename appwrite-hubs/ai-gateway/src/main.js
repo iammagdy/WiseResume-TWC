@@ -291,7 +291,7 @@ async function checkPortfolioDailyCap(db, ownerUserId, plan) {
 async function verifyTurnstileToken(token, req) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) {
-    log('[turnstile] TURNSTILE_SECRET_KEY not set - rejecting request');
+    console.warn('[turnstile] TURNSTILE_SECRET_KEY not set - rejecting request');
     return { ok: false };
   }
   try {
@@ -305,8 +305,37 @@ async function verifyTurnstileToken(token, req) {
     );
     return { ok: result.data?.success === true };
   } catch (err) {
-    log('[turnstile] verification error:', err?.message);
+    console.warn('[turnstile] verification error:', err?.message);
     return { ok: false };
+  }
+}
+
+// PORT-NOTIF-01: server-side owner notification helper.
+// Creates a document in the `notifications` collection on behalf of the owner.
+// Uses a link-retry pattern: first attempt includes the `link` field; if Appwrite
+// returns an "Unknown attribute" error (the field is absent from the live schema),
+// the write is retried without `link` so the notification is not lost.
+// Never throws — all errors are caught and logged with sanitized codes only.
+async function createOwnerNotification(db, { user_id, type, title, message, link }) {
+  const baseData = { user_id, type, title, message, is_read: false };
+  if (link) {
+    try {
+      await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), { ...baseData, link });
+      return;
+    } catch (e) {
+      const isUnknownAttr = e?.code === 400 &&
+        /unknown attribute|invalid attribute/i.test(e?.message ?? '');
+      if (!isUnknownAttr) {
+        console.warn('[notify] owner notification write failed:', e?.code ?? 'unknown');
+        return;
+      }
+      console.warn('[notify] link attribute absent from notifications schema — retrying without link');
+    }
+  }
+  try {
+    await db.createDocument(DB_ID, 'notifications', sdk.ID.unique(), baseData);
+  } catch (e) {
+    console.warn('[notify] owner notification write failed (no-link retry):', e?.code ?? 'unknown');
   }
 }
 
@@ -3207,6 +3236,8 @@ module.exports = async ({ req, res, log, error }) => {
       // contact / send-email) still route to the platform inbox as before.
       let recipients = ['contact@thewise.cloud'];
       let replyTo;
+      // PORT-NOTIF-02: capture owner user_id alongside email for in-app notification.
+      let ownerUserIdForNotif = '';
       if (msgType === 'portfolio_contact') {
         const portfolioUsername = asString(meta.portfolio_username).toLowerCase();
         let ownerEmail = '';
@@ -3219,9 +3250,10 @@ module.exports = async ({ req, res, log, error }) => {
             if (ownerRes.total > 0) {
               const ownerDoc = ownerRes.documents[0];
               ownerEmail = asString(ownerDoc.contact_email || ownerDoc.email);
+              ownerUserIdForNotif = asString(ownerDoc.user_id);
             }
           } catch (lookupErr) {
-            log(`[send-contact-email] portfolio owner lookup failed for "${portfolioUsername}": ${lookupErr?.message || lookupErr}`);
+            console.warn(`[send-contact-email] portfolio owner lookup failed for "${portfolioUsername}": ${lookupErr?.message || lookupErr}`);
           }
         }
         if (!ownerEmail) {
@@ -3246,6 +3278,21 @@ module.exports = async ({ req, res, log, error }) => {
       const emailResponse = await axios.post('https://api.resend.com/emails', emailPayload, {
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       });
+
+      // PORT-NOTIF-03: create owner in-app notification after successful email send.
+      // Only for portfolio_contact type; never for bug/crash/generic contact.
+      // Visitor email is NOT included in the notification payload.
+      if (msgType === 'portfolio_contact' && ownerUserIdForNotif) {
+        await createOwnerNotification(db, {
+          user_id: ownerUserIdForNotif,
+          type: 'portfolio_message',
+          title: 'New portfolio message',
+          message: senderName
+            ? `${senderName.slice(0, 80)} sent you a message via your portfolio.`
+            : 'Someone sent you a message via your portfolio.',
+          link: '/notifications',
+        });
+      }
 
       await flushDD();
       return res.json({ status: 'success', data: { id: emailResponse.data.id, success: true, bug_report_id: bugReportId } });

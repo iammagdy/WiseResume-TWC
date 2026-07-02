@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Databases } from 'node-appwrite';
+import { Client, Databases, Query, ID, Permission, Role } from 'node-appwrite';
 
 // Vercel serverless target for navigator.sendBeacon portfolio-visit analytics
 // (PORT-P2-10). Mirrors the validated logic previously only present in
@@ -7,6 +7,16 @@ import { Client, Databases } from 'node-appwrite';
 // route actually exists in production instead of 404-ing and silently dropping
 // analytics. Writes are performed server-side with the Appwrite API key; the
 // client never writes directly. No raw IP or other visitor PII is stored.
+//
+// PORT-NOTIF-06: after a successful visit write the endpoint also creates an
+// owner notification in the `notifications` collection. The visit document is
+// written with a document-level read permission (Permission.read(Role.user(...)))
+// so the owner can read it via the frontend Appwrite SDK without broadening
+// collection-level permissions.
+//
+// Visit timing note: the beacon fires on visibilitychange / pagehide / unmount,
+// NOT on page load. Owners will see visit notifications after the visitor hides
+// or closes the portfolio tab — this is correct and expected behavior.
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID =
@@ -17,6 +27,8 @@ const PROJECT_ID =
 const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 const DATABASE_ID = 'main';
 const VISITS_COLLECTION = 'portfolio_visits';
+const PROFILES_COLLECTION = 'profiles';
+const NOTIFICATIONS_COLLECTION = 'notifications';
 
 // Allowlists / clamps mirror server/index.ts exactly.
 const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
@@ -76,6 +88,41 @@ function checkRateLimit(ip: string): boolean {
 
 function clampSeconds(value: unknown): number {
   return typeof value === 'number' ? Math.max(0, Math.min(Math.round(value), MAX_SECONDS)) : 0;
+}
+
+// PORT-NOTIF-07: owner notification helper.
+// First attempt includes `link`; if Appwrite returns Unknown attribute (link not
+// in live schema), retries without it so the notification is never lost entirely.
+async function createVisitNotification(db: Databases, ownerUserId: string): Promise<void> {
+  const baseData = {
+    user_id: ownerUserId,
+    type: 'portfolio_visit',
+    title: 'New portfolio visit',
+    message: 'Someone viewed your public portfolio.',
+    is_read: false,
+  };
+  try {
+    await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), {
+      ...baseData,
+      link: '/notifications',
+    });
+    return;
+  } catch (e) {
+    const err = e as { code?: number; message?: string };
+    const isUnknownAttr = err?.code === 400 &&
+      /unknown attribute|invalid attribute/i.test(err?.message ?? '');
+    if (!isUnknownAttr) {
+      console.error(`[track-portfolio-view] notification write failed (code: ${err?.code ?? 'unknown'})`);
+      return;
+    }
+    console.warn('[track-portfolio-view] link attribute absent from notifications schema — retrying without link');
+  }
+  try {
+    await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), baseData);
+  } catch (e) {
+    const code = (e as { code?: number })?.code ?? 'unknown';
+    console.error(`[track-portfolio-view] notification write failed no-link retry (code: ${code})`);
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -140,13 +187,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ab_variant: abVariant,
   };
 
+  const db = getDb();
+
+  // PORT-NOTIF-08: resolve owner BEFORE writing the visit so we can set
+  // document-level read permission at write time (owner-only, not read:any).
+  // If the profile lookup fails, we proceed without an owner-level permission
+  // override and skip the notification — the visit record is still preserved.
+  let ownerUserId = '';
   try {
-    await getDb().createDocument(DATABASE_ID, VISITS_COLLECTION, 'unique()', data);
+    const profilesRes = await db.listDocuments(DATABASE_ID, PROFILES_COLLECTION, [
+      Query.equal('username', username),
+      Query.limit(1),
+    ]);
+    if (profilesRes.total > 0) {
+      ownerUserId = String(profilesRes.documents[0].user_id ?? '');
+    }
+  } catch {
+    // Best-effort — never block the beacon on a profile lookup failure.
+    // ownerUserId remains '' and visit is written without permission override.
+  }
+
+  // Write the visit document.
+  // If ownerUserId is known, set document-level read permission so the owner
+  // can read their visits via the frontend Appwrite SDK session.
+  // The server API key can always read/write regardless of document permissions.
+  const permissions = ownerUserId
+    ? [Permission.read(Role.user(ownerUserId))]
+    : undefined;
+
+  try {
+    await db.createDocument(DATABASE_ID, VISITS_COLLECTION, ID.unique(), data, permissions);
   } catch (error) {
     // Best-effort — never block the beacon. Log a sanitized marker only
     // (Appwrite error code / message, no username, no IP, no payload).
     const code = (error as { code?: number; type?: string })?.code ?? 'unknown';
     console.error(`[track-portfolio-view] visit write failed (code: ${code})`);
+    // Visit failed — do not create a notification without a visit record.
+    return res.status(204).end();
   }
+
+  // Visit succeeded — create owner notification (best-effort, awaited before response
+  // to avoid serverless freeze after res.end()).
+  if (ownerUserId) {
+    await createVisitNotification(db, ownerUserId);
+  }
+
   return res.status(204).end();
 }

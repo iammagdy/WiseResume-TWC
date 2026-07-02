@@ -1,5 +1,5 @@
-import { Plus, MessageCircle, Sun, Moon, Sparkles, Briefcase, Crown } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Plus, MessageCircle, Sun, Moon, Sparkles, Briefcase, Crown, Bell } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useTheme } from '@/hooks/use-theme';
 import { usePlan } from '@/hooks/usePlan';
@@ -8,13 +8,14 @@ import { getPageTitle } from '@/lib/pageTitles';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 interface AppWorkspaceTopBarProps {
   onImportJob: () => void;
   className?: string;
 }
 
-/** Global utility bar: page context + import, Wise AI, theme. */
+/** Global utility bar: page context + import, Wise AI, notifications, theme. */
 export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBarProps) {
   const { t } = useLocale();
   const { pathname } = useLocation();
@@ -22,6 +23,8 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
   const toggleWiseChat = useWiseWorkspaceStore((s) => s.toggleChat);
   const wiseChatOpen = useWiseWorkspaceStore((s) => s.open && s.mode === 'chat');
   const { plan, isLoading: planLoading } = usePlan();
+  const navigate = useNavigate();
+  const unreadCount = useUnreadNotificationCount();
 
   const pageTitle = getPageTitle(pathname) ?? 'WiseResume';
   const showPlanBadge = !planLoading && (plan === 'premium' || plan === 'pro');
@@ -150,6 +153,30 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
             </span>
             <span className="md:hidden font-semibold text-primary">{t('app.topBar.wiseAIShort', 'المساعد')}</span>
           </button>
+
+          {/* PORT-NOTIF-09: Bell icon — navigates to /notifications, shows dot badge when unread > 0 */}
+          <button
+            type="button"
+            onClick={() => {
+              haptics.selection();
+              navigate('/notifications');
+            }}
+            className={cn(
+              'relative inline-flex items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
+              'text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation',
+            )}
+            aria-label={t('app.topBar.notifications', 'Notifications')}
+          >
+            <Bell className="w-4 h-4" aria-hidden />
+            {(unreadCount ?? 0) > 0 && (
+              <span
+                className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-primary"
+                aria-label={`${unreadCount} unread`}
+              />
+            )}
+          </button>
+
+          <span className="w-px h-6 bg-border/60 hidden sm:block" aria-hidden />
 
           <button
             type="button"
