@@ -357,6 +357,11 @@ async function smokeFunction(hubId, smoke) {
     if (smoke.auth === 'devkit') {
         body.__headers = { Authorization: `Bearer ${devKitToken()}` };
     } else if (smoke.auth === 'gateway-internal') {
+        const secret = process.env.GATEWAY_SMOKE_SECRET;
+        if (!secret) {
+            console.warn(`  [smoke] Skipping signed smoke test for ${hubId} (GATEWAY_SMOKE_SECRET not set in environment)`);
+            return;
+        }
         body.__headers = {
             ...(body.__headers || {}),
             'X-Internal-Gateway-Token': gatewayInternalToken('gateway-smoke'),
