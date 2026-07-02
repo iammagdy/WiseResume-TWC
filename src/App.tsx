@@ -300,3 +300,7 @@ const App = () => {
 };
 
 export default App;
+
+// Force Vite cache invalidation for the main entry point to refresh static assets at CDN.
+// Cache buster: force_rebuild_1782970487_v2
+console.log('[WiseResume] App module loaded');
