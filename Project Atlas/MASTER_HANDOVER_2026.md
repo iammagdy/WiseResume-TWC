@@ -8400,4 +8400,15 @@ The recovery work separated a frozen mixed session into scoped commits, protecte
 - **Appwrite Database Audit:** Confirmed visit and interest document creation, and the generation of unread owner notifications in the Appwrite production database.
 - **Current Status:** `READY_WITH_BLOCKERS`. The public portfolio Contact Form remains blocked on Cloudflare Turnstile captcha validation in production.
 
+## 2026-07-03 - Secure OTP Password Reset System Implementation & Verification
+
+- **OTP-Based Authentication Flow**: Implemented a secure, OTP-based password reset system, replacing the previous vulnerable link-based flow.
+- **Backend Service Implementation** (`email-service`): Added actions `send-password-reset-otp`, `verify-password-reset-otp`, and `reset-password-with-otp` in the Appwrite serverless function. Includes timing-safe HMAC verification of OTP and challenge tokens, and lockout limits (5 attempts) to prevent brute-forcing.
+- **Appwrite Schema Setup**: Created an idempotent schema setup script `scripts/setup_password_reset_otps_schema.cjs` configuring the server-only `password_reset_otps` collection with no client read/write permissions (`permissions: []`).
+- **Secret Propagation & Deployment**: Registered a cryptographically secure `PASSWORD_RESET_OTP_SECRET` on Appwrite and GitHub Actions. Ran targeted GitHub Actions deploy run `28620551054` for `email-service`, completing successfully.
+- **Frontend Integration**: Updated `AuthBold.tsx`, `AuthPage.tsx`, and settings page components to show secure OTP inputs, prevent account enumeration, and support prefilled email redirects upon password reset from settings.
+- **Production E2E Verification**: Successfully executed live E2E tests covering: reset requests, OTP delivery, incorrect OTP rejection, successful reset path, login verification, old password rejection, challenge reuse protection, old link rejection, and settings signout redirects. Test accounts were cleanly purged from database after testing.
+- **Verdict**: `FULLY VERIFIED`.
+
+
 
