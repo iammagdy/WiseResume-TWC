@@ -45,8 +45,14 @@ test.describe('Production Portfolio Tracing & Diagnostics Verification', () => {
     const interestBtn = page.locator('button[data-track="portfolio-interested"]');
     await expect(interestBtn).toBeVisible({ timeout: 15000 });
 
-    console.log('[E2E Test] Waiting 6 seconds for early tracking ping...');
-    await page.waitForTimeout(6000);
+    console.log('[E2E Test] Waiting 5 seconds for early tracking ping...');
+    await page.waitForTimeout(5000);
+
+    console.log('[E2E Test] Clicking the "I\'m Interested" button...');
+    await interestBtn.click();
+
+    console.log('[E2E Test] Waiting 8 seconds for interest API to complete...');
+    await page.waitForTimeout(8000);
 
     // Print all captured console logs
     console.log('[E2E Test] --- ALL CAPTURED BROWSER CONSOLE LOGS ---');
@@ -60,13 +66,21 @@ test.describe('Production Portfolio Tracing & Diagnostics Verification', () => {
     const hasEarlyPingSent = consoleLogs.some(log => log.includes('[portfolio-tracking]') && log.includes('Sending 4-second early ping'));
     const hasEarlyPingSuccess = consoleLogs.some(log => log.includes('[portfolio-tracking]') && log.includes('Early ping created visitDocId'));
 
+    // Verify interest click console output
+    const hasInterestTrigger = consoleLogs.some(log => log.includes('[pf-interest]') && log.includes('handleInterest triggered'));
+    const hasInterestSuccess = consoleLogs.some(log => log.includes('[pf-interest]') && log.includes('sendPortfolioInterest result: ok=true'));
+
     console.log('[E2E Test] Asserting early tracking logs:');
     console.log(`  - Hook Mount Log Found: ${hasMountLog}`);
     console.log(`  - Sending Early Ping Log Found: ${hasEarlyPingSent}`);
     console.log(`  - Early Ping Success Log Found: ${hasEarlyPingSuccess}`);
+    console.log(`  - Interest Trigger Log Found: ${hasInterestTrigger}`);
+    console.log(`  - Interest Success Log Found: ${hasInterestSuccess}`);
 
     expect(hasMountLog).toBe(true);
     expect(hasEarlyPingSent).toBe(true);
     expect(hasEarlyPingSuccess).toBe(true);
+    expect(hasInterestTrigger).toBe(true);
+    expect(hasInterestSuccess).toBe(true);
   });
 });
