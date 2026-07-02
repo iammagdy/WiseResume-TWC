@@ -310,7 +310,7 @@ async function verifyTurnstileToken(token, req, correlationId = '') {
     const params = new URLSearchParams({ secret, response: token });
     if (ip && ip !== 'unknown') params.set('remoteip', ip);
     const result = await axios.post(
-      'https://challenges.cloudflare.com/turnstile/v1/siteverify',
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
       params.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 },
     );
