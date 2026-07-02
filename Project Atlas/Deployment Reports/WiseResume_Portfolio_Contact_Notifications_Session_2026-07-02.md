@@ -112,5 +112,21 @@ All commits are pushed to the remote repository `main` branch:
 
 ## 10. Where We Stopped (Next-Agent continuation point)
 1. **Owner manual Turnstile verification:** Owner needs to manually submit the contact form on the live domain `https://wiseresume.app/p/magdy` in a real browser.
-2. **Verify Contact Message Notification:** Once the contact form succeeds, confirm that a `portfolio_message` notification document is created in the database and visible to the owner in the dashboard `/notifications`.
+2. **Verify Branded Email & Bell Popover:** Confirm that the contact email is branded and that clicking the Bell opens the desktop Popover dropdown displaying the latest notifications.
 3. **Payment Restoration:** Check and verify if the payment restoration system is functioning or still pending.
+
+---
+
+## 11. Addendum: Session Log - 2026-07-03 (Portfolio Notifications, Email Branding, and Bell Popover UX)
+
+### Main Additions
+* **Fixed In-App Notifications & Analytics Tab:** Identified that the `notifications`, `portfolio_visits`, and `portfolio_history` collections had `documentSecurity` set to `false`. Enabled `documentSecurity: true` on all three collections and codified this setting in `scripts/setup_portfolio_security.cjs` to make it reproducible.
+* **Branded Contact Email:** Custom-coded a branded transactional email template for `portfolio_contact` submissions matching the Crimson (`#9E1B22`) theme in `appwrite-hubs/ai-gateway/src/main.js`.
+* **Top-Bar Bell Popover:** Implemented a YouTube-style Popover dropdown in `src/components/layout/AppWorkspaceTopBar.tsx` for desktop users. Clicking the Bell opens a popover showing the 5 latest notifications with type-specific icons and a link to view all notifications, while keeping mobile navigation intact.
+* **Validation:** Verified via local Vite production builds (`npm run build`) and TypeScript check (`npx tsc --noEmit`). Redeployed the `ai-gateway` Appwrite hub.
+
+### Remaining Verification Steps for Owner
+1. **Submit Portfolio Contact Form:** Submit a test message on `https://wiseresume.app/p/magdy`.
+2. **Verify Branded Email:** Confirm that the email received by the owner is branded and correctly shows the sender's details and message body.
+3. **Verify Bell Popover & Notifications Page:** Confirm that a `portfolio_message` notification appears in the Bell Popover on the dashboard (desktop) and `/notifications` (mobile & desktop).
+4. **Verify Visitors Tab:** Confirm that new visits correctly populate the Portfolio Editor Visitors / Activity area.

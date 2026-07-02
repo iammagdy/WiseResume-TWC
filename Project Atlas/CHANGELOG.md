@@ -1,5 +1,13 @@
 # Project Atlas Changelog
 
+## 2026-07-03 - Portfolio Notifications, Email Branding, and Bell Popover UX
+
+- **Database Collection Security**: Enabled `documentSecurity: true` on `notifications`, `portfolio_visits`, and `portfolio_history` collections. This ensures document-level read permissions (e.g. `read("user:<ownerUserId>")`) set during document creation are enforced by Appwrite, resolving the issue where notifications and visitor history did not appear in the owner's UI.
+- **Idempotent Setup Script**: Codified the collection security settings in `scripts/setup_portfolio_security.cjs` to make the configuration reproducible.
+- **Branded Email Template**: Implemented a branded HTML email layout for `portfolio_contact` submissions in `appwrite-hubs/ai-gateway/src/main.js` with WiseResume colors (#9E1B22), visitor details, and a call-to-action button to check in-app notifications.
+- **Bell Popover UX**: Implemented a YouTube-style Popover dropdown for the top-bar Bell icon in `src/components/layout/AppWorkspaceTopBar.tsx` for desktop users, featuring the 5 latest notifications with specialized type icons, unread badge, and a footer link to `/notifications`. Mobile Bell retains direct navigation behavior for safety.
+- **Acceptance Status**: `READY_FOR_OWNER_VERIFICATION` (pending manual verification of email delivery and top-bar Popover interaction by the owner in production).
+
 ## 2026-07-03 - Portfolio Contact Form Turnstile Fix
 
 - **Turnstile siteverify URL fix**: Identified and resolved the root cause of the Contact Form failures. The `ai-gateway` Appwrite function was incorrectly calling the non-existent `v1` Cloudflare Turnstile siteverify endpoint (`https://challenges.cloudflare.com/turnstile/v1/siteverify`), which returned HTTP 404 and caused the token validation to fail with `TURNSTILE_SITEVERIFY_FAILED`.

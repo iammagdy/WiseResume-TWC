@@ -2,6 +2,27 @@
 
 ---
 
+## Session Log - 2026-07-03 (Portfolio Notifications, Email Branding, and Bell Popover UX)
+
+### Outcome
+- Identified and resolved the root cause of the in-app notifications and visitor analytics tab loading as empty: the Appwrite collections `notifications`, `portfolio_visits`, and `portfolio_history` had `documentSecurity` disabled (`false`), causing Appwrite to ignore document-level read permissions applied on creation.
+- Enabled `documentSecurity: true` on all three collections and codified this setting in `scripts/setup_portfolio_security.cjs` to make it reproducible.
+- Replaced the generic contact email formatting in `ai-gateway` with a branded transactional layout matching the WiseResume crimson palette (`#9E1B22`), visitor context, and a call-to-action button to check notifications.
+- Replaced the top-bar Bell icon with a custom Popover dropdown on desktop displaying the 5 latest notifications (with specialized type-specific icons, relative timestamps, and unread badges) and a footer navigation button to `/notifications`, while keeping the mobile Bell direct navigation intact.
+- Rebuilt the project successfully (`npm run build`), updated source hashes, and redeployed the `ai-gateway` Appwrite hub.
+
+### Owner Actions Required (Blockers — Cannot Be Set by Code)
+- Manual verification of the branded contact email layout and popover dropdown in production by the owner.
+
+### Validation
+- TypeScript: 0 errors. Production build: PASS. Hub syntax: PASS.
+- Idempotent schema security script successfully runs and verifies.
+
+### Status
+`READY_FOR_OWNER_VERIFICATION`
+
+---
+
 ## Session Log - 2026-07-03 (Portfolio Contact Form Turnstile Fix)
 
 ### Outcome
