@@ -77,10 +77,6 @@ export function resolveLocale(input: LocaleResolutionInput = {}): SupportedLocal
     if (locale) return locale;
   }
 
-  for (const candidate of input.browserLanguages ?? []) {
-    const locale = normalizeLocale(candidate);
-    if (locale) return locale;
-  }
   return DEFAULT_LOCALE;
 }
 
@@ -143,9 +139,12 @@ export function translate(
   const [namespace, ...path] = key.split('.');
   const localeCatalog = catalogs[locale] as Record<string, unknown>;
   const fallbackCatalog = catalogs.en as Record<string, unknown>;
+  const safeFallback = locale === 'en' && fallback && /[\u0600-\u06ff]/.test(fallback)
+    ? undefined
+    : fallback;
   const raw = getNestedValue(localeCatalog[namespace], path)
     ?? getNestedValue(fallbackCatalog[namespace], path)
-    ?? fallback
+    ?? safeFallback
     ?? key;
   return raw.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(variables[name] ?? `{{${name}}}`));
 }

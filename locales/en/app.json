@@ -157,10 +157,18 @@
   "aiStudioNavLabel": "AI Tools",
   "career": "Career Advisor",
   "portfolio": "Portfolio",
+  "profile": "Profile",
   "settings": "Settings",
   "notifications": "Notifications",
   "help": "Help",
   "workspace": "Workspace",
+  "workspaceNavigation": "Workspace navigation",
+  "activity": {
+    "loadingLatestResume": "Loading your latest resume..."
+  },
+  "templatesPage": {
+    "title": "Templates"
+  },
   "free": "Free",
   "pro": "Pro",
   "premium": "Premium",
@@ -920,11 +928,40 @@
   },
   "uploadPage": {
     "title": "Upload Resume",
+    "eyebrow": "Resume import",
+    "description": "Upload any supported format and we'll analyze, organize, and score it automatically.",
+    "heroTitle": "Add your resume to the workspace",
+    "reviewFields": "Please review these fields:",
+    "saveError": "We couldn't save your resume. Try again.",
+    "defaultResumeTitle": "My Resume",
+    "parseRecovery": {
+      "title": "We had trouble reading your document",
+      "tryDifferentFile": "Try a different file",
+      "continueManually": "Continue manually"
+    },
+    "dropTitle": "Drop to upload",
+    "uploadTitle": "Upload your resume",
+    "dropDescription": "Drop the file to start importing",
+    "idleDescription": "Drag and drop or browse — we'll parse and score it automatically",
+    "browse": "Browse files",
+    "maxSize": "Maximum size 10 MB",
     "urlImport": {
-      "title": "Import from a URL"
+      "title": "Import from a URL",
+      "aria": "Resume URL",
+      "submit": "Import",
+      "description": "LinkedIn PDF files, public profile pages, and any public resume URL use the same parsing engine.",
+      "pasteFirst": "Paste a URL first.",
+      "httpOnly": "Only http and https URLs are supported.",
+      "invalidUrl": "This does not look like a valid URL.",
+      "fetchFailed": "We couldn't fetch the page ({{status}}).",
+      "noReadableText": "No readable text was found on this page. Try a direct PDF or Word URL instead.",
+      "importFailed": "The URL could not be imported."
     },
     "tips": {
-      "title": "Tips for best results"
+      "title": "Tips for best results",
+      "textPdfWord": "Text-based PDFs and Word documents parse fastest",
+      "simpleFormatting": "Simple formatting improves field detection accuracy",
+      "ocrSupported": "Images and scanned documents are supported through OCR"
     }
   },
   "applicationsPage": {
@@ -967,7 +1004,12 @@
       "import": "Import",
       "loading": "Loading saved jobs…",
       "emptyTitle": "No saved jobs yet",
-      "emptyDescription": "Import a LinkedIn, Indeed, or careers URL to build your library."
+      "emptyDescription": "Import a LinkedIn, Indeed, or careers URL to build your library.",
+      "openAria": "Open {{title}} at {{company}}",
+      "savedOn": "Saved {{date}}",
+      "dialogDescriptionCount": "You have {{count}} saved jobs in your workspace. Open one to tailor your resume.",
+      "dialogDescriptionEmpty": "Import a job posting to save role details for tailoring and match scoring.",
+      "importAnother": "Import another job"
     },
     "recent": {
       "title": "Recent tailoring",
@@ -1031,6 +1073,7 @@
       "interviewOn": "Interview: {{date}}",
       "deadlineSoon": "Deadline soon",
       "followUpDue": "Follow-up due",
+      "stale": "No update for {{days}} days",
       "staleDays": "Stale · {{count}}d",
       "prepRequiresResume": "Please select or create a resume first to start interview prep.",
       "prep": "Prep",
@@ -1057,7 +1100,15 @@
       "jobsDescription": "Jobs you save from the AI Studio or Resume Tailoring flow appear here automatically.",
       "jobsHelper": "You can also save jobs manually or search to find new ones.",
       "goToAiStudio": "Go to AI Studio",
-      "tailorResume": "Tailor a Resume"
+      "tailorResume": "Tailor a Resume",
+      "searchJobs": "Search jobs",
+      "addManually": "Add manually",
+      "saveNewJobAria": "Save a new job"
+    },
+    "sampleJobs": {
+      "title": "Sample jobs",
+      "description": "These sample jobs demonstrate the tracker. Add your real jobs using manual entry or job search above.",
+      "footer": "Ready to track real applications? Use the buttons above to add jobs."
     },
     "insights": {
       "title": "AI Insights",
@@ -1093,6 +1144,8 @@
   },
   "importJobSheet": {
     "title": "Import job posting",
+    "loading": "Importing job...",
+    "clipboardAssistAria": "Enable job-link detection from the clipboard",
     "description": "Paste a listing URL — we fetch the page, extract role details with AI, and save it to your workspace for tailoring.",
     "sourcesTitle": "Supported job sources",
     "sourcesAria": "Supported job boards",
@@ -1102,6 +1155,7 @@
     "paste": "Paste",
     "urlHint": "Works with major job boards and public careers pages.",
     "errors": {
+      "emptyUrl": "Paste a job posting URL to continue.",
       "clipboardDenied": "Clipboard access was denied. Paste the link manually.",
       "authPending": "Still signing you in — please try again in a moment.",
       "signInRequired": "Sign in to import and save job postings.",
@@ -1134,7 +1188,45 @@
       "strengthAria": "Portfolio strength",
       "setUsername": "Set a username to get your public URL",
       "copyUrlAria": "Copy portfolio URL",
-      "openQrAria": "Open QR code"
+      "openQrAria": "Open QR code",
+      "linkCopied": "Link copied",
+      "linkCopiedFallback": "The link was copied to the clipboard instead.",
+      "linkCopyError": "The link could not be shared or copied. Try again."
+    },
+    "history": {
+      "restored": "Portfolio restored successfully",
+      "restoreError": "The portfolio could not be restored. Try again."
+    },
+    "strength": {
+      "skillsRemaining": "Add {{count}} more skills to reach full strength ({{current}}/{{target}})",
+      "skillsMinimum": "Add at least {{count}} skills to your resume",
+      "photoTip": "Add a profile photo from Settings > Profile",
+      "bioTip": "Write a bio with at least 50 characters",
+      "usernameTip": "Choose a portfolio username",
+      "contactTip": "Add at least one social link or contact email",
+      "availabilityTip": "Add a headline that explains your availability",
+      "metaTitleTip": "Add a custom page title to improve visibility",
+      "metaDescriptionTip": "Add a page meta description",
+      "experienceTip": "Add work experience to your resume",
+      "servicesTip": "Add services to highlight what you offer",
+      "testimonialsTip": "Add testimonials to build credibility",
+      "live": "Live",
+      "readyToPublish": "Ready to publish",
+      "almostReady": "Almost ready",
+      "needsWork": "Needs work",
+      "good": "Good",
+      "strong": "Strong"
+    },
+    "preview": {
+      "mobileTitle": "Preview portfolio on mobile",
+      "setUsernameFirst": "Set a username to see the mobile preview",
+      "publishFirst": "Publish your portfolio to preview it on mobile",
+      "fullPreview": "Full preview",
+      "title": "Portfolio preview"
+    },
+    "more": {
+      "placeholderName": "Name",
+      "placeholderTitle": "Job title"
     }
   }
 }

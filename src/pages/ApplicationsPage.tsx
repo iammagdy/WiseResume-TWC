@@ -267,7 +267,7 @@ export default function ApplicationsPage() {
           featureName={t('app.applicationsPageCopy.title', 'متابعة طلبات التوظيف')}
           description={t('app.applicationsPageCopy.upgrade.description', 'تابع طلباتك والوظائف المحفوظة وخطوات المتابعة من مكان واحد.')}
           features={[
-            'عرض المسار: تم التقديم ← الفرز ← العرض',
+            t('app.applicationsPageCopy.upgrade.feature0'),
             t('app.applicationsPageCopy.upgrade.feature1', 'نسبة توافق السيرة مع الوظائف المحفوظة'),
             t('app.applicationsPageCopy.upgrade.feature2', 'إحصاءات النشاط وسجل التقديم'),
             t('app.applicationsPageCopy.upgrade.feature3', 'تذكيرات المتابعة ومسودات البريد'),

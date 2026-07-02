@@ -112,6 +112,10 @@
   },
   "shell": {
     "comingSoonToast": "سيتوفر {{label}} في الإصدار القادم.",
+    "toasts": {
+      "upgradeRequired": "قم بالترقية إلى Pro لفتح هذه الميزة",
+      "upgrade": "ترقية"
+    },
     "navigationAria": "تنقل WiseHire",
     "soon": "قريباً",
     "userFallback": "مستخدم الموارد البشرية",

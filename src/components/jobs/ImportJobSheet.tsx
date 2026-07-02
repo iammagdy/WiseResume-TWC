@@ -41,10 +41,10 @@ function normalizeUrl(raw: string): string {
   return `https://${trimmed}`;
 }
 
-function validateJobUrl(raw: string): { valid: boolean; normalized: string; error?: string; hint?: string } {
+function validateJobUrl(raw: string, emptyUrlError = 'Paste a job posting URL to continue.'): { valid: boolean; normalized: string; error?: string; hint?: string } {
   const normalized = normalizeUrl(raw);
   if (!normalized) {
-    return { valid: false, normalized: '', error: 'الصق رابط إعلان الوظيفة للمتابعة.' };
+    return { valid: false, normalized: '', error: emptyUrlError };
   }
 
   try {
@@ -95,15 +95,16 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const importJob = useImportJob();
 
-  const validation = useMemo(() => validateJobUrl(url), [url]);
+  const emptyUrlError = t('app.importJobSheet.errors.emptyUrl');
+  const validation = useMemo(() => validateJobUrl(url, emptyUrlError), [emptyUrlError, url]);
 
   const applyClipboardText = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
     setUrl(trimmed);
-    const v = validateJobUrl(trimmed);
+    const v = validateJobUrl(trimmed, emptyUrlError);
     setClipboardDetected(v.valid);
-  }, []);
+  }, [emptyUrlError]);
 
   useEffect(() => {
     if (!open || !clipboardEnabled || !navigator.clipboard) return;
@@ -345,7 +346,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
                   <div className="import-job-sheet__loader-ring flex items-center justify-center w-14 h-14 rounded-2xl">
                     <MiniSpinner size={28} className="text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-foreground">جارٍ استيراد الوظيفة...</p>
+                  <p className="text-sm font-medium text-foreground">{t('app.importJobSheet.loading')}</p>
                   <p className="text-xs text-muted-foreground text-center max-w-xs">
                     This uses our live job-import service — fetch, parse, and save. Usually 10–20s.
                   </p>
@@ -468,7 +469,7 @@ export function ImportJobSheet({ open, onOpenChange }: ImportJobSheetProps) {
             <Switch
               checked={clipboardEnabled}
               onCheckedChange={handleToggleClipboard}
-              aria-label="تفعيل اكتشاف روابط الوظائف من الحافظة"
+              aria-label={t('app.importJobSheet.clipboardAssistAria')}
             />
           </div>
         )}

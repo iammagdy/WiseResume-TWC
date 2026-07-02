@@ -28,11 +28,15 @@ describe('Arabic locale foundation', () => {
     })).toBe('ar');
   });
 
-  it('uses user, persisted, browser, then English precedence', () => {
+  it('uses explicit preferences and otherwise defaults to English regardless of browser language', () => {
     expect(resolveLocale({ userPreference: 'ar', persistedPreference: 'en' })).toBe('ar');
     expect(resolveLocale({ persistedPreference: 'ar', browserLanguages: ['en-US'] })).toBe('ar');
-    expect(resolveLocale({ browserLanguages: ['ar-AE', 'en-US'] })).toBe('ar');
+    expect(resolveLocale({ browserLanguages: ['ar-AE', 'en-US'] })).toBe('en');
     expect(resolveLocale({ browserLanguages: ['fr-FR'] })).toBe('en');
+  });
+
+  it('never renders an Arabic caller fallback in English mode', () => {
+    expect(translate('app.missingEnglishUiKey', 'en', 'نص عربي احتياطي')).toBe('app.missingEnglishUiKey');
   });
 
   it('uses Arabic-Indic digits in app UI and Western digits in CV documents', () => {

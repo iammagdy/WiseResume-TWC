@@ -36,7 +36,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
     ['/settings', 'app.settings'],
     ['/profile', 'app.profile'],
     ['/notifications', 'app.notifications'],
-    ['/templates', 'app.templates'],
+    ['/templates', 'app.templatesPage.title'],
     ['/examples', 'app.examples'],
     ['/guides', 'app.guides'],
     ['/help', 'app.help'],

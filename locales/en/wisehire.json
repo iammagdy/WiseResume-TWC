@@ -112,6 +112,10 @@
   },
   "shell": {
     "comingSoonToast": "{{label}} is coming in the next release.",
+    "toasts": {
+      "upgradeRequired": "Upgrade to Pro to unlock this feature",
+      "upgrade": "Upgrade"
+    },
     "navigationAria": "WiseHire navigation",
     "soon": "Soon",
     "userFallback": "HR User",
