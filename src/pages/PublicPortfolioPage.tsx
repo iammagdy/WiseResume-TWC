@@ -185,12 +185,13 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   }, [username]);
 
   const handleInterest = async () => {
-    if (!username || interestSent || sendingInterest) return;
+    const isDebug = typeof window !== 'undefined' && (localStorage.getItem('wiseresume-debug') === 'true' || new URLSearchParams(window.location.search).has('debug'));
+    const canSend = !interestSent || isDebug;
+    if (!username || !canSend || sendingInterest) return;
     setSendingInterest(true);
 
-    // Retrieve or generate a stable UUID token for this browser+portfolio pair.
-    // The token is stored in localStorage so repeat submissions are deduplicated
-    // both client-side (interestSent state) and server-side (unique DB constraint).
+    const correlationId = 'interest_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
     const tokenKey = `portfolio-interest-token:${username}`;
     let token = localStorage.getItem(tokenKey);
     if (!token) {
@@ -198,8 +199,23 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
       localStorage.setItem(tokenKey, token);
     }
 
+    const hasInterestToken = !!token;
+    const duplicateLocalToken = !!localStorage.getItem(`portfolio-interest-sent:${username}`);
+
+    if (isDebug) {
+      console.log(`[pf-interest] [${correlationId}] handleInterest triggered. hasInterestToken: ${hasInterestToken}, duplicateLocalToken: ${duplicateLocalToken}`);
+    }
+
     try {
-      const result = await sendPortfolioInterest(username, token);
+      if (isDebug) {
+        console.log(`[pf-interest] [${correlationId}] Invoking sendPortfolioInterest...`);
+      }
+      const result = await sendPortfolioInterest(username, token, correlationId);
+
+      if (isDebug) {
+        console.log(`[pf-interest] [${correlationId}] sendPortfolioInterest result: ok=${result.ok}, duplicate=${result.duplicate}`);
+      }
+
       if (!result.ok) {
         toast.error('Could not send interest — please try again.');
         return;
@@ -207,7 +223,10 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
       setInterestSent(true);
       localStorage.setItem(`portfolio-interest-sent:${username}`, '1');
       toast.success('Your interest has been sent to the portfolio owner!');
-    } catch {
+    } catch (err) {
+      if (isDebug) {
+        console.error(`[pf-interest] [${correlationId}] Interest send error:`, err);
+      }
       toast.error('Could not send interest — please try again.');
     } finally {
       setSendingInterest(false);

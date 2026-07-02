@@ -469,20 +469,24 @@ function safeReferrerHostname(referrer) {
 // this function's properly-scoped server key instead of a separate Vercel env var.
 // Dedup is per-browser token; no PII stored, no IP recorded.
 async function handlePortfolioInterest(db, body, res) {
+  const correlationId = asString(body.correlationId || '');
   const username = normalizeUsername(body.username);
   if (!username) {
-    console.warn('[interest] Rejecting request - invalid username:', body.username);
+    console.warn(`[interest] [${correlationId}] Rejecting request - invalid username:`, body.username);
     return res.json({ status: 'error', message: 'Invalid portfolio username.' }, 400);
   }
   const token = asString(body.token);
   if (!INTEREST_TOKEN_RE.test(token)) {
-    console.warn('[interest] Rejecting request - invalid token format');
+    console.warn(`[interest] [${correlationId}] Rejecting request - invalid token format`);
     return res.json({ status: 'error', message: 'Invalid token.' }, 400);
   }
 
+  const hasInterestToken = !!token;
+  console.log(`[interest] [${correlationId}] handlePortfolioInterest request. hasInterestToken=${hasInterestToken}, username=${username}`);
+
   const profile = await getPortfolioProfile(db, username);
   if (!profile) {
-    console.warn(`[interest] Rejecting request - profile not found or disabled for "${username}"`);
+    console.warn(`[interest] [${correlationId}] Rejecting request - profile not found or disabled for "${username}"`);
     return res.json({ status: 'error', message: 'Portfolio not found.' }, 404);
   }
 
@@ -492,7 +496,7 @@ async function handlePortfolioInterest(db, body, res) {
     sdk.Query.limit(1),
   ]);
   if ((existing.documents?.length ?? 0) > 0) {
-    console.log(`[interest] Duplicate interest click ignored for user="${profile.user_id}" token="${token}"`);
+    console.log(`[interest] [${correlationId}] Duplicate interest click ignored for user="${profile.user_id}"`);
     return res.json({ status: 'success', data: { ok: true, duplicate: true } });
   }
 
@@ -502,12 +506,12 @@ async function handlePortfolioInterest(db, body, res) {
 
   try {
     await db.createDocument(DB_ID, PORTFOLIO_INTERACTIONS_COLLECTION_ID, sdk.ID.unique(), data);
-    console.log(`[interest] Interaction document created successfully for user="${profile.user_id}"`);
+    console.log(`[interest] [${correlationId}] Interaction document created successfully for user="${profile.user_id}"`);
 
     // PORT-NOTIF-05: notify owner on first-time interest only (not on the duplicate path above).
     // Owner user_id is resolved from the profile doc server-side, never from the public payload.
     if (profile.user_id) {
-      console.log(`[interest] Triggering owner notification for user="${profile.user_id}"`);
+      console.log(`[interest] [${correlationId}] Triggering owner notification for user="${profile.user_id}"`);
       await createOwnerNotification(db, {
         user_id: profile.user_id,
         type: 'portfolio_interest',
@@ -516,15 +520,15 @@ async function handlePortfolioInterest(db, body, res) {
         link: '/notifications',
       });
     } else {
-      console.warn(`[interest] Owner notification skipped - profile has no user_id for "${username}"`);
+      console.warn(`[interest] [${correlationId}] Owner notification skipped - profile has no user_id for "${username}"`);
     }
     return res.json({ status: 'success', data: { ok: true } });
   } catch (e) {
     if (/unique|duplicate|already exists/i.test(e.message || '')) {
-      console.log(`[interest] Duplicate document race condition caught for token="${token}"`);
+      console.log(`[interest] [${correlationId}] Duplicate document race condition caught`);
       return res.json({ status: 'success', data: { ok: true, duplicate: true } });
     }
-    console.error('[interest] Interaction write failed:', e.message || e);
+    console.error(`[interest] [${correlationId}] Interaction write failed:`, e.message || e);
     throw e;
   }
 }

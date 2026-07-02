@@ -91,9 +91,7 @@ function clampSeconds(value: unknown): number {
 }
 
 // PORT-NOTIF-07: owner notification helper.
-// First attempt includes `link`; if Appwrite returns Unknown attribute (link not
-// in live schema), retries without it so the notification is never lost entirely.
-async function createVisitNotification(db: Databases, ownerUserId: string): Promise<void> {
+async function createVisitNotification(db: Databases, ownerUserId: string, correlationId: string = ''): Promise<void> {
   const baseData = {
     user_id: ownerUserId,
     type: 'portfolio_visit',
@@ -107,52 +105,60 @@ async function createVisitNotification(db: Databases, ownerUserId: string): Prom
     Permission.delete(Role.user(ownerUserId)),
   ];
   try {
-    await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), {
+    const doc = await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), {
       ...baseData,
       link: '/notifications',
     }, permissions);
-    console.log(`[track-portfolio-view] Visit notification created for owner="${ownerUserId}"`);
+    console.log(`[track-portfolio-view] [${correlationId}] Visit notification created: ${doc.$id} for owner: ${ownerUserId}`);
     return;
   } catch (e) {
     const err = e as { code?: number; message?: string };
     const isUnknownAttr = err?.code === 400 &&
       /unknown attribute|invalid attribute/i.test(err?.message ?? '');
     if (!isUnknownAttr) {
-      console.error(`[track-portfolio-view] notification write failed (code: ${err?.code ?? 'unknown'}, message: ${err?.message})`);
+      console.error(`[track-portfolio-view] [${correlationId}] notification write failed (code: ${err?.code ?? 'unknown'}, message: ${err?.message})`);
       return;
     }
-    console.warn('[track-portfolio-view] link attribute absent from notifications schema — retrying without link');
+    console.warn(`[track-portfolio-view] [${correlationId}] link attribute absent from notifications schema — retrying without link`);
   }
   try {
-    await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), baseData, permissions);
-    console.log(`[track-portfolio-view] Visit notification created successfully (no-link retry, owner="${ownerUserId}")`);
+    const doc = await db.createDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION, ID.unique(), baseData, permissions);
+    console.log(`[track-portfolio-view] [${correlationId}] Visit notification created (no-link retry): ${doc.$id} for owner: ${ownerUserId}`);
   } catch (e) {
     const code = (e as { code?: number; message?: string })?.code ?? 'unknown';
     const msg = (e as { message?: string })?.message ?? '';
-    console.error(`[track-portfolio-view] notification write failed no-link retry (code: ${code}, message: ${msg})`);
+    console.error(`[track-portfolio-view] [${correlationId}] notification write failed no-link retry (code: ${code}, message: ${msg})`);
   }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // This is a fire-and-forget sendBeacon target. Respond opaquely with 204 for
-  // accepted AND no-op cases (bad payload, rate-limited, misconfig) so the
-  // endpoint can't be probed and never blocks the caller; only reject non-POST.
   if (req.method !== 'POST') {
     return res.status(405).end();
   }
+
+  const body = parseBody(req);
+  const correlationId = typeof body.correlationId === 'string' ? body.correlationId : '';
+  const action = typeof body.action === 'string' ? body.action : 'visit_start';
+  const visitDocId = typeof body.visitDocId === 'string' ? body.visitDocId : '';
+
+  const hasApiKey = !!API_KEY;
+  const hasProjId = !!PROJECT_ID;
+  console.log(`[track-portfolio-view] [${correlationId}] Received request. Action: ${action}, hasApiKey: ${hasApiKey}, projectIdPresent: ${hasProjId}`);
+
   if (!PROJECT_ID || !API_KEY) {
+    console.warn(`[track-portfolio-view] [${correlationId}] Missing credentials`);
     return res.status(204).end();
   }
 
   if (!checkRateLimit(getClientIp(req))) {
+    console.warn(`[track-portfolio-view] [${correlationId}] Rate limited`);
     return res.status(204).end();
   }
-
-  const body = parseBody(req);
 
   // Allowlist: accept only the fields the frontend actually sends.
   const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
   if (!username || !USERNAME_PATTERN.test(username)) {
+    console.warn(`[track-portfolio-view] [${correlationId}] Invalid username: ${username}`);
     return res.status(204).end();
   }
 
@@ -168,7 +174,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .filter((s): s is string => typeof s === 'string' && VALID_SECTION_NAMES.has(s))
     .slice(0, 20);
 
-  // sections_timing is a JSON-encoded object { sectionName: durationSeconds }.
   let sectionsTiming: string | null = null;
   if (typeof body.sections_timing === 'string') {
     try {
@@ -185,6 +190,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  const db = getDb();
+
+  // If action is visit_end and visitDocId is provided, update the existing document
+  if (action === 'visit_end' && visitDocId) {
+    console.log(`[track-portfolio-view] [${correlationId}] Updating visit document: ${visitDocId}`);
+    try {
+      await db.updateDocument(DATABASE_ID, VISITS_COLLECTION, visitDocId, {
+        time_spent_seconds: timeSpentSeconds,
+        sections_viewed: sectionsViewed,
+        sections_timing: sectionsTiming,
+      });
+      console.log(`[track-portfolio-view] [${correlationId}] Visit document updated successfully`);
+    } catch (err) {
+      const code = (err as { code?: number; type?: string })?.code ?? 'unknown';
+      console.error(`[track-portfolio-view] [${correlationId}] Visit update failed. Code: ${code}`);
+    }
+    return res.status(204).end();
+  }
+
   const data = {
     username,
     ref,
@@ -195,12 +219,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ab_variant: abVariant,
   };
 
-  const db = getDb();
-
-  // PORT-NOTIF-08: resolve owner BEFORE writing the visit so we can set
-  // document-level read permission at write time (owner-only, not read:any).
-  // If the profile lookup fails, we proceed without an owner-level permission
-  // override and skip the notification — the visit record is still preserved.
   let ownerUserId = '';
   try {
     const profilesRes = await db.listDocuments(DATABASE_ID, PROFILES_COLLECTION, [
@@ -210,35 +228,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (profilesRes.total > 0) {
       ownerUserId = String(profilesRes.documents[0].user_id ?? '');
     }
-  } catch {
-    // Best-effort — never block the beacon on a profile lookup failure.
-    // ownerUserId remains '' and visit is written without permission override.
+    console.log(`[track-portfolio-view] [${correlationId}] Resolved ownerUserId: ${ownerUserId} for username: ${username}`);
+  } catch (err) {
+    console.warn(`[track-portfolio-view] [${correlationId}] Profile lookup failed:`, err);
   }
 
-  // Write the visit document.
-  // If ownerUserId is known, set document-level read permission so the owner
-  // can read their visits via the frontend Appwrite SDK session.
-  // The server API key can always read/write regardless of document permissions.
   const permissions = ownerUserId
     ? [Permission.read(Role.user(ownerUserId))]
     : undefined;
 
+  let docId = '';
   try {
-    await db.createDocument(DATABASE_ID, VISITS_COLLECTION, ID.unique(), data, permissions);
+    const doc = await db.createDocument(DATABASE_ID, VISITS_COLLECTION, ID.unique(), data, permissions);
+    docId = doc.$id;
+    console.log(`[track-portfolio-view] [${correlationId}] Visit document created: ${docId}, permissions: ${JSON.stringify(permissions)}`);
   } catch (error) {
-    // Best-effort — never block the beacon. Log a sanitized marker only
-    // (Appwrite error code / message, no username, no IP, no payload).
     const code = (error as { code?: number; type?: string })?.code ?? 'unknown';
-    console.error(`[track-portfolio-view] visit write failed (code: ${code})`);
-    // Visit failed — do not create a notification without a visit record.
+    console.error(`[track-portfolio-view] [${correlationId}] visit write failed (code: ${code})`);
     return res.status(204).end();
   }
 
-  // Visit succeeded — create owner notification (best-effort, awaited before response
-  // to avoid serverless freeze after res.end()).
   if (ownerUserId) {
-    await createVisitNotification(db, ownerUserId);
+    await createVisitNotification(db, ownerUserId, correlationId);
   }
 
-  return res.status(204).end();
+  return res.status(200).json({ visitDocId: docId });
 }

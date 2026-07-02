@@ -288,12 +288,23 @@ async function checkPortfolioDailyCap(db, ownerUserId, plan) {
   } catch { return { ok: false }; }
 }
 
-async function verifyTurnstileToken(token, req) {
+async function verifyTurnstileToken(token, req, correlationId = '') {
   const secret = process.env.TURNSTILE_SECRET_KEY;
+  const hasSecret = !!secret;
+  const hasToken = !!token;
+  const tokenLengthCategory = token ? (token.length > 50 ? 'long' : 'short') : 'none';
+
+  console.log(`[turnstile] [${correlationId}] Verification request details: hasSecret=${hasSecret}, hasToken=${hasToken}, tokenLengthCategory=${tokenLengthCategory}`);
+
   if (!secret) {
-    console.warn('[turnstile] TURNSTILE_SECRET_KEY not set - rejecting request');
-    return { ok: false };
+    console.warn(`[turnstile] [${correlationId}] TURNSTILE_SECRET_KEY not set - rejecting request`);
+    return { ok: false, code: 'TURNSTILE_SECRET_MISSING' };
   }
+  if (!token) {
+    console.warn(`[turnstile] [${correlationId}] Token is empty`);
+    return { ok: false, code: 'TURNSTILE_TOKEN_MISSING' };
+  }
+
   try {
     const ip = getClientIp(req);
     const params = new URLSearchParams({ secret, response: token });
@@ -304,13 +315,35 @@ async function verifyTurnstileToken(token, req) {
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 },
     );
     const success = result.data?.success === true;
+    const hostname = result.data?.hostname || '';
+    const errorCodes = result.data?.['error-codes'] || [];
+
+    console.log(`[turnstile] [${correlationId}] Cloudflare response: success=${success}, hostname=${hostname}, error-codes=${JSON.stringify(errorCodes)}`);
+
     if (!success) {
-      console.warn('[turnstile] Verification failed. Response data:', JSON.stringify(result.data));
+      console.warn(`[turnstile] [${correlationId}] Verification failed. Response data:`, JSON.stringify(result.data));
+      let code = 'TURNSTILE_SITEVERIFY_FAILED';
+      if (errorCodes.includes('invalid-input-response')) {
+        code = 'TURNSTILE_TOKEN_INVALID';
+      } else if (errorCodes.includes('timeout-or-duplicate')) {
+        code = 'TURNSTILE_TOKEN_INVALID';
+      } else if (errorCodes.includes('invalid-input-secret')) {
+        code = 'TURNSTILE_SECRET_MISSING';
+      }
+      return { ok: false, code };
     }
-    return { ok: success };
+
+    const expectedHostnames = ['wiseresume.app', 'www.wiseresume.app'];
+    const isLocalOrVercel = hostname.includes('localhost') || hostname.includes('vercel.app') || hostname.includes('127.0.0.1');
+    if (!expectedHostnames.includes(hostname) && !isLocalOrVercel) {
+      console.warn(`[turnstile] [${correlationId}] Hostname mismatch: got ${hostname}`);
+      return { ok: false, code: 'TURNSTILE_HOSTNAME_MISMATCH' };
+    }
+
+    return { ok: true };
   } catch (err) {
-    console.warn('[turnstile] verification error:', err?.message);
-    return { ok: false };
+    console.warn(`[turnstile] [${correlationId}] verification error:`, err?.message);
+    return { ok: false, code: 'TURNSTILE_SITEVERIFY_FAILED' };
   }
 }
 
@@ -3133,17 +3166,22 @@ module.exports = async ({ req, res, log, error }) => {
     // -- 1. EMAIL ROUTE (never traced as LLM span) ---------------------------
     if (featureName === 'send-email' || featureName === 'send-contact-email') {
       const turnstileToken = asString(opts.turnstileToken || '');
+      const correlationId = asString(opts.correlationId || '');
+      console.log(`[ai-gateway] [contact] [${correlationId}] Received contact form request`);
+
       if (turnstileToken) {
-        const turnstileResult = await verifyTurnstileToken(turnstileToken, req);
+        const turnstileResult = await verifyTurnstileToken(turnstileToken, req, correlationId);
         if (!turnstileResult.ok) {
           await flushDD();
-          return res.json({ status: 'error', code: 'captcha_required', message: 'Security check failed. Please try again.' }, 403);
+          console.warn(`[ai-gateway] [contact] [${correlationId}] Turnstile verification failed. Code: ${turnstileResult.code}`);
+          return res.json({ status: 'error', code: turnstileResult.code || 'TURNSTILE_SITEVERIFY_FAILED', message: 'Security check failed. Please try again.' }, 403);
         }
       } else {
         const sessionAuth = await validateUserSession(opts, req);
         if (!sessionAuth.ok) {
           await flushDD();
-          return res.json({ status: 'error', code: 'captcha_required', message: 'Security check required.' }, 403);
+          console.warn(`[ai-gateway] [contact] [${correlationId}] Session auth failed and no turnstile token provided`);
+          return res.json({ status: 'error', code: 'TURNSTILE_TOKEN_MISSING', message: 'Security check required.' }, 403);
         }
       }
       const clientIp = getClientIp(req);
@@ -3295,6 +3333,7 @@ module.exports = async ({ req, res, log, error }) => {
       // Only for portfolio_contact type; never for bug/crash/generic contact.
       // Visitor email is NOT included in the notification payload.
       if (msgType === 'portfolio_contact' && ownerUserIdForNotif) {
+        console.log(`[ai-gateway] [contact] [${correlationId}] Creating portfolio_message notification for ownerUserId: ${ownerUserIdForNotif}`);
         await createOwnerNotification(db, {
           user_id: ownerUserIdForNotif,
           type: 'portfolio_message',

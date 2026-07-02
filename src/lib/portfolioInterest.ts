@@ -6,6 +6,7 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 export async function sendPortfolioInterest(
   username: string,
   token: string,
+  correlationId?: string,
 ): Promise<{ ok: boolean; duplicate?: boolean }> {
   const { data, error } = await appwriteFunctions.invoke<{ ok?: boolean; duplicate?: boolean }>(
     'portfolio-interest',
@@ -14,6 +15,7 @@ export async function sendPortfolioInterest(
         username: username.toLowerCase(),
         token,
         referrer: typeof document !== 'undefined' ? document.referrer || null : null,
+        correlationId,
       },
     },
   );

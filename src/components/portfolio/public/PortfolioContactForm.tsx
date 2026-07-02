@@ -47,6 +47,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
 
   const isValid = name.trim().length > 0 && EMAIL_RE.test(email.trim()) && message.trim().length >= MIN_MESSAGE_LENGTH;
   const isTurnstileReady = !TURNSTILE_SITE_KEY || !!turnstileToken;
+  const isDebug = typeof window !== 'undefined' && (localStorage.getItem('wiseresume-debug') === 'true' || new URLSearchParams(window.location.search).has('debug'));
 
   const submitBlockedReason = useMemo(() => {
     if (status === 'sending') return null;
@@ -67,20 +68,24 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
     const renderWidget = () => {
       if (!window.turnstile || !turnstileContainerRef.current) return;
       if (turnstileWidgetIdRef.current) return;
+      if (isDebug) console.log('[turnstile] Rendering Turnstile widget...');
       turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
         theme: 'dark',
         callback: (token: string) => {
+          if (isDebug) console.log(`[turnstile] Callback fired. Token length: ${token?.length}, prefix: ${token?.slice(0, 10)}`);
           setTurnstileToken(token);
           setTurnstileStatus('ready');
           setErrorMsg('');
         },
         'expired-callback': () => {
+          if (isDebug) console.warn('[turnstile] Expired-callback fired');
           setTurnstileToken(null);
           setTurnstileStatus('loading');
           setErrorMsg('Security check expired. Please verify again.');
         },
         'error-callback': () => {
+          if (isDebug) console.error('[turnstile] Error-callback fired');
           setTurnstileToken(null);
           setTurnstileStatus('error');
           setErrorMsg('Security check failed. Please click retry.');
@@ -110,11 +115,16 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         turnstileWidgetIdRef.current = null;
       }
     };
-  }, []);
+  }, [isDebug]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid || !isTurnstileReady || status === 'sending') return;
+
+    const correlationId = 'contact_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    if (isDebug) {
+      console.log(`[pf-contact] [${correlationId}] Form submission started. Name length: ${name.trim().length}, email length: ${email.trim().length}, msg length: ${message.trim().length}, hasTurnstileToken: ${!!turnstileToken}`);
+    }
 
     setStatus('sending');
     setErrorMsg('');
@@ -130,14 +140,25 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
           portfolio_username: username,
           visitor_name: name.trim(),
         },
+        correlationId,
       };
       if (turnstileToken) body.turnstileToken = turnstileToken;
+
+      if (isDebug) {
+        console.log(`[pf-contact] [${correlationId}] Invoking send-contact-email...`);
+      }
       const { error } = await appwriteFunctions.invoke('send-contact-email', { body });
 
       if (!error) {
+        if (isDebug) {
+          console.log(`[pf-contact] [${correlationId}] Submit success`);
+        }
         setStatus('success');
         toast.success('Message sent! The portfolio owner will get back to you soon.');
       } else {
+        if (isDebug) {
+          console.error(`[pf-contact] [${correlationId}] Submit failed:`, error.message);
+        }
         const msg = error.message || 'Something went wrong. Please try again.';
         const friendlyMsg = msg.includes('Too many')
           ? 'Too many messages sent. Please wait a few minutes.'
@@ -153,7 +174,10 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         setStatus('error');
         toast.error(friendlyMsg);
       }
-    } catch {
+    } catch (err) {
+      if (isDebug) {
+        console.error(`[pf-contact] [${correlationId}] Network/JS error:`, err);
+      }
       const netMsg = 'Network error — please check your connection and try again.';
       if (TURNSTILE_SITE_KEY && window.turnstile && turnstileWidgetIdRef.current) {
         window.turnstile.reset(turnstileWidgetIdRef.current);
@@ -164,7 +188,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       setStatus('error');
       toast.error(netMsg);
     }
-  }, [isValid, isTurnstileReady, status, email, name, message, username, website, turnstileToken]);
+  }, [isValid, isTurnstileReady, status, email, name, message, username, website, turnstileToken, isDebug]);
 
   if (status === 'success') {
     return (

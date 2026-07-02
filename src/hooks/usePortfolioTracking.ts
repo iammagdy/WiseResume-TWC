@@ -38,17 +38,11 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
   const sectionTimingRef = useRef<Map<string, { accMs: number; enterTime: number | null }>>(new Map());
   const mountTimeRef = useRef<number>(Date.now());
   const trackSentRef = useRef(false);
-  // Sentinel used to detect a real portfolio change (vs. a refParam /
-  // abVariant tweak). Initialised to `undefined` so the very first
-  // username sighting triggers a per-view reset, which is harmless.
   const lastUsernameRef = useRef<string | null | undefined>(undefined);
+  const visitDocIdRef = useRef<string | null>(null);
+  const earlyPingSentRef = useRef(false);
 
   // Live-value refs — only used by the public-API `sendTrackingBeacon`
-  // wrapper so external callers (currently only test mocks; the real
-  // page consumes only `stickyVisible` and `heroRef`) always fire
-  // against the currently displayed portfolio. The effect-based
-  // visibility/pagehide/unmount paths use a per-effect SNAPSHOT
-  // instead — see `sendForView` below.
   const usernameRef = useRef(username);
   const refParamRef = useRef(refParam);
   const abVariantRef = useRef(abVariant);
@@ -56,28 +50,20 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
   useEffect(() => { refParamRef.current = refParam; }, [refParam]);
   useEffect(() => { abVariantRef.current = abVariant; }, [abVariant]);
 
-  // Stable beacon body builder. Accepts an explicit snapshot so the
-  // unmount/visibility paths can pass the username/ref/abVariant they
-  // were attached for, while the public-API wrapper passes live ref
-  // values.
-  const sendBeaconCore = useCallback((snap: BeaconSnapshot) => {
-    if (trackSentRef.current) return;
-    if (!snap.username) return;
-    trackSentRef.current = true;
+  // Public-API beacon — kept for backward compatibility with tests/mocks.
+  const sendTrackingBeacon = useCallback(() => {
+    const isDebug = typeof window !== 'undefined' && (localStorage.getItem('wiseresume-debug') === 'true' || new URLSearchParams(window.location.search).has('debug'));
+    const correlationId = 'visit_mock_' + Date.now();
+    const url = `${resolvePublicApiBase()}/api/track-portfolio-view`;
 
-    // Flush any sections still in view (observer hasn't fired "exit" yet)
     const now = Date.now();
-    sectionTimingRef.current.forEach((entry) => {
-      if (entry.enterTime !== null) {
-        entry.accMs += now - entry.enterTime;
-        entry.enterTime = null;
-      }
-    });
-
-    // Convert ms map to seconds object (only include sections with >= 1s)
     const sectionsTiming: Record<string, number> = {};
     sectionTimingRef.current.forEach((entry, id) => {
-      const secs = Math.round(entry.accMs / 1000);
+      let accMs = entry.accMs;
+      if (entry.enterTime !== null) {
+        accMs += now - entry.enterTime;
+      }
+      const secs = Math.round(accMs / 1000);
       if (secs >= 1) sectionsTiming[id] = secs;
     });
 
@@ -87,108 +73,196 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       ? (/iPad/i.test(ua) ? 'tablet' : 'mobile')
       : 'desktop';
 
-    const payload: Record<string, unknown> = {
-      username: snap.username,
-      ref: snap.refParam ?? null,
+    const payload = {
+      username: usernameRef.current ?? '',
+      ref: refParamRef.current ?? null,
       sections_viewed: [...sectionsViewedRef.current],
       sections_timing: JSON.stringify(sectionsTiming),
       time_spent_seconds: timeSpentSeconds,
       device,
-      ab_variant: snap.abVariant ?? null,
+      ab_variant: abVariantRef.current ?? null,
+      action: 'visit_start',
+      correlationId,
     };
 
-    // PORT-P2-10: route through the validated server endpoint instead of an
-    // unauthenticated direct Appwrite write. The server allowlists/clamps the
-    // fields and rate-limits by IP, preventing visit-count inflation and
-    // arbitrary client writes. Uses sendBeacon so the write survives pagehide,
-    // with a keepalive fetch fallback. Fire-and-forget: errors are discarded.
-    try {
-      const url = `${resolvePublicApiBase()}/api/track-portfolio-view`;
-      const json = JSON.stringify(payload);
-      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-        navigator.sendBeacon(url, new Blob([json], { type: 'application/json' }));
-      } else {
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: json,
-          keepalive: true,
-        }).catch(() => {});
-      }
-    } catch {
-      // Best-effort — analytics must never break the page.
-    }
+    if (isDebug) console.log('[portfolio-tracking] sendTrackingBeacon manual invoke', payload);
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
   }, []);
 
-  // Public-API beacon — wraps sendBeaconCore with live ref values so
-  // external callers always fire against the currently displayed
-  // portfolio.  Kept for backward compatibility with the hook's
-  // declared return shape; the real page does not consume it.
-  const sendTrackingBeacon = useCallback(() => {
-    sendBeaconCore({
-      username: usernameRef.current ?? '',
-      refParam: refParamRef.current,
-      abVariant: abVariantRef.current,
-    });
-  }, [sendBeaconCore]);
-
-  // Visibility / pagehide handlers + unmount beacon.
-  //
-  // `username` is PINNED at effect-bind time (`capturedUsername`) and
-  // re-bound only when the username itself changes — this is the core
-  // Phase 3 fix. A fast /p/alice → /p/bob navigation with a reused
-  // hook instance can never misattribute alice's view to bob, because
-  // by the time the cleanup beacon fires the closure already holds
-  // alice's name regardless of what `usernameRef.current` has since
-  // become.
-  //
-  // `refParam` and `abVariant` are read from their live refs at FIRE
-  // time, NOT pinned at bind time. Rationale:
-  //   * `abVariant` is commonly resolved AFTER the initial render
-  //     (e.g. assigned post profile-load). Pinning it at bind would
-  //     attribute every late-resolving experiment session to `null`.
-  //   * The `useEffect` cleanup-then-body ordering guarantees that
-  //     during this effect's cleanup, refParamRef / abVariantRef
-  //     still hold the OLD view's values: cleanup runs in reverse
-  //     declaration order, so this effect's cleanup runs BEFORE the
-  //     ref-update effects' bodies (declared above) re-run for the
-  //     new view. Reading the refs in cleanup is therefore safe.
-  //   * Visibility / pagehide events that fire mid-view see the
-  //     latest refs, which is exactly what we want for late-resolved
-  //     experiment attribution.
-  //
-  // Deps: ONLY `username` (and the stable sendBeaconCore). refParam /
-  // abVariant changes do NOT re-bind — that would re-fire the cleanup
-  // beacon every URL-hash tweak and break the "one beacon per
-  // portfolio view" guarantee enforced by `trackSentRef`.
+  // Main lifecycle effect managing page pings, visibilitychange and pagehide
   useEffect(() => {
     if (!username) return;
-    // Reset per-view state when the portfolio actually changes.
-    // refParam / abVariant changes are explicitly NOT a portfolio
-    // change, so the sentinel ref guards against false resets.
+
     if (lastUsernameRef.current !== username) {
       trackSentRef.current = false;
       mountTimeRef.current = Date.now();
       sectionsViewedRef.current = new Set();
       sectionTimingRef.current = new Map();
       lastUsernameRef.current = username;
+      visitDocIdRef.current = null;
+      earlyPingSentRef.current = false;
     }
 
-    const capturedUsername = username; // pin — see header comment
-    const buildSnap = (): BeaconSnapshot => ({
-      username: capturedUsername,
-      refParam: refParamRef.current,
-      abVariant: abVariantRef.current,
-    });
-    const onHide = () => sendBeaconCore(buildSnap());
+    const capturedUsername = username;
+    const isDebug = typeof window !== 'undefined' && (localStorage.getItem('wiseresume-debug') === 'true' || new URLSearchParams(window.location.search).has('debug'));
+
+    // Stable visitSessionId per page view session
+    const visitSessionKey = `portfolio-visit-session-id:${capturedUsername}`;
+    let visitSessionId = sessionStorage.getItem(visitSessionKey);
+    if (!visitSessionId) {
+      visitSessionId = 'visit_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+      sessionStorage.setItem(visitSessionKey, visitSessionId);
+    }
+    const correlationId = visitSessionId;
+
+    if (isDebug) {
+      console.log(`[portfolio-tracking] [${correlationId}] Hook effect mounted for ${capturedUsername}. sessionStorage sessionId: ${visitSessionId}`);
+    }
+
+    const buildPayload = (action: 'visit_start' | 'visit_end') => {
+      const now = Date.now();
+      const sectionsTiming: Record<string, number> = {};
+      sectionTimingRef.current.forEach((entry, id) => {
+        let accMs = entry.accMs;
+        if (entry.enterTime !== null) {
+          accMs += now - entry.enterTime;
+        }
+        const secs = Math.round(accMs / 1000);
+        if (secs >= 1) sectionsTiming[id] = secs;
+      });
+
+      const timeSpentSeconds = Math.round((Date.now() - mountTimeRef.current) / 1000);
+      const ua = navigator.userAgent;
+      const device = /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
+        ? (/iPad/i.test(ua) ? 'tablet' : 'mobile')
+        : 'desktop';
+
+      return {
+        username: capturedUsername,
+        ref: refParamRef.current ?? null,
+        sections_viewed: [...sectionsViewedRef.current],
+        sections_timing: JSON.stringify(sectionsTiming),
+        time_spent_seconds: timeSpentSeconds,
+        device,
+        ab_variant: abVariantRef.current ?? null,
+        action,
+        correlationId,
+      };
+    };
+
+    const sendEarlyPing = async () => {
+      if (earlyPingSentRef.current || trackSentRef.current) return;
+      earlyPingSentRef.current = true;
+
+      const payload = buildPayload('visit_start');
+      if (isDebug) {
+        console.log(`[portfolio-tracking] [${correlationId}] Sending 4-second early ping...`);
+      }
+
+      try {
+        const url = `${resolvePublicApiBase()}/api/track-portfolio-view`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const data = await res.json() as { visitDocId?: string };
+          if (data?.visitDocId) {
+            visitDocIdRef.current = data.visitDocId;
+            if (isDebug) {
+              console.log(`[portfolio-tracking] [${correlationId}] Early ping created visitDocId: ${data.visitDocId}`);
+            }
+          }
+        } else if (isDebug) {
+          console.warn(`[portfolio-tracking] [${correlationId}] Early ping HTTP status: ${res.status}`);
+        }
+      } catch (err) {
+        if (isDebug) {
+          console.error(`[portfolio-tracking] [${correlationId}] Early ping error:`, err);
+        }
+      }
+    };
+
+    const timerId = setTimeout(sendEarlyPing, 4000);
+
+    const sendFinalPing = () => {
+      const wasEarlyPingSent = earlyPingSentRef.current;
+      const visitDocId = visitDocIdRef.current;
+
+      let action: 'visit_start' | 'visit_end';
+      let shouldSend = false;
+
+      if (!wasEarlyPingSent) {
+        action = 'visit_start';
+        shouldSend = true;
+        trackSentRef.current = true;
+      } else if (visitDocId) {
+        action = 'visit_end';
+        shouldSend = true;
+      } else {
+        if (isDebug) {
+          console.log(`[portfolio-tracking] [${correlationId}] Final ping skipped (early ping failed/no doc ID)`);
+        }
+        shouldSend = false;
+      }
+
+      if (!shouldSend) return;
+
+      const payload = {
+        ...buildPayload(action!),
+        visitDocId,
+      };
+
+      if (isDebug) {
+        console.log(`[portfolio-tracking] [${correlationId}] Sending final ping. action: ${action!}, visitDocId: ${visitDocId || 'none'}`);
+      }
+
+      const url = `${resolvePublicApiBase()}/api/track-portfolio-view`;
+      const json = JSON.stringify(payload);
+
+      try {
+        if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' && action! === 'visit_end') {
+          navigator.sendBeacon(url, new Blob([json], { type: 'application/json' }));
+        } else {
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: json,
+            keepalive: true,
+          }).catch(() => {});
+        }
+      } catch (err) {
+        if (isDebug) {
+          console.error(`[portfolio-tracking] [${correlationId}] Final ping dispatch error:`, err);
+        }
+      }
+    };
+
+    const onHide = () => {
+      if (isDebug) {
+        console.log(`[portfolio-tracking] [${correlationId}] visibilitychange / pagehide triggered`);
+      }
+      sendFinalPing();
+    };
+
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', onHide);
+
     return () => {
+      clearTimeout(timerId);
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onHide);
-      sendBeaconCore(buildSnap()); // username pinned, refs read live
+      if (isDebug) {
+        console.log(`[portfolio-tracking] [${correlationId}] Hook effect cleanup (unmount)`);
+      }
+      sendFinalPing();
     };
-  }, [username, sendBeaconCore]);
+  }, [username]);
 
   // Section scroll tracking: IntersectionObserver with dwell-time accumulation
   useEffect(() => {
