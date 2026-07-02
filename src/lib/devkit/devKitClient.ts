@@ -143,7 +143,7 @@ export async function devKitLogin(): Promise<DevKitAuthResponse> {
     appwriteFunctions.invoke<AdminEnvelope<never>>('admin-devkit-data', {
       body: { action: 'verify-devkit-session' },
     }),
-    15000,
+    30000,
     'DevKit login timed out. Appwrite did not answer the session request.',
   );
 

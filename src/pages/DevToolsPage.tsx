@@ -76,7 +76,7 @@ export default function DevToolsPage() {
 
 function DevToolsInner() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, authSettled } = useAuth();
   const { isUnlocked, unlock, lock, secondsUntilLock } = useDevKitSession();
   const [activePanel, setActivePanel] = useState('home');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -117,10 +117,19 @@ function DevToolsInner() {
     }
   }, [isVerifying, unlock, user?.email]);
 
+  // Pre-warm the Appwrite JWT as soon as auth has settled so it's cached
+  // by the time requestAdminSession() actually calls devKitLogin(). This
+  // eliminates the ~1-2s JWT round-trip from the 15s login budget and
+  // prevents cold-start races on first load.
   useEffect(() => {
-    if (isUnlocked) return;
+    if (!authSettled) return;
+    void import('@/lib/appwriteJWT').then(({ getAppwriteJWT }) => getAppwriteJWT());
+  }, [authSettled]);
+
+  useEffect(() => {
+    if (isUnlocked || !authSettled) return;
     void requestAdminSession();
-  }, [isUnlocked, requestAdminSession]);
+  }, [isUnlocked, authSettled, requestAdminSession]);
 
   // Cmd+K / Ctrl+K global shortcut
   useEffect(() => {

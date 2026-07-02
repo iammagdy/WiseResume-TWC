@@ -117,35 +117,38 @@ export function AnalyticsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const tuple = await invokeWithRetry('admin-devkit-data', {
-        headers: devKitAuthHeaders(),
-        body: { action: 'analytics', range: r },
-      });
+      // Fire all three requests concurrently — visitor analytics and health
+      // are best-effort so their failures must never block the primary call.
+      const [tuple, visitorResult, healthResult] = await Promise.all([
+        invokeWithRetry('admin-devkit-data', {
+          headers: devKitAuthHeaders(),
+          body: { action: 'analytics', range: r },
+        }),
+        devKitCall<VisitorDashboard>({
+          functionId: 'admin-visitor-analytics',
+          action: 'dashboard',
+          payload: { range: r, page_num: 0 },
+          timeoutMs: 300_000,
+        }).catch(() => ({ ok: false as const, error: { code: 'NETWORK_ERROR' as const, message: 'visitor analytics unavailable' } })),
+        devKitCall<HealthData>({
+          functionId: 'admin-visitor-analytics',
+          action: 'health',
+          timeoutMs: 30_000,
+        }).catch(() => ({ ok: false as const, error: { code: 'NETWORK_ERROR' as const, message: 'health unavailable' } })),
+      ]);
+
       const result = unwrapAdminResponse<PremiumAnalyticsData>(tuple, 'admin-devkit-data');
       if (!result) throw new Error('No data returned');
       if (!isMounted()) return;
       setData({ ...result, lastUpdatedAt: new Date() });
       setSecondsAgo(0);
 
-      // Fetch visitor dashboard (best-effort, don't block on failure)
-      const visitorResult = await devKitCall<VisitorDashboard>({
-        functionId: 'admin-visitor-analytics',
-        action: 'dashboard',
-        payload: { range: r, page_num: 0 },
-        timeoutMs: 300_000,
-      });
       if (visitorResult.ok && isMounted()) {
         setVisitorData(visitorResult.data);
       }
-
-      // Fetch health (best-effort)
-      devKitCall<HealthData>({
-        functionId: 'admin-visitor-analytics',
-        action: 'health',
-        timeoutMs: 30_000,
-      }).then((res) => {
-        if (res.ok && isMounted()) setHealth(res.data);
-      }).catch(() => { /* best-effort */ });
+      if (healthResult.ok && isMounted()) {
+        setHealth(healthResult.data);
+      }
 
       setLastLoadedAt(new Date());
     } catch (e) {
