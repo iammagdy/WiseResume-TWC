@@ -1,6 +1,6 @@
 # WiseResume Portfolio Contact + Notifications Session Log & Handover
 **Date:** 2026-07-02
-**Session Status:** `READY_WITH_BLOCKERS` (Visits & Interest verified; Contact Form blocked on Turnstile captcha in production)
+**Session Status:** `READY_FOR_OWNER_VERIFICATION` (Visits & Interest verified; Contact Form Turnstile URL fix deployed, pending manual verification by owner)
 
 ---
 
@@ -93,7 +93,7 @@ All commits are pushed to the remote repository `main` branch:
 
 ## 8. Deployments Performed
 * **Vercel Deployments:** Redeployed the Vite application to production (Vercel deployment URL: `https://wise-resume-jn6mdylyp-iam-magdy.vercel.app`, aliased to `https://wiseresume.app` and `https://resume.thewise.cloud`).
-* **Appwrite Deployments:** No new Appwrite functions were deployed in this session.
+* **Appwrite Deployments:** Deployed Appwrite `ai-gateway` function via GitHub Actions workflow (Run ID: `28626574102`). Target: `ai-gateway`. Status: `ready` (smoke check HTTP 200).
 
 ---
 
@@ -105,17 +105,12 @@ All commits are pushed to the remote repository `main` branch:
 * **Bell Unread Badge:** Works (unread state is reflected in the top-bar indicator).
 * **Notifications Page:** Correctly filters and displays unread visits and interests notifications.
 * **Portfolio Editor Visitors Tab:** Reflects visitor activity (populated from visits data).
-* **Contact Form:** **Failing**. Security/captcha validation fails with `Security check failed`.
+* **Contact Form:** **Ready for owner manual verification**. Deployed fix correcting the Turnstile endpoint to `v0` (non-existent `v1` API was returning 404).
 * **Payment Restoration:** Pending/unverified.
 
 ---
 
 ## 10. Where We Stopped (Next-Agent continuation point)
-1. **Focus solely on Contact Form & Turnstile Captcha:** The session stopped with the public portfolio contact form still failing. The next agent must focus exclusively on tracing this failure. Do not touch or reopen visits, interest, notifications UI, or visual polish.
-2. **Contact Form Tracing Protocol:**
-   - Verify that the browser generates a non-empty `cf-turnstile-response` token when submitting.
-   - Verify that the submit payload is structured correctly with the expected token field.
-   - Capture the response of the Cloudflare `siteverify` request inside the `ai-gateway` Appwrite function. Specifically print: `success`, `error-codes`, `hostname`, and `action` to a secure temporary tracing variable or log.
-   - Investigate whether Cloudflare `siteverify` is rejecting requests due to hostname mismatches on the Vercel wildcard domain/preview domains, or if the `site_key` configured in production mismatches the `secret_key` in the `ai-gateway` configuration.
-3. **Verify Contact Message Notification:** Once the contact form succeeds, confirm that a `portfolio_message` notification document is created in the database and visible to the owner in the dashboard.
-4. **Payment Restoration:** Check and verify if the payment restoration system is functioning or still pending.
+1. **Owner manual Turnstile verification:** Owner needs to manually submit the contact form on the live domain `https://wiseresume.app/p/magdy` in a real browser.
+2. **Verify Contact Message Notification:** Once the contact form succeeds, confirm that a `portfolio_message` notification document is created in the database and visible to the owner in the dashboard `/notifications`.
+3. **Payment Restoration:** Check and verify if the payment restoration system is functioning or still pending.

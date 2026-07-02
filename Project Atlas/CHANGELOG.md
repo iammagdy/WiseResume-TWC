@@ -1,5 +1,15 @@
 # Project Atlas Changelog
 
+## 2026-07-03 - Portfolio Contact Form Turnstile Fix
+
+- **Turnstile siteverify URL fix**: Identified and resolved the root cause of the Contact Form failures. The `ai-gateway` Appwrite function was incorrectly calling the non-existent `v1` Cloudflare Turnstile siteverify endpoint (`https://challenges.cloudflare.com/turnstile/v1/siteverify`), which returned HTTP 404 and caused the token validation to fail with `TURNSTILE_SITEVERIFY_FAILED`.
+- **API Version Correction**: Corrected the endpoint URL to `https://challenges.cloudflare.com/turnstile/v0/siteverify` in `appwrite-hubs/ai-gateway/src/main.js`.
+- **Infrastructure Validation**: Recomputed source hashes in `src/lib/devkit/sourceHashes.generated.json`. Verified Node.js syntax, TypeScript (`npx tsc --noEmit`), and production build (`npm run build`) all pass.
+- **Appwrite Deployment**: Successfully ran GitHub Actions workflow "Deploy Appwrite Hubs" targeting only `ai-gateway` (Run ID: `28626574102`, Job ID: `84894323958`), resulting in a successful deployment.
+- **Verdict**: `READY_FOR_OWNER_VERIFICATION` (pending manual verification of the Turnstile challenge on the live domain by the owner).
+
+---
+
 ## 2026-07-03 - Secure OTP Password Reset System Implementation & Verification
 
 - **OTP-Based Authentication Flow**: Implemented a secure, OTP-based password reset system, replacing the previous vulnerable link-based flow.
