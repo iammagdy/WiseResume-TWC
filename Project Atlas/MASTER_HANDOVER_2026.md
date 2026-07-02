@@ -8391,3 +8391,13 @@ The recovery work separated a frozen mixed session into scoped commits, protecte
 - **i18n & Test Parity** (`locales/en/app.json`, `locales/ar/app.json`, `NotificationsPage.tsx`, `publicPrivacyHardening.test.ts`): translated all fallback notification tabs and empty state strings to Arabic, populated both localization catalogs, verified full key parity, and updated security unit test expectations to support owner-only read permissions.
 - **Validation**: `npx tsc --noEmit` passed, production build passed, 813 Vitest tests passed, hub syntax checks passed, and source hashes were regenerated.
 
+## 2026-07-02 - Portfolio Production Tracing and Verification
+
+- **Diagnostic Session Report:** Created a dedicated session report [WiseResume_Portfolio_Contact_Notifications_Session_2026-07-02.md](file:///y:/WiseResume-TWC/Project%20Atlas/Deployment%20Reports/WiseResume_Portfolio_Contact_Notifications_Session_2026-07-02.md) detailing the production debugging and verification findings.
+- **Vercel Cache Invalidation:** Added a hidden JSX cache buster element in [App.tsx](file:///y:/WiseResume-TWC/src/App.tsx) to force Vite to generate a new entry point hash, successfully bypassing the Vercel Edge CDN cache.
+- **Production Console Logs:** Discovered that Vite minification config (`esbuild.pure`) strips `console.log` statements in production. Migrated diagnostic logs in [usePortfolioTracking.ts](file:///y:/WiseResume-TWC/src/hooks/usePortfolioTracking.ts) and [PublicPortfolioPage.tsx](file:///y:/WiseResume-TWC/src/pages/PublicPortfolioPage.tsx) to `console.warn` to preserve them.
+- **Automated Verification:** Created and updated Playwright E2E spec [28-portfolio-production-tracing.spec.ts](file:///y:/WiseResume-TWC/tests/e2e/specs/28-portfolio-production-tracing.spec.ts) which verified visit tracking and "I'm Interested" clicks successfully in production.
+- **Appwrite Database Audit:** Confirmed visit and interest document creation, and the generation of unread owner notifications in the Appwrite production database.
+- **Current Status:** `READY_WITH_BLOCKERS`. The public portfolio Contact Form remains blocked on Cloudflare Turnstile captcha validation in production.
+
+

@@ -1,5 +1,14 @@
 # Project Atlas Changelog
 
+## 2026-07-02 - Portfolio Production Tracing and Verification
+
+- **Diagnostic Session Report:** Created a dedicated session report `WiseResume_Portfolio_Contact_Notifications_Session_2026-07-02.md` detailing the production debugging and verification findings.
+- **Vercel Cache Invalidation:** Added a hidden JSX cache buster element in `src/App.tsx` to force Vite to generate a new entry point hash, successfully bypassing the Vercel Edge CDN cache.
+- **Production Console Logs:** Discovered that Vite minification config (`esbuild.pure`) strips `console.log` statements in production. Migrated diagnostic logs in `usePortfolioTracking.ts` and `PublicPortfolioPage.tsx` to `console.warn` to preserve them.
+- **Automated Verification:** Created and updated Playwright E2E spec `tests/e2e/specs/28-portfolio-production-tracing.spec.ts` which verified visit tracking and "I'm Interested" clicks successfully in production.
+- **Appwrite Database Audit:** Confirmed visit and interest document creation, and the generation of unread owner notifications in the Appwrite production database.
+- **Current Status:** `READY_WITH_BLOCKERS`. The public portfolio Contact Form remains blocked on Cloudflare Turnstile captcha validation in production.
+
 ## 2026-07-02 - Fix Portfolio Contact and Notification flows
 
 - **Turnstile Error Recovery** (`PortfolioContactForm.tsx`): added a 6-second timeout watchdog that resets and recovers the Turnstile widget cleanly if verification gets stuck, avoiding manual page refreshes. Removed intrusive debug log statements.
