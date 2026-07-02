@@ -497,10 +497,6 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
         Number.isFinite(totalContentHeightPx) && (totalContentHeightPx as number) > 0
           ? Math.round(totalContentHeightPx as number)
           : dims.heightPx;
-      const requestedLayoutHeight =
-        Number.isFinite(layoutContentHeightPx) && (layoutContentHeightPx as number) > 0
-          ? Math.round(layoutContentHeightPx as number)
-          : 0;
       const exactCustomBreaks = (customBreakPositions ?? [])
         .filter(Number.isFinite)
         .map(Math.round);
@@ -510,7 +506,9 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
       // ALWAYS measure layout to fix Chromium-Linux vs Client-OS font drift.
       const layout = await measureExportLayout(browser, html, dims.widthPx);
       const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
-      contentHeight = Math.max(clientHeight, requestedLayoutHeight, measuredHeight, printableHeight);
+      // layoutContentHeightPx can include a template's full-page min-height
+      // sentinel. It is only a safe bound for custom-break validation below.
+      contentHeight = Math.max(clientHeight, measuredHeight, printableHeight);
 
       const lastCustomBreakPx = exactCustomBreaks.length ? Math.max(...exactCustomBreaks) : 0;
       const validationHeight = exactCustomBreaks.length

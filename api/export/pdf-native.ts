@@ -777,11 +777,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // might accidentally slice through it or leave it stranded on the first page.
     const layout = await measureExportLayout(browser, html, dims.widthPx);
     const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
-    const requestedLayoutHeight =
-      typeof layoutContentHeightPx === 'number' && Number.isFinite(layoutContentHeightPx) && layoutContentHeightPx > 0
-        ? Math.round(layoutContentHeightPx)
-        : 0;
-    contentHeight = Math.max(Math.round(contentHeight), requestedLayoutHeight, measuredHeight, contentPageHeight);
+    // layoutContentHeightPx can include a template's full-page min-height
+    // sentinel. Keep it for custom-break validation below, but never let it
+    // inflate the rendered content height and create a footer-only page.
+    contentHeight = Math.max(Math.round(contentHeight), measuredHeight, contentPageHeight);
 
     // ── Custom-break validation height ─────────────────────────────────
     // clampBreakPositions/normalizeBreakPositions filter positions where:
