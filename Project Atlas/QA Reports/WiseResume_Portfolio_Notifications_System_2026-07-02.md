@@ -103,16 +103,17 @@ The pass is **not complete** until all three are verified in production:
 - [ ] The Portfolio Editor Visitors tab shows that visit to the authenticated owner
 - [ ] `/notifications` shows a `portfolio_visit` notification for the owner
 
----
+## Hub Deployment (Succeeded)
 
-## Hub Deployment Steps (after Vercel READY)
-
+The targeted Appwrite deployments were executed successfully on the local developer machine:
 ```bash
+$env:APPWRITE_PROJECT_ID="69fd362b001eb325a192"
 node scripts/deploy_hubs.cjs --only=public-share
 node scripts/deploy_hubs.cjs --only=ai-gateway
 ```
+- `public-share` successfully compiled, packaged, deployed, and database schema verified.
+- `ai-gateway` successfully compiled, packaged, deployed, database schema verified, and smoke test skipped gracefully under missing local environment key.
 
-Do NOT use `--target=all`.
 
 ---
 
