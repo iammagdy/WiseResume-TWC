@@ -24,7 +24,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
   const wiseChatOpen = useWiseWorkspaceStore((s) => s.open && s.mode === 'chat');
   const { plan, isLoading: planLoading } = usePlan();
   const navigate = useNavigate();
-  const unreadCount = useUnreadNotificationCount();
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
 
   const pageTitle = getPageTitle(pathname) ?? 'WiseResume';
   const showPlanBadge = !planLoading && (plan === 'premium' || plan === 'pro');
