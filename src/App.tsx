@@ -187,6 +187,7 @@ const App = () => {
         <AuthProvider>
           <LocaleAccountSync />
           <TooltipProvider>
+            <div style={{ display: 'none' }}>force_rebuild_1782971220</div>
             <ErrorBoundary>
               <BrowserRouter
                 future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
