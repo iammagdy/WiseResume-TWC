@@ -6,8 +6,8 @@ This file is loaded automatically by AI agents (Claude Code, Windsurf Cascade, C
 
 Every agent working on this codebase **must** read the following two files before making any design, layout, styling, animation, or component decision:
 
-- **[`DESIGN.md`](./DESIGN.md)** — The visual design system: color tokens, typography scale, component specs, elevation strategy, motion rules, Do's and Don'ts. Normative. The frontmatter is machine-readable; the markdown body is the authoritative prose spec.
-- **[`PRODUCT.md`](./PRODUCT.md)** — The strategic context: register (product UI), target users, brand personality, anti-references, design principles, accessibility requirements.
+- **[`DESIGN_GUIDELINES.md`](../design-system/DESIGN_GUIDELINES.md)** — The visual design system: color tokens, typography scale, component specs, elevation strategy, motion rules, Do's and Don'ts. Normative. The frontmatter is machine-readable; the markdown body is the authoritative prose spec.
+- **[`requirements.md`](../product/requirements.md)** — The strategic context: register (product UI), target users, brand personality, anti-references, design principles, accessibility requirements.
 
 If you skip these files, you will produce work that conflicts with the established system and will need to be reverted.
 
@@ -71,4 +71,4 @@ This project uses the `/impeccable` skill for design work. Key commands:
 - **Routing**: React Router v6
 - **Icons**: Lucide React
 - **Components**: shadcn/ui (Radix primitives)
-- **Auth / DB**: Supabase
+- **Auth / DB / Backend**: Appwrite Cloud (Appwrite Auth, Databases, Storage, Functions)

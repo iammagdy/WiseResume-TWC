@@ -75,7 +75,7 @@ All global mocks are registered in `src/test/setup.ts` and apply to every test f
 | `sonner` | `src/test/mocks/sonner.tsx` | Toast notifications |
 | `@/lib/haptics` | `src/test/mocks/haptics.ts` | Haptic feedback |
 | `@/lib/lazyWithRetry` | `src/test/setup.ts` (inline) | `React.lazy()` passthrough |
-| `@supabase/supabase-js` | `src/test/mocks/supabase.ts` | Supabase client |
+| `@/lib/appwrite` | `src/test/mocks/appwrite.ts` | Appwrite client & SDK mocks |
 | `window.matchMedia` | `src/test/setup.ts` (inline) | Browser media queries |
 | `window.scrollIntoView` | `src/test/setup.ts` (inline) | Scroll behavior |
 | `ResizeObserver` | `src/test/setup.ts` (inline) | DOM resize events |
