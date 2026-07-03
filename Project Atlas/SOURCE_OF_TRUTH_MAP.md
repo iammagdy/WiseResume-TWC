@@ -2,7 +2,7 @@
 
 **Last Verified:** 2026-07-03  
 **Status:** Canonical Documentation Index  
-**Consolidation Status:** Full Documentation Consolidation & Living Docs Normalization Complete (Merge SHA: `9567aa3066d58dd7636369d894f6eec15d72555b`)  
+**Consolidation Status:** Documentation consolidation merged to main at `9567aa3066d58dd7636369d894f6eec15d72555b`. Living Docs Normalization completed on branch `docs/atlas-living-docs-normalization` at commit `608d8f389b9839ca8fe03fa7e50fddc5eb42265a` and pending merge.  
 **Location:** `Project Atlas/SOURCE_OF_TRUTH_MAP.md`  
 
 ---
