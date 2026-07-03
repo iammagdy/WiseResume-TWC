@@ -133,7 +133,7 @@ async function verifyDevKitViaAdminHub(token) {
     const execution = await functions.createExecution({
       functionId: 'admin-devkit-data',
       body: JSON.stringify({
-        action: 'diagnostics',
+        action: 'get-deployed-hashes',
         __headers: { Authorization: `Bearer ${token}` },
       }),
       async: false,

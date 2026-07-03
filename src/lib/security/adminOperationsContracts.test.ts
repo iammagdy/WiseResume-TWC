@@ -45,6 +45,9 @@ describe('DevKit admin operations contracts', () => {
     expect(emailService).toContain('if (verifySignedDevKitToken(token)) return true;');
     expect(emailService).toContain('if (devkitPassword && token === devkitPassword) return true;');
     expect(emailService).not.toContain('devkitPassword && (token === devkitPassword || verifySignedDevKitToken(token))');
+    const delegatedAuth = emailService.match(/async function verifyDevKitViaAdminHub\(token\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(delegatedAuth).toContain("action: 'get-deployed-hashes'");
+    expect(delegatedAuth).not.toContain("action: 'diagnostics'");
     expect(emailService).not.toContain('temporary_password');
   });
 
