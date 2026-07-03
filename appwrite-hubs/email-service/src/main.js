@@ -155,6 +155,18 @@ async function hasDevKitAuth(req, body) {
   return verifyDevKitViaAdminHub(token);
 }
 
+function decodeVerifiedDevKitActor(req, body) {
+  const token = bearerToken(req, body);
+  if (!verifySignedDevKitToken(token)) return null;
+  try {
+    const [encoded] = token.split('.');
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    return typeof payload.uid === 'string' ? payload.uid : null;
+  } catch {
+    return null;
+  }
+}
+
 function appwriteApiKey() {
   return process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 }
@@ -1050,7 +1062,7 @@ function passwordResetOtpEmail(otpCode, locale = 'en') {
 </html>`;
 }
 
-async function handleSendPasswordResetOtp({ req, res, log, error, body }) {
+async function handleSendPasswordResetOtp({ req, res, log, error, body, adminAudit = null }) {
   const locale = body?.locale === 'ar' ? 'ar' : 'en';
   const email = (body?.email || '').trim().toLowerCase();
   const clientIp = headerValue(req, body, ['x-forwarded-for', 'x-real-ip', 'client-ip']) || '127.0.0.1';
@@ -1149,12 +1161,56 @@ async function handleSendPasswordResetOtp({ req, res, log, error, body }) {
       html: passwordResetOtpEmail(otpCode, locale),
     });
 
-    log(`Password reset OTP sent to ${email}`);
+    if (adminAudit?.targetUserId) {
+      try {
+        await db.createDocument(DB_ID, 'admin_audit_logs', sdk.ID.unique(), {
+          user_id: adminAudit.targetUserId,
+          category: 'devkit',
+          action: 'admin-password-reset-code-sent',
+          metadata: JSON.stringify({ actor_user_id: adminAudit.actorUserId || null }),
+        });
+      } catch {
+        error('Admin password reset code delivered but audit logging failed');
+        return json(res, { success: true, warning: 'Password reset code sent, but audit logging failed.' });
+      }
+    }
+
+    log(adminAudit ? 'Admin password reset code delivered' : 'Password reset code delivered');
     return json(res, { success: true });
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    error(`send-password-reset-otp failed: ${msg}`);
+    error(adminAudit ? 'Admin password reset code delivery failed' : `send-password-reset-otp failed: ${msg}`);
+    return json(res, { error: 'Failed to send password reset code.' }, 500);
+  }
+}
+
+async function handleSendAdminPasswordResetOtp({ req, res, log, error, body }) {
+  if (!(await hasDevKitAuth(req, body))) {
+    error('Unauthorized admin password reset code request');
+    return json(res, { error: 'Unauthorized' }, 401);
+  }
+
+  const targetUserId = String(body?.target_user_id || '').trim();
+  if (!targetUserId) return json(res, { error: 'target_user_id is required' }, 400);
+
+  try {
+    const client = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(appwriteApiKey());
+    const targetUser = await new sdk.Users(client).get(targetUserId);
+    if (!targetUser.email) return json(res, { error: 'Selected user has no email address' }, 400);
+    return handleSendPasswordResetOtp({
+      req,
+      res,
+      log,
+      error,
+      body: { email: targetUser.email, locale: body?.locale },
+      adminAudit: {
+        targetUserId,
+        actorUserId: decodeVerifiedDevKitActor(req, body),
+      },
+    });
+  } catch {
+    error('Admin password reset code request failed');
     return json(res, { error: 'Failed to send password reset code.' }, 500);
   }
 }
@@ -1362,6 +1418,9 @@ module.exports = async ({ req, res, log, error }) => {
 
     case 'send-password-reset-otp':
       return handleSendPasswordResetOtp({ req, res, log, error, body });
+
+    case 'send-admin-password-reset-otp':
+      return handleSendAdminPasswordResetOtp({ req, res, log, error, body });
 
     case 'verify-password-reset-otp':
       return handleVerifyPasswordResetOtp({ req, res, log, error, body });

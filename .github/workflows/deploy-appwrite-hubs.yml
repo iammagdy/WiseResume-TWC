@@ -165,6 +165,14 @@ jobs:
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/setup_audit_logs_schema.cjs
 
+      - name: Ensure impersonation sessions schema
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' || contains(github.event.inputs.target, 'admin-devkit-data') || contains(github.event.inputs.target, 'admin-impersonate') }}
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup_impersonation_sessions_schema.cjs
+
       - name: Ensure notifications schema
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
         env:

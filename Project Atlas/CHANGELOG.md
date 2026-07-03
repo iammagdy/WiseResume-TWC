@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-07-04 - DevKit Admin Users Operational Safety
+
+- **Function Drift Detection** (`DeployHubsPanel`, `hashDrift`): normalized SHA-256 comparisons so complete deployed hashes and legacy 16-character prefixes both report `In Sync` when they match; hash labels now distinguish full values from prefixes.
+- **Collision Controls** (`AdminUsersPanel`, `UserDetailDrawer`, `admin-devkit-data`): removed identity actions from normal list rows, restricted the drawer action to confirmed collision identities, renamed it to suspension-only language, and added a server-side collision guard. No data transfer or merge behavior was added.
+- **Act As Storage** (`setup_impersonation_sessions_schema.cjs`, `deploy-appwrite-hubs.yml`, impersonation hubs): added idempotent server-only session schema provisioning for targeted workflow runs, safe remediation errors, required query indexes, and corrected audit writes to `admin_audit_logs`.
+- **Admin Password Reset Codes** (`email-service`, `UserDetailDrawer`): added an authenticated send-code-only action that resolves the selected Appwrite Auth user, reuses the existing OTP flow, audits only after successful delivery, and returns a safe warning when delivery succeeds but auditing fails.
+- **Validation**: TypeScript and 13 focused Vitest tests passed; changed Appwrite/setup scripts passed Node syntax checks. Source hashes were regenerated for `admin-devkit-data`, `admin-impersonate`, and `email-service`.
+- **Deployment**: Not deployed. Recommended manual Appwrite Hubs target: `admin-devkit-data,admin-impersonate,email-service`.
+
+---
+
 ## 2026-07-03 - Public Readiness, Secret Hygiene & Proprietary Licensing
 
 - **Public Repository Presentation (PR #136)**: Rewrote root `README.md` to serve as a comprehensive public homepage with hero section, badges, product overview, feature summary, architecture overview, tech stack matrix, local dev quickstart, security model, deployment model, Project Atlas links, project status, and license notice. Updated GitHub repository description, homepage, and topics.

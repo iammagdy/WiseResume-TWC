@@ -1886,23 +1886,26 @@ async function handleDeleteUser(body, log) {
   return { ok: true, cleanup, profileDeleted, authUser };
 }
 
-async function handleMergeIdentity(body, log) {
+function isConfirmedCollisionProfile(profile) {
+  const email = String(profile?.email || '').toLowerCase();
+  return email.includes('@collision.') || email.includes('@placeholder.');
+}
+
+async function handleSuspendCollisionIdentity(body, log) {
   const { databases } = getClients();
   const { collision_user_id } = body;
   if (!collision_user_id) throw new Error('Missing collision_user_id');
-  const mergeLog = [];
   const profile = await getProfileDoc(databases, collision_user_id);
-  if (profile) {
-    await databases.updateDocument(DB_ID, 'profiles', profile.$id, {
-      is_suspended: true, suspension_reason: 'identity-collision-merged',
-    });
-    mergeLog.push(`Suspended collision profile ${profile.$id}`);
-  } else {
-    mergeLog.push('No profile found for collision user');
+  if (!profile || !isConfirmedCollisionProfile(profile)) {
+    throw new Error('Only confirmed duplicate/collision identities can be suspended.');
   }
-  await auditLog(databases, 'merge-identity', { collision_user_id });
-  log(`merge-identity: ${collision_user_id}`);
-  return { merge_log: mergeLog };
+  await databases.updateDocument(DB_ID, 'profiles', profile.$id, {
+    is_suspended: true,
+    suspension_reason: 'confirmed-identity-collision',
+  });
+  await auditLog(databases, 'suspend-collision-identity', { collision_user_id });
+  log(`suspend-collision-identity: ${collision_user_id}`);
+  return { suspended: true };
 }
 
 async function handleRevokeSessions(body, log) {
@@ -1998,7 +2001,7 @@ async function handleGetIdentity(body, log) {
   const profile = await getProfileDoc(databases, target_user_id);
   let authUser = null;
   try { authUser = await getUser(target_user_id); } catch (_) {}
-  const is_collision = (profile?.email || '').includes('@collision.') || (profile?.email || '').includes('@placeholder.');
+  const is_collision = isConfirmedCollisionProfile(profile);
   log(`get-identity: ${target_user_id}`);
   return {
     auth_email: authUser?.email || profile?.email || null,
@@ -2151,7 +2154,7 @@ async function handleImpersonate(body, log) {
       created_at: new Date().toISOString(),
     });
   } catch (sessionErr) {
-    throw new Error(`Impersonation session storage is not configured: ${sessionErr.message}`);
+    throw new Error('Impersonation storage schema is missing. Run the Appwrite Hubs workflow for admin-devkit-data/admin-impersonate or run the setup_impersonation_sessions_schema script.');
   }
   log(`impersonate: ${target_user_id}`);
   return { url: `/act-as#${encoded}.${sig}`, email: targetUser.email, userId: target_user_id, expiresAt };
@@ -2897,7 +2900,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'set-credits') data = await handleSetCredits(body, log);
     else if (action === 'save-note') data = await handleSaveNote(body, log);
     else if (action === 'delete-user') data = await handleDeleteUser(body, log);
-    else if (action === 'merge-identity') data = await handleMergeIdentity(body, log);
+    else if (action === 'suspend-collision-identity' || action === 'merge-identity') data = await handleSuspendCollisionIdentity(body, log);
     else if (action === 'revoke-sessions') data = await handleRevokeSessions(body, log);
     else if (action === 'list-user-content') data = await handleListUserContent(body, log);
     else if (action === 'update-profile') data = await handleUpdateProfile(body, log);

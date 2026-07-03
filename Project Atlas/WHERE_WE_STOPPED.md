@@ -1,6 +1,6 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-03
+**Last Verified:** 2026-07-04
 **Status:** Canonical Project Handover & Active Focus
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -33,16 +33,17 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Public-Readiness Preparation, Proprietary Licensing & Secret Audit Completed.
-* **Current State**: Public repository presentation prepared (`README.md`), repository metadata updated on GitHub, secret hygiene executed, proprietary All Rights Reserved license added, fallback git history secret scan passed cleanly, and PRs #136, #137, and #138 squash-merged to `main`. Repository remains **private**.
-* **Last Completed Task**: Merged PR #138 (`docs(license): mark repository as proprietary`). Added root `LICENSE` file, updated `README.md` license section, confirmed local `.env.vercel*` secret files moved outside repo folder by owner, ran fallback git commit history/source regex scan, and verified clean repository state.
+* **Current Active Focus**: DevKit/Admin Users operational safety fixes implemented locally and awaiting explicit deployment approval.
+* **Current State**: Function hash prefix drift, collision-only suspension controls, Act As schema provisioning, safe impersonation errors, and audited admin password-reset-code delivery are implemented and locally validated. No Appwrite or Vercel deployment has occurred.
+* **Last Completed Task**: Completed the local DevKit operational implementation and regenerated source hashes for the three changed Appwrite hubs. TypeScript, focused tests, syntax checks, and repository validation are required at final closeout before deployment recommendation.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
-3. **Turnstile Captcha Verification**: Verify Cloudflare Turnstile siteverify response handling for public portfolio contact submissions under live browser conditions.
+1. **Owner-Approved Targeted DevKit Deployment**: Run the manual Appwrite Hubs workflow with target `admin-devkit-data,admin-impersonate,email-service`; the workflow provisions `admin_impersonation_sessions` before deployment.
+2. **Post-Deployment DevKit QA**: Verify hash sync status, Act As issue/verify/revoke, collision-only suspension visibility, reset-code delivery, and audit records with a test user.
+3. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
 4. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
 
 ---
@@ -51,6 +52,7 @@
 
 * **Public Portfolio Contact Form (Turnstile Captcha)**: Blocked in automated E2E browser environments because Cloudflare Turnstile rejects headless automation contexts. Verified working via manual owner submission in production.
 * **Billing / Payments Activation**: Blocked on explicit project owner business decision.
+* **DevKit Operational Deployment**: Local changes are complete but production verification is blocked until the owner explicitly approves the targeted Appwrite workflow run.
 
 ---
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useQueryClient } from '@tanstack/react-query';
-import { User, Shield, Crown, Trash2, Search, FileText, ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal, CheckSquare, Square, Gift, TrendingUp, MessageSquare, Merge, Check, X, Activity, LayoutList } from 'lucide-react';
+import { User, Shield, Crown, Trash2, Search, FileText, ExternalLink, RefreshCw, ChevronDown, Ban, SlidersHorizontal, CheckSquare, Square, Gift, TrendingUp, MessageSquare, Check, X, Activity, LayoutList } from 'lucide-react';
 import { ActAsDialog, type ActAsSession } from './ActAsDialog';
 import { UserDetailDrawer } from './UserDetailDrawer';
 import { DevKitErrorCard } from './DevKitErrorCard';
@@ -115,7 +115,6 @@ export const AdminUsersPanel = () => {
   const [savingCreditsId, setSavingCreditsId] = useState<string | null>(null);
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [mergingId, setMergingId] = useState<string | null>(null);
   const [bulkActing, setBulkActing] = useState(false);
 
   const [trialDays, setTrialDays] = useState<Record<string, number>>({});
@@ -124,7 +123,6 @@ export const AdminUsersPanel = () => {
   const [newLimit, setNewLimit] = useState<Record<string, string>>({});
   const [bonusCredits, setBonusCredits] = useState<Record<string, string>>({});
   const [noteText, setNoteText] = useState<Record<string, string>>({});
-  const [mergeConfirming, setMergeConfirming] = useState<Record<string, boolean>>({});
   const [bulkPlan, setBulkPlan] = useState<BulkPlan>('pro');
   const [showBulkMenu, setShowBulkMenu] = useState(false);
   const [planConfirm, setPlanConfirm] = useState<{ userId: string; plan: 'free' | 'pro' | 'premium'; name: string } | null>(null);
@@ -396,27 +394,6 @@ export const AdminUsersPanel = () => {
       toast.error('Impersonation failed', { description: formatEdgeError(e, 'Failed to generate session link') });
     } finally {
       setImpersonatingId(null);
-    }
-  };
-
-  const handleMergeIdentity = async (userId: string) => {
-    setMergingId(userId);
-    try {
-      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
-        headers: devKitAuthHeaders(),
-        body: { action: 'merge-identity', collision_user_id: userId },
-      });
-      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-devkit-data');
-      toast.success('Identity merged', {
-        description: 'The orphan account has been suspended and merged into this account.',
-        duration: 6000,
-      });
-      setMergeConfirming(prev => ({ ...prev, [userId]: false }));
-      refresh();
-    } catch (e) {
-      toast.error(formatEdgeError(e, 'Failed to merge identity'));
-    } finally {
-      setMergingId(null);
     }
   };
 
@@ -790,8 +767,6 @@ export const AdminUsersPanel = () => {
             savingCreditsId={savingCreditsId}
             savingNoteId={savingNoteId}
             deletingId={deletingId}
-            mergingId={mergingId}
-            mergeConfirming={!!mergeConfirming[u.user_id]}
             trialDays={trialDays[u.user_id] ?? 7}
             trialPlanValue={trialPlan[u.user_id] ?? 'pro'}
             suspendReasonValue={suspendReason[u.user_id] ?? ''}
@@ -816,8 +791,6 @@ export const AdminUsersPanel = () => {
             onSendVerificationEmail={handleSendVerificationEmail}
             onImpersonate={handleImpersonate}
             onDeleteUser={handleDeleteUser}
-            onMergeIdentity={handleMergeIdentity}
-            onSetMergeConfirming={v => setMergeConfirming(prev => ({ ...prev, [u.user_id]: v }))}
             onOpenDrawer={() => setDrawerUser(u)}
             onTrialDaysChange={v => setTrialDays(prev => ({ ...prev, [u.user_id]: v }))}
             onTrialPlanChange={v => setTrialPlan(prev => ({ ...prev, [u.user_id]: v }))}
@@ -870,8 +843,6 @@ interface UserRowProps {
   savingCreditsId: string | null;
   savingNoteId: string | null;
   deletingId: string | null;
-  mergingId: string | null;
-  mergeConfirming: boolean;
   trialDays: number;
   trialPlanValue: 'pro' | 'premium';
   suspendReasonValue: string;
@@ -888,8 +859,6 @@ interface UserRowProps {
   onSaveNote: (userId: string) => void;
   onImpersonate: (userId: string) => void;
   onDeleteUser: (userId: string, profileId: string) => void;
-  onMergeIdentity: (userId: string) => void;
-  onSetMergeConfirming: (v: boolean) => void;
   onOpenDrawer: () => void;
   onTrialDaysChange: (v: number) => void;
   onTrialPlanChange: (v: 'pro' | 'premium') => void;
@@ -903,23 +872,21 @@ interface UserRowProps {
 function UserRow({
   user, selected, expanded,
   impersonatingId, savingPlanId, savingTrialId, savingSuspendId,
-  savingCreditsId, savingNoteId, deletingId, mergingId, mergeConfirming,
+  savingCreditsId, savingNoteId, deletingId,
   trialDays, trialPlanValue, suspendReasonValue, newLimitValue, bonusCreditsValue, noteTextValue,
   onToggleSelect, onToggleExpand,
   onSetPlan, onGrantTrial, onRevokeTrial, onToggleSuspend, onSetCredits, onSaveNote,
-  onImpersonate, onDeleteUser, onMergeIdentity, onSetMergeConfirming, onOpenDrawer,
+  onImpersonate, onDeleteUser, onOpenDrawer,
   onTrialDaysChange, onTrialPlanChange, onSuspendReasonChange,
   onNewLimitChange, onBonusCreditsChange, onNoteTextChange, onSendVerificationEmail,
 }: UserRowProps) {
   const isTrialActive = user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date();
-  const isCollision = user.has_id_conflict ?? false;
   const planSaving = savingPlanId === user.user_id;
   const trialSaving = savingTrialId === user.user_id;
   const suspendSaving = savingSuspendId === user.user_id;
   const creditsSaving = savingCreditsId === user.user_id;
   const noteSaving = savingNoteId === user.user_id;
   const deleting = deletingId === user.user_id;
-  const merging = mergingId === user.user_id;
   const impersonating = impersonatingId === user.user_id;
 
   const sendingVerification = false; // Managed externally via sendingVerificationId prop-less approach
@@ -1183,46 +1150,6 @@ function UserRow({
                 <LayoutList size={11} />
                 View Resumes &amp; Full Profile
               </button>
-
-              {/* Merge Identity — shown for accounts with identity collision */}
-              {mergeConfirming ? (
-                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 space-y-1.5">
-                  <p className="text-[10px] text-amber-400 font-semibold">Confirm identity merge?</p>
-                  <p className="text-[10px] text-white/40 leading-tight">
-                    This will suspend the orphan account and transfer all data to this account. Cannot be undone.
-                  </p>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => onMergeIdentity(user.user_id)}
-                      disabled={merging}
-                      className="flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-amber-500 text-black flex items-center justify-center gap-1"
-                    >
-                      {merging ? <MiniSpinner size={10} /> : <Check size={10} />}
-                      {merging ? 'Merging…' : 'Confirm'}
-                    </button>
-                    <button
-                      onClick={() => onSetMergeConfirming(false)}
-                      className="flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-white/5 border border-white/10 text-white/40"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => onSetMergeConfirming(true)}
-                  className={cn(
-                    'w-full py-1.5 text-[10px] font-semibold rounded-lg border transition-all flex items-center justify-center gap-1.5',
-                    isCollision
-                      ? 'bg-amber-500/20 border-amber-500/30 text-amber-400 hover:bg-amber-500/30'
-                      : 'bg-white/4 border-white/8 text-white/30 hover:bg-white/8 hover:text-white/50',
-                  )}
-                  title="Merge this account's data into its canonical identity"
-                >
-                  <Merge size={11} />
-                  {isCollision ? 'Fix Identity (Collision)' : 'Merge Identity'}
-                </button>
-              )}
 
               {/* Metadata */}
               <div className="text-[10px] text-white/30 space-y-0.5 pt-1">

@@ -13,6 +13,7 @@ Supabase Edge Functions are decommissioned for the active app. Any script whose 
 | `atlas-sync-check.ts` | Atlas inventory consistency check. Some labels still need Appwrite-native cleanup. | None |
 | `setup_observability_schema.cjs` | Observability/Appwrite setup helper. | Appwrite credentials |
 | `setup_app_settings_schema.cjs` | Repairs the `app_settings` key/value schema used by DevKit operational settings and deployed hashes. | Appwrite credentials |
+| `setup_impersonation_sessions_schema.cjs` | Idempotently creates or repairs the server-only `admin_impersonation_sessions` collection used by DevKit Act As. The revoke-path index and required attributes fail closed; optional cleanup indexes fail softly. | Appwrite credentials |
 | `setup_ai_logs_schema.cjs` | Creates the `ai_request_logs` schema used by the AI gateway request log writer. | Appwrite credentials |
 | `ensure-puppeteer-chrome.mjs` | Ensure local Chromium dependency exists for screenshot/browser checks. | None |
 | `capture-wallpaper.mjs`, `phase6-screenshots.mjs` | Visual capture helpers. | Local browser/runtime only |

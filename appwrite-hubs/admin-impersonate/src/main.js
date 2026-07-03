@@ -156,11 +156,11 @@ module.exports = async ({ req, res, log, error }) => {
           created_at: new Date().toISOString(),
         });
       } catch (sessionErr) {
-        error('[impersonation] Failed to write session nonce: ' + sessionErr.message);
-        return res.json({ success: false, error: 'Impersonation session storage is not configured.' }, 500);
+        error('[impersonation] Failed to write session nonce');
+        return res.json({ success: false, error: 'Impersonation storage schema is missing. Run the Appwrite Hubs workflow for admin-devkit-data/admin-impersonate or run the setup_impersonation_sessions_schema script.' }, 500);
       }
       try {
-        await databases.createDocument(DB_ID, 'admin_audit_log', ID.unique(), {
+        await databases.createDocument(DB_ID, 'admin_audit_logs', ID.unique(), {
           action: 'impersonation_claimed',
           target_user_id,
           target_email: targetUser.email,
@@ -193,7 +193,7 @@ module.exports = async ({ req, res, log, error }) => {
           .filter(doc => !doc.revoked_at)
           .map(doc => databases.updateDocument(DB_ID, IMPERSONATION_SESSIONS_COLLECTION, doc.$id, { revoked_at: revokedAt }).catch(() => null)));
       } catch (revokeErr) {
-        error('[impersonation] Failed to revoke stored sessions: ' + revokeErr.message);
+        error('[impersonation] Failed to revoke stored sessions');
         return res.json({ success: false, error: 'Could not revoke stored impersonation sessions.' }, 500);
       }
       await users.deleteSessions(target_user_id);

@@ -8,6 +8,7 @@ import { devKitInvokeOptions } from '@/lib/devkit/devKitAuth';
 import { unwrapAdminResponse } from '@/lib/devkit/appwriteResponse';
 import { cn } from '@/lib/utils';
 import sourceHashManifest from '@/lib/devkit/sourceHashes.generated.json';
+import { compareSourceHashes, formatHashLabel } from '@/lib/devkit/hashDrift';
 
 interface DeployStatus {
   ready: boolean;
@@ -155,7 +156,7 @@ export function DeployHubsPanel() {
     if (!currentHash) return 'unknown';
     const deployedHash = deployedHashes[hubId];
     if (!deployedHash) return 'needs-redeploy';
-    return currentHash === deployedHash ? 'in-sync' : 'needs-redeploy';
+    return compareSourceHashes(currentHash, deployedHash) ? 'in-sync' : 'needs-redeploy';
   }, [deployedHashes]);
 
   const recordDeployedHash = useCallback(async (hubId: string) => {
@@ -167,7 +168,7 @@ export function DeployHubsPanel() {
         hubId,
         hash: currentHash,
       }));
-      setDeployedHashes(prev => ({ ...prev, [hubId]: currentHash }));
+      setDeployedHashes(prev => ({ ...prev, [hubId]: currentHash.slice(0, 16) }));
     } catch { /* non-critical — hash recording is best-effort */ }
   }, []);
 
@@ -483,9 +484,9 @@ export function DeployHubsPanel() {
                         <span>Updated: <span className="text-white/75">{formatTimestamp(fn.updatedAt)}</span></span>
                         {currentHash && (
                           <span title="Current source hash (first 16 chars of SHA-256)">
-                            Hash: <span className="font-mono text-white/55">{currentHash}</span>
-                            {deployedHashes[fn.id] && deployedHashes[fn.id] !== currentHash && (
-                              <span className="ml-1 text-amber-400" title={`Deployed: ${deployedHashes[fn.id]}`}>(deployed: {deployedHashes[fn.id]})</span>
+                            Source hash: <span className="font-mono text-white/55">{formatHashLabel(currentHash)}</span>
+                            {deployedHashes[fn.id] && !compareSourceHashes(currentHash, deployedHashes[fn.id]) && (
+                              <span className="ml-1 text-amber-400" title={`Deployed hash: ${formatHashLabel(deployedHashes[fn.id])}`}>(deployed: {formatHashLabel(deployedHashes[fn.id])})</span>
                             )}
                           </span>
                         )}

@@ -181,6 +181,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
 
   // Revoke sessions
   const [revokingSessions, setRevokingSessions] = useState(false);
+  const [showPasswordResetDialog, setShowPasswordResetDialog] = useState(false);
+  const [sendingPasswordReset, setSendingPasswordReset] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
 
   // Content tab state
   const [resumes, setResumes] = useState<ResumeItem[]>([]);
@@ -425,23 +428,23 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     return () => { cancelled = true; };
   }, [open, user.user_id]);
 
-  const handleMergeIdentity = async () => {
+  const handleSuspendCollisionIdentity = async () => {
     setMergingIdentity(true);
     try {
       const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'merge-identity', collision_user_id: user.user_id },
+        body: { action: 'suspend-collision-identity', collision_user_id: user.user_id },
       });
-      unwrapAdminResponse<{ merge_log?: string[] }>(tuple, 'admin-devkit-data');
+      unwrapAdminResponse<{ suspended: boolean }>(tuple, 'admin-devkit-data');
       if (!isMounted()) return;
-      toast.success('Identity merged successfully', {
-        description: 'The orphan account has been suspended and merged into this account.',
+      toast.success('Duplicate identity suspended', {
+        description: 'No account data was transferred or merged.',
         duration: 6000,
       });
       setShowMergeConfirm(false);
       onUserUpdated();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to merge identity');
+      toast.error(e instanceof Error ? e.message : 'Failed to suspend duplicate identity');
     } finally {
       if (isMounted()) setMergingIdentity(false);
     }
@@ -727,6 +730,40 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
       toast.error(e instanceof Error ? e.message : 'Failed to revoke sessions');
     } finally {
       if (isMounted()) setRevokingSessions(false);
+    }
+  };
+
+  const handleSendVerification = async () => {
+    setSendingVerification(true);
+    try {
+      const tuple = await appwriteFunctions.invoke('email-service', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'send-admin-verification', target_user_id: user.user_id },
+      });
+      unwrapAdminResponse(tuple, 'email-service');
+      toast.success('Verification email sent');
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to send verification email'));
+    } finally {
+      if (isMounted()) setSendingVerification(false);
+    }
+  };
+
+  const handleSendPasswordResetCode = async () => {
+    setSendingPasswordReset(true);
+    try {
+      const tuple = await appwriteFunctions.invoke('email-service', {
+        headers: devKitAuthHeaders(),
+        body: { action: 'send-admin-password-reset-otp', target_user_id: user.user_id },
+      });
+      const result = unwrapAdminResponse<{ warning?: string }>(tuple, 'email-service');
+      setShowPasswordResetDialog(false);
+      if (result.warning) toast.warning('Password reset code sent', { description: result.warning });
+      else toast.success('Password reset code sent');
+    } catch (e) {
+      toast.error(formatEdgeError(e, 'Failed to send password reset code'));
+    } finally {
+      if (isMounted()) setSendingPasswordReset(false);
     }
   };
 
@@ -1189,7 +1226,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
               <div className="space-y-3">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   <Fingerprint className="w-4 h-4 text-indigo-500" />
-                  Identity
+                  Advanced · Identity
                   {user.has_id_conflict && (
                     <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 ml-1">
                       ID conflict
@@ -1202,7 +1239,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <div>
                       <p className="font-medium">Identity collision detected</p>
-                      <p className="opacity-80 mt-0.5">The real email ({user.contact_email || identityData?.contact_email || '…'}) belongs to an orphaned legacy account. Use "Fix identity" below to merge them.</p>
+                      <p className="opacity-80 mt-0.5">Only use this for confirmed duplicate/collision identities.</p>
                     </div>
                   </div>
                 )}
@@ -1253,25 +1290,22 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                         className="w-full h-8 text-xs flex items-center gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
                       >
                         <Merge className="w-3.5 h-3.5" />
-                        Fix identity…
+                        Suspend duplicate identity…
                       </Button>
                     ) : (
                       <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-3">
-                        <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Confirm identity merge</p>
+                        <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Confirm duplicate identity suspension</p>
                         <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                          This will:
-                          <br />• Copy the orphan account's plan and profile fields into this account (if better)
-                          <br />• Suspend the orphan account with reason <span className="font-mono">merged_into:{user.user_id.slice(0, 8)}…</span>
-                          <br />• Write an audit log entry
+                          This suspends the confirmed collision profile and writes an audit entry. No account data is transferred or merged.
                         </p>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            onClick={handleMergeIdentity}
+                            onClick={handleSuspendCollisionIdentity}
                             disabled={mergingIdentity}
                             className="flex-1 h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
                           >
-                            {mergingIdentity ? 'Merging…' : 'Confirm merge'}
+                            {mergingIdentity ? 'Suspending…' : 'Confirm suspension'}
                           </Button>
                           <Button
                             size="sm"
@@ -1289,13 +1323,13 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                 )}
               </div>
 
-              {/* Danger Zone: Session Revoke + Delete Account */}
+              {/* Access and moderation controls */}
               <div className="space-y-2">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                  <AlertTriangle className="w-4 h-4" />
-                  Danger Zone
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <Shield className="w-4 h-4 text-blue-500" />
+                  Access
                 </h3>
-                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-medium">Revoke all sessions</p>
@@ -1306,13 +1340,42 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                       size="sm"
                       onClick={handleRevokeSessions}
                       disabled={revokingSessions}
-                      className="h-7 text-xs shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10"
+                      className="h-7 text-xs shrink-0"
                     >
                       <LogOut className="w-3 h-3 mr-1" />
                       {revokingSessions ? 'Revoking…' : 'Revoke'}
                     </Button>
                   </div>
-                  <div className="border-t border-destructive/10 pt-2 flex items-center justify-between gap-3">
+                  {user.email_verified === false && (
+                    <div className="border-t border-border pt-2 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium">Send verification email</p>
+                        <p className="text-[10px] text-muted-foreground">Sends the standard verification link.</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={handleSendVerification} disabled={sendingVerification} className="h-7 text-xs shrink-0">
+                        {sendingVerification ? 'Sending…' : 'Send'}
+                      </Button>
+                    </div>
+                  )}
+                  <div className="border-t border-border pt-2 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium">Send password reset code</p>
+                      <p className="text-[10px] text-muted-foreground">Sends a code only; passwords cannot be edited here.</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setShowPasswordResetDialog(true)} className="h-7 text-xs shrink-0">
+                      Send code
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <AlertTriangle className="w-4 h-4" />
+                  Moderation
+                </h3>
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-medium">Delete account</p>
                       <p className="text-[10px] text-muted-foreground">Permanently removes this user and all their data.</p>
@@ -1465,7 +1528,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
               <div className="space-y-3">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   <Crown className="w-4 h-4 text-amber-500" />
-                  Plan Control
+                  Account · Plan
                 </h3>
                 <div className="flex gap-1 p-1 bg-muted/40 rounded-lg border border-border w-fit">
                   {(['permanent', 'trial'] as PlanTab[]).map((tab) => (
@@ -1569,7 +1632,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
               <div className="space-y-3">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   {user.is_suspended ? <ShieldOff className="w-4 h-4 text-red-500" /> : <Shield className="w-4 h-4 text-green-500" />}
-                  Account Status
+                  Moderation · Account Status
                 </h3>
                 {user.is_suspended ? (
                   <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 space-y-2">
@@ -1605,7 +1668,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
               <div className="space-y-3">
                 <h3 className="flex items-center gap-2 text-sm font-semibold">
                   <Zap className="w-4 h-4 text-yellow-500" />
-                  AI Credits Override
+                  Account · AI Credits
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   Currently using <strong>{user.credits_used_today}</strong> of <strong>{user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}</strong> credits today.
@@ -1703,6 +1766,27 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           )}
         </div>
       </div>
+
+      {/* Password reset code confirmation dialog */}
+      {showPasswordResetDialog && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div>
+              <h3 className="font-semibold text-sm">Send password reset code</h3>
+              <p className="text-xs text-muted-foreground mt-1">Send a password reset code to this user's email?</p>
+            </div>
+            <p className="text-xs text-muted-foreground">The code is delivered by email and is never displayed in DevKit.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowPasswordResetDialog(false)} disabled={sendingPasswordReset} className="flex-1">
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSendPasswordResetCode} disabled={sendingPasswordReset || impersonating} className="flex-1">
+                {sendingPasswordReset ? 'Sending…' : 'Send code'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* WiseHire full test reset confirmation dialog */}
       {showResetDialog && (
