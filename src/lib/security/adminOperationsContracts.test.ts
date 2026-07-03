@@ -42,6 +42,9 @@ describe('DevKit admin operations contracts', () => {
     expect(emailService).toContain('handleSendAdminPasswordResetOtp');
     expect(emailService).toContain("action: 'admin-password-reset-code-sent'");
     expect(emailService).toContain('Password reset code sent, but audit logging failed.');
+    expect(emailService).toContain('if (verifySignedDevKitToken(token)) return true;');
+    expect(emailService).toContain('if (devkitPassword && token === devkitPassword) return true;');
+    expect(emailService).not.toContain('devkitPassword && (token === devkitPassword || verifySignedDevKitToken(token))');
     expect(emailService).not.toContain('temporary_password');
   });
 

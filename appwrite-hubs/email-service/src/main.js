@@ -151,7 +151,8 @@ async function hasDevKitAuth(req, body) {
   const devkitPassword = process.env.DEVKIT_PASSWORD || '';
   const token = bearerToken(req, body);
   if (!token) return false;
-  if (devkitPassword && (token === devkitPassword || verifySignedDevKitToken(token))) return true;
+  if (verifySignedDevKitToken(token)) return true;
+  if (devkitPassword && token === devkitPassword) return true;
   return verifyDevKitViaAdminHub(token);
 }
 
