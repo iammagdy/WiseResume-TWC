@@ -23,26 +23,25 @@
 
 ## 2. Latest Important Commits
 
+* **`720626b2`** — `docs(atlas): clean Project Atlas governance structure`
+* **`912e4a60`** — `docs(atlas): final hygiene polish and source-of-truth map inventory completion`
 * **`ceace5c1`** — `docs(atlas): add routing rules, handover state, and AI agent skills scaffold`
 * **`0727589e`** — `docs(atlas): add QA test-suite map and test-output routing governance`
 * **`8d356f9e`** — `docs(atlas): update master changelog, rules, and governance for archive policy`
-* **`f7693c00`** — `docs(atlas): consolidate legacy docs into historical archive`
-* **`bc2e7c25`** — `docs: finalize Atlas normalization merge status`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Project Atlas Documentation Governance & Organization Cleanup.
-* **Current State**: Project Atlas governance cleanup executed on branch `docs/atlas-governance-cleanup`. Stale Supabase/legacy specs archived, misplaced feature plans relocated, missing living specs created (`ai/ai-gateway.md`, `qa/PLAYWRIGHT_E2E_SUITE.md`), and `SOURCE_OF_TRUTH_MAP.md` updated.
-* **Last Completed Task**: Executed Project Atlas docs-only governance cleanup. Relocated 32 historical files to `archive/`, added caution disclaimers, fixed broken links, created missing living specs, and aligned source-of-truth inventory map.
+* **Current Active Focus**: Project Atlas Documentation Governance Cleanup Completed.
+* **Current State**: Project Atlas governance cleanup fully executed, reviewed, approved, and merged to `main` (PR #135, commit `720626b2`). Remote branch `docs/atlas-governance-cleanup` deleted.
+* **Last Completed Task**: Merged PR #135 (`docs(atlas): clean Project Atlas governance structure`). Archived 31 stale/legacy docs to `archive/`, relocated misplaced feature plans, created canonical specs `ai/ai-gateway.md` and `qa/PLAYWRIGHT_E2E_SUITE.md`, updated `SOURCE_OF_TRUTH_MAP.md`, and validated repository status.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Review of Governance Cleanup**: Obtain owner approval to commit and push `docs/atlas-governance-cleanup` branch.
-2. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production.
+1. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
 3. **Turnstile Captcha Verification**: Verify Cloudflare Turnstile siteverify response handling for public portfolio contact submissions under live browser conditions.
 4. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
 
