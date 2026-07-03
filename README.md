@@ -168,4 +168,8 @@ Canonical project documentation, architecture details, and operating manuals are
 
 ## 📄 License
 
-`License: TBD — this repository is not currently licensed for public reuse.`
+This project is proprietary and all rights are reserved.
+
+The source code is provided for portfolio, review, and evaluation purposes only. No permission is granted to copy, modify, distribute, deploy, commercialize, or create derivative works without prior written permission.
+
+See [LICENSE](./LICENSE).
