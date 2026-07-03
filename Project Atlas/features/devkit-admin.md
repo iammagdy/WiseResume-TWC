@@ -50,6 +50,7 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 
 ## 7. Known Risks & Edge Cases
 * `X-DevKit-Key` is stored securely in Appwrite Function environment variables.
+* Live verification on 2026-07-04 confirmed schema provisioning, hash synchronization, and Act As lifecycle behavior. Admin password-reset-code delivery remains blocked at the `email-service` DevKit authentication boundary (HTTP 401 before code generation); no reset email or success audit is produced in this state.
 
 ---
 

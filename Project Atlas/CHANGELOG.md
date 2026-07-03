@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-07-04 - DevKit Admin Operations Deployment & Live Verification
+
+- **Targeted Appwrite Deployment**: Official `Deploy Appwrite Hubs` workflow run `28687088873` completed successfully for `admin-devkit-data,admin-impersonate,email-service` on commit `c4bc9fea`. No `target=all`, Appwrite Console deployment, or unrelated hub deployment was used.
+- **Schema & Hash Verification**: Live inspection confirmed the server-only `admin_impersonation_sessions` schema, required indexes, and matching deployed-hash prefixes for all three hubs.
+- **Act As Verification**: Live issuance created a stored session, verification succeeded, revocation succeeded, and the revoked token was rejected afterward.
+- **Admin Reset Blocker**: `email-service` still rejects the valid DevKit token with HTTP 401 before reset-code generation. No reset code was sent and no success audit was written. Three narrow authentication fixes were tested and deployed; further changes are paused pending an explicit authentication-boundary design decision.
+- **Exposure Check**: Inspected execution output contained no OTP value, challenge token, email body, bearer secret, or Resend payload.
+- **Frontend Verification**: Vercel reported the production deployment for commit `c4bc9fea` successful. Collision controls remain covered by the deployed source contract and focused tests; authenticated browser verification was unavailable because the browser session was signed out.
+
+---
+
 ## 2026-07-04 - DevKit Admin Users Operational Safety
 
 - **Function Drift Detection** (`DeployHubsPanel`, `hashDrift`): normalized SHA-256 comparisons so complete deployed hashes and legacy 16-character prefixes both report `In Sync` when they match; hash labels now distinguish full values from prefixes.

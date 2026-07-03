@@ -23,6 +23,11 @@
 
 ## 2. Latest Important Commits
 
+* **`c4bc9fea`** — `fix(devkit): validate delegated admin auth response`
+* **`b7e43412`** — `fix(devkit): use lightweight delegated email auth`
+* **`18d6263a`** — `fix(devkit): accept signed admin tokens in email service`
+* **`6a38a20e`** — `chore(devkit): fix admin operations and impersonation storage`
+
 * **`cbadbe84`** — `docs(license): mark repository as proprietary`
 * **`70ce4a5b`** — `chore(security): sanitize public-readiness repository hygiene`
 * **`1ad325aa`** — `docs(readme): prepare repository for public visibility`
@@ -33,16 +38,16 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit/Admin Users operational safety fixes implemented locally and awaiting explicit deployment approval.
-* **Current State**: Function hash prefix drift, collision-only suspension controls, Act As schema provisioning, safe impersonation errors, and audited admin password-reset-code delivery are implemented and locally validated. No Appwrite or Vercel deployment has occurred.
-* **Last Completed Task**: Completed the local DevKit operational implementation and regenerated source hashes for the three changed Appwrite hubs. TypeScript, focused tests, syntax checks, and repository validation are required at final closeout before deployment recommendation.
+* **Current Active Focus**: DevKit/Admin Users deployment completed; admin password-reset DevKit authentication remains blocked.
+* **Current State**: Official workflow run `28687088873` deployed `admin-devkit-data,admin-impersonate,email-service`. The impersonation schema, deployed hashes, and Act As issue/verify/revoke lifecycle passed live checks. `email-service` still returns HTTP 401 for a valid DevKit token before code generation, so reset delivery and success-audit verification remain incomplete.
+* **Last Completed Task**: Completed targeted deployment and live verification through Appwrite APIs. Confirmed no OTP, token, email body, bearer secret, or Resend payload exposure. Stopped after three narrow authentication fixes failed to clear the email-service boundary.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner-Approved Targeted DevKit Deployment**: Run the manual Appwrite Hubs workflow with target `admin-devkit-data,admin-impersonate,email-service`; the workflow provisions `admin_impersonation_sessions` before deployment.
-2. **Post-Deployment DevKit QA**: Verify hash sync status, Act As issue/verify/revoke, collision-only suspension visibility, reset-code delivery, and audit records with a test user.
+1. **Admin Reset Authentication Design**: Decide on one authoritative cross-function admin-token verification contract for `email-service`; do not add another fallback patch without reviewing the signing-key and Appwrite execution boundary.
+2. **Remaining Post-Deployment QA**: After that decision, verify one reset-code delivery, its success audit, audit-failure warning behavior, and authenticated collision-control visibility.
 3. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
 4. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
 
@@ -52,7 +57,7 @@
 
 * **Public Portfolio Contact Form (Turnstile Captcha)**: Blocked in automated E2E browser environments because Cloudflare Turnstile rejects headless automation contexts. Verified working via manual owner submission in production.
 * **Billing / Payments Activation**: Blocked on explicit project owner business decision.
-* **DevKit Operational Deployment**: Local changes are complete but production verification is blocked until the owner explicitly approves the targeted Appwrite workflow run.
+* **Admin Password Reset Code**: Blocked because deployed `email-service` rejects the valid DevKit token with HTTP 401. No email was sent and no success audit was created during verification.
 
 ---
 
