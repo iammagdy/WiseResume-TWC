@@ -23,19 +23,19 @@
 
 ## 2. Latest Important Commits
 
+* **`cbadbe84`** — `docs(license): mark repository as proprietary`
+* **`70ce4a5b`** — `chore(security): sanitize public-readiness repository hygiene`
+* **`1ad325aa`** — `docs(readme): prepare repository for public visibility`
+* **`81e35bbe`** — `docs(atlas): update session closeout and handover state`
 * **`720626b2`** — `docs(atlas): clean Project Atlas governance structure`
-* **`912e4a60`** — `docs(atlas): final hygiene polish and source-of-truth map inventory completion`
-* **`ceace5c1`** — `docs(atlas): add routing rules, handover state, and AI agent skills scaffold`
-* **`0727589e`** — `docs(atlas): add QA test-suite map and test-output routing governance`
-* **`8d356f9e`** — `docs(atlas): update master changelog, rules, and governance for archive policy`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Project Atlas Documentation Governance Cleanup Completed.
-* **Current State**: Project Atlas governance cleanup fully executed, reviewed, approved, and merged to `main` (PR #135, commit `720626b2`). Remote branch `docs/atlas-governance-cleanup` deleted.
-* **Last Completed Task**: Merged PR #135 (`docs(atlas): clean Project Atlas governance structure`). Archived 31 stale/legacy docs to `archive/`, relocated misplaced feature plans, created canonical specs `ai/ai-gateway.md` and `qa/PLAYWRIGHT_E2E_SUITE.md`, updated `SOURCE_OF_TRUTH_MAP.md`, and validated repository status.
+* **Current Active Focus**: Public-Readiness Preparation, Proprietary Licensing & Secret Audit Completed.
+* **Current State**: Public repository presentation prepared (`README.md`), repository metadata updated on GitHub, secret hygiene executed, proprietary All Rights Reserved license added, fallback git history secret scan passed cleanly, and PRs #136, #137, and #138 squash-merged to `main`. Repository remains **private**.
+* **Last Completed Task**: Merged PR #138 (`docs(license): mark repository as proprietary`). Added root `LICENSE` file, updated `README.md` license section, confirmed local `.env.vercel*` secret files moved outside repo folder by owner, ran fallback git commit history/source regex scan, and verified clean repository state.
 
 ---
 

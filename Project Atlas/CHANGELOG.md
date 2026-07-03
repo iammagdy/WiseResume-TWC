@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-07-03 - Public Readiness, Secret Hygiene & Proprietary Licensing
+
+- **Public Repository Presentation (PR #136)**: Rewrote root `README.md` to serve as a comprehensive public homepage with hero section, badges, product overview, feature summary, architecture overview, tech stack matrix, local dev quickstart, security model, deployment model, Project Atlas links, project status, and license notice. Updated GitHub repository description, homepage, and topics.
+- **Secret Hygiene & Data Sanitization (PR #137)**: Updated `.gitignore` to explicitly ignore local environment secret files (`.env.*`, `.env.vercel`, `.env.vercel.*`). Sanitized personal email references (`magdy.saber@outlook.com`) across developer scripts (`scripts/`), unit tests, template sample data (`src/lib/templateData.ts`), and Project Atlas documentation.
+- **Proprietary All-Rights-Reserved License (PR #138)**: Created root `LICENSE` file establishing a proprietary, all-rights-reserved license for portfolio review purposes. Updated `README.md` license section pointing to `LICENSE`.
+- **Public-Readiness Secret Audit**: Confirmed local `.env.vercel*` secret files were moved outside the repository folder by the owner. Executed fallback git commit history (`git log -p -G ...`) and source regex scan (`git grep`), verifying zero active secrets in git commit history. Output reports created in `..\secret-scan-reports\` (outside git tree).
+- **Strict Guardrails Followed**: Zero application code changed, zero Appwrite functions changed, zero backend schemas or auth logic changed, zero workflow changes, zero manual Vercel or Appwrite deployments performed. Repository visibility remains private.
+
+---
+
 ## 2026-07-03 - Project Atlas Governance & Structure Cleanup
 
 - **Docs-Only Governance Cleanup**: Performed comprehensive audit and restructuring of `Project Atlas/` folder layout based strictly on Atlas routing governance files (`ATLAS_ROUTING_RULES.md`, `SOURCE_OF_TRUTH_MAP.md`, `RULES.md`).
