@@ -1,5 +1,13 @@
 # Project Atlas Changelog
 
+## 2026-07-03 - Living Docs Normalization Merged
+
+- Merged `docs/atlas-living-docs-normalization` into `main`.
+- Finalized Project Atlas living architecture, deployment, and feature documentation.
+- Confirmed current docs now describe Appwrite-native architecture, Vercel frontend hosting, Appwrite Auth, and Appwrite `ai-gateway`.
+
+---
+
 ## 2026-07-03 - Living Docs Normalization
 
 - **Normalized Living Specs**: Created 9 living feature specs under `Project Atlas/features/` (`dashboard.md`, `portfolio.md`, `resume-editor.md`, `tailoring-hub.md`, `upload-import.md`, `preview-export.md`, `cover-letters.md`, `notifications.md`, `devkit-admin.md`).
