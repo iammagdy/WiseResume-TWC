@@ -406,7 +406,7 @@ Run a full live browser QA audit on production (`https://wiseresume.app`) after 
 #### Phase 1 — Live Browser QA Audit
 - Ran Playwright 1.59.1 (Chromium headless) against production at commit `38583687`.
 - Tested 127 route-viewport combinations: 10 public routes × 5 viewports (50), 24 protected routes × 1 viewport + 9 key routes × 4 mobile viewports (60), 13 WiseHire routes × 1 viewport (13), 4 visual regression checks, 4 accessibility spot checks.
-- QA account: `Magdy.saber+1@outlook.com` (credentials via env vars, never hardcoded).
+- QA account: `qa-account@wiseresume.app` (credentials via env vars, never hardcoded).
 - Login: SUCCESS. No UI regressions. No PR #132 blockers.
 
 #### Phase 2 — Stabilization Triage
@@ -3655,7 +3655,7 @@ Audited all 21 Appwrite Functions after the live DevKit/admin access fix. The ac
 - `node --check` passed for all changed function entrypoints.
 - Live `ai-gateway` smoke returned provider availability for Groq, OpenRouter, DeepSeek, and NVIDIA.
 - Live real `ai-gateway` request returned HTTP 200 through Groq and did not include `__headers`, `X-Appwrite-JWT`, or JWT text in the response.
-- Live DevKit token flow: `verify-devkit-session` returned HTTP 200 for `magdy.saber@outlook.com`.
+- Live DevKit token flow: `verify-devkit-session` returned HTTP 200 for `admin@wiseresume.app`.
 - Live admin smoke checks returned HTTP 200 for `admin-devkit-data`, `admin-email`, `admin-testmail`, `admin-feature-flags`, `admin-moderation`, `admin-portfolio-usernames`, `admin-visitor-analytics`, `admin-onboarding-funnel`, and `inspect-ai-keys`.
 - Final Appwrite audit: 21 functions checked; deployment problems: none; latest execution failures: none.
 
@@ -3733,7 +3733,7 @@ Branch: `claude/app-audit-report-y0dzO` — PR #74 merged to `main`.
 
 ### Resolved Bug - Admin Panel button not rendering in production
 
-**Original symptom:** Logged in as `magdy.saber@outlook.com`; the profile dialog showed the email, but no Admin Panel button appeared and `/devkit` was inaccessible.
+**Original symptom:** Logged in as `admin@wiseresume.app`; the profile dialog showed the email, but no Admin Panel button appeared and `/devkit` was inaccessible.
 
 **Resolution:** Fixed in the 2026-06-02 "Admin Panel Profile Menu Access" session below by waiting for hydrated Appwrite auth before comparing the normalized `user.email`, then wiring the same result through the profile menu and `/devkit` route guard.
 ---
@@ -3756,11 +3756,11 @@ Branch: `claude/app-audit-report-y0dzO` — PR #74 merged to `main`.
 
 ### Part 2 — Admin Panel Security (commit `498e300`)
 
-**Goal:** `/devkit` inaccessible to public; Admin Panel button only visible when `magdy.saber@outlook.com` is signed in; no separate password prompt.
+**Goal:** `/devkit` inaccessible to public; Admin Panel button only visible when `admin@wiseresume.app` is signed in; no separate password prompt.
 
 | File | Change |
 |---|---|
-| `src/hooks/useIsAdmin.ts` | NEW — exports `ADMIN_EMAIL` constant and `useIsAdmin()` hook; returns `true` only when `user.email?.toLowerCase() === 'magdy.saber@outlook.com'` |
+| `src/hooks/useIsAdmin.ts` | NEW — exports `ADMIN_EMAIL` constant and `useIsAdmin()` hook; returns `true` only when `user.email?.toLowerCase() === 'admin@wiseresume.app'` |
 | `src/components/layout/AdminRoute.tsx` | NEW — route guard; shows spinner while auth loads, `<Navigate to="/" replace />` for non-admin, renders children for admin |
 | `src/AppInterior.tsx` | Wrapped `/devkit` route in `<AdminRoute>`; added `useIsAdmin()` + Cmd+Shift+A keyboard shortcut (admin only) |
 | `src/components/layout/AppWorkspaceLayout.tsx` | Added `useIsAdmin()`; conditionally passes `onAdminPanel: () => navigate('/devkit')` to sidebar props |
@@ -3825,7 +3825,7 @@ Env vars read: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG_SLUG` (or `SENTRY_ORG`), `SENTRY
 | **Activate** `admin-sentry` deployment `6a1db9175c65a3ff6917` | Click `...` → Activate on the Ready row — function has no active deployment yet |
 | Set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG_SLUG`, `SENTRY_PROJECT_SLUG` on `admin-sentry` | Required for Sentry API calls to work (user has already added these) |
 | Remove `DEVKIT_PASSWORD` from `admin-devkit-data` function variables | Auth no longer uses the password; old var is dead weight |
-| Optionally add `ADMIN_EMAIL=magdy.saber@outlook.com` to `admin-devkit-data` | Defaults to that value if missing; explicit var makes it auditable |
+| Optionally add `ADMIN_EMAIL=admin@wiseresume.app` to `admin-devkit-data` | Defaults to that value if missing; explicit var makes it auditable |
 | Remove `ANTHROPIC_API_KEY` from Appwrite console | Never read by any function — `buildPool()` in `ai-gateway` never included Anthropic |
 | Disable Appwrite GitHub auto-deploy for `ai-gateway`, `admin-deploy-hubs`, `admin-sentry` | Per user request. In Appwrite console: each function → Settings → Git → toggle off "Activate automatic deployments" |
 | Merge PR #74 to main | All changes reviewed and ready |
@@ -3843,7 +3843,7 @@ Env vars read: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG_SLUG` (or `SENTRY_ORG`), `SENTRY
 ## Session Log - 2026-06-02 (Admin Panel Profile Menu Access)
 
 ### Overview
-Fixed the missing Admin Panel action in the workspace profile dropdown for the admin Appwrite account `magdy.saber@outlook.com`. Also added a matching route guard for direct `/devkit` navigation.
+Fixed the missing Admin Panel action in the workspace profile dropdown for the admin Appwrite account `admin@wiseresume.app`. Also added a matching route guard for direct `/devkit` navigation.
 
 ### Root Cause Verified
 - `src/hooks/useAuth.ts` returns `AuthContext` directly. `AuthContext` normalizes Appwrite account data into `AppUser` with `id`, `email`, `name`, and `emailVerification`; the live Appwrite email path is `appwriteUser.email`.
@@ -3857,7 +3857,7 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 ### Code Fixes Applied
 | File | Fix |
 |------|-----|
-| `src/hooks/useIsAdmin.ts` | Added auth-settled admin status hook using unchanged `ADMIN_EMAIL = 'magdy.saber@outlook.com'` and `user.email?.trim().toLowerCase()`. |
+| `src/hooks/useIsAdmin.ts` | Added auth-settled admin status hook using unchanged `ADMIN_EMAIL = 'admin@wiseresume.app'` and `user.email?.trim().toLowerCase()`. |
 | `src/components/layout/AdminRoute.tsx` | Added direct `/devkit` guard that waits for auth hydration and redirects non-admin users to `/dashboard`. |
 | `src/components/layout/AppWorkspaceLayout.tsx` | Uses `useIsAdmin()` and passes `onAdminPanel` only when the hydrated admin check is true. |
 | `src/components/layout/AppWorkspaceSidebar.tsx` | Accepts and forwards `onAdminPanel` to the profile dialog. |
@@ -3875,7 +3875,7 @@ Fixed the missing Admin Panel action in the workspace profile dropdown for the a
 - `npm run build` — passed after the passwordless DevKit/landing-dropdown update.
 - `node --check appwrite-hubs/admin-devkit-data/src/main.js` — syntax clean.
 - `node scripts/deploy_hubs.cjs --only=admin-devkit-data` — deployed active Appwrite deployment `6a1e5eddedbdc0a4b4e0`.
-- Live Appwrite verification — `verify-devkit-session` with a JWT for `magdy.saber@outlook.com` returned HTTP 200 and a signed DevKit session.
+- Live Appwrite verification — `verify-devkit-session` with a JWT for `admin@wiseresume.app` returned HTTP 200 and a signed DevKit session.
 
 ### Deployment Notes
 - Frontend-only change. Takes effect on the next frontend deployment.
@@ -8290,7 +8290,7 @@ WiseHire schema:
 - Idempotency: verified.
 
 Magdy account:
-- Account: `magdy.saber@outlook.com`.
+- Account: `admin@wiseresume.app`.
 - Before value: `null`.
 - After value: `hr`.
 
@@ -8339,7 +8339,7 @@ At session end there were no staged files and no tracked diffs. Do not delete th
 Owner still needs to verify WiseHire and DevKit in a real browser session. Codex verified live data, guard logic, function smoke responses, and timeout metadata, but not Magdy's actual logged-in browser experience.
 
 Manual checks still pending:
-1. Log in as `magdy.saber@outlook.com`.
+1. Log in as `admin@wiseresume.app`.
 2. Confirm WiseHire opens successfully.
 3. Confirm DevKit tabs visually load in browser: Users, Growth & Traffic, Visitors, Observability, Data Integrity, Mission Control.
 4. Confirm no visual breakage from DevKit Phase 1.

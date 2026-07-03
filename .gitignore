@@ -1,8 +1,15 @@
 # Appwrite CLI local config (generated, not for version control)
 .appwrite/
 
-# Local deploy secrets — never commit
+# Local environment files — never commit
+.env
+.env.*
+!.env.example
+!.env.test.example
 .env.deploy
+.env.vercel
+.env.vercel.*
+
 
 # Logs
 logs

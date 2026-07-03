@@ -58,7 +58,7 @@ async function timed(label, fn) {
     }
   }
 
-  const email = 'magdy.saber@outlook.com';
+  const email = process.env.ADMIN_EMAIL || 'admin@wiseresume.app';
   const page = await users.list([sdk.Query.equal('email', email), sdk.Query.limit(1)]);
   const user = page.users[0];
   if (!user) throw new Error(`User not found: ${email}`);

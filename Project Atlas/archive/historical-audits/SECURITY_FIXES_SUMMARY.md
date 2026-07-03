@@ -63,7 +63,7 @@ server functionality.
 ---
 
 ### F — Hard-coded `ADMIN_EMAIL` fallback removed (`ai-gateway`, `admin-devkit-data`)
-**Risk:** Fallback `'magdy.saber@outlook.com'` meant impersonation and admin-only paths
+**Risk:** Fallback `'admin@wiseresume.app'` meant impersonation and admin-only paths
 would silently activate for the hard-coded email if `ADMIN_EMAIL` env var was unset.
 
 **Fix:** Fallback removed. Both functions now read `process.env.ADMIN_EMAIL || ''` —

@@ -18,7 +18,7 @@ function loadEnv(fileName) {
 
 loadEnv('.env.deploy');
 
-const email = (process.argv[2] || 'magdy.saber@outlook.com').trim().toLowerCase();
+const email = (process.argv[2] || process.env.ADMIN_EMAIL || 'admin@wiseresume.app').trim().toLowerCase();
 const endpoint = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const projectId = process.env.APPWRITE_PROJECT_ID;
 const apiKey = process.env.APPWRITE_API_KEY;
