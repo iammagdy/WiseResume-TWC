@@ -30,7 +30,6 @@
 ### `product/` — Product Requirements & Brand
 * `product/requirements.md` — Product requirements document (PRD).
 * `product/brand-guidelines.md` — Brand identity and style guidelines.
-* `product/WiseCloud-App-Brief.md` — Wise Cloud product strategy brief.
 
 ### `architecture/` & `ai/` — System, AI & Infrastructure Specifications
 * `architecture/overview.md` — High-level architecture overview.
@@ -41,8 +40,9 @@
 * `architecture/appwrite-functions.md` — Appwrite serverless functions specification.
 * `architecture/integrations.md` — Third-party service integrations.
 * `ai/ai-gateway.md` — Consolidated Appwrite `ai-gateway` serverless function architecture.
+* `ai/CLAUDE_INSTRUCTIONS.md` — System instructions for AI agents working on AI feature modules.
 
-### `features/` — Living Feature Specifications
+### `features/` — Living Feature Specifications & Subdirectories
 * `features/dashboard.md` — User Dashboard specification.
 * `features/portfolio.md` — Public & Private Portfolios specification.
 * `features/resume-editor.md` — Resume Editor specification.
@@ -52,6 +52,9 @@
 * `features/cover-letters.md` — Cover Letters specification.
 * `features/notifications.md` — In-App Notifications & Bell Dropdown specification.
 * `features/devkit-admin.md` — DevKit Admin Hub specification.
+* `features/plans/` — Active feature execution plans (e.g. `interview-feature-fix-plan.md`, `english-default-localization.md`).
+* `features/specs/` — Detailed feature design specifications (e.g. `social-preview-landing-route-design.md`).
+* `features/localization/` — System localization specifications and terminology (Arabic/English).
 
 ### `skills/` — AI Agent Skills System
 * `skills/README.md` — Skills system overview and governance.
@@ -72,7 +75,7 @@
 * `operations/README.md` — Infrastructure operations and deployment runbooks overview.
 
 ### `qa/` — QA Strategy & Test Suite Inventory
-* `qa/PLAYWRIGHT_E2E_SUITE.md` — Playwright E2E suite specification.
+* `qa/PLAYWRIGHT_E2E_SUITE.md` — Playwright & Vitest E2E suite specification.
 * `qa/test-suite-map.md` — Executable test directory mapping (`tests/`).
 * `qa/test-output-locations.md` — Generated test artifact locations (`reports/`).
 
@@ -92,7 +95,7 @@
 * `general/CONTRIBUTING.md` — Repository contribution guidelines.
 * `_templates/` — Documentation header and reference card templates.
 
-### `reports/` — Categorized Historical Audits & Evidence
+### `reports/` — Categorized Historical Audits & Evidence Subdirectories
 * `reports/ui-ux/` — UI/UX stabilization and dashboard audit reports.
 * `reports/performance/` — Application load time & performance audits.
 * `reports/devkit/` — DevKit health and visitor analytics reports.

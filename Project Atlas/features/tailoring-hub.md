@@ -50,5 +50,5 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 ---
 
 ## 8. Historical Evidence & Reports
-* [`Project Atlas/reports/historical-audits/one-page-wizard-analysis.md`](../archive/one-page-wizard-analysis.md) — Historical one-page wizard analysis.
-* [`Project Atlas/qa/WiseResume_Comprehensive_QA_Fix_Report_2026-07-02.md`](../qa/WiseResume_Comprehensive_QA_Fix_Report_2026-07-02.md) — Tailoring Hub QA verification.
+* [`Project Atlas/archive/historical-audits/one-page-wizard-analysis.md`](../archive/historical-audits/one-page-wizard-analysis.md) — Historical one-page wizard analysis.
+* [`Project Atlas/reports/ui-ux/auto-fit-template-audit.md`](../reports/ui-ux/auto-fit-template-audit.md) — Auto-fit template audit writeup.

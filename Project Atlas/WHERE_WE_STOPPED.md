@@ -33,16 +33,16 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Project Atlas Phase 2 — Final Hygiene Polish (Phase 2D).
-* **Current State**: Phase 2D documentation hygiene polish complete and verified clean.
-* **Last Completed Task**: Archived historical `LINK_ISSUES.md` to `archive/historical-audits/`, updated `SOURCE_OF_TRUTH_MAP.md` coverage for `ai/`, `security/`, `general/`, `_templates/`, and logged changelog updates.
+* **Current Active Focus**: Project Atlas Documentation Governance & Organization Cleanup.
+* **Current State**: Project Atlas governance cleanup executed on branch `docs/atlas-governance-cleanup`. Stale Supabase/legacy specs archived, misplaced feature plans relocated, missing living specs created (`ai/ai-gateway.md`, `qa/PLAYWRIGHT_E2E_SUITE.md`), and `SOURCE_OF_TRUTH_MAP.md` updated.
+* **Last Completed Task**: Executed Project Atlas docs-only governance cleanup. Relocated 32 historical files to `archive/`, added caution disclaimers, fixed broken links, created missing living specs, and aligned source-of-truth inventory map.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Review of Phase 2D**: Obtain owner approval to commit and push Phase 2D hygiene updates.
-2. **AI Gateway Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production.
+1. **Owner Review of Governance Cleanup**: Obtain owner approval to commit and push `docs/atlas-governance-cleanup` branch.
+2. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production.
 3. **Turnstile Captcha Verification**: Verify Cloudflare Turnstile siteverify response handling for public portfolio contact submissions under live browser conditions.
 4. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
 
