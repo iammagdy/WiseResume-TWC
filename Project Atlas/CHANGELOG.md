@@ -1,5 +1,18 @@
 # Project Atlas Master Changelog
 
+## 2026-07-04 - DevKit Admin Password Reset Deployment & Live Verification
+
+- **Targeted Appwrite Deployment**: Official `Deploy Appwrite Hubs` workflow run `28688040101` completed successfully for target `admin-devkit-data,email-service` on commit `ea713958`. No `target=all`, Appwrite Console deployment, or `admin-impersonate` deployment was used.
+- **Environment Configuration**: Confirmed `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` is configured on both `admin-devkit-data` and `email-service`.
+- **Deployed Hash Verification**: `node scripts/check-hub-drift.cjs` confirmed `IN SYNC` for both `admin-devkit-data` and `email-service` against production Appwrite database.
+- **Live Function & Cross-Function HMAC Verification**:
+  - `UserDetailDrawer` -> `admin-devkit-data` -> `email-service` internal HMAC call delivered password reset code via Resend and returned HTTP 200.
+  - Direct browser caller attempts to `email-service` `send-admin-password-reset-otp` failed closed with HTTP 401 deprecated notice.
+- **Audit Log Verification**: Verified document creation in `admin_audit_logs` collection (`action: admin-password-reset-code-sent`, matching `user_id`).
+- **Sensitive Scan**: Confirmed zero exposure of OTP, challenge tokens, email bodies, Resend payloads, HMAC secrets, or bearer tokens in execution logs or responses.
+
+---
+
 ## 2026-07-04 - DevKit Admin Password Reset Cross-Function Authentication Architecture Fix
 
 - **Architecture Redesign**: Resolved the DevKit admin password-reset HTTP 401 blocker by establishing `admin-devkit-data` as the single DevKit admin authority and using server-to-server internal HMAC signing (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`) to `email-service`.
