@@ -1,62 +1,63 @@
-# Atlas Source Of Truth Map
+# Project Atlas — Source of Truth Master Inventory Map
 
-**Last verified:** 2026-07-03  
-**Type:** Master Index  
-**Canonical owner:** `Project Atlas/SOURCE_OF_TRUTH_MAP.md`  
-
----
-
-This map is the A-to-Z guide for where application truth lives inside `Project Atlas/`.
-
-## A. Master Entry Points
-
-* **Living AI Operating Manual:** `Project Atlas/MASTER_HANDBOOK.md`
-* **Verified System Truth Snapshot:** `Project Atlas/CURRENT_STATE.md`
-* **Architectural Decision Records:** `Project Atlas/DECISIONS.md`
-* **Developer & Agent Rules:** `Project Atlas/RULES.md`
-* **Repository Governance:** `Project Atlas/GOVERNANCE.md`
-* **Chronological Session Handover Log:** `Project Atlas/MASTER_HANDOVER_2026.md`
-* **Consolidation Implementation Plan:** `Project Atlas/DOCS_CONSOLIDATION_IMPLEMENTATION_PLAN_2026-07-03.md`
+**Last Verified:** 2026-07-03  
+**Status:** Canonical Documentation Index  
+**Consolidation Status:** Documentation consolidation merged to main at `9567aa3066d58dd7636369d894f6eec15d72555b`. Living Docs Normalization completed on branch `docs/atlas-living-docs-normalization` at commit `608d8f389b9839ca8fe03fa7e50fddc5eb42265a` and pending merge.  
+**Location:** `Project Atlas/SOURCE_OF_TRUTH_MAP.md`  
 
 ---
 
-## B. Platform Identity & Stack
+## 1. Quick Navigation for AI Agents & Developers
 
-* **Product Umbrella:** The Wise Cloud / WiseResume (`wiseresume.app`).
-* **Repository:** `iammagdy/WiseResume-TWC`, default branch `main`.
-* **Frontend Runtime:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel.
-* **Backend Runtime:** Appwrite Cloud (Appwrite Databases, Appwrite Storage, Appwrite Functions).
-* **Appwrite Endpoint:** `https://fra.cloud.appwrite.io/v1`.
-* **Appwrite Project ID:** `69fd362b001eb325a192`.
-* **Appwrite Database ID:** `main`.
-
----
-
-## C. Core Subdirectory Map
-
-* `Project Atlas/product/` — Product Requirements Documents (PRDs), product briefs, brand guidelines.
-* `Project Atlas/architecture/` — System architecture, technical context, database analysis, Appwrite Function canonical specs.
-* `Project Atlas/features/` — Feature specifications, implementation plans, localization guides.
-* `Project Atlas/ai/` — AI architecture specs, prompt guides, AI gateway documentation.
-* `Project Atlas/design-system/` — Production design specs (`production/`) and visual target references (`visual-reference/`).
-* `Project Atlas/deployment/` — Production deployment rules, Hostinger/Vercel guides (`DEPLOYMENT_GUIDE.md`).
-* `Project Atlas/qa/` — Quality Assurance evidence logs, E2E test reports, unit test reports.
-* `Project Atlas/security/` — Security audits, permissions checks, rate limit & credential protection audits.
-* `Project Atlas/reports/` — Historical performance, UX, and system health audit reports.
-* `Project Atlas/general/` — Developer contribution and general guidelines (`CONTRIBUTING.md`).
-* `Project Atlas/archive/` — Preserved zero-data-loss repository for stale, superseded, and historical session logs.
+| Topic | Primary Canonical Document |
+|---|---|
+| **AI Operating Manual** | [`Project Atlas/MASTER_HANDBOOK.md`](./MASTER_HANDBOOK.md) |
+| **Current Verified System State** | [`Project Atlas/CURRENT_STATE.md`](./CURRENT_STATE.md) |
+| **Developer Guidelines & Rules** | [`Project Atlas/RULES.md`](./RULES.md) |
+| **Architecture Decision Records (ADR)** | [`Project Atlas/DECISIONS.md`](./DECISIONS.md) |
+| **System Change Log** | [`Project Atlas/CHANGELOG.md`](./CHANGELOG.md) |
+| **Appwrite Functions Spec** | [`Project Atlas/architecture/appwrite-functions.md`](./architecture/appwrite-functions.md) |
+| **Current Deployment Guide** | [`Project Atlas/deployment/current-deployment.md`](./deployment/current-deployment.md) |
+| **Chronological Handover History** | [`Project Atlas/MASTER_HANDOVER_2026.md`](./MASTER_HANDOVER_2026.md) |
 
 ---
 
-## D. Code-Adjacent Local Pointers
+## 2. Directory Structure & Living Specs Map
 
-* `appwrite-hubs/**/README.md` files remain code-adjacent as short local developer pointers. Canonical technical specs for all Appwrite Functions live in `Project Atlas/architecture/appwrite-functions.md`.
+### `product/` — Product Requirements & Brand
+* `product/requirements.md` — Product requirements document (PRD).
+* `product/brand-guidelines.md` — Brand identity and style guidelines.
+* `product/WiseCloud-App-Brief.md` — Wise Cloud product strategy brief.
 
----
+### `architecture/` — System & Infrastructure Specifications
+* `architecture/overview.md` — High-level architecture overview.
+* `architecture/appwrite-architecture.md` — Appwrite backend architecture.
+* `architecture/frontend-architecture.md` — React/Vite/Tailwind frontend architecture.
+* `architecture/data-model.md` — Database collections and schemas.
+* `architecture/auth-and-permissions.md` — Appwrite Auth & document-level security.
+* `architecture/appwrite-functions.md` — Appwrite serverless functions specification.
+* `architecture/integrations.md` — Third-party service integrations.
 
-## E. Documentation Inventory & Consolidation Status
+### `features/` — Living Feature Specifications
+* `features/dashboard.md` — User Dashboard specification.
+* `features/portfolio.md` — Public & Private Portfolios specification.
+* `features/resume-editor.md` — Resume Editor specification.
+* `features/tailoring-hub.md` — Tailoring Hub (AI resume tailoring) specification.
+* `features/upload-import.md` — CV Upload & Extraction specification.
+* `features/preview-export.md` — Preview & Export specification.
+* `features/cover-letters.md` — Cover Letters specification.
+* `features/notifications.md` — In-App Notifications & Bell Dropdown specification.
+* `features/devkit-admin.md` — DevKit Admin Hub specification.
 
-* **Total Workspace Documentation Files Count:** 609 files.
-* **Consolidation Status:** Batch 1 Core Atlas Foundation Established (2026-07-03).
-* **Root Pointer Policy:** Root `README.md` is a short pointer linking directly to `Project Atlas/MASTER_HANDBOOK.md`.
+### `deployment/` — Production Deployment Specifications
+* `deployment/current-deployment.md` — Active Vercel & Appwrite deployment specification.
+
+### `reports/` — Categorized Historical Audits & Evidence
+* `reports/ui-ux/` — UI/UX stabilization and dashboard audit reports.
+* `reports/performance/` — Application load time & performance audits.
+* `reports/devkit/` — DevKit health and visitor analytics reports.
+* `reports/landing/` — Landing page audit and scroll-flicker reports.
+* `reports/historical-audits/` — Archive of past feature and security audits.
+
+### `archive/` — Zero-Data-Loss Archival Folder
+* Contains stale, superseded, or legacy documentation (e.g. legacy Hostinger FTP guide, pre-Appwrite migration logs) preserved for historical audit completeness.

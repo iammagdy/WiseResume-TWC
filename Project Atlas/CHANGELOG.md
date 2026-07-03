@@ -1,12 +1,23 @@
 # Project Atlas Changelog
 
+## 2026-07-03 - Living Docs Normalization
+
+- **Normalized Living Specs**: Created 9 living feature specs under `Project Atlas/features/` (`dashboard.md`, `portfolio.md`, `resume-editor.md`, `tailoring-hub.md`, `upload-import.md`, `preview-export.md`, `cover-letters.md`, `notifications.md`, `devkit-admin.md`).
+- **Normalized Architecture Specs**: Created 5 living architecture specs under `Project Atlas/architecture/` (`overview.md`, `appwrite-architecture.md`, `frontend-architecture.md`, `data-model.md`, `auth-and-permissions.md`, `integrations.md`).
+- **Separated Current Truth from Legacy**: Rewrote `overview.md` and `backend.md` to reflect current Appwrite-native architecture (`wiseresume.app`, Appwrite Databases/Storage/Functions, Vercel).
+- **Categorized Reports**: Structured `Project Atlas/reports/` into clean subfolders (`ui-ux/`, `performance/`, `devkit/`, `landing/`, `historical-audits/`).
+- **Updated Current Deployment Spec**: Created `Project Atlas/deployment/current-deployment.md` for Vercel/Appwrite and archived `legacy-hostinger-deployment-guide.md` to `Project Atlas/archive/`.
+- **Master Handbook Alignment**: Updated `Project Atlas/MASTER_HANDBOOK.md` and `Project Atlas/SOURCE_OF_TRUTH_MAP.md` to link directly to all normalized living specs.
+
+---
+
 ## 2026-07-03 - Documentation consolidation foundation started
 
 - **Core Atlas Foundation (Batch 1)**: Initiated the phased documentation consolidation to establish `Project Atlas/` as the single, clean, reliable documentation source of truth for WiseResume.
 - **Master Handbook & Living Entry Point**: Created `Project Atlas/MASTER_HANDBOOK.md` as the living AI-agent operating manual and primary navigation entry point, while preserving `Project Atlas/MASTER_HANDOVER_2026.md` as the chronological session history log.
 - **Verified Current State**: Created `Project Atlas/CURRENT_STATE.md` documenting the verified production stack (`wiseresume.app`, Appwrite-native backend, Appwrite Auth, Vercel frontend hosting, Appwrite `ai-gateway`, disabled billing).
 - **Architectural Decision Records**: Created `Project Atlas/DECISIONS.md` logging key architectural ADRs (Appwrite-native choice, AI gateway routing, billing state, documentation consolidation strategy).
-- **Master Inventory & Source Map**: Updated `Project Atlas/SOURCE_OF_TRUTH_MAP.md` mapping the 609 workspace documentation files into clean Atlas subdirectories (`architecture/`, `features/`, `product/`, `ai/`, `design-system/`, `deployment/`, `qa/`, `security/`, `reports/`, `general/`, `archive/`).
+- **Master Inventory & Source Map**: Updated `Project Atlas/SOURCE_OF_TRUTH_MAP.md` mapping the workspace documentation files into clean Atlas subdirectories (`architecture/`, `features/`, `product/`, `ai/`, `design-system/`, `deployment/`, `qa/`, `security/`, `reports/`, `general/`, `archive/`).
 - **Root Pointer Policy**: Updated root `README.md` to be a concise public pointer linking directly to `Project Atlas/MASTER_HANDBOOK.md`. Appwrite Function READMEs (`appwrite-hubs/**/README.md`) remain code-adjacent developer pointers.
 
 ---
