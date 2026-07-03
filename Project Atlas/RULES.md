@@ -69,6 +69,13 @@ The owner is non-technical. Explain high-risk changes in plain language before i
 * **Archival**: Legacy human-written QA reports MUST be merged into living specs and archived under `Project Atlas/archive/historical-audits/` or `imported-reports/`.
 * **No Root QA Noise**: AI agents MUST NOT create random Markdown or QA documentation files in the repository root or root `reports/`.
 
+## 8. AI Agent Bootstrap & File Placement Rules
+
+* **Mandatory Agent Bootstrap**: Every AI agent MUST execute [`Project Atlas/skills/agent-bootstrap.md`](./skills/agent-bootstrap.md) at the start of every turn before making edits.
+* **Mandatory Routing Pre-Check**: Consult [`Project Atlas/ATLAS_ROUTING_RULES.md`](./ATLAS_ROUTING_RULES.md) to determine exact file placement before creating new files.
+* **Root Hygiene**: Never place unclassified Markdown files or scratch logs directly in repository root (`/`) or `Project Atlas/` root.
+* **Temporary Files**: Intermediate working files belong in `Project Atlas/temp/` and MUST be deleted or promoted to living specs before task closeout.
+
 ---
 
 Failure to follow these rules creates confusion and technical debt. Stick to the Atlas.

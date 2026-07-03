@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-07-03 - Routing Rules, Handover State, and Skills System Scaffold (Phase 2B)
+
+- **Master Document Routing Rules**: Created `Project Atlas/ATLAS_ROUTING_RULES.md` establishing explicit document placement matrices, root hygiene rules, and file type definitions for AI agents.
+- **Active Operational Handover State**: Created `Project Atlas/WHERE_WE_STOPPED.md` capturing verified system snapshot, latest commits, active focus, next tasks, blocked items, and do-not-reopen constraints.
+- **AI Agent Skills System**: Created `Project Atlas/skills/` directory containing 12 modular skill playbooks (`README.md`, `SKILLS_INDEX.md`, `agent-bootstrap.md`, `new-code-quality.md`, `feature-implementation.md`, `ui-visual-implementation.md`, `appwrite-safe-change.md`, `ai-gateway-safe-change.md`, `qa-validation.md`, `security-review.md`, `documentation-closeout.md`, `skillkit-optional-setup.md`).
+- **Folder README Scaffolds**: Created README files for `assets/`, `prompts/`, `operations/`, `decisions/`, and `temp/` defining contents, boundaries, and cleanup rules.
+- **Navigation Pointers Updated**: Updated `README.md`, `MASTER_HANDBOOK.md`, `RULES.md`, and `SOURCE_OF_TRUTH_MAP.md` to integrate `ATLAS_ROUTING_RULES.md`, `WHERE_WE_STOPPED.md`, and `skills/`.
+- **Validation**: Zero application code changed, zero scripts or workflows touched, zero package/config changes, zero deployments, zero file moves.
+
+---
+
 ## 2026-07-03 - QA & Test Suite Classification and Routing Rules
 
 - **Classification Pass**: Audited root `tests/` (`EXECUTABLE_TEST_CODE`) and `reports/` (`GENERATED_TEST_OUTPUT`).

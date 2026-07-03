@@ -48,11 +48,14 @@ All work on this repository must preserve `Project Atlas/` as the single, clean,
 
 Before initiating any task, read these documents in order:
 
-1. **[`CURRENT_STATE.md`](./CURRENT_STATE.md)** — Verified production architecture & system snapshot.
-2. **[`RULES.md`](./RULES.md)** — Strict developer execution rules & definition of done.
-3. **[`SOURCE_OF_TRUTH_MAP.md`](./SOURCE_OF_TRUTH_MAP.md)** — Comprehensive master inventory map.
-4. **[`DECISIONS.md`](./DECISIONS.md)** — Architectural Decision Records (ADRs).
-5. **[`architecture/overview.md`](./architecture/overview.md)** — Living system architecture overview.
+1. **[`skills/agent-bootstrap.md`](./skills/agent-bootstrap.md)** — Mandatory AI agent initialization & safety protocol.
+2. **[`CURRENT_STATE.md`](./CURRENT_STATE.md)** — Verified production architecture & system snapshot.
+3. **[`WHERE_WE_STOPPED.md`](./WHERE_WE_STOPPED.md)** — Active operational handover state, current focus & next tasks.
+4. **[`RULES.md`](./RULES.md)** — Strict developer execution rules & definition of done.
+5. **[`ATLAS_ROUTING_RULES.md`](./ATLAS_ROUTING_RULES.md)** — Master document routing rules & file placement matrix.
+6. **[`SOURCE_OF_TRUTH_MAP.md`](./SOURCE_OF_TRUTH_MAP.md)** — Comprehensive master inventory map.
+7. **[`DECISIONS.md`](./DECISIONS.md)** — Master Architectural Decision Records (ADR) log.
+8. **[`architecture/overview.md`](./architecture/overview.md)** — Living system architecture overview.
 
 ---
 
