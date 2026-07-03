@@ -141,7 +141,9 @@ async function verifyDevKitViaAdminHub(token) {
       method: 'POST',
     });
 
-    return execution.status !== 'failed' && execution.responseStatusCode < 400;
+    let response = {};
+    try { response = JSON.parse(execution.responseBody || '{}'); } catch {}
+    return execution.status !== 'failed' && response.success === true;
   } catch {
     return false;
   }
