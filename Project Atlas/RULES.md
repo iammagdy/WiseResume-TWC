@@ -14,11 +14,16 @@ Every agent or developer working on this repository must follow these rules.
 
 ## 1. Source Of Truth
 
-`Project Atlas/` is the only documentation source of truth.
+`Project Atlas/` living specs are the **only** documentation source of truth.
 
-Do not rely on old root docs, deleted governance folders, external planning folders, chat memory, or stale Markdown outside the Atlas. If a useful rule or plan is discovered outside the Atlas, move or summarize it into the Atlas and remove the outside document.
+Do not rely on old root docs, deleted governance folders, external planning folders, chat memory, or stale Markdown outside the Atlas.
 
-The current codebase and live logs still matter. If the Atlas and implementation disagree, inspect the code and logs, fix the Atlas, and record the correction.
+### Strict Archive Rules
+* **Historical Only:** `Project Atlas/archive/` is historical-only and is **NOT** a source of truth.
+* **Prohibited for AI Agents:** AI agents MUST NOT treat archived files as current system truth or use them for decisions unless explicitly instructed by the project owner.
+* **Living Specs Exclusively:** Current system truth lives ONLY in living Project Atlas specs (`MASTER_HANDBOOK.md`, `CURRENT_STATE.md`, `RULES.md`, `architecture/`, `features/`, `product/`, `deployment/`, etc.).
+
+The current codebase and live logs still matter. If living Atlas specs and implementation disagree, inspect the code and logs, fix the Atlas living specs, and record the correction.
 
 ## 2. Definition Of Done
 

@@ -59,5 +59,13 @@
 * `reports/landing/` — Landing page audit and scroll-flicker reports.
 * `reports/historical-audits/` — Archive of past feature and security audits.
 
-### `archive/` — Zero-Data-Loss Archival Folder
-* Contains stale, superseded, or legacy documentation (e.g. legacy Hostinger FTP guide, pre-Appwrite migration logs) preserved for historical audit completeness.
+### `archive/` — Historical Only Archival Folder (NOT Source of Truth)
+> [!CAUTION]
+> **Historical Archive Governance**: `Project Atlas/archive/` is historical-only, non-canonical, and MUST NOT be used by AI agents as current truth unless explicitly instructed by the owner.
+* `archive/README.md` — Archival policy and historical-only disclaimer.
+* `archive/legacy-docs/` — Archived root documentation (e.g. historical `CHANGELOG.md`, duplicate briefs).
+* `archive/legacy-atlas-folders/` — Archived pre-normalization specification folders (e.g. `00-Full-App-Reference`, `01-Currently Implemented`, `05-Migration to Appwrite`).
+* `archive/historical-audits/` — Archived point-in-time security, UI/UX, QA, and deployment audit reports.
+* `archive/imported-repo-docs/` — Imported repository documentation files.
+* `archive/imported-reports/` — Imported repository report files.
+* `archive/review-needed/` — Files pending classification.

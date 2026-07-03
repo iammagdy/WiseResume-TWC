@@ -88,7 +88,7 @@ For any accepted project change:
 
 - Update the relevant Atlas file under `Project Atlas/`.
 - Update `Project Atlas/CHANGELOG.md` with a dated entry.
-- If the change affects what the owner experiences or needs to know, add or update a plain-language file under `Project Atlas/04-For You (Plain Language)/`.
+- If the change affects what the owner experiences or needs to know, summarize it clearly in `Project Atlas/MASTER_HANDBOOK.md` or `Project Atlas/CHANGELOG.md`.
 - Do not create new docs outside `Project Atlas/`.
 - Do not reintroduce `project-governance/`, `docs/`, `Routing AI Providers/`, `wise-templates/*.md`, root Markdown runbooks, or standalone spec Markdown as canonical documentation.
 

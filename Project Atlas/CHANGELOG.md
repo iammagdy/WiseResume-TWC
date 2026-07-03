@@ -1,4 +1,14 @@
-# Project Atlas Changelog
+# Project Atlas Master Changelog
+
+## 2026-07-03 - Documentation Cleanup and Consolidation
+
+- **Consolidated Documentation into Project Atlas**: Consolidated all scattered repository documentation and historical reports into `Project Atlas/` as the single documentation source of truth.
+- **Master Changelog Integration**: Merged all historical session changelog entries (2026-06-20 through 2026-07-02) into `Project Atlas/CHANGELOG.md`.
+- **Archive Governance**: Created `Project Atlas/archive/README.md` explicitly marking the archive as historical-only, non-canonical, and prohibited for AI agent decision-making unless explicitly requested by the owner.
+- **Legacy Folder Archival**: Organized legacy pre-normalization folders (`00-Full-App-Reference`, `01-Currently Implemented`, `02-Planned`, `03-Ideas`, `03-Implemented`, `04-For You`, `05-Migration to Appwrite`, `claude-design-extraction`) into `Project Atlas/archive/legacy-atlas-folders/` and point-in-time audit folders into `Project Atlas/archive/historical-audits/`.
+- **Validation & Integrity**: Verified zero application code changes, zero script/workflow changes, zero package/config changes, zero deployments, and zero permanent file deletions.
+
+---
 
 ## 2026-07-03 - Living Docs Normalization Merged
 
@@ -62,6 +72,17 @@
 
 ---
 
+## 2026-07-02 - Fix Portfolio Contact and Notification flows
+
+- **Turnstile Error Recovery** (`PortfolioContactForm.tsx`): resolved the issue where verification gets stuck requiring a page refresh by adding a 6-second timeout watchdog that resets and recovers the Turnstile widget cleanly. Removed console debug statements.
+- **Notification Schema Fallback** (`ai-gateway`, `public-share`): implemented a link-retry fallback in the Appwrite function notifications helper. If the live database notifications collection schema is missing the `link` attribute, the creation retry automatically strips the attribute and writes the notification successfully, preventing silent delivery failures.
+- **Portfolio Visit Tracking Permissions** (`api/track-portfolio-view.ts`): reordered the tracking backend to resolve the owner user ID first, write the visit document with owner-only read permissions (`Permission.read(Role.user(ownerUserId))`), and trigger the `portfolio_visit` notification.
+- **Unread Badge & Notifications UI** (`AppWorkspaceTopBar.tsx`, `NotificationsPage.tsx`): added a Bell icon and unread indicator badge to the authenticated app top bar, wired 7 filter tabs (All, Unread, Visits, Interests, Messages, AI/Resume, System), and color-coded Lucide icons.
+- **i18n & Test Parity** (`locales/en/app.json`, `locales/ar/app.json`, `NotificationsPage.tsx`, `publicPrivacyHardening.test.ts`): translated all fallback notification tabs and empty state strings to Arabic, populated both localization catalogs, verified full key parity, and updated security unit test expectations to support owner-only read permissions.
+- **Validation**: `npx tsc --noEmit` passed, production build passed, 813 Vitest tests passed, hub syntax checks passed, and source hashes were regenerated.
+
+---
+
 ## 2026-07-02 - Portfolio Production Tracing and Verification
 
 - **Diagnostic Session Report:** Created a dedicated session report `WiseResume_Portfolio_Contact_Notifications_Session_2026-07-02.md` detailing the production debugging and verification findings.
@@ -70,3 +91,179 @@
 - **Automated Verification:** Created and updated Playwright E2E spec `tests/e2e/specs/28-portfolio-production-tracing.spec.ts` which verified visit tracking and "I'm Interested" clicks successfully in production.
 - **Appwrite Database Audit:** Confirmed visit and interest document creation, and the generation of unread owner notifications in the Appwrite production database.
 - **Current Status:** `READY_WITH_BLOCKERS`. The public portfolio Contact Form remains blocked on Cloudflare Turnstile captcha validation in production.
+
+---
+
+## 2026-07-02 - Enforce English-default application localization
+
+- **Locale resolution** (`src/i18n/core.ts`): removed browser-language auto-selection. Locale precedence is now `/ar` route, explicit account preference, explicit persisted preference, then English.
+- **Fallback safety** (`translate`): English calls no longer render Arabic caller fallbacks when an English catalog key is missing; missing copy resolves to a safe caller fallback or the key.
+- **Catalog completion** (`locales/en/app.json`, `locales/en/wisehire.json`): added English copy for Upload, Portfolio, saved jobs, workspace navigation, application tracking, Import Job, validation, and toast/error surfaces. Arabic parity entries preserve explicit Arabic mode.
+- **Raw copy cleanup** (`UploadPage`, `ApplicationsPage`, `ImportJobSheet`, `AppWorkspaceTopBar`): replaced unguarded Arabic UI copy and repaired Profile/Templates page titles.
+- **Locale-aware dates** (`TailoringHubLanding`): dates now use the application locale instead of the browser locale.
+- **Regression coverage**: added static English-catalog coverage, critical-surface checks, locale precedence/fallback tests, and Tailoring Hub date tests.
+- **Production verification**: an `ar-AE` browser without a saved choice defaulted to English/LTR. Ten authenticated English routes showed zero app-owned Arabic copy. Vercel deployment `dpl_DBgj7huV93ctRSDHq3dUWz7i2e1b` reached `READY`.
+- **Infrastructure**: no backend, Appwrite, auth, AI, payment, schema, or permission changes.
+
+---
+
+## 2026-07-02 - Complete final file evidence and repair native PDF layout
+
+- **Native PDF pagination** (`api/export/pdf-native.ts`, `server/index.ts`): stopped treating the full-page layout sentinel as trimmed content height, preventing footer-only second pages on short resumes.
+- **Fixed-width template export** (`src/lib/exportDomUtils.ts`): fit cloned descendants that match the source template width to the native PDF canvas, preventing horizontal text clipping when an 816px template is exported at 612px.
+- **Regression coverage** (`pdfNativeTrimmedHeight.test.ts`, `exportDomUtils.test.ts`): locked both failure modes with focused tests.
+- **Production evidence**: fresh PDF and DOCX uploads parsed successfully; Designed PDF (28,441 bytes), ATS PDF (29,165 bytes), and DOCX (8,277 bytes) were captured from real browser downloads. Both PDFs are one visually complete page and the DOCX is a valid 20-entry package.
+- **Deployment**: Vercel production deployment `dpl_65gKMajyQgySLU81CRCugoC9trHZ` for commit `8a0be13f` reached `READY` and was reverified at `wiseresume.app`.
+- **Readiness**: final verdict `LAUNCH_READY`; automated contact submission remains unproven because Turnstile rejected the automation environment while the UI failed closed with clear guidance.
+
+---
+
+## 2026-07-02 - Repair Tailoring history and honest Arabic public content
+
+- **Tailoring persistence** (`TailoringHubPage`, `useCombinedTailorHistory`, `TailoringHubResultPage`, `tailoringResumeMetadata`): removed the unauthorized browser write to the server-only `tailor_history` collection, persisted compact lineage/result metadata in the tailored resume customization field, synthesized cross-device history from resume documents, and retained legacy history as a read fallback.
+- **Arabic public routes** (`GuidesPage`, `GuidePage`, `ExamplesPage`): replaced English content rendered under Arabic RTL routes with explicit Arabic review-status shells while leaving English routes unchanged.
+- **Regression coverage**: added metadata mapping/preservation and Arabic/English route behavior tests. TypeScript, production build, 14 focused tests, and whitespace validation passed.
+- **Production QA**: fresh logout/login, invalid-login feedback, session refresh, education, skills, and autosave passed. Fresh file upload and export artifacts remain blocked by browser attachment/download capture limitations.
+- **Deployment**: Vercel production deployment `dpl_Gtfc8YqNuSLZqontqbQBGjdpURsa` reached `READY`; live Arabic guide, guide-detail, and example routes displayed the reviewed Arabic shell.
+
+---
+
+## 2026-07-02 - Fresh credentialed end-to-end QA follow-up
+
+- **Auth/session** (`https://wiseresume.app`): verified invalid-login inline feedback, fresh login, refresh persistence, logout, and a second successful login with the QA account.
+- **Resume and AI** (`CreateResumeDialog`, Editor, AI summary enhancement): created `QA Launch Readiness 2026-07-02`, persisted a summary and experience after refresh, applied a substantive AI summary improvement, and confirmed the Premium credit state remained `Unlimited` before and after the action.
+- **Tailoring Hub** (`/tailoring-hub`, `/tailoring-hub/result/6a459e7c002c3d85f954`): produced a materially changed tailored resume (50 to 85, +35), verified refresh/direct URL persistence and legacy `/tailor`; production displayed an explicit warning that Tailoring history storage is broken.
+- **Portfolio** (`/portfolio`, `/p/explore-test-123-updated-001`): published successfully, verified public rendering, temporary password protection, wrong/correct password behavior, restored public access, and found no owner email, `user_id`, `password_hash`, or `portfolio_settings` strings in the public DOM.
+- **Readiness**: recorded `NOT_READY`. `/ar/guides` and `/ar/examples` remain English under RTL; fresh PDF/DOCX file evidence and file-upload parsing were not completed in the in-app browser; the public contact security challenge was blocked by the browser environment with clear recovery messaging.
+
+---
+
+## 2026-07-02 - Comprehensive post-fix QA verification
+
+- **Production smoke QA** (`https://wiseresume.app`): verified the homepage, authenticated dashboard, upload, editor, Tailoring Hub, preview, guides, examples, and mobile layouts at 390x844. Public guide/example content populated after asynchronous initialization and protected routes loaded in the existing QA session.
+- **Runtime settings** (`/api/app-settings`): confirmed HTTP 200 with a JSON response on production.
+- **Validation**: `npx tsc --noEmit`, `npm run build`, 132 Vitest files / 768 tests, `test:i18n`, and `test:i18n:coverage` passed. Repository-wide lint remains a pre-existing baseline failure (256 errors, 180 warnings), including generated `.vercel` output, fixtures, and existing source findings.
+- **Scope**: no product or Appwrite hub code changed; no Appwrite deployment was required. Existing July 1 real-file export evidence remains current for Designed PDF (101,012 bytes), ATS PDF (25,367 bytes), and DOCX (8,109 bytes).
+
+---
+
+## 2026-07-01 - Restore live settings and Arabic PDF rendering
+
+- **Vercel settings endpoint** (`api/app-settings.ts`): changed the shared runtime import to the Node/Vercel ESM-compatible `.js` specifier. A focused packaging regression test now rejects the extensionless import that caused production `ERR_MODULE_NOT_FOUND` responses.
+- **Arabic server PDFs** (`src/lib/nativePdfGenerator.ts`): embedded the Noto Sans Arabic webfont assets into Arabic export HTML and forced that font across localized template descendants, preventing template-specific Open Sans rules from dropping Arabic glyphs in Vercel Chromium.
+- **Verification**: TypeScript, production build, 132 test files / 768 tests, 17 focused export tests, and both i18n scripts passed. Production deployment `dpl_5vMBz2ZdkUFHDpWxwASFcW1EUmQU` produced real clean-browser downloads: Designed PDF (101,012 bytes), ATS PDF (25,367 bytes), and DOCX (8,109 bytes). Both PDFs were rendered and visually inspected with connected, correctly ordered Arabic and mixed Latin terms.
+- **Safety**: no Appwrite deployment or Appwrite environment/schema/permission change was made.
+
+---
+
+## 2026-07-01 - Reliable exports and complete Arabic public flows
+
+- **Export truthfulness** (`src/lib/downloadUtils.ts`, preview/editor/tailoring/dashboard export paths): replaced optimistic download handling with explicit triggered/cancelled/failed outcomes, rejected empty or malformed PDF/DOCX artifacts, and stopped success feedback when a trigger fails. URL export actions now wait for resume bootstrap and require a user-activated download CTA because timer-driven browser downloads can be silently blocked.
+- **Arabic product completion** (`src/i18n/legalContent.ts`, landing demos, Settings catalogs): added coherent Arabic privacy/terms content, locale-specific landing mock data and right-origin card animation, document-locale propagation through PDF/DOCX exports, and repaired Settings labels found during browser QA. Arabic legal copy is technically complete but remains `OWNER/LEGAL REVIEW NEEDED` before launch.
+- **Public content routing** (`src/AppInterior.tsx`): moved English guides, guide details, and examples outside authentication and `AppShell`, matching their Arabic public routes while preserving error boundaries and loading fallbacks.
+- **Verification**: TypeScript, production build, 130 test files / 766 tests, focused Preview tests, and both existing i18n scripts passed. Browser QA produced and inspected real Designed PDF (158,029 bytes), ATS PDF (54,984 bytes), and DOCX (8,109 bytes) files for an Arabic resume; PDF glyphs rendered correctly and DOCX contained the required package entries plus RTL markup.
+
+---
+
+## 2026-06-30 - Keep resume edits, templates, and imported bullets consistent
+
+- **Resume selection state** (`src/store/resumeStore.ts`, `src/components/dashboard/ResumeListCard.tsx`): loading a resume now synchronizes its saved template, while dashboard PDF actions open an ID-addressed authoritative preview instead of overwriting the active resume with a stale list snapshot.
+- **Preview template flow** (`src/pages/PreviewPage.tsx`, `src/components/editor/TemplateSelector.tsx`): URL previews always fetch the requested resume, bootstrap once per resume, wait for authoritative data before export, and persist template changes without the bootstrap effect reverting them.
+- **Imported experience content** (`src/components/editor/ExperienceItem.tsx`, `src/components/templates/WiseResumeClassicTemplate.tsx`): exposed imported achievements/responsibilities as editable newline-separated highlights and made WiseResume Classic render the editable description together with those highlights.
+- **Regression coverage** (`PreviewPage.test.tsx`, `EditorComponents-D2.test.tsx`, `WiseResumeClassicTemplate.test.tsx`, `resumeStore.template.test.ts`): covered same-ID refresh, non-reverting/persisted template selection, template synchronization, visible imported bullets, and Classic description rendering.
+
+---
+
+## 2026-06-30 - Restore production PDF function startup
+
+- **Vercel PDF endpoint** (`api/export/pdf-native.ts`): changed the shared SSRF guard import to an explicit `.js` runtime specifier so Node.js can resolve the compiled module inside the Vercel serverless function bundle.
+- **Chromium packaging** (`api/export/pdf-native.ts`): replaced the dependency-hiding indirect import with a statically traceable Chromium import, ensuring Vercel includes the package and its compressed browser binaries in the PDF function.
+- **Regression coverage** (`src/lib/security/pdfNativeRuntimeImports.test.ts`): added a packaging contract that rejects extensionless relative runtime imports in the PDF function.
+- **Verification**: reproduced both production startup failures (`ERR_MODULE_NOT_FOUND` for the shared guard and the missing `@sparticuz/chromium` package), passed the focused regression tests, generated the production Vercel bundle, and confirmed the deployed-function artifact contains Chromium's package metadata and compressed executable assets.
+
+---
+
+## 2026-06-30 - Accurate DevKit analytics and signup administration
+
+- **Analytics contracts** (`appwrite-hubs/admin-visitor-analytics/src/metrics.cjs`, `admin-visitor-analytics/src/main.js`): added Cairo-day boundaries, distinct session/page-view/visitor/authenticated-user metrics, completeness metadata, session detail, retention aggregation, and 90-day raw-event cleanup.
+- **Auth-backed signups and user queries** (`appwrite-hubs/admin-devkit-data/src/user-query.cjs`, `admin-devkit-data/src/main.js`): added `list-signups`/`signup-summary`, global server-side search/filter/sort, Appwrite Auth signup totals, attribution enrichment, and analytics identity cleanup during account deletion.
+- **DevKit UI** (`AnalyticsPanel.tsx`, `AdminSignupsPanel.tsx`, `AdminUsersPanel.tsx`): replaced ambiguous KPI fallbacks with six source-labelled metrics, partial-data warnings and drill-downs; added Users > Signups with date, verification, profile, resume and search filters.
+- **Tracking and schema** (`visitorTrack.ts`, `track-visitor-event`, `setup_visitor_events_schema.cjs`, `setup_admin_analytics_schema.cjs`): added privacy state fields, feature-gated persistent pre-consent identity, HMAC identity links, visitor aggregate collections, retention fields and indexes.
+- **Verification**: added focused hub tests for Cairo boundaries, metric semantics, global user queries, privacy metadata, HMAC identity handling, bot exclusion and rate limiting; `npm run build` passed and the full Vitest suite completed with 744 passed, 1 todo, and 1 skipped.
+
+---
+
+## 2026-06-30 - Arabic authenticated-app recovery sweep
+
+- **Arabic recovery pass** (`src/pages/*`, `src/components/*`, `locales/ar/*`): repaired broken Arabic catalog values, removed `????`/corrupted key values from critical authenticated-app surfaces, and normalized the highest-impact settings, profile, applications, upload/import, portfolio editor, dashboard, and WiseHire shell UI onto `useLocale()` + `t(...)`.
+- **Dynamic localization leaks** (`src/components/dashboard/*`, `src/components/jobs/*`, `src/components/job-match/*`, `src/components/wise-workspace/*`, `src/lib/dateUtils.ts`): localized helper-driven labels, imported-job widgets, saved-job dialogs/lists, top-bar and workspace AI labels, and made relative-time rendering respect Arabic mode instead of defaulting to English.
+- **Guardrails** (`scripts/check-arabic-coverage.mjs`, `src/i18n/__tests__/criticalArabicCoverage.test.ts`): added a targeted Arabic coverage audit and representative render coverage for critical authenticated surfaces so obvious English literals are caught before they regress.
+- **Verification**: `npm run test:i18n`, `npm run test:i18n:coverage`, `npm run test -- src/i18n/__tests__/criticalArabicCoverage.test.ts`, and `npm run build` all passed on June 30, 2026.
+- **Residual scope**: broader repo-wide English still remains outside this recovered critical path, especially in lower-priority pages and auxiliary AI/interview/supporting components; those areas need a follow-up Arabic completion pass.
+
+---
+
+## 2026-06-29 - Arabic locale and RTL export foundation
+
+- **Locale architecture** (`src/i18n/`, `locales/`): added English/Arabic catalogs, locale resolution and persistence, global `lang`/`dir`, bidirectional text helpers, public `/ar/...` routes, settings/landing language controls, and Appwrite `user_preferences` synchronization.
+- **CV document locale** (`src/types/resume.ts`, `src/i18n/resumeLocale.ts`): added a per-CV `documentLocale` independent from UI language and locale/font-aware page-cut fingerprints with legacy English fallback.
+- **Templates and exports** (`src/i18n/localizeResumeTemplate.ts`, PDF/DOCX/LaTeX generators): added Noto Sans Arabic, RTL heading localization across registered templates, Chromium Arabic PDF/cover-letter rendering, RTL DOCX defaults and LTR contact runs, and XeLaTeX Arabic output while retaining English pdflatex output.
+- **Public/auth communications**: added Arabic landing/auth copy, localized metadata and `hreflang`, locale-aware auth callbacks, and Arabic transactional verification/reset/welcome/security emails.
+- **Quality gates** (`scripts/check-i18n.mjs`, `docs/localization/ar-terminology.md`): added catalog parity, placeholder, empty-value, untranslated-value checks, approved terminology, and focused RTL/export regression coverage.
+
+---
+
+## 2026-06-29 - Public landing route and social preview reliability
+
+- **Landing route** (`src/pages/Index.tsx`, `src/App.tsx`): preserved `/` and `/enterprises` as public `AppLanding` routes for authenticated and unauthenticated visitors; account-type redirects remain limited to protected product routes.
+- **Social metadata** (`index.html`): made the WiseResume Open Graph and X image metadata static, added `image/png` and X alt metadata, and aligned the declared `1280x672` dimensions with `public/wiseresume-og.png`.
+- **Regression coverage** (`src/lib/__tests__/socialPreviewMetadata.test.ts`, `src/pages/__tests__/landingRouteContract.test.ts`): added crawler-visible metadata, PNG-dimension, and public-route contracts.
+
+---
+
+## 2026-06-21 - Final autonomous QA readiness
+
+- **Job Import**: updated `appwrite-hubs/job-import/src/main.js` so URL job imports prefer DeepSeek before Groq/OpenRouter fallbacks.
+- **Regression test**: added `tests/hubs/job-import-routing.test.cjs` to verify `job-import` remains DeepSeek-first.
+- **Source hashes**: updated `src/lib/devkit/sourceHashes.generated.json` with `job-import` hash `c00d55c1f5ff8c8ed5bd6179d08928e6f81da4140cfa3e044b68e1b5fa964618`.
+- **Deployment**: pushed commit `393ff9ae73d8fd4f80efd7c91fe87a8271a0d599`; Vercel production succeeded and official Appwrite workflow run `27884437136` deployed `job-import` as `6a37068e5b8ff5226838`.
+- **Readiness status**: recorded `BLOCKED_EXTERNAL_ACCESS` because `PORTFOLIO_JWT_SECRET` is missing from required live functions and safe test credentials were unavailable for authenticated browser QA.
+
+---
+
+## 2026-06-20 - Post-fix deployment readiness
+
+- **Production deployment**: pushed `ba523905b2e57dfe75cc6696a9277efeee51578f` to `origin/main` and verified the Vercel production deployment at `https://wise-resume-1hvl3wy6z-iam-magdy.vercel.app`.
+- **Appwrite hubs**: ran the official `Deploy Appwrite Hubs` workflow with target `get-public-portfolio,verify-portfolio-password,ai-gateway`; run `27883728138` completed successfully.
+- **Function readiness**: confirmed ready deployments for `get-public-portfolio` (`6a36ff71461f294e1ce4`), `verify-portfolio-password` (`6a36ff80ae087936f7bb`), and `ai-gateway` (`6a36ff8e7cbdd33d3ea5`).
+- **Verification**: TypeScript, portfolio password regression test, AI Gateway routing test, targeted Vitest suite, source-hash generation, whitespace check, and production build all passed.
+- **Readiness status**: recorded `DEPLOYED_PENDING_MANUAL_QA`; manual/browser QA, `PORTFOLIO_JWT_SECRET` verification, and TestSprite rerun remain required before launch readiness.
+
+---
+
+## 2026-06-20 - Portfolio unlock and AI routing alignment
+
+- **Portfolio unlock**: updated `get-public-portfolio` and `verify-portfolio-password` to verify the bcrypt hashes written by `PortfolioEditorPage`, while preserving legacy raw SHA-256 and `sha256:` password hashes.
+- **Portfolio safety**: protected portfolios now fail closed when protection is enabled but the stored hash is missing; public portfolio responses still do not expose `password_hash`.
+- **AI Gateway**: fixed `tailor-resume` structured normalization so existing IDs are preserved, company/title matching can map reordered experience entries correctly, omitted originals are appended, and the AI-returned order is not re-sorted away.
+- **DevKit catalogue**: aligned `resume-section-ai` with the gateway DeepSeek default route.
+- **Navigation**: updated dashboard/search/discovery/job-detail entry points to prefer `/tailoring-hub` while keeping legacy `/tailor` routes available.
+- **Verification**: targeted hub tests, DevKit/search Vitest tests, and hub syntax checks passed; full build/source-hash validation was run before commit.
+
+---
+
+## 2026-06-20 - DevKit live audit follow-up fixes
+
+- **Email Automations**: updated `admin-email` and the DevKit Email Automations panel to use Resend Segments (`RESEND_SEGMENT_ALL_USERS`) with legacy Audience fallback (`RESEND_AUDIENCE_ALL_USERS`) instead of failing hard when the old audience variable is absent.
+- **Diagnostics**: fixed DevKit diagnostics so the deployed Admin Sentry function is recognized by its real Appwrite function id while still reporting it as `admin-sentry`.
+- **User cleanup**: made DevKit user deletion remove owned `subscriptions`, `ai_credits`, and `notifications` rows before deleting the profile/auth user, and tolerate already-missing auth users.
+- **Deploy wiring**: propagated Resend segment/audience variables through the GitHub Appwrite hub deploy workflow and deploy script, then refreshed DevKit source hashes.
+- **Verification**: `node --check` passed for changed Appwrite hubs, targeted DevKit ESLint passed, and `npm run build` passed.
+
+---
+
+## 2026-06-20 - DevKit visual shell wiring cleanup
+
+- **DevKitUI** (`src/components/dev-kit/DevKitUI.tsx`): restored the shared DevKit helper module deleted in the visual refresh, preserving `DevKitLoading`, `DevKitMetricCard`, `DevKitSection`, and `DevKitTabBar` exports required by `AdminUsersPanel`, `OverviewPanel`, and `GrowthTrafficPanel`.
+- **DevKit shared styling** (`src/components/dev-kit/DevKitUI.tsx`): aligned restored helpers with the Phase 1 dark DevKit shell using subtle borders, black translucent surfaces, status color accents, and responsive tab controls.
+- **Verification**: confirmed TypeScript and targeted DevKit ESLint checks pass for `DevKitUI.tsx`, `DevToolsPage.tsx`, `HomePanel.tsx`, `DiagnosticsPanel.tsx`, `EmailHubPanel.tsx`, `FeatureFlagsPanel.tsx`, and `AICommandCenterPanel.tsx`.

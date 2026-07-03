@@ -31,7 +31,7 @@ If useful context is found outside the Atlas:
 For accepted project changes, update the relevant Atlas surfaces:
 
 - engineering or operational reference: the matching file under `Project Atlas/`;
-- owner-facing explanation: `Project Atlas/04-For You (Plain Language)/` when the owner needs to know what changed;
+- owner-facing explanation: `Project Atlas/MASTER_HANDBOOK.md` or `Project Atlas/CHANGELOG.md` when the owner needs to know what changed;
 - changelog: `Project Atlas/CHANGELOG.md`.
 
 The in-app user-facing What's New page is not an engineering documentation surface and should only be updated when a product release calls for it.
