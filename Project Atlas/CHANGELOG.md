@@ -1,5 +1,17 @@
 # Project Atlas Master Changelog
 
+## 2026-07-03 - Project Atlas Governance & Structure Cleanup
+
+- **Docs-Only Governance Cleanup**: Performed comprehensive audit and restructuring of `Project Atlas/` folder layout based strictly on Atlas routing governance files (`ATLAS_ROUTING_RULES.md`, `SOURCE_OF_TRUTH_MAP.md`, `RULES.md`).
+- **Archived Stale/Legacy Specs**: Moved 11 stale Supabase and legacy/historical files (`ai/features-design.md`, `ops-auth-refresh-token-reuse-interval.md`, `ops-api-key-encryption-rotation.md`, `db-unused-index-analysis.md`, `API_CONFIGURATION.md`, `backend.md`, `technical-context.md`, `interview-feature-issues.md`, `openrouter2-deployment.md`, `e2e-wiseresume-report.md`, `SECURITY_FIXES_SUMMARY.md`) to `archive/legacy-docs/` or `archive/historical-audits/` via `git mv`.
+- **Organized Archive Root Files**: Moved 20 loose `.md` audit/legacy files directly under `archive/` root into `archive/historical-audits/` and `archive/legacy-docs/` via `git mv` and prepended `[!CAUTION]` historical disclaimers to all 31 moved files.
+- **Relocated Misplaced Feature Plans**: Moved `features/interview-feature-fix-plan.md` to `features/plans/interview-feature-fix-plan.md` via `git mv`.
+- **Created Missing Living Specs**: Created canonical living specs for `ai/ai-gateway.md` (server-side Appwrite AI function proxy & authorization boundary) and `qa/PLAYWRIGHT_E2E_SUITE.md` (Playwright & Vitest test suite spec).
+- **Fixed Links & Source Map**: Fixed broken link in `features/tailoring-hub.md` and updated `SOURCE_OF_TRUTH_MAP.md` to reflect all subdirectories and living specs.
+- **Strict Guardrails Followed**: Docs-only pass. Zero application code modified (`src/`, `api/`, `server/`, `appwrite-hubs/`), zero config files touched, zero executable test code touched, zero machine reports touched, zero deployments.
+
+---
+
 ## 2026-07-03 - Final Atlas Hygiene Polish (Phase 2D)
 
 - **Archived Historical LINK_ISSUES.md**: Moved historical link audit matrix `Project Atlas/LINK_ISSUES.md` to `Project Atlas/archive/historical-audits/LINK_ISSUES.md` via `git mv`.
