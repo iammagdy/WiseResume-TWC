@@ -23,25 +23,25 @@
 
 ## 2. Latest Important Commits
 
+* **`ceace5c1`** — `docs(atlas): add routing rules, handover state, and AI agent skills scaffold`
 * **`0727589e`** — `docs(atlas): add QA test-suite map and test-output routing governance`
 * **`8d356f9e`** — `docs(atlas): update master changelog, rules, and governance for archive policy`
 * **`f7693c00`** — `docs(atlas): consolidate legacy docs into historical archive`
 * **`bc2e7c25`** — `docs: finalize Atlas normalization merge status`
-* **`5497ce41`** — `docs: normalize Project Atlas living architecture and feature specifications`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Project Atlas Phase 2 — Finalizing Master Routing Rules (`ATLAS_ROUTING_RULES.md`), Operational Handover State (`WHERE_WE_STOPPED.md`), Folder README Scaffolds, and AI Agent Skills System (`skills/`).
-* **Current State**: Phase 2B implementation complete and verified clean.
-* **Last Completed Task**: Created Project Atlas routing rules, handover state, folder scaffolds, and modular AI agent skills.
+* **Current Active Focus**: Project Atlas Phase 2 — Final Hygiene Polish (Phase 2D).
+* **Current State**: Phase 2D documentation hygiene polish complete and verified clean.
+* **Last Completed Task**: Archived historical `LINK_ISSUES.md` to `archive/historical-audits/`, updated `SOURCE_OF_TRUTH_MAP.md` coverage for `ai/`, `security/`, `general/`, `_templates/`, and logged changelog updates.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Review of Phase 2B**: Obtain owner approval for Phase 2B documentation commit and push.
+1. **Owner Review of Phase 2D**: Obtain owner approval to commit and push Phase 2D hygiene updates.
 2. **AI Gateway Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production.
 3. **Turnstile Captcha Verification**: Verify Cloudflare Turnstile siteverify response handling for public portfolio contact submissions under live browser conditions.
 4. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.

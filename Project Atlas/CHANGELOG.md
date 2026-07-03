@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-07-03 - Final Atlas Hygiene Polish (Phase 2D)
+
+- **Archived Historical LINK_ISSUES.md**: Moved historical link audit matrix `Project Atlas/LINK_ISSUES.md` to `Project Atlas/archive/historical-audits/LINK_ISSUES.md` via `git mv`.
+- **Source-of-Truth Inventory Completed**: Updated `Project Atlas/SOURCE_OF_TRUTH_MAP.md` to include explicit mappings for `ai/ai-gateway.md`, `security/`, `general/CONTRIBUTING.md`, `_templates/`, and archived `LINK_ISSUES.md`.
+- **Control Files Preserved**: Re-confirmed `MASTER_HANDOVER_2026.md` and `DECISIONS.md` remain in `Project Atlas/` root as core control/history files.
+- **Validation**: Docs-only, zero application code changed, zero scripts/workflows touched, zero package/config changes, zero deployments.
+
+---
+
 ## 2026-07-03 - Routing Rules, Handover State, and Skills System Scaffold (Phase 2B)
 
 - **Master Document Routing Rules**: Created `Project Atlas/ATLAS_ROUTING_RULES.md` establishing explicit document placement matrices, root hygiene rules, and file type definitions for AI agents.

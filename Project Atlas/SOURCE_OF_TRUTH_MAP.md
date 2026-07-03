@@ -1,9 +1,9 @@
 # Project Atlas — Source of Truth Master Inventory Map
 
-**Last Verified:** 2026-07-03  
-**Status:** Canonical Documentation Index  
-**Consolidation Status:** Documentation consolidation merged to main at `9567aa3066d58dd7636369d894f6eec15d72555b`. Living Docs Normalization merged to main at `5497ce41a657245125fd0ebeca949e6bdd1fa58d`. Phase 2 Routing Rules merged at `0727589e`.
-**Location:** `Project Atlas/SOURCE_OF_TRUTH_MAP.md`  
+**Last Verified:** 2026-07-03
+**Status:** Canonical Documentation Index
+**Consolidation Status:** Documentation consolidation merged to main at `9567aa3066d58dd7636369d894f6eec15d72555b`. Living Docs Normalization merged to main at `5497ce41a657245125fd0ebeca949e6bdd1fa58d`. Phase 2 Routing Rules merged at `ceace5c1`.
+**Location:** `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
 
 ---
 
@@ -32,7 +32,7 @@
 * `product/brand-guidelines.md` — Brand identity and style guidelines.
 * `product/WiseCloud-App-Brief.md` — Wise Cloud product strategy brief.
 
-### `architecture/` — System & Infrastructure Specifications
+### `architecture/` & `ai/` — System, AI & Infrastructure Specifications
 * `architecture/overview.md` — High-level architecture overview.
 * `architecture/appwrite-architecture.md` — Appwrite backend architecture.
 * `architecture/frontend-architecture.md` — React/Vite/Tailwind frontend architecture.
@@ -40,6 +40,7 @@
 * `architecture/auth-and-permissions.md` — Appwrite Auth & document-level security.
 * `architecture/appwrite-functions.md` — Appwrite serverless functions specification.
 * `architecture/integrations.md` — Third-party service integrations.
+* `ai/ai-gateway.md` — Consolidated Appwrite `ai-gateway` serverless function architecture.
 
 ### `features/` — Living Feature Specifications
 * `features/dashboard.md` — User Dashboard specification.
@@ -75,6 +76,9 @@
 * `qa/test-suite-map.md` — Executable test directory mapping (`tests/`).
 * `qa/test-output-locations.md` — Generated test artifact locations (`reports/`).
 
+### `security/` — Security Policies & Protection Specs
+* `security/` — Security policies, document-level permission rules, and audit specifications.
+
 ### `prompts/` — AI Agent Prompts & Templates
 * `prompts/README.md` — AI agent prompts and template library overview.
 
@@ -83,6 +87,10 @@
 
 ### `decisions/` — Architectural Decision Records
 * `decisions/README.md` — ADR directory guide and link to `DECISIONS.md`.
+
+### `general/` & `_templates/` — Guidelines & Header Templates
+* `general/CONTRIBUTING.md` — Repository contribution guidelines.
+* `_templates/` — Documentation header and reference card templates.
 
 ### `reports/` — Categorized Historical Audits & Evidence
 * `reports/ui-ux/` — UI/UX stabilization and dashboard audit reports.
@@ -100,7 +108,7 @@
 * `archive/README.md` — Archival policy and historical-only disclaimer.
 * `archive/legacy-docs/` — Archived root documentation (e.g. historical `CHANGELOG.md`, duplicate briefs).
 * `archive/legacy-atlas-folders/` — Archived pre-normalization specification folders (e.g. `00-Full-App-Reference`, `01-Currently Implemented`, `05-Migration to Appwrite`).
-* `archive/historical-audits/` — Archived point-in-time security, UI/UX, QA, and deployment audit reports.
+* `archive/historical-audits/` — Archived point-in-time security, UI/UX, QA, and deployment audit reports (includes historical `LINK_ISSUES.md`).
 * `archive/imported-repo-docs/` — Imported repository documentation files.
 * `archive/imported-reports/` — Imported repository report files.
 * `archive/review-needed/` — Files pending classification.
