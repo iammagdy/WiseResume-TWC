@@ -1,104 +1,62 @@
 # Atlas Source Of Truth Map
 
-**Last verified:** 2026-06-26 (app version re-verified against `package.json`; collection/storage inventory figures unchanged from the 2026-05-13 verification)
-**Type:** index
-**Sources:**
-- `package.json`
-- `src/lib/appwrite.ts`
-- `src/lib/appwrite-collections.ts`
-- `src/lib/appwrite-bridge.ts`
-- `Project Atlas/MASTER_HANDOVER_2026.md`
-- `Project Atlas/GOVERNANCE.md`
-- `Project Atlas/DEPLOYMENT_GUIDE.md`
-**Canonical owner:** this file
+**Last verified:** 2026-07-03  
+**Type:** Master Index  
+**Canonical owner:** `Project Atlas/SOURCE_OF_TRUTH_MAP.md`  
 
 ---
 
-This map is the A-to-Z guide for where app truth lives inside `Project Atlas/`. Future agents should start here after opening `Project Atlas/README.md`.
+This map is the A-to-Z guide for where application truth lives inside `Project Atlas/`.
 
-## A. Platform Identity
+## A. Master Entry Points
 
-- Product umbrella: The Wise Cloud.
-- Product surfaces: WiseResume for job seekers, WiseHire for HR/recruiting, Wise AI for AI capabilities.
-- Repository: `iammagdy/WiseResume-TWC`, default branch `main`.
-- Current app version in code: `4.7.3` from `package.json`.
+* **Living AI Operating Manual:** `Project Atlas/MASTER_HANDBOOK.md`
+* **Verified System Truth Snapshot:** `Project Atlas/CURRENT_STATE.md`
+* **Architectural Decision Records:** `Project Atlas/DECISIONS.md`
+* **Developer & Agent Rules:** `Project Atlas/RULES.md`
+* **Repository Governance:** `Project Atlas/GOVERNANCE.md`
+* **Chronological Session Handover Log:** `Project Atlas/MASTER_HANDOVER_2026.md`
+* **Consolidation Implementation Plan:** `Project Atlas/DOCS_CONSOLIDATION_IMPLEMENTATION_PLAN_2026-07-03.md`
 
-## B. Current Architecture
+---
 
-- Frontend: React 18, TypeScript 5, Vite 6, Tailwind, Radix UI, shadcn/ui.
-- Runtime backend for the web app: Appwrite Cloud.
-- Appwrite endpoint: `https://fra.cloud.appwrite.io/v1`.
-- Appwrite project ID: `69fd362b001eb325a192`.
-- Appwrite database ID: `main`.
-- Collection inventory: `src/lib/appwrite-collections.ts` currently lists 96 live collections.
-- Storage inventory: `src/lib/appwrite-collections.ts` currently lists the `avatars` bucket.
-- Express server: small stub/health layer; do not treat it as the main product backend.
+## B. Platform Identity & Stack
 
-## C. AI Truth
+* **Product Umbrella:** The Wise Cloud / WiseResume (`wiseresume.app`).
+* **Repository:** `iammagdy/WiseResume-TWC`, default branch `main`.
+* **Frontend Runtime:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
+* **Frontend Hosting:** Vercel.
+* **Backend Runtime:** Appwrite Cloud (Appwrite Databases, Appwrite Storage, Appwrite Functions).
+* **Appwrite Endpoint:** `https://fra.cloud.appwrite.io/v1`.
+* **Appwrite Project ID:** `69fd362b001eb325a192`.
+* **Appwrite Database ID:** `main`.
 
-- AI routes go through the Appwrite `ai-gateway` Function unless Atlas documents a specific exception.
-- The frontend route list for AI/ops function names is in `src/lib/appwrite-bridge.ts`.
-- Active AI improvement plans live in:
-  - `Project Atlas/02-Planned/ai-routing-rollout.md`
-  - `Project Atlas/02-Planned/ai-quality-and-grounding.md`
-  - `Project Atlas/02-Planned/tailor-tool-quality-backlog.md`
+---
 
-## D. Admin DevKit Truth
+## C. Core Subdirectory Map
 
-- Cross-user DevKit reads and writes must use server-side Appwrite Functions.
-- `admin-devkit-data` is the key admin data Function.
-- Browser-side Appwrite database reads must not be used for other users' protected documents.
-- Current DevKit state and active queue live in `Project Atlas/MASTER_HANDOVER_2026.md`.
+* `Project Atlas/product/` — Product Requirements Documents (PRDs), product briefs, brand guidelines.
+* `Project Atlas/architecture/` — System architecture, technical context, database analysis, Appwrite Function canonical specs.
+* `Project Atlas/features/` — Feature specifications, implementation plans, localization guides.
+* `Project Atlas/ai/` — AI architecture specs, prompt guides, AI gateway documentation.
+* `Project Atlas/design-system/` — Production design specs (`production/`) and visual target references (`visual-reference/`).
+* `Project Atlas/deployment/` — Production deployment rules, Hostinger/Vercel guides (`DEPLOYMENT_GUIDE.md`).
+* `Project Atlas/qa/` — Quality Assurance evidence logs, E2E test reports, unit test reports.
+* `Project Atlas/security/` — Security audits, permissions checks, rate limit & credential protection audits.
+* `Project Atlas/reports/` — Historical performance, UX, and system health audit reports.
+* `Project Atlas/general/` — Developer contribution and general guidelines (`CONTRIBUTING.md`).
+* `Project Atlas/archive/` — Preserved zero-data-loss repository for stale, superseded, and historical session logs.
 
-## E. Deployment Truth
+---
 
-- Mandatory deployment guide: `Project Atlas/DEPLOYMENT_GUIDE.md`.
-- `resume.thewise.cloud` deploys to Hostinger `resume/`.
-- `thewise.cloud` landing uploads one file to FTP root with `put`, not a deleting mirror.
-- `quran.thewise.cloud` belongs to the separate `iammagdy/wisequran` repo.
-- Never run `mirror --delete` against FTP root `.` from this repo.
+## D. Code-Adjacent Local Pointers
 
-## F. Product And Feature Truth
+* `appwrite-hubs/**/README.md` files remain code-adjacent as short local developer pointers. Canonical technical specs for all Appwrite Functions live in `Project Atlas/architecture/appwrite-functions.md`.
 
-Use `Project Atlas/01-Currently Implemented/` for verified live or partially-live behavior.
+---
 
-Main areas include:
+## E. Documentation Inventory & Consolidation Status
 
-- pages and flows under `01-Currently Implemented/pages/`;
-- Appwrite Function cards under `01-Currently Implemented/functions/`;
-- collection/table cards under `01-Currently Implemented/database-tables/`;
-- frontend structure under `01-Currently Implemented/frontend-layer/`;
-- backend and critical systems under the matching folders.
-
-Use `Project Atlas/02-Planned/` only for work that is not fully shipped yet.
-Use `Project Atlas/03-Ideas/` only for non-committed ideas.
-Use `Project Atlas/04-For You (Plain Language)/` for owner-facing summaries.
-Use `Project Atlas/05-Migration to Appwrite/` for migration records and verification notes.
-
-## G. Governance Truth
-
-- Canonical governance: `Project Atlas/GOVERNANCE.md`.
-- Short execution rules: `Project Atlas/RULES.md`.
-- Maintenance protocol: `Project Atlas/MAINTENANCE.md`.
-- Change history: `Project Atlas/CHANGELOG.md`.
-
-## H. How To Resolve Conflicts
-
-1. Check the current code, workflows, Appwrite Function source, or live logs.
-2. Update the relevant Atlas file.
-3. Record the change in `Project Atlas/CHANGELOG.md`.
-4. Delete or ignore any external Markdown that disagrees with Atlas.
-
-## I. What Must Not Return
-
-Do not reintroduce these as canonical docs:
-
-- root `README.md`, `CHANGELOG.md`, or runbooks;
-- `project-governance/`;
-- `Routing AI Providers/`;
-- `wise-templates/`;
-- standalone `specs/**/*.md` docs;
-- `.agents/skills/**/*.md` as project truth;
-- `docs/**/*.md` as project truth.
-
-If a future tool needs templates or specs, they must either live outside this repo or be summarized into the Atlas with a clear non-canonical label.
+* **Total Workspace Documentation Files Count:** 609 files.
+* **Consolidation Status:** Batch 1 Core Atlas Foundation Established (2026-07-03).
+* **Root Pointer Policy:** Root `README.md` is a short pointer linking directly to `Project Atlas/MASTER_HANDBOOK.md`.
