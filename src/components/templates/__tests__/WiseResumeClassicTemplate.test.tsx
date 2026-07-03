@@ -2,6 +2,10 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { WiseResumeClassicTemplate } from '../WiseResumeClassicTemplate';
+import React from 'react';
+import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { WiseResumeClassicTemplate } from '../WiseResumeClassicTemplate';
 import templateComponents from '../registry';
 import { templates } from '@/lib/templateData';
 import { migrateTemplateId } from '@/lib/templateMigration';
@@ -10,14 +14,14 @@ import type { ResumeData } from '@/types/resume';
 
 const sampleResume: ResumeData = {
   contactInfo: {
-    fullName: 'Magdy Saber',
-    email: 'magdy.saber@outlook.com',
-    email2: 'contact@magdysaber.com',
-    phone: '+201111113041',
-    location: 'Cairo, Egypt',
-    linkedin: 'https://www.linkedin.com/in/magdy-saber/',
-    github: 'https://github.com/iammagdy',
-    portfolio: 'https://magdysaber.com',
+    fullName: 'Alex Morgan',
+    email: 'alex.morgan@example.com',
+    email2: 'contact@alexmorgan.example',
+    phone: '+1 (555) 019-2834',
+    location: 'San Francisco, CA',
+    linkedin: 'https://www.linkedin.com/in/alex-morgan/',
+    github: 'https://github.com/alexmorgan',
+    portfolio: 'https://alexmorgan.example',
   },
   summary: 'Versatile operations, customer experience, and technical leader.',
   experience: [
@@ -38,7 +42,7 @@ const sampleResume: ResumeData = {
       id: '1',
       field: 'Software Engineering',
       degree: '',
-      institution: 'Cairo University',
+      institution: 'State University',
       startDate: '2024',
       endDate: '2026',
     },
@@ -50,7 +54,7 @@ const sampleResume: ResumeData = {
       id: '1',
       name: 'WiseResume',
       role: 'Founder & Developer',
-      url: 'https://resume.thewise.cloud',
+      url: 'https://wiseresume.app',
       description: 'AI resume editor with ATS-friendly templates.',
       technologies: ['React', 'AWS'],
       startDate: '',
@@ -75,16 +79,16 @@ describe('WiseResume Classic template', () => {
   it('renders required contact links, plain phone, and page footer branding', () => {
     const { container } = render(<WiseResumeClassicTemplate resume={sampleResume} />);
 
-    const firstEmail = screen.getByRole('link', { name: 'magdy.saber@outlook.com' });
-    expect(firstEmail).toHaveAttribute('href', 'mailto:magdy.saber@outlook.com');
+    const firstEmail = screen.getByRole('link', { name: 'alex.morgan@example.com' });
+    expect(firstEmail).toHaveAttribute('href', 'mailto:alex.morgan@example.com');
 
-    const secondEmail = screen.getByRole('link', { name: 'contact@magdysaber.com' });
-    expect(secondEmail).toHaveAttribute('href', 'mailto:contact@magdysaber.com');
+    const secondEmail = screen.getByRole('link', { name: 'contact@alexmorgan.example' });
+    expect(secondEmail).toHaveAttribute('href', 'mailto:contact@alexmorgan.example');
 
-    expect(screen.getByText('+201111113041').closest('a')).toBeNull();
-    expect(screen.getByRole('link', { name: 'magdy-saber' })).toHaveAttribute('href', 'https://www.linkedin.com/in/magdy-saber/');
-    expect(screen.getByRole('link', { name: 'iammagdy' })).toHaveAttribute('href', 'https://github.com/iammagdy');
-    expect(screen.getByRole('link', { name: 'magdysaber.com' })).toHaveAttribute('href', 'https://magdysaber.com');
+    expect(screen.getByText('+1 (555) 019-2834').closest('a')).toBeNull();
+    expect(screen.getByRole('link', { name: 'alex-morgan' })).toHaveAttribute('href', 'https://www.linkedin.com/in/alex-morgan/');
+    expect(screen.getByRole('link', { name: 'alexmorgan' })).toHaveAttribute('href', 'https://github.com/alexmorgan');
+    expect(screen.getByRole('link', { name: 'alexmorgan.example' })).toHaveAttribute('href', 'https://alexmorgan.example');
 
     expect(screen.getByRole('link', { name: 'WiseResume' })).toHaveAttribute('href', 'https://wiseresume.app');
     expect(container.querySelector('[data-resume-template]')).toBeTruthy();

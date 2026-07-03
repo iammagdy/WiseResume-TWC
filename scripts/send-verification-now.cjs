@@ -1,6 +1,6 @@
 /**
  * One-off: send verification email to a user by email address.
- * Usage: node scripts/send-verification-now.cjs magdy.saber+5@outlook.com
+ * Usage: node scripts/send-verification-now.cjs user@example.com
  * Requires .env.deploy with APPWRITE_API_KEY and RESEND_API_KEY.
  */
 const fs = require('fs');

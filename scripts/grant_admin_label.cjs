@@ -5,7 +5,7 @@
  * Grant the Appwrite "admin" label to a user by email.
  *
  * Usage:
- *   APPWRITE_PROJECT_ID=... APPWRITE_API_KEY=... node scripts/grant_admin_label.cjs magdy.saber@outlook.com
+ *   APPWRITE_PROJECT_ID=... APPWRITE_API_KEY=... node scripts/grant_admin_label.cjs admin@wiseresume.app
  *
  * Or load from .env.deploy if present (same vars as deploy_hubs.cjs).
  */

@@ -43,7 +43,7 @@ function parseBody(raw) {
   const before = await databases.listDocuments(DB_ID, 'moderation_bugs', [sdk.Query.limit(1)]);
   console.log('moderation_bugs before:', before.total);
 
-  const email = 'magdy.saber@outlook.com';
+  const email = process.env.ADMIN_EMAIL || 'admin@wiseresume.app';
   const user = (await users.list([sdk.Query.equal('email', email), sdk.Query.limit(1)])).users[0];
   if (!user) throw new Error(`User not found: ${email}`);
   const jwt = (await users.createJWT(user.$id)).jwt;

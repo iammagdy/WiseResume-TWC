@@ -63,7 +63,7 @@ The older Supabase recovery notes below are historical and should not be used fo
    - "Verification function not found" toast → function isn't deployed at all. Run `bash scripts/deploy-functions.sh`.
    - "Too many attempts — temporarily locked" countdown → the admin tripped the 5-failures-in-10-minutes brute-force guard. Either wait it out or sweep the row (step 2 below).
    - Generic "Incorrect email or password — try again." → genuine password mismatch. Either the admin typed it wrong or the `DEV_KIT_PASSWORD` Supabase secret is stale. Rotate it via step 3.
-2. **Clear an active lockout for one email.** The lockout key is the email lowercased with every non-`[a-z0-9]` character replaced with `_` (e.g. `magdy.saber@outlook.com` → `magdy_saber_outlook_com`). Delete only that key — never truncate the table:
+2. **Clear an active lockout for one email.** The lockout key is the email lowercased with every non-`[a-z0-9]` character replaced with `_` (e.g. `admin@wiseresume.app` → `magdy_saber_outlook_com`). Delete only that key — never truncate the table:
    ```sql
    delete from public.rpc_rate_limits
    where endpoint = 'devkit-login-fail'

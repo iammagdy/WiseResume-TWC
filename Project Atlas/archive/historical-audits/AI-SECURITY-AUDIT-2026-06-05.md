@@ -293,7 +293,7 @@
 
 **Appwrite area:** Function
 **File:** `appwrite-hubs/ai-gateway/src/main.js:1527`, `src/hooks/useIsAdmin.ts:4`
-**Exact risk:** `ADMIN_EMAIL_ENV` defaults to the hard-coded value `'magdy.saber@outlook.com'` when the env var is absent. The impersonation check is correctly gated on JWT-verified email match — non-admin users cannot trigger this path. However, if `ADMIN_EMAIL` is ever unset in the Appwrite Function environment, the fallback is exposed in source code. The same email also appears in the client bundle via `useIsAdmin.ts`.
+**Exact risk:** `ADMIN_EMAIL_ENV` defaults to the hard-coded value `'admin@wiseresume.app'` when the env var is absent. The impersonation check is correctly gated on JWT-verified email match — non-admin users cannot trigger this path. However, if `ADMIN_EMAIL` is ever unset in the Appwrite Function environment, the fallback is exposed in source code. The same email also appears in the client bundle via `useIsAdmin.ts`.
 **Recommended fix:** Remove the hard-coded default. If `ADMIN_EMAIL` env var is not set, log a startup warning and disable the impersonation feature entirely. Never hard-code admin email in deployed source.
 **Priority: P1**
 
@@ -456,7 +456,7 @@
 ### G-5: Admin email hard-coded in source code
 
 **File:** `appwrite-hubs/ai-gateway/src/main.js:1527`, `src/hooks/useIsAdmin.ts:4`
-**Risk:** `ADMIN_EMAIL = 'magdy.saber@outlook.com'` appears in both the backend gateway and the frontend hook as a hard-coded fallback. If the environment variable is missing, the fallback leaks the admin identity. The frontend bundle also exposes this string to any user who opens DevTools.
+**Risk:** `ADMIN_EMAIL = 'admin@wiseresume.app'` appears in both the backend gateway and the frontend hook as a hard-coded fallback. If the environment variable is missing, the fallback leaks the admin identity. The frontend bundle also exposes this string to any user who opens DevTools.
 **Recommended fix:** In the backend: require `ADMIN_EMAIL` env var, fail loudly if absent. In the frontend: the `useIsAdmin` check is cosmetic (backend is authoritative), but the email string should not appear in bundled client JS.
 **Priority: P1**
 

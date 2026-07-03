@@ -199,7 +199,7 @@ async function verifyFunction() {
   const functions = new Functions(client);
   const users = new Users(client);
 
-  const email = process.env.ADMIN_EMAIL || 'magdy.saber@outlook.com';
+  const email = process.env.ADMIN_EMAIL || 'admin@wiseresume.app';
   const page = await users.list([Query.equal('email', email), Query.limit(1)]);
   const user = page.users[0];
   if (!user) throw new Error(`Admin user not found: ${email}`);

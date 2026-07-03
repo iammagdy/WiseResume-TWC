@@ -179,7 +179,7 @@ Upload + DB save worked; `storage.createFile()` had **no public read permission*
 ### Validation
 - `tsc --noEmit` — pass.
 - `vitest` on `Auth-D3.test.tsx`, `ProtectedRoute.test.tsx` — pass.
-- Browser: `/portfolio` loads for `magdy.saber@outlook.com` without auth error.
+- Browser: `/portfolio` loads for `admin@wiseresume.app` without auth error.
 
 ---
 
