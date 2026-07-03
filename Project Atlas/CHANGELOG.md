@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-07-03 - QA & Test Suite Classification and Routing Rules
+
+- **Classification Pass**: Audited root `tests/` (`EXECUTABLE_TEST_CODE`) and `reports/` (`GENERATED_TEST_OUTPUT`).
+- **QA Specs Created**: Created `Project Atlas/qa/test-suite-map.md` mapping executable test directories and `Project Atlas/qa/test-output-locations.md` governing machine-generated test outputs.
+- **Routing Governance Enforced**: Updated `Project Atlas/RULES.md` and `Project Atlas/SOURCE_OF_TRUTH_MAP.md` explicitly requiring executable test code to remain in root `tests/`, machine outputs in root `reports/`, and human QA documentation in `Project Atlas/qa/`.
+- **Validation**: Zero application code changed, zero test runner configs touched, zero deployments, zero file deletions.
+
+---
+
 ## 2026-07-03 - Documentation Cleanup and Consolidation
 
 - **Consolidated Documentation into Project Atlas**: Consolidated all scattered repository documentation and historical reports into `Project Atlas/` as the single documentation source of truth.

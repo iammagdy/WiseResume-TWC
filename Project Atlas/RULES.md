@@ -61,6 +61,14 @@ Never run a deleting FTP mirror against the Hostinger root path `.` from this re
 
 The owner is non-technical. Explain high-risk changes in plain language before implementing them. Recommend the best path clearly, with trade-offs only where they matter.
 
+## 7. Test & QA Routing Rules
+
+* **Executable Test Code**: All runnable tests remain in root `tests/` (`EXECUTABLE_TEST_CODE`). Do not move test files into `Project Atlas/`.
+* **Generated Test Outputs**: Machine-generated test runner output files (JSON, HTML reports, traces) remain in root `reports/` (`GENERATED_TEST_OUTPUT`).
+* **QA Strategy & Reports**: All human QA strategy, checklists, and summary reports belong in `Project Atlas/qa/` or `Project Atlas/reports/` living subdirectories.
+* **Archival**: Legacy human-written QA reports MUST be merged into living specs and archived under `Project Atlas/archive/historical-audits/` or `imported-reports/`.
+* **No Root QA Noise**: AI agents MUST NOT create random Markdown or QA documentation files in the repository root or root `reports/`.
+
 ---
 
 Failure to follow these rules creates confusion and technical debt. Stick to the Atlas.

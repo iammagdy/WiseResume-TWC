@@ -52,6 +52,11 @@
 ### `deployment/` — Production Deployment Specifications
 * `deployment/current-deployment.md` — Active Vercel & Appwrite deployment specification.
 
+### `qa/` — QA Strategy & Test Suite Inventory
+* `qa/PLAYWRIGHT_E2E_SUITE.md` — Playwright E2E suite specification.
+* `qa/test-suite-map.md` — Executable test directory mapping (`tests/`).
+* `qa/test-output-locations.md` — Generated test artifact locations (`reports/`).
+
 ### `reports/` — Categorized Historical Audits & Evidence
 * `reports/ui-ux/` — UI/UX stabilization and dashboard audit reports.
 * `reports/performance/` — Application load time & performance audits.
