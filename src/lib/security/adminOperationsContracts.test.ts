@@ -35,20 +35,23 @@ describe('DevKit admin operations contracts', () => {
     expect(drawer).not.toContain("Copy the orphan account's plan and profile fields");
   });
 
-  it('uses an authenticated send-code-only admin reset action with safe audit outcomes', () => {
+  it('uses an authenticated send-code-only admin reset action routed through admin-devkit-data', () => {
+    const devkitData = read('appwrite-hubs/admin-devkit-data/src/main.js');
     const emailService = read('appwrite-hubs/email-service/src/main.js');
+    const drawer = read('src/components/dev-kit/UserDetailDrawer.tsx');
 
-    expect(emailService).toContain("case 'send-admin-password-reset-otp'");
-    expect(emailService).toContain('handleSendAdminPasswordResetOtp');
+    expect(drawer).toContain("body: { action: 'send-admin-password-reset-otp', target_user_id: user.user_id }");
+    expect(drawer).toContain("unwrapAdminResponse<{ warning?: string }>(tuple, 'admin-devkit-data')");
+
+    expect(devkitData).toContain("action === 'send-admin-password-reset-otp'");
+    expect(devkitData).toContain('signInternalRequest');
+    expect(devkitData).toContain("action: 'internal-send-admin-password-reset-otp'");
+
+    expect(emailService).toContain("case 'internal-send-admin-password-reset-otp'");
+    expect(emailService).toContain('handleInternalSendAdminPasswordResetOtp');
+    expect(emailService).toContain('verifyInternalRequestSignature');
     expect(emailService).toContain("action: 'admin-password-reset-code-sent'");
     expect(emailService).toContain('Password reset code sent, but audit logging failed.');
-    expect(emailService).toContain('if (verifySignedDevKitToken(token)) return true;');
-    expect(emailService).toContain('if (devkitPassword && token === devkitPassword) return true;');
-    expect(emailService).not.toContain('devkitPassword && (token === devkitPassword || verifySignedDevKitToken(token))');
-    const delegatedAuth = emailService.match(/async function verifyDevKitViaAdminHub\(token\) \{[\s\S]*?\n\}/)?.[0] ?? '';
-    expect(delegatedAuth).toContain("action: 'get-deployed-hashes'");
-    expect(delegatedAuth).not.toContain("action: 'diagnostics'");
-    expect(delegatedAuth).toContain('return execution.status !== \'failed\' && response.success === true;');
     expect(emailService).not.toContain('temporary_password');
   });
 

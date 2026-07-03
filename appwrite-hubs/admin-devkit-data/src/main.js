@@ -2553,6 +2553,81 @@ async function handleSendVerificationEmail(body, log) {
   return { ok: true, directly_verified: true, email: targetUser.email };
 }
 
+function getInternalHmacSecret() {
+  const secret = process.env.EMAIL_SERVICE_INTERNAL_HMAC_SECRET || '';
+  if (!secret) {
+    throw new Error('EMAIL_SERVICE_INTERNAL_HMAC_SECRET is not configured');
+  }
+  return secret;
+}
+
+function signInternalRequest(payload) {
+  const secret = getInternalHmacSecret();
+  const timestamp = Date.now();
+  const message = `${timestamp}:${payload.target_user_id}:${payload.target_email}:${payload.actor_user_id || ''}`;
+  const signature = crypto.createHmac('sha256', secret).update(message).digest('base64url');
+  return { timestamp, signature };
+}
+
+async function handleSendAdminPasswordResetOtp(body, log, req) {
+  const targetUserId = String(body?.target_user_id || '').trim();
+  if (!targetUserId) throw new Error('Missing target_user_id');
+
+  const targetUser = await getUser(targetUserId);
+  if (!targetUser || !targetUser.email) {
+    throw new Error('Selected user has no email address');
+  }
+
+  const token = bearerToken(req, body);
+  const actorUserId = decodeSignedTokenPayload(token)?.uid || null;
+
+  const { timestamp, signature } = signInternalRequest({
+    target_user_id: targetUserId,
+    target_email: targetUser.email,
+    actor_user_id: actorUserId,
+  });
+
+  const { functions } = getClients();
+  let execution;
+  try {
+    execution = await functions.createExecution(
+      'email-service',
+      JSON.stringify({
+        action: 'internal-send-admin-password-reset-otp',
+        target_user_id: targetUserId,
+        target_email: targetUser.email,
+        actor_user_id: actorUserId,
+        timestamp,
+        signature,
+        locale: body?.locale,
+      }),
+      false,
+      '/',
+      'POST'
+    );
+  } catch (err) {
+    log(`[error] send-admin-password-reset-otp: internal execution failed: ${err.message}`);
+    throw new Error('Failed to send password reset code.');
+  }
+
+  let responsePayload = {};
+  try {
+    responsePayload = JSON.parse(execution.responseBody || '{}');
+  } catch {
+    responsePayload = {};
+  }
+
+  if (execution.status === 'failed' || (execution.statusCode && execution.statusCode >= 400) || responsePayload.error || responsePayload.success === false) {
+    log(`[error] send-admin-password-reset-otp: email-service returned error`);
+    throw new Error(responsePayload.error || 'Failed to send password reset code.');
+  }
+
+  return {
+    success: true,
+    warning: responsePayload.warning || undefined,
+  };
+}
+
 // â”€â”€â”€ Analytics: aggregate visitor_events for AnalyticsPanel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function analyticsRangeStart(range) {
@@ -2912,6 +2987,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'get-resume-detail') data = await handleListUserContent(body, log);
     else if (action === 'impersonate') data = await handleImpersonate(body, log);
     else if (action === 'send-verification-email') data = await handleSendVerificationEmail(body, log);
+    else if (action === 'send-admin-password-reset-otp') data = await handleSendAdminPasswordResetOtp(body, log, req);
     else if (action === 'analytics') data = await handleAnalytics(body, log);
     else if (action === 'home-summary') data = await handleHomeSummary(log, error);
     else if (action === 'list-app-settings') data = await handleListAppSettings(log);
@@ -2939,4 +3015,10 @@ module.exports = async ({ req, res, log, error }) => {
     error(`DevKit Data Error [${rid}]: ${err.message}`);
     return json(res, rid, { success: false, code: 'FUNCTION_RUNTIME_FAILED', error: err.message }, 500);
   }
+};
+
+module.exports._test = {
+  getInternalHmacSecret,
+  signInternalRequest,
+  handleSendAdminPasswordResetOtp,
 };

@@ -1,5 +1,17 @@
 # Project Atlas Master Changelog
 
+## 2026-07-04 - DevKit Admin Password Reset Cross-Function Authentication Architecture Fix
+
+- **Architecture Redesign**: Resolved the DevKit admin password-reset HTTP 401 blocker by establishing `admin-devkit-data` as the single DevKit admin authority and using server-to-server internal HMAC signing (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`) to `email-service`.
+- **Frontend Alignment** (`UserDetailDrawer.tsx`): Updated `handleSendPasswordResetCode` to invoke `admin-devkit-data` (action `send-admin-password-reset-otp`) with existing DevKit admin headers instead of calling `email-service` directly with browser tokens.
+- **Admin DevKit Authority** (`admin-devkit-data/src/main.js`): Added `send-admin-password-reset-otp` handler that validates DevKit admin auth, resolves the target user's authoritative email server-side via Appwrite Users API, signs the internal request using `EMAIL_SERVICE_INTERNAL_HMAC_SECRET`, and executes `email-service`. Fails closed with a configuration error if `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` is missing.
+- **Internal Service Delivery** (`email-service/src/main.js`): Added `internal-send-admin-password-reset-otp` handler protected strictly by timing-safe HMAC signature verification (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`, no API key fallbacks), bypassing browser DevKit token validation and delegating directly to `handleSendPasswordResetOtp`. Direct browser calls to `send-admin-password-reset-otp` on `email-service` are deprecated and fail closed (HTTP 401).
+- **Security & Safety**: Confirmed send-code-only behavior (zero OTP, challenge token, email body, Resend payload, bearer secret, or internal signing secret exposed in UI or logs). Audit entries are created only after successful email delivery; failed audit writes return a safe warning.
+- **Validation**: TypeScript (`npx tsc --noEmit`), `node --check`, and 17 focused Vitest security tests passed (`adminPasswordResetInternalAuth.test.ts`, `adminOperationsContracts.test.ts`, `adminDevkitHardening.test.ts`). Source hashes were recomputed for `admin-devkit-data` and `email-service`.
+- **Deployment & Prerequisites**: Implementation completed locally. Deployment NOT performed. Before deployment, `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` must be configured on both `admin-devkit-data` and `email-service` Appwrite Functions. Recommended manual Appwrite Hubs deploy target after owner approval: `admin-devkit-data,email-service` (`admin-impersonate` was not changed and should not be included).
+
+---
+
 ## 2026-07-04 - DevKit Admin Operations Deployment & Live Verification
 
 - **Targeted Appwrite Deployment**: Official `Deploy Appwrite Hubs` workflow run `28687088873` completed successfully for `admin-devkit-data,admin-impersonate,email-service` on commit `c4bc9fea`. No `target=all`, Appwrite Console deployment, or unrelated hub deployment was used.

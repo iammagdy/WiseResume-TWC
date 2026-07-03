@@ -1188,34 +1188,60 @@ async function handleSendPasswordResetOtp({ req, res, log, error, body, adminAud
   }
 }
 
-async function handleSendAdminPasswordResetOtp({ req, res, log, error, body }) {
-  if (!(await hasDevKitAuth(req, body))) {
-    error('Unauthorized admin password reset code request');
+function getInternalHmacSecret() {
+  return process.env.EMAIL_SERVICE_INTERNAL_HMAC_SECRET || '';
+}
+
+function verifyInternalRequestSignature(body) {
+  const secret = getInternalHmacSecret();
+  if (!secret) return false;
+
+  const timestamp = Number(body?.timestamp);
+  const targetUserId = String(body?.target_user_id || '').trim();
+  const targetEmail = String(body?.target_email || '').trim();
+  const actorUserId = body?.actor_user_id != null ? String(body.actor_user_id) : '';
+  const signature = String(body?.signature || '').trim();
+
+  if (!timestamp || !targetUserId || !targetEmail || !signature) return false;
+
+  if (Math.abs(Date.now() - timestamp) > 5 * 60 * 1000) return false;
+
+  const message = `${timestamp}:${targetUserId}:${targetEmail}:${actorUserId}`;
+  const expected = crypto.createHmac('sha256', secret).update(message).digest('base64url');
+
+  const actualBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+  return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+async function handleInternalSendAdminPasswordResetOtp({ req, res, log, error, body }) {
+  if (!verifyInternalRequestSignature(body)) {
+    error('internal-send-admin-password-reset-otp: invalid or missing internal HMAC signature');
     return json(res, { error: 'Unauthorized' }, 401);
   }
 
   const targetUserId = String(body?.target_user_id || '').trim();
-  if (!targetUserId) return json(res, { error: 'target_user_id is required' }, 400);
+  const targetEmail = String(body?.target_email || '').trim();
+  const actorUserId = body?.actor_user_id || null;
 
-  try {
-    const client = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(appwriteApiKey());
-    const targetUser = await new sdk.Users(client).get(targetUserId);
-    if (!targetUser.email) return json(res, { error: 'Selected user has no email address' }, 400);
-    return handleSendPasswordResetOtp({
-      req,
-      res,
-      log,
-      error,
-      body: { email: targetUser.email, locale: body?.locale },
-      adminAudit: {
-        targetUserId,
-        actorUserId: decodeVerifiedDevKitActor(req, body),
-      },
-    });
-  } catch {
-    error('Admin password reset code request failed');
-    return json(res, { error: 'Failed to send password reset code.' }, 500);
-  }
+  return handleSendPasswordResetOtp({
+    req,
+    res,
+    log,
+    error,
+    body: { email: targetEmail, locale: body?.locale },
+    adminAudit: {
+      targetUserId,
+      actorUserId,
+    },
+  });
+}
+
+async function handleSendAdminPasswordResetOtp({ res, error }) {
+  error('send-admin-password-reset-otp: direct caller access deprecated');
+  return json(res, { error: 'Direct caller access to admin password reset is deprecated. Route through admin-devkit-data.' }, 401);
 }
 
 async function handleVerifyPasswordResetOtp({ req, res, log, error, body }) {
@@ -1425,6 +1451,9 @@ module.exports = async ({ req, res, log, error }) => {
     case 'send-admin-password-reset-otp':
       return handleSendAdminPasswordResetOtp({ req, res, log, error, body });
 
+    case 'internal-send-admin-password-reset-otp':
+      return handleInternalSendAdminPasswordResetOtp({ req, res, log, error, body });
+
     case 'verify-password-reset-otp':
       return handleVerifyPasswordResetOtp({ req, res, log, error, body });
 
@@ -1453,4 +1482,10 @@ module.exports = async ({ req, res, log, error }) => {
       error(`Unknown action: ${action}`);
       return json(res, { error: `Unknown action: ${action || '(none)'}` }, 400);
   }
+};
+
+module.exports._test = {
+  getInternalHmacSecret,
+  verifyInternalRequestSignature,
+  handleInternalSendAdminPasswordResetOtp,
 };

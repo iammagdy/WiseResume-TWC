@@ -752,11 +752,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const handleSendPasswordResetCode = async () => {
     setSendingPasswordReset(true);
     try {
-      const tuple = await appwriteFunctions.invoke('email-service', {
+      const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
         body: { action: 'send-admin-password-reset-otp', target_user_id: user.user_id },
       });
-      const result = unwrapAdminResponse<{ warning?: string }>(tuple, 'email-service');
+      const result = unwrapAdminResponse<{ warning?: string }>(tuple, 'admin-devkit-data');
       setShowPasswordResetDialog(false);
       if (result.warning) toast.warning('Password reset code sent', { description: result.warning });
       else toast.success('Password reset code sent');

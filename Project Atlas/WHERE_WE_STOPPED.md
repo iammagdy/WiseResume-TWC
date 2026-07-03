@@ -27,7 +27,6 @@
 * **`b7e43412`** — `fix(devkit): use lightweight delegated email auth`
 * **`18d6263a`** — `fix(devkit): accept signed admin tokens in email service`
 * **`6a38a20e`** — `chore(devkit): fix admin operations and impersonation storage`
-
 * **`cbadbe84`** — `docs(license): mark repository as proprietary`
 * **`70ce4a5b`** — `chore(security): sanitize public-readiness repository hygiene`
 * **`1ad325aa`** — `docs(readme): prepare repository for public visibility`
@@ -38,26 +37,27 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit/Admin Users deployment completed; admin password-reset DevKit authentication remains blocked.
-* **Current State**: Official workflow run `28687088873` deployed `admin-devkit-data,admin-impersonate,email-service`. The impersonation schema, deployed hashes, and Act As issue/verify/revoke lifecycle passed live checks. `email-service` still returns HTTP 401 for a valid DevKit token before code generation, so reset delivery and success-audit verification remain incomplete.
-* **Last Completed Task**: Completed targeted deployment and live verification through Appwrite APIs. Confirmed no OTP, token, email body, bearer secret, or Resend payload exposure. Stopped after three narrow authentication fixes failed to clear the email-service boundary.
+* **Current Active Focus**: DevKit Admin Password Reset cross-function authentication architecture fix completed and verified locally; pending owner approval for targeted Appwrite Hubs deployment (`admin-devkit-data,email-service`).
+* **Current State**: Redesigned the admin password reset architecture so `UserDetailDrawer` invokes `admin-devkit-data` (action `send-admin-password-reset-otp`), which resolves the target user's email server-side and calls `email-service` via an internal HMAC-signed request (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`). Browser DevKit tokens are no longer sent directly to `email-service`. Implementation is completed locally and not deployed to Appwrite.
+* **Last Completed Task**: Implemented strict internal HMAC request signing between `admin-devkit-data` and `email-service` (no API key fallbacks), updated `UserDetailDrawer.tsx`, added 9 unit tests in `adminPasswordResetInternalAuth.test.ts`, verified TypeScript type safety (`npx tsc --noEmit`), verified Node syntax (`node --check`), ran Vitest suite (17 tests passed), recomputed source hashes, and updated Project Atlas documentation.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Admin Reset Authentication Design**: Decide on one authoritative cross-function admin-token verification contract for `email-service`; do not add another fallback patch without reviewing the signing-key and Appwrite execution boundary.
-2. **Remaining Post-Deployment QA**: After that decision, verify one reset-code delivery, its success audit, audit-failure warning behavior, and authenticated collision-control visibility.
-3. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
-4. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
+1. **Configure Environment Variables**: Before deploying, set `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` on both `admin-devkit-data` and `email-service` Appwrite Function environments.
+2. **Owner-Approved Appwrite Hubs Deployment**: Run the official `Deploy Appwrite Hubs` GitHub Action workflow targeting `admin-devkit-data,email-service`. (`admin-impersonate` was not changed in this pass and should not be included in the deploy target).
+3. **Post-Deployment Live Verification**: After deployment, trigger one Admin Password Reset Code action from DevKit, verify reset code delivery, verify the `admin-password-reset-code-sent` audit log, and confirm zero secret exposure in logs.
+4. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
 
 ---
 
 ## 5. Blocked / Pending Owner Verification
 
+* **Appwrite Function Configuration**: Requires setting `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` on `admin-devkit-data` and `email-service`.
+* **Appwrite Hubs Deployment (`admin-devkit-data,email-service`)**: Blocked on explicit owner approval for manual Appwrite deployment.
 * **Public Portfolio Contact Form (Turnstile Captcha)**: Blocked in automated E2E browser environments because Cloudflare Turnstile rejects headless automation contexts. Verified working via manual owner submission in production.
 * **Billing / Payments Activation**: Blocked on explicit project owner business decision.
-* **Admin Password Reset Code**: Blocked because deployed `email-service` rejects the valid DevKit token with HTTP 401. No email was sent and no success audit was created during verification.
 
 ---
 

@@ -27,6 +27,8 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 ## 4. Related Appwrite Functions & Collections
 * **Functions:** `admin-devkit-data` (cross-user operations and Act As issuance), `admin-impersonate` (Act As verification/revocation), `email-service` (admin-triggered verification and password-reset-code delivery), `admin-visitor-analytics`, `admin-feature-flags`.
 * **Collections:** `profiles`, `resumes`, `portfolio_visits`, `admin_impersonation_sessions`, `admin_audit_logs`.
+* **Required Function Environment Variables:**
+  - `EMAIL_SERVICE_INTERNAL_HMAC_SECRET`: Required dedicated internal HMAC signing secret for cross-function authentication between `admin-devkit-data` and `email-service` (must be configured on both functions before deployment).
 
 ---
 
@@ -35,7 +37,7 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 * Provides real-time user lookup, visitor geo-location maps, and active feature toggle controls.
 * Function deployment drift accepts both complete SHA-256 hashes and the legacy stored 16-character prefixes.
 * User controls are grouped into Access, Account, Moderation, and Advanced areas. Identity-collision actions are drawer-only, require a confirmed collision, and suspend the duplicate profile without transferring data.
-* Admins can send the existing password-reset OTP flow to the selected Appwrite Auth user. The code is never returned to DevKit, and a success audit is written only after delivery succeeds.
+* Admins can send the existing password-reset OTP flow to the selected Appwrite Auth user. Requests route through `admin-devkit-data` (which resolves the user's email) and pass an internal HMAC-signed payload (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`) to `email-service`. The code is never returned to DevKit, and a success audit is written only after delivery succeeds.
 * Act As sessions are fail-closed and stored in the server-only `admin_impersonation_sessions` collection provisioned by the targeted Appwrite Hubs workflow.
 
 ---
@@ -44,13 +46,15 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 * Browser-side client SDK calls are strictly forbidden from reading cross-user data; all DevKit data operations MUST route through `admin-devkit-data`.
 * Password gate must lock out invalid attempts.
 * Password-reset actions are send-code-only. DevKit must never display or log OTPs, challenge tokens, email bodies, or provider payloads.
-* Appwrite hub deployment remains manual and targeted. The required target for these operational changes is `admin-devkit-data,admin-impersonate,email-service`.
+* Implementation completed locally. Deployment NOT performed.
+* Required env var before deploy: `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` must be set on both `admin-devkit-data` and `email-service`.
+* Recommended manual Appwrite deploy target after owner approval: `admin-devkit-data,email-service` (`admin-impersonate` was not changed in this pass and should not be deployed).
 
 ---
 
 ## 7. Known Risks & Edge Cases
 * `X-DevKit-Key` is stored securely in Appwrite Function environment variables.
-* Live verification on 2026-07-04 confirmed schema provisioning, hash synchronization, and Act As lifecycle behavior. Admin password-reset-code delivery remains blocked at the `email-service` DevKit authentication boundary (HTTP 401 before code generation); no reset email or success audit is produced in this state.
+* Live verification on 2026-07-04 confirmed schema provisioning, hash synchronization, and Act As lifecycle behavior. Admin password-reset architecture has been updated to route via `admin-devkit-data` → `email-service` internal HMAC signing (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`), eliminating browser-held backend credentials and resolving the HTTP 401 boundary error. Pending owner-approved deployment of `admin-devkit-data,email-service`.
 
 ---
 
