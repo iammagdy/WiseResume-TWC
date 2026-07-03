@@ -18,7 +18,7 @@
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React 18" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript 5" /></a>
   <a href="https://vitejs.dev/"><img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite 6" /></a>
-  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS v4" /></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-v3-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS v3" /></a>
   <a href="https://appwrite.io/"><img src="https://img.shields.io/badge/Appwrite-Cloud-FD366E?logo=appwrite&logoColor=white" alt="Appwrite Cloud" /></a>
   <a href="https://vercel.com/"><img src="https://img.shields.io/badge/Vercel-Hosted-000000?logo=vercel&logoColor=white" alt="Vercel" /></a>
 </p>
@@ -60,7 +60,7 @@ WiseResume uses a modern, serverless, Appwrite-native architecture:
        │
        ├────► [Vercel Edge & SPA Hosting] (wiseresume.app)
        │          ├── React 18 / TypeScript 5 / Vite 6
-       │          ├── Tailwind CSS v4 / Radix UI / shadcn/ui
+       │          ├── Tailwind CSS v3 / Radix UI / shadcn/ui
        │          └── TanStack Query & Zustand
        │
        └────► [Appwrite Cloud Backend] (fra.cloud.appwrite.io)
@@ -73,7 +73,7 @@ WiseResume uses a modern, serverless, Appwrite-native architecture:
                          └── admin-email, admin-visitor-analytics, etc.
 ```
 
-* **Frontend Layer**: SPA built with React 18, TypeScript 5, Vite 6, and Tailwind CSS v4, deployed to Vercel.
+* **Frontend Layer**: SPA built with React 18, TypeScript 5, Vite 6, and Tailwind CSS v3, deployed to Vercel.
 * **Backend Layer**: Appwrite Cloud managing authentication, databases, and file storage.
 * **Server-Side AI Gateway**: All AI requests route through the server-side Appwrite `ai-gateway` function (`appwrite-hubs/ai-gateway`).
 * **Zero Client Secret Exposure**: AI provider API keys reside exclusively in server-side function environments and are never exposed to the client browser.
@@ -85,7 +85,7 @@ WiseResume uses a modern, serverless, Appwrite-native architecture:
 | Category | Technology |
 | --- | --- |
 | **Frontend** | React 18, TypeScript 5, Vite 6 |
-| **UI & Styling** | Tailwind CSS v4, Radix UI Primitives, shadcn/ui, Framer Motion |
+| **UI & Styling** | Tailwind CSS v3, Radix UI Primitives, shadcn/ui, Framer Motion |
 | **State & Data** | TanStack Query (`@tanstack/react-query`), Zustand |
 | **Backend** | Appwrite Cloud (Databases & Storage) |
 | **Auth** | Appwrite Auth |
