@@ -23,28 +23,27 @@
 
 ## 2. Latest Important Commits
 
+* **`c834bf20`** — `feat(admin): add devkit2 command center preview`
 * **`cc55e542`** — `chore(admin): sync password reset link flow with main`
 * **`8c0c6ce7`** — `fix(admin): send secure password reset links`
 * **`ab4054f3`** — `design(email): refresh localized transactional templates`
 * **`ea713958`** — `feat(devkit): route admin password reset via internal HMAC signed service requests`
-* **`c4bc9fea`** — `fix(devkit): validate delegated admin auth response`
-* **`b7e43412`** — `fix(devkit): use lightweight delegated email auth`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit Admin Password Reset Direct Link Flow implemented, verified, merged into `main`, and synced with `origin/main`.
-* **Current State**: Direct secure password reset link flow (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) integrated with redesigned dark canvas transactional email templates (`emailShell`). Admin requests route `UserDetailDrawer` / `EmailManagementPanel` -> `admin-devkit-data` (`send-admin-password-reset-link`) -> internal HMAC request -> `email-service` (`internal-send-admin-password-reset-link`). High-entropy challenge tokens (32 bytes) are hashed at rest (`challenge_token_hash`). Legacy reset path in `admin-email` is deprecated and throws explicit error. Merged to `main` at `cc55e542`.
-* **Last Completed Task**: Merged `fix/admin-email-link-flow` into `main`, pushed to `origin/main`, completed full validation suite (`npx tsc --noEmit` passed, `npm run build` passed, 28 Vitest tests passed, source hashes regenerated). Appwrite deployment NOT performed (pending owner authorization). Targeted deploy list: `admin-devkit-data,email-service,admin-email`.
+* **Current Active Focus**: DevKit2 Command Center Phase 3B Step 1 base preview implemented, verified, committed, and pushed to `main` at `c834bf20`.
+* **Current State**: New parallel admin route `/devkit2` added to test the redesigned 7-hub Command Center UX safely in production. `/devkit` remains 100% unchanged. `/devkit2` is admin-protected using existing `ProtectedRoute > AdminRoute` and `DevKitSessionProvider` / `devKitLogin()` logic. Renders `DevKit2Shell`, 7-hub sidebar, topbar, `Cmd+K` command palette, and Integration Map modal. Command Home hub reads live safe `home-summary` data. The remaining 6 hubs are labeled structural placeholders. Zero backend or Appwrite function changes. Zero dangerous actions enabled.
+* **Last Completed Task**: Pushed commit `c834bf20ef4604c7281d2f77d47df78d57e5085e` (`feat(admin): add devkit2 command center preview`) to `origin/main`. Passed targeted ESLint, `npx tsc --noEmit` (0 errors), and `npm run build` (created `DevKit2Page-DzTgccw_.js` 60.43 kB chunk). Step 2 integration work is deferred for later per owner decision.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Monitor Production Email Traffic**: Monitor real user email verification and password reset traffic after production deployment.
-2. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
-3. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
+1. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
+2. **DevKit2 Step 2 Read-Only Data Wiring (Deferred)**: Progressively wire placeholder hubs (System Health, Users & Accounts, AI Operations, Growth Analytics, Business Ops, Developer Ops) to read-only `devKitCall` actions when authorized by owner.
+3. **Monitor Production Email Traffic**: Monitor real user email verification and password reset traffic after production deployment.
 
 ---
 

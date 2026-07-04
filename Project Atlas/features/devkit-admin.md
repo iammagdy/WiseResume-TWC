@@ -12,15 +12,16 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 ---
 
 ## 2. Routes & Navigation
-* `/devkit` — Internal Operations Hub route.
-* Tabs: Overview, Users, Visitors, Traffic, Feature Flags, System Health, Support.
+* `/devkit` — Stable Internal Operations Hub route (unchanged).
+* `/devkit2` — Experimental parallel DevKit2 Command Center preview route (Phase 3B Step 1).
+* `/devkit` Tabs: Overview, Users, Visitors, Traffic, Feature Flags, System Health, Support.
+* `/devkit2` Hubs: Command Home (live read-only `home-summary`), System Health, Users & Accounts, AI Operations, Growth Analytics, Business Ops, Developer Ops.
 
 ---
 
 ## 3. Main Frontend Files
-* `src/pages/DevKitPage.tsx` — DevKit layout and password gate controller.
-* `src/components/devkit/DevKitGate.tsx` — DevKit authentication modal.
-* `src/components/devkit/tabs/*` — Tab views for Users, Visitors, Feature Flags, and System Health.
+* `/devkit`: `src/pages/DevToolsPage.tsx`, `src/components/dev-kit/*`.
+* `/devkit2`: `src/pages/DevKit2Page.tsx`, `src/components/dev-kit-v2/*`, `src/lib/devkit-v2/*`.
 
 ---
 

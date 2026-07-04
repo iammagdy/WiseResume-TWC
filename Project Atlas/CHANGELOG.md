@@ -1,5 +1,22 @@
 # Project Atlas Master Changelog
 
+## 2026-07-04 - DevKit2 Command Center Phase 3B Step 1 Base Implementation
+
+- **Parallel Admin Route (`/devkit2`)**: Implemented a new parallel, admin-protected preview route at `/devkit2` to evaluate the redesigned 7-hub DevKit Command Center experience safely in production alongside the stable `/devkit` route, which remains 100% unchanged.
+- **Session Verification & Lock**: Created `src/pages/DevKit2Page.tsx` using the exact `DevKitSessionProvider` and `devKitLogin()` verification logic from `DevToolsPage.tsx`. Protected at the route level via `<ProtectedRoute>` and `<AdminRoute>` wrappers in `AppInterior.tsx`.
+- **Command Center Shell & Design Tokens**: Built `DevKit2Shell.tsx`, `DevKit2Sidebar.tsx`, `DevKit2TopBar.tsx`, and `DevKit2CommandPalette.tsx` using WiseResume's standard CSS variable token system (`bg-card`, `text-foreground`, etc.). Includes responsive mobile slide-over drawer, session lock countdown, and `Cmd+K` hub search palette.
+- **Command Home Hub (Live Data)**: Implemented `CommandHomeHub.tsx` using existing `devKitCall({ action: 'home-summary' })`. Displays live operational metrics (site status, maintenance mode, AI config, total users, error count, WiseHire waitlist count) and live admin audit log entries.
+- **Structural Placeholders & Integration Map**: Created 6 structural placeholder hubs (`SystemHealthHub`, `UsersAccountsHub`, `AIOperationsHub`, `GrowthAnalyticsHub`, `BusinessOpsHub`, `DeveloperOpsHub`) labeled with `"DevKit2 Step 1 — Placeholder"` banners. Added `devKit2IntegrationMap.ts` static cross-reference map and modal viewer.
+- **Safety Boundaries**:
+  - Zero backend or Appwrite Function files modified.
+  - Zero `appwrite-hubs` files modified.
+  - Zero dangerous/destructive actions enabled.
+  - Zero mock data from prototype copied into production views.
+- **Validation**: Passed targeted ESLint (`npx eslint src/pages/DevKit2Page.tsx src/components/dev-kit-v2 src/lib/devkit-v2`), TypeScript (`npx tsc --noEmit`), and Vite production build (`npm run build`, emitting `DevKit2Page-DzTgccw_.js` 60.43 kB chunk).
+- **Git & Deployment**: Pushed commit `c834bf20ef4604c7281d2f77d47df78d57e5085e` (`feat(admin): add devkit2 command center preview`) to `origin/main`. Vercel auto-deployment triggered.
+
+---
+
 ## 2026-07-04 - Fix Admin-Triggered Password Reset Link Flow
 
 - **Admin Password Reset Link Architecture**: Re-architected the DevKit admin password reset flow to generate and send secure, direct password reset links (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) via Resend transactional email, replacing the OTP/code-based admin flow.
