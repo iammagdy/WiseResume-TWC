@@ -63,6 +63,7 @@ import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
+const DevKit2Page = lazyWithRetry(() => import("./pages/DevKit2Page"));
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
 import { AuroraLayer } from "@/components/landing/AuroraLayer";
@@ -436,6 +437,8 @@ function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminRoute />}>
             <Route path="/devkit" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense></RouteEB>} />
+            {/* DevKit2 — parallel experimental admin route. /devkit is preserved unchanged. */}
+            <Route path="/devkit2" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><DevKit2Page /></Suspense></RouteEB>} />
           </Route>
         </Route>
         <Route path="*" element={<RouteEB><Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense></RouteEB>} />
