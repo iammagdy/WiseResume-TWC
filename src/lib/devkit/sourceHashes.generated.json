@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-03T23:36:16.202Z",
+  "generatedAt": "2026-07-04T15:29:04.254Z",
   "hashes": {
     "ai-gateway": "48d430bd422b0eae9eee124d1e761552e7102976fad89dc5e2c207d8aac867ac",
     "admin-devkit-data": "ddffb150e312f397ebaf37148a5b671aabf2b955c457009daa36e64588c4767b",
@@ -16,7 +16,7 @@
     "admin-visitor-analytics": "300efba1ccb8a086af6f639134652e15570614c960ecf02d998912ac188cc813",
     "ai-health": "93e4eb094e5363031fa8864bdc6c154b76f9e8b80d07f11ae73f0dbc8473e01f",
     "coupons": "76aae533a4543c4cc6907b868d3b585a08be4750862a2d9547566f5cd6a040ae",
-    "email-service": "a54b15d82090e3598598ea0a49335dcd5ba72af1159d7d76218cb925afe4bfb3",
+    "email-service": "6a11b5c270c9f3c74484991f156b8cea77ea7c6a3baed89fc0f355ad4e5feefe",
     "email-templates": null,
     "job-import": "5836c31b0ce64f186920634efea47c787d995df23d6ae439a48c30252116ffa5",
     "public-share": "05d15f9760d7f9b07f64d4ff044c9982a08f6d23ca0768c369902205fc9defa4",
