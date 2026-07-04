@@ -34,7 +34,7 @@ WiseResume is a full-stack, Appwrite-native web application designed for resume 
 * **Frontend Hosting:** Vercel (main branch auto-deploys to production).
 * **Backend Database & Storage:** Appwrite Databases and Appwrite Storage.
 * **Authentication:** Appwrite Auth exclusively.
-* **AI Provider Routing:** All AI calls go through the server-side Appwrite `ai-gateway` function (OpenAI / OpenRouter / Anthropic).
+* **AI Provider Routing:** All AI calls go through the server-side Appwrite `ai-gateway` function, with DeepSeek-first routing and Groq / OpenRouter / NVIDIA fallback support.
 * **Payments & Billing:** Billing features are currently **disabled** or marked **Coming Soon**.
 * **WiseHire:** Secondary/deprioritized product module.
 
