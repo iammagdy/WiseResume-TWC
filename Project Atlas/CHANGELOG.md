@@ -1,5 +1,20 @@
 # Project Atlas Master Changelog
 
+## 2026-07-04 - Fix Admin-Triggered Password Reset Link Flow
+
+- **Admin Password Reset Link Architecture**: Re-architected the DevKit admin password reset flow to generate and send secure, direct password reset links (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) via Resend transactional email, replacing the OTP/code-based admin flow.
+- **Normal User vs Admin Flow Boundaries**: Normal user-initiated "Forgot Password" flow remains strictly OTP/code-based. Admin-triggered password reset is exclusively link-based.
+- **Frontend Link Resolution** (`AuthResetPasswordPage.tsx`): Updated reset page to support challenge links with `email` + `challengeToken` parameters calling `email-service` (`reset-password-with-otp` action), alongside standard Appwrite recovery links (`userId` + `secret`). Removed hardcoded invalid link flag.
+- **Admin DevKit Action** (`admin-devkit-data/src/main.js`): Added `send-admin-password-reset-link` action that checks DevKit admin session, resolves target user/email server-side, signs internal request with `EMAIL_SERVICE_INTERNAL_HMAC_SECRET`, and invokes `email-service`. Retained `send-admin-password-reset-otp` for backward compatibility.
+- **Internal Service Delivery & Hashing at Rest** (`email-service/src/main.js`): Added `internal-send-admin-password-reset-link` action protected strictly by timing-safe HMAC signature verification (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`). Generates 32-byte high-entropy challenge tokens, stores only the HMAC-SHA256 hash (`challenge_token_hash` in `password_reset_otps`), sets 15-minute expiration, builds localized reset URL, and delivers branded Resend email.
+- **DevKit UI Alignment** (`UserDetailDrawer.tsx`, `EmailManagementPanel.tsx`): Updated UserDetailDrawer and EmailManagementPanel UI labels, dialogs, and actions to send password reset links routed via `admin-devkit-data`.
+- **Deprecate Legacy Reset in admin-email** (`admin-email/src/main.js`): Removed real password reset execution path in `admin-email` (throws explicit directive telling callers to use `admin-devkit-data`). Updated fallback template URL to `https://wiseresume.app/auth/reset-password`.
+- **Security & Privacy**: Zero raw challenge tokens, reset URLs, passwords, OTPs, email bodies, or API keys stored in plaintext or logged. Audit log entry `admin-password-reset-link-sent` written to `admin_audit_logs` without sensitive token metadata.
+- **Validation & Source Hashes**: Passed TypeScript (`npx tsc --noEmit`), Vite production build (`npm run build`), Node syntax checks, `git diff --check`, and 26 Vitest tests (`adminPasswordResetInternalAuth.test.ts`, `adminOperationsContracts.test.ts`, `passwordResetOtp.test.ts`, `adminPasswordResetLink.test.ts`). Recomputed source hashes in `sourceHashes.generated.json`.
+- **Deployment**: Implementation completed locally. Deployment NOT performed (pending explicit owner approval). Recommended targeted Appwrite Hubs deploy target: `admin-devkit-data,email-service,admin-email`.
+
+---
+
 ## 2026-07-04 - DevKit Admin Password Reset Deployment & Live Verification
 
 - **Targeted Appwrite Deployment**: Official `Deploy Appwrite Hubs` workflow run `28688040101` completed successfully for target `admin-devkit-data,email-service` on commit `ea713958`. No `target=all`, Appwrite Console deployment, or `admin-impersonate` deployment was used.

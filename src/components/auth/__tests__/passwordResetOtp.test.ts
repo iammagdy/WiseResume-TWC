@@ -54,15 +54,14 @@ mainJsContent = mainJsContent.replace(
   "const sdk = globalThis.mockSdk;"
 );
 
-// Replace module.exports with globalThis.tempHandler
-mainJsContent = mainJsContent.replace(
-  "module.exports =",
-  "globalThis.tempHandler ="
-);
-
 // Evaluate code by wrapping it in an IIFE/eval function
 const cjsRequire = createRequire(import.meta.url);
-new Function('require', mainJsContent)(cjsRequire);
+const wrappedCode = `
+  const module = { exports: {} };
+  ${mainJsContent}
+  globalThis.tempHandler = module.exports;
+`;
+new Function('require', wrappedCode)(cjsRequire);
 
 const handler = (globalThis as any).tempHandler;
 

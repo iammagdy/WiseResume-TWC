@@ -22,13 +22,18 @@ export default function AuthResetPasswordPage() {
   const userId = callbackUserId ?? '';
   const secret = callbackSecret ?? '';
 
+  const emailParam = (searchParams.get('email') || '').trim();
+  const challengeTokenParam = (searchParams.get('challengeToken') || '').trim();
+
+  const isModeA = Boolean(userId && secret);
+  const isModeB = Boolean(emailParam && challengeTokenParam);
+  const isValidLink = isModeA || isModeB;
+
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-
-  const isValidLink = false;
 
   const handleReset = async () => {
     if (password !== confirm) {
@@ -42,13 +47,34 @@ export default function AuthResetPasswordPage() {
     setLoading(true);
     setError(null);
     try {
-      await appwriteAccount.updateRecovery(userId, secret, password);
-      try {
-        await appwriteFunctions.invoke('email-service', {
-          body: { action: 'send-password-changed', userId, locale },
+      if (isModeA) {
+        await appwriteAccount.updateRecovery(userId, secret, password);
+        try {
+          await appwriteFunctions.invoke('email-service', {
+            body: { action: 'send-password-changed', userId, locale },
+          });
+        } catch {
+          /* notification is non-critical */
+        }
+      } else if (isModeB) {
+        const res = await appwriteFunctions.invoke<{ success?: boolean; error?: string }>('email-service', {
+          body: {
+            action: 'reset-password-with-otp',
+            email: emailParam,
+            challengeToken: challengeTokenParam,
+            password,
+            locale,
+          },
         });
-      } catch {
-        /* notification is non-critical */
+        if (res.error?.message) {
+          throw new Error(res.error.message);
+        }
+        if (res.data?.error) {
+          throw new Error(res.data.error);
+        }
+        if (!res.data?.success) {
+          throw new Error('Reset failed. The link may have expired or is invalid.');
+        }
       }
       setDone(true);
       toast.success('Password updated! Please sign in.');

@@ -749,19 +749,19 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     }
   };
 
-  const handleSendPasswordResetCode = async () => {
+  const handleSendPasswordResetLink = async () => {
     setSendingPasswordReset(true);
     try {
       const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'send-admin-password-reset-otp', target_user_id: user.user_id },
+        body: { action: 'send-admin-password-reset-link', target_user_id: user.user_id },
       });
       const result = unwrapAdminResponse<{ warning?: string }>(tuple, 'admin-devkit-data');
       setShowPasswordResetDialog(false);
-      if (result.warning) toast.warning('Password reset code sent', { description: result.warning });
-      else toast.success('Password reset code sent');
+      if (result.warning) toast.warning('Password reset link sent', { description: result.warning });
+      else toast.success('Password reset link sent');
     } catch (e) {
-      toast.error(formatEdgeError(e, 'Failed to send password reset code'));
+      toast.error(formatEdgeError(e, 'Failed to send password reset link'));
     } finally {
       if (isMounted()) setSendingPasswordReset(false);
     }
@@ -1767,21 +1767,21 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         </div>
       </div>
 
-      {/* Password reset code confirmation dialog */}
+      {/* Password reset link confirmation dialog */}
       {showPasswordResetDialog && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <div>
-              <h3 className="font-semibold text-sm">Send password reset code</h3>
-              <p className="text-xs text-muted-foreground mt-1">Send a password reset code to this user's email?</p>
+              <h3 className="font-semibold text-sm">Send password reset link</h3>
+              <p className="text-xs text-muted-foreground mt-1">Send a password reset link to this user's email?</p>
             </div>
-            <p className="text-xs text-muted-foreground">The code is delivered by email and is never displayed in DevKit.</p>
+            <p className="text-xs text-muted-foreground">The secure link is delivered by email and is never displayed in DevKit.</p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowPasswordResetDialog(false)} disabled={sendingPasswordReset} className="flex-1">
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleSendPasswordResetCode} disabled={sendingPasswordReset || impersonating} className="flex-1">
-                {sendingPasswordReset ? 'Sending…' : 'Send code'}
+              <Button size="sm" onClick={handleSendPasswordResetLink} disabled={sendingPasswordReset || impersonating} className="flex-1">
+                {sendingPasswordReset ? 'Sending…' : 'Send link'}
               </Button>
             </div>
           </div>

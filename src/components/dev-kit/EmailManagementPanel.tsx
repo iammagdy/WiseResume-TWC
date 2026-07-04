@@ -28,7 +28,7 @@ const ACTION_DESCRIPTIONS: Record<EmailAction, string> = {
   resend_confirmation: 'Sends a new confirmation link to complete email verification.',
   send_magic_link: 'Sends a passwordless sign-in link that logs the user in directly.',
   send_otp: 'Sends a one-time verification code for reauthentication.',
-  send_password_reset: 'Sends a link to reset the user\'s password.',
+  send_password_reset: 'Sends a secure one-time link that lets the user choose a new password.',
   send_custom: 'Compose and send a one-off custom email to this user via Resend.',
   wisehire_invite: 'Generates a signed 72-hour invite link and sends a WiseHire-branded email. The invite URL is shown after sending.',
 };
@@ -425,6 +425,22 @@ function ComposeEmailForm({
         if (!isMounted()) return;
         toast.success(`WiseHire invite sent to ${recipientEmail}`);
         setInviteUrl(result.invite_url ?? null);
+        return;
+      }
+
+      if (action === 'send_password_reset') {
+        const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
+          headers: devKitAuthHeaders(),
+          body: {
+            action: 'send-admin-password-reset-link',
+            target_user_id: selectedUser?.user_id,
+            target_email: recipientEmail,
+          },
+        });
+        const result = unwrapAdminResponse<{ warning?: string }>(tuple, 'admin-devkit-data');
+        if (!isMounted()) return;
+        if (result.warning) toast.warning('Password reset link sent', { description: result.warning });
+        else toast.success(`Password reset link sent to ${recipientEmail}`);
         return;
       }
 

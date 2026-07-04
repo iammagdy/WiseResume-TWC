@@ -529,6 +529,30 @@ function passwordResetEmail(resetUrl, locale = 'en') {
   });
 }
 
+function adminPasswordResetLinkEmail(resetUrl, locale = 'en') {
+  if (locale === 'ar') return emailShell({
+    locale,
+    metaLabel: 'إعادة تعيين كلمة المرور بواسطة المسؤول',
+    preheader: 'قام مسؤول النظام ببدء إعادة تعيين كلمة المرور لحسابك في WiseResume.',
+    h1: 'تعيين كلمة مرور جديدة',
+    bodyCopy: 'قام مسؤول النظام ببدء إعادة تعيين آمنة لكلمة المرور لحسابك في WiseResume. استخدم الزر أدناه لاختيار كلمة مرور جديدة.',
+    ctaLabel: 'تعيين كلمة مرور جديدة',
+    ctaUrl: resetUrl,
+    securityNote: 'ستنتهي صلاحية هذا الرابط خلال <strong style="color:#ffffff;">15 دقيقة</strong> ويمكن استخدامه لمرة واحدة فقط. إذا لم تكن تتوقع هذا الإجراء، يُرجى التواصل مع الدعم الفني.',
+    showCta: true,
+  });
+  return emailShell({
+    metaLabel:   'Admin Password Reset',
+    preheader:   'An administrator started a secure password reset for your WiseResume account.',
+    h1:          'Set your new password',
+    bodyCopy:    'An administrator started a secure password reset for your WiseResume account. Use the button below to choose a new password.',
+    ctaLabel:    'Set new password',
+    ctaUrl:      resetUrl,
+    securityNote: 'This link will expire in <strong style="color:#ffffff;">15 minutes</strong> and can only be used once. If you were not expecting this, contact support.',
+    showCta:     true,
+  });
+}
+
 function passwordChangedEmail(name, locale = 'en') {
   const safeName = name || 'there';
   if (locale === 'ar') return emailShell({
@@ -1244,6 +1268,130 @@ async function handleSendAdminPasswordResetOtp({ res, error }) {
   return json(res, { error: 'Direct caller access to admin password reset is deprecated. Route through admin-devkit-data.' }, 401);
 }
 
+async function handleInternalSendAdminPasswordResetLink({ req, res, log, error, body }) {
+  if (!verifyInternalRequestSignature(body)) {
+    error('internal-send-admin-password-reset-link: invalid or missing internal HMAC signature');
+    return json(res, { error: 'Unauthorized' }, 401);
+  }
+
+  const targetUserId = String(body?.target_user_id || '').trim();
+  const targetEmail = String(body?.target_email || '').trim().toLowerCase();
+  const actorUserId = body?.actor_user_id || null;
+  const locale = body?.locale === 'ar' ? 'ar' : 'en';
+  const clientIp = headerValue(req, body, ['x-forwarded-for', 'x-real-ip', 'client-ip']) || '127.0.0.1';
+  const userAgent = (headerValue(req, body, ['user-agent']) || '').slice(0, 512);
+
+  if (!targetEmail || !targetEmail.includes('@')) {
+    return json(res, { error: 'Valid target email address required' }, 400);
+  }
+
+  let secret;
+  try {
+    secret = getOtpSecret();
+  } catch (err) {
+    error(`OTP configuration error: ${err.message}`);
+    return json(res, { error: 'Internal server configuration error' }, 500);
+  }
+
+  const apiKey = appwriteApiKey();
+  const adminClient = new sdk.Client()
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT_ID)
+    .setKey(apiKey);
+
+  const db = new sdk.Databases(adminClient);
+  const users = new sdk.Users(adminClient);
+
+  try {
+    const now = new Date();
+
+    let userExists = false;
+    try {
+      const userList = await users.list([sdk.Query.equal('email', targetEmail)]);
+      if (userList.total > 0) {
+        userExists = true;
+      }
+    } catch (usersErr) {
+      error(`Users list check failed: ${usersErr.message}`);
+    }
+
+    if (!userExists) {
+      const dummyCode = '98765432101234567890';
+      crypto.createHmac('sha256', secret).update(dummyCode).digest('hex');
+      await sleep(100);
+      log(`Admin password reset link requested for unregistered email: ${targetEmail} (silently bypassed)`);
+      return json(res, { success: true });
+    }
+
+    const activeOtps = await db.listDocuments(DB_ID, 'password_reset_otps', [
+      sdk.Query.equal('email', targetEmail),
+      sdk.Query.equal('used', false),
+      sdk.Query.isNull('revoked_at'),
+    ]);
+
+    for (const doc of activeOtps.documents) {
+      await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+        revoked_at: now.toISOString(),
+      });
+    }
+
+    const rawChallengeToken = crypto.randomBytes(32).toString('base64url');
+    const challengeTokenHash = crypto.createHmac('sha256', secret).update(rawChallengeToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    await db.createDocument(DB_ID, 'password_reset_otps', sdk.ID.unique(), {
+      email: targetEmail,
+      otp_hash: 'ADMIN_LINK_' + crypto.randomBytes(8).toString('hex'),
+      purpose: 'admin_password_reset_link',
+      attempts: 0,
+      max_attempts: 5,
+      expires_at: expiresAt,
+      used: false,
+      created_at: now.toISOString(),
+      request_ip: clientIp.slice(0, 64),
+      device_metadata: userAgent,
+      challenge_token_hash: challengeTokenHash,
+      challenge_expires_at: expiresAt,
+    });
+
+    const path = locale === 'ar' ? '/ar/auth/reset-password' : '/auth/reset-password';
+    const resetUrl = `${FRONTEND_URL}${path}?email=${encodeURIComponent(targetEmail)}&challengeToken=${encodeURIComponent(rawChallengeToken)}`;
+
+    await resendSend({
+      to: targetEmail,
+      subject: locale === 'ar' ? 'تعيين كلمة مرور جديدة لحساب WiseResume' : 'Set your new WiseResume password',
+      html: adminPasswordResetLinkEmail(resetUrl, locale),
+    });
+
+    if (targetUserId) {
+      try {
+        await db.createDocument(DB_ID, 'admin_audit_logs', sdk.ID.unique(), {
+          user_id: targetUserId,
+          category: 'devkit',
+          action: 'admin-password-reset-link-sent',
+          metadata: JSON.stringify({ actor_user_id: actorUserId || null }),
+        });
+      } catch {
+        error('Admin password reset link delivered but audit logging failed');
+        return json(res, { success: true, warning: 'Password reset link sent, but audit logging failed.' });
+      }
+    }
+
+    log('Admin password reset link delivered');
+    return json(res, { success: true });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error(`internal-send-admin-password-reset-link failed: ${msg}`);
+    return json(res, { error: 'Failed to send password reset link.' }, 500);
+  }
+}
+
+async function handleSendAdminPasswordResetLink({ res, error }) {
+  error('send-admin-password-reset-link: direct caller access deprecated');
+  return json(res, { error: 'Direct caller access to admin password reset link is deprecated. Route through admin-devkit-data.' }, 401);
+}
+
 async function handleVerifyPasswordResetOtp({ req, res, log, error, body }) {
   const email = (body?.email || '').trim().toLowerCase();
   const otp = (body?.otp || '').trim();
@@ -1454,6 +1602,12 @@ module.exports = async ({ req, res, log, error }) => {
     case 'internal-send-admin-password-reset-otp':
       return handleInternalSendAdminPasswordResetOtp({ req, res, log, error, body });
 
+    case 'send-admin-password-reset-link':
+      return handleSendAdminPasswordResetLink({ req, res, log, error, body });
+
+    case 'internal-send-admin-password-reset-link':
+      return handleInternalSendAdminPasswordResetLink({ req, res, log, error, body });
+
     case 'verify-password-reset-otp':
       return handleVerifyPasswordResetOtp({ req, res, log, error, body });
 
@@ -1485,7 +1639,9 @@ module.exports = async ({ req, res, log, error }) => {
 };
 
 module.exports._test = {
+  getOtpSecret,
   getInternalHmacSecret,
   verifyInternalRequestSignature,
   handleInternalSendAdminPasswordResetOtp,
+  handleInternalSendAdminPasswordResetLink,
 };

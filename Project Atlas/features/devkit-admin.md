@@ -37,7 +37,7 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 * Provides real-time user lookup, visitor geo-location maps, and active feature toggle controls.
 * Function deployment drift accepts both complete SHA-256 hashes and the legacy stored 16-character prefixes.
 * User controls are grouped into Access, Account, Moderation, and Advanced areas. Identity-collision actions are drawer-only, require a confirmed collision, and suspend the duplicate profile without transferring data.
-* Admins can send the existing password-reset OTP flow to the selected Appwrite Auth user. Requests route through `admin-devkit-data` (which resolves the user's email) and pass an internal HMAC-signed payload (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`) to `email-service`. The code is never returned to DevKit, and a success audit is written only after delivery succeeds.
+* Admins can send a secure single-use 15-minute password-reset link (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) to the selected Appwrite Auth user. Requests route through `admin-devkit-data` (`send-admin-password-reset-link`, which resolves the user's email) and pass an internal HMAC-signed payload (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`) to `email-service` (`internal-send-admin-password-reset-link`). Only the HMAC hash of the challenge token is stored at rest (`challenge_token_hash` in `password_reset_otps`). The link is never displayed in DevKit or stored in audit logs, and a success audit (`admin-password-reset-link-sent`) is written only after delivery succeeds.
 * Act As sessions are fail-closed and stored in the server-only `admin_impersonation_sessions` collection provisioned by the targeted Appwrite Hubs workflow.
 
 ---
@@ -45,10 +45,11 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 ## 6. Important Rules & Constraints
 * Browser-side client SDK calls are strictly forbidden from reading cross-user data; all DevKit data operations MUST route through `admin-devkit-data`.
 * Password gate must lock out invalid attempts.
-* Password-reset actions are send-code-only. DevKit must never display or log OTPs, challenge tokens, email bodies, or provider payloads.
+* Public user-initiated password reset remains strictly OTP-based. Admin-triggered password reset is strictly link-based.
+* Password-reset link actions are send-link-only. DevKit must never display, log, or store raw challenge tokens, reset URLs, passwords, OTPs, email bodies, or provider payloads.
 * Implementation completed locally. Deployment NOT performed.
 * Required env var before deploy: `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` must be set on both `admin-devkit-data` and `email-service`.
-* Recommended manual Appwrite deploy target after owner approval: `admin-devkit-data,email-service` (`admin-impersonate` was not changed in this pass and should not be deployed).
+* Recommended manual Appwrite deploy target after owner approval: `admin-devkit-data,email-service,admin-email`.
 
 ---
 

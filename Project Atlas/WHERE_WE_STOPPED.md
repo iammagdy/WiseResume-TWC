@@ -38,9 +38,9 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit Admin Password Reset cross-function HMAC architecture deployed (`workflow 28688040101`) and live verified in production.
-* **Current State**: Deployed target `admin-devkit-data,email-service` using official GitHub Actions workflow run `28688040101` on commit `ea713958`. Live execution verified that `UserDetailDrawer` -> `admin-devkit-data` -> `email-service` delivers OTP emails, writes `admin_audit_logs` entries, fails direct caller attempts with HTTP 401, and exposes zero secrets.
-* **Last Completed Task**: Configured `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` on both functions, deployed target `admin-devkit-data,email-service` via workflow run `28688040101`, verified deployed source hash synchronization (`check-hub-drift.cjs` shows IN SYNC for both functions), ran live end-to-end SDK execution verification, and updated Project Atlas documentation.
+* **Current Active Focus**: DevKit Admin Password Reset Link flow implemented locally and verified with 26 Vitest tests, TypeScript compiler, Node syntax checks, and Vite production build.
+* **Current State**: Implemented direct secure password reset link flow (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`). Admin requests route `UserDetailDrawer` / `EmailManagementPanel` -> `admin-devkit-data` (`send-admin-password-reset-link`) -> internal HMAC request -> `email-service` (`internal-send-admin-password-reset-link`). High-entropy challenge tokens (32 bytes) are hashed at rest (`challenge_token_hash`). Legacy reset path in `admin-email` is deprecated and throws explicit error.
+* **Last Completed Task**: Completed implementation and full validation suite (26 Vitest tests passed, `npx tsc --noEmit` passed, `npm run build` passed, source hashes regenerated). Appwrite deployment NOT performed (pending owner authorization). Targeted deploy list: `admin-devkit-data,email-service,admin-email`.
 
 ---
 

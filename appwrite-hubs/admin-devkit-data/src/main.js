@@ -2628,6 +2628,91 @@ async function handleSendAdminPasswordResetOtp(body, log, req) {
   };
 }
 
+async function handleSendAdminPasswordResetLink(body, log, req) {
+  const targetUserId = String(body?.target_user_id || '').trim();
+  const targetEmail = String(body?.target_email || '').trim().toLowerCase();
+
+  if (!targetUserId && !targetEmail) {
+    throw new Error('Target user ID or email is required.');
+  }
+
+  let targetUser = null;
+  if (targetUserId) {
+    try {
+      targetUser = await getUser(targetUserId);
+    } catch {
+      targetUser = null;
+    }
+  }
+
+  if (!targetUser && targetEmail) {
+    try {
+      const userList = await listUsers([sdk.Query.equal('email', targetEmail)]);
+      if (userList.total > 0) {
+        targetUser = userList.users[0];
+      }
+    } catch (err) {
+      log(`[warn] send-admin-password-reset-link: user lookup by email failed: ${err.message}`);
+    }
+  }
+
+  const resolvedUserId = targetUser?.$id || targetUserId;
+  const resolvedEmail = (targetUser?.email || targetEmail).trim().toLowerCase();
+
+  if (!resolvedEmail) {
+    throw new Error('Selected user has no email address.');
+  }
+
+  const token = bearerToken(req, body);
+  const actorUserId = decodeSignedTokenPayload(token)?.uid || null;
+
+  const { timestamp, signature } = signInternalRequest({
+    target_user_id: resolvedUserId || 'unknown',
+    target_email: resolvedEmail,
+    actor_user_id: actorUserId,
+  });
+
+  const { functions } = getClients();
+  let execution;
+  try {
+    execution = await functions.createExecution(
+      'email-service',
+      JSON.stringify({
+        action: 'internal-send-admin-password-reset-link',
+        target_user_id: resolvedUserId,
+        target_email: resolvedEmail,
+        actor_user_id: actorUserId,
+        timestamp,
+        signature,
+        locale: body?.locale,
+      }),
+      false,
+      '/',
+      'POST'
+    );
+  } catch (err) {
+    log(`[error] send-admin-password-reset-link: internal execution failed: ${err.message}`);
+    throw new Error('Failed to send password reset link.');
+  }
+
+  let responsePayload = {};
+  try {
+    responsePayload = JSON.parse(execution.responseBody || '{}');
+  } catch {
+    responsePayload = {};
+  }
+
+  if (execution.status === 'failed' || (execution.statusCode && execution.statusCode >= 400) || responsePayload.error || responsePayload.success === false) {
+    log(`[error] send-admin-password-reset-link: email-service returned error`);
+    throw new Error(responsePayload.error || 'Failed to send password reset link.');
+  }
+
+  return {
+    success: true,
+    warning: responsePayload.warning || undefined,
+  };
+}
+
 // â”€â”€â”€ Analytics: aggregate visitor_events for AnalyticsPanel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function analyticsRangeStart(range) {
@@ -2988,6 +3073,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'impersonate') data = await handleImpersonate(body, log);
     else if (action === 'send-verification-email') data = await handleSendVerificationEmail(body, log);
     else if (action === 'send-admin-password-reset-otp') data = await handleSendAdminPasswordResetOtp(body, log, req);
+    else if (action === 'send-admin-password-reset-link') data = await handleSendAdminPasswordResetLink(body, log, req);
     else if (action === 'analytics') data = await handleAnalytics(body, log);
     else if (action === 'home-summary') data = await handleHomeSummary(log, error);
     else if (action === 'list-app-settings') data = await handleListAppSettings(log);
@@ -3021,4 +3107,5 @@ module.exports._test = {
   getInternalHmacSecret,
   signInternalRequest,
   handleSendAdminPasswordResetOtp,
+  handleSendAdminPasswordResetLink,
 };

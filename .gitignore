@@ -122,3 +122,8 @@ ios/
 android/
 .appwrite/
 .vercel
+
+# Temporary scratch & report outputs
+scratch/
+tmp/
+reports/e2e-results-*.json
