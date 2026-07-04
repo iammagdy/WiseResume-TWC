@@ -17,8 +17,8 @@ export function ConsentBanner() {
     // Only show if the user hasn't made a choice yet
     if (!hasConsentDecision()) {
       // Small delay so it doesn't flash immediately on first paint
-      const t = setTimeout(() => setVisible(true), 1500);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setVisible(true), 1500);
+      return () => clearTimeout(timer);
     }
   }, []);
 

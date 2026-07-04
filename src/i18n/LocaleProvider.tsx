@@ -114,8 +114,22 @@ export function LocaleProvider({
   );
 }
 
+const DEFAULT_LOCALE_FALLBACK: LocaleContextValue = {
+  locale: 'en',
+  direction: 'ltr',
+  setLocale: () => {},
+  t: (key, fallbackOrVariables, maybeVariables) =>
+    translate(key, 'en', fallbackOrVariables, maybeVariables),
+};
+
 export function useLocale(): LocaleContextValue {
   const value = useContext(LocaleContext);
-  if (!value) throw new Error('useLocale must be used within LocaleProvider');
+  if (!value) {
+    if (import.meta.env.DEV) {
+      console.warn('[LocaleProvider] useLocale was used outside of <LocaleProvider>. Falling back to default locale context.');
+    }
+    return DEFAULT_LOCALE_FALLBACK;
+  }
   return value;
 }
+

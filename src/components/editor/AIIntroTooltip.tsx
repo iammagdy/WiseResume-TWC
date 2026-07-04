@@ -20,8 +20,8 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
       setMounted(false);
       return;
     }
-    const t = window.setTimeout(() => setMounted(true), 400);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setMounted(true), 400);
+    return () => window.clearTimeout(timer);
   }, [show]);
 
   const dismiss = useCallback(() => {

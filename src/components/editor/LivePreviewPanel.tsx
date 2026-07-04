@@ -85,8 +85,8 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       setDebouncedResume(currentResume);
       return;
     }
-    const t = setTimeout(() => setDebouncedResume(currentResume), 100);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedResume(currentResume), 100);
+    return () => clearTimeout(timer);
   }, [currentResume]);
 
   const [zoom, setZoom] = useState(0.75);

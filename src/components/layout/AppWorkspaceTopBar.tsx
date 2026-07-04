@@ -171,7 +171,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
               'relative inline-flex md:hidden items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
               'text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation',
             )}
-            aria-label={t('app.topBar.notifications', 'Notifications')}
+            aria-label={t('app.topBar.notifications', 'الإشعارات')}
           >
             <Bell className="w-4 h-4" aria-hidden />
             {(unreadCount ?? 0) > 0 && (
@@ -194,7 +194,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
                   'relative hidden md:inline-flex items-center justify-center shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-xl',
                   'text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors active:scale-95 touch-manipulation',
                 )}
-                aria-label={t('app.topBar.notifications', 'Notifications')}
+                aria-label={t('app.topBar.notifications', 'الإشعارات')}
               >
                 <Bell className="w-4 h-4" aria-hidden />
                 {(unreadCount ?? 0) > 0 && (
@@ -207,7 +207,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
             </PopoverTrigger>
             <PopoverContent className="w-80 p-0 overflow-hidden border border-border bg-popover text-popover-foreground shadow-soft-lg rounded-xl z-50" align="end" sideOffset={8}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
-                <span className="text-sm font-semibold text-foreground">{t('app.notifications', 'Notifications')}</span>
+                <span className="text-sm font-semibold text-foreground">{t('app.notifications', 'الإشعارات')}</span>
                 {unreadCount > 0 && (
                   <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                     {unreadCount} {t('app.notifications.unread', 'unread')}

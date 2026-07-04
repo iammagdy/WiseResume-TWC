@@ -31,8 +31,8 @@ export const ProgressBar = memo(function ProgressBar({ resume, className, varian
   useEffect(() => {
     if (progress >= 100 && prevProgress.current < 100) {
       setShowConfetti(true);
-      const t = setTimeout(() => setShowConfetti(false), 1200);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setShowConfetti(false), 1200);
+      return () => clearTimeout(timer);
     }
     prevProgress.current = progress;
   }, [progress]);

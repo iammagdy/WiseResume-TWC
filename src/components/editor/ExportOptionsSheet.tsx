@@ -51,8 +51,8 @@ export function ExportOptionsSheet({
 
   useEffect(() => {
     if (!highlightedType) return;
-    const t = setTimeout(() => setHighlightedType(null), 800);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setHighlightedType(null), 800);
+    return () => clearTimeout(timer);
   }, [highlightedType]);
 
   useEffect(() => {
