@@ -23,27 +23,27 @@
 
 ## 2. Latest Important Commits
 
+* **`a42e2b3e`** — `fix(core): resolve useLocale, Appwrite SecurityError, and React hook resilience`
+* **`37b4555e`** — `docs(atlas): document devkit2 phase 3b step 1 closeout`
 * **`c834bf20`** — `feat(admin): add devkit2 command center preview`
 * **`cc55e542`** — `chore(admin): sync password reset link flow with main`
 * **`8c0c6ce7`** — `fix(admin): send secure password reset links`
-* **`ab4054f3`** — `design(email): refresh localized transactional templates`
-* **`ea713958`** — `feat(devkit): route admin password reset via internal HMAC signed service requests`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit2 Command Center Phase 3B Step 1 base preview implemented, verified, committed, and pushed to `main` at `c834bf20`.
-* **Current State**: New parallel admin route `/devkit2` added to test the redesigned 7-hub Command Center UX safely in production. `/devkit` remains 100% unchanged. `/devkit2` is admin-protected using existing `ProtectedRoute > AdminRoute` and `DevKitSessionProvider` / `devKitLogin()` logic. Renders `DevKit2Shell`, 7-hub sidebar, topbar, `Cmd+K` command palette, and Integration Map modal. Command Home hub reads live safe `home-summary` data. The remaining 6 hubs are labeled structural placeholders. Zero backend or Appwrite function changes. Zero dangerous actions enabled.
-* **Last Completed Task**: Pushed commit `c834bf20ef4604c7281d2f77d47df78d57e5085e` (`feat(admin): add devkit2 command center preview`) to `origin/main`. Passed targeted ESLint, `npx tsc --noEmit` (0 errors), and `npm run build` (created `DevKit2Page-DzTgccw_.js` 60.43 kB chunk). Step 2 integration work is deferred for later per owner decision.
+* **Current Active Focus**: DevKit AI Key & Model Tester implementation completed locally. Added real OpenAI-compatible completion pings to `inspect-ai-keys` Appwrite Function (`test-ai-key-slot`, `test-ai-provider`, `test-all-ai-keys`), strict status mapping (`success`, `missing_key`, `invalid_key`, `model_not_found`, `rate_limited`, `provider_error`, `timeout`), graceful `app_settings` test result persistence, and updated `AIKeysPanel.tsx` UI with "Test All Keys", "Test Provider", per-slot "Test", status chips, latency, timestamp, and unsaved model warnings.
+* **Current State**: Implementation complete, tested locally (`node --check`, `tsc --noEmit`, Node backend tests, Vitest frontend tests), and source hashes regenerated. Deployment NOT performed (requires targeted deployment of `inspect-ai-keys` Appwrite Function after owner authorization).
+* **Last Completed Task**: DevKit AI Key & Model Tester feature implementation & local verification.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
-2. **DevKit2 Step 2 Read-Only Data Wiring (Deferred)**: Progressively wire placeholder hubs (System Health, Users & Accounts, AI Operations, Growth Analytics, Business Ops, Developer Ops) to read-only `devKitCall` actions when authorized by owner.
-3. **Monitor Production Email Traffic**: Monitor real user email verification and password reset traffic after production deployment.
+1. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions workflow (`deploy-appwrite-hubs.yml` with target `inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
+2. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
+3. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
 
 ---
 

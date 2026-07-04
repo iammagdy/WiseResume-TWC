@@ -76,6 +76,10 @@ async function run() {
   await sleep(200);
   await ensureStringAttr(COLLECTION_ID, 'value', 65535, true);
   await sleep(200);
+  await ensureStringAttr(COLLECTION_ID, 'ai_test_slot_models', 65535, false);
+  await sleep(200);
+  await ensureStringAttr(COLLECTION_ID, 'ai_key_test_results', 65535, false);
+  await sleep(200);
 
   console.log(`\n✓ ${COLLECTION_ID} schema ready\n`);
 }

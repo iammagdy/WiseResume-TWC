@@ -46,7 +46,7 @@ jobs:
         run: node scripts/setup_observability_schema.cjs
 
       - name: Ensure app settings schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' || contains(github.event.inputs.target, 'inspect-ai-keys') }}
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192

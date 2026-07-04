@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 - DevKit AI Key & Model Tester Implementation
+
+- **Real Provider Ping Actions (`inspect-ai-keys`)**: Extended `appwrite-hubs/inspect-ai-keys/src/main.js` with `test-ai-key-slot`, `test-ai-provider`, and `test-all-ai-keys` actions. Issues real OpenAI-compatible completion requests (`messages: [{ role: 'user', content: 'Reply with only OK.' }]`, `max_tokens: 10`, 12s timeout) to OpenRouter, Groq, DeepSeek, and NVIDIA endpoints.
+- **Strict Status Mapping**: Maps responses into structured outcomes: `success`, `missing_key`, `invalid_key` (401/403), `rate_limited` (429), `model_not_found` (400/404 with model text), `timeout` (12s limit), and `provider_error`. Requires HTTP 200 + valid JSON + choice content for success.
+- **Graceful Persistence & Safety**: Persists sanitized test results under `ai_key_test_results` in `app_settings`. If database write fails, live test results are still returned with a safe warning (`persistence_failed`). Zero raw keys, bearer tokens, or sensitive headers are logged or returned to the browser.
+- **UI Enhancements (`AIKeysPanel.tsx`)**: Added "Test All Keys" header button, "Test Provider" section buttons, and per-slot "Test" buttons with 2-request concurrency batching. Displays status chips, latency (ms), timestamp, expandable error details, and an unsaved model warning pill (`"Testing unsaved model selection"`). Restores last test results on load.
+- **Validation & Tests**: Passed `node --check`, Node backend sanitization test (`appwrite-hubs/inspect-ai-keys/test/sanitization.test.js`), `npx tsc --noEmit` (0 errors), Vitest frontend tests (`src/lib/devkit/__tests__/aiKeyTesterFrontend.test.ts`), and regenerated source hashes (`sourceHashes.generated.json`).
+- **Deployment Prerequisites**: Implementation completed locally. Targeted Appwrite Hubs deployment target required: `inspect-ai-keys`.
+
 ## 2026-07-04 - DevKit2 Command Center Phase 3B Step 1 Base Implementation
 
 - **Parallel Admin Route (`/devkit2`)**: Implemented a new parallel, admin-protected preview route at `/devkit2` to evaluate the redesigned 7-hub DevKit Command Center experience safely in production alongside the stable `/devkit` route, which remains 100% unchanged.
