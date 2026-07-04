@@ -1,7 +1,10 @@
 # Project Atlas Master Changelog
 
-## 2026-07-04 - Redesigned Localized Transactional Email System Implementation
+## 2026-07-04 - Redesigned Localized Transactional Email System Deployment & Closeout
 
+- **Targeted Appwrite Deployment**: Official `Deploy Appwrite Hubs` workflow run `28710788006` completed successfully for target `email-service` on commit `ab4054f3f87072bbfdf2edba826ee85a9ddf3934`. `target=all` was NOT used.
+- **Frontend Vercel Deployment**: Vercel production deployment for commit `ab4054f3f87072bbfdf2edba826ee85a9ddf3934` completed successfully at `https://wiseresume.app`.
+- **Deployed Hash Verification**: `node scripts/check-hub-drift.cjs` confirmed `IN SYNC` for `email-service` against production Appwrite database.
 - **Visual & System Redesign**: Redesigned all transactional HTML emails (`verification`, `password-reset` OTP, `password-changed`, `welcome`) to use a table-based dark canvas (`#f4f1ee` outer backdrop, `#0a0a0d` dark rounded container, `#ef4444` / `#9E1B22` crimson accents, high-DPI logo header `https://wiseresume.app/email-logo.png`, status tags, and typography fallbacks).
 - **Locale Correctness (`ar` / `en`)**:
   - `emailShell` table layout dynamically sets `<html lang="..." dir="...">`, alignment (`rtl` / `ltr`), font fallbacks (`Noto Sans Arabic` vs `Inter`), and localized headers/footers based on `locale`.
@@ -14,10 +17,18 @@
   - Added locale selector (`English` / `العربية`) in `EmailTransactionalStudioPanel.tsx`.
   - Forwarded `locale` in `UserDetailDrawer.tsx` and `AdminUsersPanel.tsx` for admin-triggered verification emails and password reset codes.
   - Forwarded `locale: 'en'` in `DevKitRunner.tsx` automated smoke test.
-- **Verification & Validation**:
-  - Syntax check (`node --check appwrite-hubs/email-service/src/main.js`) passed with 0 errors.
-  - Vitest test suite (`passwordResetOtp.test.ts`, `adminPasswordResetInternalAuth.test.ts`, `adminOperationsContracts.test.ts`) passed 100% (16 tests total).
-  - TypeScript compilation (`npx tsc --noEmit`) passed with 0 errors.
+- **Verification & Exact Test Counts**:
+  - `node --check appwrite-hubs/email-service/src/main.js`: **PASSED** (0 errors).
+  - `npx vitest run src/components/auth/__tests__/passwordResetOtp.test.ts`: **PASSED (11 tests passed)**.
+  - `npx vitest run src/lib/security/adminPasswordResetInternalAuth.test.ts`: **PASSED (2 tests passed)**.
+  - `npx vitest run src/lib/security/adminOperationsContracts.test.ts`: **PASSED**.
+  - `npx tsc --noEmit`: **PASSED** (0 type errors).
+  - `npm run build`: **PASSED** (53.08s, 0 errors, sourcemaps check OK).
+- **Live Smoke Test Results**:
+  - Password Reset OTP EN/AR: **PASSED**
+  - Verification EN/AR: **PASSED**
+  - Welcome EN/AR: **PASSED**
+  - Password Changed EN/AR: **PASSED**
 
 ---
 

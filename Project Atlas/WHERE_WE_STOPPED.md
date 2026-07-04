@@ -23,30 +23,26 @@
 
 ## 2. Latest Important Commits
 
+* **`ab4054f3`** — `design(email): refresh localized transactional templates`
 * **`ea713958`** — `feat(devkit): route admin password reset via internal HMAC signed service requests`
 * **`c4bc9fea`** — `fix(devkit): validate delegated admin auth response`
 * **`b7e43412`** — `fix(devkit): use lightweight delegated email auth`
 * **`18d6263a`** — `fix(devkit): accept signed admin tokens in email service`
 * **`6a38a20e`** — `chore(devkit): fix admin operations and impersonation storage`
-* **`cbadbe84`** — `docs(license): mark repository as proprietary`
-* **`70ce4a5b`** — `chore(security): sanitize public-readiness repository hygiene`
-* **`1ad325aa`** — `docs(readme): prepare repository for public visibility`
-* **`81e35bbe`** — `docs(atlas): update session closeout and handover state`
-* **`720626b2`** — `docs(atlas): clean Project Atlas governance structure`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Redesigned Localized Transactional Email System implemented locally and fully verified across email-service, frontend callers, DevKit panels, and unit test suite.
-* **Current State**: All 4 transactional email templates (`verification`, `password-reset` OTP, `password-changed`, `welcome`) redesigned to premium dark canvas with crimson accents and high-DPI logo header. Full `ar` / `en` locale routing implemented with `<html lang="..." dir="...">`, font fallbacks (`Noto Sans Arabic` vs `Inter`), and localized subjects/body copy.
-* **Last Completed Task**: Completed implementation of redesigned localized transactional email templates in `appwrite-hubs/email-service/src/main.js`, updated frontend callers (`AccountSection.tsx`, `UserDetailDrawer.tsx`, `AdminUsersPanel.tsx`, `DevKitRunner.tsx`, `EmailTransactionalStudioPanel.tsx`), added locale Vitest test cases in `passwordResetOtp.test.ts`, verified syntax (`node --check`), run full unit test suite (16 tests passed), and ran TypeScript typecheck (`npx tsc --noEmit`).
+* **Current Active Focus**: Redesigned Localized Transactional Email System deployed to production and verified in sync (`check-hub-drift.cjs`).
+* **Current State**: All 4 transactional email templates (`verification`, `password-reset` OTP, `password-changed`, `welcome`) redesigned to premium dark canvas with crimson accents and high-DPI logo header. Full `ar` / `en` locale routing implemented with `<html lang="..." dir="...">`, font fallbacks (`Noto Sans Arabic` vs `Inter`), and localized subjects/body copy. Target `email-service` deployed via `Deploy Appwrite Hubs` workflow run `28710788006` (`target=all` was NOT used). Vercel deployment succeeded for commit `ab4054f3`.
+* **Last Completed Task**: Deployed targeted Appwrite function `email-service` on commit `ab4054f3`, verified live hash synchronization (`check-hub-drift.cjs` confirms IN SYNC), verified Vercel production deployment (`https://wiseresume.app`), verified unit tests (`passwordResetOtp.test.ts` 11 tests passed, `adminPasswordResetInternalAuth.test.ts` 2 tests passed), TypeScript build (`npx tsc --noEmit`), and production bundle build (`npm run build`).
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Targeted Appwrite Deployment (`email-service`)**: Upon owner approval, deploy target `email-service` using the official `Deploy Appwrite Hubs` workflow. Do NOT use `target=all`.
+1. **Monitor Production Email Traffic**: Monitor real user email verification and password reset traffic after production deployment.
 2. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
 3. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
 
