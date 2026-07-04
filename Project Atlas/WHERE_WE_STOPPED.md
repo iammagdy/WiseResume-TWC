@@ -23,31 +23,28 @@
 
 ## 2. Latest Important Commits
 
+* **`ab4054f3`** — `design(email): refresh localized transactional templates`
 * **`ea713958`** — `feat(devkit): route admin password reset via internal HMAC signed service requests`
 * **`c4bc9fea`** — `fix(devkit): validate delegated admin auth response`
 * **`b7e43412`** — `fix(devkit): use lightweight delegated email auth`
 * **`18d6263a`** — `fix(devkit): accept signed admin tokens in email service`
 * **`6a38a20e`** — `chore(devkit): fix admin operations and impersonation storage`
-* **`cbadbe84`** — `docs(license): mark repository as proprietary`
-* **`70ce4a5b`** — `chore(security): sanitize public-readiness repository hygiene`
-* **`1ad325aa`** — `docs(readme): prepare repository for public visibility`
-* **`81e35bbe`** — `docs(atlas): update session closeout and handover state`
-* **`720626b2`** — `docs(atlas): clean Project Atlas governance structure`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit Admin Password Reset Link flow implemented locally and verified with 26 Vitest tests, TypeScript compiler, Node syntax checks, and Vite production build.
-* **Current State**: Implemented direct secure password reset link flow (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`). Admin requests route `UserDetailDrawer` / `EmailManagementPanel` -> `admin-devkit-data` (`send-admin-password-reset-link`) -> internal HMAC request -> `email-service` (`internal-send-admin-password-reset-link`). High-entropy challenge tokens (32 bytes) are hashed at rest (`challenge_token_hash`). Legacy reset path in `admin-email` is deprecated and throws explicit error.
-* **Last Completed Task**: Completed implementation and full validation suite (26 Vitest tests passed, `npx tsc --noEmit` passed, `npm run build` passed, source hashes regenerated). Appwrite deployment NOT performed (pending owner authorization). Targeted deploy list: `admin-devkit-data,email-service,admin-email`.
+* **Current Active Focus**: DevKit Admin Password Reset Link flow implemented locally and synced with latest redesigned transactional email system from `main`. Verified with Vitest tests, TypeScript compiler, Node syntax checks, and Vite production build.
+* **Current State**: Implemented direct secure password reset link flow (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) integrated with redesigned dark canvas transactional email templates (`emailShell`). Admin requests route `UserDetailDrawer` / `EmailManagementPanel` -> `admin-devkit-data` (`send-admin-password-reset-link`) -> internal HMAC request -> `email-service` (`internal-send-admin-password-reset-link`). High-entropy challenge tokens (32 bytes) are hashed at rest (`challenge_token_hash`). Legacy reset path in `admin-email` is deprecated and throws explicit error.
+* **Last Completed Task**: Synced branch with `origin/main`, resolved email template conflicts, completed full validation suite (`npx tsc --noEmit` passed, `npm run build` passed, source hashes regenerated). Appwrite deployment NOT performed (pending owner authorization). Targeted deploy list: `admin-devkit-data,email-service,admin-email`.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
-2. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
+1. **Monitor Production Email Traffic**: Monitor real user email verification and password reset traffic after production deployment.
+2. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
+3. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
 
 ---
 

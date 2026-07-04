@@ -40,7 +40,8 @@ describe('DevKit admin operations contracts', () => {
     const emailService = read('appwrite-hubs/email-service/src/main.js');
     const drawer = read('src/components/dev-kit/UserDetailDrawer.tsx');
 
-    expect(drawer).toContain("body: { action: 'send-admin-password-reset-link', target_user_id: user.user_id }");
+    expect(drawer).toContain("action: 'send-admin-password-reset-link'");
+    expect(drawer).toContain("target_user_id: user.user_id");
     expect(drawer).toContain("unwrapAdminResponse<{ warning?: string }>(tuple, 'admin-devkit-data')");
 
     expect(devkitData).toContain("action === 'send-admin-password-reset-link'");

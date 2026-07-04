@@ -59,6 +59,7 @@ export function EmailTransactionalStudioPanel() {
   const [template, setTemplate]   = useState<TemplateId>('welcome');
   const [name, setName]           = useState('');
   const [sender, setSender]       = useState<SenderEmail>('noreply@thewise.cloud');
+  const [locale, setLocale]       = useState<'en' | 'ar'>('en');
   const [sending, setSending]     = useState(false);
   const [lastSent, setLastSent]   = useState<string | null>(null);
 
@@ -80,6 +81,7 @@ export function EmailTransactionalStudioPanel() {
         template,
         from_email: sender,
         from_name:  activeSender.name,
+        locale,
       };
       if (activeTemplate.hasName && name.trim()) {
         body.name = name.trim();
@@ -196,6 +198,44 @@ export function EmailTransactionalStudioPanel() {
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground pl-4">{s.description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Language selector */}
+      <div className="space-y-2">
+        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Email Language
+        </label>
+        <div className="grid grid-cols-2 gap-2 max-w-xs">
+          {[
+            { id: 'en', label: 'English (en)', description: 'LTR layout & English copy' },
+            { id: 'ar', label: 'العربية (ar)', description: 'RTL layout & Arabic copy' },
+          ].map(l => (
+            <button
+              key={l.id}
+              onClick={() => setLocale(l.id as 'en' | 'ar')}
+              className={cn(
+                'rounded-xl border p-2.5 text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50',
+                locale === l.id
+                  ? 'border-primary/60 bg-primary/10'
+                  : 'border-border bg-card hover:border-primary/30 hover:bg-muted/30',
+              )}
+            >
+              <div className="flex items-center gap-2 mb-0.5">
+                <div className={cn(
+                  'w-2 h-2 rounded-full',
+                  locale === l.id ? 'bg-primary' : 'bg-muted-foreground/30',
+                )} />
+                <span className={cn(
+                  'text-xs font-semibold',
+                  locale === l.id ? 'text-primary' : 'text-foreground',
+                )}>
+                  {l.label}
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground pl-4">{l.description}</p>
             </button>
           ))}
         </div>
