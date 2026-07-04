@@ -23,20 +23,20 @@
 
 ## 2. Latest Important Commits
 
+* **`cc55e542`** — `chore(admin): sync password reset link flow with main`
+* **`8c0c6ce7`** — `fix(admin): send secure password reset links`
 * **`ab4054f3`** — `design(email): refresh localized transactional templates`
 * **`ea713958`** — `feat(devkit): route admin password reset via internal HMAC signed service requests`
 * **`c4bc9fea`** — `fix(devkit): validate delegated admin auth response`
 * **`b7e43412`** — `fix(devkit): use lightweight delegated email auth`
-* **`18d6263a`** — `fix(devkit): accept signed admin tokens in email service`
-* **`6a38a20e`** — `chore(devkit): fix admin operations and impersonation storage`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit Admin Password Reset Link flow implemented locally and synced with latest redesigned transactional email system from `main`. Verified with Vitest tests, TypeScript compiler, Node syntax checks, and Vite production build.
-* **Current State**: Implemented direct secure password reset link flow (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) integrated with redesigned dark canvas transactional email templates (`emailShell`). Admin requests route `UserDetailDrawer` / `EmailManagementPanel` -> `admin-devkit-data` (`send-admin-password-reset-link`) -> internal HMAC request -> `email-service` (`internal-send-admin-password-reset-link`). High-entropy challenge tokens (32 bytes) are hashed at rest (`challenge_token_hash`). Legacy reset path in `admin-email` is deprecated and throws explicit error.
-* **Last Completed Task**: Synced branch with `origin/main`, resolved email template conflicts, completed full validation suite (`npx tsc --noEmit` passed, `npm run build` passed, source hashes regenerated). Appwrite deployment NOT performed (pending owner authorization). Targeted deploy list: `admin-devkit-data,email-service,admin-email`.
+* **Current Active Focus**: DevKit Admin Password Reset Direct Link Flow implemented, verified, merged into `main`, and synced with `origin/main`.
+* **Current State**: Direct secure password reset link flow (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) integrated with redesigned dark canvas transactional email templates (`emailShell`). Admin requests route `UserDetailDrawer` / `EmailManagementPanel` -> `admin-devkit-data` (`send-admin-password-reset-link`) -> internal HMAC request -> `email-service` (`internal-send-admin-password-reset-link`). High-entropy challenge tokens (32 bytes) are hashed at rest (`challenge_token_hash`). Legacy reset path in `admin-email` is deprecated and throws explicit error. Merged to `main` at `cc55e542`.
+* **Last Completed Task**: Merged `fix/admin-email-link-flow` into `main`, pushed to `origin/main`, completed full validation suite (`npx tsc --noEmit` passed, `npm run build` passed, 28 Vitest tests passed, source hashes regenerated). Appwrite deployment NOT performed (pending owner authorization). Targeted deploy list: `admin-devkit-data,email-service,admin-email`.
 
 ---
 
