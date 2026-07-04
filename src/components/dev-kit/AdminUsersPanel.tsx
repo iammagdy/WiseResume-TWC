@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocale } from '@/i18n/LocaleProvider';
 import { AdminSignupsPanel } from './AdminSignupsPanel';
 
 export interface AdminUser {
@@ -88,6 +89,7 @@ function creditsBar(used: number, limit: number | null): React.ReactNode {
 
 export const AdminUsersPanel = () => {
   const { user: authUser } = useAuth();
+  const { locale } = useLocale();
   const queryClient = useQueryClient();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -350,6 +352,7 @@ export const AdminUsersPanel = () => {
           action: 'send-admin-verification',
           target_user_id: userId,
           actor_email: authUser?.email ?? 'admin (dev-kit)',
+          locale,
         },
       });
       unwrapAdminResponse(tuple, 'email-service');

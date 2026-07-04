@@ -89,14 +89,14 @@ export const AccountSection = memo(function AccountSection({
             return;
         }
         try {
-            // Send branded password-reset email via email-service function (bypasses Appwrite template).
+            // Send branded password-reset OTP email via email-service function.
             const { error: fnError } = await appwriteFunctions.invoke('email-service', {
-                body: { action: 'send-password-reset', email, locale },
+                body: { action: 'send-password-reset-otp', email, locale },
             });
             if (fnError) throw new Error(fnError.message);
-            toast.success(t('app.settingsPage.account.resetSent', 'Password reset link sent! Check your inbox.'));
+            toast.success(t('app.settingsPage.account.resetSent', 'Verification code sent! Check your inbox.'));
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : t('app.settingsPage.account.resetFailed', 'Failed to send reset email'));
+            toast.error(err instanceof Error ? err.message : t('app.settingsPage.account.resetFailed', 'Failed to send verification code'));
         }
     }, [user?.email, locale, t]);
 

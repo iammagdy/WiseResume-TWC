@@ -232,6 +232,7 @@ export function DevKitRunner() {
             name: 'DevKit Smoke',
             from_email: 'noreply@thewise.cloud',
             from_name: 'WiseResume',
+            locale: 'en',
           },
         }));
       },

@@ -18,6 +18,7 @@ import type { AdminUser } from './AdminUsersPanel';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
 import { getPortfolioDisplayUrl, CANONICAL_PORTFOLIO_HOST } from '@/lib/portfolioUrl';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 
 interface UserDetailDrawerProps {
@@ -122,6 +123,7 @@ function summarizeAction(action: string, meta: Record<string, unknown>): string 
 export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated, onUserDeleted }: UserDetailDrawerProps) {
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
+  const { locale } = useLocale();
   const isMounted = useIsMounted();
 
   const [impersonating, setImpersonating] = useState(isImpersonating);
@@ -738,7 +740,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     try {
       const tuple = await appwriteFunctions.invoke('email-service', {
         headers: devKitAuthHeaders(),
-        body: { action: 'send-admin-verification', target_user_id: user.user_id },
+        body: { action: 'send-admin-verification', target_user_id: user.user_id, locale },
       });
       unwrapAdminResponse(tuple, 'email-service');
       toast.success('Verification email sent');
@@ -754,7 +756,7 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     try {
       const tuple = await appwriteFunctions.invoke('admin-devkit-data', {
         headers: devKitAuthHeaders(),
-        body: { action: 'send-admin-password-reset-otp', target_user_id: user.user_id },
+        body: { action: 'send-admin-password-reset-otp', target_user_id: user.user_id, locale },
       });
       const result = unwrapAdminResponse<{ warning?: string }>(tuple, 'admin-devkit-data');
       setShowPasswordResetDialog(false);

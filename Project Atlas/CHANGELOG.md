@@ -1,5 +1,26 @@
 # Project Atlas Master Changelog
 
+## 2026-07-04 - Redesigned Localized Transactional Email System Implementation
+
+- **Visual & System Redesign**: Redesigned all transactional HTML emails (`verification`, `password-reset` OTP, `password-changed`, `welcome`) to use a table-based dark canvas (`#f4f1ee` outer backdrop, `#0a0a0d` dark rounded container, `#ef4444` / `#9E1B22` crimson accents, high-DPI logo header `https://wiseresume.app/email-logo.png`, status tags, and typography fallbacks).
+- **Locale Correctness (`ar` / `en`)**:
+  - `emailShell` table layout dynamically sets `<html lang="..." dir="...">`, alignment (`rtl` / `ltr`), font fallbacks (`Noto Sans Arabic` vs `Inter`), and localized headers/footers based on `locale`.
+  - Added helper `normalizeEmailLocale(rawLocale)` returning `'ar'` for Arabic locale codes and `'en'` for all others (defaulting to English for missing or invalid values).
+  - All transactional templates deliver localized subjects and body copy in the recipient's language.
+- **OTP Password Reset Alignment**:
+  - DevKit test send (`send-test` with `template: 'password-reset'`) updated to render the full redesigned `passwordResetOtpEmail` template with preview code `482913` (replacing legacy link reset preview).
+  - Updated `AccountSection.tsx` fallback to call `send-password-reset-otp` instead of `send-password-reset`.
+- **Admin & DevKit Tools**:
+  - Added locale selector (`English` / `العربية`) in `EmailTransactionalStudioPanel.tsx`.
+  - Forwarded `locale` in `UserDetailDrawer.tsx` and `AdminUsersPanel.tsx` for admin-triggered verification emails and password reset codes.
+  - Forwarded `locale: 'en'` in `DevKitRunner.tsx` automated smoke test.
+- **Verification & Validation**:
+  - Syntax check (`node --check appwrite-hubs/email-service/src/main.js`) passed with 0 errors.
+  - Vitest test suite (`passwordResetOtp.test.ts`, `adminPasswordResetInternalAuth.test.ts`, `adminOperationsContracts.test.ts`) passed 100% (16 tests total).
+  - TypeScript compilation (`npx tsc --noEmit`) passed with 0 errors.
+
+---
+
 ## 2026-07-04 - DevKit Admin Password Reset Deployment & Live Verification
 
 - **Targeted Appwrite Deployment**: Official `Deploy Appwrite Hubs` workflow run `28688040101` completed successfully for target `admin-devkit-data,email-service` on commit `ea713958`. No `target=all`, Appwrite Console deployment, or `admin-impersonate` deployment was used.

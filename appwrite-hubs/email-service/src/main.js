@@ -75,6 +75,11 @@ const RESEND_BASE  = 'https://api.resend.com';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function normalizeEmailLocale(value) {
+  const raw = String(value || '').toLowerCase();
+  return raw === 'ar' || raw.startsWith('ar-') ? 'ar' : 'en';
+}
+
 function json(res, payload, status = 200) {
   return res.json(payload, status);
 }
@@ -329,58 +334,140 @@ async function resendSend({ to, subject, html, fromEmail, fromName }) {
 
 // ─── Email HTML builders ─────────────────────────────────────────────────────
 
-function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, securityNote, showCta = true, locale = 'en', disclaimer }) {
-  const isArabic = locale === 'ar';
-  const safeDisclaimer = disclaimer || (isArabic
-    ? 'إذا لم تطلب هذا الإجراء، يمكنك تجاهل هذه الرسالة بأمان.'
-    : "If you didn't request this, you can safely ignore this email.");
-  const ctaSection = showCta ? `
+function emailShell({
+  locale = 'en',
+  variant = 'secure',
+  eyebrow = '',
+  title = '',
+  lead = '',
+  bodyCopy = '',
+  ctaLabel = '',
+  ctaUrl = '',
+  otpCode = '',
+  otpLabel = '',
+  noteTitle = '',
+  noteBody = '',
+  statusLabel = '',
+  footerHint = '',
+  showCta = true,
+  showBackupLink = true,
+  disclaimer = '',
+}) {
+  const isArabic = normalizeEmailLocale(locale) === 'ar';
+
+  const defaultStatusLabel = statusLabel || (
+    variant === 'ready'
+      ? (isArabic ? 'جاهز' : 'Ready')
+      : variant === 'security'
+        ? (isArabic ? 'أمان' : 'Security')
+        : (isArabic ? 'آمن' : 'Secure')
+  );
+
+  const defaultFooterHint = footerHint || (
+    isArabic
+      ? 'WiseResume — مساحة عمل ذكية لسيرتك المهنية.'
+      : 'WiseResume — your AI career workspace.'
+  );
+
+  const subtitleText = isArabic
+    ? 'مساحة عمل مهنية بالذكاء الاصطناعي'
+    : 'AI Career Workspace';
+
+  const safeDisclaimer = disclaimer || (
+    isArabic
+      ? 'إذا لم تطلب هذا الإجراء، يمكنك تجاهل هذه الرسالة بأمان.'
+      : "If you didn't request this, you can safely ignore this message."
+  );
+
+  const fontFamily = isArabic
+    ? "'Noto Sans Arabic', Tahoma, Arial, sans-serif"
+    : "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+
+  let otpSection = '';
+  if (otpCode) {
+    const defaultOtpLabel = otpLabel || (isArabic ? 'رمز التحقق' : 'Verification code');
+    otpSection = `
+              <!-- OTP Display Box -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 28px 0;">
+                <tr>
+                  <td align="center" style="background-color:#121215;border:1px solid #27272a;border-radius:16px;padding:22px 24px;">
+                    <p style="margin:0 0 8px 0;font-family:${fontFamily};font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#8b8b94;">${defaultOtpLabel}</p>
+                    <span style="font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:800;color:#ef4444;letter-spacing:8px;user-select:all;display:inline-block;direction:ltr;">${otpCode}</span>
+                  </td>
+                </tr>
+              </table>`;
+  }
+
+  let ctaSection = '';
+  if (showCta && ctaUrl && ctaLabel) {
+    let backupLinkSection = '';
+    if (showBackupLink) {
+      const backupTitle = isArabic ? 'رابط مباشر' : 'Direct Link';
+      const backupText = isArabic
+        ? 'إذا لم يعمل الزر أعلاه، انسخ هذا الرابط والصقه في متصفحك:'
+        : "If the button above doesn't work, copy and paste this link into your browser:";
+      backupLinkSection = `
+              <!-- Alternative link -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:#121215;border:1px solid #232328;border-radius:12px;margin-top:20px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 6px 0;font-family:${fontFamily};font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#8b8b94;">${backupTitle}</p>
+                    <p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#a1a1aa;">${backupText}</p>
+                    <div style="background-color:#0a0a0d;border:1px solid #1e1e24;border-radius:8px;padding:10px 12px;direction:ltr;text-align:left;">
+                      <a href="${ctaUrl}" target="_blank"
+                         style="font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1.5;color:#ef4444;text-decoration:underline;word-break:break-all;">${ctaUrl}</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>`;
+    }
+
+    ctaSection = `
               <!-- CTA Button -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 8px 0;">
                 <tr>
                   <td align="center">
                     <!--[if mso]>
                     <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
-                      href="${ctaUrl}" style="height:58px;v-text-anchor:middle;width:390px;" arcsize="6%" stroke="f" fillcolor="#9E1B22">
+                      href="${ctaUrl}" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="12%" stroke="f" fillcolor="#9E1B22">
                       <w:anchorlock/>
-                      <center style="color:#ffffff;font-family:'Inter',sans-serif;font-size:18px;font-weight:700;">${ctaLabel} &#8594;</center>
+                      <center style="color:#ffffff;font-family:${fontFamily};font-size:16px;font-weight:700;">${ctaLabel}</center>
                     </v:roundrect>
                     <![endif]-->
                     <!--[if !mso]><!-->
                     <a href="${ctaUrl}" target="_blank"
-                       style="display:inline-block;width:390px;max-width:100%;padding:18px 28px;background:linear-gradient(180deg,#dc2626 0%,#9E1B22 100%);border:1px solid rgba(255,255,255,0.16);border-radius:14px;color:#ffffff;text-decoration:none;font-size:18px;font-weight:700;line-height:1.4;text-align:center;box-sizing:border-box;">
-                      ${ctaLabel} &nbsp;&#8594;
+                       style="display:inline-block;width:100%;max-width:320px;padding:15px 28px;background:linear-gradient(180deg,#dc2626 0%,#9E1B22 100%);border:1px solid rgba(255,255,255,0.12);border-radius:12px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;line-height:1.4;text-align:center;box-sizing:border-box;">
+                      ${ctaLabel}
                     </a>
                     <!--<![endif]-->
                   </td>
                 </tr>
               </table>
+              ${backupLinkSection}`;
+  }
 
-              <!-- OR divider -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
-                <tr>
-                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);"></td>
-                  <td align="center" width="62" style="padding:0 6px;">
-                    <span style="display:inline-block;padding:8px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:999px;color:#a1a1aa;font-size:12px;background-color:#111113;white-space:nowrap;">OR</span>
-                  </td>
-                  <td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);"></td>
-                </tr>
-              </table>
-
-              <!-- Alternative link -->
+  let noteSection = '';
+  if (noteTitle || noteBody) {
+    noteSection = `
+              <!-- Security / Info Note -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.09);border-radius:18px;margin-bottom:18px;">
+                     style="background-color:#121215;border:1px solid #232328;border-radius:12px;margin:24px 0;">
                 <tr>
-                  <td style="padding:24px;">
-                    <p style="margin:0 0 12px;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">Alternative Link</p>
-                    <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#c4c4cc;">If the button above doesn't work, copy and paste this link into your browser.</p>
-                    <div style="background-color:#0b0b0d;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;">
-                      <a href="${ctaUrl}" target="_blank"
-                         style="font-family:'Courier New',Courier,monospace;font-size:12px;line-height:1.6;color:#ef4444;text-decoration:underline;word-break:break-all;">${ctaUrl}</a>
-                    </div>
+                  <td style="padding:16px 20px;">
+                    ${noteTitle ? `<p style="margin:0 0 6px 0;font-size:14px;font-weight:600;color:#ffffff;">${noteTitle}</p>` : ''}
+                    ${noteBody ? `<p style="margin:0 0 6px 0;font-size:13px;line-height:1.55;color:#a1a1aa;">${noteBody}</p>` : ''}
+                    <p style="margin:0;font-size:12px;line-height:1.5;color:#71717a;">${safeDisclaimer}</p>
                   </td>
                 </tr>
-              </table>` : '';
+              </table>`;
+  } else {
+    noteSection = `
+              <!-- Simple Disclaimer -->
+              <p style="margin:24px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
+                ${safeDisclaimer}
+              </p>`;
+  }
 
   return `<!DOCTYPE html>
 <html lang="${isArabic ? 'ar' : 'en'}" dir="${isArabic ? 'rtl' : 'ltr'}">
@@ -388,86 +475,91 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>${h1} - WiseResume</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>${title} - WiseResume</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body style="margin:0;padding:0;background:#09090b;font-family:${isArabic ? "'Noto Sans Arabic',Tahoma,Arial" : "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial"},sans-serif;color:#ffffff;direction:${isArabic ? 'rtl' : 'ltr'};">
+<body style="margin:0;padding:0;background-color:#f4f1ee;font-family:${fontFamily};color:#ffffff;direction:${isArabic ? 'rtl' : 'ltr'};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
 
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#09090b;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <!-- Preheader -->
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#f4f1ee;">${lead || title}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#09090b">
+  <!-- Outer Canvas -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f1ee" style="background-color:#f4f1ee;width:100%;">
     <tr>
-      <td align="center" style="padding:48px 16px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#141416"
-               style="max-width:620px;width:100%;background:linear-gradient(180deg,#141416 0%,#0d0d10 100%);border:1px solid rgba(158,27,34,0.35);border-radius:28px;">
+      <td align="center" style="padding:40px 16px;">
+
+        <!-- Main Dark Card -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a0a0d"
+               style="max-width:580px;width:100%;background-color:#0a0a0d;border:1px solid #242429;border-radius:24px;box-shadow:0 12px 32px rgba(0,0,0,0.12);overflow:hidden;">
           <tr>
-            <td style="padding:34px 34px 42px;">
+            <td style="padding:32px 32px 36px 32px;">
 
-              <!-- Meta row -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
+              <!-- Header Row -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
                 <tr>
-                  <td style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#a1a1aa;">${metaLabel}</td>
-                  <td align="right" style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">
-                    <span style="display:inline-block;width:7px;height:7px;background-color:#ef4444;border-radius:999px;vertical-align:middle;margin-right:8px;"></span>${isArabic ? 'آمن' : 'Secure'}
+                  <!-- Logo & Wordmark -->
+                  <td align="${isArabic ? 'right' : 'left'}" style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="vertical-align:middle;padding-${isArabic ? 'left' : 'right'}:12px;">
+                          <div style="width:36px;height:36px;background-color:#141418;border:1px solid #27272a;border-radius:10px;text-align:center;line-height:36px;padding:3px;box-sizing:border-box;">
+                            <img src="https://wiseresume.app/email-logo.png" width="28" height="28" alt="WiseResume" style="display:inline-block;border:0;width:28px;height:28px;vertical-align:middle;">
+                          </div>
+                        </td>
+                        <td style="vertical-align:middle;">
+                          <span style="font-size:20px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;line-height:1.2;display:block;">Wise<span style="color:#ef4444;">Resume</span></span>
+                          <span style="font-size:11px;font-weight:500;color:#71717a;display:block;line-height:1.2;margin-top:2px;">${subtitleText}</span>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
-                </tr>
-              </table>
 
-              <!-- Divider -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:42px;">
-                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
-              </table>
-
-              <!-- Logo -->
-              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 18px auto;">
-                <tr>
-                  <td align="center" width="72" style="width:72px;background-color:#121216;border:1px solid rgba(239,68,68,0.45);border-radius:18px;padding:17px;">
-                    <img src="https://wiseresume.app/email-logo.png" width="38" height="38" alt="WiseResume" style="display:block;border:0;width:38px;height:38px;">
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Brand -->
-              <p style="margin:0 0 30px;text-align:center;font-size:25px;letter-spacing:-0.03em;color:#ffffff;">
-                Wise<span style="color:#ef4444;">Resume</span>
-              </p>
-
-              <!-- Heading -->
-              <h1 style="margin:0 0 18px;text-align:center;font-size:42px;line-height:1.08;font-weight:800;letter-spacing:-0.045em;color:#ffffff;">${h1}</h1>
-
-              <!-- Body copy -->
-              <p style="margin:0 auto 38px;max-width:470px;text-align:center;font-size:17px;line-height:1.65;color:#d4d4d8;">${bodyCopy}</p>
-
-              ${ctaSection}
-
-              <!-- Security notice -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:18px;margin-bottom:34px;">
-                <tr>
-                  <td style="padding:20px 24px;">
-                    <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#d4d4d8;">${securityNote}</p>
-                    <p style="margin:0;font-size:14px;line-height:1.6;color:#8b8b94;">
-                      ${safeDisclaimer}
-                    </p>
+                  <!-- Status Chip -->
+                  <td align="${isArabic ? 'left' : 'right'}" style="vertical-align:middle;">
+                    <span style="display:inline-block;padding:5px 12px;background-color:#141418;border:1px solid #27272a;border-radius:999px;font-family:${fontFamily};font-size:11px;font-weight:600;color:#a1a1aa;white-space:nowrap;">
+                      <span style="display:inline-block;width:6px;height:6px;background-color:#ef4444;border-radius:999px;vertical-align:middle;margin-${isArabic ? 'left' : 'right'}:6px;"></span>${defaultStatusLabel}
+                    </span>
                   </td>
                 </tr>
               </table>
 
               <!-- Divider -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
-                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
+                <tr><td style="height:1px;font-size:0;line-height:0;background-color:#1e1e24;">&nbsp;</td></tr>
+              </table>
+
+              ${eyebrow ? `<p style="margin:0 0 10px 0;font-family:${fontFamily};font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#ef4444;">${eyebrow}</p>` : ''}
+
+              <!-- Title -->
+              <h1 style="margin:0 0 14px 0;font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-0.03em;color:#ffffff;">${title}</h1>
+
+              <!-- Lead -->
+              ${lead ? `<p style="margin:0 0 14px 0;font-size:16px;line-height:1.55;font-weight:500;color:#d4d4d8;">${lead}</p>` : ''}
+
+              <!-- Body copy -->
+              ${bodyCopy ? `<p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#a1a1aa;">${bodyCopy}</p>` : ''}
+
+              ${otpSection}
+
+              ${ctaSection}
+
+              ${noteSection}
+
+              <!-- Divider -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 24px 0;">
+                <tr><td style="height:1px;font-size:0;line-height:0;background-color:#1e1e24;">&nbsp;</td></tr>
               </table>
 
               <!-- Footer -->
-              <p style="margin:0 0 20px;text-align:center;font-size:15px;color:#a1a1aa;">
-                Build <span style="color:#ef4444;">smarter</span>. Get hired <span style="color:#ef4444;">faster</span>.
+              <p style="margin:0 0 12px 0;text-align:center;font-size:13px;font-weight:500;color:#a1a1aa;">
+                ${defaultFooterHint}
               </p>
-              <p style="margin:0 0 18px;text-align:center;font-size:13px;color:#71717a;">&copy; 2026 WiseResume. All rights reserved.</p>
-              <p style="margin:0;text-align:center;font-size:13px;">
+              <p style="margin:0 0 12px 0;text-align:center;font-size:12px;color:#71717a;">&copy; 2026 WiseResume. All rights reserved.</p>
+              <p style="margin:0;text-align:center;font-size:12px;direction:ltr;">
                 <a href="mailto:contact@thewise.cloud" style="color:#8b8b94;text-decoration:none;">Support</a>
-                <span style="color:#3f3f46;margin:0 14px;">|</span>
+                <span style="color:#27272a;margin:0 10px;">|</span>
                 <a href="https://wiseresume.app/privacy-policy" style="color:#8b8b94;text-decoration:none;">Privacy</a>
-                <span style="color:#3f3f46;margin:0 14px;">|</span>
+                <span style="color:#27272a;margin:0 10px;">|</span>
                 <a href="https://wiseresume.app/terms-of-service" style="color:#8b8b94;text-decoration:none;">Terms</a>
               </p>
 
@@ -481,100 +573,87 @@ function emailShell({ metaLabel, preheader, h1, bodyCopy, ctaLabel, ctaUrl, secu
 </html>`;
 }
 
-function verificationEmail(verifyUrl, locale = 'en') {
-  if (locale === 'ar') return emailShell({
+function verificationEmail(verifyUrl, rawLocale = 'en') {
+  const locale = normalizeEmailLocale(rawLocale);
+  const isArabic = locale === 'ar';
+
+  return emailShell({
     locale,
-    metaLabel: 'تأكيد البريد الإلكتروني',
-    preheader: 'أكّد بريدك الإلكتروني لتفعيل مساحة عمل WiseResume.',
-    h1: 'أكّد بريدك الإلكتروني',
-    bodyCopy: 'أكّد بريدك الإلكتروني لتفعيل مساحة عمل WiseResume والبدء في إنشاء سيرة ذاتية احترافية.',
-    ctaLabel: 'تأكيد البريد الإلكتروني',
+    variant: 'secure',
+    eyebrow: isArabic ? 'تأكيد البريد الإلكتروني' : 'Email verification',
+    title: isArabic ? 'أكّد بريدك الإلكتروني' : 'Verify your email',
+    lead: isArabic ? 'أكّد بريدك الإلكتروني لتفعيل مساحة عمل WiseResume.' : 'Confirm your email to activate your WiseResume workspace.',
+    bodyCopy: isArabic ? 'خطوة واحدة فقط وسيصبح حسابك جاهزاً. بعد التأكيد، يمكنك إنشاء سيرتك الذاتية وتحسينها وتخصيصها للوظائف باستخدام الذكاء الاصطناعي.' : 'One quick step and your account will be ready. After verification, you can continue building, tailoring, and improving your resume with AI.',
+    ctaLabel: isArabic ? 'تأكيد البريد الإلكتروني' : 'Verify email',
     ctaUrl: verifyUrl,
-    securityNote: 'ستنتهي صلاحية هذا الرابط خلال <strong style="color:#ffffff;">24 ساعة</strong> حفاظاً على أمانك.',
+    noteTitle: isArabic ? 'تأكيد آمن' : 'Secure verification',
+    noteBody: isArabic ? 'ينتهي هذا الرابط خلال 24 ساعة. إذا لم تقم بإنشاء حساب في WiseResume، يمكنك تجاهل هذه الرسالة.' : 'This verification link expires in 24 hours. If you did not create a WiseResume account, you can ignore this message.',
+    statusLabel: isArabic ? 'آمن' : 'Secure',
     showCta: true,
-  });
-  return emailShell({
-    metaLabel:   'Email Verification',
-    preheader:   'Confirm your email to activate your WiseResume workspace.',
-    h1:          'Verify your email',
-    bodyCopy:    'Confirm your email to activate your WiseResume workspace and start building resumes tailored for modern hiring.',
-    ctaLabel:    'Verify email address',
-    ctaUrl:      verifyUrl,
-    securityNote: 'This link will expire in <strong style="color:#ffffff;">24 hours</strong> for your security.',
-    showCta:     true,
+    showBackupLink: true,
   });
 }
 
-function passwordResetEmail(resetUrl, locale = 'en') {
-  if (locale === 'ar') return emailShell({
+function passwordResetEmail(resetUrl, rawLocale = 'en') {
+  const locale = normalizeEmailLocale(rawLocale);
+  const isArabic = locale === 'ar';
+
+  return emailShell({
     locale,
-    metaLabel: 'استعادة كلمة المرور',
-    preheader: 'أعد تعيين كلمة مرور WiseResume، تنتهي صلاحية الرابط خلال ساعة.',
-    h1: 'إعادة تعيين كلمة المرور',
-    bodyCopy: 'تلقينا طلباً لإعادة تعيين كلمة مرور حسابك في WiseResume. اضغط أدناه لاختيار كلمة مرور جديدة.',
-    ctaLabel: 'إعادة تعيين كلمة المرور',
+    variant: 'secure',
+    eyebrow: isArabic ? 'استعادة كلمة المرور' : 'Password recovery',
+    title: isArabic ? 'إعادة تعيين كلمة المرور' : 'Reset your password',
+    lead: isArabic ? 'تلقينا طلباً لإعادة تعيين كلمة مرور حسابك في WiseResume.' : 'We received a request to reset the password for your WiseResume account.',
+    bodyCopy: isArabic ? 'اضغط أدناه لاختيار كلمة مرور جديدة.' : 'Click below to choose a new one.',
+    ctaLabel: isArabic ? 'إعادة تعيين كلمة المرور' : 'Reset password',
     ctaUrl: resetUrl,
-    securityNote: 'ستنتهي صلاحية هذا الرابط خلال <strong style="color:#ffffff;">ساعة واحدة</strong> ولا يمكن استخدامه إلا مرة واحدة.',
+    noteTitle: isArabic ? 'رابط مؤقت' : 'Temporary link',
+    noteBody: isArabic ? 'ستنتهي صلاحية هذا الرابط خلال ساعة واحدة ولا يمكن استخدامه إلا مرة واحدة.' : 'This link will expire in 1 hour and can only be used once.',
+    statusLabel: isArabic ? 'آمن' : 'Secure',
     showCta: true,
-  });
-  return emailShell({
-    metaLabel:   'Password Recovery',
-    preheader:   'Reset your WiseResume password — link expires in 1 hour.',
-    h1:          'Reset your password',
-    bodyCopy:    'We received a request to reset the password for your WiseResume account. Click below to choose a new one.',
-    ctaLabel:    'Reset password',
-    ctaUrl:      resetUrl,
-    securityNote: 'This link will expire in <strong style="color:#ffffff;">1 hour</strong> and can only be used once.',
-    showCta:     true,
+    showBackupLink: true,
   });
 }
 
-function passwordChangedEmail(name, locale = 'en') {
-  const safeName = name || 'there';
-  if (locale === 'ar') return emailShell({
+function passwordChangedEmail(name, rawLocale = 'en') {
+  const locale = normalizeEmailLocale(rawLocale);
+  const isArabic = locale === 'ar';
+  const firstName = name || (isArabic ? 'عزيزي' : 'there');
+
+  return emailShell({
     locale,
-    metaLabel: 'تنبيه أمني',
-    preheader: 'تم تغيير كلمة مرور WiseResume للتو.',
-    h1: 'تم تغيير كلمة المرور',
-    bodyCopy: `مرحباً ${safeName}، نؤكد لك أنه تم تغيير كلمة مرور حسابك في WiseResume.`,
-    securityNote: 'إذا أجريت هذا التغيير، فلا يلزم اتخاذ أي إجراء إضافي.',
-    disclaimer: 'إذا لم تُجرِ هذا التغيير، فأعد تعيين كلمة مرورك فوراً وتواصل مع contact@thewise.cloud.',
+    variant: 'security',
+    eyebrow: isArabic ? 'تنبيه أمني' : 'Security alert',
+    title: isArabic ? 'تم تغيير كلمة المرور' : 'Password changed',
+    lead: isArabic ? 'تم تغيير كلمة مرور WiseResume بنجاح.' : 'Your WiseResume password was changed successfully.',
+    bodyCopy: isArabic ? `مرحباً ${firstName}، هذه رسالة تأكيد بأن كلمة مرور حسابك تم تحديثها للتو.` : `Hi ${firstName}, this is a confirmation that your account password has just been updated.`,
+    noteTitle: isArabic ? 'هل قمت بهذا التغيير؟' : 'Was this you?',
+    noteBody: isArabic ? 'إذا كنت أنت من أجريت هذا التغيير، فلا يلزم اتخاذ أي إجراء إضافي. إذا لم تكن أنت، فأعد تعيين كلمة مرورك فوراً وتواصل مع contact@thewise.cloud.' : 'No action is needed if you made this change. If you did not, reset your password immediately and contact contact@thewise.cloud.',
+    statusLabel: isArabic ? 'أمان' : 'Security',
     showCta: false,
   });
-  return emailShell({
-    metaLabel:    'Security Alert',
-    preheader:    'Your WiseResume password was just changed.',
-    h1:           'Password changed',
-    bodyCopy:     `Hi ${safeName}, this is a confirmation that the password for your WiseResume account was just changed.`,
-    securityNote: 'If this was you, no further action is needed — you can sign in with your new password.',
-    disclaimer:   'If you did <strong style="color:#ffffff;">not</strong> make this change, reset your password immediately and contact <a href="mailto:contact@thewise.cloud" style="color:#ef4444;">contact@thewise.cloud</a>.',
-    showCta:      false,
-  });
 }
 
-function welcomeEmail(name, dashboardUrl, locale = 'en') {
-  const safeUrl = dashboardUrl || `${FRONTEND_URL}/dashboard`;
-  const safeName = name || 'there';
-  if (locale === 'ar') return emailShell({
-    locale,
-    metaLabel: 'مرحباً بك',
-    preheader: `مرحباً بك في WiseResume، ${safeName}!`,
-    h1: `مرحباً، ${safeName}!`,
-    bodyCopy: 'حسابك في WiseResume مفعّل وجاهز. ابدأ الآن في إنشاء سيرة ذاتية احترافية بمساعدة الذكاء الاصطناعي.',
-    ctaLabel: 'الانتقال إلى لوحة التحكم',
-    ctaUrl: safeUrl,
-    securityNote: 'وصلتك هذه الرسالة لأنك أكدت حسابك في WiseResume للتو.',
-    showCta: true,
-  });
+function welcomeEmail(name, dashboardUrl, rawLocale = 'en') {
+  const locale = normalizeEmailLocale(rawLocale);
+  const isArabic = locale === 'ar';
+  const firstName = name || (isArabic ? 'عزيزي' : 'there');
+  const targetUrl = dashboardUrl || `${FRONTEND_URL}${isArabic ? '/ar' : ''}/dashboard`;
+
   return emailShell({
-    metaLabel:    'Welcome',
-    preheader:    `Welcome to WiseResume, ${safeName}! Your AI-powered resume builder is ready.`,
-    h1:           `Welcome, ${safeName}!`,
-    bodyCopy:     `Your WiseResume account is active and ready to go. Build AI-powered resumes tailored for modern hiring — <strong style="color:#ffffff;">smarter, faster, and built to impress</strong>.`,
-    ctaLabel:     'Go to my dashboard',
-    ctaUrl:       safeUrl,
-    securityNote: 'You received this because you just verified your WiseResume account.',
-    showCta:      true,
+    locale,
+    variant: 'ready',
+    eyebrow: isArabic ? 'مساحة العمل جاهزة' : 'Workspace ready',
+    title: isArabic ? `مرحباً، ${firstName}` : `Welcome, ${firstName}`,
+    lead: isArabic ? 'حسابك في WiseResume مفعّل وجاهز.' : 'Your WiseResume account is active and ready to go.',
+    bodyCopy: isArabic ? 'ابدأ من لوحة التحكم لرفع سيرتك الذاتية، تحسين الأقسام الضعيفة، تخصيص ملفك للوظائف، ومتابعة تقدمك بإرشاد الذكاء الاصطناعي.' : 'Start from your dashboard to upload your resume, improve weak sections, tailor your profile to jobs, and track your progress with AI guidance.',
+    ctaLabel: isArabic ? 'فتح لوحة التحكم' : 'Open dashboard',
+    ctaUrl: targetUrl,
+    noteTitle: isArabic ? 'الخطوة الأولى المقترحة' : 'Recommended first step',
+    noteBody: isArabic ? 'ارفع أحدث نسخة من سيرتك الذاتية أولاً حتى يتمكن WiseResume من تحليل درجة ATS واقتراح أفضل خطوة تالية.' : 'Upload your latest resume first so WiseResume can analyze your current ATS score and suggest the next best action.',
+    statusLabel: isArabic ? 'جاهز' : 'Ready',
+    showCta: true,
+    showBackupLink: false,
   });
 }
 
@@ -821,6 +900,7 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
     return json(res, { error: 'Unauthorized' }, 401);
   }
 
+  const locale = normalizeEmailLocale(body?.locale);
   const targetUserId = (body?.target_user_id || '').trim();
   if (!targetUserId) {
     return json(res, { error: 'target_user_id is required' }, 400);
@@ -843,7 +923,7 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
       return json(res, { error: 'User has no email address' }, 400);
     }
 
-    const redirectUrl = `${FRONTEND_URL}/auth/verify-email`;
+    const redirectUrl = `${FRONTEND_URL}${locale === 'ar' ? '/ar' : ''}/auth/verify-email`;
     const jwtDoc = await new sdk.Users(adminClient).createJWT(targetUserId);
     const adminUserJwt = jwtDoc?.jwt || jwtDoc;
 
@@ -858,10 +938,10 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
       const verifyUrl = buildVerificationUrl(redirectUrl, token.userId, token.secret);
       await resendSend({
         to: user.email,
-        subject: 'Verify your WiseResume email address',
-        html: verificationEmail(verifyUrl),
+        subject: locale === 'ar' ? 'تأكيد بريدك الإلكتروني في WiseResume' : 'Verify your WiseResume email address',
+        html: verificationEmail(verifyUrl, locale),
       });
-      log(`send-admin-verification: Resend email sent to ${user.email}`);
+      log(`send-admin-verification: Resend email sent to ${user.email} (locale=${locale})`);
       return json(res, { success: true, email: user.email, delivery: 'resend' });
     }
 
@@ -889,34 +969,34 @@ async function handleSendTest({ req, res, log, error, body }) {
   const name       = (body?.name       || 'Tester').trim();
   const fromEmail  = (body?.from_email || '').trim() || null;
   const fromName   = (body?.from_name  || '').trim() || null;
+  const locale     = normalizeEmailLocale(body?.locale);
 
   if (!to || !to.includes('@')) {
     return json(res, { error: 'Valid recipient email (to) is required' }, 400);
   }
 
-  const testVerifyUrl = `${FRONTEND_URL}/auth/verify-email?userId=test&secret=TEST_TOKEN_PREVIEW`;
-  const testResetUrl  = `${FRONTEND_URL}/auth/reset-password?userId=test&secret=TEST_TOKEN_PREVIEW`;
+  const testVerifyUrl = `${FRONTEND_URL}${locale === 'ar' ? '/ar' : ''}/auth/verify-email?userId=test&secret=TEST_TOKEN_PREVIEW`;
 
   let html, subject;
   switch (template) {
     case 'verification':
-      html    = verificationEmail(testVerifyUrl);
-      subject = '[TEST] Verify your WiseResume email address';
+      html    = verificationEmail(testVerifyUrl, locale);
+      subject = locale === 'ar' ? '[TEST] تأكيد بريدك الإلكتروني في WiseResume' : '[TEST] Verify your WiseResume email address';
       break;
     case 'password-reset':
-      html    = passwordResetEmail(testResetUrl);
-      subject = '[TEST] Reset your WiseResume password';
+      html    = passwordResetOtpEmail('482913', locale);
+      subject = locale === 'ar' ? '[TEST] رمز التحقق لإعادة تعيين كلمة المرور' : '[TEST] Password Reset Verification Code';
       break;
     case 'welcome':
     default:
-      html    = welcomeEmail(name);
-      subject = '[TEST] Welcome to WiseResume';
+      html    = welcomeEmail(name, undefined, locale);
+      subject = locale === 'ar' ? '[TEST] مرحباً بك في WiseResume' : '[TEST] Welcome to WiseResume — Your AI Resume Builder';
       break;
   }
 
   try {
     const result = await resendSend({ to, subject, html, fromEmail, fromName });
-    log(`Test email (${template}) sent to ${to} from ${fromEmail || 'default'}`);
+    log(`Test email (${template}, locale=${locale}) sent to ${to} from ${fromEmail || 'default'}`);
     return json(res, { success: true, message_id: result?.id });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -938,135 +1018,29 @@ function getOtpSecret() {
   return secret;
 }
 
-function passwordResetOtpEmail(otpCode, locale = 'en') {
+function passwordResetOtpEmail(otpCode, rawLocale = 'en') {
+  const locale = normalizeEmailLocale(rawLocale);
   const isArabic = locale === 'ar';
-  const h1 = isArabic ? 'رمز التحقق لإعادة تعيين كلمة المرور' : 'Reset Verification Code';
-  const metaLabel = isArabic ? 'استعادة الحساب' : 'Account Recovery';
-  const preheader = isArabic 
-    ? `رمز التحقق الخاص بك هو ${otpCode}. ينتهي الرمز خلال 15 دقيقة.` 
-    : `Your verification code is ${otpCode}. Expires in 15 minutes.`;
-  const bodyCopy = isArabic 
-    ? 'تلقينا طلباً لإعادة تعيين كلمة مرور حسابك في WiseResume. استخدم رمز التحقق التالي لإكمال العملية:' 
-    : 'We received a request to reset the password for your WiseResume account. Use the following verification code to complete the process:';
-  const securityNote = isArabic 
-    ? 'يرجى نسخ هذا الرمز ولصقه في صفحة إعادة تعيين كلمة المرور. الرمز صالح لمدة <strong>15 دقيقة</strong> ويمكن استخدامه لمرة واحدة فقط.' 
-    : 'Please copy this code and enter it back in the reset password section. This code is valid for <strong>15 minutes</strong> and can only be used once.';
 
-  const ctaSection = `
-              <!-- OTP Display Box -->
-              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 24px auto;">
-                <tr>
-                  <td align="center" bgcolor="#1f1f24" style="border: 1px solid #2f2f37; border-radius: 14px; padding: 20px 40px; box-shadow: 0 8px 16px rgba(0,0,0,0.4);">
-                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; color: #ef4444; letter-spacing: 6px; user-select: all;">${otpCode}</span>
-                  </td>
-                </tr>
-              </table>
-              <div align="center" style="margin-bottom: 34px;">
-                <!-- Visual Copy Label -->
-                <span style="display: inline-block; padding: 10px 20px; background-color: #9E1B22; border-radius: 8px; color: #ffffff; font-size: 14px; font-weight: 700; user-select: none;">Copy this code</span>
-                <p style="font-size: 12px; color: #71717a; margin-top: 8px; margin-bottom: 0;">Double-click or long-press the code above to copy it.</p>
-              </div>
-  `;
-
-  const safeDisclaimer = isArabic
-    ? 'إذا لم تطلب هذا الإجراء، يمكنك تجاهل هذه الرسالة بأمان.'
-    : "If you didn't request this, you can safely ignore this email.";
-
-  return `<!DOCTYPE html>
-<html lang="${isArabic ? 'ar' : 'en'}" dir="${isArabic ? 'rtl' : 'ltr'}">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>${h1} - WiseResume</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-</head>
-<body style="margin:0;padding:0;background:#09090b;font-family:${isArabic ? "'Noto Sans Arabic',Tahoma,Arial" : "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial"},sans-serif;color:#ffffff;direction:${isArabic ? 'rtl' : 'ltr'};">
-
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#09090b;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
-
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#09090b">
-    <tr>
-      <td align="center" style="padding:48px 16px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#141416"
-               style="max-width:620px;width:100%;background:linear-gradient(180deg,#141416 0%,#0d0d10 100%);border:1px solid rgba(158,27,34,0.35);border-radius:28px;">
-          <tr>
-            <td style="padding:34px 34px 42px;">
-
-              <!-- Meta row -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:34px;">
-                <tr>
-                  <td style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#a1a1aa;">${metaLabel}</td>
-                  <td align="right" style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#a1a1aa;">
-                    <span style="display:inline-block;width:7px;height:7px;background-color:#ef4444;border-radius:999px;vertical-align:middle;margin-right:8px;"></span>${isArabic ? 'آمن' : 'Secure'}
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Divider -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:42px;">
-                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
-              </table>
-
-              <!-- Logo -->
-              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 18px auto;">
-                <tr>
-                  <td align="center" width="72" style="width:72px;background-color:#121216;border:1px solid rgba(239,68,68,0.45);border-radius:18px;padding:17px;">
-                    <img src="https://wiseresume.app/email-logo.png" width="38" height="38" alt="WiseResume" style="display:block;border:0;width:38px;height:38px;">
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Brand -->
-              <p style="margin:0 0 30px;text-align:center;font-size:25px;letter-spacing:-0.03em;color:#ffffff;">
-                Wise<span style="color:#ef4444;">Resume</span>
-              </p>
-
-              <!-- Heading -->
-              <h1 style="margin:0 0 18px;text-align:center;font-size:42px;line-height:1.08;font-weight:800;letter-spacing:-0.045em;color:#ffffff;">${h1}</h1>
-
-              <!-- Body copy -->
-              <p style="margin:0 auto 38px;max-width:470px;text-align:center;font-size:17px;line-height:1.65;color:#d4d4d8;">${bodyCopy}</p>
-
-              ${ctaSection}
-
-              <!-- Security notice -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                     style="background-color:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:18px;margin-bottom:34px;">
-                <tr>
-                  <td style="padding:20px 24px;">
-                    <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#d4d4d8;">${securityNote}</p>
-                    <p style="margin:0;font-size:14px;line-height:1.6;color:#8b8b94;">
-                      ${safeDisclaimer}
-                    </p>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Divider -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
-                <tr><td style="height:1px;font-size:0;line-height:0;background-color:rgba(255,255,255,0.08);">&nbsp;</td></tr>
-              </table>
-
-              <!-- Footer -->
-              <p style="margin:0 0 20px;text-align:center;font-size:15px;color:#a1a1aa;">
-                Build <span style="color:#ef4444;">smarter</span>. Get hired <span style="color:#ef4444;">faster</span>.
-              </p>
-              <p style="margin:0 0 18px;text-align:center;font-size:13px;color:#71717a;">&copy; 2026 WiseResume. All rights reserved.</p>
-
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-
-</body>
-</html>`;
+  return emailShell({
+    locale,
+    variant: 'secure',
+    eyebrow: isArabic ? 'استعادة الحساب' : 'Account recovery',
+    title: isArabic ? 'رمز استعادة الحساب' : 'Your reset code',
+    lead: isArabic ? 'استخدم هذا الرمز لمرة واحدة لإعادة تعيين كلمة مرور WiseResume.' : 'Use this one-time code to reset your WiseResume password.',
+    bodyCopy: isArabic ? 'تلقينا طلباً لإعادة تعيين كلمة مرور حسابك في WiseResume. أدخل الرمز التالي في صفحة الاستعادة للمتابعة.' : 'We received a password reset request for your WiseResume account. Enter the code below in the reset screen to continue.',
+    otpCode,
+    otpLabel: isArabic ? 'رمز التحقق' : 'Verification code',
+    noteTitle: isArabic ? 'ينتهي خلال 15 دقيقة' : 'Expires in 15 minutes',
+    noteBody: isArabic ? 'هذا الرمز صالح لمرة واحدة فقط. لا تشاركه مع أي شخص، حتى دعم WiseResume.' : 'This code can only be used once. Never share it with anyone, including WiseResume support.',
+    statusLabel: isArabic ? 'آمن' : 'Secure',
+    footerHint: isArabic ? 'WiseResume — مساحة عمل ذكية لسيرتك المهنية.' : 'WiseResume — your AI career workspace.',
+    showCta: false,
+  });
 }
 
 async function handleSendPasswordResetOtp({ req, res, log, error, body, adminAudit = null }) {
-  const locale = body?.locale === 'ar' ? 'ar' : 'en';
+  const locale = normalizeEmailLocale(body?.locale);
   const email = (body?.email || '').trim().toLowerCase();
   const clientIp = headerValue(req, body, ['x-forwarded-for', 'x-real-ip', 'client-ip']) || '127.0.0.1';
   const userAgent = (headerValue(req, body, ['user-agent']) || '').slice(0, 512);
@@ -1333,6 +1307,7 @@ async function handleVerifyPasswordResetOtp({ req, res, log, error, body }) {
 }
 
 async function handleCompletePasswordReset({ res, log, error, body }) {
+  const locale = normalizeEmailLocale(body?.locale);
   const email = (body?.email || '').trim().toLowerCase();
   const challengeToken = (body?.challengeToken || '').trim();
   const password = body?.password;
@@ -1409,8 +1384,8 @@ async function handleCompletePasswordReset({ res, log, error, body }) {
     try {
       await resendSend({
         to: email,
-        subject: body?.locale === 'ar' ? 'تم تغيير كلمة المرور' : 'Password changed',
-        html: passwordChangedEmail(appwriteUser.name, body?.locale),
+        subject: locale === 'ar' ? 'تم تغيير كلمة مرور WiseResume' : 'Your WiseResume password was changed',
+        html: passwordChangedEmail(appwriteUser.name, locale),
       });
     } catch (emailErr) {
       error(`Failed to send password-changed email to ${email}: ${emailErr.message}`);

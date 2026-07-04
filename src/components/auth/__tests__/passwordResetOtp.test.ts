@@ -62,7 +62,7 @@ mainJsContent = mainJsContent.replace(
 
 // Evaluate code by wrapping it in an IIFE/eval function
 const cjsRequire = createRequire(import.meta.url);
-new Function('require', mainJsContent)(cjsRequire);
+new Function('require', 'module', 'exports', mainJsContent)(cjsRequire, { exports: {} }, {});
 
 const handler = (globalThis as any).tempHandler;
 
@@ -321,5 +321,62 @@ describe('OTP Password Reset Backend Actions', () => {
     const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
     expect(res.status).toBe(400);
     expect(res.data.error).toContain('Link-based password reset is disabled');
+  });
+
+  it('sends OTP password reset email with correct Arabic locale attributes when locale="ar"', async () => {
+    mockListDocuments.mockResolvedValueOnce({ total: 0, documents: [] }); // cooldown check
+    mockListUsers.mockResolvedValueOnce({ total: 1, users: [{ $id: 'user-123', email: 'arabic@example.com' }] }); // user check
+    mockListDocuments.mockResolvedValueOnce({ total: 0, documents: [] }); // active otps check
+
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'send-password-reset-otp',
+        email: 'arabic@example.com',
+        locale: 'ar',
+      },
+    };
+
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    expect(res.data.success).toBe(true);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.resend.com/emails',
+      expect.objectContaining({
+        body: expect.stringMatching(/"subject":"رمز التحقق لإعادة تعيين كلمة المرور"/),
+      })
+    );
+
+    const callArgs = mockFetch.mock.calls[0][1];
+    const parsedBody = JSON.parse(callArgs.body);
+    expect(parsedBody.html).toContain('lang="ar"');
+    expect(parsedBody.html).toContain('dir="rtl"');
+    expect(parsedBody.html).toContain('WiseResume');
+  });
+
+  it('sends send-test password-reset preview using passwordResetOtpEmail preview code', async () => {
+    process.env.DEVKIT_PASSWORD = 'test-devkit-pass';
+    const req = {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-devkit-pass',
+      },
+      body: {
+        action: 'send-test',
+        to: 'preview@example.com',
+        template: 'password-reset',
+        locale: 'ar',
+      },
+    };
+
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    expect(res.data.success).toBe(true);
+
+    const callArgs = mockFetch.mock.calls[0][1];
+    const parsedBody = JSON.parse(callArgs.body);
+    expect(parsedBody.subject).toBe('[TEST] رمز التحقق لإعادة تعيين كلمة المرور');
+    expect(parsedBody.html).toContain('482913');
+    expect(parsedBody.html).toContain('lang="ar"');
+    expect(parsedBody.html).toContain('dir="rtl"');
   });
 });

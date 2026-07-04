@@ -38,16 +38,17 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit Admin Password Reset cross-function HMAC architecture deployed (`workflow 28688040101`) and live verified in production.
-* **Current State**: Deployed target `admin-devkit-data,email-service` using official GitHub Actions workflow run `28688040101` on commit `ea713958`. Live execution verified that `UserDetailDrawer` -> `admin-devkit-data` -> `email-service` delivers OTP emails, writes `admin_audit_logs` entries, fails direct caller attempts with HTTP 401, and exposes zero secrets.
-* **Last Completed Task**: Configured `EMAIL_SERVICE_INTERNAL_HMAC_SECRET` on both functions, deployed target `admin-devkit-data,email-service` via workflow run `28688040101`, verified deployed source hash synchronization (`check-hub-drift.cjs` shows IN SYNC for both functions), ran live end-to-end SDK execution verification, and updated Project Atlas documentation.
+* **Current Active Focus**: Redesigned Localized Transactional Email System implemented locally and fully verified across email-service, frontend callers, DevKit panels, and unit test suite.
+* **Current State**: All 4 transactional email templates (`verification`, `password-reset` OTP, `password-changed`, `welcome`) redesigned to premium dark canvas with crimson accents and high-DPI logo header. Full `ar` / `en` locale routing implemented with `<html lang="..." dir="...">`, font fallbacks (`Noto Sans Arabic` vs `Inter`), and localized subjects/body copy.
+* **Last Completed Task**: Completed implementation of redesigned localized transactional email templates in `appwrite-hubs/email-service/src/main.js`, updated frontend callers (`AccountSection.tsx`, `UserDetailDrawer.tsx`, `AdminUsersPanel.tsx`, `DevKitRunner.tsx`, `EmailTransactionalStudioPanel.tsx`), added locale Vitest test cases in `passwordResetOtp.test.ts`, verified syntax (`node --check`), run full unit test suite (16 tests passed), and ran TypeScript typecheck (`npx tsc --noEmit`).
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
-2. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
+1. **Targeted Appwrite Deployment (`email-service`)**: Upon owner approval, deploy target `email-service` using the official `Deploy Appwrite Hubs` workflow. Do NOT use `target=all`.
+2. **AI Gateway Production Verification**: Verify Appwrite `ai-gateway` serverless function execution and response handling in production (`wiseresume.app`).
+3. **DevKit Visitor Analytics Monitoring**: Audit Cairo-day boundary aggregation in `admin-visitor-analytics`.
 
 ---
 
