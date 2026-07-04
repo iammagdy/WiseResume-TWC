@@ -26,6 +26,7 @@ Code-adjacent `README.md` files located within `appwrite-hubs/*/` serve as short
 | **`admin-onboarding-funnel`** | `appwrite-hubs/admin-onboarding-funnel/` | Onboarding metrics tracking and funnel analytics. | Admin key required. |
 | **`admin-portfolio-usernames`** | `appwrite-hubs/admin-portfolio-usernames/` | Custom portfolio username availability checks and reservation rules. | Auth-gated & server-side validation. |
 | **`admin-visitor-analytics`** | `appwrite-hubs/admin-visitor-analytics/` | Visitor tracking aggregation, geo-IP resolution, and analytics dashboard feed. | Admin key required. |
+| **`inspect-ai-keys`** | `appwrite-hubs/inspect-ai-keys/` | DevKit AI provider key inspection, slot model override management, and real completion test pings (`test-ai-key-slot`, `test-ai-provider`, `test-all-ai-keys`). | Admin key / DevKit signed session token required. |
 
 ---
 
