@@ -41,19 +41,31 @@ async function collectionExists(collId) {
 
 async function attributeExists(collId, key) {
   try {
-    const attrs = await databases.listAttributes(DB_ID, collId);
-    return attrs.attributes.some(attr => attr.key === key);
-  } catch {
-    return false;
+    await databases.getAttribute(DB_ID, collId, key);
+    return true;
+  } catch (e) {
+    if (e.code === 404) return false;
+    try {
+      const attrs = await databases.listAttributes(DB_ID, collId, [sdk.Query.limit(100)]);
+      return attrs.attributes.some(attr => attr.key === key);
+    } catch {
+      return false;
+    }
   }
 }
 
 async function indexExists(collId, key) {
   try {
-    const indexes = await databases.listIndexes(DB_ID, collId);
-    return indexes.indexes.some(idx => idx.key === key);
-  } catch {
-    return false;
+    await databases.getIndex(DB_ID, collId, key);
+    return true;
+  } catch (e) {
+    if (e.code === 404) return false;
+    try {
+      const indexes = await databases.listIndexes(DB_ID, collId, [sdk.Query.limit(100)]);
+      return indexes.indexes.some(idx => idx.key === key);
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -62,8 +74,16 @@ async function ensureStringAttr(collId, key, size, required, defaultValue) {
     console.log(`  ✓ attribute "${key}" exists`);
     return;
   }
-  await databases.createStringAttribute(DB_ID, collId, key, size, required, defaultValue ?? undefined);
-  console.log(`  ✓ created string attribute "${key}"`);
+  try {
+    await databases.createStringAttribute(DB_ID, collId, key, size, required, defaultValue ?? undefined);
+    console.log(`  ✓ created string attribute "${key}"`);
+  } catch (e) {
+    if (e.message?.includes('already exists')) {
+      console.log(`  ✓ attribute "${key}" exists`);
+    } else {
+      throw e;
+    }
+  }
 }
 
 async function ensureIntegerAttr(collId, key, required, min, max, defaultValue) {
@@ -71,8 +91,16 @@ async function ensureIntegerAttr(collId, key, required, min, max, defaultValue) 
     console.log(`  ✓ attribute "${key}" exists`);
     return;
   }
-  await databases.createIntegerAttribute(DB_ID, collId, key, required, min ?? undefined, max ?? undefined, defaultValue ?? undefined);
-  console.log(`  ✓ created integer attribute "${key}"`);
+  try {
+    await databases.createIntegerAttribute(DB_ID, collId, key, required, min ?? undefined, max ?? undefined, defaultValue ?? undefined);
+    console.log(`  ✓ created integer attribute "${key}"`);
+  } catch (e) {
+    if (e.message?.includes('already exists')) {
+      console.log(`  ✓ attribute "${key}" exists`);
+    } else {
+      throw e;
+    }
+  }
 }
 
 async function ensureStringArrayAttr(collId, key, size, required) {
@@ -80,8 +108,16 @@ async function ensureStringArrayAttr(collId, key, size, required) {
     console.log(`  ✓ attribute "${key}" (array) exists`);
     return;
   }
-  await databases.createStringAttribute(DB_ID, collId, key, size, required, undefined, true);
-  console.log(`  ✓ created string array attribute "${key}"`);
+  try {
+    await databases.createStringAttribute(DB_ID, collId, key, size, required, undefined, true);
+    console.log(`  ✓ created string array attribute "${key}"`);
+  } catch (e) {
+    if (e.message?.includes('already exists')) {
+      console.log(`  ✓ attribute "${key}" (array) exists`);
+    } else {
+      throw e;
+    }
+  }
 }
 
 async function ensureIndex(collId, key, type, attributes, orders) {
@@ -93,7 +129,11 @@ async function ensureIndex(collId, key, type, attributes, orders) {
     await databases.createIndex(DB_ID, collId, key, type, attributes, orders);
     console.log(`  ✓ created index "${key}"`);
   } catch (e) {
-    console.warn(`  ⚠ index "${key}" skipped — ${e.message}`);
+    if (e.message?.includes('already exists')) {
+      console.log(`  ✓ index "${key}" exists`);
+    } else {
+      console.warn(`  ⚠ index "${key}" skipped — ${e.message}`);
+    }
   }
 }
 
