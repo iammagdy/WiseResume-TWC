@@ -240,3 +240,11 @@ jobs:
           else
             node scripts/deploy_hubs.cjs --only="${HUB_TARGET}"
           fi
+
+      - name: Trigger remote job feed sync
+        if: ${{ contains(github.event.inputs.target, 'job-feed-sync') }}
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/trigger-sync.cjs
