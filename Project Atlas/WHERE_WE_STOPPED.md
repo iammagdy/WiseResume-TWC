@@ -23,19 +23,19 @@
 
 ## 2. Latest Important Commits
 
+* **`5d5ac0db`** — `feat(auth): sync LinkedIn profile and handle conflict UX`
+* **`a496916f`** — `feat(auth): add LinkedIn SSO button`
 * **`108e5ac4`** — `fix(security): production stabilization hardening pass` (merged PR #139)
 * **`dc8f9d0d`** — `docs(atlas): update session closeout and handover state`
 * **`a74f6011`** — `feat(devkit): add AI key and model tester`
-* **`a42e2b3e`** — `fix(core): resolve useLocale, Appwrite SecurityError, and React hook resilience`
-* **`37b4555e`** — `docs(atlas): document devkit2 phase 3b step 1 closeout`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Adding LinkedIn SSO Authentication Button to frontend login UI.
-* **Current State**: LinkedIn SSO login button successfully added to `AuthBold.tsx`, wired in `AuthPage.tsx` using the Appwrite client SDK OAuth session flow, and localized in both English and Arabic. Focused Vitest tests passed (all 15 tests passed), and code type-checking and production bundler build completed successfully. LinkedIn OAuth browser login flow is `PENDING_OWNER_VERIFICATION`.
-* **Last Completed Task**: Frontend implementation, styling, localization, test updates, and validation of the LinkedIn SSO button.
+* **Current Active Focus**: LinkedIn SSO implementation and stabilization is complete.
+* **Current State**: LinkedIn SSO login button successfully added, localized, and tested. Auto-sync of user name/email into the profile document is implemented (with display_name schema constraints handled gracefully), duplicate email conflict UX mapping added, and profile completion hint interpolation bug fixed.
+* **Last Completed Task**: Profile sync, fallback display names, and OAuth conflict error mapping UX implementation, accompanied by 3 new unit test suites (all 25 tests passing, zero compilation or build errors).
 
 ---
 

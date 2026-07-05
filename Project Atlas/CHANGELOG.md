@@ -1,5 +1,25 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 — LinkedIn SSO Profile Sync & Existing Email OAuth UX Fix
+
+- **Existing-Email Conflict UX**:
+  - Safely parses raw `error` parameters (simple text or URL-encoded JSON) on `AuthPage`.
+  - Maps duplicate account conflicts to user-friendly messages in English and Arabic.
+  - Clears `error` query parameter and replaces routing history using React Router's `location.pathname` to keep address bar clean.
+- **Session & Profile Seeding**:
+  - `AuthCallbackPage` now calls `refreshSession()` and automatically seeds profile `full_name` and `display_name` via `upsertProfileIdentity` on success.
+  - Gracefully recovers in `profileSeed.ts` if Appwrite schema rejects `display_name` writes (retrying with `full_name` only).
+  - Syncs missing profiles or missing names in the background inside `useProfile`'s auto-sync effect.
+- **Display Fallbacks & Hints**:
+  - Derived an `effectiveProfile` object on the Profile page that falls back to `user.name` to avoid 0% completion during initial sync.
+  - Resolved `{{hint}}` rendering bug by mapping missing field keys to translated values in English and Arabic `app.json` locale files.
+  - Form states in `EditProfileSheet` fall back to `user.name`, track dirty inputs, and prevent auto-save or overwrites during background query updates.
+- **Validation**:
+  - Created 3 new unit test files (`AuthPage.test.tsx`, `AuthCallbackPage.test.tsx`, `ProfilePage.test.tsx`). All 25 test cases passed.
+  - TypeScript checking (`npx tsc --noEmit`) and Vite production bundler (`npm run build`) passed with zero errors.
+- **Appwrite Deploy**:
+  - Not required (frontend-only changes).
+
 ## 2026-07-05 — Add LinkedIn SSO Authentication Button Only
 
 - **Frontend UI Changes**:
