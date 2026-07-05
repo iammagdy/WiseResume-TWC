@@ -1,6 +1,32 @@
 # Project Atlas Master Changelog
 
-## 2026-07-05 — Remote Jobs Feed MVP (`/jobs`)
+## 2026-07-05 — Remote Jobs Feed Expansion & Enhancement (`/jobs`)
+
+- **Classification**: COMPLETED & VERIFIED IN PRODUCTION
+- **Feature**: Expanded hidden Remote Jobs Feed MVP page (`/jobs` / `https://wiseresume.app/jobs`) into a broad remote work feed for non-technical and technical roles alike.
+- **Approved Job Sources (5 Sources)**:
+  1. Remotive API (`https://remotive.com/api/remote-jobs`)
+  2. 9 Official We Work Remotely RSS category feeds (Customer Support, Sales & Marketing, Product, Management & Finance, Full-Stack, Back-End, Front-End, DevOps, and Main Feed)
+  3. Jobicy API (`https://jobicy.com/api/v2/remote-jobs?count=100`)
+  4. Remote OK API (`https://remoteok.com/api`) with required text attribution `Remote OK`
+  5. Arbeitnow API (`https://www.arbeitnow.com/api/job-board-api`) filtered by `remote === true`
+- **Data Model & Schema Extensions**:
+  - `scripts/setup_remote_jobs_feed_schema.cjs`: Extended `job_feed_items` collection with attributes `role_group`, `salary_period`, `salary_display`, `salary_amount_min`, `salary_amount_max`, and index `role_group_idx`.
+- **Role Group Classifier & Filtering**:
+  - Implemented 16 normalized Role Groups: `easy_entry_level`, `customer_support`, `data_entry`, `virtual_assistant`, `admin`, `sales`, `marketing`, `writing`, `design`, `operations`, `hr_recruiting`, `finance`, `education`, `healthcare`, `tech_programming`, `other`.
+  - Added horizontal scrollable Role Group filter pills with live job count badges in `RemoteJobsPage.tsx`.
+- **Salary & Freshness UI**:
+  - Added Salary / Rate parser engine formatting hourly (`$20/hour`), monthly (`$3,000/month`), yearly (`$80k/year`), and fallback (`Salary not listed`) badges on job cards.
+  - Added Top Freshness & Source attribution banner (`Last updated <time>` • `New jobs are synced daily` • `Sources: Remotive, WWR, Jobicy, Remote OK, Arbeitnow`).
+- **Deployment & Ingestion**:
+  - Deployed targeted Appwrite functions (`job-feed-sync`, `get-remote-jobs`, `track-job-action`) via GitHub Actions workflow run `28756617401`.
+  - Automated sync execution during workflow dispatch to ingest jobs and backfill `role_group` and `salary_display` on existing documents.
+- **Validation**:
+  - `npx tsc --noEmit` — 0 type errors.
+  - `npm run test -- src/lib/__tests__/remoteJobsNormalizer.test.ts src/pages/__tests__/RemoteJobsPage.test.tsx` — 19/19 tests PASSED.
+  - `npm run build` — Successful production build (`dist/assets/RemoteJobsPage-BrwwSmLv.js`).
+
+---
 
 - **Classification**: COMPLETED & VERIFIED IN PRODUCTION
 - **Feature**: Added hidden MVP Remote Jobs Feed page available via direct URL at `/jobs` (`https://wiseresume.app/jobs`).

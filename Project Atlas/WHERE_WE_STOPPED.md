@@ -23,49 +23,43 @@
 
 ## 2. Latest Important Commits
 
-* **`bbb3830a`** — `fix(schema): update permissions and throttle job-feed-sync` ← **LAST**
-* **`033d44d4`** — `fix(hubs): sanitize job payload properties in job-feed-sync`
-* **`fed6c3ed`** — `fix(hubs): register job feed hubs in appwrite.json`
+* **`b3665df2`** — `feat(jobs): add automatic trigger for job-feed-sync in deployment workflow` ← **LAST**
+* **`24989886`** — `fix(schema): handle attribute pagination and existing attribute errors`
+* **`3fb975a4`** — `feat(jobs): expand remote jobs feed with RemoteOK, Arbeitnow, role groups, and salary parsing`
+* **`bbb3830a`** — `fix(schema): update permissions and throttle job-feed-sync`
 * **`8cedd294`** — `feat(jobs): add hidden remote jobs feed MVP`
-* **`ee136d35`** — `fix(i18n): add missing top bar notification label`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED & VERIFIED IN PRODUCTION — Remote Jobs Feed MVP deployed and initial feed ingested.
-* **Last Session**: Remote Jobs Feed MVP (`/jobs`).
-* **Current State**: `/jobs` hidden MVP page fully deployed to production (`https://wiseresume.app/jobs`). Appwrite schema collections (`job_feed_items`, `user_job_actions`, `job_feed_sync_runs`) and targeted function hubs (`job-feed-sync`, `get-remote-jobs`, `track-job-action`) deployed via GitHub Actions workflow run `28755483329`. Initial feed ingested successfully with 229 remote jobs stored in `job_feed_items` and verified via sync log.
-* **Last Completed Task**: Deployed hidden `/jobs` MVP feature with Appwrite backend, ran initial sync (229 jobs ingested), verified schema permissions, deduplication, inline application tracking, and pre-filled Tailoring Hub routing.
+* **Session Status**: COMPLETED & VERIFIED IN PRODUCTION — Remote Jobs Feed Expansion & Enhancement deployed and verified.
+* **Last Session**: Expanded Remote Jobs Feed MVP (`/jobs`).
+* **Current State**: `/jobs` hidden remote jobs feed expanded with 5 verified remote sources (Remotive, 9 official We Work Remotely RSS category feeds, Jobicy, Remote OK, Arbeitnow `remote === true`). Appwrite schema extended with `role_group`, `salary_period`, `salary_display`, `salary_amount_min`, and `salary_amount_max`. Category filter upgraded to 16 normalized Role Group pills with job count badges (Easy / Entry Level, Customer Support, Data Entry, Virtual Assistant, Admin, Sales, Marketing, Writing, Design, Operations, HR & Recruiting, Finance, Education, Healthcare, Tech & Programming, Other). Top Freshness & Source attribution banner added (`Last updated <time>` • `New jobs are synced daily` • `Sources: Remotive, WWR, Jobicy, Remote OK, Arbeitnow`). Salary parsing engine added supporting hourly, monthly, yearly, and fallback formats. All 19 unit tests passing, `npx tsc --noEmit` clean, production build clean. Appwrite targeted deployment (`job-feed-sync,get-remote-jobs,track-job-action`) executed and verified via GitHub Actions workflow run `28756617401`.
+* **Last Completed Task**: Deployed expanded Remote Jobs Feed MVP with 5 sources, 16 role groups, automatic feed sync, and salary badge display.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Production Smoke Verification — Resume Fixes**: Test the following on `https://wiseresume.app` with an existing account:
+1. **Owner Production Smoke Verification (`/jobs`)**: Test direct URL `https://wiseresume.app/jobs` in browser:
+   - Verify top freshness banner ("Last updated: ...", "Sources: Remotive, WWR, Jobicy, Remote OK, Arbeitnow").
+   - Test Role Group filter pills (e.g. "Easy / Entry Level", "Customer Support", "Tech / Programming") and verify live job counts.
+   - Verify formatted salary badges (`$20/hour`, `$3,000/month`, `$80k/year`, `Salary not listed`).
+   - Test inline "Apply on website" confirmation modal and "Tailor my resume" CTA.
+2. **Owner Production Smoke Verification — Resume Fixes**: Test on `https://wiseresume.app` with an existing account:
    - Login to an existing account → confirm no "no CV" onboarding flash (dashboard loads with existing CVs).
    - Upload a new CV → confirm email/phone are extracted correctly.
    - Confirm newly uploaded CV defaults to WiseResume Classic template (not Modern/purple).
-   - Confirm LinkedIn OAuth → no profile sync issues, name and email populated, profile completion > 0%.
-2. **Owner Production Smoke Verification — Auth UX**: Test duplicate-email LinkedIn OAuth conflict → confirm friendly error message is shown in English and Arabic.
 3. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions (`deploy-appwrite-hubs.yml` with `target=inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
 4. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
 5. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
-6. **Connect LinkedIn (future)**: If owner wants "Link LinkedIn Account" for existing email/password users, implement a "Connected Accounts" section in Settings using `account.createOAuth2Session` while the user is already authenticated. Not started — requires owner approval.
 
 ---
 
 ## 5. Blocked / Pending Owner Verification
 
 * **LinkedIn OAuth Browser Verification**: PENDING_OWNER_VERIFICATION (requires manual browser check using owner credentials or test accounts on the deployed site).
-  * **LinkedIn Developer Portal Authorized Redirect URL** (OAuth 2.0 Settings):
-    `https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/callback/linkedin/69fd362b001eb325a192`
-  * **WiseResume Success URLs** (used by frontend client redirects):
-    * `https://wiseresume.app/auth/callback`
-    * `https://wiseresume.app/ar/auth/callback`
-  * **WiseResume Failure URLs**:
-    * `https://wiseresume.app/auth?error=oauth_failed`
-    * `https://wiseresume.app/ar/auth?error=oauth_failed`
 * **Public Portfolio Contact Form (Turnstile Captcha)**: Blocked in automated E2E browser environments because Cloudflare Turnstile rejects headless automation contexts. Verified working via manual owner submission in production.
 * **Billing / Payments Activation**: Blocked on explicit project owner business decision.
 
