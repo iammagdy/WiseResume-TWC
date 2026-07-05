@@ -40,6 +40,41 @@ function createExcerpt(text, max = 280) {
   return clean.length <= max ? clean : clean.slice(0, max) + '...';
 }
 
+function cleanJobPayload(rawJob) {
+  const clean = {};
+  const str = (val, maxLen) => {
+    if (val === undefined || val === null) return undefined;
+    const s = String(val).trim();
+    return s.length > maxLen ? s.slice(0, maxLen) : s;
+  };
+  const num = (val) => (typeof val === 'number' && Number.isFinite(val) ? Math.round(val) : undefined);
+
+  if (rawJob.source) clean.source = str(rawJob.source, 32);
+  if (rawJob.source_job_id) clean.source_job_id = str(rawJob.source_job_id, 128);
+  if (rawJob.title) clean.title = str(rawJob.title, 256);
+  if (rawJob.company) clean.company = str(rawJob.company, 128);
+  if (rawJob.company_logo) clean.company_logo = str(rawJob.company_logo, 1024);
+  if (rawJob.location) clean.location = str(rawJob.location, 128);
+  if (rawJob.remote_region) clean.remote_region = str(rawJob.remote_region, 128);
+  if (rawJob.category) clean.category = str(rawJob.category, 128);
+  if (rawJob.job_type) clean.job_type = str(rawJob.job_type, 64);
+  if (rawJob.salary_min !== undefined && rawJob.salary_min !== null) clean.salary_min = num(rawJob.salary_min);
+  if (rawJob.salary_max !== undefined && rawJob.salary_max !== null) clean.salary_max = num(rawJob.salary_max);
+  if (rawJob.salary_currency) clean.salary_currency = str(rawJob.salary_currency, 16);
+  if (rawJob.published_at) clean.published_at = str(rawJob.published_at, 64);
+  if (rawJob.description_excerpt) clean.description_excerpt = str(rawJob.description_excerpt, 2048);
+  if (rawJob.description_html) clean.description_html = str(rawJob.description_html, 16000);
+  if (rawJob.canonical_url) clean.canonical_url = str(rawJob.canonical_url, 2048);
+  if (rawJob.apply_url) clean.apply_url = str(rawJob.apply_url, 2048);
+  if (Array.isArray(rawJob.tags)) clean.tags = rawJob.tags.map(t => str(t, 64)).filter(Boolean);
+  if (rawJob.dedupe_key) clean.dedupe_key = str(rawJob.dedupe_key, 256);
+  if (rawJob.content_hash) clean.content_hash = str(rawJob.content_hash, 128);
+  if (rawJob.fetched_at) clean.fetched_at = str(rawJob.fetched_at, 64);
+  clean.status = str(rawJob.status || 'active', 32);
+
+  return clean;
+}
+
 // ─── SOURCE PARSERS ───────────────────────────────────────────────────────────
 
 async function fetchRemotiveJobs(log) {
@@ -219,47 +254,55 @@ module.exports = async ({ req, res, log, error }) => {
   let skippedCount = 0;
   let errorCount = 0;
 
-  for (const job of allFetched) {
-    try {
-      const existingRes = await db.listDocuments(DB_ID, JOBS_COLLECTION_ID, [
-        Query.equal('dedupe_key', job.dedupe_key),
-        Query.limit(1),
-      ]);
+  for (const rawJob of allFetched) {
+    const jobPayload = cleanJobPayload(rawJob);
+    if (!jobPayload.dedupe_key || !jobPayload.title || !jobPayload.company) {
+      skippedCount++;
+      continue;
+    }
 
-      const existingDoc = existingRes.documents?.[0];
+    try {
+      let existingDoc = null;
+      try {
+        const existingRes = await db.listDocuments(DB_ID, JOBS_COLLECTION_ID, [
+          Query.equal('dedupe_key', jobPayload.dedupe_key),
+          Query.limit(1),
+        ]);
+        existingDoc = existingRes.documents?.[0];
+      } catch {
+        // Query by index failed (e.g. index building) -> proceed with create
+      }
 
       if (!existingDoc) {
-        // Create new job item
         await db.createDocument(
           DB_ID,
           JOBS_COLLECTION_ID,
           ID.unique(),
-          job,
+          jobPayload,
           [Permission.read(Role.any())]
         );
         insertedCount++;
-      } else if (existingDoc.content_hash !== job.content_hash) {
-        // Update changed job item
+      } else if (existingDoc.content_hash !== jobPayload.content_hash) {
         await db.updateDocument(
           DB_ID,
           JOBS_COLLECTION_ID,
           existingDoc.$id,
           {
-            title: job.title,
-            company: job.company,
-            company_logo: job.company_logo,
-            location: job.location,
-            remote_region: job.remote_region,
-            category: job.category,
-            job_type: job.job_type,
-            salary_min: job.salary_min,
-            salary_max: job.salary_max,
-            salary_currency: job.salary_currency,
-            published_at: job.published_at,
-            description_excerpt: job.description_excerpt,
-            description_html: job.description_html,
-            content_hash: job.content_hash,
-            fetched_at: job.fetched_at,
+            title: jobPayload.title,
+            company: jobPayload.company,
+            company_logo: jobPayload.company_logo,
+            location: jobPayload.location,
+            remote_region: jobPayload.remote_region,
+            category: jobPayload.category,
+            job_type: jobPayload.job_type,
+            salary_min: jobPayload.salary_min,
+            salary_max: jobPayload.salary_max,
+            salary_currency: jobPayload.salary_currency,
+            published_at: jobPayload.published_at,
+            description_excerpt: jobPayload.description_excerpt,
+            description_html: jobPayload.description_html,
+            content_hash: jobPayload.content_hash,
+            fetched_at: jobPayload.fetched_at,
           }
         );
         updatedCount++;
@@ -268,7 +311,7 @@ module.exports = async ({ req, res, log, error }) => {
       }
     } catch (err) {
       errorCount++;
-      error(`Error upserting job ${job.dedupe_key}: ${err.message}`);
+      error(`Error upserting job ${jobPayload.dedupe_key}: ${err.message}`);
     }
   }
 
