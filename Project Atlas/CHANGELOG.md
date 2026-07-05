@@ -1,5 +1,19 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 — Production Stabilization Hardening Pass (PR #139)
+
+- **Security Fixes**:
+  - **DA-01 (CRITICAL)**: Removed raw `DEVKIT_PASSWORD` bearer fallback from `email-service`. Auth now requires signed DevKit session token or admin hub verification. Password still used as HMAC secret for token signing.
+  - **DA-02 (CRITICAL)**: Sanitized `admin-devkit-data` catch-all error response — returns generic `'Internal server error'` instead of leaking `err.message`.
+  - **AG-05 (HIGH)**: Sanitized `ai-gateway` error responses — removed `detail: err.message` from credit check failure, sanitized top-level catch.
+  - **PP-01 (HIGH)**: Removed dead `contactEmail` from `PublicProfile` type and all consumer components (`PublicHero.tsx`, `StickyHeader.tsx`, `PublicPortfolioPage.tsx`, `portfolioPrintLayout.ts`). Backend already omitted this field.
+- **UX Fix**: **EXP-02 (MEDIUM)**: Added `?id=` parameter to `ResumeDetailPage` download navigation.
+- **Docs**: **D-01 (MEDIUM)**: Updated `appwrite-functions.md` index from 9 to all 26 hubs.
+- **Source Hashes**: Recomputed for `email-service`, `admin-devkit-data`, `ai-gateway`.
+- **Validation**: TypeScript (0 errors), production build (43.81s), 6 test files / 26 tests passed, git diff --check passed.
+- **Deployment**: PR #139 merged (`108e5ac4`). Vercel auto-deployed (deployment `5316294459`). Targeted Appwrite workflow run `28733179209` deployed `email-service,admin-devkit-data,ai-gateway`. Post-deploy drift check: all 3 hubs IN SYNC.
+- **Deferred Findings**: RSA-01/BR-01/BR-02 (credit race), AG-08 (idempotency), DA-06 (client-side DevKit route).
+
 ## 2026-07-05 - DevKit AI Key & Model Tester Implementation
 
 - **Real Provider Ping Actions (`inspect-ai-keys`)**: Extended `appwrite-hubs/inspect-ai-keys/src/main.js` with `test-ai-key-slot`, `test-ai-provider`, and `test-all-ai-keys` actions. Issues real OpenAI-compatible completion requests (`messages: [{ role: 'user', content: 'Reply with only OK.' }]`, `max_tokens: 10`, 12s timeout) to OpenRouter, Groq, DeepSeek, and NVIDIA endpoints.
