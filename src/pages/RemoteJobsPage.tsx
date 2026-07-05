@@ -181,7 +181,7 @@ export default function RemoteJobsPage() {
             Last updated: {formatLastSynced(lastSyncedAt)}
           </span>
           <span className="hidden md:inline text-border">•</span>
-          <span>Feed updated periodically by owner</span>
+          <span>New jobs are synced every 6 hours</span>
         </div>
         <div className="flex items-center gap-2 text-xs font-medium">
           <span className="text-muted-foreground">Sources:</span>

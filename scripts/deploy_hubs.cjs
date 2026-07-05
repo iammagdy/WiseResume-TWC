@@ -61,6 +61,7 @@ const HUB_TIMEOUTS = {
 const HUB_SCHEDULES = {
     'get-public-portfolio': '*/5 * * * *',
     'portfolio-gate': '*/5 * * * *',
+    'job-feed-sync': '0 */6 * * *',
 };
 
 const HUBS = [

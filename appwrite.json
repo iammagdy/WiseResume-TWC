@@ -241,6 +241,7 @@
       "entrypoint": "src/main.js",
       "commands": "npm install",
       "timeout": 120,
+      "schedule": "0 */6 * * *",
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
