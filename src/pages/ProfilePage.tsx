@@ -63,10 +63,12 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
   if (isLoading) return <ProfileSkeleton />;
   if (!user) return null;
 
-  const completion = calculateProfileCompletion(
-    profile ? { ...profile, fullName: profile.fullName ?? user.name ?? null } : null,
-  );
-  const displayName = profile?.fullName ?? user.name ?? null;
+  const effectiveProfile = profile
+    ? { ...profile, fullName: profile.fullName ?? user.name ?? null }
+    : { fullName: user.name ?? null, jobTitle: null, industry: null, careerLevel: null, location: null };
+
+  const completion = calculateProfileCompletion(effectiveProfile);
+  const displayName = effectiveProfile.fullName;
 
   const getInitials = () => {
     if (displayName) {
@@ -130,7 +132,8 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
     haptics.success();
   };
 
-  const nextTip = getNextMissingField(profile);
+  const nextTip = getNextMissingField(effectiveProfile);
+  const resolvedHint = nextTip ? t(`app.profilePage.completion.hints.${nextTip}`, '') : '';
 
   const portfolioResume = resumes.find((r) => r.id === profile?.portfolioResumeId) || resumes[0];
   const portfolioLastSyncedAt = profile?.portfolioExtras?.lastSyncedFromResumeAt;
@@ -234,7 +237,7 @@ const [linkedinOpen, setLinkedinOpen] = useState(false);
           </div>
           <Progress value={completion} className="h-2" />
           <p className="text-xs text-muted-foreground">
-            {nextTip ? t('app.profilePage.completion.hint', '💡 {{hint}}', { hint: nextTip.hint }) : t('app.profilePage.completion.done', 'ملفك الشخصي مكتمل! 🎉')}
+            {nextTip ? t('app.profilePage.completion.hint', '💡 {{hint}}', { hint: resolvedHint }) : t('app.profilePage.completion.done', 'ملفك الشخصي مكتمل! 🎉')}
           </p>
           <Button variant="secondary" size="sm" className="w-full text-slate-50" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> {t('app.profilePage.editDetails', 'تعديل بيانات الحساب والتفاصيل المهنية')}

@@ -37,6 +37,8 @@ import { AvatarCropSheet } from './AvatarCropSheet';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { Experience, Education } from '@/types/resume';
+import { useAuth } from '@/hooks/useAuth';
+import { useLocale } from '@/i18n/LocaleProvider';
 import { v4 as uuidv4 } from 'uuid';
 
 interface EditProfileSheetProps {
@@ -56,13 +58,25 @@ export function EditProfileSheet({
   userEmail,
   onSave,
 }: EditProfileSheetProps) {
-  const [fullName, setFullName] = useState(profile?.fullName || '');
+  const { user } = useAuth();
+  const { t } = useLocale();
+
+  const [fullName, setFullName] = useState(profile?.fullName || user?.name || '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || '');
   const [jobTitle, setJobTitle] = useState(profile?.jobTitle || '');
   const [industry, setIndustry] = useState(profile?.industry || '');
   const [careerLevel, setCareerLevel] = useState<CareerLevel | ''>(profile?.careerLevel || '');
   const [location, setLocation] = useState(profile?.location || '');
   const [linkedinUrl, setLinkedinUrl] = useState(profile?.linkedinUrl || '');
+
+  // Dirty flags to prevent overwriting user input with background sync updates
+  const [isFullNameDirty, setIsFullNameDirty] = useState(false);
+  const [isJobTitleDirty, setIsJobTitleDirty] = useState(false);
+  const [isIndustryDirty, setIsIndustryDirty] = useState(false);
+  const [isCareerLevelDirty, setIsCareerLevelDirty] = useState(false);
+  const [isLocationDirty, setIsLocationDirty] = useState(false);
+  const [isLinkedinUrlDirty, setIsLinkedinUrlDirty] = useState(false);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [autoSaved, setAutoSaved] = useState(false);
@@ -77,19 +91,43 @@ export function EditProfileSheet({
   const { data: allResumes = [] } = useResumes();
   const masterCV = allResumes.find((r) => r.is_primary);
 
+  // Reset dirty flags when sheet closes
+  useEffect(() => {
+    if (!open) {
+      setIsFullNameDirty(false);
+      setIsJobTitleDirty(false);
+      setIsIndustryDirty(false);
+      setIsCareerLevelDirty(false);
+      setIsLocationDirty(false);
+      setIsLinkedinUrlDirty(false);
+    }
+  }, [open]);
+
   // Sync form state when profile changes or sheet opens + auto-fill from master CV
   useEffect(() => {
     if (open && profile) {
       const mcContact = masterCV?.contact_info;
-      setFullName(profile.fullName || mcContact?.fullName || '');
+      if (!isFullNameDirty) {
+        setFullName(profile.fullName || user?.name || mcContact?.fullName || '');
+      }
       setAvatarUrl(profile.avatarUrl || '');
-      setJobTitle(profile.jobTitle || '');
-      setIndustry(profile.industry || '');
-      setCareerLevel(profile.careerLevel || '');
-      setLocation(profile.location || mcContact?.location || '');
-      setLinkedinUrl(profile.linkedinUrl || '');
+      if (!isJobTitleDirty) {
+        setJobTitle(profile.jobTitle || '');
+      }
+      if (!isIndustryDirty) {
+        setIndustry(profile.industry || '');
+      }
+      if (!isCareerLevelDirty) {
+        setCareerLevel(profile.careerLevel || '');
+      }
+      if (!isLocationDirty) {
+        setLocation(profile.location || mcContact?.location || '');
+      }
+      if (!isLinkedinUrlDirty) {
+        setLinkedinUrl(profile.linkedinUrl || '');
+      }
     }
-  }, [open, profile, masterCV]);
+  }, [open, profile, masterCV, user?.name, isFullNameDirty, isJobTitleDirty, isIndustryDirty, isCareerLevelDirty, isLocationDirty, isLinkedinUrlDirty]);
 
   // Debounced auto-save (1.5s after last change)
   const triggerAutoSave = useCallback(() => {
@@ -386,12 +424,14 @@ export function EditProfileSheet({
               </div>
               <Progress value={completionPercentage} className="h-2" />
               {completionPercentage < 100 && (() => {
-                const tip = getNextMissingField(profile);
-                return tip ? (
+                const tip = getNextMissingField(currentFormProfile);
+                if (!tip) return null;
+                const resolvedHint = t(`app.profilePage.completion.hints.${tip}`, '');
+                return (
                   <p className="text-xs text-muted-foreground">
-                    💡 {tip.hint}
+                    💡 {resolvedHint}
                   </p>
-                ) : null;
+                );
               })()}
             </div>
           </div>
@@ -461,7 +501,7 @@ export function EditProfileSheet({
                       id="fullName"
                       placeholder="Enter your name"
                       value={fullName}
-                      onChange={(e) => { setFullName(e.target.value); triggerAutoSave(); }}
+                      onChange={(e) => { setFullName(e.target.value); setIsFullNameDirty(true); triggerAutoSave(); }}
                       className="bg-background"
                       autoComplete="name"
                     />
@@ -476,7 +516,7 @@ export function EditProfileSheet({
                       id="location"
                       placeholder="City, Country"
                       value={location}
-                      onChange={(e) => { setLocation(e.target.value); triggerAutoSave(); }}
+                      onChange={(e) => { setLocation(e.target.value); setIsLocationDirty(true); triggerAutoSave(); }}
                       className="bg-background"
                       autoComplete="address-level2"
                     />
@@ -499,6 +539,7 @@ export function EditProfileSheet({
                           const val = e.target.value.replace(/\s/g, '');
                           validateLinkedInUsername(val);
                           setLinkedinUrl(val ? `https://linkedin.com/in/${val}` : '');
+                          setIsLinkedinUrlDirty(true);
                           triggerAutoSave();
                         }}
                         className={`pl-[115px] bg-background ${linkedinError ? 'border-destructive' : ''}`}
@@ -553,7 +594,7 @@ export function EditProfileSheet({
                       id="jobTitle"
                       placeholder="e.g. Software Engineer"
                       value={jobTitle}
-                      onChange={(e) => { setJobTitle(e.target.value); triggerAutoSave(); }}
+                      onChange={(e) => { setJobTitle(e.target.value); setIsJobTitleDirty(true); triggerAutoSave(); }}
                       className="bg-background"
                       autoComplete="organization-title"
                     />
@@ -563,7 +604,7 @@ export function EditProfileSheet({
                     <Label htmlFor="industry" className="text-xs text-muted-foreground">
                       Industry
                     </Label>
-                    <Select value={industry} onValueChange={(v) => { setIndustry(v); triggerAutoSave(); }}>
+                    <Select value={industry} onValueChange={(v) => { setIndustry(v); setIsIndustryDirty(true); triggerAutoSave(); }}>
                       <SelectTrigger id="industry" className="bg-background">
                         <SelectValue placeholder="Select your industry" />
                       </SelectTrigger>
@@ -584,7 +625,7 @@ export function EditProfileSheet({
                         <button
                           key={level.value}
                           type="button"
-                          onClick={() => { setCareerLevel(level.value); triggerAutoSave(); }}
+                          onClick={() => { setCareerLevel(level.value); setIsCareerLevelDirty(true); triggerAutoSave(); }}
                           className={`p-3 rounded-lg border text-left transition-all ${
                             careerLevel === level.value
                               ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'

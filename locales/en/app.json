@@ -910,7 +910,14 @@
       "bannerDescription": "Finish setup for better AI suggestions",
       "complete": "Complete",
       "hint": "💡 {{hint}}",
-      "done": "Your profile is complete! 🎉"
+      "done": "Your profile is complete! 🎉",
+      "hints": {
+        "fullName": "Add your display name.",
+        "jobTitle": "Add your current or target job title.",
+        "industry": "Choose your industry.",
+        "careerLevel": "Select your career level.",
+        "location": "Add your city and country."
+      }
     },
     "portfolio": {
       "title": "My Portfolio Website",

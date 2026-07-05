@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -17,6 +17,7 @@ export default function AuthPage() {
   const { locale } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { isAuthenticated, loading: authLoading, refreshSession } = useAuth();
   const queryClient = useQueryClient();
 
@@ -64,6 +65,77 @@ export default function AuthPage() {
     }
     else if (m === 'login' || !m) setMode('signin');
   }, [searchParams]);
+
+  useEffect(() => {
+    const rawError = searchParams.get('error');
+    if (!rawError) return;
+
+    let errorStr = '';
+    try {
+      const parsed = JSON.parse(decodeURIComponent(rawError));
+      if (parsed && typeof parsed === 'object') {
+        errorStr = parsed.message || parsed.type || JSON.stringify(parsed);
+      } else {
+        errorStr = String(parsed);
+      }
+    } catch {
+      errorStr = rawError;
+    }
+
+    const isDuplicate = [
+      'already exists',
+      'user already exists',
+      'email already exists',
+      'A user with the same',
+      'same email',
+      'duplicate',
+      'conflict',
+      '409',
+      'user_already_exists',
+      'user_email_already_exists'
+    ].some(term => errorStr.toLowerCase().includes(term.toLowerCase()));
+
+    const isScopeError = [
+      'unauthorized_scope_error',
+      'openid'
+    ].some(term => errorStr.toLowerCase().includes(term.toLowerCase()));
+
+    const isCancelled = [
+      'access_denied',
+      'cancelled',
+      'denied'
+    ].some(term => errorStr.toLowerCase().includes(term.toLowerCase()));
+
+    let friendlyError = '';
+    if (isDuplicate) {
+      friendlyError = locale === 'ar'
+        ? 'البريد الإلكتروني ده مسجل بالفعل في WiseResume. سجّل الدخول بالإيميل والباسورد، أو استخدم استعادة كلمة المرور إذا احتجت.'
+        : 'This email is already registered with WiseResume. Please sign in using your email and password, or reset your password if needed.';
+    } else if (isScopeError) {
+      friendlyError = locale === 'ar'
+        ? 'تسجيل الدخول عبر LinkedIn غير مكتمل الإعداد حاليًا. جرّب لاحقًا أو سجّل الدخول بالإيميل والباسورد.'
+        : 'LinkedIn sign-in is not fully enabled yet. Please try again later or sign in with email and password.';
+    } else if (isCancelled) {
+      friendlyError = locale === 'ar'
+        ? 'تم إلغاء تسجيل الدخول عبر LinkedIn. يمكنك المحاولة مرة أخرى أو تسجيل الدخول بالإيميل والباسورد.'
+        : 'LinkedIn sign-in was cancelled. You can try again or sign in with email and password.';
+    } else {
+      friendlyError = locale === 'ar'
+        ? 'فشل تسجيل الدخول عبر LinkedIn. حاول مرة أخرى أو سجّل الدخول بالإيميل والباسورد.'
+        : 'LinkedIn sign-in failed. Please try again or sign in with email and password.';
+    }
+
+    setError(friendlyError);
+    toast.error(friendlyError);
+    setMode('signin');
+
+    // Clean the raw error from the URL
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('error');
+    const newSearch = newParams.toString();
+    const cleanUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
+    navigate(cleanUrl, { replace: true });
+  }, [searchParams, locale, navigate, location.pathname]);
 
   useEffect(() => {
     setError(null);

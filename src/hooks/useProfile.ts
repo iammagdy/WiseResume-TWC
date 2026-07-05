@@ -271,7 +271,17 @@ export function useProfile(userId: string | undefined) {
   });
 
   useEffect(() => {
-    if (!userId || loading || !profile?.id) return;
+    if (!userId || loading) return;
+
+    if (!profile) {
+      const accountName = user?.name?.trim();
+      if (accountName || user?.email) {
+        void upsertProfileIdentity({ userId, email: user.email, fullName: accountName })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['profile', userId] }))
+          .catch(() => {});
+      }
+      return;
+    }
 
     const accountName = user?.name?.trim();
     if (!profile.fullName?.trim() && accountName) {
@@ -291,10 +301,7 @@ export function useProfile(userId: string | undefined) {
     userId,
     user?.name,
     user?.email,
-    profile?.id,
-    profile?.fullName,
-    profile?.onboarding_completed,
-    profile?.profileCompleted,
+    profile,
     loading,
     queryClient,
   ]);
