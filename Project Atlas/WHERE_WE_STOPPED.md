@@ -1,6 +1,6 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-04
+**Last Verified:** 2026-07-05
 **Status:** Canonical Project Handover & Active Focus
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -23,27 +23,28 @@
 
 ## 2. Latest Important Commits
 
+* **`108e5ac4`** — `fix(security): production stabilization hardening pass` (merged PR #139)
+* **`dc8f9d0d`** — `docs(atlas): update session closeout and handover state`
+* **`a74f6011`** — `feat(devkit): add AI key and model tester`
 * **`a42e2b3e`** — `fix(core): resolve useLocale, Appwrite SecurityError, and React hook resilience`
 * **`37b4555e`** — `docs(atlas): document devkit2 phase 3b step 1 closeout`
-* **`c834bf20`** — `feat(admin): add devkit2 command center preview`
-* **`cc55e542`** — `chore(admin): sync password reset link flow with main`
-* **`8c0c6ce7`** — `fix(admin): send secure password reset links`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: DevKit AI Key & Model Tester implementation completed locally. Added real OpenAI-compatible completion pings to `inspect-ai-keys` Appwrite Function (`test-ai-key-slot`, `test-ai-provider`, `test-all-ai-keys`), strict status mapping (`success`, `missing_key`, `invalid_key`, `model_not_found`, `rate_limited`, `provider_error`, `timeout`), graceful `app_settings` test result persistence, and updated `AIKeysPanel.tsx` UI with "Test All Keys", "Test Provider", per-slot "Test", status chips, latency, timestamp, and unsaved model warnings.
-* **Current State**: Implementation complete, tested locally (`node --check`, `tsc --noEmit`, Node backend tests, Vitest frontend tests), and source hashes regenerated. Deployment NOT performed (requires targeted deployment of `inspect-ai-keys` Appwrite Function after owner authorization).
-* **Last Completed Task**: DevKit AI Key & Model Tester feature implementation & local verification.
+* **Current Active Focus**: Production stabilization hardening pass — completed, merged (PR #139), and deployed. All 6 findings fixed: DA-01 (CRITICAL), DA-02 (CRITICAL), AG-05 (HIGH), PP-01 (HIGH), EXP-02 (MEDIUM), D-01 (MEDIUM). Vercel frontend auto-deployed. Three Appwrite hubs deployed via targeted workflow (`email-service`, `admin-devkit-data`, `ai-gateway`). Post-deploy drift check confirms all 3 hubs IN SYNC.
+* **Current State**: Production stabilization phase complete. PR #139 (`108e5ac4`) merged to main. Vercel production deployed. Appwrite hubs deployed. Source hashes match. All 26 tests pass.
+* **Last Completed Task**: Production stabilization hardening — implementation, merge, Vercel deployment, targeted Appwrite deployment, post-deploy verification, and documentation closeout.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions workflow (`deploy-appwrite-hubs.yml` with target `inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
-2. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
-3. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
+1. **Owner Production Smoke Verification**: Manual owner verification of all production stabilization fixes (PP-01 contactEmail removal on public portfolio, EXP-02 download navigation fix, etc.).
+2. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions workflow (`deploy-appwrite-hubs.yml` with target `inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
+3. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
+4. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
 
 ---
 
