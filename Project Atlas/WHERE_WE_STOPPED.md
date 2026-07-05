@@ -23,21 +23,20 @@
 
 ## 2. Latest Important Commits
 
-* **`ee136d35`** — `fix(i18n): add missing top bar notification label` ← **LAST**
-* **`b00a0a98`** — `fix(resume): stabilize auth cache parsing and template defaults`
-* **`4a9ac4a1`** — `docs(atlas): update changelog and handover state for profile sync & ux fixes`
-* **`5d5ac0db`** — `feat(auth): sync LinkedIn profile and handle conflict UX`
-* **`a496916f`** — `feat(auth): add LinkedIn SSO button`
-* **`108e5ac4`** — `fix(security): production stabilization hardening pass`
+* **`bbb3830a`** — `fix(schema): update permissions and throttle job-feed-sync` ← **LAST**
+* **`033d44d4`** — `fix(hubs): sanitize job payload properties in job-feed-sync`
+* **`fed6c3ed`** — `fix(hubs): register job feed hubs in appwrite.json`
+* **`8cedd294`** — `feat(jobs): add hidden remote jobs feed MVP`
+* **`ee136d35`** — `fix(i18n): add missing top bar notification label`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED — Remote Jobs Feed MVP implemented, tested, and verified.
+* **Session Status**: COMPLETED & VERIFIED IN PRODUCTION — Remote Jobs Feed MVP deployed and initial feed ingested.
 * **Last Session**: Remote Jobs Feed MVP (`/jobs`).
-* **Current State**: `/jobs` hidden MVP route implemented and integrated with Appwrite schema script (`scripts/setup_remote_jobs_feed_schema.cjs`) and functions (`job-feed-sync`, `get-remote-jobs`, `track-job-action`). Direct URL testable on `main` once pushed (`https://wiseresume.app/jobs`).
-* **Last Completed Task**: Added hidden `/jobs` MVP page with Remotive API, WWR RSS, and Jobicy API integration. Implemented Appwrite collections schema, serverless function hubs (`job-feed-sync`, `get-remote-jobs`, `track-job-action`), deduplication & normalization engine, user action tracking (`saved`, `applied`, `dismissed`), inline "Did you apply?" confirmation prompt, and direct Tailoring Hub pre-filled integration. Added 10 unit tests, verified `npx tsc --noEmit` clean, and `npm run build` successful.
+* **Current State**: `/jobs` hidden MVP page fully deployed to production (`https://wiseresume.app/jobs`). Appwrite schema collections (`job_feed_items`, `user_job_actions`, `job_feed_sync_runs`) and targeted function hubs (`job-feed-sync`, `get-remote-jobs`, `track-job-action`) deployed via GitHub Actions workflow run `28755483329`. Initial feed ingested successfully with 229 remote jobs stored in `job_feed_items` and verified via sync log.
+* **Last Completed Task**: Deployed hidden `/jobs` MVP feature with Appwrite backend, ran initial sync (229 jobs ingested), verified schema permissions, deduplication, inline application tracking, and pre-filled Tailoring Hub routing.
 
 ---
 
