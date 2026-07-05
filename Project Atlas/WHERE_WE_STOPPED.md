@@ -23,29 +23,36 @@
 
 ## 2. Latest Important Commits
 
+* **`b00a0a98`** — `fix(resume): stabilize auth cache parsing and template defaults` ← **LAST**
+* **`4a9ac4a1`** — `docs(atlas): update changelog and handover state for profile sync & ux fixes`
 * **`5d5ac0db`** — `feat(auth): sync LinkedIn profile and handle conflict UX`
 * **`a496916f`** — `feat(auth): add LinkedIn SSO button`
-* **`108e5ac4`** — `fix(security): production stabilization hardening pass` (merged PR #139)
+* **`108e5ac4`** — `fix(security): production stabilization hardening pass`
 * **`dc8f9d0d`** — `docs(atlas): update session closeout and handover state`
-* **`a74f6011`** — `feat(devkit): add AI key and model tester`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Production resume consistency, parsing, and template default fixes.
-* **Current State**: Resolved the stale-cache query race, onboarding/dashboard empty-state gating, multi-column layout contact parsing fallbacks, and default template fallback consistency.
-* **Last Completed Task**: Local preprocessor and parser fallback optimizations for contact details, dashboard and onboarding gating enhancements based on React Query states, successful cache invalidation adjustments after auth success, and comprehensive unit tests (all 22 test cases passing, type-checks and production bundle build passing cleanly).
+* **Session Status**: COMPLETED — all work committed, pushed, and verified.
+* **Last Session**: Resume consistency, auth cache stabilization, and template defaults (commit `b00a0a98`).
+* **Current State**: Production is live on `https://wiseresume.app` with all fixes from this session deployed via Vercel auto-deploy on push to `main`. No Appwrite deploy was required.
+* **Last Completed Task**: Resolved stale-cache race causing "no CV" state after login/password reset; dashboard empty-state gating now waits for React Query to settle; multi-column PDF contact extraction (email/phone) fallback now scans full document text; newly parsed CVs now default to `wiseresume-classic` template instead of `modern`/purple; all 22 unit tests pass, `npx tsc --noEmit` clean, `npm run build` successful.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Production Smoke Verification**: Manual owner verification of all production stabilization fixes (PP-01 contactEmail removal on public portfolio, EXP-02 download navigation fix, etc.).
-2. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions workflow (`deploy-appwrite-hubs.yml` with target `inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
-3. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
-4. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
-5. **Owner LinkedIn OAuth Verification**: Verify that the LinkedIn OAuth redirection, consent screen, callback, and session creation succeed on the production deployment.
+1. **Owner Production Smoke Verification — Resume Fixes**: Test the following on `https://wiseresume.app` with an existing account:
+   - Login to an existing account → confirm no "no CV" onboarding flash (dashboard loads with existing CVs).
+   - Upload a new CV → confirm email/phone are extracted correctly.
+   - Confirm newly uploaded CV defaults to WiseResume Classic template (not Modern/purple).
+   - Confirm LinkedIn OAuth → no profile sync issues, name and email populated, profile completion > 0%.
+2. **Owner Production Smoke Verification — Auth UX**: Test duplicate-email LinkedIn OAuth conflict → confirm friendly error message is shown in English and Arabic.
+3. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions (`deploy-appwrite-hubs.yml` with `target=inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
+4. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
+5. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
+6. **Connect LinkedIn (future)**: If owner wants "Link LinkedIn Account" for existing email/password users, implement a "Connected Accounts" section in Settings using `account.createOAuth2Session` while the user is already authenticated. Not started — requires owner approval.
 
 ---
 

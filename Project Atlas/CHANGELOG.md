@@ -1,5 +1,18 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 — Session Closeout (Resume Consistency, Auth Cache, Template Defaults)
+
+- **Classification**: COMPLETED
+- **Commit**: `b00a0a98` — `fix(resume): stabilize auth cache parsing and template defaults` — pushed to `main`, auto-deployed via Vercel.
+- **Session Coverage** (2 work blocks within this session):
+  1. Resume consistency, parsing, and template default fixes (`b00a0a98`)
+  2. LinkedIn SSO profile sync & existing-email conflict UX (`5d5ac0db`, `4a9ac4a1`)
+- **Appwrite Deploy**: Not required. Frontend-only.
+- **Documentation**: `WHERE_WE_STOPPED.md` and `CHANGELOG.md` updated. No product code touched during closeout.
+- **Status**: Production is live. Owner production smoke testing is the next step.
+
+---
+
 ## 2026-07-05 — Resume Consistency, Parsing, and Template Default Fixes
 
 - **Cache Clearing Hooks**:
