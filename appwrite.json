@@ -232,6 +232,34 @@
       "entrypoint": "src/main.js",
       "commands": "npm install",
       "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "job-feed-sync",
+      "name": "Job Feed Sync Hub",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/job-feed-sync",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "timeout": 120,
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "get-remote-jobs",
+      "name": "Get Remote Jobs Hub",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/get-remote-jobs",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
+      "functionId": "track-job-action",
+      "name": "Track Job Action Hub",
+      "runtime": "node-22",
+      "path": "appwrite-hubs/track-job-action",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
     }
   ]
 }
