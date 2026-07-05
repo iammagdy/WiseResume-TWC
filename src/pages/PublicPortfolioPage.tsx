@@ -252,11 +252,7 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   usePortfolioSEO(portfolio?.profile);
   const { stickyVisible, heroRef } = usePortfolioTracking({ username, refParam, abVariant });
 
-  const contactHref = useMemo(() => {
-    if (portfolio?.profile?.contactEmail) return `mailto:${portfolio.profile.contactEmail}`;
-    if (portfolio?.profile?.linkedinUrl) return portfolio.profile.linkedinUrl;
-    return null;
-  }, [portfolio?.profile?.contactEmail, portfolio?.profile?.linkedinUrl]);
+  const contactHref = portfolio?.profile?.linkedinUrl || null;
 
   useEffect(() => {
     // Only run this on the client
@@ -467,7 +463,6 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
         name={profile?.fullName || null}
         avatarUrl={profile?.avatarUrl || null}
         initials={initials}
-        contactEmail={profile?.contactEmail || null}
         accentColor={accentColor}
         visible={stickyVisible}
         pStyle={pStyle}

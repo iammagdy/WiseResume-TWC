@@ -82,7 +82,7 @@ export default function ResumeDetailPage() {
     setCurrentResume(rd);
     setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
-    navigate('/preview?action=download', { replace: true });
+    navigate(`/preview?id=${encodeURIComponent(dbResume.$id)}&action=download`, { replace: true });
   }, [dbResume, isLoading]);
 
   if (isLoading) {
@@ -142,7 +142,7 @@ export default function ResumeDetailPage() {
     setCurrentResume(resumeData);
     setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
-    navigate('/preview?action=download');
+    navigate(`/preview?id=${encodeURIComponent(dbResume.$id)}&action=download`);
   };
 
 

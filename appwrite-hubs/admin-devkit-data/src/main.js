@@ -3099,7 +3099,7 @@ module.exports = async ({ req, res, log, error }) => {
     return json(res, rid, { success: true, ...data });
   } catch (err) {
     error(`DevKit Data Error [${rid}]: ${err.message}`);
-    return json(res, rid, { success: false, code: 'FUNCTION_RUNTIME_FAILED', error: err.message }, 500);
+    return json(res, rid, { success: false, code: 'FUNCTION_RUNTIME_FAILED', error: 'Internal server error' }, 500);
   }
 };
 

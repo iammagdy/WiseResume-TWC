@@ -52,7 +52,6 @@ export function generatePortfolioPrintHTML(
   const name = esc(profile.fullName || 'Portfolio');
   const jobTitle = esc(profile.jobTitle || '');
   const location = esc(profile.location || '');
-  const email = esc(profile.contactEmail || '');
   const bio = esc(profile.portfolioBio || profile.portfolioSummary || '');
   const accent = safeCssColor(profile.portfolioAccentColor, '#e84545');
   const theme = getThemeById(profile.portfolioStyle || profile.theme || 'minimal');
@@ -95,14 +94,12 @@ export function generatePortfolioPrintHTML(
   // Only emit links whose scheme is safe (http/https/mailto/tel). safeHref
   // returns undefined for javascript:/data:/etc., in which case we render the
   // value as plain text instead of an unsafe anchor in the exported HTML.
-  const emailHref = email ? safeHref(`mailto:${profile.contactEmail || ''}`) : undefined;
   const linkedinHref = safeHref(profile.linkedinUrl);
   const githubHref = safeHref(profile.githubUrl);
   const websiteHref = safeHref(profile.websiteUrl);
 
   const contactParts: string[] = [];
   if (location) contactParts.push(`<span>📍 ${location}</span>`);
-  if (email) contactParts.push(emailHref ? `<a href="${esc(emailHref)}">${email}</a>` : `<span>${email}</span>`);
   if (linkedinHref) contactParts.push(`<a href="${esc(linkedinHref)}">${esc(linkedinHref.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);
   if (githubHref) contactParts.push(`<a href="${esc(githubHref)}">${esc(githubHref.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);
   if (websiteHref) contactParts.push(`<a href="${esc(websiteHref)}">${esc(websiteHref.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);

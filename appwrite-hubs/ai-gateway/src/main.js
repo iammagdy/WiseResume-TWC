@@ -1018,7 +1018,6 @@ async function loadCreditState(db, userId, featureName, prefetchedPlan = null) {
       blocked: true,
       status: 503,
       message: 'AI credit tracking is not available.',
-      detail: err.message,
     };
   }
 
@@ -3889,7 +3888,7 @@ module.exports = async ({ req, res, log, error }) => {
     // Clean up any in-flight idempotency record so the user can retry.
     error('AI-Gateway Error: ' + err.message);
     await flushDD();
-    return res.json({ status: 'error', message: err.message }, 500);
+    return res.json({ status: 'error', message: 'Internal server error' }, 500);
   }
 };
 

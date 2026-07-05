@@ -155,11 +155,9 @@ async function verifyDevKitViaAdminHub(token) {
 }
 
 async function hasDevKitAuth(req, body) {
-  const devkitPassword = process.env.DEVKIT_PASSWORD || '';
   const token = bearerToken(req, body);
   if (!token) return false;
   if (verifySignedDevKitToken(token)) return true;
-  if (devkitPassword && token === devkitPassword) return true;
   return verifyDevKitViaAdminHub(token);
 }
 
@@ -975,7 +973,7 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
 
 /**
  * DevKit admin-only: send a test render of any template to any address.
- * Guarded by raw DEVKIT_PASSWORD or a signed DevKit session token.
+ * Guarded by a signed DevKit session token or admin hub verification.
  */
 async function handleSendTest({ req, res, log, error, body }) {
   if (!(await hasDevKitAuth(req, body))) {
