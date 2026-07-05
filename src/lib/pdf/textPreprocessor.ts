@@ -327,7 +327,8 @@ export function preprocessResumeText(text: string, pageTexts?: string[]): string
 
 /**
  * Extract contact info hints using regex before AI parsing.
- * Scans the first 15 lines for emails, phones to give the AI a strong signal.
+ * Scans the full text for emails and phones to give the AI a strong signal,
+ * including contacts that appear in sidebars or footer columns.
  */
 export function extractContactHints(text: string): string {
   const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];

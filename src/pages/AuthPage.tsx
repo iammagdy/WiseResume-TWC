@@ -163,7 +163,15 @@ export default function AuthPage() {
       clearAllCachedScores();
       clearAllEditorSessions();
       clearPlanCache();
-      await refreshSession();
+      try {
+        await refreshSession();
+      } catch {
+        // Session was created successfully; hydration failed. useAuth's reactive
+        // effect will re-hydrate on the next render cycle. Navigate anyway.
+        console.warn('[AuthPage] refreshSession failed after successful login — proceeding to dashboard');
+        const msg = 'Signed in, but we could not refresh your workspace. Please reload the page if anything looks wrong.';
+        toast.warning(msg);
+      }
       sessionStorage.removeItem(SIGNUP_PLAN_KEY);
       setSignupPlanIntent(null);
       toast.success('Logged in successfully!');

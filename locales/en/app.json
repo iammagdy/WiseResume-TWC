@@ -200,7 +200,8 @@
     "wiseAI": "Wise AI",
     "wiseAIShort": "AI",
     "switchToLight": "Switch to light mode",
-    "switchToDark": "Switch to dark mode"
+    "switchToDark": "Switch to dark mode",
+    "notifications": "Notifications"
   },
   "loadingWorkspace": "Loading your workspace",
   "syncingWorkspaceDescription": "We're syncing your resumes, scores, and recent activity.",
