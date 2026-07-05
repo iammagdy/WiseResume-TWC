@@ -130,13 +130,13 @@ export default function RemoteJobsPage() {
   };
 
   const formatLastSynced = (dateStr?: string | null) => {
-    if (!dateStr) return 'Daily';
+    if (!dateStr) return 'Not yet synced';
     try {
       const d = new Date(dateStr);
       return d.toLocaleTimeString(isRtl ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) + ', ' +
         d.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric' });
     } catch {
-      return 'Daily';
+      return 'Unknown';
     }
   };
 
@@ -181,7 +181,7 @@ export default function RemoteJobsPage() {
             Last updated: {formatLastSynced(lastSyncedAt)}
           </span>
           <span className="hidden md:inline text-border">•</span>
-          <span>New jobs are synced daily</span>
+          <span>Feed updated periodically by owner</span>
         </div>
         <div className="flex items-center gap-2 text-xs font-medium">
           <span className="text-muted-foreground">Sources:</span>
