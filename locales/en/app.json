@@ -1247,5 +1247,30 @@
       "placeholderName": "Name",
       "placeholderTitle": "Job title"
     }
+  },
+  "remoteJobs": {
+    "title": "Remote Jobs Feed",
+    "subtitle": "Discover verified remote opportunities aggregated from official remote job feeds.",
+    "searchPlaceholder": "Search by job title, company, or keyword...",
+    "sourceFilter": "All Sources",
+    "categoryFilter": "All Categories",
+    "applyButton": "Apply on website",
+    "didYouApply": "Did you apply?",
+    "markApplied": "Yes, mark as applied",
+    "notYet": "Not yet",
+    "alreadyApplied": "Already applied",
+    "appliedOn": "Applied on {{date}}",
+    "tailorResume": "Tailor my resume for this job",
+    "saveJob": "Save",
+    "savedJob": "Saved",
+    "dismissJob": "Dismiss",
+    "unsyncedTitle": "Jobs feed is not synced yet.",
+    "unsyncedSubtitle": "Remote job feeds are periodically aggregated server-side. Check back shortly for updated listings.",
+    "emptyTitle": "No remote jobs found",
+    "emptySubtitle": "Try adjusting your search keywords or clearing source filters.",
+    "loading": "Loading remote jobs...",
+    "sourceRemotive": "Remotive",
+    "sourceWwr": "We Work Remotely",
+    "sourceJobicy": "Jobicy"
   }
 }

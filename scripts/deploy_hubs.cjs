@@ -89,6 +89,9 @@ const HUBS = [
     { id: 'verify-portfolio-password', name: 'Verify Portfolio Password', file: 'verify-portfolio-password.tar.gz' },
     { id: 'portfolio-settings', name: 'Portfolio Settings Hub', file: 'portfolio-settings.tar.gz' },
     { id: 'track-visitor-event', name: 'Track Visitor Event', file: 'track-visitor-event.tar.gz' },
+    { id: 'job-feed-sync', name: 'Job Feed Sync Hub', file: 'job-feed-sync.tar.gz' },
+    { id: 'get-remote-jobs', name: 'Get Remote Jobs Hub', file: 'get-remote-jobs.tar.gz' },
+    { id: 'track-job-action', name: 'Track Job Action Hub', file: 'track-job-action.tar.gz' },
 ];
 
 const SAFE_SMOKE_CHECKS = new Map([

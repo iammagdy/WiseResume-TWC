@@ -44,6 +44,9 @@ const HUBS = [
   'verify-portfolio-password',
   'portfolio-settings',
   'track-visitor-event',
+  'job-feed-sync',
+  'get-remote-jobs',
+  'track-job-action',
 ];
 
 const hashes = {};

@@ -1,0 +1,9 @@
+{
+  "name": "get-remote-jobs-hub",
+  "version": "1.0.0",
+  "description": "Appwrite Function — returns paginated remote jobs feed and includes user job action state",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^17.2.0"
+  }
+}

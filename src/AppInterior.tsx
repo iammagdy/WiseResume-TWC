@@ -129,6 +129,7 @@ const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
 const TailorPage = lazyWithRetry(() => import("./pages/TailorPage"));
 const TailoringHubPage = lazyWithRetry(() => import("./pages/TailoringHubPage"));
 const TailoringHubResultPage = lazyWithRetry(() => import("./pages/TailoringHubResultPage"));
+const RemoteJobsPage = lazyWithRetry(() => import("./pages/RemoteJobsPage"));
 const EnterprisePage = lazyWithRetry(() => import("./pages/wisehire/EnterprisePage"));
 const WiseHireSignupPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSignupPage"));
 const WiseHireEarlyAccessPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireEarlyAccessPage"));
@@ -412,6 +413,7 @@ function AppRoutes() {
                  <Route path="/tailoring-hub" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailoringHubPage /></Suspense></RouteEB>} />
                  <Route path="/tailoring-hub/result/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailoringHubResultPage /></Suspense></RouteEB>} />
                  <Route path="/tailor/result/:resumeId" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TailoringHubResultPage /></Suspense></RouteEB>} />
+                 <Route path="/jobs" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><RemoteJobsPage /></Suspense></RouteEB>} />
               </Route>
              </Route>
            </Route>

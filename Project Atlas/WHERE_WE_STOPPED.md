@@ -34,10 +34,10 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED — all work committed, pushed, and verified.
-* **Last Session**: Post-Fix Regression Audit & Safety Review + Tiny Cleanup (commit `ee136d35`).
-* **Current State**: Production is live on `https://wiseresume.app` with all fixes from this session deployed via Vercel auto-deploy on push to `main`. No Appwrite deploy was required.
-* **Last Completed Task**: Completed full regression audit across 9 production fix areas (LinkedIn SSO, conflict UX, profile identity sync, completion hints, auth cache clearing, dashboard gating, multi-column contact extraction, template defaults, Atlas docs). Fixed 1 pre-existing i18n test failure (`app.topBar.notifications` in `locales/en/app.json`), updated `extractContactHints` docstring to "scans full text", and wrapped `refreshSession` in a try/catch in `AuthPage.tsx` to handle rare post-login session hydration failures gracefully. All unit tests pass, `npx tsc --noEmit` clean, `npm run build` successful.
+* **Session Status**: COMPLETED — Remote Jobs Feed MVP implemented, tested, and verified.
+* **Last Session**: Remote Jobs Feed MVP (`/jobs`).
+* **Current State**: `/jobs` hidden MVP route implemented and integrated with Appwrite schema script (`scripts/setup_remote_jobs_feed_schema.cjs`) and functions (`job-feed-sync`, `get-remote-jobs`, `track-job-action`). Direct URL testable on `main` once pushed (`https://wiseresume.app/jobs`).
+* **Last Completed Task**: Added hidden `/jobs` MVP page with Remotive API, WWR RSS, and Jobicy API integration. Implemented Appwrite collections schema, serverless function hubs (`job-feed-sync`, `get-remote-jobs`, `track-job-action`), deduplication & normalization engine, user action tracking (`saved`, `applied`, `dismissed`), inline "Did you apply?" confirmation prompt, and direct Tailoring Hub pre-filled integration. Added 10 unit tests, verified `npx tsc --noEmit` clean, and `npm run build` successful.
 
 ---
 

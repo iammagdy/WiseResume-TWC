@@ -1,0 +1,9 @@
+{
+  "name": "track-job-action-hub",
+  "version": "1.0.0",
+  "description": "Appwrite Function — tracks user job actions (save, mark_applied, dismiss, undo)",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^17.2.0"
+  }
+}

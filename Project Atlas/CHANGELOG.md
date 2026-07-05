@@ -1,5 +1,30 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 — Remote Jobs Feed MVP (`/jobs`)
+
+- **Classification**: COMPLETED
+- **Feature**: Added hidden MVP Remote Jobs Feed page available via direct URL at `/jobs`.
+- **Visibility**: Strictly hidden (no navbar link, no dashboard card, no sidebar item, no onboarding links).
+- **Approved Job Sources**: Remotive API (`https://remotive.com/api/remote-jobs`), We Work Remotely RSS (`https://weworkremotely.com/remote-jobs.rss`), and Jobicy API (`https://jobicy.com/api/v2/remote-jobs?count=100`). Scrapers and non-permission sources (Jobfound, LinkedIn, Indeed, Glassdoor) excluded.
+- **Data Model & Schema**:
+  - `setup_remote_jobs_feed_schema.cjs`: Created `job_feed_items`, `user_job_actions`, and `job_feed_sync_runs` Appwrite collections in Database `main`.
+- **Appwrite Serverless Functions (`appwrite-hubs/`)**:
+  - `job-feed-sync`: Serverless function to fetch public APIs/RSS, normalize into `NormalizedRemoteJob`, deduplicate by `dedupe_key`, compute `content_hash`, and upsert into `job_feed_items`.
+  - `get-remote-jobs`: Serverless function returning paginated, filtered jobs merged with user action states (`saved`, `applied`, `dismissed`).
+  - `track-job-action`: Serverless function to track user actions (`save`, `mark_applied`, `dismiss`, `undo`).
+- **Frontend & Tailoring Hub**:
+  - Created `RemoteJobsPage.tsx` with crimson WiseResume workspace UI, search, source filters, category filters, and "Apply on website" inline confirmation prompt.
+  - Added "Tailor my resume for this job" CTA routing to `/tailoring-hub` with job parameters pre-filled.
+- **Deployment & Script Integration**:
+  - Registered `job-feed-sync`, `get-remote-jobs`, and `track-job-action` in `scripts/deploy_hubs.cjs`, `scripts/compute-source-hashes.mjs`, and `.github/workflows/deploy-appwrite-hubs.yml`.
+  - Updated `src/lib/devkit/sourceHashes.generated.json`.
+- **Validation**:
+  - `npx tsc --noEmit` — 0 type errors.
+  - `vitest run src/lib/__tests__/remoteJobsNormalizer.test.ts src/pages/__tests__/RemoteJobsPage.test.tsx` — 10/10 tests PASSED.
+  - `npm run build` — Successful production build.
+
+---
+
 ## 2026-07-05 — Post-Fix Regression Audit & Safety Review Cleanup
 
 - **Classification**: COMPLETED

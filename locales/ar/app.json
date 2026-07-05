@@ -1246,5 +1246,30 @@
       "placeholderName": "الاسم",
       "placeholderTitle": "المسمى الوظيفي"
     }
+  },
+  "remoteJobs": {
+    "title": "خلاصة الوظائف عن بُعد",
+    "subtitle": "استكشف الفرص الوظيفية الموثوقة عن بُعد من المصادر الرسمية المعتمدة.",
+    "searchPlaceholder": "ابحث بالمسمى الوظيفي، اسم الشركة، أو الكلمات المفتاحية...",
+    "sourceFilter": "جميع المصادر",
+    "categoryFilter": "جميع التصنيفات",
+    "applyButton": "التقديم عبر الموقع الأصلي",
+    "didYouApply": "هل تقدمت لهذه الوظيفة؟",
+    "markApplied": "نعم، تم التقديم",
+    "notYet": "ليس بعد",
+    "alreadyApplied": "تم التقديم مسبقاً",
+    "appliedOn": "تم التقديم في {{date}}",
+    "tailorResume": "تخصيص سيرتي الذاتية لهذه الوظيفة",
+    "saveJob": "حفظ",
+    "savedJob": "محفوظة",
+    "dismissJob": "تجاهل",
+    "unsyncedTitle": "خلاصة الوظائف غير محدثة بعد.",
+    "unsyncedSubtitle": "يتم تجميع الوظائف عن بُعد بشكل دوري على الخادم. يرجى المراجعة لاحقاً.",
+    "emptyTitle": "لم يتم العثور على وظائف",
+    "emptySubtitle": "جرب تغيير كلمات البحث أو إعادة ضبط الفلاتر.",
+    "loading": "جاري تحميل الوظائف عن بُعد...",
+    "sourceRemotive": "Remotive",
+    "sourceWwr": "We Work Remotely",
+    "sourceJobicy": "Jobicy"
   }
 }

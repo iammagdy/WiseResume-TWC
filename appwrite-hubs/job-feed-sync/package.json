@@ -1,0 +1,10 @@
+{
+  "name": "job-feed-sync-hub",
+  "version": "1.0.0",
+  "description": "Appwrite Function — syncs remote jobs from Remotive, WWR, and Jobicy into job_feed_items",
+  "main": "src/main.js",
+  "dependencies": {
+    "axios": "^1.4.0",
+    "node-appwrite": "^17.2.0"
+  }
+}
