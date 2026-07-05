@@ -1,0 +1,1276 @@
+{
+  "results": [
+    {
+      "route": "Home",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 12",
+        "Console errors: The Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element. | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr",
+        "Network errors: http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Home-360-issue.png"
+    },
+    {
+      "route": "Pricing",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Pricing-360-issue.png"
+    },
+    {
+      "route": "Auth",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Auth-360-issue.png"
+    },
+    {
+      "route": "SignIn",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\SignIn-360-issue.png"
+    },
+    {
+      "route": "Waitlist",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Waitlist-360-issue.png"
+    },
+    {
+      "route": "Enterprise",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 16",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Enterprise-360-issue.png"
+    },
+    {
+      "route": "WhatsNew",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 2 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WhatsNew-360-issue.png"
+    },
+    {
+      "route": "Privacy",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Privacy-360-issue.png"
+    },
+    {
+      "route": "Terms",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Terms-360-issue.png"
+    },
+    {
+      "route": "NotFound",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\NotFound-360-issue.png"
+    },
+    {
+      "route": "Home",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 11",
+        "Console errors: The Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element. | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr",
+        "Network errors: http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Home-390-issue.png"
+    },
+    {
+      "route": "Pricing",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Pricing-390-issue.png"
+    },
+    {
+      "route": "Auth",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Auth-390-issue.png"
+    },
+    {
+      "route": "SignIn",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\SignIn-390-issue.png"
+    },
+    {
+      "route": "Waitlist",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Waitlist-390-issue.png"
+    },
+    {
+      "route": "Enterprise",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 16",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Enterprise-390-issue.png"
+    },
+    {
+      "route": "WhatsNew",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 2 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WhatsNew-390-issue.png"
+    },
+    {
+      "route": "Privacy",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Privacy-390-issue.png"
+    },
+    {
+      "route": "Terms",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Terms-390-issue.png"
+    },
+    {
+      "route": "NotFound",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\NotFound-390-issue.png"
+    },
+    {
+      "route": "Home",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 11",
+        "Console errors: The Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element. | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr",
+        "Network errors: http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Home-430-issue.png"
+    },
+    {
+      "route": "Pricing",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Pricing-430-issue.png"
+    },
+    {
+      "route": "Auth",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Auth-430-issue.png"
+    },
+    {
+      "route": "SignIn",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\SignIn-430-issue.png"
+    },
+    {
+      "route": "Waitlist",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Waitlist-430-issue.png"
+    },
+    {
+      "route": "Enterprise",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 16",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Enterprise-430-issue.png"
+    },
+    {
+      "route": "WhatsNew",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 2 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WhatsNew-430-issue.png"
+    },
+    {
+      "route": "Privacy",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Privacy-430-issue.png"
+    },
+    {
+      "route": "Terms",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Terms-430-issue.png"
+    },
+    {
+      "route": "NotFound",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\NotFound-430-issue.png"
+    },
+    {
+      "route": "Home",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 11",
+        "Console errors: The Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element. | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr",
+        "Network errors: http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Home-768-issue.png"
+    },
+    {
+      "route": "Pricing",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Pricing-768-issue.png"
+    },
+    {
+      "route": "Auth",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Auth-768-issue.png"
+    },
+    {
+      "route": "SignIn",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\SignIn-768-issue.png"
+    },
+    {
+      "route": "Waitlist",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Waitlist-768-issue.png"
+    },
+    {
+      "route": "Enterprise",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 15",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Enterprise-768-issue.png"
+    },
+    {
+      "route": "WhatsNew",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 2 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WhatsNew-768-issue.png"
+    },
+    {
+      "route": "Privacy",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Privacy-768-issue.png"
+    },
+    {
+      "route": "Terms",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Terms-768-issue.png"
+    },
+    {
+      "route": "NotFound",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\NotFound-768-issue.png"
+    },
+    {
+      "route": "Home",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 11",
+        "Console errors: The Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element. | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr | Loading the script 'http://localhost:8400/live.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com\". Note that 'script-sr",
+        "Network errors: http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Home-1440-issue.png"
+    },
+    {
+      "route": "Pricing",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Pricing-1440-issue.png"
+    },
+    {
+      "route": "Auth",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Auth-1440-issue.png"
+    },
+    {
+      "route": "SignIn",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\SignIn-1440-issue.png"
+    },
+    {
+      "route": "Waitlist",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Waitlist-1440-issue.png"
+    },
+    {
+      "route": "Enterprise",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Invisible content elements: 16",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Enterprise-1440-issue.png"
+    },
+    {
+      "route": "WhatsNew",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 2 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WhatsNew-1440-issue.png"
+    },
+    {
+      "route": "Privacy",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Privacy-1440-issue.png"
+    },
+    {
+      "route": "Terms",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Terms-1440-issue.png"
+    },
+    {
+      "route": "NotFound",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\NotFound-1440-issue.png"
+    },
+    {
+      "route": "Dashboard",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/coupons/executions - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Dashboard-1440-issue.png"
+    },
+    {
+      "route": "Upload",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Upload-1440-issue.png"
+    },
+    {
+      "route": "Editor",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Editor-1440-issue.png"
+    },
+    {
+      "route": "Preview",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Preview-1440-issue.png"
+    },
+    {
+      "route": "Settings",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 1 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Settings-1440-issue.png"
+    },
+    {
+      "route": "Onboarding",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Onboarding-1440-issue.png"
+    },
+    {
+      "route": "Profile",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Possible stuck loaders: 102 pulse/skeleton elements",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Profile-1440-issue.png"
+    },
+    {
+      "route": "Templates",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Templates-1440-issue.png"
+    },
+    {
+      "route": "Notifications",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Notifications-1440-issue.png"
+    },
+    {
+      "route": "Portfolio",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Portfolio-1440-issue.png"
+    },
+    {
+      "route": "CoverLetters",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\CoverLetters-1440-issue.png"
+    },
+    {
+      "route": "CoverLetterNew",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\CoverLetterNew-1440-issue.png"
+    },
+    {
+      "route": "Examples",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Failed to load resource: the server responded with a status of 401 () | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Examples-1440-issue.png"
+    },
+    {
+      "route": "ResignationLetters",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\ResignationLetters-1440-issue.png"
+    },
+    {
+      "route": "ResignationLetterNew",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\ResignationLetterNew-1440-issue.png"
+    },
+    {
+      "route": "Guides",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Guides-1440-issue.png"
+    },
+    {
+      "route": "AIStudio",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\AIStudio-1440-issue.png"
+    },
+    {
+      "route": "Help",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Help-1440-issue.png"
+    },
+    {
+      "route": "Analytics",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Analytics-1440-issue.png"
+    },
+    {
+      "route": "Subscription",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Failed to load resource: the server responded with a status of 401 () | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Subscription-1440-issue.png"
+    },
+    {
+      "route": "Referral",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Referral-1440-issue.png"
+    },
+    {
+      "route": "Achievements",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Achievements-1440-issue.png"
+    },
+    {
+      "route": "Search",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Failed to load resource: the server responded with a status of 401 () | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Search-1440-issue.png"
+    },
+    {
+      "route": "TailoringHub",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\TailoringHub-1440-issue.png"
+    },
+    {
+      "route": "Dashboard",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Dashboard-360-issue.png"
+    },
+    {
+      "route": "Upload",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Upload-360-issue.png"
+    },
+    {
+      "route": "Editor",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Editor-360-issue.png"
+    },
+    {
+      "route": "TailoringHub",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\TailoringHub-360-issue.png"
+    },
+    {
+      "route": "AIStudio",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\AIStudio-360-issue.png"
+    },
+    {
+      "route": "Portfolio",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Portfolio-360-issue.png"
+    },
+    {
+      "route": "Settings",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 1 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Settings-360-issue.png"
+    },
+    {
+      "route": "Notifications",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Notifications-360-issue.png"
+    },
+    {
+      "route": "Analytics",
+      "viewport": "360",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Analytics-360-issue.png"
+    },
+    {
+      "route": "Dashboard",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Dashboard-390-issue.png"
+    },
+    {
+      "route": "Upload",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Upload-390-issue.png"
+    },
+    {
+      "route": "Editor",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Editor-390-issue.png"
+    },
+    {
+      "route": "TailoringHub",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\TailoringHub-390-issue.png"
+    },
+    {
+      "route": "AIStudio",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\AIStudio-390-issue.png"
+    },
+    {
+      "route": "Portfolio",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Portfolio-390-issue.png"
+    },
+    {
+      "route": "Settings",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 1 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Settings-390-issue.png"
+    },
+    {
+      "route": "Notifications",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Notifications-390-issue.png"
+    },
+    {
+      "route": "Analytics",
+      "viewport": "390",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Analytics-390-issue.png"
+    },
+    {
+      "route": "Dashboard",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Dashboard-430-issue.png"
+    },
+    {
+      "route": "Upload",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Upload-430-issue.png"
+    },
+    {
+      "route": "Editor",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Editor-430-issue.png"
+    },
+    {
+      "route": "TailoringHub",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\TailoringHub-430-issue.png"
+    },
+    {
+      "route": "AIStudio",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\AIStudio-430-issue.png"
+    },
+    {
+      "route": "Portfolio",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Portfolio-430-issue.png"
+    },
+    {
+      "route": "Settings",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 1 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Settings-430-issue.png"
+    },
+    {
+      "route": "Notifications",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Notifications-430-issue.png"
+    },
+    {
+      "route": "Analytics",
+      "viewport": "430",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Analytics-430-issue.png"
+    },
+    {
+      "route": "Dashboard",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Dashboard-768-issue.png"
+    },
+    {
+      "route": "Upload",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Upload-768-issue.png"
+    },
+    {
+      "route": "Editor",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Editor-768-issue.png"
+    },
+    {
+      "route": "TailoringHub",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\TailoringHub-768-issue.png"
+    },
+    {
+      "route": "AIStudio",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\AIStudio-768-issue.png"
+    },
+    {
+      "route": "Portfolio",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Portfolio-768-issue.png"
+    },
+    {
+      "route": "Settings",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Error text visible: 1 matches",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Settings-768-issue.png"
+    },
+    {
+      "route": "Notifications",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Notifications-768-issue.png"
+    },
+    {
+      "route": "Analytics",
+      "viewport": "768",
+      "status": "ISSUE",
+      "issues": [
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | https://fra.cloud.appwrite.io/v1/databases/main/collections/tailor_history/docum - net::ERR_ABORTED"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\Analytics-768-issue.png"
+    },
+    {
+      "route": "WiseHireDashboard",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireDashboard-1440-issue.png"
+    },
+    {
+      "route": "WiseHireOnboarding",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireOnboarding-1440-issue.png"
+    },
+    {
+      "route": "WiseHireSubscription",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireSubscription-1440-issue.png"
+    },
+    {
+      "route": "WiseHireSettings",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireSettings-1440-issue.png"
+    },
+    {
+      "route": "WiseHireJDWriter",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireJDWriter-1440-issue.png"
+    },
+    {
+      "route": "WiseHireBriefs",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireBriefs-1440-issue.png"
+    },
+    {
+      "route": "WiseHirePipeline",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHirePipeline-1440-issue.png"
+    },
+    {
+      "route": "WiseHireBulkScreen",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireBulkScreen-1440-issue.png"
+    },
+    {
+      "route": "WiseHireTalentPool",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireTalentPool-1440-issue.png"
+    },
+    {
+      "route": "WiseHireAnalytics",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireAnalytics-1440-issue.png"
+    },
+    {
+      "route": "WiseHireClients",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireClients-1440-issue.png"
+    },
+    {
+      "route": "WiseHireScorecardTemplates",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireScorecardTemplates-1440-issue.png"
+    },
+    {
+      "route": "WiseHireRoles",
+      "viewport": "1440",
+      "status": "ISSUE",
+      "issues": [
+        "Redirected to /dashboard",
+        "Console errors: Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Connecting to 'https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F10.48.0 | Fetch API cannot load https://o4511264984989696.ingest.de.sentry.io/api/4511265054589008/envelope/?sentry_version=7&sentry_key=cb69f6c4d1326010a9344b51083c09e8&sentry_client=sentry.javascript.react%2F",
+        "Network errors: https://fra.cloud.appwrite.io/v1/functions/track-visitor-event/executions - net::ERR_ABORTED | http://localhost:8400/live.js - csp"
+      ],
+      "screenshot": "Project Atlas\\UI_UX_FULL_APP_AUDIT_2026-06-26\\live-qa-screenshots\\WiseHireRoles-1440-issue.png"
+    }
+  ],
+  "loginSuccess": true,
+  "timestamp": "2026-06-26T05:01:43.196Z",
+  "commit": "38583687",
+  "baseUrl": "https://wiseresume.app"
+}
