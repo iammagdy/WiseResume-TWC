@@ -49,13 +49,13 @@ module.exports = async ({ req, res, log, error }) => {
   }
 
   const userId = auth.userId;
-  const { job_feed_item_id, canonical_url, action, notes, source_resume_id, tailored_resume_id } = body || {};
+  const { job_feed_item_id, canonical_url, action, notes, source_resume_id, tailored_resume_id, generated_cover_letter_id } = body || {};
 
   if (!job_feed_item_id || !action) {
     return res.json({ ok: false, error: 'job_feed_item_id and action are required' }, 400);
   }
 
-  const allowedActions = ['save', 'mark_applied', 'dismiss', 'undo'];
+  const allowedActions = ['save', 'mark_applied', 'dismiss', 'undo', 'mark_tailored', 'mark_ready_to_apply'];
   if (!allowedActions.includes(action)) {
     return res.json({ ok: false, error: `Invalid action. Must be one of: ${allowedActions.join(', ')}` }, 400);
   }
@@ -83,6 +83,8 @@ module.exports = async ({ req, res, log, error }) => {
       save: 'saved',
       mark_applied: 'applied',
       dismiss: 'dismissed',
+      mark_tailored: 'tailored',
+      mark_ready_to_apply: 'ready_to_apply',
     };
 
     const targetStatus = mapStatus[action];
@@ -99,6 +101,7 @@ module.exports = async ({ req, res, log, error }) => {
       notes: notes || existingDoc?.notes || '',
       source_resume_id: source_resume_id || existingDoc?.source_resume_id || '',
       tailored_resume_id: tailored_resume_id || existingDoc?.tailored_resume_id || '',
+      generated_cover_letter_id: generated_cover_letter_id || existingDoc?.generated_cover_letter_id || '',
       action_key: actionKey,
     };
 

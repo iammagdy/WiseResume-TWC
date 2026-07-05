@@ -16,7 +16,18 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useJobApplicationMutations } from '@/hooks/useJobApplications';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { templates } from '@/lib/templateData';
 import { TemplateId } from '@/types/resume';
 import { cn } from '@/lib/utils';
@@ -222,6 +233,66 @@ export default function JobMatchResultPage() {
     }),
     [appwriteEntry, effectiveState, resumeId, tailorHistoryEntry],
   );
+
+  const queryClient = useQueryClient();
+  const [showAppliedPrompt, setShowAppliedPrompt] = useState(false);
+  const { updateApplication } = useJobApplicationMutations();
+
+  const { data: applications = [], refetch: refetchApp } = useQuery({
+    queryKey: ['linked-job-application', resumeId],
+    queryFn: async () => {
+      if (!resumeId) return [];
+      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, [
+        Query.equal('resume_id', resumeId),
+        Query.limit(1),
+      ]);
+      return res.documents;
+    },
+    enabled: !!resumeId,
+  });
+
+  const linkedApp = applications?.[0];
+  const hasAppReady = !!(linkedApp && (linkedApp.status === 'ready_to_apply' || linkedApp.status === 'tailored'));
+
+  const handleMarkApptrackApplied = async () => {
+    if (!linkedApp) return;
+    try {
+      await updateApplication.mutateAsync({
+        id: linkedApp.$id,
+        updates: {
+          status: 'applied',
+          applied_at: new Date().toISOString(),
+        },
+      });
+      // Try to sync with remote jobs user actions too if job_feed_item_id is linked
+      if (linkedApp.job_feed_item_id) {
+        try {
+          const actionKey = `${linkedApp.user_id}:${linkedApp.job_feed_item_id}`;
+          const existingRes = await databases.listDocuments(
+            DATABASE_ID,
+            COLLECTIONS.user_job_actions || 'user_job_actions',
+            [Query.equal('action_key', actionKey), Query.limit(1)],
+          );
+          const existingDoc = existingRes.documents?.[0];
+          if (existingDoc) {
+            await databases.updateDocument(
+              DATABASE_ID,
+              COLLECTIONS.user_job_actions || 'user_job_actions',
+              existingDoc.$id,
+              { status: 'applied', applied_at: new Date().toISOString() }
+            );
+          }
+        } catch (e) {
+          console.warn('Sync job action status error:', e);
+        }
+      }
+      void refetchApp();
+      queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+      toast.success('Application marked as applied!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update application');
+    }
+  };
 
   const navigateWithTemplate = (path: string, newTab = false) => {
     if (!resumeId) return;
@@ -451,6 +522,46 @@ export default function JobMatchResultPage() {
         )}
       </header>
 
+      {hasAppReady && (
+        <div className="bg-rose-50 dark:bg-rose-950/20 border-y border-rose-100 dark:border-rose-900/30 px-4 py-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+          <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </span>
+            <span>
+              <strong>Application Bundle Ready:</strong> Tailored CV and Cover Letter are finalized. Submit your application on the employer's website.
+            </span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {jobContext.jobUrl && (
+              <a
+                href={jobContext.jobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  setTimeout(() => {
+                    setShowAppliedPrompt(true);
+                  }, 1500);
+                }}
+                className="inline-flex items-center justify-center rounded-md text-xs font-semibold h-8 px-3 bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm"
+              >
+                Apply on website
+                <ExternalLink className="w-3 h-3 ml-1.5" />
+              </a>
+            )}
+            <Button
+              size="xs"
+              variant="outline"
+              className="text-xs h-8 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/40"
+              onClick={handleMarkApptrackApplied}
+            >
+              Mark as Applied
+            </Button>
+          </div>
+        </div>
+      )}
+
       {(effectiveState.jobTitle || effectiveState.scoreBeforeAfter) && (
         <div className="jmw-result-mobile-meta flex sm:hidden" aria-label="Job match summary">
           {effectiveState.jobTitle && (
@@ -575,6 +686,29 @@ export default function JobMatchResultPage() {
           </Button>
         </div>
       )}
+      <AlertDialog open={showAppliedPrompt} onOpenChange={setShowAppliedPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Did you apply for this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              We noticed you clicked to apply on the employer's website. If you submitted your application, we can update your job search tracker to "Applied" to keep your history accurate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowAppliedPrompt(false)}>
+              No, not yet
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowAppliedPrompt(false);
+                await handleMarkApptrackApplied();
+              }}
+            >
+              Yes, I submitted it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -27,7 +27,7 @@ const STAGES: { key: ApplicationStatus; label: string }[] = [
   { key: 'offer', label: 'Offer' },
 ];
 
-const STAGE_ORDER: Record<string, number> = { saved: 0, applied: 1, screening: 2, interviewing: 3, offer: 4, rejected: -1 };
+const STAGE_ORDER: Record<string, number> = { saved: 0, tailored: 0, ready_to_apply: 0, applied: 1, screening: 2, interviewing: 3, offer: 4, rejected: -1 };
 
 export default function ApplicationTrackerPage() {
   const { t } = useLocale();

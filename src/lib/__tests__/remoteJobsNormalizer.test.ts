@@ -64,7 +64,7 @@ describe('Remote Jobs Normalizer & Deduplication', () => {
 
     it('classifies Writing & Content roles', () => {
       expect(classifyRoleGroup('Senior Technical Writer')).toBe('writing');
-      expect(classifyRoleGroup('B2B Copywriter')).toBe('writing');
+      expect(classifyRoleGroup('B2B Copywriter')).toBe('content_writer');
     });
 
     it('classifies Tech & Programming roles', () => {

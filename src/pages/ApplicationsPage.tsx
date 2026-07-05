@@ -40,6 +40,8 @@ type TabKey = 'applications' | 'jobs';
 
 const STATUS_BADGE_CLASSES: Record<ApplicationStatus, string> = {
   saved: 'bg-muted/50 text-muted-foreground border-muted',
+  tailored: 'bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-900',
+  ready_to_apply: 'bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-900',
   applied: 'bg-primary/10 text-primary border-primary/30',
   screening: 'bg-warning/10 text-warning border-warning/30',
   interviewing: 'bg-accent/20 text-accent-foreground border-accent/30',

@@ -57,6 +57,14 @@ module.exports = async ({ req, res, log, error }) => {
   const categoryFilter = body.category;
   const search = body.query ? String(body.query).trim().toLowerCase() : '';
 
+  // New Filters
+  const regionFitFilter = body.region_fit;
+  const seniorityFilter = body.seniority_level || body.seniority;
+  const hasSalaryFilter = body.has_salary === true || body.has_salary === 'true';
+  const minSalaryFilter = body.min_salary ? Number(body.min_salary) : null;
+  const salaryPeriodFilter = body.salary_period;
+  const showOlderFilter = body.show_older === true || body.show_older === 'true';
+
   const db = getDbClient();
   const queries = [
     Query.orderDesc('published_at'),
@@ -64,6 +72,17 @@ module.exports = async ({ req, res, log, error }) => {
     Query.offset(offset),
   ];
 
+  // 1. Freshness Gate
+  if (!showOlderFilter) {
+    const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    queries.push(Query.greaterThanEqual('published_at', threeDaysAgoIso));
+  } else {
+    // Keep older queries capped at 30 days old for efficiency
+    const thirtyDaysAgoIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    queries.push(Query.greaterThanEqual('published_at', thirtyDaysAgoIso));
+  }
+
+  // 2. Base Filters
   if (sourceFilter) {
     queries.push(Query.equal('source', sourceFilter));
   }
@@ -72,6 +91,23 @@ module.exports = async ({ req, res, log, error }) => {
   }
   if (categoryFilter) {
     queries.push(Query.equal('category', categoryFilter));
+  }
+
+  // 3. New Specific Filters
+  if (regionFitFilter && regionFitFilter !== 'all') {
+    queries.push(Query.equal('region_fit', regionFitFilter));
+  }
+  if (seniorityFilter && seniorityFilter !== 'all') {
+    queries.push(Query.equal('seniority_level', seniorityFilter));
+  }
+  if (hasSalaryFilter) {
+    queries.push(Query.equal('salary_quality', ['trusted', 'estimated']));
+  }
+  if (minSalaryFilter !== null) {
+    queries.push(Query.greaterThanEqual('salary_amount_min', minSalaryFilter));
+  }
+  if (salaryPeriodFilter && salaryPeriodFilter !== 'all') {
+    queries.push(Query.equal('salary_period', salaryPeriodFilter));
   }
 
   try {

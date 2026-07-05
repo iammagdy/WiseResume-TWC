@@ -22,6 +22,12 @@ export type JobFilterOptions = {
   query?: string;
   page?: number;
   limit?: number;
+  region_fit?: string | 'all';
+  seniority?: string | 'all';
+  has_salary?: boolean;
+  min_salary?: number;
+  salary_period?: string | 'all';
+  show_older?: boolean;
 };
 
 export function useRemoteJobs(options: JobFilterOptions = {}) {
@@ -34,7 +40,20 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
   const [isSynced, setIsSynced] = useState<boolean>(true);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
-  const { source = 'all', roleGroup = 'all', category = 'all', query = '', page = 1, limit = 50 } = options;
+  const {
+    source = 'all',
+    roleGroup = 'all',
+    category = 'all',
+    query = '',
+    page = 1,
+    limit = 50,
+    region_fit = 'all',
+    seniority = 'all',
+    has_salary = false,
+    min_salary,
+    salary_period = 'all',
+    show_older = false,
+  } = options;
 
   const fetchJobsFromAppwrite = useCallback(async () => {
     setIsLoading(true);
@@ -55,6 +74,12 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
             query: query.trim() || undefined,
             page,
             limit,
+            region_fit: region_fit !== 'all' ? region_fit : undefined,
+            seniority_level: seniority !== 'all' ? seniority : undefined,
+            has_salary: has_salary ? true : undefined,
+            min_salary: min_salary || undefined,
+            salary_period: salary_period !== 'all' ? salary_period : undefined,
+            show_older: show_older ? true : undefined,
             __headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
           }),
           false,
@@ -91,6 +116,14 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
         Query.offset((page - 1) * limit),
       ];
 
+      if (!show_older) {
+        const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+        queries.push(Query.greaterThanEqual('published_at', threeDaysAgoIso));
+      } else {
+        const thirtyDaysAgoIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        queries.push(Query.greaterThanEqual('published_at', thirtyDaysAgoIso));
+      }
+
       if (source !== 'all') {
         queries.push(Query.equal('source', source));
       }
@@ -99,6 +132,21 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
       }
       if (category !== 'all') {
         queries.push(Query.equal('category', category));
+      }
+      if (region_fit !== 'all') {
+        queries.push(Query.equal('region_fit', region_fit));
+      }
+      if (seniority !== 'all') {
+        queries.push(Query.equal('seniority_level', seniority));
+      }
+      if (has_salary) {
+        queries.push(Query.equal('salary_quality', ['trusted', 'estimated']));
+      }
+      if (min_salary) {
+        queries.push(Query.greaterThanEqual('salary_amount_min', min_salary));
+      }
+      if (salary_period !== 'all') {
+        queries.push(Query.equal('salary_period', salary_period));
       }
 
       const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.job_feed_items || 'job_feed_items', queries);
@@ -177,20 +225,23 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.$id, isAuthenticated, source, roleGroup, category, query, page, limit]);
+  }, [user?.$id, isAuthenticated, source, roleGroup, category, query, page, limit, region_fit, seniority, has_salary, min_salary, salary_period, show_older]);
 
   useEffect(() => {
     void fetchJobsFromAppwrite();
   }, [fetchJobsFromAppwrite]);
 
   /**
-   * Track user action (save, mark_applied, dismiss, undo)
+   * Track user action
    */
   const trackAction = useCallback(
     async (
       job: NormalizedRemoteJob,
-      action: 'save' | 'mark_applied' | 'dismiss' | 'undo',
+      action: 'save' | 'mark_applied' | 'dismiss' | 'undo' | 'mark_tailored' | 'mark_ready_to_apply',
       notes?: string,
+      source_resume_id?: string,
+      tailored_resume_id?: string,
+      generated_cover_letter_id?: string,
     ) => {
       if (!user?.$id) return { ok: false, error: 'Authentication required' };
 
@@ -199,6 +250,8 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
         save: 'saved',
         mark_applied: 'applied',
         dismiss: 'dismissed',
+        mark_tailored: 'tailored',
+        mark_ready_to_apply: 'ready_to_apply',
         undo: null,
       };
 
@@ -232,6 +285,9 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
               canonical_url: job.canonical_url,
               action,
               notes,
+              source_resume_id,
+              tailored_resume_id,
+              generated_cover_letter_id,
               __headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
             }),
             false,
@@ -275,6 +331,9 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
           applied_at: targetStatus === 'applied' ? now : existingDoc?.applied_at || null,
           saved_at: targetStatus === 'saved' ? now : existingDoc?.saved_at || null,
           dismissed_at: targetStatus === 'dismissed' ? now : existingDoc?.dismissed_at || null,
+          source_resume_id: source_resume_id || existingDoc?.source_resume_id || null,
+          tailored_resume_id: tailored_resume_id || existingDoc?.tailored_resume_id || null,
+          generated_cover_letter_id: generated_cover_letter_id || existingDoc?.generated_cover_letter_id || null,
           action_key: actionKey,
         };
 

@@ -35,6 +35,7 @@ const HUB_TIMEOUTS = {
     // tailor-resume allows up to 28s per provider attempt with cross-provider fallbacks
     'ai-gateway': 180,
     'admin-deploy-hubs': 900,
+    'job-feed-sync': 300,
     // DevKit admin hubs — timeouts aligned with their heaviest action:
     //   admin-devkit-data: mission-control (4 external pings + 3 DB reads), purge-orphans, overview-stats
     //   admin-visitor-analytics: dashboard action paginates visitor_events (large dataset)

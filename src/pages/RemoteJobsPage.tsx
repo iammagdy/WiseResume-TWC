@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,8 +18,29 @@ import {
   Sparkles,
   Layers,
   Sparkle,
+  Loader2,
+  FileText,
 } from 'lucide-react';
 import { useRemoteJobs } from '@/hooks/useRemoteJobs';
+import { useAuth } from '@/hooks/useAuth';
+import { useResumes, useSetMasterCV, dbToResumeData, type DatabaseResume } from '@/hooks/useResumes';
+import { useJobApplicationMutations } from '@/hooks/useJobApplications';
+import { useAICreditsMutations } from '@/hooks/useAICredits';
+import { tailorResumeWithProgress, generateCoverLetter } from '@/lib/aiTailor';
+import { buildMergedResume } from '@/lib/tailorMerge';
+import { buildTailoringCustomization } from '@/lib/tailoringResumeMetadata';
+import { databases, DATABASE_ID, ID, Query } from '@/lib/appwrite';
+import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
+import { useResumeStore } from '@/store/resumeStore';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import {
   type NormalizedRemoteJob,
   type JobSource,
@@ -30,16 +51,44 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { haptics } from '@/lib/haptics';
 
 export default function RemoteJobsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const isRtl = i18n.language === 'ar';
+  const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
 
+  // Basic Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSource, setSelectedSource] = useState<JobSource | 'all'>('all');
   const [selectedRoleGroup, setSelectedRoleGroup] = useState<RoleGroup | 'all'>('all');
   const [confirmingAppliedJobId, setConfirmingAppliedJobId] = useState<string | null>(null);
+
+  // Advanced Filter States
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<string | 'all'>('all');
+  const [selectedSeniority, setSelectedSeniority] = useState<string | 'all'>('all');
+  const [hasSalaryOnly, setHasSalaryOnly] = useState(false);
+  const [minSalary, setMinSalary] = useState<number | undefined>(undefined);
+  const [salaryPeriod, setSalaryPeriod] = useState<string | 'all'>('all');
+  const [showOlder, setShowOlder] = useState(false);
+
+  // Fast Tailor States
+  const [activeJobForTailoring, setActiveJobForTailoring] = useState<NormalizedRemoteJob | null>(null);
+  const [showResumePickerDialog, setShowResumePickerDialog] = useState(false);
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  const [makeDefaultResume, setMakeDefaultResume] = useState(false);
+  const [isTailoring, setIsTailoring] = useState(false);
+  const [tailorProgress, setTailorProgress] = useState<string>('');
+  const isTailoringRef = useRef(false);
+  const { checkCredits } = useAICreditsMutations();
+
+  // Resumes and mutations
+  const { data: resumes = [] } = useResumes();
+  const setMasterCV = useSetMasterCV();
+  const addTailorHistory = useResumeStore(state => state.addTailorHistory);
 
   const {
     jobs,
@@ -48,8 +97,6 @@ export default function RemoteJobsPage() {
     isLoading,
     isSynced,
     lastSyncedAt,
-    roleGroupCounts,
-    error,
     refetch,
     trackAction,
   } = useRemoteJobs({
@@ -57,6 +104,12 @@ export default function RemoteJobsPage() {
     roleGroup: selectedRoleGroup,
     query: searchQuery,
     limit: 50,
+    region_fit: selectedRegion,
+    seniority: selectedSeniority,
+    has_salary: hasSalaryOnly,
+    min_salary: minSalary,
+    salary_period: salaryPeriod,
+    show_older: showOlder,
   });
 
   const handleApplyClick = (job: NormalizedRemoteJob) => {
@@ -86,17 +139,207 @@ export default function RemoteJobsPage() {
     }
   };
 
-  const handleDismiss = async (job: NormalizedRemoteJob) => {
-    const res = await trackAction(job, 'dismiss');
-    if (res.ok) {
-      toast.info('Job dismissed');
-    }
-  };
-
   const handleTailorClick = (job: NormalizedRemoteJob) => {
     const desc = job.description_html || job.description_excerpt || `${job.title} at ${job.company}`;
     const targetUrl = `/tailoring-hub?job=${encodeURIComponent(desc)}&title=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}&url=${encodeURIComponent(job.apply_url)}`;
     navigate(targetUrl);
+  };
+
+  const handleFastTailor = useCallback((job: NormalizedRemoteJob) => {
+    if (isTailoringRef.current) return;
+    if (!isAuthenticated) {
+      toast.error('Authentication required to tailor resumes.');
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+
+    if (resumes.length === 0) {
+      toast.error('Please upload or create a resume first.');
+      navigate('/');
+      return;
+    }
+
+    const master = resumes.find(r => r.is_master);
+    if (master) {
+      void executeFastTailorFlow(master, job);
+    } else if (resumes.length === 1) {
+      void executeFastTailorFlow(resumes[0], job);
+    } else {
+      // Prompt user to select one
+      setActiveJobForTailoring(job);
+      setSelectedResumeId(resumes[0].$id);
+      setShowResumePickerDialog(true);
+    }
+  }, [isAuthenticated, resumes, navigate]);
+
+  const executeFastTailorFlow = async (selectedDbResume: DatabaseResume, job: NormalizedRemoteJob) => {
+    if (isTailoringRef.current) return;
+    isTailoringRef.current = true;
+    setIsTailoring(true);
+    setTailorProgress('Initializing tailoring...');
+    haptics.medium();
+
+    try {
+      const hasCredits = await checkCredits();
+      if (!hasCredits) {
+        toast.error("You've reached your daily AI credit limit. Upgrade your plan to get more credits!");
+        setIsTailoring(false);
+        isTailoringRef.current = false;
+        return;
+      }
+
+      if (makeDefaultResume) {
+        await setMasterCV.mutateAsync(selectedDbResume.$id);
+      }
+
+      const originalResume = dbToResumeData(selectedDbResume);
+      const jobDescription = job.description_html || job.description_excerpt || `${job.title} at ${job.company}`;
+
+      // Step 1: Tailor Resume
+      setTailorProgress('Analyzing job and tailoring CV...');
+      const tailorResult = await tailorResumeWithProgress(
+        originalResume,
+        jobDescription,
+        (p) => {
+          setTailorProgress(`Tailoring CV... ${Math.round(p.progress)}%`);
+        },
+        'aggressive'
+      );
+
+      // Step 2: Generate Cover Letter
+      setTailorProgress('Generating personalized cover letter...');
+      let coverLetterText = '';
+      try {
+        coverLetterText = await generateCoverLetter(originalResume, jobDescription, 'professional');
+      } catch (clErr) {
+        console.error('Failed to generate cover letter:', clErr);
+        toast.warning('Cover letter generation failed, but tailoring resume succeeded.');
+      }
+
+      // Step 3: Save Tailored Resume
+      setTailorProgress('Saving tailored resume...');
+      const merged = buildMergedResume(originalResume, tailorResult, ['summary', 'skills', 'experience']);
+      const newTitle = `${job.company} - ${job.title} - Tailored CV`;
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.resumes,
+        ID.unique(),
+        {
+          user_id: user?.id,
+          title: newTitle,
+          parent_resume_id: selectedDbResume.$id,
+          contact_info: JSON.stringify(merged.contactInfo),
+          summary: merged.summary,
+          experience: JSON.stringify(merged.experience),
+          education: JSON.stringify(merged.education),
+          skills: JSON.stringify(merged.skills),
+          certifications: JSON.stringify(merged.certifications ?? []),
+          projects: JSON.stringify(merged.projects ?? []),
+          awards: JSON.stringify(merged.awards ?? []),
+          template: selectedDbResume.template || 'classic',
+          customization: JSON.stringify(buildTailoringCustomization(merged.customization, {
+            sourceResumeId: selectedDbResume.$id,
+            jobTitle: job.title,
+            company: job.company,
+            jobUrl: job.apply_url || null,
+            scoreBeforeAfter: { before: tailorResult.overallScore?.before || 50, after: tailorResult.overallScore?.after || 85 },
+            appliedSections: ['summary', 'skills', 'experience'],
+            intensity: 'aggressive',
+            createdAt: new Date().toISOString(),
+            tailorResult: {
+              keyChanges: tailorResult.keyChanges || [],
+              bulletTransformations: tailorResult.bulletTransformations || [],
+              changedSections: ['summary', 'skills', 'experience'],
+              missingSkills: tailorResult.missingSkills || [],
+            },
+          })),
+        }
+      );
+
+      const tailoredResumeId = doc.$id;
+
+      // Save Cover Letter if generated
+      let generatedCoverLetterId = '';
+      if (coverLetterText) {
+        setTailorProgress('Saving cover letter...');
+        const clDoc = await databases.createDocument(
+          DATABASE_ID,
+          COLLECTIONS.cover_letters,
+          ID.unique(),
+          {
+            user_id: user?.id,
+            title: `${job.company} - ${job.title} - Cover Letter`,
+            job_title: job.title,
+            company: job.company,
+            content: coverLetterText,
+            tone: 'professional',
+            resume_id: tailoredResumeId,
+          }
+        );
+        generatedCoverLetterId = clDoc.$id;
+      }
+
+      // Step 4: Track in Application Tracker (job_applications)
+      setTailorProgress('Tracking application...');
+      await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.job_applications,
+        ID.unique(),
+        {
+          user_id: user?.id,
+          job_title: job.title,
+          company: job.company,
+          status: 'ready_to_apply',
+          url: job.apply_url || null,
+          resume_id: tailoredResumeId,
+          cover_letter_id: generatedCoverLetterId || null,
+          generated_resume_id: tailoredResumeId,
+          generated_cover_letter_id: generatedCoverLetterId || null,
+          job_feed_item_id: job.$id || null,
+          source_job_id: job.source_job_id || null,
+          applied_at: null,
+        }
+      );
+
+      // Track in remote job feed specific actions (user_job_actions)
+      await trackAction(job, 'mark_ready_to_apply', undefined, selectedDbResume.$id, tailoredResumeId, generatedCoverLetterId);
+
+      // Add to store history
+      addTailorHistory(
+        {
+          jobTitle: job.title,
+          company: job.company,
+          jobDescription,
+          jobUrl: job.apply_url || undefined,
+          tailoredResumeId,
+          tailorResult,
+          scoreBeforeAfter: { before: tailorResult.overallScore?.before || 50, after: tailorResult.overallScore?.after || 85 },
+          appliedSections: ['summary', 'skills', 'experience'],
+        },
+        selectedDbResume.$id
+      );
+
+      // Invalidate queries
+      await invalidateAiCreditQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
+      queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+      queryClient.invalidateQueries({ queryKey: ['tailor-history-list'] });
+
+      haptics.success();
+      toast.success('Fast Tailor complete!');
+      // Navigate to results page
+      navigate(`/tailoring-hub/result/${tailoredResumeId}`);
+    } catch (err: any) {
+      console.error(err);
+      haptics.error();
+      toast.error(err.message || 'Fast Tailor failed.');
+    } finally {
+      isTailoringRef.current = false;
+      setIsTailoring(false);
+      setShowResumePickerDialog(false);
+      setActiveJobForTailoring(null);
+    }
   };
 
   const formatSourceBadge = (source: JobSource) => {
@@ -111,6 +354,12 @@ export default function RemoteJobsPage() {
         return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 font-medium">Remote OK</Badge>;
       case 'arbeitnow':
         return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-medium">Arbeitnow</Badge>;
+      case 'himalayas':
+        return <Badge variant="outline" className="bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 font-medium">Himalayas</Badge>;
+      case 'greenhouse':
+        return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 font-medium">Greenhouse</Badge>;
+      case 'lever':
+        return <Badge variant="outline" className="bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20 font-medium">Lever</Badge>;
       default:
         return <Badge variant="outline">{source}</Badge>;
     }
@@ -185,7 +434,7 @@ export default function RemoteJobsPage() {
         </div>
         <div className="flex items-center gap-2 text-xs font-medium">
           <span className="text-muted-foreground">Sources:</span>
-          <span className="font-semibold text-foreground">Remotive, WWR, Jobicy, Remote OK, Arbeitnow</span>
+          <span className="font-semibold text-foreground">Remotive, WWR, Jobicy, Remote OK, Arbeitnow, Himalayas, Greenhouse, Lever</span>
         </div>
       </div>
 
@@ -199,7 +448,6 @@ export default function RemoteJobsPage() {
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
           {ROLE_GROUPS.map(group => {
-            const count = group.id === 'all' ? total : (roleGroupCounts?.get(group.id) || 0);
             const isSelected = selectedRoleGroup === group.id;
 
             return (
@@ -214,13 +462,6 @@ export default function RemoteJobsPage() {
               >
                 {group.id === 'easy_entry_level' && <Sparkle className="w-3 h-3 text-amber-300 fill-amber-300" />}
                 <span>{group.label}</span>
-                {count > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-background/80 text-muted-foreground'
-                  }`}>
-                    {count}
-                  </span>
-                )}
               </button>
             );
           })}
@@ -228,30 +469,166 @@ export default function RemoteJobsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={t('remoteJobs.searchPlaceholder', 'Search by job title, company, or keywords...')}
-            className="pl-9 bg-background"
-          />
+      <div className="flex flex-col gap-4 bg-card/40 p-4 rounded-xl border border-border/60">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('remoteJobs.searchPlaceholder', 'Search by job title, company, or keywords...')}
+              className="pl-9 bg-background"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedSource}
+              onChange={e => setSelectedSource(e.target.value as JobSource | 'all')}
+              className="h-10 px-3 rounded-md border border-input bg-background text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="all">All Sources</option>
+              <option value="remotive">Remotive</option>
+              <option value="weworkremotely">We Work Remotely</option>
+              <option value="jobicy">Jobicy</option>
+              <option value="remoteok">Remote OK</option>
+              <option value="arbeitnow">Arbeitnow</option>
+              <option value="himalayas">Himalayas</option>
+              <option value="greenhouse">Greenhouse</option>
+              <option value="lever">Lever</option>
+            </select>
+
+            <Button
+              variant="outline"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="gap-2 shrink-0"
+            >
+              <span>Filters</span>
+              <span className="text-[10px]">{showAdvanced ? '▲' : '▼'}</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Source Dropdown Filter */}
-        <select
-          value={selectedSource}
-          onChange={e => setSelectedSource(e.target.value as JobSource | 'all')}
-          className="h-10 px-3 rounded-md border border-input bg-background text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="all">All Sources</option>
-          <option value="remotive">Remotive</option>
-          <option value="weworkremotely">We Work Remotely</option>
-          <option value="jobicy">Jobicy</option>
-          <option value="remoteok">Remote OK</option>
-          <option value="arbeitnow">Arbeitnow</option>
-        </select>
+        {/* Freshness Switch - Main Row */}
+        <div className="flex items-center justify-between border-t border-border/40 pt-3 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="freshness-toggle"
+              checked={!showOlder}
+              onChange={e => setShowOlder(!e.target.checked)}
+              className="w-4 h-4 rounded text-primary focus:ring-primary border-border"
+            />
+            <label htmlFor="freshness-toggle" className="text-xs font-semibold text-foreground select-none cursor-pointer flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-[#9E1B22]" />
+              Fresh jobs only (≤ 3 days old)
+            </label>
+          </div>
+
+          {/* Quick reset */}
+          {(searchQuery || selectedSource !== 'all' || selectedRoleGroup !== 'all' || selectedRegion !== 'all' || selectedSeniority !== 'all' || hasSalaryOnly || minSalary || salaryPeriod !== 'all' || showOlder) && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedSource('all');
+                setSelectedRoleGroup('all');
+                setSelectedRegion('all');
+                setSelectedSeniority('all');
+                setHasSalaryOnly(false);
+                setMinSalary(undefined);
+                setSalaryPeriod('all');
+                setShowOlder(false);
+              }}
+              className="text-xs font-bold text-[#9E1B22] hover:underline"
+            >
+              Reset all filters
+            </button>
+          )}
+        </div>
+
+        {/* Advanced Filters Expandable panel */}
+        {showAdvanced && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border/40 animate-in fade-in duration-200">
+            {/* Region Fit */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Region Fit</label>
+              <select
+                value={selectedRegion}
+                onChange={e => setSelectedRegion(e.target.value)}
+                className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="all">All Regions</option>
+                <option value="worldwide">Worldwide / Global</option>
+                <option value="egypt_friendly">Egypt-Friendly</option>
+                <option value="gulf_friendly">Gulf-Friendly</option>
+                <option value="mena">MENA Region</option>
+                <option value="emea">EMEA Region</option>
+                <option value="europe">Europe Friendly</option>
+                <option value="us_only">US Only</option>
+                <option value="timezone_flexible">Timezone Flexible</option>
+              </select>
+            </div>
+
+            {/* Seniority */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Seniority Level</label>
+              <select
+                value={selectedSeniority}
+                onChange={e => setSelectedSeniority(e.target.value)}
+                className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="all">All Seniorities</option>
+                <option value="entry_level">Entry Level / Grad</option>
+                <option value="junior">Junior</option>
+                <option value="mid">Mid Level</option>
+                <option value="senior">Senior</option>
+                <option value="lead">Lead / Manager</option>
+                <option value="internship">Internship</option>
+              </select>
+            </div>
+
+            {/* Salary Filters */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Salary Period</label>
+              <select
+                value={salaryPeriod}
+                onChange={e => setSalaryPeriod(e.target.value)}
+                className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="all">All Periods</option>
+                <option value="hourly">Hourly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+
+            {/* Min Salary Rate & Has Salary checkbox */}
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Min Salary Rate</label>
+                <Input
+                  type="number"
+                  placeholder="Min amount"
+                  value={minSalary || ''}
+                  onChange={e => setMinSalary(e.target.value ? Number(e.target.value) : undefined)}
+                  className="h-9 text-xs bg-background"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 pt-1">
+                <input
+                  type="checkbox"
+                  id="salary-checkbox"
+                  checked={hasSalaryOnly}
+                  onChange={e => setHasSalaryOnly(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded text-primary focus:ring-primary border-border"
+                />
+                <label htmlFor="salary-checkbox" className="text-[11px] font-medium text-muted-foreground select-none cursor-pointer">
+                  Has trusted/parsed salary
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content State Handling */}
@@ -299,6 +676,7 @@ export default function RemoteJobsPage() {
             const action = userActions.get(itemId);
             const isSaved = action?.status === 'saved';
             const isApplied = action?.status === 'applied';
+            const isTailored = action?.status === 'tailored' || action?.status === 'ready_to_apply';
             const formattedDate = formatDate(job.published_at);
             const isConfirming = confirmingAppliedJobId === itemId;
 
@@ -308,6 +686,8 @@ export default function RemoteJobsPage() {
                 className={`group relative flex flex-col justify-between rounded-xl border p-5 transition-all hover:shadow-md ${
                   isApplied
                     ? 'bg-emerald-500/5 border-emerald-500/30'
+                    : isTailored
+                    ? 'bg-amber-500/5 border-amber-500/30'
                     : 'bg-card border-border/60 hover:border-primary/40'
                 }`}
               >
@@ -319,6 +699,11 @@ export default function RemoteJobsPage() {
                       {job.role_group === 'easy_entry_level' && (
                         <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 font-medium">
                           Easy / Entry Level
+                        </Badge>
+                      )}
+                      {job.seniority_level && job.seniority_level !== 'all' && (
+                        <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-border bg-slate-900/5 dark:bg-slate-100/5">
+                          {job.seniority_level.replace('_', ' ')}
                         </Badge>
                       )}
                       {job.category && (
@@ -413,7 +798,7 @@ export default function RemoteJobsPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <Button
                       variant="default"
                       size="sm"
@@ -433,15 +818,28 @@ export default function RemoteJobsPage() {
                       )}
                     </Button>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleTailorClick(job)}
-                      className="gap-1.5 text-xs font-medium text-foreground hover:border-primary/50"
-                    >
-                      <Wand2 className="w-3.5 h-3.5 text-[#9E1B22]" />
-                      Tailor my resume
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleFastTailor(job)}
+                        className="bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1.5 text-xs font-bold shadow-sm"
+                        disabled={isTailoring}
+                      >
+                        <Wand2 className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
+                        Fast Tailor
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTailorClick(job)}
+                        className="gap-1 px-2.5 text-xs font-medium text-foreground hover:border-primary/50"
+                        title="Configure tailoring options"
+                        disabled={isTailoring}
+                      >
+                        Configure Hub
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -449,6 +847,103 @@ export default function RemoteJobsPage() {
           })}
         </div>
       )}
+
+      {/* Tailoring Progress Overlay */}
+      {isTailoring && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border/80 p-8 rounded-2xl shadow-xl max-w-md w-full text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="relative w-16 h-16 mx-auto">
+              <Loader2 className="w-16 h-16 animate-spin text-primary" />
+              <Wand2 className="w-6 h-6 text-[#9E1B22] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-bounce" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Generating Tailoring Package</h3>
+            <p className="text-sm text-[#9E1B22] font-semibold animate-pulse">{tailorProgress}</p>
+            <div className="pt-2">
+              <p className="text-xs text-muted-foreground italic">
+                Our AI agents are analyzing the remote job description, aligning your achievements, and generating a customized cover letter...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resume Picker Dialog */}
+      <Dialog open={showResumePickerDialog} onOpenChange={setShowResumePickerDialog}>
+        <DialogContent className="max-w-md p-6 bg-card border border-border/80 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground">Select Resume for Fast Tailoring</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Select which resume to use as the base for aggressive tailoring.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto">
+            {resumes.map(r => {
+              const isSelected = selectedResumeId === r.$id;
+              return (
+                <button
+                  key={r.$id}
+                  onClick={() => setSelectedResumeId(r.$id)}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
+                    isSelected
+                      ? 'border-[#9E1B22] bg-[#9E1B22]/5 text-foreground font-semibold'
+                      : 'border-border hover:border-primary/50 text-muted-foreground'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#9E1B22]" />
+                    <span className="text-sm truncate">{r.title}</span>
+                  </div>
+                  {r.is_master && (
+                    <Badge variant="outline" className="bg-[#9E1B22]/10 text-[#9E1B22] border-none text-[10px] py-0">
+                      Master CV
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2 pt-4 border-t border-border/40 mt-4">
+            <input
+              type="checkbox"
+              id="make-default-cv"
+              checked={makeDefaultResume}
+              onChange={e => setMakeDefaultResume(e.target.checked)}
+              className="w-4 h-4 rounded text-primary focus:ring-primary border-border"
+            />
+            <label htmlFor="make-default-cv" className="text-xs font-semibold text-foreground select-none cursor-pointer">
+              Make this my default resume for Fast Tailor
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 mt-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setShowResumePickerDialog(false);
+                setActiveJobForTailoring(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#9E1B22] hover:bg-[#80141a] text-white font-bold"
+              disabled={!selectedResumeId}
+              onClick={() => {
+                const r = resumes.find(res => res.$id === selectedResumeId);
+                if (r && activeJobForTailoring) {
+                  void executeFastTailorFlow(r, activeJobForTailoring);
+                }
+              }}
+            >
+              Confirm & Tailor
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
