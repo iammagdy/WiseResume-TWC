@@ -33,9 +33,9 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: LinkedIn SSO implementation and stabilization is complete.
-* **Current State**: LinkedIn SSO login button successfully added, localized, and tested. Auto-sync of user name/email into the profile document is implemented (with display_name schema constraints handled gracefully), duplicate email conflict UX mapping added, and profile completion hint interpolation bug fixed.
-* **Last Completed Task**: Profile sync, fallback display names, and OAuth conflict error mapping UX implementation, accompanied by 3 new unit test suites (all 25 tests passing, zero compilation or build errors).
+* **Current Active Focus**: Production resume consistency, parsing, and template default fixes.
+* **Current State**: Resolved the stale-cache query race, onboarding/dashboard empty-state gating, multi-column layout contact parsing fallbacks, and default template fallback consistency.
+* **Last Completed Task**: Local preprocessor and parser fallback optimizations for contact details, dashboard and onboarding gating enhancements based on React Query states, successful cache invalidation adjustments after auth success, and comprehensive unit tests (all 22 test cases passing, type-checks and production bundle build passing cleanly).
 
 ---
 

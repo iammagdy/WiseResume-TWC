@@ -12,6 +12,7 @@ import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textE
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints, computeTextConfidence } from './pdf/textPreprocessor';
+import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { sanitizeExperiencePositions } from './genericPositionTitle';
 import { enrichParsedExperience } from './experiencePositionEnrichment';
@@ -150,6 +151,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     const serverMeta: ParseMeta = { ...(legacyMeta ?? {}), ...(nestedMeta ?? {}) };
 
     let cleaned = regenerateResumeIds(data);
+    cleaned.templateId = DEFAULT_RESUME_TEMPLATE_ID;
     const { items: sanitizedExperience, hadGenericTitles } = sanitizeExperiencePositions(
       cleaned.experience ?? [],
     );

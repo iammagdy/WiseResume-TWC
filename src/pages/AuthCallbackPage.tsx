@@ -1,18 +1,31 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 import { upsertProfileIdentity } from '@/lib/profileSeed';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
+import { clearAllCachedScores } from '@/hooks/useResumeScore';
+import { clearAllEditorSessions } from '@/lib/editorSession';
+import { clearPlanCache } from '@/lib/planCache';
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refreshSession } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let active = true;
     const handleCallback = async () => {
       try {
+        // Clear caches prior to refreshing session (OAuth returns with session created)
+        queryClient.clear();
+        clearAllPersistedCaches();
+        clearAllCachedScores();
+        clearAllEditorSessions();
+        clearPlanCache();
+
         const sessionUser = await refreshSession();
         if (!active) return;
         if (sessionUser) {
@@ -41,7 +54,7 @@ export default function AuthCallbackPage() {
     return () => {
       active = false;
     };
-  }, [navigate, location.pathname, refreshSession]);
+  }, [navigate, location.pathname, refreshSession, queryClient]);
 
   return <PageLoadingSpinner />;
 }

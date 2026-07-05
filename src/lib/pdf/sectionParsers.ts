@@ -52,7 +52,27 @@ export function parseResumeText(text: string): ResumeData {
   const sections = extractSections(lines);
 
   // Extract contact info from header (lines before first section)
-  const contactInfo = extractContactInfo(sections.header.join('\n'));
+  let contactInfo = extractContactInfo(sections.header.join('\n'));
+
+  // If email or phone is missing, search the entire text as a fallback
+  if (!contactInfo.email?.trim() || !contactInfo.phone?.trim()) {
+    const fallbackContact = extractContactInfo(normalizedText);
+    contactInfo = {
+      fullName: contactInfo.fullName?.trim() || '',
+      email: contactInfo.email?.trim() || fallbackContact.email?.trim() || '',
+      phone: contactInfo.phone?.trim() || fallbackContact.phone?.trim() || '',
+      location: contactInfo.location?.trim() || fallbackContact.location?.trim() || '',
+      linkedin: contactInfo.linkedin?.trim() || fallbackContact.linkedin?.trim() || '',
+    };
+  }
+
+  // Normalize and deduplicate email/phone
+  if (contactInfo.email) {
+    contactInfo.email = contactInfo.email.trim().toLowerCase();
+  }
+  if (contactInfo.phone) {
+    contactInfo.phone = contactInfo.phone.trim();
+  }
 
   // Parse each section
   let summary = sections.summary.join(' ').trim();

@@ -1,5 +1,24 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 — Resume Consistency, Parsing, and Template Default Fixes
+
+- **Cache Clearing Hooks**:
+  - Modified `AuthPage.tsx` to clear query, score, editor, plan, and persisted caches only after a successful login/register email session is created.
+  - Modified `AuthCallbackPage.tsx` to clear caches prior to refreshing the session on successful OAuth callback redirects.
+- **Onboarding & Dashboard Gating**:
+  - Gated the onboarding redirect check effect in `DashboardPage.tsx` on `resumesQueryLoading`.
+  - Updated empty-state and bootstrapping check states to safely wait for React Query's loading, fetching, placeholder, and fetched flags.
+- **Multi-Column Contact Fallback**:
+  - Extended `extractContactHints` in `textPreprocessor.ts` to scan the full PDF text instead of just the first 15 lines.
+  - Updated `parseResumeText` in `sectionParsers.ts` to scan the full document text as a fallback when email/phone is missing from the header block, while preserving original header-parsed values.
+- **Template Defaults**:
+  - Overrode the template ID parsed by `parseTextWithAI` in `pdfParser.ts` to default to `DEFAULT_RESUME_TEMPLATE_ID` (`wiseresume-classic`), preventing newly parsed CV uploads from getting the purple "modern" template.
+- **Validation**:
+  - Added new unit test files (`authCaches.test.tsx`, `dashboardGating.test.tsx`) and updated `pdfParser-D1.test.ts`. All 22 tests passed.
+  - Passed type-checks and production bundle compilation.
+- **Appwrite Deploy**:
+  - Not required (frontend-only changes).
+
 ## 2026-07-05 — LinkedIn SSO Profile Sync & Existing Email OAuth UX Fix
 
 - **Existing-Email Conflict UX**:

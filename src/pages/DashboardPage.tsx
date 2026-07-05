@@ -97,7 +97,10 @@ function DashboardPageContent() {
     isPlaceholderData: resumesPlaceholder,
     error: resumesError,
     refetch,
+    isLoading: resumesLoading,
+    isFetching: resumesFetching,
   } = useResumes();
+  const resumesQueryLoading = resumesLoading || resumesFetching || resumesPlaceholder || !resumesFetched;
   const { data: savedJobs = [], isLoading: savedJobsLoading } = useJobs();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
 
@@ -325,7 +328,7 @@ function DashboardPageContent() {
   // onboarding — in that case the legacy "complete profile" banner is
   // shown so they can dismiss it and stay on the dashboard.
   useEffect(() => {
-    if (!user) return;
+    if (!user || resumesQueryLoading) return;
     const run = async () => {
       try {
         // Per-user completion key — avoids shared-browser bleed where User A
@@ -410,7 +413,7 @@ function DashboardPageContent() {
       }
     };
     run();
-  }, [user, navigate]);
+  }, [user, navigate, resumesQueryLoading]);
 
   // Persist flag when user has at least one resume (guards against stale quickstart localStorage)
   useEffect(() => {
@@ -702,14 +705,15 @@ function DashboardPageContent() {
   // Auth guard handled by ProtectedRoute
 
   const authBootstrapping = !authSettled;
+
   const resumesKnownEmpty =
-    resumesFetched && !resumesPlaceholder && !resumesError && resumes.length === 0;
+    !resumesQueryLoading && !resumesError && resumes.length === 0;
+
   const resumesBootstrapping =
     authReady &&
     !!user &&
     !resumesError &&
-    !resumesKnownEmpty &&
-    resumes.length === 0;
+    resumesQueryLoading;
 
   if (authBootstrapping) {
     return (

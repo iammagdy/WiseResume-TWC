@@ -330,10 +330,8 @@ export function preprocessResumeText(text: string, pageTexts?: string[]): string
  * Scans the first 15 lines for emails, phones to give the AI a strong signal.
  */
 export function extractContactHints(text: string): string {
-  const lines = text.split('\n').slice(0, 15).join('\n');
-  
-  const emails = lines.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-  const phones = lines.match(/(?:\+?\d{1,4}[\s\-.]?)?\(?\d{2,4}\)?[\s\-.]?\d{3,4}[\s\-.]?\d{3,4}/g) || [];
+  const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+  const phones = text.match(/(?:\+?\d{1,4}[\s\-.]?)?\(?\d{2,4}\)?[\s\-.]?\d{3,4}[\s\-.]?\d{3,4}/g) || [];
 
   if (emails.length === 0 && phones.length === 0) return '';
 

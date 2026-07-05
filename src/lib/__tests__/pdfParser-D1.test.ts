@@ -75,6 +75,34 @@ React, TypeScript, Node.js, PostgreSQL, AWS`;
     expect(result.contactInfo.email).toBe('jane@example.com');
   });
 
+  it('extracts contact info from multi-column text where contact details appear after section headers', () => {
+    const multiColumnResume = `Jane Doe
+EXPERIENCE
+Senior Software Engineer | Tech Corp | 2020-01 - Present
+Led development of core React components.
+
+jane@example.com | 555-111-2222 | San Francisco, CA
+`;
+    const result = parseResumeText(multiColumnResume);
+    expect(result.contactInfo.fullName).toContain('Jane');
+    expect(result.contactInfo.email).toBe('jane@example.com');
+    expect(result.contactInfo.phone).toBe('555-111-2222');
+  });
+
+  it('preserves header values and does not overwrite them with weaker full-document matches', () => {
+    const resumeWithBoth = `Jane Doe
+jane.doe@header.com | 555-222-3333
+
+EXPERIENCE
+Senior Software Engineer | Tech Corp | 2020-01 - Present
+Another email: jane.doe@body.com
+Another phone: 555-444-5555
+`;
+    const result = parseResumeText(resumeWithBoth);
+    expect(result.contactInfo.email).toBe('jane.doe@header.com');
+    expect(result.contactInfo.phone).toBe('555-222-3333');
+  });
+
   it('handles empty string without throwing', () => {
     const result = parseResumeText('');
     expect(result).toHaveProperty('contactInfo');
@@ -189,6 +217,7 @@ describe('parseTextWithAI (D1)', () => {
     const result = await parseTextWithAI('Jane Doe, Software Engineer...');
     expect(result.summary).toBe('AI-parsed summary');
     expect(result.contactInfo.fullName).toBe('Jane Doe');
+    expect(result.templateId).toBe('wiseresume-classic');
   });
 
   it('falls back to local parser when the AI payload is malformed', async () => {

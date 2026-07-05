@@ -10,6 +10,10 @@ import { account as appwriteAccount, ID } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { upsertProfileIdentity } from '@/lib/profileSeed';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
+import { clearAllCachedScores } from '@/hooks/useResumeScore';
+import { clearAllEditorSessions } from '@/lib/editorSession';
+import { clearPlanCache } from '@/lib/planCache';
 
 const SIGNUP_PLAN_KEY = 'signup_plan_intent';
 
@@ -153,6 +157,12 @@ export default function AuthPage() {
     setError(null);
     try {
       await appwriteAccount.createEmailPasswordSession(email, password);
+      // Clear caches only after successful session creation
+      queryClient.clear();
+      clearAllPersistedCaches();
+      clearAllCachedScores();
+      clearAllEditorSessions();
+      clearPlanCache();
       await refreshSession();
       sessionStorage.removeItem(SIGNUP_PLAN_KEY);
       setSignupPlanIntent(null);
@@ -282,6 +292,12 @@ export default function AuthPage() {
     try {
       await appwriteAccount.create(ID.unique(), email, password, name);
       await appwriteAccount.createEmailPasswordSession(email, password);
+      // Clear caches only after successful session creation
+      queryClient.clear();
+      clearAllPersistedCaches();
+      clearAllCachedScores();
+      clearAllEditorSessions();
+      clearPlanCache();
       const sessionUser = await refreshSession();
       try {
         await upsertProfileIdentity({
