@@ -97,6 +97,23 @@ async function ensureIndex(collId, key, type, attributes, orders) {
   }
 }
 
+async function ensurePermissions(collId, name, permissions, docSecurity = false) {
+  try {
+    const coll = await databases.getCollection(DB_ID, collId);
+    await databases.updateCollection(
+      DB_ID,
+      collId,
+      coll.name || name,
+      permissions,
+      docSecurity,
+      coll.enabled !== false
+    );
+    console.log(`✓ updated permissions for ${collId}`);
+  } catch (e) {
+    console.warn(`⚠ failed to update permissions for ${collId}: ${e.message}`);
+  }
+}
+
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -105,14 +122,20 @@ async function setupJobFeedItems() {
   const collId = 'job_feed_items';
   console.log(`\n1. Setting up collection "${collId}"`);
 
+  const allPerms = [
+    sdk.Permission.read(sdk.Role.any()),
+    sdk.Permission.create(sdk.Role.any()),
+    sdk.Permission.update(sdk.Role.any()),
+    sdk.Permission.delete(sdk.Role.any()),
+  ];
+
   if (!(await collectionExists(collId))) {
-    // Read permissions for all users (read-only feed), writes via Server Key/Function
-    const readAny = sdk.Permission.read(sdk.Role.any());
-    await databases.createCollection(DB_ID, collId, 'Remote Job Feed Items', [readAny], false);
+    await databases.createCollection(DB_ID, collId, 'Remote Job Feed Items', allPerms, false);
     console.log('✓ collection created');
     await sleep(500);
   } else {
     console.log('✓ collection exists');
+    await ensurePermissions(collId, 'Remote Job Feed Items', allPerms, false);
   }
 
   await ensureStringAttr(collId, 'source', 32, false);
@@ -148,13 +171,24 @@ async function setupUserJobActions() {
   const collId = 'user_job_actions';
   console.log(`\n2. Setting up collection "${collId}"`);
 
+  const userPerms = [
+    sdk.Permission.create(sdk.Role.users()),
+    sdk.Permission.read(sdk.Role.users()),
+    sdk.Permission.update(sdk.Role.users()),
+    sdk.Permission.delete(sdk.Role.users()),
+    sdk.Permission.read(sdk.Role.any()),
+    sdk.Permission.create(sdk.Role.any()),
+    sdk.Permission.update(sdk.Role.any()),
+    sdk.Permission.delete(sdk.Role.any()),
+  ];
+
   if (!(await collectionExists(collId))) {
-    const createUsers = sdk.Permission.create(sdk.Role.users());
-    await databases.createCollection(DB_ID, collId, 'User Job Actions', [createUsers], true); // documentSecurity: true
+    await databases.createCollection(DB_ID, collId, 'User Job Actions', userPerms, true); // documentSecurity: true
     console.log('✓ collection created (document security enabled)');
     await sleep(500);
   } else {
     console.log('✓ collection exists');
+    await ensurePermissions(collId, 'User Job Actions', userPerms, true);
   }
 
   await ensureStringAttr(collId, 'user_id', 128, false);
@@ -178,12 +212,20 @@ async function setupJobFeedSyncRuns() {
   const collId = 'job_feed_sync_runs';
   console.log(`\n3. Setting up collection "${collId}"`);
 
+  const allPerms = [
+    sdk.Permission.read(sdk.Role.any()),
+    sdk.Permission.create(sdk.Role.any()),
+    sdk.Permission.update(sdk.Role.any()),
+    sdk.Permission.delete(sdk.Role.any()),
+  ];
+
   if (!(await collectionExists(collId))) {
-    await databases.createCollection(DB_ID, collId, 'Job Feed Sync Runs', [], false);
+    await databases.createCollection(DB_ID, collId, 'Job Feed Sync Runs', allPerms, false);
     console.log('✓ collection created');
     await sleep(500);
   } else {
     console.log('✓ collection exists');
+    await ensurePermissions(collId, 'Job Feed Sync Runs', allPerms, false);
   }
 
   await ensureStringAttr(collId, 'source', 32, false);

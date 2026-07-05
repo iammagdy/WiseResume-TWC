@@ -270,7 +270,7 @@ module.exports = async ({ req, res, log, error }) => {
         ]);
         existingDoc = existingRes.documents?.[0];
       } catch {
-        // Query by index failed (e.g. index building) -> proceed with create
+        // Fallback if index is building
       }
 
       if (!existingDoc) {
@@ -313,6 +313,9 @@ module.exports = async ({ req, res, log, error }) => {
       errorCount++;
       error(`Error upserting job ${jobPayload.dedupe_key}: ${err.message}`);
     }
+
+    // Small throttle pause to prevent Appwrite Cloud rate limits
+    await new Promise(resolve => setTimeout(resolve, 60));
   }
 
   const finishedAt = new Date().toISOString();
