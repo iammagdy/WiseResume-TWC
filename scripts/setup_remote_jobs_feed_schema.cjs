@@ -146,10 +146,15 @@ async function setupJobFeedItems() {
   await ensureStringAttr(collId, 'location', 128, false);
   await ensureStringAttr(collId, 'remote_region', 128, false);
   await ensureStringAttr(collId, 'category', 128, false);
+  await ensureStringAttr(collId, 'role_group', 64, false, 'other');
   await ensureStringAttr(collId, 'job_type', 64, false);
   await ensureIntegerAttr(collId, 'salary_min', false);
   await ensureIntegerAttr(collId, 'salary_max', false);
+  await ensureIntegerAttr(collId, 'salary_amount_min', false);
+  await ensureIntegerAttr(collId, 'salary_amount_max', false);
   await ensureStringAttr(collId, 'salary_currency', 16, false);
+  await ensureStringAttr(collId, 'salary_period', 32, false, 'unknown');
+  await ensureStringAttr(collId, 'salary_display', 128, false, 'Salary not listed');
   await ensureStringAttr(collId, 'published_at', 64, false);
   await ensureStringAttr(collId, 'description_excerpt', 2048, false);
   await ensureStringAttr(collId, 'description_html', 16384, false);
@@ -165,6 +170,7 @@ async function setupJobFeedItems() {
   await ensureIndex(collId, 'dedupe_key_idx', 'unique', ['dedupe_key'], ['ASC']);
   await ensureIndex(collId, 'source_idx', 'key', ['source'], ['ASC']);
   await ensureIndex(collId, 'status_idx', 'key', ['status'], ['ASC']);
+  await ensureIndex(collId, 'role_group_idx', 'key', ['role_group'], ['ASC']);
 }
 
 async function setupUserJobActions() {
@@ -183,7 +189,7 @@ async function setupUserJobActions() {
   ];
 
   if (!(await collectionExists(collId))) {
-    await databases.createCollection(DB_ID, collId, 'User Job Actions', userPerms, true); // documentSecurity: true
+    await databases.createCollection(DB_ID, collId, 'User Job Actions', userPerms, true);
     console.log('✓ collection created (document security enabled)');
     await sleep(500);
   } else {
@@ -194,14 +200,14 @@ async function setupUserJobActions() {
   await ensureStringAttr(collId, 'user_id', 128, false);
   await ensureStringAttr(collId, 'job_feed_item_id', 128, false);
   await ensureStringAttr(collId, 'canonical_url', 2048, false);
-  await ensureStringAttr(collId, 'status', 32, false); // saved | applied | dismissed
+  await ensureStringAttr(collId, 'status', 32, false);
   await ensureStringAttr(collId, 'applied_at', 64, false);
   await ensureStringAttr(collId, 'saved_at', 64, false);
   await ensureStringAttr(collId, 'dismissed_at', 64, false);
   await ensureStringAttr(collId, 'notes', 2048, false);
   await ensureStringAttr(collId, 'source_resume_id', 128, false);
   await ensureStringAttr(collId, 'tailored_resume_id', 128, false);
-  await ensureStringAttr(collId, 'action_key', 256, false); // user_id:job_feed_item_id
+  await ensureStringAttr(collId, 'action_key', 256, false);
 
   await sleep(1000);
   await ensureIndex(collId, 'user_id_idx', 'key', ['user_id'], ['ASC']);

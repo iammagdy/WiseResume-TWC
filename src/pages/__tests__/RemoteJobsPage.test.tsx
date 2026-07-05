@@ -63,6 +63,6 @@ describe('RemoteJobsPage Component', () => {
     expect(screen.getByText('Senior React Developer')).toBeInTheDocument();
     expect(screen.getByText('TechCorp')).toBeInTheDocument();
     expect(screen.getByText('Apply on website')).toBeInTheDocument();
-    expect(screen.getByText('Tailor my resume for this job')).toBeInTheDocument();
+    expect(screen.getByText('Tailor my resume')).toBeInTheDocument();
   });
 });

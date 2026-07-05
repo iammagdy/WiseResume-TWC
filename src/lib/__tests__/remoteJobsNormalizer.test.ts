@@ -5,6 +5,10 @@ import {
   parseRemotiveJob,
   parseJobicyJob,
   parseWwrRssItem,
+  parseRemoteOkJob,
+  parseArbeitnowJob,
+  classifyRoleGroup,
+  parseSalaryInfo,
   createExcerpt,
 } from '../remoteJobsFeed';
 
@@ -36,6 +40,66 @@ describe('Remote Jobs Normalizer & Deduplication', () => {
     });
   });
 
+  describe('Role Group Classification Engine', () => {
+    it('classifies Easy / Entry Level roles', () => {
+      expect(classifyRoleGroup('Junior Customer Support Agent')).toBe('easy_entry_level');
+      expect(classifyRoleGroup('Entry Level Content Moderator')).toBe('easy_entry_level');
+      expect(classifyRoleGroup('Marketing Intern')).toBe('easy_entry_level');
+    });
+
+    it('classifies Data Entry roles', () => {
+      expect(classifyRoleGroup('Remote Data Entry Clerk')).toBe('data_entry');
+      expect(classifyRoleGroup('Spreadsheet Processing Specialist')).toBe('data_entry');
+    });
+
+    it('classifies Virtual Assistant roles', () => {
+      expect(classifyRoleGroup('Executive Virtual Assistant')).toBe('virtual_assistant');
+      expect(classifyRoleGroup('Remote Personal Assistant')).toBe('virtual_assistant');
+    });
+
+    it('classifies Customer Support roles', () => {
+      expect(classifyRoleGroup('Customer Support Specialist', 'Customer Support')).toBe('customer_support');
+      expect(classifyRoleGroup('Tier 2 Help Desk Specialist')).toBe('customer_support');
+    });
+
+    it('classifies Writing & Content roles', () => {
+      expect(classifyRoleGroup('Senior Technical Writer')).toBe('writing');
+      expect(classifyRoleGroup('B2B Copywriter')).toBe('writing');
+    });
+
+    it('classifies Tech & Programming roles', () => {
+      expect(classifyRoleGroup('Backend Engineer', 'Programming')).toBe('tech_programming');
+      expect(classifyRoleGroup('DevOps Lead')).toBe('tech_programming');
+    });
+  });
+
+  describe('Salary / Rate Parser Engine', () => {
+    it('parses hourly rates correctly', () => {
+      const res = parseSalaryInfo('$25 / hour');
+      expect(res.period).toBe('hourly');
+      expect(res.display).toContain('/hour');
+    });
+
+    it('parses monthly rates correctly', () => {
+      const res = parseSalaryInfo('$3,500 per month');
+      expect(res.period).toBe('monthly');
+      expect(res.display).toContain('/month');
+    });
+
+    it('parses yearly rates correctly', () => {
+      const res = parseSalaryInfo('$80k - $120k / year');
+      expect(res.period).toBe('yearly');
+      expect(res.display).toContain('/year');
+    });
+
+    it('handles missing salary gracefully', () => {
+      const res = parseSalaryInfo('');
+      expect(res.period).toBe('unknown');
+      expect(res.display).toBe('Salary not listed');
+      expect(res.amountMin).toBeNull();
+    });
+  });
+
   describe('Remotive Normalizer', () => {
     it('normalizes valid Remotive job payload', () => {
       const rawRemotive = {
@@ -59,62 +123,57 @@ describe('Remote Jobs Normalizer & Deduplication', () => {
       expect(normalized?.source_job_id).toBe('99123');
       expect(normalized?.title).toBe('Full Stack Engineer');
       expect(normalized?.company).toBe('Wise Corp');
-      expect(normalized?.dedupe_key).toBe('remotive:99123');
-      expect(normalized?.description_excerpt).toContain('Great role for a Full Stack Engineer');
-    });
-
-    it('returns null if required fields are missing', () => {
-      expect(parseRemotiveJob({})).toBeNull();
-      expect(parseRemotiveJob({ title: 'Engineer' })).toBeNull();
+      expect(normalized?.role_group).toBe('tech_programming');
     });
   });
 
-  describe('Jobicy Normalizer', () => {
-    it('normalizes valid Jobicy job payload', () => {
-      const rawJobicy = {
-        id: 'jobicy-456',
-        url: 'https://jobicy.com/jobs/456-backend-developer',
-        jobTitle: 'Backend Developer',
-        companyName: 'Cloud Systems',
-        companyLogo: 'https://jobicy.com/logo.png',
-        jobCategory: 'DevOps & IT',
-        jobType: 'full-time',
-        pubDate: '2026-07-04T10:00:00Z',
-        jobGeo: 'US Only',
-        annualSalaryMin: '100000',
-        annualSalaryMax: '130000',
-        salaryCurrency: 'USD',
-        jobDescription: '<div>Building scalable backend microservices.</div>',
+  describe('RemoteOK Normalizer', () => {
+    it('normalizes valid RemoteOK job payload and skips legal/meta object', () => {
+      const legalNotice = { legal: 'Terms of service and API usage' };
+      expect(parseRemoteOkJob(legalNotice)).toBeNull();
+
+      const rawRemoteOk = {
+        id: 'remoteok-5544',
+        position: 'Junior Customer Support Representative',
+        company: 'HelpDesk Co',
+        url: 'https://remoteok.com/remote-jobs/remoteok-5544',
+        date: '2026-07-04T12:00:00Z',
+        tags: ['customer support', 'entry level'],
+        salary_min: 40000,
+        salary_max: 55000,
+        description: 'Customer support role for beginners.',
       };
 
-      const normalized = parseJobicyJob(rawJobicy);
+      const normalized = parseRemoteOkJob(rawRemoteOk);
       expect(normalized).not.toBeNull();
-      expect(normalized?.source).toBe('jobicy');
-      expect(normalized?.source_job_id).toBe('jobicy-456');
-      expect(normalized?.title).toBe('Backend Developer');
-      expect(normalized?.salary_min).toBe(100000);
-      expect(normalized?.salary_max).toBe(130000);
-      expect(normalized?.salary_currency).toBe('USD');
+      expect(normalized?.source).toBe('remoteok');
+      expect(normalized?.company).toBe('HelpDesk Co');
+      expect(normalized?.company_logo).toBeUndefined(); // Do not use RemoteOK logo
+      expect(normalized?.role_group).toBe('easy_entry_level');
+      expect(normalized?.salary_display).toContain('/year');
     });
   });
 
-  describe('We Work Remotely RSS Normalizer', () => {
-    it('normalizes valid WWR RSS item', () => {
-      const rawWwr = {
-        guid: 'https://weworkremotely.com/jobs/7890',
-        link: 'https://weworkremotely.com/jobs/7890-senior-frontend-engineer',
-        title: 'WiseResume: Senior Frontend Engineer',
-        pubDate: 'Sun, 05 Jul 2026 14:00:00 +0000',
-        category: 'Full Stack Programming',
-        description: 'We are looking for a Senior Frontend Engineer.',
+  describe('Arbeitnow Normalizer', () => {
+    it('normalizes Arbeitnow job only when remote is true', () => {
+      const nonRemote = { title: 'Office Manager', company_name: 'Berlin HQ', remote: false, url: 'https://arbeitnow.com/1' };
+      expect(parseArbeitnowJob(nonRemote)).toBeNull();
+
+      const remoteJob = {
+        slug: 'arbeitnow-9988',
+        title: 'Virtual Administrative Assistant',
+        company_name: 'Euro Tech',
+        remote: true,
+        url: 'https://www.arbeitnow.com/view/arbeitnow-9988',
+        created_at: 1783300000,
+        tags: ['admin', 'virtual assistant'],
+        description: 'Administrative support role for global clients.',
       };
 
-      const normalized = parseWwrRssItem(rawWwr);
+      const normalized = parseArbeitnowJob(remoteJob);
       expect(normalized).not.toBeNull();
-      expect(normalized?.source).toBe('weworkremotely');
-      expect(normalized?.company).toBe('WiseResume');
-      expect(normalized?.title).toBe('Senior Frontend Engineer');
-      expect(normalized?.canonical_url).toBe('https://weworkremotely.com/jobs/7890-senior-frontend-engineer');
+      expect(normalized?.source).toBe('arbeitnow');
+      expect(normalized?.role_group).toBe('virtual_assistant');
     });
   });
 

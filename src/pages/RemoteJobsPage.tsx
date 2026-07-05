@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,14 +13,19 @@ import {
   Calendar,
   DollarSign,
   Tag,
-  Filter,
   RefreshCw,
-  XCircle,
   Clock,
   Sparkles,
+  Layers,
+  Sparkle,
 } from 'lucide-react';
 import { useRemoteJobs } from '@/hooks/useRemoteJobs';
-import { type NormalizedRemoteJob, type JobSource } from '@/lib/remoteJobsFeed';
+import {
+  type NormalizedRemoteJob,
+  type JobSource,
+  type RoleGroup,
+  ROLE_GROUPS,
+} from '@/lib/remoteJobsFeed';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -33,22 +38,26 @@ export default function RemoteJobsPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSource, setSelectedSource] = useState<JobSource | 'all'>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedRoleGroup, setSelectedRoleGroup] = useState<RoleGroup | 'all'>('all');
   const [confirmingAppliedJobId, setConfirmingAppliedJobId] = useState<string | null>(null);
 
-  const { jobs, userActions, isLoading, isSynced, error, refetch, trackAction } = useRemoteJobs({
+  const {
+    jobs,
+    userActions,
+    total,
+    isLoading,
+    isSynced,
+    lastSyncedAt,
+    roleGroupCounts,
+    error,
+    refetch,
+    trackAction,
+  } = useRemoteJobs({
     source: selectedSource,
-    category: selectedCategory,
+    roleGroup: selectedRoleGroup,
     query: searchQuery,
+    limit: 50,
   });
-
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    for (const j of jobs) {
-      if (j.category) set.add(j.category);
-    }
-    return Array.from(set).sort();
-  }, [jobs]);
 
   const handleApplyClick = (job: NormalizedRemoteJob) => {
     if (job.apply_url) {
@@ -98,6 +107,10 @@ export default function RemoteJobsPage() {
         return <Badge variant="outline" className="bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 font-medium">We Work Remotely</Badge>;
       case 'jobicy':
         return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 font-medium">Jobicy</Badge>;
+      case 'remoteok':
+        return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 font-medium">Remote OK</Badge>;
+      case 'arbeitnow':
+        return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-medium">Arbeitnow</Badge>;
       default:
         return <Badge variant="outline">{source}</Badge>;
     }
@@ -113,6 +126,17 @@ export default function RemoteJobsPage() {
       });
     } catch {
       return null;
+    }
+  };
+
+  const formatLastSynced = (dateStr?: string | null) => {
+    if (!dateStr) return 'Daily';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleTimeString(isRtl ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) + ', ' +
+        d.toLocaleDateString(isRtl ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return 'Daily';
     }
   };
 
@@ -133,7 +157,7 @@ export default function RemoteJobsPage() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            {t('remoteJobs.subtitle', 'Discover verified remote opportunities aggregated from official remote job feeds.')}
+            {t('remoteJobs.subtitle', 'Discover entry-level, customer support, data entry, marketing, sales, writing, and tech opportunities from verified remote sources.')}
           </p>
         </div>
 
@@ -149,270 +173,275 @@ export default function RemoteJobsPage() {
         </Button>
       </div>
 
-      {/* Filter and Search controls */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground rtl:right-3 rtl:left-auto" />
-            <Input
-              type="text"
-              placeholder={t('remoteJobs.searchPlaceholder', 'Search by job title, company, or keyword...')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 rtl:pr-9 rtl:pl-3 bg-card"
-            />
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="h-10 rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">{t('remoteJobs.categoryFilter', 'All Categories')}</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+      {/* Freshness & Sources Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/5 dark:bg-slate-100/5 border border-border/60 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex items-center gap-1.5 font-medium text-foreground">
+            <Clock className="w-3.5 h-3.5 text-[#9E1B22]" />
+            Last updated: {formatLastSynced(lastSyncedAt)}
+          </span>
+          <span className="hidden md:inline text-border">•</span>
+          <span>New jobs are synced daily</span>
         </div>
-
-        {/* Source filter tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          <Filter className="w-4 h-4 text-muted-foreground mr-1 shrink-0" />
-          {[
-            { id: 'all', label: t('remoteJobs.sourceFilter', 'All Sources') },
-            { id: 'remotive', label: 'Remotive' },
-            { id: 'weworkremotely', label: 'We Work Remotely' },
-            { id: 'jobicy', label: 'Jobicy' },
-          ].map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSelectedSource(s.id as JobSource | 'all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                selectedSource === s.id
-                  ? 'bg-[#9E1B22] text-white shadow-sm'
-                  : 'bg-card border border-border text-muted-foreground hover:bg-accent hover:text-foreground'
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 text-xs font-medium">
+          <span className="text-muted-foreground">Sources:</span>
+          <span className="font-semibold text-foreground">Remotive, WWR, Jobicy, Remote OK, Arbeitnow</span>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 gap-4">
-          {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="rounded-2xl border border-border bg-card p-6 space-y-4 animate-pulse">
-              <div className="flex justify-between items-start gap-4">
-                <div className="space-y-2 flex-1">
-                  <div className="h-6 w-1/3 bg-muted rounded-md" />
-                  <div className="h-4 w-1/4 bg-muted rounded-md" />
-                </div>
-                <div className="h-6 w-20 bg-muted rounded-full" />
-              </div>
-              <div className="h-12 w-full bg-muted rounded-md" />
-              <div className="flex gap-2 pt-2">
-                <div className="h-9 w-32 bg-muted rounded-lg" />
-                <div className="h-9 w-40 bg-muted rounded-lg" />
-              </div>
-            </div>
-          ))}
+      {/* Role Group Pills Bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-[#9E1B22]" />
+            Role Categories ({total} remote jobs available)
+          </span>
         </div>
-      ) : !isSynced && jobs.length === 0 ? (
-        /* Unsynced state */
-        <div className="rounded-2xl border border-border bg-card/60 p-12 text-center space-y-4 max-w-lg mx-auto my-8">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+          {ROLE_GROUPS.map(group => {
+            const count = group.id === 'all' ? total : (roleGroupCounts?.get(group.id) || 0);
+            const isSelected = selectedRoleGroup === group.id;
+
+            return (
+              <button
+                key={group.id}
+                onClick={() => setSelectedRoleGroup(group.id as RoleGroup | 'all')}
+                className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  isSelected
+                    ? 'bg-[#9E1B22] text-white shadow-sm'
+                    : 'bg-secondary/70 hover:bg-secondary text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {group.id === 'easy_entry_level' && <Sparkle className="w-3 h-3 text-amber-300 fill-amber-300" />}
+                <span>{group.label}</span>
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-background/80 text-muted-foreground'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('remoteJobs.searchPlaceholder', 'Search by job title, company, or keywords...')}
+            className="pl-9 bg-background"
+          />
+        </div>
+
+        {/* Source Dropdown Filter */}
+        <select
+          value={selectedSource}
+          onChange={e => setSelectedSource(e.target.value as JobSource | 'all')}
+          className="h-10 px-3 rounded-md border border-input bg-background text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <option value="all">All Sources</option>
+          <option value="remotive">Remotive</option>
+          <option value="weworkremotely">We Work Remotely</option>
+          <option value="jobicy">Jobicy</option>
+          <option value="remoteok">Remote OK</option>
+          <option value="arbeitnow">Arbeitnow</option>
+        </select>
+      </div>
+
+      {/* Content State Handling */}
+      {!isSynced && !isLoading && (
+        <div className="p-8 text-center rounded-2xl border border-dashed border-border/80 bg-card space-y-3">
           <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
             <Clock className="w-6 h-6" />
           </div>
           <h3 className="text-lg font-semibold text-foreground">
-            {t('remoteJobs.unsyncedTitle', 'Jobs feed is not synced yet.')}
+            {t('remoteJobs.unsyncedTitle', 'Jobs feed is not synced yet')}
           </h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {t(
-              'remoteJobs.unsyncedSubtitle',
-              'Remote job feeds are periodically aggregated server-side. Check back shortly for updated listings.',
-            )}
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            {t('remoteJobs.unsyncedDesc', 'The Appwrite serverless job ingestion engine is setting up. Jobs will appear automatically after the initial feed sync.')}
           </p>
         </div>
-      ) : jobs.length === 0 ? (
-        /* Empty state */
-        <div className="rounded-2xl border border-border bg-card/60 p-12 text-center space-y-4 max-w-lg mx-auto my-8">
-          <div className="w-12 h-12 rounded-full bg-muted text-muted-foreground mx-auto flex items-center justify-center">
-            <Search className="w-6 h-6" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground">
-            {t('remoteJobs.emptyTitle', 'No remote jobs found')}
+      )}
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-48 rounded-xl bg-card border border-border/60 animate-pulse p-5 space-y-4">
+              <div className="h-6 w-3/4 bg-muted rounded" />
+              <div className="h-4 w-1/2 bg-muted rounded" />
+              <div className="h-12 w-full bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      ) : jobs.length === 0 && isSynced ? (
+        <div className="p-12 text-center rounded-2xl border border-border/60 bg-card space-y-3">
+          <Briefcase className="w-8 h-8 text-muted-foreground mx-auto" />
+          <h3 className="text-base font-semibold text-foreground">
+            {t('remoteJobs.noJobsFound', 'No remote jobs found matching your filters')}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {t('remoteJobs.emptySubtitle', 'Try adjusting your search keywords or clearing source filters.')}
+            {t('remoteJobs.tryChangingFilters', 'Try selecting another role category or clearing your search query.')}
           </p>
+          <Button variant="outline" size="sm" onClick={() => { setSearchQuery(''); setSelectedSource('all'); setSelectedRoleGroup('all'); }}>
+            Reset Filters
+          </Button>
         </div>
       ) : (
-        /* Jobs List */
-        <div className="grid grid-cols-1 gap-4">
-          {jobs.map((job) => {
-            const jobId = job.$id || job.dedupe_key;
-            const action = userActions.get(jobId);
-            const isApplied = action?.status === 'applied';
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {jobs.map(job => {
+            const itemId = job.$id || job.dedupe_key;
+            const action = userActions.get(itemId);
             const isSaved = action?.status === 'saved';
-            const isDismissed = action?.status === 'dismissed';
-            const isConfirming = confirmingAppliedJobId === jobId;
-
-            if (isDismissed) return null;
+            const isApplied = action?.status === 'applied';
+            const formattedDate = formatDate(job.published_at);
+            const isConfirming = confirmingAppliedJobId === itemId;
 
             return (
               <div
-                key={jobId}
-                className={`group rounded-2xl border transition-all duration-200 bg-card hover:shadow-md ${
-                  isApplied ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : 'border-border hover:border-primary/30'
+                key={itemId}
+                className={`group relative flex flex-col justify-between rounded-xl border p-5 transition-all hover:shadow-md ${
+                  isApplied
+                    ? 'bg-emerald-500/5 border-emerald-500/30'
+                    : 'bg-card border-border/60 hover:border-primary/40'
                 }`}
               >
-                <div className="p-5 md:p-6 space-y-4">
-                  {/* Card Top Row */}
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                          {job.title}
-                        </h2>
-                        {formatSourceBadge(job.source)}
-                        {isApplied && (
-                          <Badge className="bg-emerald-600 text-white gap-1 font-medium">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            {t('remoteJobs.alreadyApplied', 'Already applied')}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-y-1.5 gap-x-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1 font-medium text-foreground/80">
-                          <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                          {job.company}
+                <div className="space-y-3">
+                  {/* Top line: Source badge, Role Group & Date */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {formatSourceBadge(job.source)}
+                      {job.role_group === 'easy_entry_level' && (
+                        <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 font-medium">
+                          Easy / Entry Level
+                        </Badge>
+                      )}
+                      {job.category && (
+                        <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                          <Tag className="w-3 h-3" />
+                          {job.category}
                         </span>
-                        {job.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5" />
-                            {job.location}
-                          </span>
-                        )}
-                        {job.published_at && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {formatDate(job.published_at)}
-                          </span>
-                        )}
-                        {(job.salary_min || job.salary_max) && (
-                          <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                            <DollarSign className="w-3.5 h-3.5" />
-                            {job.salary_min && job.salary_max
-                              ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.salary_currency || ''}`
-                              : `${(job.salary_min || job.salary_max)?.toLocaleString()} ${job.salary_currency || ''}`}
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
 
-                    {/* Quick action icons */}
-                    <div className="flex items-center gap-1.5 self-end sm:self-start">
-                      <button
-                        onClick={() => void handleToggleSave(job, Boolean(isSaved))}
-                        title={isSaved ? 'Remove save' : 'Save job'}
-                        className={`p-2 rounded-lg text-xs font-medium transition-colors ${
-                          isSaved
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                        }`}
+                    <div className="flex items-center gap-1">
+                      {formattedDate && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {formattedDate}
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-7 w-7 ${isSaved ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'}`}
+                        onClick={() => void handleToggleSave(job, isSaved)}
+                        title={isSaved ? 'Remove from saved' : 'Save job'}
                       >
-                        <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-                      </button>
-                      <button
-                        onClick={() => void handleDismiss(job)}
-                        title="Dismiss job"
-                        className="p-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-accent hover:text-destructive transition-colors"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
+                        <Bookmark className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Excerpt */}
+                  {/* Job title & company */}
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                      {job.title}
+                    </h2>
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                      <Building2 className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                      {job.company}
+                    </p>
+                  </div>
+
+                  {/* Location & Salary Info */}
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium pt-1">
+                    <span className="flex items-center gap-1 bg-secondary/60 px-2 py-1 rounded-md">
+                      <MapPin className="w-3 h-3 text-primary shrink-0" />
+                      {job.location || job.remote_region || 'Remote'}
+                    </span>
+
+                    <span className={`flex items-center gap-1 px-2 py-1 rounded-md ${
+                      job.salary_display && job.salary_display !== 'Salary not listed'
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold'
+                        : 'bg-secondary/60 text-muted-foreground'
+                    }`}>
+                      <DollarSign className="w-3 h-3 shrink-0" />
+                      {job.salary_display || 'Salary not listed'}
+                    </span>
+                  </div>
+
+                  {/* Description Excerpt */}
                   {job.description_excerpt && (
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                    <p className="text-xs text-muted-foreground/90 line-clamp-3 leading-relaxed border-t border-border/40 pt-2.5">
                       {job.description_excerpt}
                     </p>
                   )}
+                </div>
 
-                  {/* Category / Tags */}
-                  {job.tags && job.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {job.tags.slice(0, 5).map((tag, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-secondary-foreground">
-                          <Tag className="w-3 h-3 text-muted-foreground" />
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Inline "Did you apply?" prompt banner */}
+                {/* Actions Bar */}
+                <div className="pt-4 mt-4 border-t border-border/60 space-y-2">
+                  {/* Inline Confirmation Prompt if applied link was clicked */}
                   {isConfirming && (
-                    <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-[#9E1B22]" />
-                        <span className="text-xs font-semibold text-foreground">
-                          {t('remoteJobs.didYouApply', 'Did you apply on their website?')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-1">
+                      <span className="text-xs font-semibold text-[#9E1B22] flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Did you apply on their site?
+                      </span>
+                      <div className="flex items-center gap-1.5">
                         <Button
                           size="sm"
+                          className="h-7 px-2.5 text-xs bg-[#9E1B22] text-white hover:bg-[#80141a]"
                           onClick={() => void handleMarkApplied(job)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 flex-1 sm:flex-initial"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          {t('remoteJobs.markApplied', 'Yes, mark as applied')}
+                          Yes, mark applied
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
+                          className="h-7 px-2 text-xs"
                           onClick={() => setConfirmingAppliedJobId(null)}
-                          className="text-xs text-muted-foreground flex-1 sm:flex-initial"
                         >
-                          {t('remoteJobs.notYet', 'Not yet')}
+                          Not yet
                         </Button>
                       </div>
                     </div>
                   )}
 
-                  {/* Bottom Action Bar */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/50">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleApplyClick(job)}
-                        className="bg-[#9E1B22] hover:bg-[#80161B] text-white gap-1.5 text-xs font-semibold shadow-sm"
-                      >
-                        {t('remoteJobs.applyButton', 'Apply on website')}
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </Button>
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleApplyClick(job)}
+                      className="bg-[#9E1B22] hover:bg-[#80141a] text-white gap-1.5 text-xs font-medium"
+                    >
+                      {isApplied ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Already applied
+                        </>
+                      ) : (
+                        <>
+                          Apply on website
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </Button>
 
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleTailorClick(job)}
-                        className="gap-1.5 text-xs font-medium border-border hover:bg-accent"
-                      >
-                        <Wand2 className="w-3.5 h-3.5 text-[#9E1B22]" />
-                        {t('remoteJobs.tailorResume', 'Tailor my resume for this job')}
-                      </Button>
-                    </div>
-
-                    <div className="text-[11px] text-muted-foreground italic">
-                      Via {job.source === 'remotive' ? 'Remotive API' : job.source === 'weworkremotely' ? 'We Work Remotely' : 'Jobicy API'}
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTailorClick(job)}
+                      className="gap-1.5 text-xs font-medium text-foreground hover:border-primary/50"
+                    >
+                      <Wand2 className="w-3.5 h-3.5 text-[#9E1B22]" />
+                      Tailor my resume
+                    </Button>
                   </div>
                 </div>
               </div>

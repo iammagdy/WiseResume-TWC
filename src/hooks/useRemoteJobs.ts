@@ -6,14 +6,18 @@ import { Query, ID, Permission, Role } from 'appwrite';
 import {
   type NormalizedRemoteJob,
   type JobSource,
+  type RoleGroup,
   type UserJobActionStatus,
   parseRemotiveJob,
   parseJobicyJob,
   parseWwrRssItem,
+  parseRemoteOkJob,
+  parseArbeitnowJob,
 } from '@/lib/remoteJobsFeed';
 
 export type JobFilterOptions = {
   source?: JobSource | 'all';
+  roleGroup?: RoleGroup | 'all';
   category?: string | 'all';
   query?: string;
   page?: number;
@@ -28,8 +32,9 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSynced, setIsSynced] = useState<boolean>(true);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
-  const { source = 'all', category = 'all', query = '', page = 1, limit = 20 } = options;
+  const { source = 'all', roleGroup = 'all', category = 'all', query = '', page = 1, limit = 50 } = options;
 
   const fetchJobsFromAppwrite = useCallback(async () => {
     setIsLoading(true);
@@ -45,6 +50,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
           'get-remote-jobs',
           JSON.stringify({
             source: source !== 'all' ? source : undefined,
+            role_group: roleGroup !== 'all' ? roleGroup : undefined,
             category: category !== 'all' ? category : undefined,
             query: query.trim() || undefined,
             page,
@@ -59,6 +65,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
           if (res.ok && Array.isArray(res.jobs)) {
             setJobs(res.jobs);
             setTotal(res.total || res.jobs.length);
+            if (res.last_synced_at) setLastSyncedAt(res.last_synced_at);
 
             // Populate user actions map if returned
             const actionMap = new Map();
@@ -86,6 +93,9 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
 
       if (source !== 'all') {
         queries.push(Query.equal('source', source));
+      }
+      if (roleGroup !== 'all') {
+        queries.push(Query.equal('role_group', roleGroup));
       }
       if (category !== 'all') {
         queries.push(Query.equal('category', category));
@@ -167,7 +177,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.$id, isAuthenticated, source, category, query, page, limit]);
+  }, [user?.$id, isAuthenticated, source, roleGroup, category, query, page, limit]);
 
   useEffect(() => {
     void fetchJobsFromAppwrite();
@@ -295,12 +305,23 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
     [user?.$id, fetchJobsFromAppwrite],
   );
 
+  const roleGroupCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const job of jobs) {
+      const rg = job.role_group || 'other';
+      counts.set(rg, (counts.get(rg) || 0) + 1);
+    }
+    return counts;
+  }, [jobs]);
+
   return {
     jobs,
     userActions,
     total,
     isLoading,
     isSynced,
+    lastSyncedAt,
+    roleGroupCounts,
     error,
     refetch: fetchJobsFromAppwrite,
     trackAction,

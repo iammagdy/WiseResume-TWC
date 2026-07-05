@@ -6,6 +6,7 @@ const { Client, Databases, Account, Query } = sdk;
 const DB_ID = 'main';
 const JOBS_COLLECTION_ID = 'job_feed_items';
 const USER_ACTIONS_COLLECTION_ID = 'user_job_actions';
+const SYNC_RUNS_COLLECTION_ID = 'job_feed_sync_runs';
 
 function getDbClient() {
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -52,6 +53,7 @@ module.exports = async ({ req, res, log, error }) => {
   const offset = (page - 1) * limit;
 
   const sourceFilter = body.source;
+  const roleGroupFilter = body.roleGroup || body.role_group;
   const categoryFilter = body.category;
   const search = body.query ? String(body.query).trim().toLowerCase() : '';
 
@@ -64,6 +66,9 @@ module.exports = async ({ req, res, log, error }) => {
 
   if (sourceFilter) {
     queries.push(Query.equal('source', sourceFilter));
+  }
+  if (roleGroupFilter && roleGroupFilter !== 'all') {
+    queries.push(Query.equal('role_group', roleGroupFilter));
   }
   if (categoryFilter) {
     queries.push(Query.equal('category', categoryFilter));
@@ -119,12 +124,27 @@ module.exports = async ({ req, res, log, error }) => {
       }
     }
 
+    // Get last sync timestamp
+    let lastSyncedAt = new Date().toISOString();
+    try {
+      const syncRuns = await db.listDocuments(DB_ID, SYNC_RUNS_COLLECTION_ID, [
+        Query.orderDesc('finished_at'),
+        Query.limit(1),
+      ]);
+      if (syncRuns.documents?.[0]?.finished_at) {
+        lastSyncedAt = syncRuns.documents[0].finished_at;
+      }
+    } catch {
+      // ignore
+    }
+
     return res.json({
       ok: true,
       jobs,
       total,
       page,
       limit,
+      last_synced_at: lastSyncedAt,
     });
   } catch (err) {
     error(`Failed to fetch remote jobs: ${err.message}`);
