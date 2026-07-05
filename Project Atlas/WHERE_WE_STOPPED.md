@@ -23,21 +23,21 @@
 
 ## 2. Latest Important Commits
 
-* **`b00a0a98`** — `fix(resume): stabilize auth cache parsing and template defaults` ← **LAST**
+* **`ee136d35`** — `fix(i18n): add missing top bar notification label` ← **LAST**
+* **`b00a0a98`** — `fix(resume): stabilize auth cache parsing and template defaults`
 * **`4a9ac4a1`** — `docs(atlas): update changelog and handover state for profile sync & ux fixes`
 * **`5d5ac0db`** — `feat(auth): sync LinkedIn profile and handle conflict UX`
 * **`a496916f`** — `feat(auth): add LinkedIn SSO button`
 * **`108e5ac4`** — `fix(security): production stabilization hardening pass`
-* **`dc8f9d0d`** — `docs(atlas): update session closeout and handover state`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
 * **Session Status**: COMPLETED — all work committed, pushed, and verified.
-* **Last Session**: Resume consistency, auth cache stabilization, and template defaults (commit `b00a0a98`).
+* **Last Session**: Post-Fix Regression Audit & Safety Review + Tiny Cleanup (commit `ee136d35`).
 * **Current State**: Production is live on `https://wiseresume.app` with all fixes from this session deployed via Vercel auto-deploy on push to `main`. No Appwrite deploy was required.
-* **Last Completed Task**: Resolved stale-cache race causing "no CV" state after login/password reset; dashboard empty-state gating now waits for React Query to settle; multi-column PDF contact extraction (email/phone) fallback now scans full document text; newly parsed CVs now default to `wiseresume-classic` template instead of `modern`/purple; all 22 unit tests pass, `npx tsc --noEmit` clean, `npm run build` successful.
+* **Last Completed Task**: Completed full regression audit across 9 production fix areas (LinkedIn SSO, conflict UX, profile identity sync, completion hints, auth cache clearing, dashboard gating, multi-column contact extraction, template defaults, Atlas docs). Fixed 1 pre-existing i18n test failure (`app.topBar.notifications` in `locales/en/app.json`), updated `extractContactHints` docstring to "scans full text", and wrapped `refreshSession` in a try/catch in `AuthPage.tsx` to handle rare post-login session hydration failures gracefully. All unit tests pass, `npx tsc --noEmit` clean, `npm run build` successful.
 
 ---
 

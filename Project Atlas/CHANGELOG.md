@@ -1,5 +1,24 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 — Post-Fix Regression Audit & Safety Review Cleanup
+
+- **Classification**: COMPLETED
+- **Commit**: `ee136d35` — `fix(i18n): add missing top bar notification label` — pushed to `main`, auto-deployed via Vercel.
+- **Audit Scope**: Full regression audit across 9 production fix areas (LinkedIn SSO button, conflict UX, profile identity sync, completion hints, auth cache clearing, dashboard gating, multi-column contact extraction, template defaults, Atlas docs).
+- **Audit Findings & Fixes**:
+  1. Fixed pre-existing `englishUiFallbackCoverage` test failure by adding missing `"notifications": "Notifications"` key under `app.topBar` in `locales/en/app.json`.
+  2. Corrected stale docstring on `extractContactHints` in `src/lib/pdf/textPreprocessor.ts` to reflect full-text scanning.
+  3. Wrapped `refreshSession()` in an inner try/catch in `AuthPage.tsx` `doLogin` handler so rare session refresh errors post-login show a neutral reload prompt instead of `"Invalid email or password"`.
+- **Validation**:
+  - `npx tsc --noEmit` — 0 type errors.
+  - `englishUiFallbackCoverage.test.ts` — PASSED.
+  - All 25 focused unit tests (`AuthPage`, `AuthCallbackPage`, `authCaches`, `dashboardGating`, `pdfParser-D1`) — PASSED.
+  - `npm run build` — Successful production build.
+- **Appwrite Deploy**: Not required. Frontend-only.
+- **Status**: Production is live on `https://wiseresume.app`. Owner production smoke testing is the next recommended step.
+
+---
+
 ## 2026-07-05 — Session Closeout (Resume Consistency, Auth Cache, Template Defaults)
 
 - **Classification**: COMPLETED
