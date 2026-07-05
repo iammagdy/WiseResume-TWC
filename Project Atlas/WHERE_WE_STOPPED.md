@@ -33,9 +33,9 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Current Active Focus**: Production stabilization hardening pass — completed, merged (PR #139), and deployed. All 6 findings fixed: DA-01 (CRITICAL), DA-02 (CRITICAL), AG-05 (HIGH), PP-01 (HIGH), EXP-02 (MEDIUM), D-01 (MEDIUM). Vercel frontend auto-deployed. Three Appwrite hubs deployed via targeted workflow (`email-service`, `admin-devkit-data`, `ai-gateway`). Post-deploy drift check confirms all 3 hubs IN SYNC.
-* **Current State**: Production stabilization phase complete. PR #139 (`108e5ac4`) merged to main. Vercel production deployed. Appwrite hubs deployed. Source hashes match. All 26 tests pass.
-* **Last Completed Task**: Production stabilization hardening — implementation, merge, Vercel deployment, targeted Appwrite deployment, post-deploy verification, and documentation closeout.
+* **Current Active Focus**: Adding LinkedIn SSO Authentication Button to frontend login UI.
+* **Current State**: LinkedIn SSO login button successfully added to `AuthBold.tsx`, wired in `AuthPage.tsx` using the Appwrite client SDK OAuth session flow, and localized in both English and Arabic. Focused Vitest tests passed (all 15 tests passed), and code type-checking and production bundler build completed successfully. LinkedIn OAuth browser login flow is `PENDING_OWNER_VERIFICATION`.
+* **Last Completed Task**: Frontend implementation, styling, localization, test updates, and validation of the LinkedIn SSO button.
 
 ---
 
@@ -45,11 +45,21 @@
 2. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions workflow (`deploy-appwrite-hubs.yml` with target `inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
 3. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
 4. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
+5. **Owner LinkedIn OAuth Verification**: Verify that the LinkedIn OAuth redirection, consent screen, callback, and session creation succeed on the production deployment.
 
 ---
 
 ## 5. Blocked / Pending Owner Verification
 
+* **LinkedIn OAuth Browser Verification**: PENDING_OWNER_VERIFICATION (requires manual browser check using owner credentials or test accounts on the deployed site).
+  * **LinkedIn Developer Portal Authorized Redirect URL** (OAuth 2.0 Settings):
+    `https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/callback/linkedin/69fd362b001eb325a192`
+  * **WiseResume Success URLs** (used by frontend client redirects):
+    * `https://wiseresume.app/auth/callback`
+    * `https://wiseresume.app/ar/auth/callback`
+  * **WiseResume Failure URLs**:
+    * `https://wiseresume.app/auth?error=oauth_failed`
+    * `https://wiseresume.app/ar/auth?error=oauth_failed`
 * **Public Portfolio Contact Form (Turnstile Captcha)**: Blocked in automated E2E browser environments because Cloudflare Turnstile rejects headless automation contexts. Verified working via manual owner submission in production.
 * **Billing / Payments Activation**: Blocked on explicit project owner business decision.
 

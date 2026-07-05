@@ -251,6 +251,24 @@ export default function AuthPage() {
     }
   };
 
+  const doLinkedInLogin = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://wiseresume.app';
+      const successUrl = `${origin}${locale === 'ar' ? '/ar' : ''}/auth/callback`;
+      const failureUrl = `${origin}${locale === 'ar' ? '/ar' : ''}/auth?error=oauth_failed`;
+      await appwriteAccount.createOAuth2Session('linkedin', successUrl, failureUrl);
+    } catch (err: unknown) {
+      console.error('[AuthPage] LinkedIn OAuth redirect failed');
+      const msg = 'LinkedIn sign-in failed. Please try again.';
+      setError(msg);
+      toast.error(msg);
+      setLoading(false);
+    }
+  };
+
   const onSubmit = () => {
     if (mode === 'signin') return doLogin();
     if (mode === 'signup') return doRegister();
@@ -284,6 +302,7 @@ export default function AuthPage() {
         onRememberChange={setRemember}
         loading={loading}
         error={error}
+        onLinkedInLogin={doLinkedInLogin}
         notice={
           signupPlanIntent && mode === 'signup'
             ? (

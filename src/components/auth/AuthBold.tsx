@@ -20,6 +20,7 @@ import {
   Moon,
   Sun,
   User,
+  Linkedin,
 } from 'lucide-react';
 import wiseAiLogoDark from '@/assets/wiseresume-logo-dark.webp';
 import { useIsDark } from '@/hooks/useIsDark';
@@ -53,6 +54,7 @@ export interface AuthBoldProps {
   notice?: ReactNode;
   doneSlot?: ReactNode;
 
+  onLinkedInLogin?: () => void | Promise<void>;
   onSubmit: () => void | Promise<void>;
 }
 
@@ -268,6 +270,7 @@ const STYLES = `
   .ab-field{height:52px;padding:0 15px;border-radius:14px;}
   .ab-optrow{margin:18px 0 22px;}
   .ab-btn{height:54px;border-radius:16px;font-size:16px;}
+  .ab-linkedin-btn{height:54px;border-radius:16px;font-size:16px;}
   .ab-trust{margin-top:16px;}
   .ab-trust span{font-size:12px;}
   .ab-foot{margin-top:20px;font-size:14px;}
@@ -281,6 +284,25 @@ const STYLES = `
   .ab-sub{font-size:17px;}
   .ab-card{width:404px;max-width:404px;flex:none;margin:0;padding:34px 38px 38px;}
 }
+
+.ab-linkedin-btn{
+  width:100%;height:50px;border:1px solid var(--field-bd);border-radius:15px;
+  background:var(--field-bg);color:var(--field-fg);
+  font:600 15px Inter,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:background .15s,border-color .15s,transform .12s;
+  margin-top:12px;box-sizing:border-box;
+}
+.ab-linkedin-btn:hover:not(:disabled){
+  background:var(--card-bd);
+  border-color:var(--sub);
+}
+.ab-linkedin-btn:active:not(:disabled){transform:scale(.98);}
+.ab-linkedin-btn:disabled{opacity:.7;cursor:not-allowed;}
+.ab-linkedin-btn svg{width:19px;height:19px;color:#0077b5;}
+
+.ab-divider-row{display:flex;align-items:center;gap:10px;margin:16px 0 12px;}
+.ab-divider-line{flex:1;height:1px;background:var(--divcol);}
+.ab-divider-text{font:500 13px Inter,sans-serif;color:var(--sub);text-transform:lowercase;}
 `;
 
 function ScoutSvg() {
@@ -329,6 +351,7 @@ export function AuthBold({
   error = null,
   notice,
   doneSlot,
+  onLinkedInLogin,
   onSubmit,
 }: AuthBoldProps) {
   const { direction, t } = useLocale();
@@ -854,10 +877,29 @@ export function AuthBold({
                   </div>
                 )}
 
-                <button className="ab-btn" type="submit" disabled={loading}>
-                  {loading ? t('auth.pleaseWait') : submitLabel[mode]}
-                  {!loading && <ArrowRight data-mirror-rtl="true" />}
-                </button>
+                 <button className="ab-btn" type="submit" disabled={loading}>
+                   {loading ? t('auth.pleaseWait') : submitLabel[mode]}
+                   {!loading && <ArrowRight data-mirror-rtl="true" />}
+                 </button>
+
+                 {(mode === 'signin' || mode === 'signup') && onLinkedInLogin && (
+                   <>
+                     <div className="ab-divider-row">
+                       <span className="ab-divider-line" />
+                       <span className="ab-divider-text">{t('auth.or')}</span>
+                       <span className="ab-divider-line" />
+                     </div>
+                     <button
+                       className="ab-linkedin-btn"
+                       type="button"
+                       onClick={onLinkedInLogin}
+                       disabled={loading}
+                     >
+                       <Linkedin />
+                       <span>{t('auth.continueWithLinkedIn')}</span>
+                     </button>
+                   </>
+                 )}
 
                 {(mode === 'signin' || mode === 'signup') && (
                   <div className="ab-trust">

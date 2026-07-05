@@ -145,4 +145,59 @@ describe('AuthBold', () => {
     fireEvent.click(screen.getByRole('button', { name: /create account/i }));
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('renders LinkedIn SSO button in signin mode when onLinkedInLogin is provided', () => {
+    const onLinkedInLogin = vi.fn();
+    renderWithProviders(
+      <AuthBold
+        mode="signin"
+        onLinkedInLogin={onLinkedInLogin}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: /Continue with LinkedIn/i });
+    expect(button).toBeInTheDocument();
+    
+    fireEvent.click(button);
+    expect(onLinkedInLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders LinkedIn SSO button in signup mode when onLinkedInLogin is provided', () => {
+    const onLinkedInLogin = vi.fn();
+    renderWithProviders(
+      <AuthBold
+        mode="signup"
+        onLinkedInLogin={onLinkedInLogin}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: /Continue with LinkedIn/i });
+    expect(button).toBeInTheDocument();
+  });
+
+  it('does not render LinkedIn SSO button in forgot, reset or other modes', () => {
+    const onLinkedInLogin = vi.fn();
+    
+    const { rerender } = renderWithProviders(
+      <AuthBold
+        mode="forgot"
+        forgotStep="email"
+        onLinkedInLogin={onLinkedInLogin}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /Continue with LinkedIn/i })).not.toBeInTheDocument();
+
+    // Rerender with reset mode to ensure it is not visible there
+    rerender(
+      <AuthBold
+        mode="reset"
+        onLinkedInLogin={onLinkedInLogin}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /Continue with LinkedIn/i })).not.toBeInTheDocument();
+  });
 });

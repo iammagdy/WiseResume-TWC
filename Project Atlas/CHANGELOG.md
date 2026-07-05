@@ -1,5 +1,30 @@
 # Project Atlas Master Changelog
 
+## 2026-07-05 — Add LinkedIn SSO Authentication Button Only
+
+- **Frontend UI Changes**:
+  - Imported `Linkedin` from `lucide-react`.
+  - Added an optional `onLinkedInLogin` callback prop to `AuthBoldProps` in `src/components/auth/AuthBold.tsx`.
+  - Added the "Continue with LinkedIn" button and a styled "or" divider beneath the main email/password login button in `signin` and `signup` modes.
+  - Handled responsive height and border radius for `.ab-linkedin-btn` matching existing design systems.
+- **Frontend Logic Changes**:
+  - Implemented `doLinkedInLogin` in `src/pages/AuthPage.tsx` using `appwriteAccount.createOAuth2Session('linkedin', successUrl, failureUrl)`.
+  - Used `window.location.origin` with current locale prefix for Appwrite redirects.
+  - Documented specific URLs for Appwrite/LinkedIn OAuth configuration:
+    * **LinkedIn Developer Portal Authorized Redirect URL**: `https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/callback/linkedin/69fd362b001eb325a192`
+    * **WiseResume Success URLs**: `https://wiseresume.app/auth/callback` or `https://wiseresume.app/ar/auth/callback`
+    * **WiseResume Failure URLs**: `https://wiseresume.app/auth?error=oauth_failed` or `https://wiseresume.app/ar/auth?error=oauth_failed`
+  - Added safe double-click protection using the existing loading state, and generic error logging to prevent leaking tokens or internal callback URLs.
+- **Localization**:
+  - Added translation keys `"continueWithLinkedIn"` and `"or"` to `locales/en/auth.json` and `locales/ar/auth.json` (English and Arabic).
+- **Validation**:
+  - Updated focused Vitest unit tests in `src/components/auth/__tests__/AuthBold.test.tsx` (all 15 tests passed).
+  - TypeScript checking passed (`npx tsc --noEmit`).
+  - Production bundler build passed (`npm run build`).
+- **OAuth Status**:
+  - Appwrite deployment: Not required (frontend-only change).
+  - OAuth browser login verification status: PENDING_OWNER_VERIFICATION (code and build validation completed successfully).
+
 ## 2026-07-05 — Production Stabilization Hardening Pass (PR #139)
 
 - **Security Fixes**:
