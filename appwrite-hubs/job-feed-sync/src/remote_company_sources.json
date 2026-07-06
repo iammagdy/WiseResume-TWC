@@ -1,0 +1,37 @@
+[
+  {
+    "company": "Automattic",
+    "ats_type": "greenhouse",
+    "board_slug": "automattic",
+    "region_policy": "worldwide",
+    "tags": ["wordpress", "tech", "support"]
+  },
+  {
+    "company": "GitLab",
+    "ats_type": "greenhouse",
+    "board_slug": "gitlab",
+    "region_policy": "emea",
+    "tags": ["tech", "devops", "operations"]
+  },
+  {
+    "company": "Buffer",
+    "ats_type": "lever",
+    "board_slug": "buffer",
+    "region_policy": "worldwide",
+    "tags": ["marketing", "customer_support", "social_media"]
+  },
+  {
+    "company": "Hotjar",
+    "ats_type": "greenhouse",
+    "board_slug": "hotjar",
+    "region_policy": "emea",
+    "tags": ["product", "tech", "design"]
+  },
+  {
+    "company": "DuckDuckGo",
+    "ats_type": "greenhouse",
+    "board_slug": "duckduckgo",
+    "region_policy": "worldwide",
+    "tags": ["privacy", "tech", "design"]
+  }
+]
