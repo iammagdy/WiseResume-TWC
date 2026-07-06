@@ -31,10 +31,12 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 ---
 
 ## 5. Current Behavior
-* User selects a base resume and pastes target job description text.
-* Calls `ai-gateway` which returns calculated ATS score delta (e.g. 50 → 85), keyword match breakdown, and suggested bullet rewrites.
-* Tailoring history runs are persisted to `tailor_history` collection.
-* Guardrail: If no meaningful changes are detected, an amber warning ("No changes detected", Retry / Edit) is displayed.
+* **Standard Tailoring:** User selects a base resume and pastes target job description text. Calls `ai-gateway` which returns calculated ATS score delta (e.g. 50 → 85), keyword match breakdown, and suggested bullet rewrites. Tailoring history runs are persisted to `tailor_history` collection. If no changes are detected, an amber warning is displayed.
+* **Fast Tailoring (One-Click from `/jobs`):**
+  - Directly tailors the user's default master CV (or prompts a choice if multiple exist) against the selected remote job description in one click.
+  - Concurrently triggers CV tailoring and cover letter generation in parallel.
+  - Automates entry creation in `job_applications` tracker collection with status `ready_to_apply`.
+  - Automatically handles locks (`isTailoringRef`) to block double-click concurrency and optimistic daily credit limits validation (`checkCredits()`).
 
 ---
 

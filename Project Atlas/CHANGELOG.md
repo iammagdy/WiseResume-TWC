@@ -1,5 +1,21 @@
 # Project Atlas Master Changelog
 
+## 2026-07-06 — Fast Tailor Concurrency Protection & Application Tracker Integration
+
+- **Classification**: COMPLETED
+- **Features & Enhancements**:
+  - **Fast Tailor Concurrency Protection**: Added synchronous click concurrency locks (`isTailoringRef`) to prevent duplicate AI executions and duplicate resumes when users double-click the "Fast Tailor" button.
+  - **AI Credit Validation**: Added optimistic AI credit checking (`checkCredits()`) prior to initiating the Fast Tailor flow, displaying a warning if the daily limit is reached.
+  - **Timeline Status Badge Styles**: Added color-coded status badge styles for `tailored` (purple) and `ready_to_apply` (rose) statuses on the Applications list page.
+  - **Progress Timeline Alignment**: Mapped `tailored` and `ready_to_apply` statuses to stage `0` (active/saved) on the Application Details progress timeline, avoiding greyed-out progress bars.
+  - **Committed Company Sources**: Unignored and committed `appwrite-hubs/job-feed-sync/src/remote_company_sources.json` to ensure the repository remains 100% self-contained and reproducible.
+- **Validation**:
+  - `npx vitest run src/lib/__tests__/remoteJobsNormalizer.test.ts src/pages/__tests__/RemoteJobsPage.test.tsx` — 20/20 tests PASSED (added new click-action and loading overlay test).
+  - `npx tsc --noEmit` — 0 type errors.
+  - `npm run build` — Successful production build.
+- **Deployments**:
+  - Redeployed targeted Appwrite functions (`job-feed-sync`, `get-remote-jobs`, `track-job-action`) to ensure matching source hashes and eliminate deployment drift.
+
 ## 2026-07-05 — Remote Jobs Feed Expansion & Enhancement (`/jobs`)
 
 - **Classification**: COMPLETED & VERIFIED IN PRODUCTION
