@@ -23,20 +23,19 @@
 
 ## 2. Latest Important Commits
 
-* **`858cc775`** — `fix(jobs): commit remote company sources config for reproducible job-feed-sync deploys` ← **LAST**
+* **`c3667976`** — `fix(jobs): repair Fast Tailor tracking and unchanged-output guard` ← **LAST**
+* **`858cc775`** — `fix(jobs): commit remote company sources config for reproducible job-feed-sync deploys`
 * **`e0c84414`** — `chore(devkit): update generated source hashes for deployed remote jobs hubs`
 * **`875e0ec5`** — `feat(jobs): implement fast tailor click safety, credit validation, status badge styles, and database updater force backfill`
-* **`b3665df2`** — `feat(jobs): add automatic trigger for job-feed-sync in deployment workflow`
-* **`24989886`** — `fix(schema): handle attribute pagination and existing attribute errors`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED & VERIFIED IN PRODUCTION — Remote Jobs Feed, Fast Tailor, and Application Tracker integration fully deployed and verified.
-* **Last Session**: Implemented click concurrency locks, credit validation, status badge style overrides, and unignored/committed `remote_company_sources.json`.
-* **Current State**: `/jobs` remote jobs feed is fully enhanced. All 20 tests pass. TypeScript compiler compiles with 0 errors. Vite build bundles successfully. Appwrite functions (`job-feed-sync`, `get-remote-jobs`, `track-job-action`) deployed and verified with matching source hashes to eliminate deployment drift. Fast Tailor concurrency lock (`isTailoringRef`) and credit verification (`checkCredits`) are fully verified. Application Tracker renders `'tailored'` and `'ready_to_apply'` entries cleanly with color-coded badges and aligned progress timelines.
-* **Last Completed Task**: Composed comprehensive test coverage, committed company sources configuration, and resolved Appwrite deployment drift.
+* **Session Status**: COMPLETED & VERIFIED IN PRODUCTION — Fast Tailor tracking and unchanged-output guardrail fully implemented, tested, and pushed.
+* **Last Session**: Fixed the `user?.$id` vs `user?.id` mismatch in `useRemoteJobs.ts` which was causing action tracking updates to silently fail. Implemented a robust client-side `hasMeaningfulChanges` guardrail on the Fast Tailor flow in `RemoteJobsPage.tsx` using a local `computeMatchScore` utility. Corrected picker dialog timing by closing it immediately on confirm, and added a tailored status badge to remote job cards.
+* **Current State**: `/jobs` feed Fast Tailor flow is fully operational and correct. All 22 tests pass. TypeScript compiler type checks clean. Production build completes successfully. Pushed to `main` branch (commit `c366797697441064eccc42b377f0726a38b7127f`).
+* **Last Completed Task**: Pushed the frontend tracking fixes, the new `useRemoteJobs.test.tsx` hook unit test suite, and the `RemoteJobsPage.test.tsx` updates.
 
 ---
 
