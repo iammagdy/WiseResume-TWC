@@ -93,53 +93,88 @@ function getEnvKey(provider, slot) {
 
 async function readSlotModels(databases) {
   try {
+    const list = await databases.listDocuments(DB_ID, SETTINGS_COLLECTION, [
+      sdk.Query.equal('key', 'ai_test_slot_models'),
+      sdk.Query.limit(1)
+    ]);
+    if (list.documents && list.documents.length > 0) {
+      const val = list.documents[0].value;
+      if (typeof val === 'string' && val.trim()) return JSON.parse(val);
+    }
+  } catch {}
+  try {
     const doc = await databases.getDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
     const raw = doc.ai_test_slot_models;
     if (typeof raw === 'string' && raw.trim()) return JSON.parse(raw);
     if (typeof raw === 'object' && raw !== null) return raw;
-    return {};
-  } catch { return {}; }
+  } catch {}
+  return {};
 }
 
 async function writeSlotModels(databases, slotModels) {
-  const payload = { ai_test_slot_models: JSON.stringify(slotModels) };
+  const valueStr = JSON.stringify(slotModels);
+  const payload = {
+    key: 'ai_test_slot_models',
+    value: valueStr,
+    ai_test_slot_models: valueStr
+  };
   try {
-    await databases.updateDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
-  } catch (updateErr) {
-    if (updateErr && typeof updateErr.code === 'number' && updateErr.code === 404) {
-      await databases.createDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
-      return;
+    const list = await databases.listDocuments(DB_ID, SETTINGS_COLLECTION, [
+      sdk.Query.equal('key', 'ai_test_slot_models'),
+      sdk.Query.limit(1)
+    ]);
+    if (list.documents && list.documents.length > 0) {
+      const docId = list.documents[0].$id;
+      await databases.updateDocument(DB_ID, SETTINGS_COLLECTION, docId, payload);
+    } else {
+      await databases.createDocument(DB_ID, SETTINGS_COLLECTION, sdk.ID.unique(), payload);
     }
-    throw updateErr;
+  } catch (err) {
+    throw err;
   }
 }
 
 async function readTestResults(databases) {
   try {
+    const list = await databases.listDocuments(DB_ID, SETTINGS_COLLECTION, [
+      sdk.Query.equal('key', 'ai_key_test_results'),
+      sdk.Query.limit(1)
+    ]);
+    if (list.documents && list.documents.length > 0) {
+      const val = list.documents[0].value;
+      if (typeof val === 'string' && val.trim()) return JSON.parse(val);
+    }
+  } catch {}
+  try {
     const doc = await databases.getDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
     const raw = doc.ai_key_test_results;
     if (typeof raw === 'string' && raw.trim()) return JSON.parse(raw);
     if (typeof raw === 'object' && raw !== null) return raw;
-    return {};
-  } catch { return {}; }
+  } catch {}
+  return {};
 }
 
 async function writeTestResults(databases, testResults, logFn) {
-  const payload = { ai_key_test_results: JSON.stringify(testResults) };
+  const valueStr = JSON.stringify(testResults);
+  const payload = {
+    key: 'ai_key_test_results',
+    value: valueStr,
+    ai_key_test_results: valueStr
+  };
   try {
-    await databases.updateDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
+    const list = await databases.listDocuments(DB_ID, SETTINGS_COLLECTION, [
+      sdk.Query.equal('key', 'ai_key_test_results'),
+      sdk.Query.limit(1)
+    ]);
+    if (list.documents && list.documents.length > 0) {
+      const docId = list.documents[0].$id;
+      await databases.updateDocument(DB_ID, SETTINGS_COLLECTION, docId, payload);
+    } else {
+      await databases.createDocument(DB_ID, SETTINGS_COLLECTION, sdk.ID.unique(), payload);
+    }
     return { ok: true };
   } catch (err) {
-    if (err && typeof err.code === 'number' && err.code === 404) {
-      try {
-        await databases.createDocument(DB_ID, SETTINGS_COLLECTION, SETTINGS_DOC_ID, payload);
-        return { ok: true };
-      } catch (createErr) {
-        if (logFn) logFn(`[inspect-ai-keys] Persistence warning (create): ${createErr?.message || String(createErr)}`);
-        return { ok: false, warning: 'persistence_failed' };
-      }
-    }
-    if (logFn) logFn(`[inspect-ai-keys] Persistence warning (update): ${err?.message || String(err)}`);
+    if (logFn) logFn(`[inspect-ai-keys] Persistence warning (write): ${err?.message || String(err)}`);
     return { ok: false, warning: 'persistence_failed' };
   }
 }
@@ -270,6 +305,7 @@ async function pingSlot({ provider, slot, model }) {
         testedAt,
         keyPreview,
         message: `Authentication failed (HTTP ${httpStatus})`,
+        errorExcerpt: safeText || undefined,
       };
     }
 
@@ -285,6 +321,7 @@ async function pingSlot({ provider, slot, model }) {
         testedAt,
         keyPreview,
         message: 'Provider rate limit exceeded (HTTP 429)',
+        errorExcerpt: safeText || undefined,
       };
     }
 
@@ -303,6 +340,7 @@ async function pingSlot({ provider, slot, model }) {
         testedAt,
         keyPreview,
         message: `Model '${model}' not found or unsupported by provider (HTTP ${httpStatus})`,
+        errorExcerpt: safeText || undefined,
       };
     }
 
@@ -317,6 +355,7 @@ async function pingSlot({ provider, slot, model }) {
       testedAt,
       keyPreview,
       message: `Provider request failed (HTTP ${httpStatus})`,
+      errorExcerpt: safeText || undefined,
     };
   } catch (err) {
     if (timeoutId) clearTimeout(timeoutId);
@@ -346,6 +385,7 @@ async function pingSlot({ provider, slot, model }) {
       testedAt,
       keyPreview,
       message: 'Network error connecting to provider',
+      errorExcerpt: err instanceof Error ? err.message : String(err),
     };
   }
 }
@@ -478,7 +518,10 @@ module.exports = async ({ req, res, log }) => {
     log(`Saving model override: ${provider}:${slotNum}`);
     const slotModelsBeforeSave = await readSlotModels(databases);
     slotModelsBeforeSave[`${provider}:${slotNum}`] = model.trim();
-    try { await writeSlotModels(databases, slotModelsBeforeSave); }
+    try {
+      await writeSlotModels(databases, slotModelsBeforeSave);
+      return res.json({ success: true, slotModels: slotModelsBeforeSave });
+    }
     catch (writeErr) {
       const msg = writeErr instanceof Error ? writeErr.message : String(writeErr);
       return res.json({ success: false, error: `Failed to save model override: ${msg}` }, 500);

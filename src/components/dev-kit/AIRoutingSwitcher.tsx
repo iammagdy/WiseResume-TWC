@@ -363,6 +363,7 @@ export const AIRoutingSwitcher = () => {
       const gwTuple = await appwriteFunctions.invoke('ai-gateway', {
         headers: { 'X-Appwrite-JWT': jwt },
         body: {
+          featureName: featureId,
           feature: featureId,
           message: 'Admin route test. Reply with exactly: ROUTE_OK',
           __admin_test_nonce: nonceResult.nonce,
@@ -372,14 +373,18 @@ export const AIRoutingSwitcher = () => {
       const gwRaw = gwTuple?.response ?? gwTuple;
       const gwData = typeof gwRaw === 'string' ? (() => { try { return JSON.parse(gwRaw); } catch { return { status: 'error', message: gwRaw }; } })() : gwRaw;
 
-      if (gwData?.status === 'ok' || gwData?.adminTest) {
+      const isSuccess = gwData?.status === 'ok' || gwData?.status === 'success' || gwData?.adminTest === true;
+      if (isSuccess) {
+        const provider = gwData.meta?.provider || gwData.data?.providerUsed || gwData.provider || '';
+        const model = gwData.meta?.model || gwData.data?.modelUsed || gwData.model || '';
+        const previewContent = gwData.preview ?? gwData.data?.content ?? '';
         setRouteTestResults(prev => ({
           ...prev,
           [featureId]: {
             status: 'ok',
-            provider: gwData.provider,
-            model: gwData.model,
-            preview: gwData.preview ?? '',
+            provider,
+            model,
+            preview: String(previewContent).slice(0, 300),
           },
         }));
       } else {
@@ -425,9 +430,9 @@ export const AIRoutingSwitcher = () => {
             <BrainCircuit className="text-purple-400" size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white">AI Tools Map</h2>
+            <h2 className="text-xl font-black text-white">AI Routing (AI Tools Map)</h2>
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-mono">
-              Route Override Console · {FEATURES.length} tools across {Object.keys(CATEGORY_META).length} app areas · {totalOverrides} active override{totalOverrides !== 1 ? 's' : ''}
+              Provider / Model / Key Slot overrides · {FEATURES.length} tools across {Object.keys(CATEGORY_META).length} app areas · {totalOverrides} active override{totalOverrides !== 1 ? 's' : ''}
             </p>
           </div>
         </div>

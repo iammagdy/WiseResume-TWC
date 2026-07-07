@@ -3742,8 +3742,9 @@ module.exports = async ({ req, res, log, error }) => {
             feature: featureName,
             provider: providerUsed,
             model: modelUsed,
+            slot: candidate.slot || 1,
             preview: String(content || '').slice(0, 300),
-            meta: { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true },
+            meta: { feature: featureName, provider: providerUsed, model: modelUsed, slot: candidate.slot || 1, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true },
           });
         }
 

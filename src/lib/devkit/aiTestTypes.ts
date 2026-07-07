@@ -22,6 +22,7 @@ export interface SlotTestResult {
   testedAt: string;
   keyPreview?: string | null;
   message?: string;
+  errorExcerpt?: string;
 }
 
 export type SlotTestResultsMap = Record<string, SlotTestResult>;

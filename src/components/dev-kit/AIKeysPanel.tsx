@@ -589,9 +589,14 @@ export function AIKeysPanel() {
                                   </button>
                                 )}
                               </div>
-                              {detailsOpen && result.message && (
-                                <div className="p-1.5 rounded bg-black/40 border border-white/5 text-[8px] font-mono text-muted-foreground/90 break-words leading-relaxed">
-                                  {result.message}
+                              {detailsOpen && (result.message || result.errorExcerpt) && (
+                                <div className="p-1.5 rounded bg-black/40 border border-white/5 text-[8px] font-mono text-muted-foreground/90 break-words leading-relaxed space-y-1">
+                                  {result.message && <div>{result.message}</div>}
+                                  {result.errorExcerpt && (
+                                    <div className="pt-1 border-t border-white/5 text-[8px] text-red-400/80 bg-red-950/20 p-1 rounded">
+                                      {result.errorExcerpt}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

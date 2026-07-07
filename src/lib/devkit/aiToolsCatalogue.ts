@@ -43,6 +43,8 @@ export const TOOL_CREDIT_COSTS: Record<string, number> = {
   'parse-job': 1,
   'optimize-for-linkedin': 1,
   'company-briefing': 1,
+  'generate-portfolio-bio': 1,
+  'ask-portfolio': 1,
 };
 
 /** Mirrors FEATURE_ROUTES in appwrite-hubs/ai-gateway/src/main.js */
@@ -62,6 +64,8 @@ export const TOOL_GATEWAY_DEFAULTS: Record<string, { provider: ToolProvider; mod
   'optimize-for-linkedin':        { provider: 'deepseek',   model: 'deepseek-chat' },
   'generate-question-bank':       { provider: 'deepseek',   model: 'deepseek-chat' },
   'company-briefing':             { provider: 'deepseek',   model: 'deepseek-chat' },
+  'generate-portfolio-bio':       { provider: 'deepseek',   model: 'deepseek-chat' },
+  'ask-portfolio':                { provider: 'deepseek',   model: 'deepseek-chat' },
 };
 
 /** All AI tools, grouped by app area. */
@@ -201,5 +205,23 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     gatewayDefault: TOOL_GATEWAY_DEFAULTS['generate-question-bank'],
     label: 'Question Bank',
     description: 'Generates a role-specific interview Q&A bank, including behavioural and technical questions',
+  },
+
+  // ─── Portfolio & Other ──────────────────────────────────────────────────────
+  {
+    id: 'generate-portfolio-bio',
+    appArea: 'portfolio',
+    creditCost: TOOL_CREDIT_COSTS['generate-portfolio-bio'],
+    gatewayDefault: TOOL_GATEWAY_DEFAULTS['generate-portfolio-bio'],
+    label: 'Portfolio Bio Generator',
+    description: 'Generates a short, engaging professional bio for the public portfolio from user profile details',
+  },
+  {
+    id: 'ask-portfolio',
+    appArea: 'portfolio',
+    creditCost: TOOL_CREDIT_COSTS['ask-portfolio'],
+    gatewayDefault: TOOL_GATEWAY_DEFAULTS['ask-portfolio'],
+    label: 'Public Portfolio Chat',
+    description: 'Enables visitors on the public portfolio page to ask questions about the user\'s background and experience',
   },
 ];

@@ -62,16 +62,16 @@ export const DEEPSEEK_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
  * NVIDIA NIM LLM models available in the DevKit model selector. All NIM models are paid.
  */
 export const NVIDIA_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'Step 3.7 Flash',                    value: 'stepfun-ai/step-3.7-flash',                   tier: 'paid' },
-  { label: 'Nemotron 3 Ultra 550B',             value: 'nvidia/nemotron-3-ultra-550b-a55b',           tier: 'paid' },
-  { label: 'MiniMax M3',                        value: 'minimaxai/minimax-m3',                        tier: 'paid' },
-  { label: 'Nemotron 3 Super 120B',             value: 'nvidia/nemotron-3-super-120b-a12b',           tier: 'paid' },
-  { label: 'Step 3.5 Flash',                    value: 'stepfun-ai/step-3.5-flash',                   tier: 'paid' },
-  { label: 'Mistral Nemotron',                  value: 'mistralai/mistral-nemotron',                  tier: 'paid' },
-  { label: 'Mistral Large 3 675B',              value: 'mistralai/mistral-large-3-675b-instruct-2512', tier: 'paid' },
-  { label: 'GPT-OSS 120B',                      value: 'openai/gpt-oss-120b',                         tier: 'paid' },
-  { label: 'Llama 3.3 70B Instruct',            value: 'meta/llama-3.3-70b-instruct',                 tier: 'paid' },
-  { label: 'Mixtral 8x7B Instruct',             value: 'mistralai/mixtral-8x7b-instruct-v0.1',        tier: 'paid' },
+  { label: 'Step 3.7 Flash',                    value: 'stepfun-ai/step-3.7-flash',                   tier: 'free' },
+  { label: 'Nemotron 3 Ultra 550B',             value: 'nvidia/nemotron-3-ultra-550b-a55b',           tier: 'free' },
+  { label: 'MiniMax M3',                        value: 'minimaxai/minimax-m3',                        tier: 'free' },
+  { label: 'Nemotron 3 Super 120B',             value: 'nvidia/nemotron-3-super-120b-a12b',           tier: 'free' },
+  { label: 'Step 3.5 Flash',                    value: 'stepfun-ai/step-3.5-flash',                   tier: 'free' },
+  { label: 'Mistral Nemotron',                  value: 'mistralai/mistral-nemotron',                  tier: 'free' },
+  { label: 'Mistral Large 3 675B',              value: 'mistralai/mistral-large-3-675b-instruct-2512', tier: 'free' },
+  { label: 'GPT-OSS 120B',                      value: 'openai/gpt-oss-120b',                         tier: 'free' },
+  { label: 'Llama 3.3 70B Instruct',            value: 'meta/llama-3.3-70b-instruct',                 tier: 'free' },
+  { label: 'Mixtral 8x7B Instruct',             value: 'mistralai/mixtral-8x7b-instruct-v0.1',        tier: 'free' },
 ];
 
 /**
@@ -288,6 +288,5 @@ export function resolveModelsForProvider(
   provider: AITestProvider,
   live: LiveProviderModels,
 ): CuratedLLMModel[] {
-  const liveList = live[provider];
-  return liveList && liveList.length > 0 ? liveList : getCuratedModels(provider);
+  return [...getCuratedModels(provider)];
 }
