@@ -55,84 +55,50 @@ export interface CuratedLLMModel {
  *       Both are scheduled for removal on 2026-07-24.
  */
 export const DEEPSEEK_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'DeepSeek V4 Flash',                 value: 'deepseek-v4-flash',                  tier: 'paid' },
-  { label: 'DeepSeek V4 Pro',                   value: 'deepseek-v4-pro',                    tier: 'paid' },
-  { label: 'DeepSeek Chat (V3 alias)',           value: 'deepseek-chat',                      tier: 'paid', deprecated: true },
-  { label: 'DeepSeek Reasoner (R1 alias)',       value: 'deepseek-reasoner',                  tier: 'paid', deprecated: true },
+  { label: 'DeepSeek Chat',                     value: 'deepseek-chat',                      tier: 'paid' },
 ];
 
 /**
  * NVIDIA NIM LLM models available in the DevKit model selector. All NIM models are paid.
- *
- * Last verified: 2026-05-11
- * Source: https://integrate.api.nvidia.com/v1/models
  */
 export const NVIDIA_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'Llama 4 Maverick 17B',              value: 'meta/llama-4-maverick-17b-128e-instruct',      tier: 'paid' },
-  { label: 'Llama 4 Scout 17B',                 value: 'meta/llama-4-scout-17b-16e-instruct',          tier: 'paid' },
-  { label: 'Nemotron Ultra 253B',               value: 'nvidia/llama-3.1-nemotron-ultra-253b-v1',      tier: 'paid' },
-  { label: 'Mistral Medium 3 Instruct',         value: 'mistral-medium-3-instruct',                    tier: 'paid' },
-  { label: 'Mistral Large 3 675B Instruct',     value: 'mistral-large-3-675b-instruct-2512',           tier: 'paid' },
-  { label: 'Mistral Nemotron',                  value: 'mistral-nemotron',                             tier: 'paid' },
-  { label: 'Gemma 3n E4B IT',                   value: 'gemma-3n-e4b-it',                             tier: 'paid' },
-  { label: 'Gemma 3n E2B IT',                   value: 'gemma-3n-e2b-it',                             tier: 'paid' },
+  { label: 'Step 3.7 Flash',                    value: 'stepfun-ai/step-3.7-flash',                   tier: 'paid' },
+  { label: 'Nemotron 3 Ultra 550B',             value: 'nvidia/nemotron-3-ultra-550b-a55b',           tier: 'paid' },
+  { label: 'MiniMax M3',                        value: 'minimaxai/minimax-m3',                        tier: 'paid' },
+  { label: 'Nemotron 3 Super 120B',             value: 'nvidia/nemotron-3-super-120b-a12b',           tier: 'paid' },
+  { label: 'Step 3.5 Flash',                    value: 'stepfun-ai/step-3.5-flash',                   tier: 'paid' },
+  { label: 'Mistral Nemotron',                  value: 'mistralai/mistral-nemotron',                  tier: 'paid' },
+  { label: 'Mistral Large 3 675B',              value: 'mistralai/mistral-large-3-675b-instruct-2512', tier: 'paid' },
+  { label: 'GPT-OSS 120B',                      value: 'openai/gpt-oss-120b',                         tier: 'paid' },
+  { label: 'Llama 3.3 70B Instruct',            value: 'meta/llama-3.3-70b-instruct',                 tier: 'paid' },
+  { label: 'Mixtral 8x7B Instruct',             value: 'mistralai/mixtral-8x7b-instruct-v0.1',        tier: 'paid' },
 ];
 
 /**
  * OpenRouter LLM models available in the DevKit model selector.
- * Models whose ID contains `:free` are zero-cost on OpenRouter's free tier.
- * All others are billed per token.
- *
- * Last verified: 2026-05-11
- * Source: https://openrouter.ai/models · https://openrouter.ai/collections/free-models
  */
 export const OPENROUTER_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'Meta LLaMA 4 Maverick',               value: 'meta-llama/llama-4-maverick:free',             tier: 'free' },
-  { label: 'Meta LLaMA 4 Scout',                  value: 'meta-llama/llama-4-scout:free',                tier: 'free' },
-  { label: 'Meta LLaMA 3.3 70B Instruct',         value: 'meta-llama/llama-3.3-70b-instruct:free',       tier: 'free' },
-  { label: 'Meta LLaMA 3.1 8B Instruct',          value: 'meta-llama/llama-3.1-8b-instruct:free',        tier: 'free' },
-  { label: 'Qwen3 235B A22B',                     value: 'qwen/qwen3-235b-a22b:free',                    tier: 'free' },
-  { label: 'Qwen QwQ 32B',                        value: 'qwen/qwq-32b:free',                            tier: 'free' },
-  { label: 'Google Gemini 2.0 Flash Exp',         value: 'google/gemini-2.0-flash-exp:free',             tier: 'free' },
-  { label: 'Google Gemma 3 27B IT',               value: 'google/gemma-3-27b-it:free',                   tier: 'free' },
-  { label: 'DeepSeek R1',                         value: 'deepseek/deepseek-r1:free',                    tier: 'free' },
-  { label: 'DeepSeek V3',                         value: 'deepseek/deepseek-chat:free',                  tier: 'free' },
-  { label: 'Mistral 7B Instruct',                 value: 'mistralai/mistral-7b-instruct:free',           tier: 'free',  deprecated: true },
-  { label: 'Anthropic Claude Opus 4',             value: 'anthropic/claude-opus-4',                      tier: 'paid' },
-  { label: 'Anthropic Claude 3.5 Sonnet',         value: 'anthropic/claude-3.5-sonnet',                  tier: 'paid' },
-  { label: 'Anthropic Claude 3.5 Haiku',          value: 'anthropic/claude-3.5-haiku',                   tier: 'paid' },
-  { label: 'Meta LLaMA 3.3 70B Instruct',         value: 'meta-llama/llama-3.3-70b-instruct',            tier: 'paid' },
-  { label: 'Meta LLaMA 3.1 70B Instruct',         value: 'meta-llama/llama-3.1-70b-instruct',            tier: 'paid', deprecated: true },
-  { label: 'OpenAI GPT-4o Mini',                  value: 'openai/gpt-4o-mini',                           tier: 'paid' },
-  { label: 'OpenAI GPT-4o',                       value: 'openai/gpt-4o',                                tier: 'paid' },
-  { label: 'Google Gemini 2.0 Flash',             value: 'google/gemini-2.0-flash-001',                  tier: 'paid' },
+  { label: 'OpenRouter Free',                   value: 'openrouter/free',                             tier: 'free' },
+  { label: 'Laguna M.1 (Free)',                 value: 'poolside/laguna-m.1:free',                    tier: 'free' },
+  { label: 'North Mini Code (Free)',            value: 'cohere/north-mini-code:free',                 tier: 'free' },
+  { label: 'Laguna XS.2 (Free)',                value: 'poolside/laguna-xs.2:free',                   tier: 'free' },
+  { label: 'Nemotron 3 Ultra (Free)',           value: 'nvidia/nemotron-3-ultra-550b-a55b:free',      tier: 'free' },
+  { label: 'GPT-OSS 20B (Free)',                value: 'openai/gpt-oss-20b:free',                     tier: 'free' },
 ];
 
 /**
  * Groq LLM models available in the DevKit model selector.
- * Groq requires an API key for all models; all are marked 'paid' even though
- * Groq offers a generous free-tier rate limit — the key distinction is that
- * they are not zero-cost like OpenRouter's `:free` models.
- *
- * Last verified: 2026-05-11
- * Source: https://console.groq.com/docs/models · https://console.groq.com/docs/deprecations
  */
 export const GROQ_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'LLaMA 4 Maverick 17B',               value: 'meta-llama/llama-4-maverick-17b-128e-instruct', tier: 'free' },
-  { label: 'LLaMA 4 Scout 17B',                  value: 'meta-llama/llama-4-scout-17b-16e-instruct',    tier: 'free' },
-  { label: 'LLaMA 3.3 70B Versatile',            value: 'llama-3.3-70b-versatile',                      tier: 'free' },
-  { label: 'LLaMA 3.1 8B Instant',               value: 'llama-3.1-8b-instant',                         tier: 'free' },
-  { label: 'Qwen QwQ 32B',                       value: 'qwen-qwq-32b',                                 tier: 'free' },
-  { label: 'Qwen3 32B',                          value: 'qwen/qwen3-32b',                               tier: 'free' },
-  { label: 'Gemma 2 9B IT',                      value: 'gemma2-9b-it',                                 tier: 'free' },
-  { label: 'DeepSeek R1 Distill LLaMA 70B',      value: 'deepseek-r1-distill-llama-70b',                tier: 'free', deprecated: true },
-  { label: 'LLaMA 3.2 90B Vision Preview',       value: 'llama-3.2-90b-vision-preview',                 tier: 'free', deprecated: true },
-  { label: 'LLaMA 3.1 70B Versatile',            value: 'llama-3.1-70b-versatile',                      tier: 'free', deprecated: true },
-  { label: 'Mixtral 8×7B 32K',                   value: 'mixtral-8x7b-32768',                           tier: 'free', deprecated: true },
+  { label: 'GPT-OSS 120B',                      value: 'openai/gpt-oss-120b',                         tier: 'free' },
+  { label: 'Qwen 3.6 27B',                      value: 'qwen/qwen3.6-27b',                             tier: 'free' },
+  { label: 'Qwen 3 32B',                        value: 'qwen/qwen3-32b',                              tier: 'free' },
+  { label: 'Compound Mini',                     value: 'groq/compound-mini',                          tier: 'free' },
+  { label: 'Llama 4 Scout 17B',                 value: 'meta-llama/llama-4-scout-17b-16e-instruct',   tier: 'free' },
 ];
 
 /** Providers that use a curated dropdown (rather than a free-text input) in the DevKit AI Keys panel. */
-export const DROPDOWN_PROVIDERS = new Set<AITestProvider>(['nvidia', 'openrouter', 'groq']);
+export const DROPDOWN_PROVIDERS = new Set<AITestProvider>(['nvidia', 'openrouter', 'groq', 'deepseek']);
 
 /** Returns the curated model list for a given provider. */
 export function getCuratedModels(provider: AITestProvider): ReadonlyArray<CuratedLLMModel> {
@@ -143,10 +109,10 @@ export function getCuratedModels(provider: AITestProvider): ReadonlyArray<Curate
 }
 
 export const FALLBACK_AI_TEST_DEFAULT_MODELS: Record<AITestProvider, string> = {
-  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
-  groq: 'llama-3.3-70b-versatile',
-  deepseek: 'deepseek-v4-flash',
-  nvidia: 'mistral-medium-3-instruct',
+  openrouter: 'openrouter/free',
+  groq: 'openai/gpt-oss-120b',
+  deepseek: 'deepseek-chat',
+  nvidia: 'stepfun-ai/step-3.7-flash',
 };
 
 export function aiTestSlotKey(provider: AITestProvider, slot: AITestSlot): string {

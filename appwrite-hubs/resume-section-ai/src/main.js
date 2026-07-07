@@ -95,30 +95,117 @@ async function deleteIdempotencyDoc(db, docId) {
 
 const OPENROUTER_URL  = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_URL        = 'https://api.groq.com/openai/v1/chat/completions';
-const DEEPSEEK_URL    = 'https://api.deepseek.com/v1/chat/completions';
+const DEEPSEEK_URL    = 'https://api.deepseek.com/chat/completions';
+const NVIDIA_URL      = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const DEEPSEEK_MODEL  = 'deepseek-chat';
 
-// Provider timeouts — DeepSeek needs more time than Groq/OpenRouter.
+// Provider timeouts — DeepSeek/NVIDIA need more time than Groq/OpenRouter.
 const PROVIDER_TIMEOUT = {
   deepseek:   25000,
   groq:       10000,
   openrouter: 12000,
+  nvidia:     20000,
 };
 
-// DeepSeek is the primary provider. Groq and OpenRouter are fallbacks only.
-function buildPool() {
-  const pool = [];
-  if (process.env.DEEPSEEK_KEY) {
-    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY, url: DEEPSEEK_URL, model: DEEPSEEK_MODEL });
+async function loadRoutingOverride(db) {
+  try {
+    const res = await db.listDocuments(DB_ID, 'ai_routing_config', [
+      sdk.Query.equal('feature_id', 'resume-section-ai'),
+      sdk.Query.limit(1)
+    ]);
+    const doc = res.documents?.[0];
+    if (doc) {
+      const [providerName, slotStr] = (doc.provider || '').split(':');
+      return {
+        provider: providerName,
+        model: doc.model,
+        key_slot: slotStr ? Number(slotStr) : 1
+      };
+    }
+    return null;
+  } catch {
+    return null;
   }
+}
+
+function resolveKeyBySlot(provider, slotNum) {
+  if (provider === 'deepseek') return process.env.DEEPSEEK_KEY;
+  const envVarMap = {
+    groq: `GROQ_KEY_${slotNum || 1}`,
+    openrouter: `OPENROUTER_KEY_${slotNum || 1}`,
+    nvidia: `NVIDIA_KEY_${slotNum || 1}`,
+  };
+  return process.env[envVarMap[provider]] || null;
+}
+
+// DeepSeek is the primary provider. Groq, OpenRouter, and NVIDIA are fallbacks.
+async function buildPool(db) {
+  const pool = [];
+  let override = null;
+  if (db) {
+    override = await loadRoutingOverride(db);
+  }
+
+  const defaultModelFor = p =>
+    p === 'openrouter' ? 'openrouter/free' :
+    p === 'deepseek'   ? 'deepseek-chat' :
+    p === 'nvidia'     ? 'stepfun-ai/step-3.7-flash' :
+    'openai/gpt-oss-120b';
+
+  const usedSlots = new Set();
+
+  if (override && override.provider && override.model) {
+    const key = resolveKeyBySlot(override.provider, override.key_slot);
+    if (key) {
+      let url = DEEPSEEK_URL;
+      if (override.provider === 'groq') url = GROQ_URL;
+      else if (override.provider === 'openrouter') url = OPENROUTER_URL;
+      else if (override.provider === 'nvidia') url = NVIDIA_URL;
+
+      pool.push({
+        provider: override.provider,
+        key,
+        url,
+        model: override.model,
+        slot: override.key_slot || 1
+      });
+      usedSlots.add(`${override.provider}:${override.key_slot || 1}`);
+    }
+  }
+
+  // Add DeepSeek fallback first if not already used
+  if (process.env.DEEPSEEK_KEY && !usedSlots.has('deepseek:1')) {
+    pool.push({ provider: 'deepseek', key: process.env.DEEPSEEK_KEY, url: DEEPSEEK_URL, model: defaultModelFor('deepseek'), slot: 1 });
+    usedSlots.add('deepseek:1');
+  }
+
+  // Add Groq keys
   for (let i = 1; i <= 3; i++) {
     const k = process.env[`GROQ_KEY_${i}`];
-    if (k) pool.push({ provider: 'groq', key: k, url: GROQ_URL, model: 'llama-3.3-70b-versatile' });
+    if (k && !usedSlots.has(`groq:${i}`)) {
+      pool.push({ provider: 'groq', key: k, url: GROQ_URL, model: defaultModelFor('groq'), slot: i });
+      usedSlots.add(`groq:${i}`);
+    }
   }
+
+  // Add OpenRouter keys
   for (let i = 1; i <= 3; i++) {
     const k = process.env[`OPENROUTER_KEY_${i}`];
-    if (k) pool.push({ provider: 'openrouter', key: k, url: OPENROUTER_URL, model: 'meta-llama/llama-3.3-70b-instruct:free' });
+    if (k && !usedSlots.has(`openrouter:${i}`)) {
+      pool.push({ provider: 'openrouter', key: k, url: OPENROUTER_URL, model: defaultModelFor('openrouter'), slot: i });
+      usedSlots.add(`openrouter:${i}`);
+    }
   }
+
+  // Add NVIDIA keys
+  for (let i = 1; i <= 3; i++) {
+    const k = process.env[`NVIDIA_KEY_${i}`];
+    if (k && !usedSlots.has(`nvidia:${i}`)) {
+      pool.push({ provider: 'nvidia', key: k, url: NVIDIA_URL, model: defaultModelFor('nvidia'), slot: i });
+      usedSlots.add(`nvidia:${i}`);
+    }
+  }
+
   return pool;
 }
 
@@ -127,6 +214,7 @@ function getProviderAvailability() {
     groq:       [1, 2, 3].some(i => !!process.env[`GROQ_KEY_${i}`]),
     openrouter: [1, 2, 3].some(i => !!process.env[`OPENROUTER_KEY_${i}`]),
     deepseek:   !!process.env.DEEPSEEK_KEY,
+    nvidia:     [1, 2, 3].some(i => !!process.env[`NVIDIA_KEY_${i}`]),
   };
 }
 
@@ -809,7 +897,7 @@ module.exports = async ({ req, res, log, error }) => {
     idemDocId = idemPending.docId;
 
     log(`resume-section-ai: user=${auth.user.$id}, action=${aiAction}, section=${section}, enhance_action=${action}`);
-    const pool = buildPool();
+    const pool = await buildPool(db);
     if (pool.length === 0) {
       error('No AI provider keys found');
       await deleteIdempotencyDoc(db, idemDocId);

@@ -37,6 +37,7 @@ interface RouteState {
   feature_id: string;
   provider: string;
   model: string;
+  key_slot?: number;
 }
 
 // ─── Feature catalogue — sourced from aiToolsCatalogue.ts ────────────────────
@@ -163,11 +164,13 @@ export const AIRoutingSwitcher = () => {
       const result = tryUnwrapAdminResponse<{ configs: Array<{ $id: string; feature_id: string; provider: string; model: string }> }>(tuple, 'admin-devkit-data');
       const configMap: Record<string, RouteState> = {};
       for (const doc of (result?.configs ?? [])) {
+        const [providerName, slotStr] = (doc.provider || '').split(':');
         configMap[doc.feature_id] = {
           $id: doc.$id,
           feature_id: doc.feature_id,
-          provider: doc.provider,
+          provider: providerName,
           model: doc.model,
+          key_slot: slotStr ? Number(slotStr) : 1,
         };
       }
       setRoutes(configMap);
@@ -189,7 +192,7 @@ export const AIRoutingSwitcher = () => {
     const model = models.length > 0 ? models[0].value : (providerDef?.defaultModel ?? '');
     setRoutes(prev => ({
       ...prev,
-      [featureId]: { ...prev[featureId], provider, model, feature_id: featureId },
+      [featureId]: { ...prev[featureId], provider, model, key_slot: 1, feature_id: featureId },
     }));
   };
 
@@ -198,6 +201,14 @@ export const AIRoutingSwitcher = () => {
       const existing = prev[featureId];
       if (!existing) return prev;
       return { ...prev, [featureId]: { ...existing, model } };
+    });
+  };
+
+  const handleUpdateKeySlot = (featureId: string, keySlot: number) => {
+    setRoutes(prev => {
+      const existing = prev[featureId];
+      if (!existing) return prev;
+      return { ...prev, [featureId]: { ...existing, key_slot: keySlot } };
     });
   };
 
@@ -267,12 +278,12 @@ export const AIRoutingSwitcher = () => {
         if (config.$id) {
           await appwriteFunctions.invoke('admin-devkit-data', {
             headers: devKitAuthHeaders(),
-            body: { action: 'update-routing-config', docId: config.$id, provider: config.provider, model: config.model },
+            body: { action: 'update-routing-config', docId: config.$id, provider: config.provider, model: config.model, keySlot: config.key_slot },
           });
         } else {
           await appwriteFunctions.invoke('admin-devkit-data', {
             headers: devKitAuthHeaders(),
-            body: { action: 'create-routing-config', featureId, provider: config.provider, model: config.model },
+            body: { action: 'create-routing-config', featureId, provider: config.provider, model: config.model, keySlot: config.key_slot },
           });
         }
       }));
@@ -777,7 +788,7 @@ export const AIRoutingSwitcher = () => {
                                 <select
                                   value={override.model}
                                   onChange={e => handleUpdateModel(feature.id, e.target.value)}
-                                  className="w-full bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-white/80 px-2 py-1.5 lg:max-w-[260px] focus:outline-none focus:border-purple-500/50 transition-colors"
+                                  className="bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-white/80 px-2 py-1.5 lg:max-w-[220px] focus:outline-none focus:border-purple-500/50 transition-colors flex-1 lg:flex-none"
                                 >
                                   {models.map(m => (
                                     <option key={m.value} value={m.value} className="bg-zinc-900">
@@ -791,13 +802,45 @@ export const AIRoutingSwitcher = () => {
                                     </option>
                                   )}
                                 </select>
+
+                                {/* Key slot selector */}
+                                <select
+                                  value={override.key_slot ?? 1}
+                                  onChange={e => handleUpdateKeySlot(feature.id, Number(e.target.value))}
+                                  className="bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-white/80 px-2 py-1.5 focus:outline-none focus:border-purple-500/50 transition-colors shrink-0"
+                                >
+                                  {override.provider === 'deepseek' ? (
+                                    <option value={1} className="bg-zinc-900">DeepSeek Key</option>
+                                  ) : override.provider === 'groq' ? (
+                                    <>
+                                      <option value={1} className="bg-zinc-900">Groq Key 1</option>
+                                      <option value={2} className="bg-zinc-900">Groq Key 2</option>
+                                      <option value={3} className="bg-zinc-900">Groq Key 3</option>
+                                    </>
+                                  ) : override.provider === 'openrouter' ? (
+                                    <>
+                                      <option value={1} className="bg-zinc-900">OpenRouter Key 1</option>
+                                      <option value={2} className="bg-zinc-900">OpenRouter Key 2</option>
+                                      <option value={3} className="bg-zinc-900">OpenRouter Key 3</option>
+                                    </>
+                                  ) : override.provider === 'nvidia' ? (
+                                    <>
+                                      <option value={1} className="bg-zinc-900">NVIDIA Key 1</option>
+                                      <option value={2} className="bg-zinc-900">NVIDIA Key 2</option>
+                                      <option value={3} className="bg-zinc-900">NVIDIA Key 3</option>
+                                    </>
+                                  ) : (
+                                    <option value={1} className="bg-zinc-900">Slot 1</option>
+                                  )}
+                                </select>
+
                                 {/* Tier badge for the currently selected model */}
                                 {(() => {
                                   const found = models.find(m => m.value === override.model);
                                   if (!found) return null;
                                   return (
                                     <span className={cn(
-                                      'text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md',
+                                      'text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0',
                                       found.tier === 'free'
                                         ? 'bg-emerald-500/15 text-emerald-400'
                                         : 'bg-amber-500/15 text-amber-400',

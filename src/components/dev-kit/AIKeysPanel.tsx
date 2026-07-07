@@ -20,10 +20,10 @@ import {
 import type { SlotTestResult, SlotTestResultsMap, BackendSlotTestStatus, FrontendSlotTestState } from '@/lib/devkit/aiTestTypes';
 
 const DEFAULT_MODELS: Record<AITestProvider, string> = {
-  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
-  groq: 'llama-3.3-70b-versatile',
-  deepseek: 'deepseek-v4-flash',
-  nvidia: 'mistral-medium-3-instruct',
+  openrouter: 'openrouter/free',
+  groq: 'openai/gpt-oss-120b',
+  deepseek: 'deepseek-chat',
+  nvidia: 'stepfun-ai/step-3.7-flash',
 };
 
 const PROVIDER_COLOR: Record<AITestProvider, string> = {

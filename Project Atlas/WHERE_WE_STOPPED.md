@@ -32,29 +32,25 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: DEPLOYED_PENDING_BROWSER_VERIFICATION — Fast Tailor tracking and unchanged-output guardrail fully implemented, tested, and pushed. Verification pending manual browser QA.
-* **Last Session**: Fixed the `user?.$id` vs `user?.id` mismatch in `useRemoteJobs.ts` which was causing action tracking updates to silently fail. Implemented a robust client-side `hasMeaningfulChanges` guardrail on the Fast Tailor flow in `RemoteJobsPage.tsx` using a local `computeMatchScore` utility. Corrected picker dialog timing by closing it immediately on confirm, and added a tailored status badge to remote job cards.
-* **Current State**: `/jobs` feed Fast Tailor flow is fully operational and correct. All 22 tests pass. TypeScript compiler type checks clean. Production build completes successfully. Pushed to `main` branch (commit `c366797697441064eccc42b377f0726a38b7127f`).
-* **Last Completed Task**: Pushed the frontend tracking fixes, the new `useRemoteJobs.test.tsx` hook unit test suite, and the `RemoteJobsPage.test.tsx` updates.
+* **Session Status**: COMPLETED_LOCAL_DEVELOPMENT — AI routing upgraded with DeepSeek default, specific key_slot override logic, approved model pool, Key Slot selector UI, and resume-section-ai alignment. Local validation passes.
+* **Last Session**: Implemented `key_slot` database storage and resolution in the `ai-gateway`, `inspect-ai-keys`, and `resume-section-ai` Appwrite Functions. Re-aligned curated models in `src/lib/devkit/aiTestSlotModels.ts` to the approved model pool (e.g. `openai/gpt-oss-120b`, `stepfun-ai/step-3.7-flash`, etc.). Upgraded `AIRoutingSwitcher.tsx` to render Key Slot dropdowns, support cascading resets, and save overrides containing `keySlot` integers. Re-computed all serverless function hashes to prevent drift detection false-positives.
+* **Current State**: All local tests pass. All Vitest suites pass. Gateway routing checks pass. Drift detection computed successfully.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Production Smoke Verification (`/jobs`)**: Test direct URL `https://wiseresume.app/jobs` in browser:
-    - Verify top freshness banner ("Last updated: ...", "Sources: Remotive, WWR, Jobicy, Remote OK, Arbeitnow").
-    - Test Role Group filter pills (e.g. "Easy / Entry Level", "Customer Support", "Tech / Programming") and verify live job counts.
-    - Verify formatted salary badges (`$20/hour`, `$3,000/month`, `$80k/year`, `Salary not listed`).
-    - Verify bunny.net job has its fake `€500/year` salary removed and shows `Salary not listed` (`untrusted low`).
-    - Test Fast Tailor button click flow (confirm loading state is shown and redirects to tailoring result page).
-    - Verify tailored application status remains `ready_to_apply` until clicking "Apply on website" and confirming submission.
-2. **Owner Production Smoke Verification — Resume Fixes**: Test on `https://wiseresume.app` with an existing account:
-    - Login to an existing account → confirm no "no CV" onboarding flash (dashboard loads with existing CVs).
-    - Upload a new CV → confirm email/phone are extracted correctly.
-    - Confirm newly uploaded CV defaults to WiseResume Classic template (not Modern/purple).
-3. **Targeted Deployment of `inspect-ai-keys`**: Deploy `inspect-ai-keys` Appwrite Function via GitHub Actions (`deploy-appwrite-hubs.yml` with `target=inspect-ai-keys`) or `node scripts/deploy_hubs.cjs --only=inspect-ai-keys`. Do NOT use `target=all`.
-4. **Owner Production Smoke Verification (`/devkit` AI Keys)**: Manual owner test of slot completion pings, "Test All Keys", and persisted test statuses in production DevKit.
-5. **Owner Production Smoke Verification (`/devkit2`)**: Owner manual smoke check of `/devkit2` admin login, Command Home live stats, `Cmd+K` palette, and Integration Map in production.
+1. **Deploy Hub Functions to Appwrite**: Deploy the modified hubs to Appwrite:
+   - `ai-gateway`
+   - `inspect-ai-keys`
+   - `resume-section-ai`
+   - Use: `node scripts/deploy_hubs.cjs --only=ai-gateway,inspect-ai-keys,resume-section-ai`. Do NOT use target-all.
+2. **Owner Production Smoke Verification (`/devkit` AI Routing)**: Verify that the dynamic overrides can be configured in DevKit:
+   - Go to `/devkit` -> AI Tools Map.
+   - Choose a provider, custom model, and specific Key Slot for a feature (e.g. `Career Coach Chat`).
+   - Click "Save All".
+   - Probe routes or trigger a test ping to verify the specific key slot is utilized by the gateway.
+3. **Owner Production Smoke Verification (`/jobs`)**: Test direct URL `https://wiseresume.app/jobs` in Vercel production deployment.
 
 ---
 

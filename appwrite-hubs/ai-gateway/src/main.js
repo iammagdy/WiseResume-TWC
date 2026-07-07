@@ -10,13 +10,13 @@ async function flushDD() { /* no-op */ }
 
 // --- Provider constants -------------------------------------------------------
 
-const OPENROUTER_FREE_MODEL  = 'meta-llama/llama-3.3-70b-instruct:free';
-const GROQ_FREE_MODEL        = 'llama-3.3-70b-versatile';
+const OPENROUTER_FREE_MODEL  = 'openrouter/free';
+const GROQ_FREE_MODEL        = 'openai/gpt-oss-120b';
 // Keep stabilization on the currently verified DeepSeek model name.
 // TODO(atlas): probe DeepSeek V4 Flash / V4 Pro on the live provider path
 // before upgrading aliases here.
 const DEEPSEEK_MODEL         = 'deepseek-chat';
-const NVIDIA_DEFAULT_MODEL   = 'meta/llama-4-maverick-17b-128e-instruct';
+const NVIDIA_DEFAULT_MODEL   = 'stepfun-ai/step-3.7-flash';
 
 const BASES = {
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
@@ -2944,8 +2944,14 @@ async function syncDynamicRoutes(db) {
     const res = await db.listDocuments(DB_ID, 'ai_routing_config');
     _routeCache = {};
     res.documents.forEach(doc => {
-      _routeCache[doc.feature_id] = { provider: doc.provider, model: doc.model };
-      FEATURE_ROUTES[doc.feature_id] = { provider: doc.provider, model: doc.model };
+      const [providerName, slotStr] = (doc.provider || '').split(':');
+      const routeVal = {
+        provider: providerName,
+        model: doc.model,
+        key_slot: slotStr ? Number(slotStr) : null
+      };
+      _routeCache[doc.feature_id] = routeVal;
+      FEATURE_ROUTES[doc.feature_id] = routeVal;
     });
     _routeCacheTs = Date.now();
   } catch {
@@ -3142,10 +3148,16 @@ function buildCandidates(featureName, pool, opts = {}) {
       .sort((a, b) => (modeOrder[getKeyMode(a.provider, a.slot)] ?? 1) - (modeOrder[getKeyMode(b.provider, b.slot)] ?? 1));
 
     if (providerKeys.length > 0) {
-      // Primary: prefer pinned/active for round-robin; standby enters only if no active available
-      const primaryPool = providerKeys.filter(e => getKeyMode(e.provider, e.slot) !== 'standby');
-      const roundRobinSource = primaryPool.length > 0 ? primaryPool : providerKeys;
-      const primary = pickKey(roundRobinSource, route.provider);
+      let primary = null;
+      if (route.key_slot) {
+        primary = providerKeys.find(e => e.slot === Number(route.key_slot));
+      }
+      if (!primary) {
+        // Primary: prefer pinned/active for round-robin; standby enters only if no active available
+        const primaryPool = providerKeys.filter(e => getKeyMode(e.provider, e.slot) !== 'standby');
+        const roundRobinSource = primaryPool.length > 0 ? primaryPool : providerKeys;
+        primary = pickKey(roundRobinSource, route.provider);
+      }
       if (primary) {
         candidates.push({ provider: primary.provider, key: primary.key, slot: primary.slot, model: route.model, routed: true });
         usedKeys.add(primary.key);

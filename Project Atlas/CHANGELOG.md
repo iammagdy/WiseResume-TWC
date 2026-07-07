@@ -1,5 +1,22 @@
 # Project Atlas Master Changelog
 
+## 2026-07-07 — AI Routing Upgrade & Approved Model Pool Realignment
+
+- **Classification**: DEPLOYED_PENDING_PROD_DEPLOY
+- **Features & Enhancements**:
+  - **DeepSeek Default**: Realigned all static gateway defaults to DeepSeek (`deepseek-chat`).
+  - **Key Slot Overrides**: Added `key_slot` optional attribute to `ai_routing_config` collection schema setup. Modified `ai-gateway` to read and honor specific key slot pinning (resolving to specific env keys like `GROQ_KEY_1`, `NVIDIA_KEY_3`, etc.) while maintaining robust round-robin and cross-provider fallbacks.
+  - **Approved Model Pool**: Updated curated model catalog to use: NVIDIA (`stepfun-ai/step-3.7-flash`, `nvidia/nemotron-3-ultra-550b-a55b`, etc.), Groq (`openai/gpt-oss-120b`, etc.), OpenRouter (`openrouter/free`, etc.), and DeepSeek (`deepseek-chat`).
+  - **Key Slot Selector in UI**: Rebuilt the `AIRoutingSwitcher` to render a Key Slot dropdown alongside the model picker, enabling specific API key slot overrides per-feature. Cascading reset ensures the model and key slot reset to slot 1 defaults when the provider changes.
+  - **Standalone Hub Alignment**: Updated `resume-section-ai` standalone function to support dynamic database overrides for `'resume-section-ai'`, with automatic fallback chains.
+  - **Key Inspect Backend Sync**: Realigned `inspect-ai-keys` defaults and `NVIDIA_VALID_MODELS` list to match the approved model pool.
+- **Validation**:
+  - `node tests/hubs/ai-gateway-routing.test.cjs` — 5/5 PASSED.
+  - `node appwrite-hubs/inspect-ai-keys/test/sanitization.test.js` — All unit tests PASSED.
+  - All 70 Vitest tests PASSED.
+  - `node scripts/compute-source-hashes.mjs` — Re-computed source hashes for all Appwrite hubs.
+  - `npx tsc --noEmit` — 0 type errors.
+
 ## 2026-07-07 — Fast Tailor Action Tracking Fix & Unchanged-Output Guardrail
 
 - **Classification**: DEPLOYED_PENDING_BROWSER_VERIFICATION

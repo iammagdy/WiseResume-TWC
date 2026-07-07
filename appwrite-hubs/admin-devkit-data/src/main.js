@@ -1227,19 +1227,23 @@ async function handleListRoutingConfig() {
 
 async function handleUpdateRoutingConfig(body, log) {
   const { databases } = getClients();
-  const { docId, provider, model } = body;
+  const { docId, provider, model, keySlot } = body;
   if (!docId || !provider || !model) throw new Error('Missing docId, provider, or model');
-  const doc = await databases.updateDocument(DB_ID, 'ai_routing_config', docId, { provider, model });
-  await auditLog(databases, 'update-routing-config', { docId, provider, model });
+  const slotNum = keySlot ? Number(keySlot) : 1;
+  const providerValue = slotNum !== 1 ? `${provider}:${slotNum}` : provider;
+  const doc = await databases.updateDocument(DB_ID, 'ai_routing_config', docId, { provider: providerValue, model });
+  await auditLog(databases, 'update-routing-config', { docId, provider: providerValue, model });
   return { config: doc };
 }
 
 async function handleCreateRoutingConfig(body, log) {
   const { databases } = getClients();
-  const { featureId, provider, model } = body;
+  const { featureId, provider, model, keySlot } = body;
   if (!featureId || !provider || !model) throw new Error('Missing featureId, provider, or model');
-  const doc = await databases.createDocument(DB_ID, 'ai_routing_config', sdk.ID.unique(), { feature_id: featureId, provider, model });
-  await auditLog(databases, 'create-routing-config', { featureId, provider, model });
+  const slotNum = keySlot ? Number(keySlot) : 1;
+  const providerValue = slotNum !== 1 ? `${provider}:${slotNum}` : provider;
+  const doc = await databases.createDocument(DB_ID, 'ai_routing_config', sdk.ID.unique(), { feature_id: featureId, provider: providerValue, model });
+  await auditLog(databases, 'create-routing-config', { featureId, provider: providerValue, model });
   return { config: doc };
 }
 
@@ -1308,7 +1312,13 @@ async function handleListRoutes(log) {
   const res = await safeList(databases, 'ai_routing_config', [sdk.Query.limit(100)]);
   const overrideMap = {};
   for (const doc of (res.documents || [])) {
-    overrideMap[doc.feature_id] = { provider: doc.provider, model: doc.model, docId: doc.$id };
+    const [providerName, slotStr] = (doc.provider || '').split(':');
+    overrideMap[doc.feature_id] = {
+      provider: providerName,
+      model: doc.model,
+      key_slot: slotStr ? Number(slotStr) : 1,
+      docId: doc.$id
+    };
   }
 
   const routes = {};
@@ -1317,6 +1327,7 @@ async function handleListRoutes(log) {
     routes[featureId] = {
       provider: override ? override.provider : def.provider,
       model:    override ? override.model    : def.model,
+      key_slot: override ? override.key_slot : 1,
       source:   override ? 'override' : 'default',
       creditCost: CREDIT_COSTS[featureId] ?? 1,
     };

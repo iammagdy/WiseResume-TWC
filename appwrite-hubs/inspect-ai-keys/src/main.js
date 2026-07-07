@@ -8,18 +8,23 @@ const SETTINGS_COLLECTION = 'app_settings';
 const SETTINGS_DOC_ID = 'global';
 
 const DEFAULT_MODELS = {
-  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
-  groq: 'llama-3.3-70b-versatile',
-  deepseek: 'deepseek-v4-flash',
-  nvidia: 'mistral-medium-3-instruct',
+  openrouter: 'openrouter/free',
+  groq: 'openai/gpt-oss-120b',
+  deepseek: 'deepseek-chat',
+  nvidia: 'stepfun-ai/step-3.7-flash',
 };
 
 const NVIDIA_VALID_MODELS = [
-  'mistral-medium-3-instruct',
-  'mistral-large-3-675b-instruct-2512',
-  'mistral-nemotron',
-  'gemma-3n-e4b-it',
-  'gemma-3n-e2b-it',
+  'stepfun-ai/step-3.7-flash',
+  'nvidia/nemotron-3-ultra-550b-a55b',
+  'minimaxai/minimax-m3',
+  'nvidia/nemotron-3-super-120b-a12b',
+  'stepfun-ai/step-3.5-flash',
+  'mistralai/mistral-nemotron',
+  'mistralai/mistral-large-3-675b-instruct-2512',
+  'openai/gpt-oss-120b',
+  'meta/llama-3.3-70b-instruct',
+  'mistralai/mixtral-8x7b-instruct-v0.1',
 ];
 
 const PROVIDERS = ['openrouter', 'groq', 'deepseek', 'nvidia'];
