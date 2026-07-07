@@ -41,6 +41,15 @@ vi.mock('@/lib/appwrite', () => ({
   },
 }));
 
+// Mock sonner
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
 // Mock useTranslation
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -52,7 +61,7 @@ vi.mock('react-i18next', () => ({
 // Mock useAuth
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { $id: 'user_123', email: 'test@example.com' },
+    user: { id: 'user_123', email: 'test@example.com' },
     isAuthenticated: true,
   }),
 }));
@@ -172,5 +181,43 @@ describe('RemoteJobsPage Component', () => {
     await act(async () => {
       if (resolveTailor) resolveTailor();
     });
+  });
+
+  it('aborts when the AI returns unchanged output', async () => {
+    const queryClient = new QueryClient();
+    
+    // Temporarily override tailorResumeWithProgress to return unchanged content
+    const aiTailor = await import('@/lib/aiTailor');
+    const originalTailor = aiTailor.tailorResumeWithProgress;
+    aiTailor.tailorResumeWithProgress = vi.fn().mockResolvedValue({
+      summary: 'Master CV Summary', // matches original resume
+      skills: [],
+      experience: [],
+      overallScore: { before: 50, after: 50 },
+      keyChanges: [],
+      bulletTransformations: [],
+      missingSkills: [],
+    });
+
+    const mockToast = (await import('sonner')).toast;
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RemoteJobsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const button = screen.getByText('Fast Tailor');
+    await act(async () => {
+      button.click();
+    });
+
+    // Verify warning toast is shown and flow returns early without saving/navigating
+    expect(mockToast.warning).toHaveBeenCalledWith('No meaningful changes detected', expect.any(Object));
+
+    // Restore original mock
+    aiTailor.tailorResumeWithProgress = originalTailor;
   });
 });

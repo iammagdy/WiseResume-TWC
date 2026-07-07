@@ -168,13 +168,13 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
       setIsSynced(items.length > 0);
 
       // Load user actions for these items if authenticated
-      if (user?.$id && items.length > 0) {
+      if (user?.id && items.length > 0) {
         try {
           const itemIds = items.map(j => j.$id).filter(Boolean) as string[];
           const actionsRes = await databases.listDocuments(
             DATABASE_ID,
             COLLECTIONS.user_job_actions || 'user_job_actions',
-            [Query.equal('user_id', user.$id), Query.equal('job_feed_item_id', itemIds), Query.limit(100)],
+            [Query.equal('user_id', user.id), Query.equal('job_feed_item_id', itemIds), Query.limit(100)],
           );
 
           const actionMap = new Map();
@@ -225,7 +225,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.$id, isAuthenticated, source, roleGroup, category, query, page, limit, region_fit, seniority, has_salary, min_salary, salary_period, show_older]);
+  }, [user?.id, isAuthenticated, source, roleGroup, category, query, page, limit, region_fit, seniority, has_salary, min_salary, salary_period, show_older]);
 
   useEffect(() => {
     void fetchJobsFromAppwrite();
@@ -243,7 +243,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
       tailored_resume_id?: string,
       generated_cover_letter_id?: string,
     ) => {
-      if (!user?.$id) return { ok: false, error: 'Authentication required' };
+      if (!user?.id) return { ok: false, error: 'Authentication required' };
 
       const itemId = job.$id || job.dedupe_key;
       const targetStatusMap: Record<string, UserJobActionStatus | null> = {
@@ -302,7 +302,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
         }
 
         // Direct Appwrite collection upsert fallback
-        const actionKey = `${user.$id}:${itemId}`;
+        const actionKey = `${user.id}:${itemId}`;
         const existingRes = await databases.listDocuments(
           DATABASE_ID,
           COLLECTIONS.user_job_actions || 'user_job_actions',
@@ -324,7 +324,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
 
         const now = new Date().toISOString();
         const payload = {
-          user_id: user.$id,
+          user_id: user.id,
           job_feed_item_id: itemId,
           canonical_url: job.canonical_url,
           status: targetStatus,
@@ -350,7 +350,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
             COLLECTIONS.user_job_actions || 'user_job_actions',
             ID.unique(),
             payload,
-            [Permission.read(Role.user(user.$id)), Permission.update(Role.user(user.$id)), Permission.delete(Role.user(user.$id))],
+            [Permission.read(Role.user(user.id)), Permission.update(Role.user(user.id)), Permission.delete(Role.user(user.id))],
           );
         }
 
@@ -361,7 +361,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
         return { ok: false, error: err.message || 'Failed to record job action' };
       }
     },
-    [user?.$id, fetchJobsFromAppwrite],
+    [user?.id, fetchJobsFromAppwrite],
   );
 
   const roleGroupCounts = useMemo(() => {

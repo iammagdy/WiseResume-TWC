@@ -27,7 +27,7 @@ import { useResumes, useSetMasterCV, dbToResumeData, type DatabaseResume } from 
 import { useJobApplicationMutations } from '@/hooks/useJobApplications';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { tailorResumeWithProgress, generateCoverLetter } from '@/lib/aiTailor';
-import { buildMergedResume } from '@/lib/tailorMerge';
+import { buildMergedResume, hasMeaningfulChanges } from '@/lib/tailorMerge';
 import { buildTailoringCustomization } from '@/lib/tailoringResumeMetadata';
 import { databases, DATABASE_ID, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
@@ -52,6 +52,34 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+
+const STOP_WORDS = new Set([
+  'and','the','our','you','your','we','are','for','with','this','that','from','will','have','has',
+  'work','team','experience','skills','role','company','position','required','etc'
+]);
+
+function extractKeywords(text: string, limit = 40): string[] {
+  const words = text.toLowerCase().replace(/[^a-z0-9\s\-+#.]/g, ' ').split(/\s+/);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const w of words) {
+    if (w.length >= 3 && !STOP_WORDS.has(w) && !seen.has(w)) {
+      seen.add(w);
+      out.push(w);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+function computeMatchScore(jobDesc: string, resumeText: string): number {
+  if (!jobDesc.trim() || !resumeText.trim()) return 0;
+  const jobKws = extractKeywords(jobDesc, 40);
+  if (jobKws.length === 0) return 0;
+  const lower = resumeText.toLowerCase();
+  const matched = jobKws.filter((kw) => lower.includes(kw));
+  return Math.round((matched.length / jobKws.length) * 100);
+}
 
 export default function RemoteJobsPage() {
   const { t, i18n } = useTranslation();
@@ -178,6 +206,9 @@ export default function RemoteJobsPage() {
     setIsTailoring(true);
     setTailorProgress('Initializing tailoring...');
     haptics.medium();
+    
+    // Close dialog immediately if open
+    setShowResumePickerDialog(false);
 
     try {
       const hasCredits = await checkCredits();
@@ -216,9 +247,48 @@ export default function RemoteJobsPage() {
         toast.warning('Cover letter generation failed, but tailoring resume succeeded.');
       }
 
+      const merged = buildMergedResume(originalResume, tailorResult, ['summary', 'skills', 'experience']);
+
+      // Validate that tailoring produced meaningful changes (guardrail against unchanged AI output)
+      const changeSummary = hasMeaningfulChanges(originalResume, merged, ['summary', 'skills', 'experience']);
+      
+      const resumeTextBefore = [
+        originalResume.summary,
+        ...originalResume.experience.map(
+          (e) => `${e.position} ${e.company} ${e.description} ${e.achievements.join(' ')}`,
+        ),
+        ...originalResume.education.map((e) => `${e.degree} ${e.field} ${e.institution}`),
+        ...originalResume.skills,
+      ].filter(Boolean).join(' ');
+
+      const aiReturnedScore = tailorResult.overallScore;
+      const computedScoreBefore = computeMatchScore(jobDescription, resumeTextBefore);
+      const scoreBefore = aiReturnedScore?.before ?? computedScoreBefore;
+      const scoreAfter = aiReturnedScore?.after ?? computeMatchScore(jobDescription, [
+        merged.summary,
+        ...merged.experience.map(
+          (e) => `${e.position} ${e.company} ${e.description} ${e.achievements.join(' ')}`,
+        ),
+        ...merged.education.map((e) => `${e.degree} ${e.field} ${e.institution}`),
+        ...merged.skills,
+      ].filter(Boolean).join(' '));
+
+      const hasZeroScore = scoreBefore === 0 && scoreAfter === 0;
+      const hasEqualScoreWithNoContentChanges = scoreBefore === scoreAfter && !changeSummary.hasChanges;
+      const appearsUnchanged = !changeSummary.hasChanges || hasZeroScore || hasEqualScoreWithNoContentChanges;
+
+      if (appearsUnchanged) {
+        setIsTailoring(false);
+        isTailoringRef.current = false;
+        toast.warning('No meaningful changes detected', {
+          description: 'Add more detail to the job description, then retry.',
+          duration: 6000,
+        });
+        return;
+      }
+
       // Step 3: Save Tailored Resume
       setTailorProgress('Saving tailored resume...');
-      const merged = buildMergedResume(originalResume, tailorResult, ['summary', 'skills', 'experience']);
       const newTitle = `${job.company} - ${job.title} - Tailored CV`;
       const doc = await databases.createDocument(
         DATABASE_ID,
@@ -704,6 +774,11 @@ export default function RemoteJobsPage() {
                       {job.seniority_level && job.seniority_level !== 'all' && (
                         <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-border bg-slate-900/5 dark:bg-slate-100/5">
                           {job.seniority_level.replace('_', ' ')}
+                        </Badge>
+                      )}
+                      {isTailored && (
+                        <Badge variant="secondary" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20 font-semibold text-[10px] py-0.5">
+                          Tailored
                         </Badge>
                       )}
                       {job.category && (
