@@ -6,8 +6,8 @@ import {
 } from './aiToolsCatalogue';
 
 describe('aiToolsCatalogue', () => {
-  it('has 16 tools matching the current gateway feature set', () => {
-    expect(AI_TOOLS_CATALOGUE).toHaveLength(16);
+  it('has 18 tools matching the current gateway feature set', () => {
+    expect(AI_TOOLS_CATALOGUE).toHaveLength(18);
   });
 
   it('every tool has a valid appArea', () => {
@@ -46,8 +46,8 @@ describe('aiToolsCatalogue', () => {
     expect(TOOL_GATEWAY_DEFAULTS['score-resume']).toBeUndefined();
   });
 
-  it('removed portfolio/resignation/career-assessment routes are not reintroduced by tests', () => {
-    const removedToolIds = ['ask-portfolio', 'generate-portfolio-bio', 'generate-resignation-letter', 'career-assessment'];
+  it('removed resignation/career-assessment routes are not reintroduced by tests', () => {
+    const removedToolIds = ['generate-resignation-letter', 'career-assessment'];
     for (const id of removedToolIds) {
       expect(AI_TOOLS_CATALOGUE.some(tool => tool.id === id)).toBe(false);
       expect(TOOL_GATEWAY_DEFAULTS[id]).toBeUndefined();
@@ -72,6 +72,8 @@ describe('aiToolsCatalogue', () => {
       'optimize-for-linkedin',
       'generate-question-bank',
       'company-briefing',
+      'generate-portfolio-bio',
+      'ask-portfolio',
     ];
 
     for (const featureId of deepseekFirst) {
