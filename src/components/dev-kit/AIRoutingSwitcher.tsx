@@ -120,6 +120,62 @@ const FEATURE_METADATA: Record<string, FeatureMeta> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+interface GatewayAdminTestResponse {
+  status?: string;
+  adminTest?: boolean;
+  feature?: string;
+  provider?: string;
+  model?: string;
+  slot?: number;
+  preview?: string;
+  meta?: {
+    feature?: string;
+    provider?: string;
+    model?: string;
+    slot?: number;
+    latencyMs?: number;
+    fallback?: boolean;
+    adminTest?: boolean;
+  };
+  data?: {
+    providerUsed?: string;
+    modelUsed?: string;
+    content?: string;
+    answer?: string;
+  };
+  message?: string;
+  error?: string | Record<string, unknown>;
+}
+
+function stringifyDevKitError(value: unknown): string {
+  if (!value) return 'Unknown error';
+  if (typeof value === 'string') return value;
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.message === 'string') return obj.message;
+    if (typeof obj.error === 'string') return obj.error;
+    if (typeof obj.status === 'number') return `Request failed with status ${obj.status}`;
+    try { return JSON.stringify(obj).slice(0, 500); } catch {}
+  }
+  return String(value);
+}
+
+function getDevKitErrorDetails(errorObj: any): string | undefined {
+  if (!errorObj || typeof errorObj !== 'object') return undefined;
+  const parts: string[] = [];
+  if (errorObj.status) parts.push(`HTTP ${errorObj.status}`);
+  if (errorObj.code) parts.push(`Code: ${errorObj.code}`);
+
+  const raw = errorObj.raw;
+  if (raw && typeof raw === 'object') {
+    if (raw.message) parts.push(`Msg: ${raw.message}`);
+    else if (raw.error) parts.push(`Err: ${raw.error}`);
+    else if (raw.responseBody) parts.push(`Body: ${String(raw.responseBody).slice(0, 200)}`);
+  }
+  return parts.length > 0 ? parts.join(' | ') : undefined;
+}
+
 interface ProviderPing {
   provider: string;
   ok: boolean;
@@ -148,7 +204,7 @@ export const AIRoutingSwitcher = () => {
   const [pinging, setPinging] = useState(false);
   const [liveRoutes, setLiveRoutes] = useState<Record<string, LiveRouteEntry> | null>(null);
   const [probingRoutes, setProbingRoutes] = useState(false);
-  const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string }>>({});
+  const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string; errorDetails?: string }>>({});
 
   const fetchRoutes = async () => {
     setLoading(true);
@@ -360,7 +416,7 @@ export const AIRoutingSwitcher = () => {
       const jwt = jwtToken.jwt;
 
       // 3. Call ai-gateway with the nonce (no credit deduction, 80-token cap)
-      const gwTuple = await appwriteFunctions.invoke('ai-gateway', {
+      const gwTuple = await appwriteFunctions.invoke<GatewayAdminTestResponse>('ai-gateway', {
         headers: { 'X-Appwrite-JWT': jwt },
         body: {
           featureName: featureId,
@@ -369,15 +425,41 @@ export const AIRoutingSwitcher = () => {
           __admin_test_nonce: nonceResult.nonce,
         },
       });
-      // ai-gateway returns plain JSON (not wrapped in admin response envelope)
-      const gwRaw = gwTuple?.response ?? gwTuple;
-      const gwData = typeof gwRaw === 'string' ? (() => { try { return JSON.parse(gwRaw); } catch { return { status: 'error', message: gwRaw }; } })() : gwRaw;
 
-      const isSuccess = gwData?.status === 'ok' || gwData?.status === 'success' || gwData?.adminTest === true;
+      if (gwTuple.error) {
+        setRouteTestResults(prev => ({
+          ...prev,
+          [featureId]: {
+            status: 'error',
+            error: stringifyDevKitError(gwTuple.error),
+            errorDetails: getDevKitErrorDetails(gwTuple.error),
+          },
+        }));
+        return;
+      }
+
+      const gwData = gwTuple.data;
+      const isSuccess =
+        gwData?.status === 'ok' ||
+        gwData?.status === 'success' ||
+        gwData?.adminTest === true;
+
       if (isSuccess) {
-        const provider = gwData.meta?.provider || gwData.data?.providerUsed || gwData.provider || '';
-        const model = gwData.meta?.model || gwData.data?.modelUsed || gwData.model || '';
-        const previewContent = gwData.preview ?? gwData.data?.content ?? '';
+        const provider =
+          gwData?.meta?.provider ||
+          gwData?.data?.providerUsed ||
+          gwData?.provider ||
+          '';
+        const model =
+          gwData?.meta?.model ||
+          gwData?.data?.modelUsed ||
+          gwData?.model ||
+          '';
+        const previewContent =
+          gwData?.preview ||
+          gwData?.data?.content ||
+          gwData?.data?.answer ||
+          '';
         setRouteTestResults(prev => ({
           ...prev,
           [featureId]: {
@@ -388,8 +470,15 @@ export const AIRoutingSwitcher = () => {
           },
         }));
       } else {
-        const errMsg = gwData?.message || gwData?.error || 'Unknown gateway error';
-        setRouteTestResults(prev => ({ ...prev, [featureId]: { status: 'error', error: errMsg } }));
+        const errMsg = stringifyDevKitError(gwData?.message || gwData?.error || 'Unknown gateway error');
+        setRouteTestResults(prev => ({
+          ...prev,
+          [featureId]: {
+            status: 'error',
+            error: errMsg,
+            errorDetails: getDevKitErrorDetails(gwData),
+          },
+        }));
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Test failed';
@@ -724,7 +813,14 @@ export const AIRoutingSwitcher = () => {
                             if (testResult.status === 'error') {
                               return (
                                 <div className="mt-1 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 max-w-full lg:max-w-[280px]">
-                                  <p className="text-[9px] text-red-400 font-mono leading-snug">{testResult.error}</p>
+                                  <p className="text-[9px] text-red-400 font-mono leading-snug">
+                                    {String(testResult.error || 'Unknown error')}
+                                  </p>
+                                  {testResult.errorDetails && (
+                                    <p className="text-[8px] text-red-400/60 font-mono leading-snug mt-0.5 border-t border-red-500/10 pt-0.5 break-all">
+                                      {testResult.errorDetails}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             }
