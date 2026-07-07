@@ -2,7 +2,7 @@
 
 ## 2026-07-07 — Fast Tailor Action Tracking Fix & Unchanged-Output Guardrail
 
-- **Classification**: COMPLETED
+- **Classification**: DEPLOYED_PENDING_BROWSER_VERIFICATION
 - **Features & Enhancements**:
   - **Fast Tailor Action Tracking Fix**: Corrected user ID reference property mismatch in `useRemoteJobs.ts` hook. Changed `user?.$id` and `user.$id` to `user?.id` and `user.id` to match the `AppUser` shape from `useAuth()`. This resolves the persistence issue where action statuses like `saved`, `tailored`, and `ready_to_apply` were not saved or loaded correctly from the database on `/jobs`.
   - **Unchanged-Output Guardrail**: Implemented strict check `hasMeaningfulChanges` from `@/lib/tailorMerge` inside `executeFastTailorFlow` in `RemoteJobsPage.tsx`. Aborts CV generation early, shows warning toast, and resets locks if the AI returns unchanged resume output.
@@ -15,7 +15,7 @@
   - `npx tsc --noEmit` — 0 type errors.
   - `npm run build` — Successful production build without map files in `dist/`.
 - **Deployments**:
-  - Frontend: Auto-deployed to Vercel production upon push to `main` branch.
+  - Frontend: Deployed to Vercel production and verified READY (Pending manual browser QA verification).
   - Appwrite: No backend deploy required.
 
 ## 2026-07-06 — Fast Tailor Concurrency Protection & Application Tracker Integration
