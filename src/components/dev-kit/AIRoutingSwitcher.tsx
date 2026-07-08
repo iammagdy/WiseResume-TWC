@@ -204,7 +204,7 @@ export const AIRoutingSwitcher = () => {
   const [pinging, setPinging] = useState(false);
   const [liveRoutes, setLiveRoutes] = useState<Record<string, LiveRouteEntry> | null>(null);
   const [probingRoutes, setProbingRoutes] = useState(false);
-  const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string; errorDetails?: string }>>({});
+  const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string; errorDetails?: string; fallbackAttempts?: any[] }>>({});
 
   const initialRoutesRef = useRef<Record<string, RouteState>>({});
 
@@ -522,6 +522,7 @@ export const AIRoutingSwitcher = () => {
           gwData?.data?.content ||
           gwData?.data?.answer ||
           '';
+        const fallbackAttempts = gwData?.meta?.attempts || [];
         setRouteTestResults(prev => ({
           ...prev,
           [featureId]: {
@@ -529,16 +530,19 @@ export const AIRoutingSwitcher = () => {
             provider,
             model,
             preview: String(previewContent).slice(0, 300),
+            fallbackAttempts,
           },
         }));
       } else {
         const errMsg = stringifyDevKitError(gwData?.message || gwData?.error || 'Unknown gateway error');
+        const fallbackAttempts = gwData?.meta?.attempts || [];
         setRouteTestResults(prev => ({
           ...prev,
           [featureId]: {
             status: 'error',
             error: errMsg,
             errorDetails: getDevKitErrorDetails(gwData),
+            fallbackAttempts,
           },
         }));
       }
@@ -842,7 +846,19 @@ export const AIRoutingSwitcher = () => {
                               );
                             })()}
                           </div>
-                          <p className="text-[10px] font-mono text-purple-400/70">{feature.id}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-[10px] font-mono text-purple-400/70">{feature.id}</p>
+                            {feature.id === 'resume-section-ai' && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-mono uppercase bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                                Separate Function Route (non-gateway)
+                              </span>
+                            )}
+                          </div>
+                          {feature.id === 'resume-section-ai' && (
+                            <p className="text-[8px] text-amber-400/60 font-mono leading-tight">
+                              ⚠ Test button simulates routing configuration via ai-gateway. Actual execution is run directly on the resume-section-ai function.
+                            </p>
+                          )}
                           <p className="text-[11px] text-muted-foreground/70 leading-snug">{feature.description}</p>
 
                           {/* Saved DB override chip */}
@@ -937,7 +953,7 @@ export const AIRoutingSwitcher = () => {
                             }
                             if (testResult.status === 'error') {
                               return (
-                                <div className="mt-1 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 max-w-full lg:max-w-[280px]">
+                                <div className="mt-1 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 max-w-full lg:max-w-[280px] space-y-1">
                                   <p className="text-[9px] text-red-400 font-mono leading-snug">
                                     {String(testResult.error || 'Unknown error')}
                                   </p>
@@ -945,6 +961,16 @@ export const AIRoutingSwitcher = () => {
                                     <p className="text-[8px] text-red-400/60 font-mono leading-snug mt-0.5 border-t border-red-500/10 pt-0.5 break-all">
                                       {testResult.errorDetails}
                                     </p>
+                                  )}
+                                  {testResult.fallbackAttempts && testResult.fallbackAttempts.length > 0 && (
+                                    <div className="border-t border-red-500/15 pt-1 mt-1 space-y-0.5">
+                                      <p className="text-[8px] text-red-400/80 font-black uppercase tracking-wider font-mono">Attempt history:</p>
+                                      {testResult.fallbackAttempts.map((att: any, idx: number) => (
+                                        <p key={idx} className="text-[7.5px] font-mono text-red-400/70 leading-normal break-words">
+                                          {idx + 1}. [{att.provider}] {att.model} (Slot {att.slot}): {att.error || att.code || 'Failed'}
+                                        </p>
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
                               );
@@ -979,13 +1005,24 @@ export const AIRoutingSwitcher = () => {
                                   )}
                                 </div>
                                 {hasMismatch && (
-                                  <div className="px-2 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-1.5">
+                                  <div className="px-2 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-1.5 w-full">
                                     <AlertTriangle size={10} className="text-amber-400 mt-0.5 shrink-0" />
-                                    <div className="space-y-0.5">
+                                    <div className="space-y-1 w-full">
                                       <p className="text-[9px] text-amber-400 font-black">Route mismatch</p>
                                       <p className="text-[8px] text-amber-400/70 font-mono leading-snug">
                                         Gateway used [{testProvider}] instead of configured [{configuredProvider}].
-                                        Possible reasons: gateway route cache (60s TTL), provider fallback, or misconfigured override.
+                                      </p>
+                                      {testResult.fallbackAttempts && testResult.fallbackAttempts.length > 0 && (
+                                        <div className="border-t border-amber-500/15 pt-1 mt-1 space-y-0.5">
+                                          <p className="text-[8px] text-amber-400/80 font-black uppercase tracking-wider font-mono">Attempt history:</p>
+                                          {testResult.fallbackAttempts.map((att: any, idx: number) => (
+                                            <p key={idx} className="text-[7.5px] font-mono text-amber-400/70 leading-normal break-words">
+                                              {idx + 1}. [{att.provider}] {att.model} (Slot {att.slot}): {att.error || att.code || 'Failed'}
+                                            </p>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <p className="text-[7.5px] text-amber-400/50 font-mono leading-normal pt-0.5">
                                         Save changes and re-test after ~60s if needed.
                                       </p>
                                     </div>

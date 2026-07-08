@@ -314,4 +314,67 @@ describe('AIRoutingSwitcher testRoute Wrapper & Error Handling', () => {
     const testBtns = screen.getAllByRole('button', { name: 'test' });
     expect(testBtns[0]).not.toBeDisabled();
   });
+
+  it('renders fallback attempts history list clearly on mismatch', async () => {
+    vi.mocked(appwriteFunctions.invoke)
+      // 1. list-routing-config -> override exists for resume-section-ai
+      .mockResolvedValueOnce({
+        data: {
+          configs: [
+            { $id: 'config1', feature_id: 'resume-section-ai', provider: 'openrouter:1', model: 'meta-llama/llama-3.3-70b-instruct:free' }
+          ]
+        },
+        error: null,
+      })
+      // 2. issue-test-nonce -> success
+      .mockResolvedValueOnce({
+        data: { nonce: 'mock-nonce' },
+        error: null,
+      })
+      // 3. ai-gateway testRoute -> fallback to groq, OpenRouter failed
+      .mockResolvedValueOnce({
+        data: {
+          status: 'ok',
+          adminTest: true,
+          provider: 'groq',
+          model: 'openai/gpt-oss-120b',
+          preview: 'ROUTE_OK',
+          meta: {
+            fallback: true,
+            provider: 'groq',
+            model: 'openai/gpt-oss-120b',
+            attempts: [
+              {
+                provider: 'openrouter',
+                model: 'meta-llama/llama-3.3-70b-instruct:free',
+                slot: 1,
+                error: 'Request failed with status code 401 (Unauthorized)'
+              }
+            ]
+          }
+        },
+        error: null,
+      });
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText(/AI Routing \(AI Tools Map\)/i)).toBeInTheDocument();
+    });
+
+    // Find and click test button
+    const testBtns = await waitFor(() => {
+      const btns = screen.getAllByRole('button', { name: 'test' });
+      expect(btns.length).toBeGreaterThan(0);
+      return btns;
+    });
+    fireEvent.click(testBtns[0]);
+
+    // Verify Route mismatch and Attempt history list are displayed
+    await waitFor(() => {
+      expect(screen.getByText(/Route mismatch/i)).toBeInTheDocument();
+      expect(screen.getByText(/Attempt history:/i)).toBeInTheDocument();
+      expect(screen.getByText(/1\. \[openrouter\] meta-llama\/llama-3\.3-70b-instruct:free \(Slot 1\): Request failed with status code 401 \(Unauthorized\)/i)).toBeInTheDocument();
+    });
+  });
 });

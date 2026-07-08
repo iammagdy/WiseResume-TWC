@@ -3767,6 +3767,19 @@ module.exports = async ({ req, res, log, error }) => {
     }
 
     const requestStartTime = Date.now();
+    const attempts = [];
+    if (route && !candidates.some(c => c.routed)) {
+      attempts.push({
+        provider: route.provider,
+        model: route.model,
+        slot: route.key_slot || 1,
+        routed: true,
+        error: `No API keys configured on the server for preferred provider: ${route.provider}`,
+        code: 'no_keys_for_provider',
+        status: 400,
+      });
+    }
+
     let content      = null;
     let providerUsed = null;
     let modelUsed    = null;
@@ -3800,7 +3813,7 @@ module.exports = async ({ req, res, log, error }) => {
             model: modelUsed,
             slot: candidate.slot || 1,
             preview: String(content || '').slice(0, 300),
-            meta: { feature: featureName, provider: providerUsed, model: modelUsed, slot: candidate.slot || 1, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true },
+            meta: { feature: featureName, provider: providerUsed, model: modelUsed, slot: candidate.slot || 1, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true, attempts },
           });
         }
 
@@ -3921,6 +3934,17 @@ module.exports = async ({ req, res, log, error }) => {
         // Timeout: no backoff - provider may recover; just try next candidate now
         if (backoffMs > 0) markKeyFailed(candidate.key, backoffMs);
 
+        const errorMsg = candidateErr.response?.data?.error?.message || candidateErr.message || String(candidateErr);
+        attempts.push({
+          provider: candidate.provider,
+          model: candidate.model,
+          slot: candidate.slot || 1,
+          routed: candidate.routed,
+          error: errorMsg,
+          code: candidateErr.code || (candidateErr.response?.data?.error?.code) || 'api_error',
+          status: httpStatus || 500,
+        });
+
         error(`Provider ${candidate.provider} failed [${httpStatus ?? (isTimeout ? 'timeout' : candidateErr.code) ?? 'err'}]: ${candidateErr.message}`);
         if (i === candidates.length - 1) {
           // All candidates exhausted - remove in-flight lock so user can retry.
@@ -3933,6 +3957,16 @@ module.exports = async ({ req, res, log, error }) => {
               ? 'AI providers are busy right now. Please wait a moment and try again.'
               : 'AI providers are temporarily unavailable. Please try again in a few minutes.';
           const responseStatus = isTimeout ? 504 : (httpStatus === 429 ? 429 : 503);
+
+          if (isAdminTest) {
+            return res.json({
+              status: 'error',
+              code: 'provider_unavailable',
+              message: userMessage,
+              meta: { adminTest: true, attempts },
+            }, responseStatus);
+          }
+
           return res.json({
             status: 'error',
             code: 'provider_unavailable',
