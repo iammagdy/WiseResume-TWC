@@ -106,6 +106,7 @@ export default function PreviewPage() {
     data: bootstrapResumeDoc,
     isLoading: isBootstrapResumeLoading,
     isFetching: isBootstrapResumeFetching,
+    isError: isBootstrapResumeError,
   } = useResume(resumeIdFromUrl);
 
   const isBootstrapPending =
@@ -114,6 +115,11 @@ export default function PreviewPage() {
     (isBootstrapResumeLoading || isBootstrapResumeFetching || !!bootstrapResumeDoc);
   const hasBootstrapResolved =
     !needsResumeBootstrap || !!bootstrapResumeDoc || (!isBootstrapResumeLoading && !isBootstrapResumeFetching);
+
+  const isInvalidResume =
+    !!resumeIdFromUrl &&
+    ((hasBootstrapResolved && !bootstrapResumeDoc && !isBootstrapPending && !currentResume) ||
+      isBootstrapResumeError);
 
   const isPreviewReady =
     !!currentResume &&
@@ -258,13 +264,34 @@ export default function PreviewPage() {
   // navigation, then redirect if the resume is still absent after settling.
   useEffect(() => {
     if (currentResume) return;
-    if (isBootstrapPending) return;
-    if (resumeIdFromUrl && !hasBootstrapResolved) return;
+    if (resumeIdFromUrl) return; // Wait for bootstrap query or show the invalid error state instead of redirecting
     const timer = setTimeout(() => {
       navigate(user ? '/dashboard' : '/');
     }, 150);
     return () => clearTimeout(timer);
-  }, [currentResume, hasBootstrapResolved, isBootstrapPending, navigate, resumeIdFromUrl, user]);
+  }, [currentResume, navigate, resumeIdFromUrl, user]);
+
+  if (isInvalidResume) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 text-center">
+        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 text-red-500 mb-6">
+          <FileText className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 mb-2">
+          Resume Not Found
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-sm md:text-base leading-relaxed">
+          The resume you are trying to view does not exist, has been deleted, or you do not have permission to access it.
+        </p>
+        <button
+          onClick={() => navigate(user ? '/dashboard' : '/')}
+          className="inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+        >
+          {user ? 'Go to Dashboard' : 'Sign In'}
+        </button>
+      </div>
+    );
+  }
 
   if (!currentResume) {
     return <TemplateSkeleton />;

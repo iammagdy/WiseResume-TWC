@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import puppeteer, { Browser, Page } from "puppeteer";
 import { createRequire } from "module";
 import { convertSvgsToImages } from "../html2canvasRetry";
@@ -55,7 +55,7 @@ beforeAll(async () => {
   try {
     browser = await puppeteer.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
     });
     page = await browser.newPage();
     await page.setViewport({ width: 800, height: 1000, deviceScaleFactor: 1 });

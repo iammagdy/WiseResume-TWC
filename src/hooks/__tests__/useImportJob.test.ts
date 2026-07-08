@@ -36,6 +36,8 @@ describe('useImportJob', () => {
       data: {
         ok: true,
         jobId: 'job-abc',
+        persisted: true,
+        fallbackRequired: false,
         job: {
           title: 'Engineer',
           company: 'Acme',
@@ -70,5 +72,38 @@ describe('useImportJob', () => {
       expect(saved.id).toBe('job-abc');
       expect(saved.job.title).toBe('Engineer');
     });
+    expect(mockCreateJob).not.toHaveBeenCalled();
+  });
+
+  it('triggers client-side fallback when fallbackRequired is true', async () => {
+    mockInvoke.mockResolvedValue({
+      data: {
+        ok: true,
+        jobId: null,
+        persisted: false,
+        fallbackRequired: true,
+        job: {
+          title: 'Fallbacked Position',
+          company: 'Acme Fallback',
+          location: 'Remote',
+          salary_range: null,
+          job_type: 'full-time',
+          description: 'Build things',
+          requirements: 'TypeScript',
+          skills: ['TypeScript'],
+        },
+      },
+      error: null,
+    });
+    mockCreateJob.mockResolvedValue({ id: 'fallback-job-id' });
+
+    const { result } = renderHook(() => useImportJob(), { wrapper });
+    const saved = await result.current.mutateAsync('https://example.com/jobs/1');
+
+    expect(mockCreateJob).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Fallbacked Position',
+      company: 'Acme Fallback',
+    }));
+    expect(saved.id).toBe('fallback-job-id');
   });
 });

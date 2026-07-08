@@ -15,21 +15,57 @@ const BLOCKED_RANGES = [
   /^192\.168\./,
   /^172\.(1[6-9]|2\d|3[01])\./,
   /^169\.254\./,
+  /^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./, // 100.64.0.0/10 (CGNAT)
+  /^192\.0\.2\./, // 192.0.2.0/24 (Test-Net-1)
+  /^198\.51\.100\./, // 198.51.100.0/22 (Test-Net-2)
+  /^203\.0\.113\./, // 203.0.113.0/24 (Test-Net-3)
+  /^198\.1[89]\./, // 198.18.0.0/15 (Benchmarking)
+  /^233\.252\.0\./, // 233.252.0.0/24 (MCAST-TEST-NET)
+  /^0\.0\.0\.0$/,
   /^::1$/,
   /^fc[0-9a-f][0-9a-f]:/i,
   /^fd/i,
+  /^fe[89a-f][0-9a-f]:/i, // fe80::/9 (Link-Local & Deprecated Site-Local)
   /^localhost$/i,
 ];
 
 function isBlockedIp(ip) {
-  return BLOCKED_RANGES.some(re => re.test(ip));
+  if (typeof ip !== 'string') return true;
+  let cleanIp = ip.trim().toLowerCase();
+
+  if (cleanIp.startsWith('::ffff:')) {
+    const ipv4Part = cleanIp.slice(7);
+    if (ipv4Part.includes('.')) {
+      cleanIp = ipv4Part;
+    } else {
+      const parts = ipv4Part.split(':');
+      if (parts.length === 2) {
+        const high = parseInt(parts[0], 16) || 0;
+        const low = parseInt(parts[1], 16) || 0;
+        const b1 = (high >> 8) & 0xff;
+        const b2 = high & 0xff;
+        const b3 = (low >> 8) & 0xff;
+        const b4 = low & 0xff;
+        cleanIp = `${b1}.${b2}.${b3}.${b4}`;
+      } else if (parts.length === 1) {
+        const val = parseInt(parts[0], 16) || 0;
+        const b1 = (val >> 24) & 0xff;
+        const b2 = (val >> 16) & 0xff;
+        const b3 = (val >> 8) & 0xff;
+        const b4 = val & 0xff;
+        cleanIp = `${b1}.${b2}.${b3}.${b4}`;
+      }
+    }
+  }
+
+  return BLOCKED_RANGES.some(re => re.test(cleanIp));
 }
 
 function isSafeUrl(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
-    const host = parsed.hostname;
+    const host = parsed.hostname.replace(/^\[|\]$/g, '');
     return !isBlockedIp(host);
   } catch {
     return false;
@@ -657,12 +693,18 @@ ${context}`,
 
   // Create document server-side (bypasses collection permission issues)
   let savedDoc = null;
+  let persisted = false;
+  let reason = null;
   try {
     savedDoc = await createJobDocument(userId, parsedJob, url);
-    if (savedDoc) log(`Job document created: ${savedDoc.$id}`);
+    if (savedDoc) {
+      log(`Job document created: ${savedDoc.$id}`);
+      persisted = true;
+    }
   } catch (err) {
     error(`DB write failed: ${err.message}`);
-    // Still return ok:true with the parsed data â€” frontend will attempt its own write
+    reason = 'DB_WRITE_FAILED';
+    // Still return ok:true with the parsed data — frontend will attempt its own write
   }
 
   // Successful parse → charge 1 credit and cache the result for idempotent retries.
@@ -670,6 +712,9 @@ ${context}`,
     ok: true,
     jobId: savedDoc?.$id || null,
     job: parsedJob,
+    persisted: persisted,
+    fallbackRequired: !persisted,
+    reason: reason,
   };
   try { await recordAiUsage(db, creditState); } catch (err) { error(`Credit charge failed: ${err.message}`); }
   await updateIdempotencySuccess(db, idemDocId, responsePayload);
@@ -685,4 +730,6 @@ module.exports.__test = {
   recordAiUsage,
   PARSE_JOB_CREDIT_COST,
   SERVER_RATE_LIMIT_MAX_REQUESTS,
+  isBlockedIp,
+  isSafeUrl,
 };

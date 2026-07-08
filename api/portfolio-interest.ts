@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Databases, Query } from 'node-appwrite';
+import { createHash } from 'crypto';
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID =
@@ -46,18 +47,57 @@ function getClientIp(req: VercelRequest): string {
   return 'unknown';
 }
 
-const rateLimits = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_COLLECTION = 'portfolio_session_rate_limits';
+const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_LIMIT = 5;
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimits.get(ip);
-  if (!entry || now >= entry.resetAt) {
-    rateLimits.set(ip, { count: 1, resetAt: now + 60_000 });
+function sha256(data: string): string {
+  return createHash('sha256').update(data).digest('hex');
+}
+
+async function checkRateLimit(db: Databases, ip: string): Promise<boolean> {
+  if (!ip || ip === 'unknown') return true;
+  const ipHash = sha256(ip + ':interest').slice(0, 32);
+  try {
+    let doc;
+    try {
+      doc = await db.getDocument(DATABASE_ID, RATE_LIMIT_COLLECTION, ipHash);
+    } catch (e: unknown) {
+      const err = e as { code?: number; message?: string };
+      if (err.code === 404 || /could not be found/i.test(err.message || '')) {
+        doc = null;
+      } else {
+        throw e;
+      }
+    }
+    const now = Date.now();
+    if (!doc || now > new Date(doc.reset_at).getTime()) {
+      const resetAt = new Date(now + WINDOW_MS).toISOString();
+      if (!doc) {
+        await db.createDocument(DATABASE_ID, RATE_LIMIT_COLLECTION, ipHash, {
+          count: 1,
+          reset_at: resetAt,
+        });
+      } else {
+        await db.updateDocument(DATABASE_ID, RATE_LIMIT_COLLECTION, ipHash, {
+          count: 1,
+          reset_at: resetAt,
+        });
+      }
+      return true;
+    }
+    const count = Number(doc.count || 0);
+    if (count >= MAX_LIMIT) {
+      return false;
+    }
+    await db.updateDocument(DATABASE_ID, RATE_LIMIT_COLLECTION, ipHash, {
+      count: count + 1,
+    });
     return true;
+  } catch (err) {
+    console.error('[interest] Rate limit check failed. Failing closed:', err);
+    return false;
   }
-  if (entry.count >= 20) return false;
-  entry.count++;
-  return true;
 }
 
 function safeReferrerHostname(referrer: unknown): string | null {
@@ -95,8 +135,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'config_error', message: 'Portfolio interest API is not configured.' });
   }
 
+  const db = getDb();
+
   const ip = getClientIp(req);
-  if (!checkRateLimit(ip)) {
+  if (!(await checkRateLimit(db, ip))) {
     return res.status(429).json({ error: 'rate_limited' });
   }
 
@@ -110,8 +152,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!token || !TOKEN_PATTERN.test(token)) {
     return res.status(400).json({ error: 'bad_request', message: 'Invalid token' });
   }
-
-  const db = getDb();
 
   try {
     if (!(await portfolioExists(db, username))) {

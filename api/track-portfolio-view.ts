@@ -192,10 +192,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const db = getDb();
 
-  // If action is visit_end and visitDocId is provided, update the existing document
-  if (action === 'visit_end' && visitDocId) {
+  // If action is visit_end, update the existing document
+  if (action === 'visit_end') {
+    if (!visitDocId) {
+      console.warn(`[track-portfolio-view] [${correlationId}] Missing visitDocId for visit_end`);
+      return res.status(400).end();
+    }
     console.log(`[track-portfolio-view] [${correlationId}] Updating visit document: ${visitDocId}`);
     try {
+      const existingDoc = await db.getDocument(DATABASE_ID, VISITS_COLLECTION, visitDocId);
+      if (!existingDoc || existingDoc.username !== username) {
+        console.warn(`[track-portfolio-view] [${correlationId}] Mismatch or missing document. Document username: ${existingDoc?.username || 'none'}, Request username: ${username}`);
+        return res.status(400).end();
+      }
       await db.updateDocument(DATABASE_ID, VISITS_COLLECTION, visitDocId, {
         time_spent_seconds: timeSpentSeconds,
         sections_viewed: sectionsViewed,
@@ -205,6 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err) {
       const code = (err as { code?: number; type?: string })?.code ?? 'unknown';
       console.error(`[track-portfolio-view] [${correlationId}] Visit update failed. Code: ${code}`);
+      return res.status(400).end();
     }
     return res.status(204).end();
   }

@@ -203,6 +203,11 @@
     "switchToDark": "Switch to dark mode",
     "notifications": "Notifications"
   },
+  "featureGate": {
+    "title": "Feature Temporarily Disabled",
+    "description": "This feature is currently undergoing maintenance and will be available again soon. Thank you for your patience.",
+    "backToDashboard": "Back to Dashboard"
+  },
   "loadingWorkspace": "Loading your workspace",
   "syncingWorkspaceDescription": "We're syncing your resumes, scores, and recent activity.",
   "loadingResumes": "Loading your resumes",

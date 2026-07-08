@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { mockNavigate } from '@/test/mocks/router';
 
 const mockResumeState = vi.hoisted(() => ({
   currentResume: null as any,
@@ -524,5 +525,26 @@ describe('PreviewPage URL bootstrap', () => {
       resumeId: 'resume-1',
       updates: { templateId: 'classic' },
     }));
+  });
+
+  it('renders clear error page and dashboard button when bootstrap query fails', async () => {
+    mockResumeQuery.data = null;
+    mockResumeQuery.isLoading = false;
+    mockResumeQuery.isFetching = false;
+    (mockResumeQuery as any).isError = true;
+
+    renderPreview('/preview?id=invalid-resume-id');
+
+    expect(await screen.findByText('Resume Not Found')).toBeInTheDocument();
+    expect(screen.getByText(/The resume you are trying to view does not exist/i)).toBeInTheDocument();
+
+    const btn = screen.getByRole('button', { name: 'Go to Dashboard' });
+    expect(btn).toBeInTheDocument();
+
+    mockNavigate.mockClear();
+    fireEvent.click(btn);
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+
+    (mockResumeQuery as any).isError = false;
   });
 });

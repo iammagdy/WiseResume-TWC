@@ -1,5 +1,20 @@
 # Project Atlas Master Changelog
 
+## 2026-07-08 — WiseResume Remaining Audit Fixes (Batch 3 & 4)
+
+- **Classification**: COMPLETED_LOCAL_VERIFIED
+- **Changes**:
+  - **Telemetry Visit Hardening**: Restructured `api/track-portfolio-view.ts` to fetch the existing visit document and check that the request `username` matches before updating `visit_end` analytics, failing safely.
+  - **Durable Interest Rate Limiter**: Configured `api/portfolio-interest.ts` to perform database-backed rate limit checks against `portfolio_session_rate_limits` using `sha256(ip + ':interest')`, allowing up to 5 submissions per 10 minutes.
+  - **SSRF Defenses**: Hardened loopback/private range detection in `appwrite-hubs/job-import/src/main.js` to block Carrier-Grade NAT (`100.64.0.0/10`), documentation test subnets, IPv6 link/site-local scopes, and added hex-encoded IPv4-mapped IPv6 address extraction.
+  - **Job Import Fallback**: Added `persisted`, `fallbackRequired`, and `reason` fields to the `job-import` response. Updated the `useImportJob` frontend hook to run fallback client-side saves only when `fallbackRequired` is true.
+  - **FeatureGate UX**: Redesigned `FeatureGate` in `src/AppInterior.tsx` to render a premium locked-feature panel with a lock icon, description, and "Back to Dashboard" button. Added translations to English and Arabic catalogs.
+  - **Preview Error Page**: Replaced the infinite loading skeleton in `src/pages/PreviewPage.tsx` with an accessible error card when a bootstrap query fails.
+  - **Vitest Suite Repairs**: Added Arabic translation parity (`topBar.notifications`), mocked `sdk.Functions` in `passwordResetOtp.test.ts`, and resolved Puppeteer headless execution hangs.
+- **Validation**:
+  - Full test suite: 163 passed, 1 skipped.
+  - TypeScript: `npx tsc --noEmit` passed with 0 compile errors.
+
 ## 2026-07-08 — URL Resume Import Contract and SSRF Hardening
 
 - **Classification**: IMPLEMENTED_LOCAL_VERIFIED_PENDING_VERCEL_DEPLOY

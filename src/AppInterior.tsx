@@ -1,4 +1,6 @@
 import { Suspense, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { Lock } from "lucide-react";
 import { toast } from 'sonner';
 import { MotionConfig, useReducedMotion } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
@@ -186,14 +188,31 @@ function useIsPublicRoute() {
 }
 
 function FeatureGate({ enabled, children }: { enabled: boolean; children: React.ReactNode }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  useEffect(() => {
-    if (!enabled) {
-      toast.info("This feature isn't available right now.");
-      navigate('/dashboard', { replace: true });
-    }
-  }, [enabled, navigate]);
-  if (!enabled) return null;
+
+  if (!enabled) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/10 text-amber-500 mb-6">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 mb-2">
+          {t('featureGate.title')}
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-sm md:text-base leading-relaxed">
+          {t('featureGate.description')}
+        </p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+        >
+          {t('featureGate.backToDashboard')}
+        </button>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
 

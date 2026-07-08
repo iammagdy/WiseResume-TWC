@@ -200,7 +200,13 @@
     "wiseAI": "مساعد وايز",
     "wiseAIShort": "المساعد",
     "switchToLight": "التبديل إلى الوضع الفاتح",
-    "switchToDark": "التبديل إلى الوضع الداكن"
+    "switchToDark": "التبديل إلى الوضع الداكن",
+    "notifications": "الإشعارات"
+  },
+  "featureGate": {
+    "title": "ميزة معطلة مؤقتاً",
+    "description": "هذه الميزة تخضع للصيانة حالياً وستكون متاحة مرة أخرى قريباً. نشكرك على صبرك وتفهمك.",
+    "backToDashboard": "العودة إلى لوحة التحكم"
   },
   "loadingWorkspace": "جارٍ تحميل مساحة العمل",
   "syncingWorkspaceDescription": "نقوم بمزامنة سيرك الذاتية ودرجاتك وآخر نشاطك.",

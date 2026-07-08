@@ -27,6 +27,12 @@ const mockSdk = {
     this.list = mockListUsers;
     this.updatePassword = mockUpdatePassword;
   }),
+  Functions: vi.fn().mockImplementation(function (this: any) {
+    this.createExecution = vi.fn().mockResolvedValue({
+      status: 'completed',
+      responseBody: JSON.stringify({ success: true }),
+    });
+  }),
   Query: {
     equal: (field: string, val: any) => `equal:${field}:${val}`,
     greaterThan: (field: string, val: any) => `greater:${field}:${val}`,
