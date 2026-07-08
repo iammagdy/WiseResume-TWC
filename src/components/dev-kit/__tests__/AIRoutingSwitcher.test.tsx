@@ -197,4 +197,121 @@ describe('AIRoutingSwitcher testRoute Wrapper & Error Handling', () => {
       expect(screen.getByText(/HTTP 502/i)).toBeInTheDocument();
     });
   });
+
+  it('triggers dirty state, shows Save bar and disables test button when changing provider', async () => {
+    vi.mocked(appwriteFunctions.invoke).mockResolvedValue({
+      data: { configs: [] },
+      error: null,
+    });
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText(/AI Routing \(AI Tools Map\)/i)).toBeInTheDocument();
+    });
+
+    // 1. Initial state check: no unsaved changes, Save buttons are not active or not in document
+    expect(screen.queryByText(/unsaved change/i)).not.toBeInTheDocument();
+
+    // Find the test button for the first row (resume-section-ai)
+    const testBtns = screen.getAllByRole('button', { name: 'test' });
+    expect(testBtns[0]).not.toBeDisabled();
+
+    // 2. Change provider override (click GROQ button on the first row)
+    const groqBtns = screen.getAllByRole('button', { name: /Groq/i });
+    fireEvent.click(groqBtns[0]);
+
+    // 3. Assert dirty state is triggered:
+    // - "Save All Changes" sticky bar should appear
+    // - Test button text should change to "save first" and become disabled
+    await waitFor(() => {
+      expect(screen.getByText(/1 unsaved change/i)).toBeInTheDocument();
+    });
+
+    const saveFirstBtns = screen.getAllByRole('button', { name: 'save first' });
+    expect(saveFirstBtns[0]).toBeDisabled();
+  });
+
+  it('triggers dirty state when changing model of default provider, calls create-routing-config on saveAll, and clears dirty state on refetch', async () => {
+    // Mock sequential calls:
+    // 1. Initial list-routing-config -> empty list
+    // 2. create-routing-config on saveAll -> success
+    // 3. Reload list-routing-config -> returns the saved override
+    vi.mocked(appwriteFunctions.invoke)
+      .mockResolvedValueOnce({
+        data: { configs: [] },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          config: {
+            $id: 'new-override-id',
+            feature_id: 'resume-section-ai',
+            provider: 'deepseek',
+            model: 'deepseek-reasoner'
+          }
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          configs: [
+            { $id: 'new-override-id', feature_id: 'resume-section-ai', provider: 'deepseek', model: 'deepseek-reasoner' }
+          ]
+        },
+        error: null,
+      });
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText(/AI Routing \(AI Tools Map\)/i)).toBeInTheDocument();
+    });
+
+    // 1. Initially, the model select dropdown is NOT visible because hasOverride is false (uses default route)
+    // To show the model dropdown, click the default provider button (DEEPSEEK) to create local override state
+    const deepseekBtns = screen.getAllByRole('button', { name: /DeepSeek/i });
+    fireEvent.click(deepseekBtns[0]);
+
+    // 2. Now hasOverride is true, so the model dropdown is rendered
+    const modelDropdowns = await waitFor(() => {
+      const selects = screen.getAllByRole('combobox');
+      expect(selects.length).toBeGreaterThan(0);
+      return selects;
+    });
+
+    // 3. Change model to deepseek-reasoner
+    fireEvent.change(modelDropdowns[0], { target: { value: 'deepseek-reasoner' } });
+
+    // 4. Assert dirty state is triggered:
+    await waitFor(() => {
+      expect(screen.getByText(/1 unsaved change/i)).toBeInTheDocument();
+    });
+
+    // 5. Click Save All Changes button in the bottom sticky bar
+    const saveButton = screen.getByRole('button', { name: /Save All Changes/i });
+    expect(saveButton).not.toBeDisabled();
+    fireEvent.click(saveButton);
+
+    // 6. Assert saveAll makes the correct create call, then reload clears dirty state
+    await waitFor(() => {
+      // Check that the save call went through
+      expect(appwriteFunctions.invoke).toHaveBeenCalledWith('admin-devkit-data', expect.objectContaining({
+        body: expect.objectContaining({
+          action: 'create-routing-config',
+          featureId: 'resume-section-ai',
+          provider: 'deepseek',
+          model: 'deepseek-reasoner'
+        })
+      }));
+    });
+
+    // 7. Verify dirty state clears and the test button is back to "test" and clickable
+    await waitFor(() => {
+      expect(screen.queryByText(/unsaved change/i)).not.toBeInTheDocument();
+    });
+
+    const testBtns = screen.getAllByRole('button', { name: 'test' });
+    expect(testBtns[0]).not.toBeDisabled();
+  });
 });
