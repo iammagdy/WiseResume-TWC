@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   BrainCircuit, Save, RefreshCw, AlertTriangle, FileEdit,
@@ -206,6 +206,24 @@ export const AIRoutingSwitcher = () => {
   const [probingRoutes, setProbingRoutes] = useState(false);
   const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string; errorDetails?: string }>>({});
 
+  const initialRoutesRef = useRef<Record<string, RouteState>>({});
+
+  const hasUnsavedChanges = useMemo(() => {
+    const currentKeys = Object.keys(routes);
+    const initialKeys = Object.keys(initialRoutesRef.current);
+    if (currentKeys.length !== initialKeys.length) return true;
+
+    for (const key of currentKeys) {
+      const current = routes[key];
+      const initial = initialRoutesRef.current[key];
+      if (!initial) return true;
+      if (current.provider !== initial.provider) return true;
+      if (current.model !== initial.model) return true;
+      if (current.key_slot !== initial.key_slot) return true;
+    }
+    return false;
+  }, [routes]);
+
   const fetchRoutes = async () => {
     setLoading(true);
     setLoadError(null);
@@ -230,6 +248,7 @@ export const AIRoutingSwitcher = () => {
         };
       }
       setRoutes(configMap);
+      initialRoutesRef.current = configMap;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load AI routing config';
       console.error('Failed to fetch AI routes:', err);
@@ -525,7 +544,17 @@ export const AIRoutingSwitcher = () => {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+      </div>
+
+      {/* Sticky Action Bar */}
+      <div className="sticky top-0 bg-background/95 backdrop-blur-md z-30 py-4 border-b border-white/5 -mx-6 px-6 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {hasUnsavedChanges && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-400 text-[10px] font-black uppercase tracking-wider animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+              Unsaved changes
+            </span>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             {PROVIDERS.map(p => {
               const ping = pings[p.id];
@@ -565,6 +594,8 @@ export const AIRoutingSwitcher = () => {
           >
             <RefreshCw size={14} className="mr-1.5" /> Refresh
           </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -605,8 +636,13 @@ export const AIRoutingSwitcher = () => {
           </Tooltip>
           <Button
             onClick={saveAll}
-            disabled={saving}
-            className="bg-purple-600 hover:bg-purple-500 text-white rounded-2xl h-11 px-7 font-bold shadow-lg shadow-purple-500/20"
+            disabled={saving || !hasUnsavedChanges}
+            className={cn(
+              "rounded-2xl h-11 px-7 font-bold transition-all shadow-lg",
+              hasUnsavedChanges && !saving
+                ? "bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/20 ring-2 ring-purple-500/40"
+                : "bg-white/5 border border-white/10 text-muted-foreground cursor-not-allowed shadow-none"
+            )}
           >
             {saving ? <MiniSpinner size={16} className="mr-2" /> : <Save className="mr-2" size={16} />}
             Save All
@@ -783,6 +819,23 @@ export const AIRoutingSwitcher = () => {
                                 {liveRoutes[feature.id].model}
                               </span>
                             </div>
+                          )}
+
+                          {/* Live probe route fallback warning */}
+                          {liveRoutes?.[feature.id] && activeProvider && (
+                            (() => {
+                              const live = liveRoutes[feature.id];
+                              const isMismatched = live.provider !== activeProvider || live.model !== activeModel;
+                              if (isMismatched) {
+                                return (
+                                  <div className="flex items-center gap-1.5 mt-1 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[9px] font-mono">
+                                    <AlertTriangle size={10} className="shrink-0" />
+                                    <span>Gateway Fallback Active: [{live.provider}] {live.model} (Configured: [{activeProvider}])</span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()
                           )}
 
                           {/* Gateway default chip (only shown when there's an override so both are visible) */}

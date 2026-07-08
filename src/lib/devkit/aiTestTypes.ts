@@ -1,13 +1,17 @@
 import type { AITestProvider } from './aiTestSlotModels';
 
-export type BackendSlotTestStatus =
   | 'success'
+  | 'key_missing'
   | 'missing_key'
   | 'invalid_key'
   | 'model_not_found'
   | 'rate_limited'
-  | 'provider_error'
-  | 'timeout';
+  | 'provider_unavailable'
+  | 'timeout'
+  | 'bad_response_shape'
+  | 'quota_exceeded'
+  | 'unknown_provider_error'
+  | 'provider_error';
 
 export type FrontendSlotTestState = 'untested' | 'testing' | BackendSlotTestStatus;
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { KeyRound, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Save, ChevronDown, Play, Zap, Info } from 'lucide-react';
+import { KeyRound, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Save, ChevronDown, Play, Zap, Info, ServerCrash, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
@@ -20,10 +20,10 @@ import {
 import type { SlotTestResult, SlotTestResultsMap, BackendSlotTestStatus, FrontendSlotTestState } from '@/lib/devkit/aiTestTypes';
 
 const DEFAULT_MODELS: Record<AITestProvider, string> = {
-  openrouter: 'openrouter/free',
-  groq: 'openai/gpt-oss-120b',
+  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
+  groq: 'llama-3.3-70b-versatile',
   deepseek: 'deepseek-chat',
-  nvidia: 'stepfun-ai/step-3.7-flash',
+  nvidia: 'meta/llama-3.3-70b-instruct',
 };
 
 const PROVIDER_COLOR: Record<AITestProvider, string> = {
@@ -80,7 +80,7 @@ function slotKey(provider: AITestProvider, slot: AITestSlot): SlotKey {
 }
 
 function getModelTier(provider: AITestProvider, modelValue: string, live: LiveProviderModels): CuratedLLMModel['tier'] | null {
-  const list = resolveModelsForProvider(provider, live);
+  const list = resolveModelsForProvider(provider, live, modelValue);
   return list.find(m => m.value === modelValue)?.tier ?? null;
 }
 
@@ -141,7 +141,7 @@ export function AIKeysPanel() {
         const raw = overrides[k] ?? merged[entry.provider as AITestProvider] ?? '';
         const prov = entry.provider as AITestProvider;
         if (DROPDOWN_PROVIDERS.has(prov)) {
-          const modelList = resolveModelsForProvider(prov, live);
+          const modelList = resolveModelsForProvider(prov, live, raw);
           const valid = new Set(modelList.map(m => m.value));
           drafts[k] = raw && valid.has(raw) ? raw : (modelList[0]?.value ?? raw);
         } else {
@@ -316,6 +316,7 @@ export function AIKeysPanel() {
             <CheckCircle2 className="w-2.5 h-2.5" /> Healthy {result.latencyMs ? `(${result.latencyMs}ms)` : ''}
           </span>
         );
+      case 'key_missing':
       case 'missing_key':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500/15 text-red-400/80 text-[9px] font-bold">
@@ -340,12 +341,31 @@ export function AIKeysPanel() {
             <Zap className="w-2.5 h-2.5" /> Rate Limited
           </span>
         );
+      case 'provider_unavailable':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-400 text-[9px] font-bold">
+            <ServerCrash className="w-2.5 h-2.5" /> Unavailable
+          </span>
+        );
+      case 'quota_exceeded':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-400 text-[9px] font-bold">
+            <AlertCircle className="w-2.5 h-2.5" /> Quota Exceeded
+          </span>
+        );
+      case 'bad_response_shape':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-pink-500/15 text-pink-400 text-[9px] font-bold">
+            <XCircle className="w-2.5 h-2.5" /> Bad Response
+          </span>
+        );
       case 'timeout':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-500/15 text-yellow-400 text-[9px] font-bold">
             <AlertTriangle className="w-2.5 h-2.5" /> Timeout
           </span>
         );
+      case 'unknown_provider_error':
       case 'provider_error':
       default:
         return (
@@ -453,7 +473,7 @@ export function AIKeysPanel() {
                     const isSaving = saving[k] ?? false;
                     const isSlotTesting = testingSlots[k] ?? false;
                     const status = saveStatus[k];
-                    const modelList = resolveModelsForProvider(provider, liveModels);
+                    const modelList = resolveModelsForProvider(provider, liveModels, draft);
                     const useDropdown = DROPDOWN_PROVIDERS.has(provider);
                     const selectedTier = useDropdown ? getModelTier(provider, draft, liveModels) : null;
                     const selectedModel = modelList.find(m => m.value === draft);

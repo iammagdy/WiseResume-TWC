@@ -2905,7 +2905,7 @@ function buildStructuredRepairMessages(featureName, rawContent, opts = {}) {
  *  • Reasoning / analysis   -> deepseek
  *  • Lightweight classifier  -> groq (llama-3.1-8b-instant)
  */
-let FEATURE_ROUTES = {
+const STATIC_FEATURE_ROUTES = {
   'generate-cover-letter':      { provider: 'deepseek', model: DEEPSEEK_MODEL },
   'tailor-resume':              { provider: 'deepseek', model: DEEPSEEK_MODEL },
   'recruiter-simulation':       { provider: 'deepseek', model: DEEPSEEK_MODEL },
@@ -2930,6 +2930,8 @@ let FEATURE_ROUTES = {
   'ask-portfolio':              { provider: 'deepseek', model: DEEPSEEK_MODEL },
 };
 
+let FEATURE_ROUTES = { ...STATIC_FEATURE_ROUTES };
+
 // --- Route config cache (warm-instance TTL avoids per-request DB fetch) ------
 let _routeCache   = null;
 let _routeCacheTs = 0;
@@ -2937,7 +2939,10 @@ const ROUTE_CACHE_TTL = 60_000; // 1 minute
 
 async function syncDynamicRoutes(db) {
   if (_routeCache && Date.now() - _routeCacheTs < ROUTE_CACHE_TTL) {
-    Object.assign(FEATURE_ROUTES, _routeCache);
+    for (const key of Object.keys(FEATURE_ROUTES)) {
+      delete FEATURE_ROUTES[key];
+    }
+    Object.assign(FEATURE_ROUTES, STATIC_FEATURE_ROUTES, _routeCache);
     return;
   }
   try {
@@ -2951,11 +2956,18 @@ async function syncDynamicRoutes(db) {
         key_slot: slotStr ? Number(slotStr) : null
       };
       _routeCache[doc.feature_id] = routeVal;
-      FEATURE_ROUTES[doc.feature_id] = routeVal;
     });
     _routeCacheTs = Date.now();
+    for (const key of Object.keys(FEATURE_ROUTES)) {
+      delete FEATURE_ROUTES[key];
+    }
+    Object.assign(FEATURE_ROUTES, STATIC_FEATURE_ROUTES, _routeCache);
   } catch {
     // Silently fall back to static routes if collection doesn't exist yet
+    for (const key of Object.keys(FEATURE_ROUTES)) {
+      delete FEATURE_ROUTES[key];
+    }
+    Object.assign(FEATURE_ROUTES, STATIC_FEATURE_ROUTES);
   }
 }
 

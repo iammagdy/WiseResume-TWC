@@ -8,22 +8,18 @@ const SETTINGS_COLLECTION = 'app_settings';
 const SETTINGS_DOC_ID = 'global';
 
 const DEFAULT_MODELS = {
-  openrouter: 'openrouter/free',
-  groq: 'openai/gpt-oss-120b',
+  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
+  groq: 'llama-3.3-70b-versatile',
   deepseek: 'deepseek-chat',
-  nvidia: 'stepfun-ai/step-3.7-flash',
+  nvidia: 'meta/llama-3.3-70b-instruct',
 };
 
 const NVIDIA_VALID_MODELS = [
-  'stepfun-ai/step-3.7-flash',
-  'nvidia/nemotron-3-ultra-550b-a55b',
-  'minimaxai/minimax-m3',
-  'nvidia/nemotron-3-super-120b-a12b',
-  'stepfun-ai/step-3.5-flash',
-  'mistralai/mistral-nemotron',
-  'mistralai/mistral-large-3-675b-instruct-2512',
-  'openai/gpt-oss-120b',
   'meta/llama-3.3-70b-instruct',
+  'nvidia/llama-3.1-nemotron-70b-instruct',
+  'nvidia/nemotron-4-340b-instruct',
+  'meta/llama-3.1-8b-instruct',
+  'meta/llama-3.1-70b-instruct',
   'mistralai/mixtral-8x7b-instruct-v0.1',
 ];
 
@@ -270,7 +266,7 @@ async function pingSlot({ provider, slot, model }) {
           provider,
           slot: slotNum,
           model,
-          status: 'provider_error',
+          status: 'bad_response_shape',
           httpStatus,
           latencyMs,
           testedAt,
@@ -325,6 +321,39 @@ async function pingSlot({ provider, slot, model }) {
       };
     }
 
+    const isQuotaErr = httpStatus === 402 || /quota|credit|balance|billing|insufficient funds/i.test(safeText);
+    if (isQuotaErr) {
+      return {
+        ok: false,
+        provider,
+        slot: slotNum,
+        model,
+        status: 'quota_exceeded',
+        httpStatus,
+        latencyMs,
+        testedAt,
+        keyPreview,
+        message: `Provider quota exceeded or billing issue (HTTP ${httpStatus})`,
+        errorExcerpt: safeText || undefined,
+      };
+    }
+
+    if (httpStatus >= 500 && httpStatus <= 504) {
+      return {
+        ok: false,
+        provider,
+        slot: slotNum,
+        model,
+        status: 'provider_unavailable',
+        httpStatus,
+        latencyMs,
+        testedAt,
+        keyPreview,
+        message: `Provider service is temporarily unavailable (HTTP ${httpStatus})`,
+        errorExcerpt: safeText || undefined,
+      };
+    }
+
     const isModelErr = (httpStatus === 400 || httpStatus === 404) &&
       /model|not found|does not exist|invalid model|unknown model|unsupported/i.test(safeText);
 
@@ -349,7 +378,7 @@ async function pingSlot({ provider, slot, model }) {
       provider,
       slot: slotNum,
       model,
-      status: 'provider_error',
+      status: 'unknown_provider_error',
       httpStatus,
       latencyMs,
       testedAt,
@@ -380,7 +409,7 @@ async function pingSlot({ provider, slot, model }) {
       provider,
       slot: slotNum,
       model,
-      status: 'provider_error',
+      status: 'unknown_provider_error',
       latencyMs,
       testedAt,
       keyPreview,

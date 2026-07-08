@@ -56,45 +56,44 @@ export interface CuratedLLMModel {
  */
 export const DEEPSEEK_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
   { label: 'DeepSeek Chat',                     value: 'deepseek-chat',                      tier: 'paid' },
+  { label: 'DeepSeek Reasoner',                 value: 'deepseek-reasoner',                  tier: 'paid' },
 ];
 
 /**
  * NVIDIA NIM LLM models available in the DevKit model selector. All NIM models are paid.
  */
 export const NVIDIA_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'Step 3.7 Flash',                    value: 'stepfun-ai/step-3.7-flash',                   tier: 'free' },
-  { label: 'Nemotron 3 Ultra 550B',             value: 'nvidia/nemotron-3-ultra-550b-a55b',           tier: 'free' },
-  { label: 'MiniMax M3',                        value: 'minimaxai/minimax-m3',                        tier: 'free' },
-  { label: 'Nemotron 3 Super 120B',             value: 'nvidia/nemotron-3-super-120b-a12b',           tier: 'free' },
-  { label: 'Step 3.5 Flash',                    value: 'stepfun-ai/step-3.5-flash',                   tier: 'free' },
-  { label: 'Mistral Nemotron',                  value: 'mistralai/mistral-nemotron',                  tier: 'free' },
-  { label: 'Mistral Large 3 675B',              value: 'mistralai/mistral-large-3-675b-instruct-2512', tier: 'free' },
-  { label: 'GPT-OSS 120B',                      value: 'openai/gpt-oss-120b',                         tier: 'free' },
-  { label: 'Llama 3.3 70B Instruct',            value: 'meta/llama-3.3-70b-instruct',                 tier: 'free' },
-  { label: 'Mixtral 8x7B Instruct',             value: 'mistralai/mixtral-8x7b-instruct-v0.1',        tier: 'free' },
+  { label: 'Llama 3.3 70B Instruct',            value: 'meta/llama-3.3-70b-instruct',                 tier: 'paid' },
+  { label: 'Llama 3.1 Nemotron 70B Instruct',   value: 'nvidia/llama-3.1-nemotron-70b-instruct',      tier: 'paid' },
+  { label: 'Nemotron 4 340B Instruct',          value: 'nvidia/nemotron-4-340b-instruct',             tier: 'paid' },
+  { label: 'Llama 3.1 8B Instruct',             value: 'meta/llama-3.1-8b-instruct',                  tier: 'paid' },
+  { label: 'Llama 3.1 70B Instruct',            value: 'meta/llama-3.1-70b-instruct',                 tier: 'paid' },
+  { label: 'Mixtral 8x7B Instruct',             value: 'mistralai/mixtral-8x7b-instruct-v0.1',        tier: 'paid' },
 ];
 
 /**
  * OpenRouter LLM models available in the DevKit model selector.
  */
 export const OPENROUTER_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'OpenRouter Free',                   value: 'openrouter/free',                             tier: 'free' },
-  { label: 'Laguna M.1 (Free)',                 value: 'poolside/laguna-m.1:free',                    tier: 'free' },
-  { label: 'North Mini Code (Free)',            value: 'cohere/north-mini-code:free',                 tier: 'free' },
-  { label: 'Laguna XS.2 (Free)',                value: 'poolside/laguna-xs.2:free',                   tier: 'free' },
-  { label: 'Nemotron 3 Ultra (Free)',           value: 'nvidia/nemotron-3-ultra-550b-a55b:free',      tier: 'free' },
-  { label: 'GPT-OSS 20B (Free)',                value: 'openai/gpt-oss-20b:free',                     tier: 'free' },
+  { label: 'Llama 3.3 70B Instruct (Free)',     value: 'meta-llama/llama-3.3-70b-instruct:free',     tier: 'free' },
+  { label: 'Gemma 2 9B IT (Free)',              value: 'google/gemma-2-9b-it:free',                  tier: 'free' },
+  { label: 'Llama 3 8B Instruct (Free)',        value: 'meta-llama/llama-3-8b-instruct:free',        tier: 'free' },
+  { label: 'Qwen 2.5 7B Instruct (Free)',       value: 'qwen/qwen-2.5-7b-instruct:free',             tier: 'free' },
+  { label: 'Mistral 7B Instruct (Free)',        value: 'mistralai/mistral-7b-instruct:free',         tier: 'free' },
+  { label: 'Phi 3 Medium 128k Instruct (Free)', value: 'microsoft/phi-3-medium-128k-instruct:free',  tier: 'free' },
+  { label: 'OpenChat 7B (Free)',                value: 'openchat/openchat-7b:free',                  tier: 'free' },
 ];
 
 /**
  * Groq LLM models available in the DevKit model selector.
  */
 export const GROQ_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'GPT-OSS 120B',                      value: 'openai/gpt-oss-120b',                         tier: 'free' },
-  { label: 'Qwen 3.6 27B',                      value: 'qwen/qwen3.6-27b',                             tier: 'free' },
-  { label: 'Qwen 3 32B',                        value: 'qwen/qwen3-32b',                              tier: 'free' },
-  { label: 'Compound Mini',                     value: 'groq/compound-mini',                          tier: 'free' },
-  { label: 'Llama 4 Scout 17B',                 value: 'meta-llama/llama-4-scout-17b-16e-instruct',   tier: 'free' },
+  { label: 'Llama 3.3 70B Versatile',           value: 'llama-3.3-70b-versatile',                     tier: 'paid' },
+  { label: 'Llama 3.1 8B Instant',              value: 'llama-3.1-8b-instant',                        tier: 'paid' },
+  { label: 'Mixtral 8x7B 32768',                value: 'mixtral-8x7b-32768',                          tier: 'paid' },
+  { label: 'Gemma 2 9B IT',                     value: 'gemma2-9b-it',                                tier: 'paid' },
+  { label: 'Llama 3.2 1B Preview',              value: 'llama-3.2-1b-preview',                        tier: 'paid' },
+  { label: 'Llama 3.2 3B Preview',              value: 'llama-3.2-3b-preview',                        tier: 'paid' },
 ];
 
 /** Providers that use a curated dropdown (rather than a free-text input) in the DevKit AI Keys panel. */
@@ -109,10 +108,10 @@ export function getCuratedModels(provider: AITestProvider): ReadonlyArray<Curate
 }
 
 export const FALLBACK_AI_TEST_DEFAULT_MODELS: Record<AITestProvider, string> = {
-  openrouter: 'openrouter/free',
-  groq: 'openai/gpt-oss-120b',
+  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
+  groq: 'llama-3.3-70b-versatile',
   deepseek: 'deepseek-chat',
-  nvidia: 'stepfun-ai/step-3.7-flash',
+  nvidia: 'meta/llama-3.3-70b-instruct',
 };
 
 export function aiTestSlotKey(provider: AITestProvider, slot: AITestSlot): string {
@@ -287,6 +286,44 @@ export async function fetchLiveProviderModels(forceRefresh = false): Promise<Liv
 export function resolveModelsForProvider(
   provider: AITestProvider,
   live: LiveProviderModels,
+  currentValue?: string,
 ): CuratedLLMModel[] {
-  return [...getCuratedModels(provider)];
+  const rawList = live?.[provider];
+  let finalList: CuratedLLMModel[] = [];
+
+  if (Array.isArray(rawList) && rawList.length > 0) {
+    const seen = new Set<string>();
+    for (const item of rawList) {
+      if (!item || typeof item !== 'object') continue;
+      const value = typeof item.value === 'string' ? item.value.trim() : '';
+      if (!value) continue;
+      if (seen.has(value)) continue;
+
+      const label = typeof item.label === 'string' ? item.label.trim() : value;
+      const tier = item.tier === 'free' ? 'free' : 'paid';
+      const deprecated = Boolean(item.deprecated);
+
+      seen.add(value);
+      finalList.push({ label, value, tier, deprecated });
+    }
+  }
+
+  if (finalList.length === 0) {
+    finalList = [...getCuratedModels(provider)];
+  }
+
+  if (currentValue && currentValue.trim()) {
+    const val = currentValue.trim();
+    const exists = finalList.some(m => m.value === val);
+    if (!exists) {
+      finalList.push({
+        label: `${val} (Saved but unavailable)`,
+        value: val,
+        tier: 'paid',
+        deprecated: true,
+      });
+    }
+  }
+
+  return finalList;
 }
