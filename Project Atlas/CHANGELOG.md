@@ -1,5 +1,22 @@
 # Project Atlas Master Changelog
 
+## 2026-07-08 — DevKit AI Routing Stabilization & Fallback Logging
+
+- **Classification**: READY_PENDING_OWNER_BROWSER_VERIFICATION
+- **Features & Enhancements**:
+  - **Fallback Attempt History Tracing**: Enhanced `ai-gateway` to track failed candidate calls (timeouts, rate limits, bad keys, or unconfigured keys) and return them in the response metadata (`meta.attempts`) for admin test runs.
+  - **Route Mismatch & Attempt Logs in UI**: Updated `AIRoutingSwitcher.tsx` to read the fallback attempts log and render it under the Route Mismatch / error blocks in the table, giving admins precise reasons for fallbacks.
+  - **Separate Function Badging**: Labeled the `resume-section-ai` row with a `[Separate Function Route]` badge in the UI and a warning tooltip, explaining that the test button simulates its routing configuration while its actual production execution runs via the separate `resume-section-ai` Appwrite function.
+  - **Default Route Alignment**: Resolved a routing default mismatch where `admin-devkit-data` defaulted `resume-section-ai` to `groq` while `ai-gateway` and the UI catalog defaulted to `deepseek/deepseek-chat`.
+- **Validation**:
+  - All 70+ Vitest tests passed, including new test case for fallback attempts history display in the UI mismatch box.
+  - Syntax analysis (`node --check`) passed on both `admin-devkit-data` and `ai-gateway`.
+  - `compute-source-hashes.mjs` completed successfully and regenerated the manifest.
+  - `npx tsc --noEmit` — 0 type errors.
+- **Deployments**:
+  - Appwrite: Deployed targeted hubs `admin-devkit-data` and `ai-gateway` (Active & Ready).
+  - Frontend: Deployed to Vercel production and verified READY at `https://wiseresume.app`.
+
 ## 2026-07-07 — AI Routing Upgrade & Approved Model Pool Realignment
 
 - **Classification**: DEPLOYED_PENDING_PROD_DEPLOY

@@ -23,33 +23,36 @@
 
 ## 2. Latest Important Commits
 
-* **`c3667976`** — `fix(jobs): repair Fast Tailor tracking and unchanged-output guard` ← **LAST**
-* **`858cc775`** — `fix(jobs): commit remote company sources config for reproducible job-feed-sync deploys`
-* **`e0c84414`** — `chore(devkit): update generated source hashes for deployed remote jobs hubs`
-* **`875e0ec5`** — `feat(jobs): implement fast tailor click safety, credit validation, status badge styles, and database updater force backfill`
+* **`34c4966c`** — `fix(devkit): enhance test route feedback with fallback attempt logs and align default routes` ← **LAST**
+* **`c15c4d5f`** — `test(devkit): add comprehensive switcher dirty state and save activation tests`
+* **`322284f6`** — `fix(devkit): initialize route override state when changing model or slot on default routes`
+* **`aa37afd1`** — `fix(devkit): clarify AI routing state and model tester UX`
+* **`dd247691`** — `fix(devkit): stabilize AI routing save UX and key tester diagnostics`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED_LOCAL_DEVELOPMENT — AI routing upgraded with DeepSeek default, specific key_slot override logic, approved model pool, Key Slot selector UI, and resume-section-ai alignment. Local validation passes.
-* **Last Session**: Implemented `key_slot` database storage and resolution in the `ai-gateway`, `inspect-ai-keys`, and `resume-section-ai` Appwrite Functions. Re-aligned curated models in `src/lib/devkit/aiTestSlotModels.ts` to the approved model pool (e.g. `openai/gpt-oss-120b`, `stepfun-ai/step-3.7-flash`, etc.). Upgraded `AIRoutingSwitcher.tsx` to render Key Slot dropdowns, support cascading resets, and save overrides containing `keySlot` integers. Re-computed all serverless function hashes to prevent drift detection false-positives.
+* **Session Status**: READY_PENDING_OWNER_BROWSER_VERIFICATION — Frontend route test feedback, save UX dirty-state tracking, fallback attempt logs visualization, separate function route labeling for `resume-section-ai`, and static default route alignment are code-tested, verified, and successfully deployed to Vercel production and Appwrite hubs (`admin-devkit-data`, `ai-gateway`).
+* **Last Session**:
+  - Enhanced `ai-gateway` to track failed candidate calls (timeouts, rate limits, bad keys, or unconfigured keys) and return them in the response metadata (`meta.attempts`) for admin test runs.
+  - Updated `AIRoutingSwitcher.tsx` to read the fallback attempts log and render it under the Route Mismatch / error blocks in the table, giving admins precise reasons for fallbacks.
+  - Labeled `resume-section-ai` with a `[Separate Function Route]` badge in the UI and a warning note, explaining that the test button simulates its routing configuration while its actual production execution runs via the separate `resume-section-ai` Appwrite function.
+  - Resolved a routing default mismatch where `admin-devkit-data` defaulted `resume-section-ai` to `groq` while `ai-gateway` and the UI catalog defaulted to `deepseek/deepseek-chat`.
+  - Staged, committed, pushed (`34c4966c`), and deployed the modified hubs (`admin-devkit-data` and `ai-gateway`) via local targeted deploy, followed by production Vercel deployment.
 * **Current State**: All local tests pass. All Vitest suites pass. Gateway routing checks pass. Drift detection computed successfully.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Deploy Hub Functions to Appwrite**: Deploy the modified hubs to Appwrite:
-   - `ai-gateway`
-   - `inspect-ai-keys`
-   - `resume-section-ai`
-   - Use: `node scripts/deploy_hubs.cjs --only=ai-gateway,inspect-ai-keys,resume-section-ai`. Do NOT use target-all.
-2. **Owner Production Smoke Verification (`/devkit` AI Routing)**: Verify that the dynamic overrides can be configured in DevKit:
-   - Go to `/devkit` -> AI Tools Map.
-   - Choose a provider, custom model, and specific Key Slot for a feature (e.g. `Career Coach Chat`).
+1. **Owner Production Smoke Verification (`/devkit` AI Routing)**: Verify that the dynamic overrides can be configured in DevKit:
+   - Go to `https://wiseresume.app/devkit` -> AI Tools Map.
+   - Choose a provider (e.g., OpenRouter), custom model (e.g., `meta-llama/llama-3.3-70b-instruct:free`), and specific Key Slot for a feature (e.g. `Career Coach Chat`).
    - Click "Save All".
-   - Probe routes or trigger a test ping to verify the specific key slot is utilized by the gateway.
+   - Wait ~60s for the gateway route cache to reset (or probe test/ping).
+   - Click "Test" to run a route test. If there is a route mismatch, inspect the "Attempt history" to see the specific errors returned by the preferred provider.
+2. **Key Rotation/Configuration**: If OpenRouter key/model fails in the attempts history (e.g., with `401 Unauthorized`), check/configure `OPENROUTER_KEY_1` env var in Appwrite console settings for the `ai-gateway` and `resume-section-ai` functions.
 3. **Owner Production Smoke Verification (`/jobs`)**: Test direct URL `https://wiseresume.app/jobs` in Vercel production deployment.
 
 ---
