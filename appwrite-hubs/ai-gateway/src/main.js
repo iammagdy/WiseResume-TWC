@@ -2971,6 +2971,41 @@ async function syncDynamicRoutes(db) {
   }
 }
 
+/**
+ * Force-refreshes the route config from DB, bypassing the in-memory cache.
+ * ONLY called for admin test requests that set __admin_force_route_refresh:true.
+ * Normal user requests ALWAYS use syncDynamicRoutes() which respects ROUTE_CACHE_TTL.
+ * This does not affect the production cache state — the next normal request will
+ * still use the cache (if within TTL), unaffected by this admin-only bypass.
+ */
+async function syncDynamicRoutesForce(db) {
+  try {
+    const res = await db.listDocuments(DB_ID, 'ai_routing_config');
+    const freshCache = {};
+    res.documents.forEach(doc => {
+      const [providerName, slotStr] = (doc.provider || '').split(':');
+      freshCache[doc.feature_id] = {
+        provider: providerName,
+        model: doc.model,
+        key_slot: slotStr ? Number(slotStr) : null,
+      };
+    });
+    // Update the shared cache so subsequent requests within TTL benefit too
+    _routeCache = freshCache;
+    _routeCacheTs = Date.now();
+    for (const key of Object.keys(FEATURE_ROUTES)) {
+      delete FEATURE_ROUTES[key];
+    }
+    Object.assign(FEATURE_ROUTES, STATIC_FEATURE_ROUTES, freshCache);
+  } catch {
+    // Fall back to static routes on any DB error; do not throw
+    for (const key of Object.keys(FEATURE_ROUTES)) {
+      delete FEATURE_ROUTES[key];
+    }
+    Object.assign(FEATURE_ROUTES, STATIC_FEATURE_ROUTES);
+  }
+}
+
 function getDbClient() {
   const endpoint  = getAppwriteEndpoint();
   const projectId = getAppwriteProjectId();
@@ -3433,6 +3468,15 @@ module.exports = async ({ req, res, log, error }) => {
     const adminTestNonceRaw = asString(opts.__admin_test_nonce || '');
     const adminTestPayload = adminTestNonceRaw ? verifyAdminTestNonce(adminTestNonceRaw) : null;
     const isAdminTest = !!adminTestPayload;
+
+    // Admin test only: if the caller requested a force route-config re-read from DB,
+    // bypass the 60s in-memory cache before candidate building.
+    // Normal user requests are NEVER affected — syncDynamicRoutesForce is never
+    // called on the regular path. Production fallback constants are untouched.
+    if (isAdminTest && opts.__admin_force_route_refresh === true) {
+      log('Admin test: force-refreshing route config from DB (bypassing cache).');
+      await syncDynamicRoutesForce(db);
+    }
     const publicPortfolioAuth = featureName === 'ask-portfolio'
       ? validatePublicPortfolioGatewayAuth(opts, req)
       : null;

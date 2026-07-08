@@ -491,9 +491,13 @@ function parseNvidiaModels(data) {
 }
 
 function parseDeepseekModels(data) {
+  // DeepSeek's /models endpoint may return experimental models (e.g. deepseek-v4-flash)
+  // that are not compatible with /chat/completions and cause bad_response_shape.
+  // Only return the curated-safe models that are verified chat-completions compatible.
+  const DEEPSEEK_ALLOWLIST = new Set(['deepseek-chat', 'deepseek-reasoner']);
   const models = Array.isArray(data?.data) ? data.data : [];
   return models
-    .filter(m => m && m.id)
+    .filter(m => m && m.id && DEEPSEEK_ALLOWLIST.has(m.id))
     .map(m => ({ label: m.id, value: m.id, tier: 'paid' }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }

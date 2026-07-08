@@ -92,15 +92,23 @@ describe('AIRoutingSwitcher testRoute Wrapper & Error Handling', () => {
       expect(screen.getByText(/AI Routing \(AI Tools Map\)/i)).toBeInTheDocument();
     });
 
-    // Find the test button for the first tool (e.g. Section Enhance)
-    const testButtons = screen.getAllByRole('button', { name: /test/i });
-    expect(testButtons.length).toBeGreaterThan(0);
-    
+    // Find the feature-row test buttons by exact text content
+    // These are the small native <button> elements that trigger testRoute()
+    const testButtons = await waitFor(() => {
+      const btns = screen.getAllByText('test');
+      expect(btns.length).toBeGreaterThan(0);
+      return btns;
+    });
+
     fireEvent.click(testButtons[0]);
 
     await waitFor(() => {
       expect(screen.getByText(/Route OK ✓/i)).toBeInTheDocument();
-      expect(screen.getByText(/\[deepseek\] deepseek-chat/i)).toBeInTheDocument();
+      const actualEl = screen.getByText((content, element) => {
+        return element?.tagName?.toLowerCase() === 'p' &&
+          /Actual:\s*\[deepseek\]\s*deepseek-chat/i.test(element.textContent || '');
+      });
+      expect(actualEl).toBeInTheDocument();
     });
   });
 
@@ -133,12 +141,20 @@ describe('AIRoutingSwitcher testRoute Wrapper & Error Handling', () => {
       expect(screen.getByText(/AI Routing \(AI Tools Map\)/i)).toBeInTheDocument();
     });
 
-    const testButtons = screen.getAllByRole('button', { name: /test/i });
+    const testButtons = await waitFor(() => {
+      const btns = screen.getAllByText('test');
+      expect(btns.length).toBeGreaterThan(0);
+      return btns;
+    });
     fireEvent.click(testButtons[0]);
 
     await waitFor(() => {
       expect(screen.getByText(/Route OK ✓/i)).toBeInTheDocument();
-      expect(screen.getByText(/\[groq\] llama-3.3-70b-versatile/i)).toBeInTheDocument();
+      const actualEl = screen.getByText((content, element) => {
+        return element?.tagName?.toLowerCase() === 'p' &&
+          /Actual:\s*\[groq\]\s*llama-3.3-70b-versatile/i.test(element.textContent || '');
+      });
+      expect(actualEl).toBeInTheDocument();
     });
   });
 
@@ -169,7 +185,11 @@ describe('AIRoutingSwitcher testRoute Wrapper & Error Handling', () => {
       expect(screen.getByText(/AI Routing \(AI Tools Map\)/i)).toBeInTheDocument();
     });
 
-    const testButtons = screen.getAllByRole('button', { name: /test/i });
+    const testButtons = await waitFor(() => {
+      const btns = screen.getAllByText('test');
+      expect(btns.length).toBeGreaterThan(0);
+      return btns;
+    });
     fireEvent.click(testButtons[0]);
 
     await waitFor(() => {

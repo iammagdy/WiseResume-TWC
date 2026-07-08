@@ -36,12 +36,16 @@ export const AI_KEY_SLOT_MAP = {
  * `tier` indicates whether the model costs API credits ('paid') or has
  * a free-to-use tier ('free'). `deprecated` models are shown with a
  * strike-through label and should not be used for new configurations.
+ * `knownCompatible` is true for models verified to work with /chat/completions.
+ * Live-catalog-only models (not in the curated list) do not have this flag.
  */
 export interface CuratedLLMModel {
   label: string;
   value: string;
   tier: 'free' | 'paid';
   deprecated?: boolean;
+  /** Set to true for models that are verified compatible with /chat/completions. Absent on live-catalog-only entries. */
+  knownCompatible?: boolean;
 }
 
 /**
@@ -55,45 +59,45 @@ export interface CuratedLLMModel {
  *       Both are scheduled for removal on 2026-07-24.
  */
 export const DEEPSEEK_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'DeepSeek Chat',                     value: 'deepseek-chat',                      tier: 'paid' },
-  { label: 'DeepSeek Reasoner',                 value: 'deepseek-reasoner',                  tier: 'paid' },
+  { label: 'DeepSeek Chat',                     value: 'deepseek-chat',                      tier: 'paid', knownCompatible: true },
+  { label: 'DeepSeek Reasoner',                 value: 'deepseek-reasoner',                  tier: 'paid', knownCompatible: true },
 ];
 
 /**
  * NVIDIA NIM LLM models available in the DevKit model selector. All NIM models are paid.
  */
 export const NVIDIA_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'Llama 3.3 70B Instruct',            value: 'meta/llama-3.3-70b-instruct',                 tier: 'paid' },
-  { label: 'Llama 3.1 Nemotron 70B Instruct',   value: 'nvidia/llama-3.1-nemotron-70b-instruct',      tier: 'paid' },
-  { label: 'Nemotron 4 340B Instruct',          value: 'nvidia/nemotron-4-340b-instruct',             tier: 'paid' },
-  { label: 'Llama 3.1 8B Instruct',             value: 'meta/llama-3.1-8b-instruct',                  tier: 'paid' },
-  { label: 'Llama 3.1 70B Instruct',            value: 'meta/llama-3.1-70b-instruct',                 tier: 'paid' },
-  { label: 'Mixtral 8x7B Instruct',             value: 'mistralai/mixtral-8x7b-instruct-v0.1',        tier: 'paid' },
+  { label: 'Llama 3.3 70B Instruct',            value: 'meta/llama-3.3-70b-instruct',                 tier: 'paid', knownCompatible: true },
+  { label: 'Llama 3.1 Nemotron 70B Instruct',   value: 'nvidia/llama-3.1-nemotron-70b-instruct',      tier: 'paid', knownCompatible: true },
+  { label: 'Nemotron 4 340B Instruct',          value: 'nvidia/nemotron-4-340b-instruct',             tier: 'paid', knownCompatible: true },
+  { label: 'Llama 3.1 8B Instruct',             value: 'meta/llama-3.1-8b-instruct',                  tier: 'paid', knownCompatible: true },
+  { label: 'Llama 3.1 70B Instruct',            value: 'meta/llama-3.1-70b-instruct',                 tier: 'paid', knownCompatible: true },
+  { label: 'Mixtral 8x7B Instruct',             value: 'mistralai/mixtral-8x7b-instruct-v0.1',        tier: 'paid', knownCompatible: true },
 ];
 
 /**
  * OpenRouter LLM models available in the DevKit model selector.
  */
 export const OPENROUTER_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'Llama 3.3 70B Instruct (Free)',     value: 'meta-llama/llama-3.3-70b-instruct:free',     tier: 'free' },
-  { label: 'Gemma 2 9B IT (Free)',              value: 'google/gemma-2-9b-it:free',                  tier: 'free' },
-  { label: 'Llama 3 8B Instruct (Free)',        value: 'meta-llama/llama-3-8b-instruct:free',        tier: 'free' },
-  { label: 'Qwen 2.5 7B Instruct (Free)',       value: 'qwen/qwen-2.5-7b-instruct:free',             tier: 'free' },
-  { label: 'Mistral 7B Instruct (Free)',        value: 'mistralai/mistral-7b-instruct:free',         tier: 'free' },
-  { label: 'Phi 3 Medium 128k Instruct (Free)', value: 'microsoft/phi-3-medium-128k-instruct:free',  tier: 'free' },
-  { label: 'OpenChat 7B (Free)',                value: 'openchat/openchat-7b:free',                  tier: 'free' },
+  { label: 'Llama 3.3 70B Instruct (Free)',     value: 'meta-llama/llama-3.3-70b-instruct:free',     tier: 'free', knownCompatible: true },
+  { label: 'Gemma 2 9B IT (Free)',              value: 'google/gemma-2-9b-it:free',                  tier: 'free', knownCompatible: true },
+  { label: 'Llama 3 8B Instruct (Free)',        value: 'meta-llama/llama-3-8b-instruct:free',        tier: 'free', knownCompatible: true },
+  { label: 'Qwen 2.5 7B Instruct (Free)',       value: 'qwen/qwen-2.5-7b-instruct:free',             tier: 'free', knownCompatible: true },
+  { label: 'Mistral 7B Instruct (Free)',        value: 'mistralai/mistral-7b-instruct:free',         tier: 'free', knownCompatible: true },
+  { label: 'Phi 3 Medium 128k Instruct (Free)', value: 'microsoft/phi-3-medium-128k-instruct:free',  tier: 'free', knownCompatible: true },
+  { label: 'OpenChat 7B (Free)',                value: 'openchat/openchat-7b:free',                  tier: 'free', knownCompatible: true },
 ];
 
 /**
  * Groq LLM models available in the DevKit model selector.
  */
 export const GROQ_LLM_MODELS: ReadonlyArray<CuratedLLMModel> = [
-  { label: 'Llama 3.3 70B Versatile',           value: 'llama-3.3-70b-versatile',                     tier: 'paid' },
-  { label: 'Llama 3.1 8B Instant',              value: 'llama-3.1-8b-instant',                        tier: 'paid' },
-  { label: 'Mixtral 8x7B 32768',                value: 'mixtral-8x7b-32768',                          tier: 'paid' },
-  { label: 'Gemma 2 9B IT',                     value: 'gemma2-9b-it',                                tier: 'paid' },
-  { label: 'Llama 3.2 1B Preview',              value: 'llama-3.2-1b-preview',                        tier: 'paid' },
-  { label: 'Llama 3.2 3B Preview',              value: 'llama-3.2-3b-preview',                        tier: 'paid' },
+  { label: 'Llama 3.3 70B Versatile',           value: 'llama-3.3-70b-versatile',                     tier: 'paid', knownCompatible: true },
+  { label: 'Llama 3.1 8B Instant',              value: 'llama-3.1-8b-instant',                        tier: 'paid', knownCompatible: true },
+  { label: 'Mixtral 8x7B 32768',                value: 'mixtral-8x7b-32768',                          tier: 'paid', knownCompatible: true },
+  { label: 'Gemma 2 9B IT',                     value: 'gemma2-9b-it',                                tier: 'paid', knownCompatible: true },
+  { label: 'Llama 3.2 1B Preview',              value: 'llama-3.2-1b-preview',                        tier: 'paid', knownCompatible: true },
+  { label: 'Llama 3.2 3B Preview',              value: 'llama-3.2-3b-preview',                        tier: 'paid', knownCompatible: true },
 ];
 
 /** Providers that use a curated dropdown (rather than a free-text input) in the DevKit AI Keys panel. */
@@ -282,41 +286,50 @@ export async function fetchLiveProviderModels(forceRefresh = false): Promise<Liv
   }
 }
 
-/** Returns the live model list for a provider if non-empty, otherwise falls back to the curated static list. */
+/** Returns the live model list for a provider if non-empty, otherwise falls back to the curated static list.
+ *
+ * Strategy: curated safe models always come first and are never removed.
+ * Live catalog models are appended after curated, deduped by value, and labeled "Live / unverified".
+ * This ensures known-compatible models remain accessible even if the live catalog changes.
+ */
 export function resolveModelsForProvider(
   provider: AITestProvider,
   live: LiveProviderModels,
   currentValue?: string,
 ): CuratedLLMModel[] {
-  const rawList = live?.[provider];
-  let finalList: CuratedLLMModel[] = [];
+  // Always start from the curated safe list.
+  const curated = [...getCuratedModels(provider)];
+  const curatedIds = new Set(curated.map(m => m.value));
 
+  // Append live catalog entries that are not already in the curated list.
+  const rawList = live?.[provider];
   if (Array.isArray(rawList) && rawList.length > 0) {
-    const seen = new Set<string>();
     for (const item of rawList) {
       if (!item || typeof item !== 'object') continue;
       const value = typeof item.value === 'string' ? item.value.trim() : '';
-      if (!value) continue;
-      if (seen.has(value)) continue;
+      if (!value || curatedIds.has(value)) continue; // skip dupes of curated entries
 
-      const label = typeof item.label === 'string' ? item.label.trim() : value;
+      const rawLabel = typeof item.label === 'string' ? item.label.trim() : value;
       const tier = item.tier === 'free' ? 'free' : 'paid';
       const deprecated = Boolean(item.deprecated);
 
-      seen.add(value);
-      finalList.push({ label, value, tier, deprecated });
+      curatedIds.add(value);
+      curated.push({
+        label: `${rawLabel} (Live / unverified)`,
+        value,
+        tier,
+        deprecated,
+        // knownCompatible intentionally absent — live-only models are not pre-verified
+      });
     }
   }
 
-  if (finalList.length === 0) {
-    finalList = [...getCuratedModels(provider)];
-  }
-
+  // Preserve the currently saved value even if it isn't in the curated or live list.
   if (currentValue && currentValue.trim()) {
     const val = currentValue.trim();
-    const exists = finalList.some(m => m.value === val);
+    const exists = curated.some(m => m.value === val);
     if (!exists) {
-      finalList.push({
+      curated.push({
         label: `${val} (Saved but unavailable)`,
         value: val,
         tier: 'paid',
@@ -325,5 +338,5 @@ export function resolveModelsForProvider(
     }
   }
 
-  return finalList;
+  return curated;
 }

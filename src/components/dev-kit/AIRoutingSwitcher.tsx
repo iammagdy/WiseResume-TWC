@@ -224,6 +224,38 @@ export const AIRoutingSwitcher = () => {
     return false;
   }, [routes]);
 
+  /** Returns true if the current UI state for this feature row differs from the last-saved DB state. */
+  const isRowDirty = useCallback((featureId: string): boolean => {
+    const current = routes[featureId];
+    const initial = initialRoutesRef.current[featureId];
+    if (!current && !initial) return false;
+    if (!current || !initial) return true;
+    return current.provider !== initial.provider || current.model !== initial.model || current.key_slot !== initial.key_slot;
+  }, [routes]);
+
+  /** Number of feature rows with unsaved changes relative to last DB fetch. */
+  const changedCount = useMemo(() => {
+    const allFeatureIds = new Set([
+      ...Object.keys(routes),
+      ...Object.keys(initialRoutesRef.current),
+    ]);
+    let count = 0;
+    for (const fid of allFeatureIds) {
+      const current = routes[fid];
+      const initial = initialRoutesRef.current[fid];
+      if (!current && !initial) continue;
+      if (!current || !initial) { count++; continue; }
+      if (current.provider !== initial.provider || current.model !== initial.model || current.key_slot !== initial.key_slot) count++;
+    }
+    return count;
+  }, [routes]);
+
+  /** Discard all local unsaved changes and revert to the last-fetched DB state. */
+  const discardChanges = useCallback(() => {
+    setRoutes({ ...initialRoutesRef.current });
+    setPendingDeletes([]);
+  }, []);
+
   const fetchRoutes = async () => {
     setLoading(true);
     setLoadError(null);
@@ -372,7 +404,7 @@ export const AIRoutingSwitcher = () => {
         ));
         setPendingDeletes([]);
       }
-      toast.success('AI routing saved — changes apply on next gateway invocation.');
+      toast.success('Routing saved — gateway cache updates within 60s. Use Test Route after to verify the actual route.');
       void fetchRoutes();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -435,6 +467,8 @@ export const AIRoutingSwitcher = () => {
       const jwt = jwtToken.jwt;
 
       // 3. Call ai-gateway with the nonce (no credit deduction, 80-token cap)
+      // __admin_force_route_refresh instructs the gateway to bypass the 60s route cache
+      // and re-read DB config before building candidates. Only honoured for valid admin nonces.
       const gwTuple = await appwriteFunctions.invoke<GatewayAdminTestResponse>('ai-gateway', {
         headers: { 'X-Appwrite-JWT': jwt },
         body: {
@@ -442,6 +476,7 @@ export const AIRoutingSwitcher = () => {
           feature: featureId,
           message: 'Admin route test. Reply with exactly: ROUTE_OK',
           __admin_test_nonce: nonceResult.nonce,
+          __admin_force_route_refresh: true,
         },
       });
 
@@ -609,11 +644,11 @@ export const AIRoutingSwitcher = () => {
                 )}
               >
                 <Link2 size={14} className={cn('mr-1.5', probingRoutes && 'animate-pulse')} />
-                {probingRoutes ? 'Probing…' : liveRoutes ? 'Live ✓' : 'Probe Routes'}
+                {probingRoutes ? 'Loading…' : liveRoutes ? 'Route Table ✓' : 'Load Route Table'}
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs text-xs">
-              Fetches the live effective route table from admin-devkit-data — static gateway defaults merged with any active DB overrides. No API keys are returned.
+              Reads the saved DB route config (static defaults + active overrides). Does <strong>not</strong> call ai-gateway directly — the actual gateway route cache may take up to 60s to reflect recent saves.
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -653,10 +688,11 @@ export const AIRoutingSwitcher = () => {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 px-1 text-[10px] text-muted-foreground/70 font-mono uppercase tracking-wider">
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500/60" /> Admin override (saved)</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/20" /> Gateway default (hardcoded)</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/20" /> Default route (hardcoded)</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/5 border border-white/15" /> No dedicated route (uses pool)</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400/70" /> Unsaved local change</span>
         {liveRoutes && (
-          <span className="flex items-center gap-1.5 text-emerald-400/70"><span className="w-2 h-2 rounded-full bg-emerald-400/60" /> Live probe active</span>
+          <span className="flex items-center gap-1.5 text-emerald-400/70"><span className="w-2 h-2 rounded-full bg-emerald-400/60" /> Route table loaded</span>
         )}
       </div>
 
@@ -693,6 +729,12 @@ export const AIRoutingSwitcher = () => {
               <div className="grid grid-cols-1 gap-3 pl-0">
                 {features.map(feature => {
                   const override = routes[feature.id];
+                  const savedOverride = initialRoutesRef.current[feature.id];
+                  const rowDirty = isRowDirty(feature.id);
+                  // activeProvider/model from DB-saved override; fall back to hardcoded default
+                  const savedProvider = (savedOverride?.provider ?? feature.gatewayDefault?.provider ?? null) as ProviderId | null;
+                  const savedModel    = savedOverride?.model ?? feature.gatewayDefault?.model ?? null;
+                  // current UI selection (may be unsaved)
                   const activeProvider = (override?.provider ?? feature.gatewayDefault?.provider ?? null) as ProviderId | null;
                   const activeModel   = override?.model ?? feature.gatewayDefault?.model ?? null;
                   const hasOverride   = Boolean(override);
@@ -703,7 +745,9 @@ export const AIRoutingSwitcher = () => {
                       key={feature.id}
                       className={cn(
                         'p-5 rounded-2xl border transition-all',
-                        hasOverride
+                        rowDirty
+                          ? 'bg-amber-500/5 border-amber-500/30'
+                          : hasOverride
                           ? 'bg-purple-500/5 border-purple-500/30'
                           : noRoute
                           ? 'bg-white/[0.02] border-white/[0.06]'
@@ -726,9 +770,15 @@ export const AIRoutingSwitcher = () => {
                             )}>
                               {feature.creditCost === 0 ? 'Free' : `${feature.creditCost}cr`}
                             </span>
-                            {hasOverride && (
+                            {hasOverride && !rowDirty && (
                               <span className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-400 text-[9px] font-black uppercase tracking-wider">
                                 overridden
+                              </span>
+                            )}
+                            {rowDirty && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-400 text-[9px] font-black uppercase tracking-wider animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                Unsaved
                               </span>
                             )}
                             {noRoute && (
@@ -787,16 +837,30 @@ export const AIRoutingSwitcher = () => {
                           <p className="text-[10px] font-mono text-purple-400/70">{feature.id}</p>
                           <p className="text-[11px] text-muted-foreground/70 leading-snug">{feature.description}</p>
 
-                          {/* Active model chip */}
-                          {activeModel && (
+                          {/* Saved DB override chip */}
+                          {savedModel && (
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <span className="text-[9px] text-muted-foreground/50 uppercase font-mono tracking-wider">
-                                {hasOverride ? 'override' : 'default'}:
+                                {savedOverride ? 'saved override' : 'default route'}:
                               </span>
                               <span className={cn(
                                 'text-[9px] font-mono truncate max-w-[260px]',
-                                hasOverride ? 'text-purple-300' : 'text-muted-foreground/60',
+                                savedOverride ? 'text-purple-300' : 'text-muted-foreground/60',
                               )}>
+                                {savedProvider && (
+                                  <span className={cn('mr-1 font-black', PROVIDER_COLOR[savedProvider])}>
+                                    [{savedProvider}]
+                                  </span>
+                                )}
+                                {savedModel}
+                              </span>
+                            </div>
+                          )}
+                          {/* Unsaved local selection chip — only shown when it differs from saved state */}
+                          {rowDirty && activeModel && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] text-amber-400/60 uppercase font-mono tracking-wider">unsaved local:</span>
+                              <span className="text-[9px] font-mono truncate max-w-[260px] text-amber-300/80">
                                 {activeProvider && (
                                   <span className={cn('mr-1 font-black', PROVIDER_COLOR[activeProvider])}>
                                     [{activeProvider}]
@@ -838,10 +902,10 @@ export const AIRoutingSwitcher = () => {
                             })()
                           )}
 
-                          {/* Gateway default chip (only shown when there's an override so both are visible) */}
-                          {hasOverride && feature.gatewayDefault && (
+                          {/* Default route chip — only shown when there's a saved override so both are visible */}
+                          {savedOverride && feature.gatewayDefault && (
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] text-muted-foreground/40 uppercase font-mono tracking-wider">gateway:</span>
+                              <span className="text-[9px] text-muted-foreground/40 uppercase font-mono tracking-wider">default route:</span>
                               <span className="text-[9px] font-mono text-muted-foreground/40 truncate max-w-[260px]">
                                 <span className={cn('mr-1 font-black', PROVIDER_COLOR[feature.gatewayDefault.provider])}>
                                   [{feature.gatewayDefault.provider}]
@@ -859,7 +923,7 @@ export const AIRoutingSwitcher = () => {
                               return (
                                 <div className="flex items-center gap-1.5 mt-1">
                                   <MiniSpinner size={10} />
-                                  <span className="text-[9px] text-muted-foreground/60 font-mono">Testing route…</span>
+                                  <span className="text-[9px] text-muted-foreground/60 font-mono">Testing route via gateway…</span>
                                 </div>
                               );
                             }
@@ -877,18 +941,47 @@ export const AIRoutingSwitcher = () => {
                                 </div>
                               );
                             }
+                            // testResult.status === 'ok'
+                            // Check if actual result matches what was saved/configured
+                            const testProvider = testResult.provider ?? '';
+                            const testModel    = testResult.model ?? '';
+                            // Compare against the saved DB state (not the unsaved local selection)
+                            const configuredProvider = savedProvider ?? '';
+                            const configuredModel    = savedModel ?? '';
+                            const hasMismatch = testProvider && configuredProvider &&
+                              (testProvider !== configuredProvider || testModel !== configuredModel);
                             return (
-                              <div className="mt-1 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 max-w-full lg:max-w-[280px] space-y-0.5">
-                                <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Route OK ✓</p>
-                                {testResult.provider && (
-                                  <p className="text-[8px] font-mono text-emerald-400/60">
-                                    [{testResult.provider}] {testResult.model}
-                                  </p>
-                                )}
-                                {testResult.preview && (
-                                  <p className="text-[8px] text-muted-foreground/50 font-mono leading-snug line-clamp-2 break-all">
-                                    {testResult.preview.slice(0, 100)}
-                                  </p>
+                              <div className="mt-1 space-y-1 max-w-full lg:max-w-[320px]">
+                                <div className="px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-0.5">
+                                  <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">Route OK ✓ — actual gateway result</p>
+                                  {testProvider && (
+                                    <p className="text-[8px] font-mono text-emerald-400/70">
+                                      <span className="font-black">Actual:</span> [{testProvider}] {testModel}
+                                    </p>
+                                  )}
+                                  {configuredProvider && (
+                                    <p className="text-[8px] font-mono text-muted-foreground/60">
+                                      <span className="font-black">Configured (saved):</span> [{configuredProvider}] {configuredModel}
+                                    </p>
+                                  )}
+                                  {testResult.preview && (
+                                    <p className="text-[8px] text-muted-foreground/50 font-mono leading-snug line-clamp-2 break-all">
+                                      {testResult.preview.slice(0, 100)}
+                                    </p>
+                                  )}
+                                </div>
+                                {hasMismatch && (
+                                  <div className="px-2 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-1.5">
+                                    <AlertTriangle size={10} className="text-amber-400 mt-0.5 shrink-0" />
+                                    <div className="space-y-0.5">
+                                      <p className="text-[9px] text-amber-400 font-black">Route mismatch</p>
+                                      <p className="text-[8px] text-amber-400/70 font-mono leading-snug">
+                                        Gateway used [{testProvider}] instead of configured [{configuredProvider}].
+                                        Possible reasons: gateway route cache (60s TTL), provider fallback, or misconfigured override.
+                                        Save changes and re-test after ~60s if needed.
+                                      </p>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             );
@@ -926,11 +1019,13 @@ export const AIRoutingSwitcher = () => {
                             )}
                             <button
                               onClick={() => void testRoute(feature.id)}
-                              disabled={routeTestResults[feature.id]?.status === 'running'}
+                              disabled={routeTestResults[feature.id]?.status === 'running' || rowDirty}
                               className="text-[9px] text-muted-foreground/50 hover:text-emerald-400 font-mono uppercase tracking-wider transition-colors px-2 disabled:opacity-40"
-                              title="Test this route — admin only, no credit deduction"
+                              title={rowDirty
+                                ? 'Save first — test uses the saved gateway config, not unsaved UI selection'
+                                : 'Test this route — admin only, no credit deduction. Gateway cache may take up to 60s after saving.'}
                             >
-                              {routeTestResults[feature.id]?.status === 'running' ? '…' : 'test'}
+                              {routeTestResults[feature.id]?.status === 'running' ? '…' : rowDirty ? 'save first' : 'test'}
                             </button>
                           </div>
 
@@ -1017,13 +1112,45 @@ export const AIRoutingSwitcher = () => {
         );
       })}
 
+      {/* Bottom sticky Save All bar — shown whenever there are unsaved changes */}
+      {hasUnsavedChanges && (
+        <div className="sticky bottom-0 -mx-6 px-6 py-3 z-40 bg-background/95 backdrop-blur-md border-t border-amber-500/30 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs text-amber-400 font-black">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              {changedCount} unsaved change{changedCount !== 1 ? 's' : ''}
+            </span>
+            <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
+              · Gateway cache updates within 60s after save
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={discardChanges}
+              disabled={saving}
+              className="text-[10px] text-muted-foreground/60 hover:text-red-400 font-mono uppercase tracking-wider transition-colors px-3 py-1.5 rounded-lg border border-white/10 hover:border-red-400/30 disabled:opacity-40"
+            >
+              Discard
+            </button>
+            <Button
+              onClick={saveAll}
+              disabled={saving}
+              className="rounded-xl h-9 px-6 font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20"
+            >
+              {saving ? <MiniSpinner size={14} className="mr-2" /> : <Save size={14} className="mr-2" />}
+              Save All Changes
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Warning footer */}
       <div className="p-5 rounded-3xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-3">
         <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={18} />
         <p className="text-xs text-amber-500/80 leading-relaxed">
-          <strong>Caution:</strong> Overrides take effect on the next gateway invocation. Ensure the target provider
+          <strong>Caution:</strong> Overrides take effect on the next gateway invocation (route cache: up to 60s). Ensure the target provider
           has active API keys set in Appwrite Function Variables before switching. Use <em>reset</em> on any row
-          to remove the override and revert to the hardcoded gateway default.
+          to remove the override and revert to the hardcoded default route. Use <em>save first</em> before testing — the route test calls the actual ai-gateway using the saved config, not unsaved UI selections.
         </p>
       </div>
     </div>

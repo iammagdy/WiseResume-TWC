@@ -100,6 +100,7 @@ export function AIKeysPanel() {
   const [testingProvider, setTestingProvider] = useState<Partial<Record<AITestProvider, boolean>>>({});
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
   const [liveModels, setLiveModels] = useState<LiveProviderModels>({ openrouter: [], groq: [], nvidia: [], deepseek: [], cachedAt: null });
+  const [showAllSlots, setShowAllSlots] = useState(false);
 
   const load = useCallback(async (forceRefreshModels = false) => {
     setLoading(true);
@@ -390,6 +391,7 @@ export function AIKeysPanel() {
             </p>
             <p className="text-[11px] text-muted-foreground/80">
               3 OpenRouter + 3 Groq + 3 NVIDIA + 1 DeepSeek = 10 cards
+              {!showAllSlots && ' — unconfigured slots hidden'}
             </p>
           </div>
         </div>
@@ -399,6 +401,12 @@ export function AIKeysPanel() {
               Models: {new Date(liveModels.cachedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
+          <button
+            onClick={() => setShowAllSlots(prev => !prev)}
+            className="h-8 px-3 text-[10px] font-bold text-muted-foreground hover:text-foreground border border-white/10 rounded-lg transition-colors"
+          >
+            {showAllSlots ? 'Hide empty slots' : 'Show all slots'}
+          </button>
           <Button
             size="sm"
             onClick={() => void testAllKeys()}
@@ -440,6 +448,18 @@ export function AIKeysPanel() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {(AI_TEST_PROVIDERS as readonly AITestProvider[]).map(provider => {
             const isProvTesting = testingProvider[provider] ?? false;
+            const allSlots = AI_KEY_SLOT_MAP[provider];
+
+            // Slots to render: always show configured (present) slots.
+            // DeepSeek has only 1 slot — always show it.
+            // When showAllSlots is false, hide unconfigured extra slots.
+            const visibleSlots = showAllSlots || provider === 'deepseek'
+              ? allSlots
+              : allSlots.filter(slot => {
+                  const entry = getEntry(provider, slot);
+                  return entry?.present === true;
+                });
+            const hiddenCount = allSlots.length - visibleSlots.length;
 
             return (
               <div
@@ -463,7 +483,7 @@ export function AIKeysPanel() {
                 </div>
 
                 <div className="space-y-3">
-                  {AI_KEY_SLOT_MAP[provider].map(slot => {
+                  {visibleSlots.map(slot => {
                     const entry = getEntry(provider, slot);
                     const k = slotKey(provider, slot);
                     const present = entry?.present ?? false;
@@ -625,6 +645,14 @@ export function AIKeysPanel() {
                       </div>
                     );
                   })}
+                  {hiddenCount > 0 && !showAllSlots && (
+                    <button
+                      onClick={() => setShowAllSlots(true)}
+                      className="w-full text-[9px] text-muted-foreground/50 hover:text-muted-foreground font-mono text-center py-1.5 rounded-lg border border-dashed border-white/10 hover:border-white/20 transition-colors"
+                    >
+                      + {hiddenCount} hidden slot{hiddenCount !== 1 ? 's' : ''} — click to show all
+                    </button>
+                  )}
                 </div>
               </div>
             );
