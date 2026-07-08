@@ -305,16 +305,24 @@ export const AIRoutingSwitcher = () => {
 
   const handleUpdateModel = (featureId: string, model: string) => {
     setRoutes(prev => {
-      const existing = prev[featureId];
-      if (!existing) return prev;
+      const existing = prev[featureId] ?? {
+        feature_id: featureId,
+        provider: FEATURES.find(f => f.id === featureId)?.gatewayDefault?.provider ?? 'deepseek',
+        model,
+        key_slot: 1,
+      };
       return { ...prev, [featureId]: { ...existing, model } };
     });
   };
 
   const handleUpdateKeySlot = (featureId: string, keySlot: number) => {
     setRoutes(prev => {
-      const existing = prev[featureId];
-      if (!existing) return prev;
+      const existing = prev[featureId] ?? {
+        feature_id: featureId,
+        provider: FEATURES.find(f => f.id === featureId)?.gatewayDefault?.provider ?? 'deepseek',
+        model: FEATURES.find(f => f.id === featureId)?.gatewayDefault?.model ?? '',
+        key_slot: keySlot,
+      };
       return { ...prev, [featureId]: { ...existing, key_slot: keySlot } };
     });
   };
