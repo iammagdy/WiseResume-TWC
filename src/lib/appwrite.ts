@@ -12,9 +12,19 @@ function sanitizeEndpoint(endpoint: string): string {
   return clean;
 }
 
-const RAW_ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-const APPWRITE_ENDPOINT = sanitizeEndpoint(RAW_ENDPOINT);
-const APPWRITE_PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID || '';
+export function cleanViteEnv(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed === '""' || trimmed === "''") return '';
+  return trimmed.replace(/^["'](.*)["']$/, '$1').trim();
+}
+
+const RAW_ENDPOINT = cleanViteEnv(import.meta.env.VITE_APPWRITE_ENDPOINT);
+const APPWRITE_ENDPOINT = sanitizeEndpoint(RAW_ENDPOINT || 'https://fra.cloud.appwrite.io/v1');
+
+const RAW_PROJECT_ID = cleanViteEnv(import.meta.env.VITE_APPWRITE_PROJECT_ID);
+const APPWRITE_PROJECT_ID = RAW_PROJECT_ID || '69fd362b001eb325a192';
 
 // 2. Initialize Client
 export const client = new Client()

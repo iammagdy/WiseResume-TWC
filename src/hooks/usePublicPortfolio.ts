@@ -257,7 +257,10 @@ export function isAppHostname(hostname: string): boolean {
     // hosts. Mirrors the Replit preview handling above so app routes resolve on
     // Vercel previews instead of falling through to custom-domain portfolio
     // resolution ("Portfolio not found for this domain.").
-    (h.startsWith('wise-resume-twc') && h.endsWith('.vercel.app'))
+    ((h.startsWith('wise-resume-twc') ||
+      h.startsWith('wise-resume-') ||
+      h.startsWith('wiseresume-')) &&
+     h.endsWith('.vercel.app'))
   );
 }
 

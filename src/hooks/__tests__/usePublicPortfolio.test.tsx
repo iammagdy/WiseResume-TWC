@@ -115,6 +115,26 @@ describe("isAppHostname", () => {
     expect(isAppHostname("127.0.0.1")).toBe(true);
   });
 
+  it("classifies wise-resume-twc.vercel.app as first-party", () => {
+    expect(isAppHostname("wise-resume-twc.vercel.app")).toBe(true);
+  });
+
+  it("classifies wise-resume-twc-git-main-iammagdy.vercel.app as first-party", () => {
+    expect(isAppHostname("wise-resume-twc-git-main-iammagdy.vercel.app")).toBe(true);
+  });
+
+  it("classifies wise-resume-twc-b5f7p91a5-iammagdy.vercel.app as first-party", () => {
+    expect(isAppHostname("wise-resume-twc-b5f7p91a5-iammagdy.vercel.app")).toBe(true);
+  });
+
+  it("classifies wise-resume-eoiv8a5dp-iam-magdy.vercel.app as first-party", () => {
+    expect(isAppHostname("wise-resume-eoiv8a5dp-iam-magdy.vercel.app")).toBe(true);
+  });
+
+  it("classifies wise-resume-6aeuv7vss-iam-magdy.vercel.app as first-party", () => {
+    expect(isAppHostname("wise-resume-6aeuv7vss-iam-magdy.vercel.app")).toBe(true);
+  });
+
   it("does NOT classify fakewiseresume.app as first-party", () => {
     expect(isAppHostname("fakewiseresume.app")).toBe(false);
   });
@@ -129,6 +149,22 @@ describe("isAppHostname", () => {
 
   it("does NOT classify another unrelated custom domain as first-party", () => {
     expect(isAppHostname("mycv.io")).toBe(false);
+  });
+
+  it("does NOT classify example.com as first-party", () => {
+    expect(isAppHostname("example.com")).toBe(false);
+  });
+
+  it("does NOT classify portfolio-owner.com as first-party", () => {
+    expect(isAppHostname("portfolio-owner.com")).toBe(false);
+  });
+
+  it("does NOT classify notwiseresume.app as first-party", () => {
+    expect(isAppHostname("notwiseresume.app")).toBe(false);
+  });
+
+  it("does NOT classify evil-wise-resume.com as first-party", () => {
+    expect(isAppHostname("evil-wise-resume.com")).toBe(false);
   });
 });
 
