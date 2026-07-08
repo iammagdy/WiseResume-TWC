@@ -26,6 +26,7 @@ import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 import { useResumeUpload } from '@/hooks/useResumeUpload';
 import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { fetchUrlHtml, normalizePublicUrl, UrlImportRequestError, urlImportErrorKey } from '@/lib/urlImportClient';
 
 export default function UploadPage() {
   const { t } = useLocale();
@@ -289,33 +290,20 @@ export default function UploadPage() {
   const handleUrlImport = useCallback(async (rawUrl: string) => {
     const trimmed = rawUrl.trim();
     if (!trimmed) { setUrlError(t('app.uploadPage.urlImport.pasteFirst')); return; }
-    const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    let url: string;
     try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        setUrlError(t('app.uploadPage.urlImport.httpOnly'));
-        return;
-      }
-    } catch {
-      setUrlError(t('app.uploadPage.urlImport.invalidUrl'));
+      url = normalizePublicUrl(trimmed);
+    } catch (err) {
+      const key = err instanceof UrlImportRequestError && err.code === 'BLOCKED_URL'
+        ? 'app.uploadPage.urlImport.httpOnly'
+        : 'app.uploadPage.urlImport.invalidUrl';
+      setUrlError(t(key));
       return;
     }
     setUrlError(null);
 
     try {
-      const proxyRes = await fetch('/api/fetch-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-      if (!proxyRes.ok) {
-        const errBody = await proxyRes.json().catch(() => ({}));
-        const msg = (errBody as { error?: string }).error || t('app.uploadPage.urlImport.fetchFailed', { status: proxyRes.status });
-        setUrlError(msg);
-        toast.error(msg, { duration: 5000 });
-        return;
-      }
-      const { html } = await proxyRes.json() as { html: string };
+      const html = await fetchUrlHtml(url);
 
       const text = extractTextFromHTML(html);
       if (!text.trim() || text.length < 50) {
@@ -334,10 +322,10 @@ export default function UploadPage() {
       await processText(textWithHints, url, 'url');
       setUrlInput('');
     } catch (err) {
-      if (!(err instanceof Error && err.message === 'AI_UNREACHABLE')) {
-        const msg = err instanceof Error ? err.message : t('app.uploadPage.urlImport.importFailed');
-        toast.error(msg, { duration: 5000 });
-      }
+      const errorCode = err instanceof UrlImportRequestError ? err.code : 'IMPORT_FAILED';
+      const msg = t(urlImportErrorKey(errorCode));
+      setUrlError(t(urlImportErrorKey(errorCode)));
+      toast.error(msg, { duration: 5000 });
     }
   }, [processText, t]);
 
@@ -503,6 +491,7 @@ export default function UploadPage() {
               {/* URL import */}
               {!isProcessing && (
                 <motion.form
+                  noValidate
                   className="mt-5 p-4 rounded-2xl bg-card border border-border shadow-soft-sm"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -541,7 +530,7 @@ export default function UploadPage() {
                     </Button>
                   </div>
                   {urlError && (
-                    <p className="mt-2 text-xs text-destructive">{urlError}</p>
+                    <p className="mt-2 text-xs text-destructive" role="alert" aria-live="polite">{urlError}</p>
                   )}
                   <p className="mt-2.5 text-xs text-muted-foreground">
                     {t('app.uploadPage.urlImport.description')}

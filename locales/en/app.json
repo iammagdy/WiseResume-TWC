@@ -973,6 +973,9 @@
       "httpOnly": "Only http and https URLs are supported.",
       "invalidUrl": "This does not look like a valid URL.",
       "fetchFailed": "We couldn't fetch the page ({{status}}).",
+      "blocked": "This address is private or unsafe and cannot be imported.",
+      "timeout": "The website took too long to respond. Try again or use a direct document link.",
+      "tooLarge": "The page is too large to import. Use a smaller page or upload the document directly.",
       "noReadableText": "No readable text was found on this page. Try a direct PDF or Word URL instead.",
       "importFailed": "The URL could not be imported."
     },

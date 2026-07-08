@@ -9,6 +9,7 @@ import {
 
 describe('ssrfGuards', () => {
   it('rejects local and metadata hostnames before network access', () => {
+    expect(() => assertPublicHttpUrl('https://not a valid host')).toThrow(/invalid url/i);
     expect(() => assertPublicHttpUrl('file:///etc/passwd')).toThrow(/http/i);
     expect(() => assertPublicHttpUrl('http://localhost:3000')).toThrow(/not permitted/i);
     expect(() => assertPublicHttpUrl('http://127.0.0.1')).toThrow(/not permitted/i);

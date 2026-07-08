@@ -1,6 +1,6 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-05
+**Last Verified:** 2026-07-08
 **Status:** Canonical Project Handover & Active Focus
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -33,27 +33,28 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: READY_PENDING_OWNER_BROWSER_VERIFICATION — Frontend route test feedback, save UX dirty-state tracking, fallback attempt logs visualization, separate function route labeling for `resume-section-ai`, and static default route alignment are code-tested, verified, and successfully deployed to Vercel production and Appwrite hubs (`admin-devkit-data`, `ai-gateway`).
+* **Session Status**: IMPLEMENTED_LOCAL_VERIFIED_PENDING_VERCEL_DEPLOY — The P1 `/upload` URL-import failure is repaired locally with a hardened Vercel `/api/fetch-url` contract and localized persistent error handling. Nothing was deployed, committed, or pushed.
 * **Last Session**:
-  - Enhanced `ai-gateway` to track failed candidate calls (timeouts, rate limits, bad keys, or unconfigured keys) and return them in the response metadata (`meta.attempts`) for admin test runs.
-  - Updated `AIRoutingSwitcher.tsx` to read the fallback attempts log and render it under the Route Mismatch / error blocks in the table, giving admins precise reasons for fallbacks.
-  - Labeled `resume-section-ai` with a `[Separate Function Route]` badge in the UI and a warning note, explaining that the test button simulates its routing configuration while its actual production execution runs via the separate `resume-section-ai` Appwrite function.
-  - Resolved a routing default mismatch where `admin-devkit-data` defaulted `resume-section-ai` to `groq` while `ai-gateway` and the UI catalog defaulted to `deepseek/deepseek-chat`.
-  - Staged, committed, pushed (`34c4966c`), and deployed the modified hubs (`admin-devkit-data` and `ai-gateway`) via local targeted deploy, followed by production Vercel deployment.
-* **Current State**: All local tests pass. All Vitest suites pass. Gateway routing checks pass. Drift detection computed successfully.
+  - Confirmed the failure boundary: the upload UI called `/api/fetch-url`, but no matching Vercel API file existed.
+  - Added a public HTTP/HTTPS-only Vercel handler with DNS and redirect validation, private/link-local/metadata blocking, response-size and redirect caps, an overall timeout, readable-content checks, and sanitized errors.
+  - Added a frontend contract helper and English/Arabic persistent errors for invalid, blocked, timeout, oversized, unreadable, and failed URL imports.
+  - Added endpoint, SSRF, client-contract, local-route parity, and UI structure regression tests using test-first red/green verification.
+  - Completed authenticated local browser QA: a public URL reached analysis and review; malformed and loopback URLs produced localized errors; desktop and 390×844 mobile layouts were checked.
+* **Current State**: Focused URL-import/security tests pass 30/30. TypeScript and production build pass. Full Vitest has 935 passing tests and two unrelated pre-existing failures (Arabic `topBar.notifications` parity and password-reset preview). Repository-wide lint remains red from existing out-of-scope errors.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Owner Production Smoke Verification (`/devkit` AI Routing)**: Verify that the dynamic overrides can be configured in DevKit:
+1. **Owner-approved Vercel deployment and production smoke (`/upload`)**: Deploy the frontend/API changes to Vercel, then verify valid public URL import plus invalid and blocked URL errors in production. No Appwrite deployment is required.
+2. **Owner Production Smoke Verification (`/devkit` AI Routing)**: Verify that the dynamic overrides can be configured in DevKit:
    - Go to `https://wiseresume.app/devkit` -> AI Tools Map.
    - Choose a provider (e.g., OpenRouter), custom model (e.g., `meta-llama/llama-3.3-70b-instruct:free`), and specific Key Slot for a feature (e.g. `Career Coach Chat`).
    - Click "Save All".
    - Wait ~60s for the gateway route cache to reset (or probe test/ping).
    - Click "Test" to run a route test. If there is a route mismatch, inspect the "Attempt history" to see the specific errors returned by the preferred provider.
-2. **Key Rotation/Configuration**: If OpenRouter key/model fails in the attempts history (e.g., with `401 Unauthorized`), check/configure `OPENROUTER_KEY_1` env var in Appwrite console settings for the `ai-gateway` and `resume-section-ai` functions.
-3. **Owner Production Smoke Verification (`/jobs`)**: Test direct URL `https://wiseresume.app/jobs` in Vercel production deployment.
+3. **Key Rotation/Configuration**: If OpenRouter key/model fails in the attempts history (e.g., with `401 Unauthorized`), check/configure `OPENROUTER_KEY_1` env var in Appwrite console settings for the `ai-gateway` and `resume-section-ai` functions.
+4. **Owner Production Smoke Verification (`/jobs`)**: Test direct URL `https://wiseresume.app/jobs` in Vercel production deployment.
 
 ---
 
@@ -62,6 +63,7 @@
 * **LinkedIn OAuth Browser Verification**: PENDING_OWNER_VERIFICATION (requires manual browser check using owner credentials or test accounts on the deployed site).
 * **Public Portfolio Contact Form (Turnstile Captcha)**: Blocked in automated E2E browser environments because Cloudflare Turnstile rejects headless automation contexts. Verified working via manual owner submission in production.
 * **Billing / Payments Activation**: Blocked on explicit project owner business decision.
+* **Unrelated Test Baseline**: Full Vitest remains red on Arabic `topBar.notifications` catalog parity and the password-reset preview response test. These existed before this P1 fix and were not changed in this scoped pass.
 
 ---
 

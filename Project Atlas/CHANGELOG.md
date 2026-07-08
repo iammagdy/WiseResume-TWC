@@ -1,5 +1,24 @@
 # Project Atlas Master Changelog
 
+## 2026-07-08 — URL Resume Import Contract and SSRF Hardening
+
+- **Classification**: IMPLEMENTED_LOCAL_VERIFIED_PENDING_VERCEL_DEPLOY
+- **Root Cause**: `UploadPage.handleUrlImport` and `probeLinkedInUrl` posted to `/api/fetch-url`, but no Vercel API handler existed at `api/fetch-url.ts`, so production URL imports returned 404 before parsing.
+- **Implementation**:
+  - Added `api/fetch-url.ts` as the Vercel `POST /api/fetch-url` contract returning `{ html }` for readable public HTTP/HTTPS pages.
+  - Enforced literal-host and DNS-result private-network blocking, validation on every redirect, a five-hop redirect cap, 2 MB response cap, 10-second overall DNS/fetch timeout, readable-content checks, and sanitized error codes.
+  - Added `src/lib/urlImportClient.ts` for browser input normalization, endpoint consumption, and localized failure mapping.
+  - Updated `src/pages/UploadPage.tsx` with persistent accessible error feedback and aligned the local Express error contract.
+- **Tests Added**: `fetchUrlHandler.test.ts`, `localFetchUrlRoute.structure.test.ts`, `urlImportClient.test.ts`, and `UploadPage.urlImport.structure.test.ts`.
+- **Validation**:
+  - Focused URL import/security tests: 30/30 passed.
+  - TypeScript and isolated Vercel handler type checks passed.
+  - Production build passed with no source maps.
+  - Full Vitest: 935 passed; two unrelated pre-existing failures remain.
+  - Local authenticated desktop/mobile QA passed for valid, invalid, and blocked URL flows.
+  - Repository-wide lint remains blocked by 338 pre-existing errors outside this fix.
+- **Deployment**: Vercel deployment required after owner approval. Appwrite deployment is not required. No deployment, commit, or push was performed.
+
 ## 2026-07-08 — DevKit AI Routing Stabilization & Fallback Logging
 
 - **Classification**: READY_PENDING_OWNER_BROWSER_VERIFICATION

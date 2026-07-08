@@ -901,7 +901,7 @@ app.post('/api/portfolio-interest', async (req: Request, res: Response) => {
 app.post('/api/fetch-url', async (req: Request, res: Response) => {
   const { url } = req.body as { url?: string };
   if (!url || typeof url !== 'string') {
-    res.status(400).json({ error: 'Missing or invalid url parameter.' });
+    res.status(400).json({ code: 'INVALID_URL', error: 'Enter a valid URL.' });
     return;
   }
   let parsedUrl: URL;
@@ -909,7 +909,9 @@ app.post('/api/fetch-url', async (req: Request, res: Response) => {
     parsedUrl = assertPublicHttpUrl(url);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid URL.';
-    res.status(400).json({ error: 'fetch_failed', message });
+    const code = /invalid url/i.test(message) ? 'INVALID_URL' : 'BLOCKED_URL';
+    const error = code === 'INVALID_URL' ? 'Enter a valid URL.' : 'This URL cannot be imported.';
+    res.status(400).json({ code, error });
     return;
   }
   // Layer 2: DNS resolution — check all resolved IPs against private ranges
@@ -918,17 +920,27 @@ app.post('/api/fetch-url', async (req: Request, res: Response) => {
   } catch {
     // DNS lookup failed — could be NXDOMAIN or network error.
     // Fail closed: reject the request rather than risk fetching an unknown target.
-    res.status(400).json({ error: 'Could not resolve URL hostname.' });
+    res.status(400).json({ code: 'BLOCKED_URL', error: 'This URL cannot be imported.' });
     return;
   }
   try {
     const html = await fetchPublicHtmlWithRedirects(url);
     res.json({ html });
   } catch (err) {
-    console.error('[fetch-url] error:', err);
     const message = err instanceof Error ? err.message : 'Failed to fetch the requested URL.';
-    const status = /invalid|not permitted|only http|credentials|resolve|redirect|too large/i.test(message) ? 400 : 502;
-    res.status(status).json({ error: 'fetch_failed', message });
+    if (err instanceof Error && err.name === 'AbortError') {
+      res.status(504).json({ code: 'FETCH_TIMEOUT', error: 'The website took too long to respond.' });
+      return;
+    }
+    if (/too large/i.test(message)) {
+      res.status(413).json({ code: 'RESPONSE_TOO_LARGE', error: 'The page is too large to import.' });
+      return;
+    }
+    if (/invalid|not permitted|only http|credentials|resolve|redirect/i.test(message)) {
+      res.status(400).json({ code: 'BLOCKED_URL', error: 'This URL cannot be imported.' });
+      return;
+    }
+    res.status(502).json({ code: 'FETCH_FAILED', error: 'The website could not be reached.' });
   }
 });
 
