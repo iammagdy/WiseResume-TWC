@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-07-08 — Portfolio Interest Anonymous Execution Fix
+
+- **Classification**: COMPLETED_PRODUCTION_VERIFIED
+- **Changes**:
+  - **Interest Beacon Vercel API Routing**: Reverted frontend client-side Appwrite SDK `createExecution` invocation in `src/lib/portfolioInterest.ts` back to standard `fetch` against the `/api/portfolio-interest` Vercel serverless function. This bypasses Appwrite guest SDK session/cookie preflight blocks and ensures 100% reliable execution for anonymous/guest portfolio visitors.
+  - **Appwrite JWT Bypass for Public Hub Actions**: Aligned `appwriteFunctions.invoke` in `src/lib/appwrite-functions.ts` to skip checking or requesting user session JWTs (`getAppwriteJWT()`) when the targeted endpoint is a registered public-share action, eliminating a redundant and failing 401 request.
+  - **Visitor Interest Notification**: Updated the Vercel serverless endpoint `api/portfolio-interest.ts` to resolve the portfolio owner's `user_id` server-side and automatically trigger an owner notification document in the `notifications` collection (first-time interest clicks only), maintaining absolute feature parity with the Appwrite function handler.
+- **Validation**:
+  - E2E Production Verification: Verified visit-tracking, early ping telemetry, and the restored interest button click interaction against the live production server (`https://wiseresume.app`) using the Playwright suite `28-portfolio-production-tracing.spec.ts`. All assertions passed.
+
 ## 2026-07-08 — WiseResume Remaining Audit Fixes (Batch 3 & 4)
 
 - **Classification**: COMPLETED_LOCAL_VERIFIED
