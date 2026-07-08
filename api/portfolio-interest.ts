@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Databases, Query } from 'node-appwrite';
+import { Client, Databases, Query, Permission, Role, ID } from 'node-appwrite';
 import { createHash } from 'crypto';
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -109,13 +109,30 @@ function safeReferrerHostname(referrer: unknown): string | null {
   }
 }
 
-async function portfolioExists(db: Databases, username: string): Promise<boolean> {
+async function getPortfolioOwnerUserId(db: Databases, username: string): Promise<string | null> {
   const res = await db.listDocuments(DATABASE_ID, PROFILES_COLLECTION, [
     Query.equal('username', username),
     Query.equal('portfolio_enabled', true),
     Query.limit(1),
   ]);
-  return (res.documents?.length ?? 0) > 0;
+  return (res.documents?.[0]?.user_id as string) ?? null;
+}
+
+async function createOwnerNotification(
+  db: Databases,
+  { user_id, type, title, message, link }: { user_id: string; type: string; title: string; message: string; link?: string }
+): Promise<void> {
+  const baseData = { user_id, type, title, message, is_read: false };
+  const permissions = [
+    Permission.read(Role.user(user_id)),
+    Permission.update(Role.user(user_id)),
+    Permission.delete(Role.user(user_id))
+  ];
+  try {
+    await db.createDocument(DATABASE_ID, 'notifications', ID.unique(), link ? { ...baseData, link } : baseData, permissions);
+  } catch (e) {
+    // ignore
+  }
 }
 
 async function tokenAlreadyUsed(db: Databases, token: string): Promise<boolean> {
@@ -154,7 +171,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    if (!(await portfolioExists(db, username))) {
+    const ownerUserId = await getPortfolioOwnerUserId(db, username);
+    if (!ownerUserId) {
       return res.status(404).json({ error: 'not_found' });
     }
 
@@ -170,7 +188,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const referrerHostname = safeReferrerHostname(body.referrer);
     if (referrerHostname) data.referrer_hostname = referrerHostname;
 
-    await db.createDocument(DATABASE_ID, INTERACTIONS_COLLECTION, 'unique()', data);
+    await db.createDocument(DATABASE_ID, INTERACTIONS_COLLECTION, ID.unique(), data);
+
+    await createOwnerNotification(db, {
+      user_id: ownerUserId,
+      type: 'portfolio_interest',
+      title: 'New portfolio interest',
+      message: 'Someone showed interest in your portfolio.',
+      link: '/notifications',
+    });
+
     return res.status(200).json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Interest request failed.';
