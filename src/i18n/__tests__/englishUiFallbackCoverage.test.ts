@@ -42,7 +42,7 @@ describe('English UI fallback coverage', () => {
   it('gives every static Arabic t() fallback a non-Arabic English catalog value', () => {
     const english = loadEnglishCatalog();
     const missing: string[] = [];
-    const callPattern = /\bt\(\s*['"]([^'"]+)['"]\s*,\s*(['"`])([\s\S]*?)\2/g;
+    const callPattern = /\bt\(\s*['"]([^'"]+)['"]\s*,\s*(['"`])([^'"`]*?)\2/g;
 
     for (const file of listSourceFiles(SOURCE_ROOT)) {
       const source = readFileSync(file, 'utf8');

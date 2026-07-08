@@ -184,7 +184,6 @@ const LIVE_PROFILE_ATTRIBUTES = new Set([
   'website_url',
   'twitter_url',
   'contact_email',
-  'portfolio_draft',
   'portfolio_draft_saved_at',
   'phone_number',
   'digest_enabled',

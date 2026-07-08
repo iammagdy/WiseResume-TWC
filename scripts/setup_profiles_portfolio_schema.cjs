@@ -46,8 +46,7 @@ const STRING_ATTRS = [
   ['contact_email', 254],
   ['portfolio_draft_saved_at', 32],
   ['portfolio_sections', 8000],
-  ['portfolio_extras', 250000],
-  ['portfolio_draft', 250000],
+  ['portfolio_extras', 24000],
 ];
 const BOOLEAN_ATTRS = [
   ['open_to_work', false],

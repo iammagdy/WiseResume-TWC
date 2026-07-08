@@ -107,13 +107,10 @@ export function mergeDraftIntoPortfolioExtras(
   savedAt: string | null,
 ): Record<string, unknown> {
   const next = { ...(extras ?? {}) };
-  if (draft === null) {
-    delete next[PORTFOLIO_DRAFT_EXTRAS_KEY];
-    delete next[PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY];
-  } else {
-    next[PORTFOLIO_DRAFT_EXTRAS_KEY] = draft;
-    next[PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY] = savedAt;
-  }
+  // We no longer mirror large draft blobs to the Appwrite profiles collection.
+  // Clean up any legacy draft keys to keep the DB row size clean.
+  delete next[PORTFOLIO_DRAFT_EXTRAS_KEY];
+  delete next[PORTFOLIO_DRAFT_SAVED_AT_EXTRAS_KEY];
   return next;
 }
 
@@ -122,13 +119,11 @@ export function getMergedPortfolioDraftBytes(
   draft: Record<string, unknown>,
   savedAt: string,
 ): number {
-  // PORT-P3-08: measure UTF-8 byte size (not UTF-16 .length) so multi-byte
-  // (CJK / emoji) content cannot slip past the column budget — consistent with
-  // the publish/autosave guards in PortfolioEditorPage.
-  return new Blob([JSON.stringify(mergeDraftIntoPortfolioExtras(extras, draft, savedAt))]).size;
+  // Measure the size of the draft itself since it is persisted to localStorage.
+  return new Blob([JSON.stringify(draft)]).size;
 }
 
-/** Persist draft snapshot locally; mirror to `portfolio_extras` only when that schema exists. */
+/** Persist draft snapshot locally; does not mirror to DB to prevent row-size limit issues. */
 export async function persistPortfolioDraftToProfile(
   profileDocumentId: string,
   userId: string,
@@ -136,17 +131,7 @@ export async function persistPortfolioDraftToProfile(
   snapshot: Record<string, unknown>,
   savedAt: string,
 ): Promise<Record<string, unknown>> {
-  const mergedExtras = mergeDraftIntoPortfolioExtras(existingExtras, snapshot, savedAt);
   writeLocalPortfolioDraft(userId, snapshot, savedAt);
-  try {
-    await databases.updateDocument(DATABASE_ID, COLLECTIONS.profiles, profileDocumentId, {
-      portfolio_extras: stringifyJsonField(mergedExtras),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.includes('portfolio_extras') && !message.includes('Unknown attribute')) {
-      throw error;
-    }
-  }
-  return mergedExtras;
+  // Drafts are kept in local storage. Return clean extras to caller.
+  return mergeDraftIntoPortfolioExtras(existingExtras, null, null);
 }
