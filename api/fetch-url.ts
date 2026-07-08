@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { lookup } from 'node:dns/promises';
+import dns from 'dns';
+
 const MAX_PUBLIC_FETCH_REDIRECTS = 5;
 const MAX_PUBLIC_FETCH_BYTES = 2 * 1024 * 1024;
 
@@ -197,7 +198,7 @@ async function fetchPublicContent(initialUrl: URL, deps: FetchUrlDependencies): 
 
       let response: Response;
       try {
-        response = await deps.fetchImpl(currentUrl, {
+        response = await deps.fetchImpl(currentUrl.toString(), {
           method: 'GET',
           redirect: 'manual',
           signal: controller.signal,
@@ -250,7 +251,7 @@ async function fetchPublicContent(initialUrl: URL, deps: FetchUrlDependencies): 
 export function createFetchUrlHandler(overrides: Partial<FetchUrlDependencies> = {}) {
   const deps: FetchUrlDependencies = {
     fetchImpl: overrides.fetchImpl ?? fetch,
-    lookupImpl: overrides.lookupImpl ?? (hostname => lookup(hostname, { all: true, verbatim: true })),
+    lookupImpl: overrides.lookupImpl ?? (hostname => dns.promises.lookup(hostname, { all: true, verbatim: true })),
     timeoutMs: overrides.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxBytes: overrides.maxBytes ?? MAX_PUBLIC_FETCH_BYTES,
   };
