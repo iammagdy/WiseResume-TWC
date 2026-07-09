@@ -54,8 +54,9 @@ const BOOLEAN_ATTRS = [
 
 async function ensureCollectionExists() {
   try {
-    await db.getCollection(DB_ID, COLL);
+    const col = await db.getCollection(DB_ID, COLL);
     console.log('✓ collection "profiles" exists (permissions left untouched)');
+    return col;
   } catch (e) {
     if (isMissing(e)) {
       console.error('✗ collection "profiles" does not exist — aborting (will not create the core profiles collection).');
@@ -89,9 +90,23 @@ async function ensureBoolean(key, def) {
 
 (async () => {
   console.log(`Ensuring profiles portfolio schema on project=${PROJECT_ID} db=${DB_ID}`);
-  await ensureCollectionExists();
-  for (const [key, size] of STRING_ATTRS) await ensureString(key, size);
-  for (const [key, def] of BOOLEAN_ATTRS) await ensureBoolean(key, def);
+  const collection = await ensureCollectionExists();
+  const existingKeys = new Set((collection.attributes || []).map((a) => a.key));
+
+  for (const [key, size] of STRING_ATTRS) {
+    if (existingKeys.has(key)) {
+      console.log(`• string "${key}" already exists (pre-checked)`);
+    } else {
+      await ensureString(key, size);
+    }
+  }
+  for (const [key, def] of BOOLEAN_ATTRS) {
+    if (existingKeys.has(key)) {
+      console.log(`• boolean "${key}" already exists (pre-checked)`);
+    } else {
+      await ensureBoolean(key, def);
+    }
+  }
   console.log('✅ profiles portfolio schema ready');
 })().catch((e) => {
   console.error('profiles portfolio schema setup failed:', e.message || e);
