@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-07-09
-**Status:** Batch 3/4 Stabilizations Production Complete & Verified
+**Status:** Profiles Portfolio Schema Cleaned & Production Verified
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -24,7 +24,8 @@
 
 ## 2. Latest Important Commits
 
-* **`f251f6a1`** — `docs(changelog): document portfolio interest anonymous execution fix` ← **LAST**
+* **`78e7055b`** — `fix(schema): resolve profiles collection row-size limit by keeping draft storage client-side` ← **LAST**
+* **`f251f6a1`** — `docs(changelog): document portfolio interest anonymous execution fix`
 * **`6d39c450`** — `fix(security): route sendPortfolioInterest through Vercel API and add owner notification`
 * **`ecdc1e47`** — `fix(security): skip Appwrite JWT generation for public share function calls`
 * **`fb4fa418`** — `fix(audit): harden portfolio and job import flows`
@@ -34,17 +35,13 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED_PRODUCTION_VERIFIED — The Batch 3 and Batch 4 stabilization fixes have been fully implemented, committed, pushed to the QA branch, deployed to Vercel production, and verified via automated E2E tests.
-* **Key Stabilizations Implemented**:
-  - **Portfolio Telemetry & Visitor tracking**: Restricted `visit_end` updates in `api/track-portfolio-view.ts` to confirm that the `username` matches the immutable document value before execution, preventing forged visit records.
-  - **Durable Interest Rate Limiter**: Replaced in-memory rate limiting with a database-backed rate limit collection (`portfolio_session_rate_limits`) inside `api/portfolio-interest.ts` using `sha256(ip + ':interest')`, allowing up to 5 actions per 10 minutes (fails closed).
-  - **Anonymous JWT Generation Fix**: Patched `appwriteFunctions.invoke` in `src/lib/appwrite-functions.ts` to skip checking/requesting a user session JWT (`getAppwriteJWT()`) when the targeted endpoint is a registered public-share action. This resolves the 401 exceptions triggered by guest visitors.
-  - **Interest Click Beacon Fix**: Restored direct Vercel API routing (`fetch` to `/api/portfolio-interest`) in `src/lib/portfolioInterest.ts` for visitor interest clicks. This bypasses Appwrite guest SDK preflight/session constraints, resolving the contact button loading hang. Aligned `/api/portfolio-interest` to trigger owner notifications for new clicks.
-  - **Job Import SSRF Hardening**: Extended IP filters in the `job-import` serverless hub to block CGNAT (`100.64.0.0/10`), documentation test subnets, IPv6 site/link-local scopes, and added hex-encoded IPv4-mapped IPv6 address extraction.
-  - **Job Import Fallback**: Added `persisted`, `fallbackRequired`, and `reason` fields to the `job-import` response. Aligned the `useImportJob` frontend hook to run client-side saves only when `fallbackRequired` is true.
-  - **FeatureGate UX & Preview Error**: Redesigned `FeatureGate` to render a premium locked-feature panel with English/Arabic translations. Added an accessible "Resume Not Found" card in `PreviewPage` when a bootstrap query fails.
-  - **Tests & Parity**: All 163 Vitest tests are green (fixed missing Arabic catalog keys, password reset test mocks, and Puppeteer headless export parameters).
-- **Validation**: Playwright E2E production tracking spec `tests/e2e/specs/28-portfolio-production-tracing.spec.ts` completed successfully in `21.1s` against the live production server `https://wiseresume.app`. All smoke tests for `/upload`, `/portfolio`, `/preview`, and `/api/portfolio-interest` passed.
+* **Session Status**: COMPLETED_PRODUCTION_VERIFIED — Resolved the Appwrite `profiles` collection database row-size limit issue.
+* **Key Schema Actions Implemented**:
+  - **Profiles Schema Fix**: Modified `scripts/setup_profiles_portfolio_schema.cjs` to remove the huge `portfolio_draft` (250,000 characters) attribute from the Appwrite `profiles` collection schema, keeping draft storage entirely client-side. Capped `portfolio_extras` to a safe size of `24000`.
+  - **Unused Column Removal**: Programmatically deleted the legacy unused `portfolio_draft` attribute from the live production database, freeing up 250 KB of row size capacity.
+  - **Verification**: Verified that the remaining 36 required portfolio attributes are fully created, active, and `available` on the production database.
+  - **Production Smoke Test**: Executed a dedicated Playwright E2E smoke test (`29-portfolio-save-smoke.spec.ts`) against the live production server `https://wiseresume.app`. Successfully authenticated a clean QA account, opened the portfolio editor, updated the availability headline, toggled the portfolio switch to Live, and saved/published changes with zero console errors or row-size exceptions.
+  - **Telemetry E2E Parity**: Playwright E2E production tracing spec `tests/e2e/specs/28-portfolio-production-tracing.spec.ts` completed successfully in `16.8s` against the live production server `https://wiseresume.app`. All assertions passed.
 
 ---
 

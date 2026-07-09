@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-07-09 — Profiles Portfolio Schema Row-Size Limit Fix & Verification
+
+- **Classification**: COMPLETED_PRODUCTION_VERIFIED
+- **Changes**:
+  - **Profiles Schema Setup Fix**: Modified `scripts/setup_profiles_portfolio_schema.cjs` to remove the huge `portfolio_draft` (250,000 characters) attribute from the Appwrite `profiles` collection schema definition, keeping draft storage entirely client-side. Capped `portfolio_extras` to a safe size of `24000`.
+  - **Unused Column Removal**: Programmatically deleted the legacy unused `portfolio_draft` attribute from the live production database, freeing up 250 KB of row size capacity and resolving MySQL/MariaDB row-size exceptions.
+  - **Verified Attributes Status**: Audited and confirmed that all other required portfolio attributes are fully created, active, and `available` on the production database.
+- **Validation**:
+  - E2E Production Smoke Test: Verified the portfolio editor load, Availability section expansion, headline update, status toggling, and Save & Publish operations directly against the live production server `https://wiseresume.app` using Playwright smoke test. No console errors or database exceptions were encountered.
+  - E2E Telemetry/Tracing Test: Ran the full telemetry and visitor analytics check `28-portfolio-production-tracing.spec.ts` against production; all assertions passed in 16.8s.
+
 ## 2026-07-08 — Portfolio Interest Anonymous Execution Fix
 
 - **Classification**: COMPLETED_PRODUCTION_VERIFIED
