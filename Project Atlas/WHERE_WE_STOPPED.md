@@ -24,25 +24,27 @@
 
 ## 2. Latest Important Commits
 
-* **`78e7055b`** — `fix(schema): resolve profiles collection row-size limit by keeping draft storage client-side` ← **LAST**
+* **`15bb25b8`** — `fix(schema): pre-fetch existing attributes in setup_audit_logs_schema to prevent duplicate checks and timeouts` ← **LAST**
+* **`cfac645a`** — `fix(schema): pre-check existing attributes on profiles collection before creation`
+* **`38583064`** — `fix: resolve owner QA dashboard and tailoring issues`
+* **`78e7055b`** — `fix(schema): resolve profiles collection row-size limit by keeping draft storage client-side`
 * **`f251f6a1`** — `docs(changelog): document portfolio interest anonymous execution fix`
 * **`6d39c450`** — `fix(security): route sendPortfolioInterest through Vercel API and add owner notification`
 * **`ecdc1e47`** — `fix(security): skip Appwrite JWT generation for public share function calls`
-* **`fb4fa418`** — `fix(audit): harden portfolio and job import flows`
-* **`df769530`** — `fix(upload): convert URL object to string in Vercel fetch`
 
 ---
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED_QA_FIXES — Completed implementation and verification of the five manual QA findings.
-* **Fixes Implemented**:
+* **Session Status**: VERIFIED_DEPLOYED_CLOSEOUT — Completed implementation and verification of the five manual QA findings, resolved database schema setup script failures, and successfully deployed all 28 Appwrite hubs.
+* **Fixes Implemented & Verified**:
   - **AI Concurrency & Rate Limiting**: Added a 5-minute stale cutoff and plan-based concurrent limits (Free: 2, Pro: 3, Premium: 4) to `ai-gateway`, mapped `'too_many_concurrent_jobs'` to a user-friendly error toast, and added a cancel-abort guard to Editor `TailorSheet.tsx`.
   - **Saved Resumes Label Mismatch**: Replaced translation key for Saved Jobs card to avoid displaying "Saved resumes: 0".
   - **Tailored Resumes Count**: Switched card value to show total tailored resumes count, with weekly activity in the subtext.
   - **Onboarding Checklist Visibility**: Hid onboarding checklist for power users (3+ resumes, or at least 1 tailored resume) or when all steps are completed.
   - **Privacy Consent Fallback**: Implemented a `sessionStorage` fallback alongside `localStorage` to ensure consent is remembered within incognito/private sessions.
-  - **Local Validation**: Ran TypeScript compilation, production build, and all Vitest unit tests (all passed successfully).
+  - **Database Migration Fixes**: Re-architected `setup_profiles_portfolio_schema.cjs` and `setup_audit_logs_schema.cjs` to fetch and check existing attributes locally first, avoiding Capicity limits and network timeout errors during redeployments.
+  - **Production Deployment**: Pushed fixes to `main` and ran the full Appwrite hubs deployment, completing successfully in 11 minutes. Passed all E2E checks against production.
 
 ---
 
