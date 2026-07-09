@@ -78,11 +78,25 @@ async function main() {
     console.log('  ✓ admin_audit_logs collection already exists');
   }
 
-  await ensureStringAttr(COLL_ID, 'user_id', 36, false);
-  await ensureStringAttr(COLL_ID, 'category', 64, false, 'system');
-  await ensureStringAttr(COLL_ID, 'action', 256, true);
-  await ensureStringAttr(COLL_ID, 'metadata', 4096, false, '');
-  await ensureStringAttr(COLL_ID, 'details', 1024, false, '');
+  // Fetch all existing attributes once to avoid duplicate calls and rate-limiting
+  const r = await databases.listAttributes(DB_ID, COLL_ID);
+  const existingAttrs = new Set(r.attributes.map(a => a.key));
+
+  async function ensureStringAttrOnce(key, size, required, defaultVal) {
+    if (existingAttrs.has(key)) {
+      console.log(`  ✓ attribute "${key}" already exists (pre-checked)`);
+      return;
+    }
+    await databases.createStringAttribute(DB_ID, COLL_ID, key, size, required, defaultVal ?? undefined);
+    console.log(`  ✓ created string attribute "${key}"`);
+    await sleep(500);
+  }
+
+  await ensureStringAttrOnce('user_id', 36, false);
+  await ensureStringAttrOnce('category', 64, false, 'system');
+  await ensureStringAttrOnce('action', 256, true);
+  await ensureStringAttrOnce('metadata', 4096, false, '');
+  await ensureStringAttrOnce('details', 1024, false, '');
 
   await ensureIndex(COLL_ID, 'user_id_idx', 'key', ['user_id']);
   await ensureIndex(COLL_ID, 'category_idx', 'key', ['category']);
