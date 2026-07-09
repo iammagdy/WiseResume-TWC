@@ -37,6 +37,7 @@ export type AIErrorCode =
   | 'offline'
   | 'byok_failed'
   | 'free_limit_reached'
+  | 'too_many_concurrent_jobs'
   | 'internal';
 
 export interface AIErrorInfo {
@@ -109,6 +110,8 @@ function classify(status: number, code: string, message: string): AIErrorCode {
       return 'byok_failed';
     case 'free_limit_reached':
       return 'free_limit_reached';
+    case 'too_many_concurrent_jobs':
+      return 'too_many_concurrent_jobs';
   }
 
   // 2) Message-text classification BEFORE status-based fallback. A 401 from a
@@ -203,6 +206,8 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       return 'Session expired — please sign in again to use AI features.';
     case 'rate_limit':
       return 'Too many requests — please wait a moment and try again.';
+    case 'too_many_concurrent_jobs':
+      return 'You already have AI operations running. Please wait for one to complete.';
     case 'payment_required':
       return 'AI credits exhausted. Please check your account.';
     case 'invalid_key':

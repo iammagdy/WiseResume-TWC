@@ -25,6 +25,9 @@ describe('aiErrorToastMessage — AI-5 client-side error surfacing', () => {
     expect(
       aiErrorToastMessage({ code: 'payment_required', status: 402, message: '' }),
     ).toMatch(/credits exhausted/i);
+    expect(
+      aiErrorToastMessage({ code: 'too_many_concurrent_jobs', status: 429, message: '' }),
+    ).toMatch(/operations running/i);
   });
 
   it('parseAIErrorBody preserves the diag in info.message for console-only logging', () => {

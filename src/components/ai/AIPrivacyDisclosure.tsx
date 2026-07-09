@@ -14,15 +14,26 @@ const STORAGE_KEY = 'wr-ai-privacy-accepted';
 
 export function hasAcceptedAIPrivacy(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) === '1';
+    if (localStorage.getItem(STORAGE_KEY) === '1') return true;
   } catch {
-    return false;
+    // ignore
   }
+  try {
+    if (sessionStorage.getItem(STORAGE_KEY) === '1') return true;
+  } catch {
+    // ignore
+  }
+  return false;
 }
 
 function markAIPrivacyAccepted(): void {
   try {
     localStorage.setItem(STORAGE_KEY, '1');
+  } catch {
+    // ignore
+  }
+  try {
+    sessionStorage.setItem(STORAGE_KEY, '1');
   } catch {
     // ignore
   }

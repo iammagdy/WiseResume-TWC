@@ -684,7 +684,8 @@ function DashboardPageContent() {
   }, [resumes, effectiveHealthScores, exportedChecked, profile?.portfolioEnabled]);
 
   const onboardingCompleted = user?.id ? localStorage.getItem(`wr-onboarding-completed-${user.id}`) === 'true' : false;
-  const showChecklist = !!user && onboardingCompleted && !checklistDismissed && !showProfileBanner;
+  const isPowerUser = resumes.length >= 3 || resumes.some(r => r.parent_resume_id);
+  const showChecklist = !!user && onboardingCompleted && !checklistDismissed && !showProfileBanner && !isPowerUser && !checklistSteps.every(s => s.done);
 
   const handleDismissChecklist = useCallback(() => {
     setChecklistDismissed(true);

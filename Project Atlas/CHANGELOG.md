@@ -1,5 +1,37 @@
 # Project Atlas Master Changelog
 
+## 2026-07-09 — Manual QA Findings Fixed
+
+- **Classification**: COMPLETED_QA_FIXES
+- **Changes**:
+  - **AI Concurrency Limit**: Added a 5-minute stale cutoff and plan-based concurrent limits (Free: 2, Pro: 3, Premium: 4) to `ai-gateway` to prevent locking users out after normal navigation.
+  - **Editor Cancel Abort Guard**: Prevented side effects in `TailorSheet.tsx` by checking for aborted signals after tailoring executions complete.
+  - **Saved Resumes Label**: Corrected the translation key mismatch for the Saved Jobs metric card to avoid displaying "Saved resumes: 0" when the user has resumes but 0 saved jobs.
+  - **Tailored Resumes Count**: Switched the tailored metric card value to show total tailored resumes count, with weekly activity in the subtext.
+  - **Onboarding Checklist Visibility**: Hid the onboarding checklist for power users (3+ resumes, or at least 1 tailored resume) or when all steps are completed.
+  - **Privacy Consent Fallback**: Implemented a `sessionStorage` fallback alongside `localStorage` to ensure consent is remembered within incognito/private sessions.
+  - **Verification**: Ran type checks, production builds, and Vitest test suites. All passed successfully.
+
+## 2026-07-09 — Post-Audit Authenticated Verification Completed
+
+- **Classification**: COMPLETED_VERIFICATION_BLOCKED
+- **Changes**:
+  - **E2E Credentials Audit**: Checked and verified that `WISE_RESUME_E2E_EMAIL` and `WISE_RESUME_E2E_PASSWORD` variables are not defined in the shell environment.
+  - **Verification Blocked**: Marked all authenticated E2E verification flows (sign-in, resume editor save, tailoring hub results, hidden jobs feed) as blocked due to lack of QA credentials and expired session state.
+  - **Schema Warnings Audit**: Audited the notifications database collection schema config and verified the warning for the missing `link` attribute is a P3 non-blocking schema cleanup.
+  - **Verification Report Generated**: Written the authenticated verification report to `Project Atlas/qa/production-regression/WiseResume_Authenticated_Production_Verification_2026-07-09.md`.
+
+## 2026-07-09 — Production Regression Audit Report Completed
+
+- **Classification**: COMPLETED_AUDIT_REPORTED
+- **Changes**:
+  - **Audit Scope and Verification**: Audited all recent repository commits, verified deployment alignment (commit `1fbbb595` successfully deployed to production Vercel `wiseresume.app`), and confirmed 0 compilation errors and successful production builds locally.
+  - **Security Hygiene Audit**: Scanned codebase for sensitive keys and plaintext credentials. Confirmed that no raw keys or secrets are committed.
+  - **Audit Report Generated**: Written the comprehensive production regression audit report to `Project Atlas/qa/production-regression/WiseResume_Latest_Changes_Production_Audit_2026-07-09.md`.
+- **Validation**:
+  - E2E Production Smoke Test: Executed the Playwright production portfolio tracing spec (`28-portfolio-production-tracing.spec.ts`) against the live production server `https://wiseresume.app`. All assertions (early visit tracking pings, interest clicks, Vercel API routing) passed successfully.
+  - Local Unit Suites: Executed the pages, hooks, DevKit switcher, and DevKit library unit tests locally using Vitest; all tests passed successfully.
+
 ## 2026-07-09 — Profiles Portfolio Schema Row-Size Limit Fix & Verification
 
 - **Classification**: COMPLETED_PRODUCTION_VERIFIED

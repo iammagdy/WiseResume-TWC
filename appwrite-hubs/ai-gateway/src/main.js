@@ -1240,10 +1240,12 @@ async function checkPersistentRateLimit(db, userId, plan) {
 async function countPendingJobs(db, userId) {
   if (_idempotencyCollectionMissing) return 0;
   try {
+    const fiveMinutesAgo = new Date(Date.now() - 300_000).toISOString();
     const result = await db.listDocuments(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, [
       sdk.Query.equal('user_id', userId),
       sdk.Query.equal('status', 'pending'),
-      sdk.Query.limit(MAX_CONCURRENT_JOBS_PER_USER + 1),
+      sdk.Query.greaterThanEqual('created_at', fiveMinutesAgo),
+      sdk.Query.limit(10),
     ]);
     return result.total ?? result.documents?.length ?? 0;
   } catch {
@@ -3631,8 +3633,9 @@ module.exports = async ({ req, res, log, error }) => {
     // Only applied to features with credit cost >= 2 to avoid blocking cheap calls.
     if (!isAdminTest && getFeatureCreditCost(featureName) >= 2) {
       const pendingCount = await countPendingJobs(db, effectiveUserId);
+      const concurrentLimit = plan === 'premium' ? 4 : plan === 'pro' ? 3 : 2;
       // pendingCount includes the doc we just created via createIdempotencyPending.
-      if (pendingCount > MAX_CONCURRENT_JOBS_PER_USER) {
+      if (pendingCount > concurrentLimit) {
         await deleteIdempotencyDoc(db, idempotencyDocId);
         await flushDD();
         return res.json({

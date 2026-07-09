@@ -122,6 +122,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         ? '…'
         : '—';
 
+  const totalTailored = useMemo(() => resumes.filter(r => r.parent_resume_id).length, [resumes]);
   const tailoredBars = useMemo(() => buildTailoredActivityBars(resumes), [resumes]);
   const matchSegments = useMemo(() => buildMatchSegments(resumes), [resumes]);
   const jobChips = useMemo(
@@ -189,21 +190,28 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
             </span>
           </div>
           <div className="mt-2 min-h-[2.25rem]">
-            <p className="text-2xl font-semibold tabular-nums leading-none text-foreground">{tailoredThisWeek}</p>
+            <p className="text-2xl font-semibold tabular-nums leading-none text-foreground">{totalTailored}</p>
             {tailoredThisWeek > 0 ? (
-              <div className="flex items-end gap-0.5 mt-2" aria-label="Tailoring activity this week" role="img">
-                {tailoredBars.map((active, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      'flex-1 rounded-sm transition-all duration-300',
-                      active ? 'bg-primary/70 h-3' : 'bg-border h-1.5',
-                    )}
-                  />
-                ))}
+              <div className="flex flex-col gap-1 mt-1">
+                <div className="flex items-end gap-0.5 mt-1" aria-label="Tailoring activity this week" role="img">
+                  {tailoredBars.map((active, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        'flex-1 rounded-sm transition-all duration-300',
+                        active ? 'bg-primary/70 h-3' : 'bg-border h-1.5',
+                      )}
+                    />
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                  {t('app.dashboardPage.tailoredThisWeek', '{{count}} this week', { count: tailoredThisWeek })}
+                </p>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{t('app.dashboardPage.thisWeek', 'This week')}</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                {t('app.dashboardPage.tailoredThisWeek', '{{count}} this week', { count: 0 })}
+              </p>
             )}
           </div>
         </button>
@@ -265,7 +273,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
           onClick={() => openDialog('jobs')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardStats.savedResumes', 'Saved Jobs')}</p>
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardStats.savedJobs', 'Saved Jobs')}</p>
             <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.jobs.iconBg)}>
               <Bookmark className={cn('w-4 h-4', TONE_STYLES.jobs.icon)} aria-hidden />
             </span>

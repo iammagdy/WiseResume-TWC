@@ -395,6 +395,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         );
       });
 
+      if (abortRef.current?.signal.aborted) return;
       if (!result) return;
 
       const superResult = result as SuperTailorResult;

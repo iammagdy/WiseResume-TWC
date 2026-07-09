@@ -35,13 +35,14 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: COMPLETED_PRODUCTION_VERIFIED — Resolved the Appwrite `profiles` collection database row-size limit issue.
-* **Key Schema Actions Implemented**:
-  - **Profiles Schema Fix**: Modified `scripts/setup_profiles_portfolio_schema.cjs` to remove the huge `portfolio_draft` (250,000 characters) attribute from the Appwrite `profiles` collection schema, keeping draft storage entirely client-side. Capped `portfolio_extras` to a safe size of `24000`.
-  - **Unused Column Removal**: Programmatically deleted the legacy unused `portfolio_draft` attribute from the live production database, freeing up 250 KB of row size capacity.
-  - **Verification**: Verified that the remaining 36 required portfolio attributes are fully created, active, and `available` on the production database.
-  - **Production Smoke Test**: Executed a dedicated Playwright E2E smoke test (`29-portfolio-save-smoke.spec.ts`) against the live production server `https://wiseresume.app`. Successfully authenticated a clean QA account, opened the portfolio editor, updated the availability headline, toggled the portfolio switch to Live, and saved/published changes with zero console errors or row-size exceptions.
-  - **Telemetry E2E Parity**: Playwright E2E production tracing spec `tests/e2e/specs/28-portfolio-production-tracing.spec.ts` completed successfully in `16.8s` against the live production server `https://wiseresume.app`. All assertions passed.
+* **Session Status**: COMPLETED_QA_FIXES — Completed implementation and verification of the five manual QA findings.
+* **Fixes Implemented**:
+  - **AI Concurrency & Rate Limiting**: Added a 5-minute stale cutoff and plan-based concurrent limits (Free: 2, Pro: 3, Premium: 4) to `ai-gateway`, mapped `'too_many_concurrent_jobs'` to a user-friendly error toast, and added a cancel-abort guard to Editor `TailorSheet.tsx`.
+  - **Saved Resumes Label Mismatch**: Replaced translation key for Saved Jobs card to avoid displaying "Saved resumes: 0".
+  - **Tailored Resumes Count**: Switched card value to show total tailored resumes count, with weekly activity in the subtext.
+  - **Onboarding Checklist Visibility**: Hid onboarding checklist for power users (3+ resumes, or at least 1 tailored resume) or when all steps are completed.
+  - **Privacy Consent Fallback**: Implemented a `sessionStorage` fallback alongside `localStorage` to ensure consent is remembered within incognito/private sessions.
+  - **Local Validation**: Ran TypeScript compilation, production build, and all Vitest unit tests (all passed successfully).
 
 ---
 
