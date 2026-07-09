@@ -1,5 +1,9 @@
 {
   "$schema": "https://modelcontextprotocol.io/schemas/sep-1649/server-card.schema.json",
+  "serverInfo": {
+    "name": "wiseresume",
+    "version": "0.1.0"
+  },
   "name": "wiseresume",
   "title": "WiseResume / WiseHire",
   "description": "AI-powered resume builder, portfolio platform, and HR hiring suite. Discovery card for AI agents wanting to interact with the public marketing surface and the authenticated API.",
@@ -30,10 +34,6 @@
     "authorization_servers": ["https://fra.cloud.appwrite.io/v1/projects/69fd362b001eb325a192"]
   },
   "capabilities": {
-    "tools": {
-      "discovery": "webmcp",
-      "discovery_url": "https://wiseresume.app/"
-    },
     "resources": {
       "api_catalog": "https://wiseresume.app/.well-known/api-catalog",
       "agent_skills": "https://wiseresume.app/.well-known/agent-skills/index.json"
