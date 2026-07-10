@@ -36,9 +36,12 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: VERIFIED_P1_REMEDIATION_READY_FOR_RETEST — Completed implementation of all 6 P1 browser QA blocker fixes on the local repository. Checked formatting and TypeScript compilation successfully.
+* **Session Status**: CODE_FIXED_PENDING_APPWRITE_AI_GATEWAY_DEPLOY — Completed implementation of the frontend P1 remediation and resolved the backend `ai-gateway` reference error crash. Checked syntax and generated DevKit source hashes successfully.
 * **P1 Fixes Implemented & Verified**:
-  - **P1-1 (Tailoring Hub AI Failure)**: Guarded `aiTailor.ts` against null data, and silenced double error toast by utilizing `executeAI`'s `silent: true` parameter, showing only a clean, recoverable error card on the tailoring form and writing safe diagnostic info to console.
+  - **P1-1 (Tailoring Hub AI Failure & Gateway Crash)**:
+    - Fixed a `ReferenceError: route is not defined` crash at line 3774 in `ai-gateway/src/main.js` by scoping `route` from `FEATURE_ROUTES`.
+    - Hardened the `ai-gateway` top-level catch block to delete stuck `pending` idempotency cache documents when failures occur, avoiding `request_in_progress` (409) deadlocks.
+    - Guarded the frontend `aiTailor.ts` against empty responses, and handled errors inline inside `TailoringHubPage.tsx` using `executeAI(..., { silent: true })` to prevent double-toast UI glitches.
   - **P1-2 (Cover Letter No Output)**: Implemented text validations on generated content in `CoverLetterNewPage.tsx`, added manual save fallback via `useCoverLetterMutations` when the backend save fails, and added a fallback display override when returnTo redirect is skipped or fails.
   - **P1-3 (Editor Improve AI Button)**: Resolved stale memoized render-time plan check closures in `EditorPage.tsx` by wrapping the `gate` checks inside deferred callbacks.
   - **P1-4 (Dashboard Metric Mismatch)**: Standardized tailored resume detection across dashboard metric cards, activity bars, details dialog, and tabs list filter using the union-based `isTailoredResume` check and propagating `tailoredIds` Set.
@@ -49,11 +52,12 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Verify QA Branch for Merge**: Keep all code on the safe branch `audit/production-stabilization-qa`. Review the remote commits and perform a manual, audited git merge/integration into `origin/main` when ready. Do NOT force-push or automatically overwrite `origin/main`.
-2. **Deeper Manual QA**:
+1. **Deploy AI Gateway Function**: Run the targeted deploy command for the updated gateway: `node scripts/deploy_hubs.cjs --only=ai-gateway`. Do NOT deploy with `target=all` or deploy other hubs.
+2. **Verify QA Branch for Merge**: Keep all code on the safe branch `audit/production-stabilization-qa`. Review the remote commits and perform a manual, audited git merge/integration into `origin/main` when ready. Do NOT force-push or automatically overwrite `origin/main`.
+3. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.
-3. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
+4. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
 
 ---
 

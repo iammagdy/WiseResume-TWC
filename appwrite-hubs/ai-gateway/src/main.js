@@ -3681,6 +3681,7 @@ module.exports = async ({ req, res, log, error }) => {
     const noFallback = isAdminTest && opts.__admin_no_fallback === true;
     const pool       = buildPool();
     logPoolSummary(pool, log);
+    const route      = FEATURE_ROUTES[featureName];
     const candidates = limitCandidatesForFeature(featureName, buildCandidates(featureName, pool, { noFallback }));
     const requestMessages = buildMessages(featureName, aiOpts);
 
@@ -3990,6 +3991,7 @@ module.exports = async ({ req, res, log, error }) => {
 
   } catch (err) {
     if (activeCreditLockUserId) await releaseCreditLock(db, activeCreditLockUserId);
+    if (idempotencyDocId) await deleteIdempotencyDoc(db, idempotencyDocId);
     // Catch-all - preserves stable JSON error contract on any unexpected failure.
     // Clean up any in-flight idempotency record so the user can retry.
     error('AI-Gateway Error: ' + err.message);

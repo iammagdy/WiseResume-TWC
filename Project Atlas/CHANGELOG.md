@@ -1,16 +1,20 @@
 # Project Atlas Master Changelog
 
-## 2026-07-10 — P1 Production Browser QA Remediation
+## 2026-07-10 — P1 Production Browser QA Remediation & Backend AI-Gateway Stabilization
 
 - **Classification**: COMPLETED_P1_QA_REMEDIATION
 - **Changes**:
   - **P1-1 (Tailoring Hub)**: Guarded `aiTailor.ts` to raise an `AIError` if data returned from the gateway is null/empty. Updated `TailoringHubPage.tsx` to handle `executeAI` with `{ silent: true }` and display the specific error message inline without showing duplicate global toasts.
+  - **P1-1 Appwrite AI Gateway (Backend Crash)**: Fixed a `ReferenceError: route is not defined` crash at line 3774 in `appwrite-hubs/ai-gateway/src/main.js` by declaring the `route` variable using `FEATURE_ROUTES[featureName]` in the main handler scope.
+  - **Appwrite AI Gateway (Idempotency Cleanup)**: Hardened the catch-all error block in `ai-gateway/src/main.js` to call `deleteIdempotencyDoc(db, idempotencyDocId)` if a crash occurs, preventing failed runs from locking users out with permanent `request_in_progress` (409) states.
   - **P1-2 (Cover Letter)**: Updated `CoverLetterNewPage.tsx` to validate AI response text. Introduced a `showResultAnyway` state override and manual save fallback to prevent blank/deadlock screens when automatic Appwrite document saves or redirects fail.
   - **P1-3 (Editor Improve AI)**: Fixed the callback memoization anti-pattern in `EditorPage.tsx` for `handleImproveSection` and `handleTailor` by wrapping the `gate` checks inside deferred callbacks, preventing inert clicks due to stale render-time `isLoading` evaluations.
   - **P1-4 (Dashboard Metric)**: Standardized tailored resume detection across the dashboard metrics card, metrics activity bar, metrics dialog, and filtered list tab using the unified `isTailoredResume` check and passing `tailoredIds` down from the parent state.
   - **P1-5 (PDF Export)**: Hardened `TailorQuickPdfExportDialog.tsx` to prioritize `resumeDocId` over frontend-parsed `resume.id` when syncing customization states. Added user toast notifications to `TailoringHubResultPage.tsx` when trying to download a resume that is still loading.
   - **P1-6 (Preview Route)**: Added router support for `/preview/:id` path format in `AppInterior.tsx` and updated `PreviewPage.tsx` to fallback to path parameters via `useParams` when the query parameter `?id=` is absent.
+  - **DevKit Source Hashes**: Re-ran `node scripts/compute-source-hashes.mjs` to update `src/lib/devkit/sourceHashes.generated.json` with the new SHA-256 hash for `ai-gateway`.
 - **Validation**:
+  - Syntax Check: Verified that backend code contains zero compilation or formatting errors with `node --check appwrite-hubs/ai-gateway/src/main.js` and `git diff --check`.
   - TypeScript: Verified that type checking passes successfully with `tsc --noEmit` and no errors.
   - Formatting: Confirmed zero trailing whitespaces or diff anomalies using `git diff --check`.
 
