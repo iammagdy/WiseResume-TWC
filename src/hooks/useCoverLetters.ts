@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
+import { databases, DATABASE_ID, Query, ID, Permission, Role } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -82,15 +82,36 @@ export function useCoverLetterMutations() {
   const saveCoverLetter = useMutation({
     mutationFn: async (input: CoverLetterInput): Promise<CoverLetterRecord> => {
       if (!user) throw new Error('Not authenticated');
-      const doc = await databases.createDocument(DATABASE_ID, COLLECTIONS.cover_letters, ID.unique(), {
-        user_id: user.id,
-        ...input,
-      });
+      const doc = await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.cover_letters,
+        ID.unique(),
+        {
+          user_id: user.id,
+          ...input,
+        },
+        [
+          Permission.read(Role.user(user.id)),
+          Permission.update(Role.user(user.id)),
+          Permission.delete(Role.user(user.id)),
+        ]
+      );
       return parseCoverLetter(doc as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
       toast.success('Cover letter saved!');
+    },
+  });
+
+  const updateCoverLetter = useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string } & Partial<CoverLetterInput>): Promise<CoverLetterRecord> => {
+      if (!user) throw new Error('Not authenticated');
+      const doc = await databases.updateDocument(DATABASE_ID, COLLECTIONS.cover_letters, id, updates);
+      return parseCoverLetter(doc as unknown as Record<string, unknown>);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
     },
   });
 
@@ -104,5 +125,5 @@ export function useCoverLetterMutations() {
     },
   });
 
-  return { saveCoverLetter, deleteCoverLetter };
+  return { saveCoverLetter, updateCoverLetter, deleteCoverLetter };
 }
