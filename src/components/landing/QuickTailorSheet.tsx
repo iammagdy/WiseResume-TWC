@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -68,6 +68,11 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const parsedResumes = useMemo<ResumeData[]>(() => {
+    if (!resumes) return [];
+    return resumes.map(dbToResumeData);
+  }, [resumes]);
+
   // Reset state when sheet closes
   useEffect(() => {
     if (!open) {
@@ -88,9 +93,9 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
   const stepIndex = { 'select-resume': 0, 'job-input': 1, 'processing': 2, 'results': 3 }[step];
 
   // === Step 1: Select existing resume ===
-  const handleSelectExisting = useCallback((dbResume: DatabaseResume) => {
+  const handleSelectExisting = useCallback((resume: ResumeData) => {
     triggerHaptic.light();
-    setSelectedResume(dbToResumeData(dbResume));
+    setSelectedResume(resume);
     setStep('job-input');
   }, []);
 
@@ -306,9 +311,9 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                       <div className="space-y-2">
                         {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
                       </div>
-                    ) : resumes && resumes.length > 0 ? (
+                    ) : parsedResumes && parsedResumes.length > 0 ? (
                       <div className="space-y-2">
-                        {resumes.map((r) => {
+                        {parsedResumes.map((r) => {
                           const isConfirming = deleteConfirmId === r.id;
                           return (
                             <div
@@ -346,7 +351,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                                   <>
                                     <h3 className="font-medium text-sm truncate">{r.title}</h3>
                                     <p className="text-xs text-muted-foreground truncate">
-                                      {r.contact_info?.fullName || 'No name'} · {r.experience?.length || 0} exp
+                                      {r.contactInfo?.fullName || 'No name'} · {r.experience?.length || 0} exp
                                     </p>
                                   </>
                                 )}

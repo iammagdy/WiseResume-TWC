@@ -1,5 +1,51 @@
 # Project Atlas Master Changelog
 
+## 2026-07-10 — P2/P3 QA Remediation Pass (Resume Picker, Interview, Cover Letters & Fast Tailor Permissions)
+
+- **Classification**: P2_P3_REMEDIATION_IMPLEMENTED_PENDING_PRODUCTION_VERIFICATION
+- **Changes**:
+  - **Option B (Safe ID Helper)**: Implemented `getResumeDocumentId` lookup across selectors, comparison lists, and draft loaders to prevent property mismatches on raw Appwrite database objects:
+    - **Mock Interview Page (`src/pages/InterviewPage.tsx`)**: Replaced `.id` with `getResumeDocumentId(pick)` for auto-selection and draft restoration lookups.
+    - **Resume Picker Component (`src/components/interview/ResumePicker.tsx`)**: Safe-mapped Option dropdown options and active selections using `getResumeDocumentId`.
+    - **Cover Letter Edit Page (`src/pages/CoverLetterEditPage.tsx`)**: Corrected linked resume matches and custom color styling loading logic.
+    - **A/B Compare Sheet (`src/components/ai-studio/ResumeABCompareSheet.tsx`)**: Safe-mapped dropdown list key/value selectors to resolve comparison blocks.
+    - **Create Resume Dialog (`src/components/dashboard/CreateResumeDialog.tsx`)**: Resolved parent resume prepopulation lookups during duplication/tailoring.
+  - **Option A (Normalize Early)**:
+    - **Quick Tailor Sheet (`src/components/landing/QuickTailorSheet.tsx`)**: Mapped raw resumes returned by `useResumes()` using `dbToResumeData` inside a `useMemo` early, resolving incorrect property accesses (`id`, `contactInfo`, `experience.length`) inside renders and deletion checks.
+  - **Fast Tailor Cover Letter Security Guardrails**:
+    - **Remote Jobs Feed (`src/pages/RemoteJobsPage.tsx`)**: Added a strict authentication check at the start of the tailoring flow to block requests early if `user.id` is missing. Attached owner-only permissions (`Permission.read/update/delete(Role.user(userId))`) when saving cover letters via `databases.createDocument`. Note: Fast Tailor cover-letter owner-permission code fix has been implemented; full production Fast Tailor flow verification is pending until active test job data is available or a controlled test job can be used.
+- **Validation**:
+  - **TypeScript & Build Check**: Verified that the entire project builds successfully with `npx tsc --noEmit` without any errors.
+  - **Unit & Integration Tests**: Executed the full unit test suite via `npm run test`, passing all 947 tests successfully.
+  - **Local Browser E2E Verification**: Successfully executed a custom Playwright script to verify the local dev server (`http://localhost:5000`):
+    - `/interview` loads options and auto-selects a resume.
+    - `/ai-studio/linkedin` is enabled.
+    - A/B Compare sheet opens and populates selector options.
+  - **Git Checks**: Verified clean git tree with `git status -sb` and zero trailing whitespaces with `git diff --check`.
+
+## 2026-07-10 — P2 Step 1 Cover Letter Save Permission & Schema Attributes Fix
+
+- **Classification**: P2_STEP_1_COVER_LETTER_SAVE_FIXED_PRODUCTION_VERIFIED
+- **Changes**:
+  - **Cover Letter Save (Permissions)**: Fixed the P2 issue where saving a generated cover letter returned an Appwrite `401` permission error.
+    - Updated `src/hooks/useCoverLetters.ts` to attach explicit owner-only document permissions during creation: `Permission.read(Role.user(userId))`, `Permission.update(Role.user(userId))`, and `Permission.delete(Role.user(userId))`.
+    - Restored the missing `updateCoverLetter` mutation in `useCoverLetterMutations` for auto-save support.
+  - **Cover Letter Database Schema Setup**: Created a new setup script `scripts/setup_cover_letters_schema.cjs` that idempotently ensures:
+    - Collection-level `create("users")` permission only (with no collection-level read, update, or delete permissions for `users` to preserve user privacy).
+    - Document security enabled (`documentSecurity: true`).
+    - Database schema attributes: `user_id`, `title`, `job_title`, `company`, `content`, `tone`, `template_style`, `resume_id`.
+    - Database query index: `user_id_idx` on the `user_id` attribute.
+- **Production Verification**:
+  - Successfully ran `node scripts/setup_cover_letters_schema.cjs` against the live Appwrite database to register all attributes, the index, and secure permissions.
+  - Verified `cover_letters` collection configuration: `documentSecurity: true`, collection permissions strictly contain `create("users")` only.
+  - Executed a headless Playwright production E2E test to generate and save a cover letter. Verified `POST /v1/databases/main/collections/cover_letters/documents` returns `201` (Success) with correct document permissions.
+  - Redirected and loaded the saved cover letter successfully (`GET` returns `200` on edit page). No duplicate documents were created.
+- **Remaining Risk**:
+  - Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection.
+- **Commits Pushed**:
+  - `69eebee6` — `docs(cover-letter): document and implement cover letters schema attributes and indexes in setup script`
+  - `65619950` — `fix(cover-letter): persist saved letters with owner permissions`
+
 ## 2026-07-10 — P1 Production Browser QA Retest & Closeout
 
 - **Classification**: P1_CLOSED_PRODUCTION_RETEST_PASS

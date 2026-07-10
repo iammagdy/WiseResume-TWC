@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useResumes, dbToResumeData, type DatabaseResume } from '@/hooks/useResumes';
+import { useResumes, dbToResumeData, getResumeDocumentId, type DatabaseResume } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 
 interface ResumePickerProps {
@@ -41,11 +41,12 @@ export function ResumePicker({ disabled, onChange, className }: ResumePickerProp
   if (isLoading || sorted.length === 0) return null;
 
   const handleChange = (id: string) => {
-    const picked = sorted.find((r) => r.id === id);
+    const picked = sorted.find((r) => getResumeDocumentId(r) === id);
     if (!picked) return;
-    setCurrentResumeId(picked.id);
+    const pickedId = getResumeDocumentId(picked) || null;
+    setCurrentResumeId(pickedId);
     setCurrentResume(dbToResumeData(picked));
-    onChange?.(picked.id);
+    if (pickedId) onChange?.(pickedId);
   };
 
   return (
@@ -62,25 +63,28 @@ export function ResumePicker({ disabled, onChange, className }: ResumePickerProp
           <SelectValue placeholder="Choose a resume" />
         </SelectTrigger>
         <SelectContent>
-          {sorted.map((r) => (
-            <SelectItem key={r.id} value={r.id}>
-              <span className="flex items-center gap-2">
-                {r.is_primary ? (
-                  <Star className="w-3.5 h-3.5 text-primary fill-primary" />
-                ) : (
-                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                )}
-                <span className="truncate">
-                  {r.title || 'Untitled resume'}
-                  {r.is_primary && (
-                    <span className="ml-2 text-[10px] uppercase tracking-wide text-primary">
-                      Master
-                    </span>
+          {sorted.map((r) => {
+            const rId = getResumeDocumentId(r);
+            return (
+              <SelectItem key={rId} value={rId}>
+                <span className="flex items-center gap-2">
+                  {r.is_primary ? (
+                    <Star className="w-3.5 h-3.5 text-primary fill-primary" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
+                  <span className="truncate">
+                    {r.title || 'Untitled resume'}
+                    {r.is_primary && (
+                      <span className="ml-2 text-[10px] uppercase tracking-wide text-primary">
+                        Master
+                      </span>
+                    )}
+                  </span>
                 </span>
-              </span>
-            </SelectItem>
-          ))}
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
     </div>

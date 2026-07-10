@@ -22,7 +22,7 @@ import {
   useDeleteInterviewDraft,
   useLatestInterviewDraft,
 } from '@/hooks/useInterviewHistory';
-import { useResumes, dbToResumeData } from '@/hooks/useResumes';
+import { useResumes, dbToResumeData, getResumeDocumentId } from '@/hooks/useResumes';
 import { useResumeMutations } from '@/hooks/useResumes';
 import { buildSampleResume } from '@/lib/devkit/sampleResume';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
@@ -127,7 +127,7 @@ function InterviewPageContent() {
     });
     const pick = sorted[0];
     if (!pick) return;
-    setCurrentResumeId(pick.id);
+    setCurrentResumeId(getResumeDocumentId(pick) || null);
     setCurrentResume(dbToResumeData(pick));
   }, [hydrated, currentResume, resumes, setCurrentResume, setCurrentResumeId]);
 
@@ -280,9 +280,9 @@ function InterviewPageContent() {
     // Restore the resume the original session was practicing against, so
     // the AI has matching context and the picker shows the right entry.
     if (latestDraft.resume_id && resumes) {
-      const restored = resumes.find((r) => r.id === latestDraft.resume_id);
+      const restored = resumes.find((r) => getResumeDocumentId(r) === latestDraft.resume_id);
       if (restored) {
-        setCurrentResumeId(restored.id);
+        setCurrentResumeId(getResumeDocumentId(restored) || null);
         setCurrentResume(dbToResumeData(restored));
       }
     }

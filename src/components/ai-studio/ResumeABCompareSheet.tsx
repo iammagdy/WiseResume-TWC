@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
-import { useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
+import { useResumes, dbToResumeData, getResumeDocumentId, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { toast } from 'sonner';
@@ -65,8 +65,8 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
 
   const resumeList = (resumes || []) as unknown as DatabaseResume[];
 
-  const resumeATitle = resumeList.find(r => r.id === resumeAId)?.title || 'Resume A';
-  const resumeBTitle = resumeList.find(r => r.id === resumeBId)?.title || 'Resume B';
+  const resumeATitle = resumeList.find(r => getResumeDocumentId(r) === resumeAId)?.title || 'Resume A';
+  const resumeBTitle = resumeList.find(r => getResumeDocumentId(r) === resumeBId)?.title || 'Resume B';
 
   const canCompare = resumeAId && resumeBId && resumeAId !== resumeBId && jobDescription.trim().length >= 20;
 
@@ -83,8 +83,8 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
     haptics.medium();
     setStep('loading');
 
-    const dbA = resumeList.find(r => r.id === resumeAId);
-    const dbB = resumeList.find(r => r.id === resumeBId);
+    const dbA = resumeList.find(r => getResumeDocumentId(r) === resumeAId);
+    const dbB = resumeList.find(r => getResumeDocumentId(r) === resumeBId);
     if (!dbA || !dbB) { toast.error('Could not find selected resumes'); setStep('input'); return; }
 
     const dataA = dbToResumeData(dbA);
@@ -181,9 +181,12 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                 <Select value={resumeAId} onValueChange={setResumeAId}>
                   <SelectTrigger id="abc-resume-a" className="min-h-[48px]"><SelectValue placeholder="Select first resume" /></SelectTrigger>
                   <SelectContent>
-                    {resumeList.map(r => (
-                      <SelectItem key={r.id} value={r.id} disabled={r.id === resumeBId}>{r.title}</SelectItem>
-                    ))}
+                    {resumeList.map(r => {
+                      const rId = getResumeDocumentId(r) || '';
+                      return (
+                        <SelectItem key={rId} value={rId} disabled={rId === resumeBId}>{r.title}</SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -193,9 +196,12 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                 <Select value={resumeBId} onValueChange={setResumeBId}>
                   <SelectTrigger id="abc-resume-b" className="min-h-[48px]"><SelectValue placeholder="Select second resume" /></SelectTrigger>
                   <SelectContent>
-                    {resumeList.map(r => (
-                      <SelectItem key={r.id} value={r.id} disabled={r.id === resumeAId}>{r.title}</SelectItem>
-                    ))}
+                    {resumeList.map(r => {
+                      const rId = getResumeDocumentId(r) || '';
+                      return (
+                        <SelectItem key={rId} value={rId} disabled={rId === resumeAId}>{r.title}</SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

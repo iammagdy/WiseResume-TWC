@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useResumeMutations, DatabaseResume, dbToResumeData, parseDbResume } from '@/hooks/useResumes';
+import { useResumeMutations, DatabaseResume, dbToResumeData, parseDbResume, getResumeDocumentId } from '@/hooks/useResumes';
 import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
@@ -155,7 +155,7 @@ export function CreateResumeDialog({
   useEffect(() => {
     if (parentResumeId && open) {
       setMode('tailored');
-      const parentResume = existingResumes.find(r => r.id === parentResumeId);
+      const parentResume = existingResumes.find(r => getResumeDocumentId(r) === parentResumeId);
       if (parentResume) {
         setTitle(`${parentResume.title} - Tailored`);
         setTailoredJobTitle(parentResume.target_job_title || '');

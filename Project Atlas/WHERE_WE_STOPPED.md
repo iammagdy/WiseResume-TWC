@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-07-10
-**Status:** P1 Production Browser QA Remediation Completed
+**Status:** P2/P3 QA Remediation Pass Completed (Local Verified)
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -24,7 +24,9 @@
 
 ## 2. Latest Important Commits
 
-* **`465c93dc`** — `fix(ai-gateway): resolve tailoring route metadata crash` ← **LAST**
+* **`69eebee6`** — `docs(cover-letter): document and implement cover letters schema attributes and indexes in setup script` ← **LAST**
+* **`65619950`** — `fix(cover-letter): persist saved letters with owner permissions`
+* **`465c93dc`** — `fix(ai-gateway): resolve tailoring route metadata crash`
 * **`b3cb0d91`** — `fix(qa): address confirmed P1 browser QA blockers`
 * **`15bb25b8`** — `fix(schema): pre-fetch existing attributes in setup_audit_logs_schema to prevent duplicate checks and timeouts`
 * **`cfac645a`** — `fix(schema): pre-check existing attributes on profiles collection before creation`
@@ -38,7 +40,24 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: P1_CLOSED_PRODUCTION_RETEST_PASS — 6/6 original P1 blockers successfully verified and passed production browser retest on `https://wiseresume.app`.
+* **Session Status**: P2_P3_REMEDIATION_IMPLEMENTED_PENDING_PRODUCTION_VERIFICATION — The consolidated P2/P3 QA Remediation Pass is implemented and verified locally; production verification is pending.
+* **P2/P3 Remediation Closed**:
+  - **Resume Picker & Selector Mismatch (Option B)**: Fixed all `.id` vs `.$id` property name mismatches on raw Appwrite database objects using `getResumeDocumentId`. Verified:
+    - `/interview` page loader selects the master/latest resume automatically.
+    - `/interview` dropdown displays options and restores draft sessions correctly.
+    - `/ai-studio/linkedin` page loads the current resume correctly, ensuring optimization buttons are not disabled.
+    - A/B Compare sheet dropdowns populate and select resumes successfully.
+    - Create Resume Dialog correctly pre-fills fields when opened with `parentResumeId`.
+    - Cover Letter Edit Page resolves linked resume correctly and loads user-selected custom accent colors.
+  - **Quick Tailor Normalization (Option A)**: Mapped raw resumes returned by `useResumes()` using `dbToResumeData` inside a `useMemo` early in `QuickTailorSheet.tsx`, resolving incorrect property accesses (`id`, `contactInfo`, `experience.length`) inside renders and deletion checks.
+  - **Fast Tailor Cover Letter Security Guardrails**:
+    - Appended strict auth validation checks at the start of the tailoring flow to exit early if `user.id` is missing.
+    - Attached explicit owner-only document permissions when creating cover letters via `databases.createDocument` inside `RemoteJobsPage.tsx` to prevent `401` authorization errors. Note: Fast Tailor cover-letter owner-permission code fix has been implemented; full production Fast Tailor flow verification is pending until active test job data is available or a controlled test job can be used.
+* **P2 Step 1 Closed — Cover Letter Save & Attributes Setup**:
+  - **Environment**: `https://wiseresume.app`
+  - **Verified Areas**:
+    - **Cover Letter Save**: Save returns `201` with correct owner permissions, redirects to `/cover-letter/edit/<id>`, and loads successfully.
+    - **Database Schema**: Collection attributes (`title`, `job_title`, `company`, `content`, `tone`, `template_style`, `resume_id`) and index `user_id_idx` are fully provisioned and verified in production.
 * **P1 CLOSED — 6/6 original P1 blockers passed production browser retest**:
   - **Environment**: `https://wiseresume.app`
   - **Verified Areas**:
@@ -53,18 +72,18 @@
   - Adjusted the PDF download flow to click the final "Download PDF" button inside the export dialog.
   - Updated the Cover Letter submit button selector to support dynamic labels (`Generate & return to bundle`).
   - Corrected the dashboard count comparison to verify matching totals without hardcoding the temporary value `10`.
-* **P2 Carry-over Issues**:
-  - **Cover Letter manual save returns 401**: Manual save after successful generation fails with `No permissions provided for action 'create'` (401) on the `cover_letters` Appwrite collection. This is classified as a persistence/permission follow-up.
 
 ---
 
 ## 4. Next Recommended Tasks
 
-1. **Verify QA Branch for Merge**: Keep all code on the safe branch `audit/production-stabilization-qa`. Review the remote commits and perform a manual, audited git merge/integration into `origin/main` when ready. Do NOT force-push or automatically overwrite `origin/main`.
-2. **Deeper Manual QA**:
+1. **Audit and Fix Remaining 401 Queries**: Resolve other queries that return 401 under user sessions (e.g. `tailor_history` and `user_preferences` collections).
+2. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
+3. **Verify QA Branch for Merge**: Keep all code on the safe branch `audit/production-stabilization-qa`. Review the remote commits and perform a manual, audited git merge/integration into `origin/main` when ready. Do NOT force-push or automatically overwrite `origin/main`.
+4. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.
-3. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
+5. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
 
 ---
 

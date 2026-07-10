@@ -29,7 +29,7 @@ import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { tailorResumeWithProgress, generateCoverLetter } from '@/lib/aiTailor';
 import { buildMergedResume, hasMeaningfulChanges } from '@/lib/tailorMerge';
 import { buildTailoringCustomization } from '@/lib/tailoringResumeMetadata';
-import { databases, DATABASE_ID, ID, Query } from '@/lib/appwrite';
+import { databases, DATABASE_ID, ID, Query, Permission, Role } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { useResumeStore } from '@/store/resumeStore';
@@ -201,6 +201,10 @@ export default function RemoteJobsPage() {
   }, [isAuthenticated, resumes, navigate]);
 
   const executeFastTailorFlow = async (selectedDbResume: DatabaseResume, job: NormalizedRemoteJob) => {
+    if (!user?.id) {
+      toast.error('Authentication required to tailor resumes.');
+      return;
+    }
     if (isTailoringRef.current) return;
     isTailoringRef.current = true;
     setIsTailoring(true);
@@ -337,14 +341,19 @@ export default function RemoteJobsPage() {
           COLLECTIONS.cover_letters,
           ID.unique(),
           {
-            user_id: user?.id,
+            user_id: user.id,
             title: `${job.company} - ${job.title} - Cover Letter`,
             job_title: job.title,
             company: job.company,
             content: coverLetterText,
             tone: 'professional',
             resume_id: tailoredResumeId,
-          }
+          },
+          [
+            Permission.read(Role.user(user.id)),
+            Permission.update(Role.user(user.id)),
+            Permission.delete(Role.user(user.id)),
+          ]
         );
         generatedCoverLetterId = clDoc.$id;
       }

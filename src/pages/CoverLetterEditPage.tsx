@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useCoverLetter, useCoverLetterMutations } from '@/hooks/useCoverLetters';
 import { useAuth } from '@/hooks/useAuth';
-import { useResumes, dbToResumeData } from '@/hooks/useResumes';
+import { useResumes, dbToResumeData, getResumeDocumentId } from '@/hooks/useResumes';
 import { generateCoverLetter } from '@/lib/aiTailor';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
@@ -88,7 +88,7 @@ export default function CoverLetterEditPage() {
     if (!content || !letter) return;
     try {
       const { downloadCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
-      const linkedResume = resumes?.find(r => r.id === letter.resume_id);
+      const linkedResume = resumes?.find(r => getResumeDocumentId(r) === letter.resume_id);
       const accentHex = linkedResume ? dbToResumeData(linkedResume).customization?.accentColor : undefined;
       await downloadCoverLetterPDF({ ...letter, content, accentHex });
       toast.success('PDF downloaded!');
@@ -102,7 +102,7 @@ export default function CoverLetterEditPage() {
       toast.error('Enter a job description. Make sure this letter has a linked resume.');
       return;
     }
-    const resume = resumes?.find((r) => r.id === letter.resume_id);
+    const resume = resumes?.find((r) => getResumeDocumentId(r) === letter.resume_id);
     if (!resume) {
       toast.error('Linked resume not found');
       return;
@@ -195,7 +195,7 @@ export default function CoverLetterEditPage() {
                 // never fall back to resumes[0] (would show an unrelated
                 // resume's colour).
                 if (!resumes || !letter.resume_id) return undefined;
-                const linked = resumes.find((r) => r.id === letter.resume_id);
+                const linked = resumes.find((r) => getResumeDocumentId(r) === letter.resume_id);
                 return linked ? dbToResumeData(linked).customization?.accentColor : undefined;
               })()}
             />
