@@ -395,6 +395,7 @@ function AppRoutes() {
                <Route path="/dashboard" element={<RouteEB><Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense></RouteEB>} />
                <Route path="/editor" element={<RouteEB><Suspense fallback={<EditorSkeleton />}><EditorPage /></Suspense></RouteEB>} />
                <Route path="/preview" element={<RouteEB><Suspense fallback={<PreviewSkeleton />}><PreviewPage /></Suspense></RouteEB>} />
+               <Route path="/preview/:id" element={<RouteEB><Suspense fallback={<PreviewSkeleton />}><PreviewPage /></Suspense></RouteEB>} />
                <Route path="/upload" element={<RouteEB><Suspense fallback={<UploadSkeleton />}><UploadPage /></Suspense></RouteEB>} />
                <Route path="/settings" element={<RouteEB><Suspense fallback={<SettingsSkeleton />}><SettingsPage /></Suspense></RouteEB>} />
                <Route path="/interview" element={<RouteEB><FeatureGate enabled={appSettings.feature_interview_coach}><Suspense fallback={<InterviewSkeleton />}><InterviewPage /></Suspense></FeatureGate></RouteEB>} />

@@ -272,8 +272,8 @@ function DashboardPageContent() {
   );
   const metricsScoringActive = scoringId !== null;
   const tailoredThisWeek = useMemo(
-    () => (resumes ? countTailoredResumesThisWeek(resumes) : 0),
-    [resumes],
+    () => (resumes ? countTailoredResumesThisWeek(resumes, tailoredResumeIds) : 0),
+    [resumes, tailoredResumeIds],
   );
 
   const handleTailorResume = useCallback(
@@ -893,6 +893,7 @@ function DashboardPageContent() {
                 scoringId={scoringId}
                 onEditResume={handleEdit}
                 onTailorResume={handleTailorResume}
+                tailoredIds={tailoredResumeIds}
               />
 
               <div className="dashboard-workspace-main-body flex min-h-0 flex-1 flex-col xl:overflow-y-auto xl:overscroll-y-contain">
@@ -1365,7 +1366,7 @@ function DashboardPageContent() {
       )}
       {/* Feature Map Sheet */}
       <FeatureMapSheet open={showFeatureMap} onOpenChange={setShowFeatureMap} />
-      
+
     </div>
   );
 }

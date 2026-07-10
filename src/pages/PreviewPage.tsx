@@ -1,7 +1,7 @@
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, Check, FileText, Mic, FolderDown, Palette, FileDown, MoreHorizontal, Pencil } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
@@ -96,7 +96,8 @@ export default function PreviewPage() {
     })()
   );
   const [autoExportFallback, setAutoExportFallback] = useState<string | null>(null);
-  const resumeIdFromUrl = searchParams.get('id');
+  const { id: resumeIdFromParams } = useParams<{ id: string }>();
+  const resumeIdFromUrl = searchParams.get('id') || resumeIdFromParams;
   const bootstrappedResumeIdRef = useRef<string | null>(null);
   const { updateResume: persistResume } = useResumeMutations();
 

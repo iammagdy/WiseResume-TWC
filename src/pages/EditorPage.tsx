@@ -981,11 +981,12 @@ export default function EditorPage() {
   ];
 
   const handleImproveSection = useCallback(
-    gate('pro', () => sheets.open('tailor'), {
-      featureName: 'Smart Tailoring',
-      description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
-      features: TAILOR_FEATURES,
-    }),
+    () =>
+      gate('pro', () => sheets.open('tailor'), {
+        featureName: 'Smart Tailoring',
+        description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+        features: TAILOR_FEATURES,
+      })(),
     [gate, sheets.open]
   );
 
@@ -995,11 +996,12 @@ export default function EditorPage() {
 
   const handleChangeTemplate = useCallback(() => sheets.open('templates'), [sheets.open]);
   const handleTailor = useCallback(
-    gate('pro', () => sheets.open('tailor'), {
-      featureName: 'Smart Tailoring',
-      description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
-      features: TAILOR_FEATURES,
-    }),
+    () =>
+      gate('pro', () => sheets.open('tailor'), {
+        featureName: 'Smart Tailoring',
+        description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+        features: TAILOR_FEATURES,
+      })(),
     [gate, sheets.open]
   );
   const handleAnalyze = useCallback(() => sheets.open('jobAnalysis'), [sheets.open]);

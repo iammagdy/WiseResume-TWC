@@ -198,7 +198,7 @@ export function TailorQuickPdfExportDialog({
 
     const storeResume = useResumeStore.getState().currentResume;
 
-    const resumeKey = resume.id ?? resumeDocId ?? null;
+    const resumeKey = resumeDocId ?? resume.id ?? null;
 
     const storeKey = storeResume?.id ?? useResumeStore.getState().currentResumeId;
 

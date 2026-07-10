@@ -137,7 +137,11 @@ export async function tailorResumeWithProgress(
       throw new AIError(info);
     }
 
-    return data!;
+    if (!data) {
+      throw new AIError(parseAIErrorBody({ code: 'invalid_ai_response', message: 'AI returned an empty response.' }, 500));
+    }
+
+    return data;
   };
 
   try {

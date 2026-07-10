@@ -1,5 +1,6 @@
 import type { ResumeHealthScore } from '@/hooks/useResumeScore';
 import type { ScoreHistoryEntry } from '@/store/atsScoreHistoryStore';
+import { isTailoredResume } from '@/lib/resumeLineage';
 
 const SEVEN_DAYS_MS = 7 * 86_400_000;
 
@@ -114,11 +115,12 @@ export function computePortfolioAtsDelta(
 }
 
 export function countTailoredResumesThisWeek(
-  resumes: { parent_resume_id?: string | null; $createdAt?: string; $updatedAt?: string }[],
+  resumes: { $id: string; parent_resume_id?: string | null; title?: string | null; $createdAt?: string; $updatedAt?: string }[],
+  tailoredIds?: Set<string>,
 ): number {
   const weekAgo = Date.now() - SEVEN_DAYS_MS;
   return resumes.filter((r) => {
-    if (!r.parent_resume_id) return false;
+    if (!isTailoredResume(r, tailoredIds)) return false;
     const t = new Date(r.$createdAt || r.$updatedAt || 0).getTime();
     return t >= weekAgo;
   }).length;

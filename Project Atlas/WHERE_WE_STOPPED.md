@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-09
-**Status:** Profiles Portfolio Schema Cleaned & Production Verified
+**Last Verified:** 2026-07-10
+**Status:** P1 Production Browser QA Remediation Completed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -36,15 +36,14 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: VERIFIED_DEPLOYED_CLOSEOUT — Completed implementation and verification of the five manual QA findings, resolved database schema setup script failures, and successfully deployed all 28 Appwrite hubs.
-* **Fixes Implemented & Verified**:
-  - **AI Concurrency & Rate Limiting**: Added a 5-minute stale cutoff and plan-based concurrent limits (Free: 2, Pro: 3, Premium: 4) to `ai-gateway`, mapped `'too_many_concurrent_jobs'` to a user-friendly error toast, and added a cancel-abort guard to Editor `TailorSheet.tsx`.
-  - **Saved Resumes Label Mismatch**: Replaced translation key for Saved Jobs card to avoid displaying "Saved resumes: 0".
-  - **Tailored Resumes Count**: Switched card value to show total tailored resumes count, with weekly activity in the subtext.
-  - **Onboarding Checklist Visibility**: Hid onboarding checklist for power users (3+ resumes, or at least 1 tailored resume) or when all steps are completed.
-  - **Privacy Consent Fallback**: Implemented a `sessionStorage` fallback alongside `localStorage` to ensure consent is remembered within incognito/private sessions.
-  - **Database Migration Fixes**: Re-architected `setup_profiles_portfolio_schema.cjs` and `setup_audit_logs_schema.cjs` to fetch and check existing attributes locally first, avoiding Capicity limits and network timeout errors during redeployments.
-  - **Production Deployment**: Pushed fixes to `main` and ran the full Appwrite hubs deployment, completing successfully in 11 minutes. Passed all E2E checks against production.
+* **Session Status**: VERIFIED_P1_REMEDIATION_READY_FOR_RETEST — Completed implementation of all 6 P1 browser QA blocker fixes on the local repository. Checked formatting and TypeScript compilation successfully.
+* **P1 Fixes Implemented & Verified**:
+  - **P1-1 (Tailoring Hub AI Failure)**: Guarded `aiTailor.ts` against null data, and silenced double error toast by utilizing `executeAI`'s `silent: true` parameter, showing only a clean, recoverable error card on the tailoring form and writing safe diagnostic info to console.
+  - **P1-2 (Cover Letter No Output)**: Implemented text validations on generated content in `CoverLetterNewPage.tsx`, added manual save fallback via `useCoverLetterMutations` when the backend save fails, and added a fallback display override when returnTo redirect is skipped or fails.
+  - **P1-3 (Editor Improve AI Button)**: Resolved stale memoized render-time plan check closures in `EditorPage.tsx` by wrapping the `gate` checks inside deferred callbacks.
+  - **P1-4 (Dashboard Metric Mismatch)**: Standardized tailored resume detection across dashboard metric cards, activity bars, details dialog, and tabs list filter using the union-based `isTailoredResume` check and propagating `tailoredIds` Set.
+  - **P1-5 (Tailored PDF Export Fail)**: Prioritized `resumeDocId` over `resume.id` in `TailorQuickPdfExportDialog.tsx` to handle state lag, and added a warning toast in `TailoringHubResultPage.tsx` when downloading while a resume is still loading.
+  - **P1-6 (Preview 404 Route)**: Added `/preview/:id` path matching to the router inside `AppInterior.tsx` and updated `PreviewPage.tsx` to read the ID from `useParams` path parameters as a query parameter fallback.
 
 ---
 

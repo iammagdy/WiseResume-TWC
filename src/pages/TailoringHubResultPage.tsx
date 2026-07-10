@@ -312,7 +312,11 @@ export default function JobMatchResultPage() {
   };
 
   const handleDesignedPDF = () => {
-    if (!resumeId || !resume) return;
+    if (!resumeId) return;
+    if (!resume) {
+      toast.error('Resume is still loading, please try again in a moment.');
+      return;
+    }
     setCurrentResumeId(resumeId);
     setCurrentResume(resume);
     setSelectedTemplateStore(selectedTemplate);

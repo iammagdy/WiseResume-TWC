@@ -13,6 +13,8 @@ import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { haptics } from '@/lib/haptics';
 import type { Job } from '@/hooks/useJobs';
 
+import { isTailoredResume } from '@/lib/resumeLineage';
+
 interface DashboardMetricsStripProps {
   resumes: DatabaseResume[];
   healthScores: Record<string, ResumeHealthScore>;
@@ -32,6 +34,7 @@ interface DashboardMetricsStripProps {
   onEditResume: (resumeId: string) => void;
   onTailorResume: (resumeId: string) => void;
   className?: string;
+  tailoredIds?: Set<string>;
 }
 
 type MetricTone = 'ats' | 'tailored' | 'matches' | 'jobs';
@@ -110,6 +113,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
   onEditResume,
   onTailorResume,
   className,
+  tailoredIds,
 }: DashboardMetricsStripProps) {
   const { t } = useLocale();
   const [activeDialog, setActiveDialog] = useState<MetricTone | null>(null);
@@ -122,7 +126,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         ? '…'
         : '—';
 
-  const totalTailored = useMemo(() => resumes.filter(r => r.parent_resume_id).length, [resumes]);
+  const totalTailored = useMemo(() => resumes.filter(r => isTailoredResume(r, tailoredIds)).length, [resumes, tailoredIds]);
   const tailoredBars = useMemo(() => buildTailoredActivityBars(resumes), [resumes]);
   const matchSegments = useMemo(() => buildMatchSegments(resumes), [resumes]);
   const jobChips = useMemo(
@@ -166,8 +170,8 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
-                  {scoredResumeCount > 0 
-                    ? t('app.dashboardPage.acrossResumesCount', 'Across {{count}} resume{{suffix}}', { count: scoredResumeCount, suffix: scoredResumeCount !== 1 ? 's' : '' }) 
+                  {scoredResumeCount > 0
+                    ? t('app.dashboardPage.acrossResumesCount', 'Across {{count}} resume{{suffix}}', { count: scoredResumeCount, suffix: scoredResumeCount !== 1 ? 's' : '' })
                     : isScoring ? t('app.dashboardPage.scoringResumes', 'Scoring resumes…') : t('app.dashboardPage.runAtsOnResumes', 'Run ATS on your resumes')}
                 </p>
               )}
@@ -320,6 +324,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         tailoredThisWeek={tailoredThisWeek}
         onEditResume={onEditResume}
         onTailorResume={onTailorResume}
+        tailoredIds={tailoredIds}
       />
       <DashboardApplicationMatchesDialog
         open={activeDialog === 'matches'}

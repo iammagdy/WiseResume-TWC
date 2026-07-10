@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DatabaseResume } from '@/hooks/useResumes';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { haptics } from '@/lib/haptics';
+import { isTailoredResume } from '@/lib/resumeLineage';
 
 const WEEK_MS = 7 * 86_400_000;
 
@@ -23,6 +24,7 @@ interface DashboardTailoredMetricDialogProps {
   tailoredThisWeek: number;
   onEditResume: (resumeId: string) => void;
   onTailorResume: (resumeId: string) => void;
+  tailoredIds?: Set<string>;
 }
 
 export const DashboardTailoredMetricDialog = memo(function DashboardTailoredMetricDialog({
@@ -32,11 +34,12 @@ export const DashboardTailoredMetricDialog = memo(function DashboardTailoredMetr
   tailoredThisWeek,
   onEditResume,
   onTailorResume,
+  tailoredIds,
 }: DashboardTailoredMetricDialogProps) {
   const tailored = useMemo(() => {
     const weekAgo = Date.now() - WEEK_MS;
     return resumes
-      .filter((r) => r.parent_resume_id)
+      .filter((r) => isTailoredResume(r, tailoredIds))
       .map((r) => ({
         resume: r,
         thisWeek:
@@ -47,7 +50,7 @@ export const DashboardTailoredMetricDialog = memo(function DashboardTailoredMetr
           new Date(b.resume.$updatedAt || b.resume.$createdAt || 0).getTime() -
           new Date(a.resume.$updatedAt || a.resume.$createdAt || 0).getTime(),
       );
-  }, [resumes]);
+  }, [resumes, tailoredIds]);
 
   const handle = (fn: () => void) => {
     haptics.light();

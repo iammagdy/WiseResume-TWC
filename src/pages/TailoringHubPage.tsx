@@ -166,7 +166,7 @@ export default function JobMatchWorkspacePage() {
     const masters = allResumes.filter((r: DatabaseResume) => !isLikelyTailoredResume(r, tailoredIds));
     const target = sortByRecent(masters)[0] ?? sortByRecent(allResumes)[0];
     if (target) setCurrentResumeId(target.$id);
-   
+
   }, [allResumes, currentResumeId, isLikelyTailoredResume, persistedTailoredIds, setCurrentResumeId]);
 
   // Clear stale persisted JD from a previous browser session.
@@ -352,11 +352,11 @@ export default function JobMatchWorkspacePage() {
           localStorage.getItem('wr-tailor-custom-instructions') || undefined,
         );
         return tailorResult;
-      });
+      }, { silent: true });
 
       if (abort.signal.aborted) return;
       if (!aiRan || !tailorResult || !originalResume) {
-        setTailorError('Tailoring could not complete. Please try again in a moment.');
+        setTailorError('Tailoring could not complete. Please try again.');
         return;
       }
 
@@ -504,7 +504,7 @@ export default function JobMatchWorkspacePage() {
         : (err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setTailorError(msg);
       haptics.error();
-      toast.error(msg);
+      console.error('[TailoringHub] AI tailoring failed:', err);
     } finally {
       if (!abort.signal.aborted) {
         setIsTailoring(false);
