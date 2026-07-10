@@ -40,15 +40,13 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: P2_P3_REMEDIATION_IMPLEMENTED_PENDING_PRODUCTION_VERIFICATION — The consolidated P2/P3 QA Remediation Pass is implemented and verified locally; production verification is pending.
+* **Session Status**: P2_P3_REMEDIATION_PRODUCTION_VERIFIED_WITH_FAST_TAILOR_CREDIT_LIMIT_CAVEAT — The consolidated P2/P3 QA Remediation Pass is completed and verified against production for commit `aaf77e87`.
 * **P2/P3 Remediation Closed**:
-  - **Resume Picker & Selector Mismatch (Option B)**: Fixed all `.id` vs `.$id` property name mismatches on raw Appwrite database objects using `getResumeDocumentId`. Verified:
-    - `/interview` page loader selects the master/latest resume automatically.
-    - `/interview` dropdown displays options and restores draft sessions correctly.
-    - `/ai-studio/linkedin` page loads the current resume correctly, ensuring optimization buttons are not disabled.
-    - A/B Compare sheet dropdowns populate and select resumes successfully.
-    - Create Resume Dialog correctly pre-fills fields when opened with `parentResumeId`.
-    - Cover Letter Edit Page resolves linked resume correctly and loads user-selected custom accent colors.
+  - **Mock Interview (`/interview`)**: **PASS**. Resume selector auto-selected latest/active resume. Dropdown populated with 22 options and retrieved resumes via network (200 success).
+  - **LinkedIn Optimizer (`/ai-studio/linkedin`)**: **PASS**. Active resume context resolved successfully and the `Generate LinkedIn Content` CTA was enabled (resumes query returned 200).
+  - **A/B Compare (`/ai-studio/ab-compare`)**: **PASS**. A/B dropdown triggers appeared, Resume A dropdown populated with 22 options, and selection worked.
+  - **Cover Letter Save (`/cover-letter/new`)**: **PASS**. Generation succeeded, manual Save successfully created the Appwrite document (`POST` returned 201), and redirected to `/cover-letter/edit/<id>`.
+  - **Fast Tailor Caveat**: **VERIFIED**. The `/jobs` feed successfully loaded 50 active jobs from the database. Fast Tailor dialog opened, and resume selection and confirm actions worked. E2E generation execution was blocked as expected by daily credit limit enforcement because the QA account had `22/20` credits used. Thus, UI wiring and credit limits were verified; full generation after a credit reset remains a follow-up.
   - **Quick Tailor Normalization (Option A)**: Mapped raw resumes returned by `useResumes()` using `dbToResumeData` inside a `useMemo` early in `QuickTailorSheet.tsx`, resolving incorrect property accesses (`id`, `contactInfo`, `experience.length`) inside renders and deletion checks.
   - **Fast Tailor Cover Letter Security Guardrails**:
     - Appended strict auth validation checks at the start of the tailoring flow to exit early if `user.id` is missing.
@@ -77,13 +75,14 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Audit and Fix Remaining 401 Queries**: Resolve other queries that return 401 under user sessions (e.g. `tailor_history` and `user_preferences` collections).
-2. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
-3. **Verify QA Branch for Merge**: Keep all code on the safe branch `audit/production-stabilization-qa`. Review the remote commits and perform a manual, audited git merge/integration into `origin/main` when ready. Do NOT force-push or automatically overwrite `origin/main`.
-4. **Deeper Manual QA**:
+1. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once the QA account credit usage is reset or a custom test account with positive credit balance is available.
+2. **Audit and Fix Remaining 401 Queries**: Resolve other queries that return 401 under user sessions (e.g. `tailor_history` and `user_preferences` collections).
+3. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
+4. **Verify QA Branch for Merge**: Keep all code on the safe branch `audit/production-stabilization-qa`. Review the remote commits and perform a manual, audited git merge/integration into `origin/main` when ready. Do NOT force-push or automatically overwrite `origin/main`.
+5. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.
-5. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
+6. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
 
 ---
 

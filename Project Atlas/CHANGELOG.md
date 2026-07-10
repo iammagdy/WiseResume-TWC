@@ -2,7 +2,7 @@
 
 ## 2026-07-10 — P2/P3 QA Remediation Pass (Resume Picker, Interview, Cover Letters & Fast Tailor Permissions)
 
-- **Classification**: P2_P3_REMEDIATION_IMPLEMENTED_PENDING_PRODUCTION_VERIFICATION
+- **Classification**: P2_P3_REMEDIATION_PRODUCTION_VERIFIED_WITH_FAST_TAILOR_CREDIT_LIMIT_CAVEAT
 - **Changes**:
   - **Option B (Safe ID Helper)**: Implemented `getResumeDocumentId` lookup across selectors, comparison lists, and draft loaders to prevent property mismatches on raw Appwrite database objects:
     - **Mock Interview Page (`src/pages/InterviewPage.tsx`)**: Replaced `.id` with `getResumeDocumentId(pick)` for auto-selection and draft restoration lookups.
@@ -13,15 +13,21 @@
   - **Option A (Normalize Early)**:
     - **Quick Tailor Sheet (`src/components/landing/QuickTailorSheet.tsx`)**: Mapped raw resumes returned by `useResumes()` using `dbToResumeData` inside a `useMemo` early, resolving incorrect property accesses (`id`, `contactInfo`, `experience.length`) inside renders and deletion checks.
   - **Fast Tailor Cover Letter Security Guardrails**:
-    - **Remote Jobs Feed (`src/pages/RemoteJobsPage.tsx`)**: Added a strict authentication check at the start of the tailoring flow to block requests early if `user.id` is missing. Attached owner-only permissions (`Permission.read/update/delete(Role.user(userId))`) when saving cover letters via `databases.createDocument`. Note: Fast Tailor cover-letter owner-permission code fix has been implemented; full production Fast Tailor flow verification is pending until active test job data is available or a controlled test job can be used.
+    - **Remote Jobs Feed (`src/pages/RemoteJobsPage.tsx`)**: Added a strict authentication check at the start of the tailoring flow to block requests early if `user.id` is missing. Attached owner-only permissions (`Permission.read/update/delete(Role.user(userId))`) when saving cover letters via `databases.createDocument`.
+- **Production Verification (Commit `aaf77e87`)**:
+  - **Mock Interview (`/interview`)**: **PASS**. Resume selector auto-selected latest/active resume. Dropdown populated with 22 options and retrieved resumes via network (200 success).
+  - **LinkedIn Optimizer (`/ai-studio/linkedin`)**: **PASS**. Active resume context resolved successfully and the `Generate LinkedIn Content` CTA was enabled (resumes query returned 200).
+  - **A/B Compare (`/ai-studio/ab-compare`)**: **PASS**. A/B dropdown triggers appeared, Resume A dropdown populated with 22 options, and selection worked.
+  - **Cover Letter Save (`/cover-letter/new`)**: **PASS**. Generation succeeded, manual Save successfully created the Appwrite document (`POST` returned 201), and redirected to `/cover-letter/edit/<id>`.
+  - **Fast Tailor Caveat**: **VERIFIED**. The `/jobs` feed successfully loaded 50 active jobs from the database. Fast Tailor dialog opened, and resume selection and confirm actions worked. E2E generation execution was blocked as expected by daily credit limit enforcement because the QA account had `22/20` credits used. Thus, UI wiring and credit limits were verified; full generation after a credit reset remains a follow-up.
+- **Remaining Follow-ups**:
+  - Fast Tailor E2E generation verification after QA credit reset or with a controlled test account.
+  - Pre-existing cover letter documents owner-only permission inspection/migration.
+  - Non-blocking audit of `tailor_history` and `user_preferences` 401 query errors under active sessions.
 - **Validation**:
-  - **TypeScript & Build Check**: Verified that the entire project builds successfully with `npx tsc --noEmit` without any errors.
-  - **Unit & Integration Tests**: Executed the full unit test suite via `npm run test`, passing all 947 tests successfully.
-  - **Local Browser E2E Verification**: Successfully executed a custom Playwright script to verify the local dev server (`http://localhost:5000`):
-    - `/interview` loads options and auto-selects a resume.
-    - `/ai-studio/linkedin` is enabled.
-    - A/B Compare sheet opens and populates selector options.
-  - **Git Checks**: Verified clean git tree with `git status -sb` and zero trailing whitespaces with `git diff --check`.
+  - **TypeScript**: Verified that `npx tsc --noEmit` passes with 0 compilation errors.
+  - **Unit Tests**: Verified that `npm run test` passes all 947 unit tests successfully.
+  - **Git Checks**: Clean working copy with `git status -sb` and zero trailing whitespaces with `git diff --check`.
 
 ## 2026-07-10 — P2 Step 1 Cover Letter Save Permission & Schema Attributes Fix
 
