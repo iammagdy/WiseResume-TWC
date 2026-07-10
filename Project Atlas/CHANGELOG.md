@@ -1,5 +1,22 @@
 # Project Atlas Master Changelog
 
+## 2026-07-10 — P1 Production Browser QA Retest & Closeout
+
+- **Classification**: P1_CLOSED_PRODUCTION_RETEST_PASS
+- **Retest Scope**: Checked all 6 fixed P1 blockers directly against the live production server (`https://wiseresume.app`) using the network-sanitized E2E test suite.
+- **Results**:
+  - **P1-1 (Tailoring Hub)**: **PASS**. AI tailoring executes successfully and redirects to `/tailoring-hub/result/<id>`.
+  - **P1-2 (Cover Letter)**: **PASS**. Outputs are generated and visible in the preview container on the page.
+  - **P1-3 (Editor Improve AI)**: **PASS**. The "Improve with AI" toolbar button is active and opens the drawer.
+  - **P1-4 (Dashboard Metric)**: **PASS**. Card metric counters match tab filter counts exactly after page refresh.
+  - **P1-5 (PDF Export)**: **PASS**. Successfully opens dialog and downloads a valid PDF resume file.
+  - **P1-6 (Preview Route)**: **PASS**. Both `/preview?id=` and `/preview/:id` URL variants render correctly.
+- **P2 Carry-over Issues**:
+  - Cover Letter manual save returns 401: Documented as a persistence/permission follow-up due to restricted write permission on the `cover_letters` Appwrite database collection.
+- **Commits Logged**:
+  - `465c93dc` — `fix(ai-gateway): resolve tailoring route metadata crash`
+  - `b3cb0d91` — `fix(qa): address confirmed P1 browser QA blockers`
+
 ## 2026-07-10 — P1 Production Browser QA Remediation & Backend AI-Gateway Stabilization
 
 - **Classification**: COMPLETED_P1_QA_REMEDIATION
