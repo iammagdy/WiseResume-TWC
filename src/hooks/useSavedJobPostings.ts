@@ -41,37 +41,6 @@ async function listJobsCollection(userId: string): Promise<Job[]> {
   return res.documents.map((d) => docToJob(d as unknown as Record<string, unknown>));
 }
 
-async function listJobsFromTailorHistory(userId: string): Promise<Job[]> {
-  const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
-    Query.equal('user_id', [userId]),
-    Query.orderDesc('$createdAt'),
-    Query.limit(100),
-  ]);
-
-  return res.documents.map((doc) => {
-    const title = (doc.job_title as string) || 'Untitled role';
-    const company = (doc.company as string) || '';
-    const description = (doc.job_description as string) || '';
-    return {
-      id: `history:${doc.$id as string}`,
-      user_id: userId,
-      title,
-      company,
-      company_logo: null,
-      description,
-      requirements: '',
-      location: '',
-      salary_range: null,
-      job_type: 'full-time',
-      posted_date: doc.$createdAt as string,
-      source_url: (doc.job_url as string | null) ?? null,
-      is_saved: true,
-      created_at: doc.$createdAt as string,
-      updated_at: doc.$updatedAt as string,
-    };
-  });
-}
-
 function jobsFromLocalHistory(
   userId: string,
   localHistory: Array<{
@@ -151,18 +120,12 @@ export function buildTailoringHubJobUrl(job: Job): string {
 }
 
 async function fetchSavedJobPostings(userId: string): Promise<Job[]> {
-  const [collectionJobs, historyJobs] = await Promise.all([
-    listJobsCollection(userId).catch((err) => {
-      console.warn('[useSavedJobPostings] jobs collection query failed:', err);
-      return [] as Job[];
-    }),
-    listJobsFromTailorHistory(userId).catch((err) => {
-      console.warn('[useSavedJobPostings] tailor_history query failed:', err);
-      return [] as Job[];
-    }),
-  ]);
+  const collectionJobs = await listJobsCollection(userId).catch((err) => {
+    console.warn('[useSavedJobPostings] jobs collection query failed:', err);
+    return [] as Job[];
+  });
 
-  return mergeSavedJobs([collectionJobs, historyJobs]);
+  return mergeSavedJobs([collectionJobs]);
 }
 
 export function useSavedJobPostings() {

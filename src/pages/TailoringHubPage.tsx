@@ -140,8 +140,8 @@ export default function JobMatchWorkspacePage() {
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
   // Auto-select a MASTER resume on load.
-  // Tailored copies are detected via persisted tailor_history, schema-backed metadata
-  // when present, and a title suffix heuristic as a last resort.
+  // Tailored copies are detected via owner-scoped resume lineage, schema-backed
+  // metadata when present, and a title suffix heuristic as a last resort.
   // If the current selection is already a known master resume, leave it alone.
   // Otherwise (unset or is a tailored copy), find the source resume or most-recent master.
   useEffect(() => {
@@ -474,7 +474,7 @@ export default function JobMatchWorkspacePage() {
       await invalidateAiCreditQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       queryClient.invalidateQueries({ queryKey: ['saved-job-postings'] });
-      queryClient.invalidateQueries({ queryKey: ['tailor-history-list'] });
+      queryClient.invalidateQueries({ queryKey: ['tailored-resume-ids'] });
 
       haptics.success();
       toast.success('Tailored CV created!');

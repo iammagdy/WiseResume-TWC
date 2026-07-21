@@ -29,8 +29,9 @@ import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { tailorResumeWithProgress, generateCoverLetter } from '@/lib/aiTailor';
 import { buildMergedResume, hasMeaningfulChanges } from '@/lib/tailorMerge';
 import { buildTailoringCustomization } from '@/lib/tailoringResumeMetadata';
-import { databases, DATABASE_ID, ID, Query, Permission, Role } from '@/lib/appwrite';
+import { databases, DATABASE_ID, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { ownerDocumentPermissions } from '@/lib/appwriteOwnerPermissions';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { useResumeStore } from '@/store/resumeStore';
 import { useQueryClient } from '@tanstack/react-query';
@@ -349,11 +350,7 @@ export default function RemoteJobsPage() {
             tone: 'professional',
             resume_id: tailoredResumeId,
           },
-          [
-            Permission.read(Role.user(user.id)),
-            Permission.update(Role.user(user.id)),
-            Permission.delete(Role.user(user.id)),
-          ]
+          ownerDocumentPermissions(user.id),
         );
         generatedCoverLetterId = clDoc.$id;
       }
@@ -377,7 +374,8 @@ export default function RemoteJobsPage() {
           job_feed_item_id: job.$id || null,
           source_job_id: job.source_job_id || null,
           applied_at: null,
-        }
+        },
+        ownerDocumentPermissions(user.id),
       );
 
       // Track in remote job feed specific actions (user_job_actions)
@@ -403,7 +401,7 @@ export default function RemoteJobsPage() {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });
-      queryClient.invalidateQueries({ queryKey: ['tailor-history-list'] });
+      queryClient.invalidateQueries({ queryKey: ['tailored-resume-ids'] });
 
       haptics.success();
       toast.success('Fast Tailor complete!');

@@ -4,14 +4,7 @@ import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import type { ActivityFeedItem } from '@/components/dashboard/dashboardActivityLabels';
-
-/**
- * B3 — Dashboard activity feed sourced from real, durable, account-scoped Appwrite
- * records (mirrors the proven ApplicationsPage ActivityTimeline aggregation). This
- * replaces the localStorage-only feed so the dashboard is populated across devices
- * and for returning users. No fabricated or demo data — every item maps to a real
- * document owned by the signed-in user.
- */
+import { historyFromTailoredResumeOrFallback } from '@/lib/tailoringResumeMetadata';
 
 const PER_COLLECTION_LIMIT = 25;
 
@@ -33,16 +26,16 @@ function makeItem(
 }
 
 function join(...parts: Array<string | null | undefined>): string {
-  return parts.filter(Boolean).join(' · ');
+  return parts.filter(Boolean).join(' - ');
 }
 
 export function useActivityFeed(limit = 6) {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const userId = user?.id;
 
   return useQuery<ActivityFeedItem[]>({
     queryKey: ['dashboard-activity-feed', userId],
-    enabled: !!userId,
+    enabled: authReady && !!userId,
     staleTime: 60_000,
     queryFn: async (): Promise<ActivityFeedItem[]> => {
       if (!userId) return [];
@@ -56,8 +49,7 @@ export function useActivityFeed(limit = 6) {
           ])
           .catch(() => ({ documents: [] as Record<string, unknown>[] }));
 
-      const [tailorRes, appRes, coverRes, resumeRes] = await Promise.all([
-        list(COLLECTIONS.tailor_history),
+      const [appRes, coverRes, resumeRes] = await Promise.all([
         list(COLLECTIONS.job_applications),
         list(COLLECTIONS.cover_letters),
         list(COLLECTIONS.resumes),
@@ -65,24 +57,29 @@ export function useActivityFeed(limit = 6) {
 
       const items: ActivityFeedItem[] = [];
 
-      // Master resumes → "Resume created". Tailored copies are represented by
-      // tailor_history below to avoid duplicate entries for the same action.
       for (const doc of resumeRes.documents as Record<string, unknown>[]) {
-        if (doc.parent_resume_id) continue;
+        const tailored = historyFromTailoredResumeOrFallback(doc as unknown as {
+          $id: string;
+          $createdAt?: string;
+          title?: string;
+          parent_resume_id?: string | null;
+          customization?: string;
+        });
+        if (tailored) {
+          items.push(
+            makeItem(
+              `t-${doc.$id}`,
+              'Tailored copy saved',
+              join(tailored.jobTitle, tailored.company),
+              tailored.createdAt || String(doc.$createdAt),
+              String(doc.$id),
+            ),
+          );
+          continue;
+        }
+
         items.push(
           makeItem(`r-${doc.$id}`, 'Resume created', String(doc.title ?? ''), String(doc.$createdAt), String(doc.$id)),
-        );
-      }
-
-      for (const doc of tailorRes.documents as Record<string, unknown>[]) {
-        items.push(
-          makeItem(
-            `t-${doc.$id}`,
-            'Tailored copy saved',
-            join(doc.job_title as string, doc.company as string),
-            String(doc.$createdAt),
-            (doc.tailored_resume_id as string) ?? (doc.resume_id as string) ?? null,
-          ),
         );
       }
 

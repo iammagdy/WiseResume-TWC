@@ -18,6 +18,7 @@ import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useJobApplicationMutations } from '@/hooks/useJobApplications';
+import { useAuth } from '@/hooks/useAuth';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -80,10 +81,9 @@ export function resolveTailoringResultState(params: {
     appliedSections?: string[];
   }>;
   resumeId?: string;
-  appwriteEntry?: Record<string, unknown> | null;
   resumeMetadata?: TailoringResumeMetadata | null;
 }): ResultState {
-  const { locationState, tailorHistory, resumeId, appwriteEntry, resumeMetadata } = params;
+  const { locationState, tailorHistory, resumeId, resumeMetadata } = params;
   if (
     locationState &&
     (
@@ -119,27 +119,6 @@ export function resolveTailoringResultState(params: {
     };
   }
 
-  if (appwriteEntry) {
-    return {
-      jobTitle: appwriteEntry.job_title as string | undefined,
-      company: appwriteEntry.company as string | undefined,
-      jobUrl: appwriteEntry.job_url as string | undefined,
-      scoreBeforeAfter: (appwriteEntry.score_before != null && appwriteEntry.score_after != null)
-        ? { before: appwriteEntry.score_before as number, after: appwriteEntry.score_after as number }
-        : undefined,
-      appliedSections: (() => {
-        try {
-          return appwriteEntry.applied_sections
-            ? (JSON.parse(appwriteEntry.applied_sections as string) as string[])
-            : undefined;
-        } catch {
-          console.warn('[TailoringHub] applied_sections parse failed');
-          return undefined;
-        }
-      })(),
-    };
-  }
-
   return {};
 }
 
@@ -147,6 +126,7 @@ export default function JobMatchResultPage() {
   const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, authReady } = useAuth();
   const { data: allResumes, isLoading } = useResumes();
   const {
     setCurrentResumeId,
@@ -204,31 +184,12 @@ export default function JobMatchResultPage() {
     resumeId,
   }), [location.state, tailorHistory, resumeId]);
 
-  const { data: appwriteEntry } = useQuery({
-    queryKey: ['tailor-history-by-resume', resumeId],
-    queryFn: async () => {
-      try {
-        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
-          Query.equal('tailored_resume_id', [resumeId!]),
-          Query.limit(1),
-        ]);
-        return res.documents[0] ?? null;
-      } catch {
-        return null;
-      }
-    },
-    enabled: !!resumeId,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-
   const effectiveState: ResultState = useMemo(() => resolveTailoringResultState({
     locationState: Object.keys(resultState).length ? resultState : null,
     tailorHistory: [],
     resumeId,
     resumeMetadata,
-    appwriteEntry: appwriteEntry as Record<string, unknown> | null,
-  }), [appwriteEntry, resultState, resumeId, resumeMetadata]);
+  }), [resultState, resumeId, resumeMetadata]);
 
   const jobContext = useMemo(
     () => resolveTailorJobContext({
@@ -237,9 +198,8 @@ export default function JobMatchResultPage() {
       jobDescription: tailorHistoryEntry?.jobDescription,
       jobUrl: effectiveState.jobUrl ?? tailorHistoryEntry?.jobUrl,
       tailoredResumeId: resumeId,
-      appwriteDoc: appwriteEntry as Record<string, unknown> | null,
     }),
-    [appwriteEntry, effectiveState, resumeId, tailorHistoryEntry],
+    [effectiveState, resumeId, tailorHistoryEntry],
   );
 
   const queryClient = useQueryClient();
@@ -249,14 +209,15 @@ export default function JobMatchResultPage() {
   const { data: applications = [], refetch: refetchApp } = useQuery({
     queryKey: ['linked-job-application', resumeId],
     queryFn: async () => {
-      if (!resumeId) return [];
+      if (!resumeId || !user?.id) return [];
       const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, [
+        Query.equal('user_id', user.id),
         Query.equal('resume_id', resumeId),
         Query.limit(1),
       ]);
       return res.documents;
     },
-    enabled: !!resumeId,
+    enabled: authReady && !!user?.id && !!resumeId,
   });
 
   const linkedApp = applications?.[0];
@@ -487,7 +448,7 @@ export default function JobMatchResultPage() {
   }, [allResumes, dbResume?.parent_resume_id]);
 
   // Prefer the fast local entry, then the durable metadata stored on the tailored
-  // resume, with the legacy history document as a read-only fallback.
+  // resume. Legacy Tailor History remains server-only.
   const tailorResult = useMemo<SuperTailorResult | undefined>(() => {
     if (tailorHistoryEntry?.tailorResult) {
       return tailorHistoryEntry.tailorResult as SuperTailorResult;
@@ -495,16 +456,8 @@ export default function JobMatchResultPage() {
     if (resumeMetadata?.tailorResult) {
       return resumeMetadata.tailorResult as SuperTailorResult;
     }
-    const raw = (appwriteEntry as Record<string, unknown> | null)?.tailor_result;
-    if (typeof raw === 'string' && raw) {
-      try {
-        return JSON.parse(raw) as SuperTailorResult;
-      } catch {
-        return undefined;
-      }
-    }
     return undefined;
-  }, [tailorHistoryEntry, resumeMetadata, appwriteEntry]);
+  }, [tailorHistoryEntry, resumeMetadata]);
   const canCompare = !!(resume && sourceResume);
 
   const appliedSections = useMemo((): TailorSectionId[] => {

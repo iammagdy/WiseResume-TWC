@@ -3,7 +3,7 @@
 # HTML-serving layer — deferred as a future architectural task. connect-src is already
 # tightened to Appwrite only; unsafe-eval is absent.
 /*
-  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://fra.cloud.appwrite.io https://challenges.cloudflare.com https://*.ingest.de.sentry.io; worker-src 'self' blob:; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://fra.cloud.appwrite.io wss://fra.cloud.appwrite.io https://challenges.cloudflare.com https://*.ingest.de.sentry.io; worker-src 'self' blob:; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin

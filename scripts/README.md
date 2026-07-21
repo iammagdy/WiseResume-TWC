@@ -15,6 +15,8 @@ Supabase Edge Functions are decommissioned for the active app. Any script whose 
 | `setup_app_settings_schema.cjs` | Repairs the `app_settings` key/value schema used by DevKit operational settings and deployed hashes. | Appwrite credentials |
 | `setup_impersonation_sessions_schema.cjs` | Idempotently creates or repairs the server-only `admin_impersonation_sessions` collection used by DevKit Act As. The revoke-path index and required attributes fail closed; optional cleanup indexes fail softly. | Appwrite credentials |
 | `setup_ai_logs_schema.cjs` | Creates the `ai_request_logs` schema used by the AI gateway request log writer. | Appwrite credentials |
+| `setup_owner_collections_schema.cjs` | Idempotently repairs owner-scoped `user_preferences`, `jobs`, and `job_applications` schema, collection create permission, and document security. | Appwrite credentials |
+| `migrate_owner_document_permissions.cjs` | Dry-run-first backfill that derives owner document permissions from each document's `user_id` and reports counts only. | Appwrite credentials |
 | `ensure-puppeteer-chrome.mjs` | Ensure local Chromium dependency exists for screenshot/browser checks. | None |
 | `capture-wallpaper.mjs`, `phase6-screenshots.mjs` | Visual capture helpers. | Local browser/runtime only |
 
@@ -30,6 +32,18 @@ node scripts/deploy_hubs.cjs
 The workflow `.github/workflows/deploy-appwrite-hubs.yml` recomputes source hashes, runs the idempotent Appwrite schema helpers, deploys hubs with `scripts/deploy_hubs.cjs`, waits for `ready`, runs safe smoke checks, and updates `app_settings.fn_deployed_hashes`.
 
 Appwrite's own Git auto-deploy must stay disabled for managed hubs so there is only one deployment mechanism.
+
+## Owner-Scoped User Collections
+
+Schema-only owner permission repairs use the repository-controlled scripts directly; do not run hub target `all` for this.
+
+```bash
+node scripts/setup_owner_collections_schema.cjs --collections=user_preferences,jobs,job_applications
+node scripts/migrate_owner_document_permissions.cjs --dry-run --collections=user_preferences,jobs,job_applications
+node scripts/migrate_owner_document_permissions.cjs --apply --collections=user_preferences,jobs,job_applications
+```
+
+The migration derives ownership only from `user_id`, preserves document data, and prints aggregate counts without document contents or user IDs.
 
 New backend functions must be added to:
 

@@ -3,6 +3,7 @@
 const sdk = require('node-appwrite');
 const fs = require('fs');
 const path = require('path');
+const { runSetup: runOwnerCollectionsSetup } = require('./setup_owner_collections_schema.cjs');
 
 // Load .env.deploy variables
 const envPath = path.join(__dirname, '../.env.deploy');
@@ -162,6 +163,7 @@ async function run() {
   // generated_resume_id and generated_cover_letter_id aliases (if missing)
   await ensureStringAttr(trackerColl, 'generated_resume_id', 128, false);
   await ensureStringAttr(trackerColl, 'generated_cover_letter_id', 128, false);
+  await runOwnerCollectionsSetup({ databases, projectId: PROJECT_ID, collections: [trackerColl] });
 
   // In user_job_actions (remote jobs specific tracker)
   const actionsColl = 'user_job_actions';

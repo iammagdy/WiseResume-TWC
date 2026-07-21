@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
+import { ownerDocumentPermissions } from '@/lib/appwriteOwnerPermissions';
 import { toast } from 'sonner';
 
 export type ApplicationStatus = 'saved' | 'applied' | 'screening' | 'interviewing' | 'offer' | 'rejected' | 'tailored' | 'ready_to_apply';
@@ -17,7 +18,7 @@ export interface JobApplication {
 }
 
 export function useJobApplications(statusFilter?: ApplicationStatus) {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   return useQuery({
     queryKey: ['job-applications', user?.id, statusFilter],
     staleTime: 5 * 60 * 1000,
@@ -32,19 +33,19 @@ export function useJobApplications(statusFilter?: ApplicationStatus) {
       const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, queries);
       return response.documents;
     },
-    enabled: !!user,
+    enabled: authReady && !!user,
   });
 }
 
 export function useJobApplication(id: string | null) {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   return useQuery({
-    queryKey: ['job-application', id],
+    queryKey: ['job-application', user?.id, id],
     queryFn: async () => {
       if (!user || !id) return null;
       return await databases.getDocument(DATABASE_ID, COLLECTIONS.job_applications, id);
     },
-    enabled: !!user && !!id,
+    enabled: authReady && !!user && !!id,
   });
 }
 
@@ -59,7 +60,7 @@ export function useJobApplicationMutations() {
         user_id: user.id,
         ...input,
         status: input.status || 'applied'
-      });
+      }, ownerDocumentPermissions(user.id));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });

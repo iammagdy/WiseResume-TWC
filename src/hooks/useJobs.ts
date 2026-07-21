@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query, ID, Permission, Role } from '@/lib/appwrite';
+import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
+import { ownerDocumentPermissions } from '@/lib/appwriteOwnerPermissions';
 import { toast } from 'sonner';
 import { useSavedJobPostings } from './useSavedJobPostings';
 
@@ -62,41 +63,20 @@ async function fetchJobDocument(id: string): Promise<Job | null> {
 }
 
 export function useJob(id: string | null) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authReady } = useAuth();
 
   return useQuery({
     queryKey: ['jobs', id],
     queryFn: async () => {
       if (!id) return null;
-      if (id.startsWith('history:')) {
-        const historyId = id.slice('history:'.length);
-        const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.tailor_history, historyId);
-        return {
-          id,
-          user_id: (doc.user_id as string) ?? '',
-          title: (doc.job_title as string) ?? '',
-          company: (doc.company as string) ?? '',
-          company_logo: null,
-          description: (doc.job_description as string) ?? '',
-          requirements: '',
-          location: '',
-          salary_range: null,
-          job_type: 'full-time',
-          posted_date: doc.$createdAt as string,
-          source_url: (doc.job_url as string | null) ?? null,
-          is_saved: true,
-          created_at: doc.$createdAt as string,
-          updated_at: doc.$updatedAt as string,
-        } satisfies Job;
-      }
       return fetchJobDocument(id);
     },
-    enabled: !!user && isAuthenticated && !!id,
+    enabled: authReady && !!user && isAuthenticated && !!id,
   });
 }
 
 function useJobsCollectionOnly() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authReady } = useAuth();
 
   return useQuery({
     queryKey: ['jobs-collection', user?.id],
@@ -109,7 +89,7 @@ function useJobsCollectionOnly() {
       ]);
       return res.documents.map((d) => docToJob(d as unknown as Record<string, unknown>));
     },
-    enabled: !!user && isAuthenticated,
+    enabled: authReady && !!user && isAuthenticated,
   });
 }
 
@@ -152,11 +132,7 @@ export function useJobMutations() {
           source_url: input.source_url ?? null,
           is_saved: input.is_saved ?? true,
         },
-        [
-          Permission.read(Role.user(user.id)),
-          Permission.update(Role.user(user.id)),
-          Permission.delete(Role.user(user.id)),
-        ],
+        ownerDocumentPermissions(user.id),
       );
       return docToJob(doc as unknown as Record<string, unknown>);
     },

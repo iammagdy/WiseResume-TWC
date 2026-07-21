@@ -33,7 +33,7 @@ export function weeklyGoalKey(userId: string) {
 }
 
 export function useActivityStreak() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
 
   return useQuery<ActivityStreakData>({
     queryKey: ['activity-streak', user?.id],
@@ -41,8 +41,9 @@ export function useActivityStreak() {
       if (!user) throw new Error('Not authenticated');
       const since = subDays(new Date(), 365).toISOString();
 
-      // Fetch all four collections in parallel
-      const [resumesRes, jobAppsRes, coverLettersRes, tailorRes] = await Promise.all([
+      // Resumes include tailored copies, so they cover tailoring activity without
+      // reading the server-only legacy history collection.
+      const [resumesRes, jobAppsRes, coverLettersRes] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
           Query.equal('user_id', user.id),
           Query.greaterThanEqual('$createdAt', since),
@@ -55,12 +56,6 @@ export function useActivityStreak() {
           Query.limit(500),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.cover_letters, [
-          Query.equal('user_id', user.id),
-          Query.greaterThanEqual('$createdAt', since),
-          Query.select(['$createdAt']),
-          Query.limit(500),
-        ]),
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
           Query.equal('user_id', user.id),
           Query.greaterThanEqual('$createdAt', since),
           Query.select(['$createdAt']),
@@ -80,7 +75,6 @@ export function useActivityStreak() {
 
       addCreatedAt(resumesRes.documents as { $createdAt?: string }[]);
       addCreatedAt(coverLettersRes.documents as { $createdAt?: string }[]);
-      addCreatedAt(tailorRes.documents as { $createdAt?: string }[]);
 
       const jobApps = jobAppsRes.documents as unknown as { applied_at?: string | null; status?: string | null; $createdAt?: string }[];
       jobApps.forEach(r => {
@@ -118,7 +112,7 @@ export function useActivityStreak() {
 
       return { streak, last7, thisWeekApplications, personalBest };
     },
-    enabled: !!user,
+    enabled: authReady && !!user,
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -94,7 +94,6 @@ vi.mock('@/lib/appwrite', () => ({
 vi.mock('@/lib/appwrite-collections', () => ({
   COLLECTIONS: {
     resumes: 'resumes',
-    tailor_history: 'tailor_history',
     job_applications: 'job_applications',
     cover_letters: 'cover_letters',
     user_job_actions: 'user_job_actions',
@@ -104,6 +103,13 @@ vi.mock('@/lib/appwrite-collections', () => ({
 vi.mock('@/hooks/useJobApplications', () => ({
   useJobApplicationMutations: () => ({
     updateApplication: { mutateAsync: vi.fn().mockResolvedValue({}) },
+  }),
+}));
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'user-1', email: 'qa@example.com', emailVerification: true },
+    authReady: true,
   }),
 }));
 

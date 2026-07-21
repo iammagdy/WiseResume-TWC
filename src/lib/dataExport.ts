@@ -269,8 +269,10 @@ export async function deleteAllUserData(userId: string): Promise<void> {
   }
 
   // All collections with a direct user_id field
+  // Server-only legacy Tailor History is intentionally omitted here because the
+  // browser cannot safely enumerate it. Current tailored resume data is deleted
+  // through the owner-scoped resumes collection below.
   const userTables: string[] = [
-    COLLECTIONS.tailor_history,
     COLLECTIONS.cover_letters,
     COLLECTIONS.interview_sessions,
     COLLECTIONS.career_assessments,

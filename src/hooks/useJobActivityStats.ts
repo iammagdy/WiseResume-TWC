@@ -3,6 +3,8 @@ import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from './useAuth';
 import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
+import { historyFromTailoredResumeOrFallback } from '@/lib/tailoringResumeMetadata';
+import type { TailorHistory } from '@/types/resume';
 
 export interface WeeklyTrendPoint {
   week: string;
@@ -28,17 +30,17 @@ export interface JobActivityStats {
 }
 
 export function useJobActivityStats(): JobActivityStats {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['job-activity-stats', user?.id],
     queryFn: async () => {
       if (!user) throw new Error('Not authenticated');
 
-      const [resumesRes, coverLettersRes, jobAppsRes, tailorRes] = await Promise.all([
+      const [resumesRes, coverLettersRes, jobAppsRes] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COLLECTIONS.resumes, [
           Query.equal('user_id', user.id),
-          Query.select(['parent_resume_id']),
+          Query.select(['$id', '$createdAt', 'title', 'parent_resume_id', 'customization']),
           Query.limit(500),
         ]),
         databases.listDocuments(DATABASE_ID, COLLECTIONS.cover_letters, [
@@ -51,19 +53,22 @@ export function useJobActivityStats(): JobActivityStats {
           Query.select(['status', 'applied_at']),
           Query.limit(500),
         ]),
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
-          Query.equal('user_id', user.id),
-          Query.select(['job_title', 'company']),
-          Query.limit(500),
-        ]),
       ]);
 
-      const resumes = resumesRes.documents as unknown as { parent_resume_id?: string | null }[];
+      const resumes = resumesRes.documents as unknown as Array<{
+        $id: string;
+        $createdAt?: string;
+        title?: string;
+        parent_resume_id?: string | null;
+        customization?: string;
+      }>;
       const originals = resumes.filter(r => !r.parent_resume_id).length;
       const tailored = resumes.filter(r => r.parent_resume_id).length;
 
-      const tailorEntries = tailorRes.documents as unknown as { job_title?: string | null; company?: string | null }[];
-      const uniqueJobs = new Set(tailorEntries.map(t => `${t.job_title ?? ''}||${t.company ?? ''}`));
+      const tailorEntries = resumes
+        .map((resume) => historyFromTailoredResumeOrFallback(resume))
+        .filter((entry): entry is TailorHistory => entry !== null);
+      const uniqueJobs = new Set(tailorEntries.map(t => `${t.jobTitle ?? ''}||${t.company ?? ''}`));
 
       const appsData = jobAppsRes.documents as unknown as { status?: string | null; applied_at?: string | null }[];
 
@@ -112,7 +117,7 @@ export function useJobActivityStats(): JobActivityStats {
         weeklyTrend,
       };
     },
-    enabled: !!user,
+    enabled: authReady && !!user,
   });
 
   return {

@@ -7,6 +7,8 @@ import type {
 type PersistedResume = {
   $id: string;
   $createdAt?: string;
+  title?: string;
+  parent_resume_id?: string | null;
   customization?: string | TemplateCustomization;
 };
 
@@ -47,5 +49,22 @@ export function historyFromTailoredResume(resume: PersistedResume): TailorHistor
     scoreBeforeAfter: metadata.scoreBeforeAfter,
     appliedSections: metadata.appliedSections,
     createdAt: metadata.createdAt || resume.$createdAt || new Date(0).toISOString(),
+  };
+}
+
+export function historyFromTailoredResumeOrFallback(resume: PersistedResume): TailorHistory | null {
+  const fromMetadata = historyFromTailoredResume(resume);
+  if (fromMetadata) return fromMetadata;
+  if (!resume.parent_resume_id) return null;
+  return {
+    id: `resume:${resume.$id}`,
+    jobTitle: resume.title || 'Tailored resume',
+    company: '',
+    jobDescription: '',
+    jobUrl: null,
+    tailoredResumeId: resume.$id,
+    scoreBeforeAfter: { before: 0, after: 0 },
+    appliedSections: [],
+    createdAt: resume.$createdAt || new Date(0).toISOString(),
   };
 }

@@ -1,5 +1,6 @@
 import { ID, Query } from 'appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { ownerDocumentPermissions } from '@/lib/appwriteOwnerPermissions';
 import { normalizeLocale, type SupportedLocale } from './core';
 
 export interface LocalePreferenceDatabase {
@@ -19,6 +20,7 @@ export interface LocalePreferenceDatabase {
     collectionId: string,
     documentId: string,
     data: Record<string, unknown>,
+    permissions?: string[],
   ) => Promise<unknown>;
 }
 
@@ -59,5 +61,6 @@ export async function saveLocalePreference(
     COLLECTIONS.user_preferences,
     createId(),
     { user_id: userId, language: locale },
+    ownerDocumentPermissions(userId),
   );
 }

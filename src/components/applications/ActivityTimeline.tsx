@@ -12,6 +12,7 @@ import { haptics } from '@/lib/haptics';
 import { motion } from 'framer-motion';
 import { useState, useMemo } from 'react';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { historyFromTailoredResumeOrFallback } from '@/lib/tailoringResumeMetadata';
 
 interface TimelineEntry {
   id: string;
@@ -64,12 +65,6 @@ const typeConfig = {
   application:     { icon: CheckCircle2, label: 'Applied',      bg: 'bg-success/10',  fg: 'text-success' },
 };
 
-interface TailorDocFields {
-  job_title: string;
-  company: string | null;
-  resume_id: string | null;
-}
-
 interface AppDocFields {
   job_title: string;
   company: string | null;
@@ -95,7 +90,7 @@ interface ResumeDocFields {
 
 export function ActivityTimeline() {
   const { t } = useLocale();
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,12 +113,7 @@ export function ActivityTimeline() {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const [tailorRes, appRes, coverRes, resumeRes] = await Promise.all([
-        databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
-          Query.equal('user_id', user.id),
-          Query.orderDesc('$createdAt'),
-          Query.limit(50),
-        ]),
+      const [appRes, coverRes, resumeRes] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COLLECTIONS.job_applications, [
           Query.equal('user_id', user.id),
           Query.orderDesc('$createdAt'),
@@ -145,26 +135,21 @@ export function ActivityTimeline() {
 
       resumeRes.documents.forEach(doc => {
         const r = doc as unknown as ResumeDocFields;
+        const tailored = historyFromTailoredResumeOrFallback(doc as unknown as {
+          $id: string;
+          $createdAt?: string;
+          title?: string;
+          parent_resume_id?: string | null;
+          customization?: string;
+        });
         items.push({
           id: `r-${doc.$id}`,
           type: r.parent_resume_id ? 'resume_tailored' : 'resume_created',
-          jobTitle: r.target_job_title ?? r.title,
-          company: r.target_company ?? null,
-          date: doc.$createdAt,
+          jobTitle: tailored?.jobTitle ?? r.target_job_title ?? r.title,
+          company: tailored?.company ?? r.target_company ?? null,
+          date: tailored?.createdAt ?? doc.$createdAt,
           resumeId: doc.$id,
           resumeName: r.title,
-        });
-      });
-
-      tailorRes.documents.forEach(doc => {
-        const t = doc as unknown as TailorDocFields;
-        items.push({
-          id: `t-${doc.$id}`,
-          type: 'tailor',
-          jobTitle: t.job_title,
-          company: t.company,
-          date: doc.$createdAt,
-          resumeId: t.resume_id,
         });
       });
 
@@ -214,7 +199,7 @@ export function ActivityTimeline() {
 
       return items;
     },
-    enabled: !!user,
+    enabled: authReady && !!user,
   });
 
   const filtered = useMemo(() => {

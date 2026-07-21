@@ -32,6 +32,10 @@ describe('locale preference persistence', () => {
     expect(database.createDocument).toHaveBeenCalledWith('main', 'user_preferences', 'new-pref', {
       user_id: 'user-1',
       language: 'ar',
-    });
+    }, [
+      'read("user:user-1")',
+      'update("user:user-1")',
+      'delete("user:user-1")',
+    ]);
   });
 });

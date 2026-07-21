@@ -676,21 +676,11 @@ async function ensureEmailServiceVariables() {
 }
 
 async function ensureJobsCreatePermission() {
-    console.log('\nEnsuring jobs collection create permission...');
+    console.log('\nEnsuring jobs owner-scoped schema...');
     try {
-        const col = await databases.getCollection('main', 'jobs');
-        const hasCreate = (col.permissions || []).some(p => p.includes('create') && p.includes('users'));
-        if (!hasCreate) {
-            await databases.updateCollection('main', 'jobs', col.name, [
-                ...(col.permissions || []),
-                sdk.Permission.create(sdk.Role.users()),
-            ]);
-            console.log('  Added Permission.create(Role.users()) to jobs collection');
-        } else {
-            console.log('  jobs collection create permission already set');
-        }
+        execSync('node scripts/setup_jobs_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
     } catch (e) {
-        console.warn(`  Could not update jobs collection permissions: ${e.message}`);
+        console.warn(`  Could not update jobs owner-scoped schema: ${e.message}`);
     }
 }
 

@@ -1,6 +1,7 @@
-import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
+import { databases, DATABASE_ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
+import { tailoringMetadataFromResume } from '@/lib/tailoringResumeMetadata';
 
 export interface TailorJobContext {
   jobTitle: string;
@@ -77,27 +78,18 @@ export async function fetchTailorJobContextByResumeId(
 ): Promise<TailorJobContext | null> {
   if (!tailoredResumeId) return null;
   try {
-    const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
-      Query.equal('tailored_resume_id', [tailoredResumeId]),
-      Query.limit(1),
-    ]);
-    const doc = res.documents[0];
-    if (!doc) return null;
-    return parseTailorJobContextFromAppwriteDoc(doc as Record<string, unknown>);
+    const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.resumes, tailoredResumeId);
+    const metadata = tailoringMetadataFromResume(doc as Record<string, unknown>);
+    if (!metadata) return null;
+    return {
+      jobTitle: metadata.jobTitle?.trim() || '',
+      company: metadata.company?.trim() || '',
+      jobDescription: readTailorJobDescriptionForResume(tailoredResumeId) ?? '',
+      jobUrl: metadata.jobUrl ?? null,
+    };
   } catch {
     return null;
   }
-}
-
-export function parseTailorJobContextFromAppwriteDoc(
-  doc: Record<string, unknown>,
-): TailorJobContext {
-  return {
-    jobTitle: String(doc.job_title ?? '').trim(),
-    company: String(doc.company ?? '').trim(),
-    jobDescription: String(doc.job_description ?? '').trim(),
-    jobUrl: (doc.job_url as string | null | undefined) ?? null,
-  };
 }
 
 export function saveCoverLetterPrefill(payload: TailorJobContext & { resumeId: string }): void {
@@ -134,22 +126,17 @@ export function resolveTailorJobContext(sources: {
   jobDescription?: string;
   jobUrl?: string | null;
   tailoredResumeId?: string;
-  appwriteDoc?: Record<string, unknown> | null;
 }): TailorJobContext {
-  const fromAppwrite = sources.appwriteDoc
-    ? parseTailorJobContextFromAppwriteDoc(sources.appwriteDoc)
-    : null;
   return {
-    jobTitle: sources.jobTitle?.trim() || fromAppwrite?.jobTitle || '',
-    company: sources.company?.trim() || fromAppwrite?.company || '',
+    jobTitle: sources.jobTitle?.trim() || '',
+    company: sources.company?.trim() || '',
     jobDescription: pickLongestJobDescription(
       sources.jobDescription,
       sources.tailoredResumeId
         ? readTailorJobDescriptionForResume(sources.tailoredResumeId)
         : null,
-      fromAppwrite?.jobDescription,
     ),
-    jobUrl: sources.jobUrl ?? fromAppwrite?.jobUrl ?? null,
+    jobUrl: sources.jobUrl ?? null,
   };
 }
 

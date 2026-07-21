@@ -6,6 +6,7 @@ import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { historyFromTailoredResumeOrFallback } from '@/lib/tailoringResumeMetadata';
 
 export interface Milestone {
   id: string;
@@ -37,19 +38,10 @@ export function useCareerMilestones() {
     staleTime: 60_000,
   });
 
-  const { data: tailorCount } = useQuery({
-    queryKey: ['tailor-count', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return 0;
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.tailor_history, [
-        Query.equal('user_id', user.id),
-        Query.limit(1),
-      ]);
-      return res.total;
-    },
-    enabled: !!user?.id,
-    staleTime: 60_000,
-  });
+  const tailorCount = useMemo(
+    () => (resumes ?? []).filter((resume) => historyFromTailoredResumeOrFallback(resume)).length,
+    [resumes],
+  );
 
   const loginStreak = profile?.loginStreak ?? 1;
 
@@ -76,7 +68,7 @@ export function useCareerMilestones() {
       label: 'ATS Pro',
       description: 'Tailored a resume for a job',
       unlockHint: 'Tailor your resume to a job posting to unlock',
-      earned: (tailorCount ?? 0) >= 1,
+      earned: tailorCount >= 1,
     },
     {
       id: 'portfolio_live',
