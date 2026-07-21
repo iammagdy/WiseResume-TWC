@@ -1,6 +1,6 @@
 # Canonical Appwrite Functions Specification
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-21
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/appwrite-functions.md`  
 
@@ -73,6 +73,7 @@ All 26 functions are registered in `scripts/deploy_hubs.cjs` (the single source 
 - **`admin-sentry`** has a fixed `functionId` (`6a0760710000ff231048`) because it was created before the deploy script managed IDs.
 - All functions use `DB_ID = 'main'` and access the shared Appwrite database.
 - Environment variables are set per-function in the Appwrite Console and documented in each hub's `src/main.js` header.
+- **`track-visitor-event`** receives visitor events without browser-derived country data. Browser code must not call GeoJS. The current deployed hub can enrich missing country from Appwrite request metadata when available and still contains a server-side GeoJS fallback; changing that fallback requires a separate targeted Appwrite review and owner-approved hub deployment.
 
 ---
 

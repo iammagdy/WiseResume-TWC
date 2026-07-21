@@ -70,5 +70,5 @@ job_applications mode=dry_run scanned=0 updated=0 already_correct=0 skipped_inva
 
 ## Residual Risks
 
-- Visitor geolocation currently attempts `https://get.geojs.io/v1/ip/country.json`, which production CSP blocks. This is unrelated to the Appwrite Realtime fix and should be triaged separately.
+- Historical note: visitor geolocation previously attempted `https://get.geojs.io/v1/ip/country.json`, which production CSP blocked. This was unrelated to the Appwrite Realtime fix and was later closed by commit `d6f0709e`, which removed the browser GeoJS request instead of widening CSP.
 - Cover Letter Pro/Premium verification remains `BLOCKED_EXTERNAL_ACCESS` until a Pro/Premium QA account is available.

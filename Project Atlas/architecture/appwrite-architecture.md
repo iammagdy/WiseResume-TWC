@@ -29,3 +29,4 @@ WiseResume is an Appwrite-native application. All database persistence, user aut
 * Owner-scoped user collections must keep collection permissions narrowed to `create("users")`; owner read/update/delete access belongs on each document.
 * `tailor_history` is legacy server-only history. Frontend history surfaces use `resumes` lineage and tailoring metadata.
 * Browser CSP must allow Appwrite API and Realtime only through the narrow Appwrite origins: `https://fra.cloud.appwrite.io` and `wss://fra.cloud.appwrite.io`.
+* Browser visitor tracking must not call third-party GeoIP endpoints directly. Visitor country enrichment is analytics-only and should stay server-side through Appwrite request metadata or an explicitly approved server-side fallback.

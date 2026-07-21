@@ -1,5 +1,44 @@
 # Project Atlas Master Changelog
 
+## 2026-07-21 - Remove Browser GeoJS Visitor Lookup
+
+- **Classification**: VERIFIED_READY
+- **Scope**: Removed the browser-side GeoJS visitor country lookup that production CSP was blocking. This was a focused analytics/privacy/CSP fix only.
+- **Product Commit**: `d6f0709ecb517b5c8f246825765867bfd6ce24c5` - `fix(analytics): remove browser GeoJS lookup`
+- **Root Cause**:
+  - `src/lib/visitorTrack.ts` called `https://get.geojs.io/v1/ip/country.json` directly from the browser during page-view tracking.
+  - The active Vite meta CSP intentionally did not allow GeoJS in `connect-src`, so production logged a CSP warning.
+  - The country value was used only for visitor analytics enrichment and DevKit aggregate geography displays, not for auth, security, product access, payments, AI routing, exports, Tailoring, Cover Letters, or user-visible application behavior.
+- **Changes**:
+  - Removed browser GeoJS fetch, browser country cache, and the delayed re-flush path from `src/lib/visitorTrack.ts`.
+  - Left visitor event `country` unset client-side so the Appwrite `track-visitor-event` ingestion path can enrich from request metadata where available.
+  - Added `src/lib/__tests__/visitorTrack.geo.test.ts` to guard that browser tracking does not call GeoJS, does not send browser-derived country, keeps `/devkit` excluded, and does not add GeoJS to CSP.
+  - Did not add `https://get.geojs.io` to CSP.
+- **Validation**:
+  - `npx vitest run src/lib/__tests__/visitorTrack.geo.test.ts` - PASS, 4 tests.
+  - `node tests/hubs/track-visitor-event.test.cjs` - PASS.
+  - `npx tsc --noEmit` - PASS.
+  - `npm run build` - PASS, existing Browserslist and chunk-size warnings only.
+  - `git diff --check` - PASS, Windows line-ending warnings only.
+- **Deployment State**:
+  - Product commit was pushed to `origin/main`.
+  - Vercel production deployment `dpl_EwaBNSHJ2LSF6NiKnMfjnhzPro3n` reached `READY` for commit `d6f0709ecb517b5c8f246825765867bfd6ce24c5`.
+  - Vercel runtime log scan for the last hour returned no runtime errors.
+  - No Appwrite hub deployment, Appwrite schema change, environment variable change, provider change, AI change, credit-path change, or payments change was performed.
+- **Production Browser Evidence**:
+  - Production landing and authenticated dashboard loaded from `https://wiseresume.app`.
+  - Network capture observed no `get.geojs.io` or `country.json` requests and no GeoJS responses.
+  - `track-visitor-event` Appwrite executions continued; captured payloads had page/perf/session events and no browser-derived `country`.
+  - Console capture had no GeoJS `connect-src` violation. The only CSP warning observed was the known browser warning that `frame-ancestors` is ignored when delivered by a meta tag.
+  - Appwrite account returned 200, and Appwrite Realtime websocket opened successfully.
+- **Privacy and Security**:
+  - Direct browser IP exposure to GeoJS was removed.
+  - Production CSP stayed narrow and no third-party GeoIP endpoint was added to `connect-src`.
+  - The Appwrite `track-visitor-event` hub still contains a server-side GeoJS fallback if Appwrite country metadata is unavailable; that was not changed or deployed in this browser CSP task.
+- **Remaining Follow-ups**:
+  - Cover Letter Pro/Premium verification remains `BLOCKED_EXTERNAL_ACCESS` because the available QA account is Free.
+  - Optional separate review: decide whether the server-side visitor country fallback should remain, use only Appwrite request metadata, or be removed.
+
 ## 2026-07-21 - Owner Permissions, Tailor History Reads, and Appwrite Realtime CSP
 
 - **Classification**: VERIFIED_TARGET_READY_WITH_RESIDUAL_GEOJS_CSP_WARNING
@@ -40,7 +79,7 @@
   - Appwrite Realtime websocket opened from the app, and a manual `wss://fra.cloud.appwrite.io` websocket probe opened without a CSP block.
 - **Remaining Follow-ups**:
   - Cover Letter Pro/Premium verification remains `BLOCKED_EXTERNAL_ACCESS` because the available QA account is Free.
-  - Unrelated visitor geolocation request to `https://get.geojs.io/v1/ip/country.json` is still blocked by CSP and should be triaged separately.
+  - Historical note: the unrelated browser visitor geolocation CSP warning was later closed by commit `d6f0709e`, which removed the browser GeoJS request instead of widening CSP.
 
 ## 2026-07-21 - Tailored Result ATS PDF and DOCX Export Fix
 

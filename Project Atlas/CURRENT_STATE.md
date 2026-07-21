@@ -1,7 +1,7 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-07-21
-**Status:** Canonical Verified System Snapshot - Owner Permissions and Realtime CSP Verified
+**Status:** Canonical Verified System Snapshot - GeoJS Browser Lookup Removed
 **Repository:** `iammagdy/WiseResume-TWC`  
 
 ---
@@ -31,7 +31,7 @@ WiseResume is a full-stack, Appwrite-native web application designed for resume 
 
 * **Primary Production Domain:** `wiseresume.app`
 * **Frontend Framework:** React, TypeScript, Vite, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (main branch auto-deploys to production; latest verified production deployment `dpl_87S6QpMiXnETKAEsfA7bEPyScm4p` for commit `854ac418`).
+* **Frontend Hosting:** Vercel (main branch auto-deploys to production; latest verified code-bearing deployment `dpl_EwaBNSHJ2LSF6NiKnMfjnhzPro3n` for commit `d6f0709e`).
 * **Backend Database & Storage:** Appwrite Databases and Appwrite Storage.
 * **Authentication:** Appwrite Auth exclusively.
 * **AI Provider Routing:** All AI calls go through the server-side Appwrite `ai-gateway` function, with DeepSeek-first routing and Groq / OpenRouter / NVIDIA fallback support.
@@ -39,6 +39,7 @@ WiseResume is a full-stack, Appwrite-native web application designed for resume 
 * **WiseHire:** Secondary/deprioritized product module.
 * **Owner-Scoped Collections:** `user_preferences`, `jobs`, and `job_applications` use Appwrite document security with collection-level `create("users")` and owner-only document read/update/delete permissions.
 * **Realtime CSP:** The active frontend CSP allows Appwrite Realtime via `wss://fra.cloud.appwrite.io`.
+* **Visitor Country Tracking:** Browser visitor tracking does not call GeoJS or any third-party GeoIP endpoint. Country may be enriched server-side by Appwrite ingestion metadata when available; unknown country is acceptable analytics fallback.
 
 ---
 

@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-07-21
-**Status:** Owner Permissions and Appwrite Realtime CSP Production Verified
+**Status:** GeoJS Browser Lookup Removed and Production Verified
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,7 +12,7 @@
 * **Repository:** `iammagdy/WiseResume-TWC`
 * **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_87S6QpMiXnETKAEsfA7bEPyScm4p`).
+* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_EwaBNSHJ2LSF6NiKnMfjnhzPro3n` for the latest verified code-bearing change).
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -24,6 +24,7 @@
 
 ## 2. Latest Important Commits
 
+* **`d6f0709e`** - `fix(analytics): remove browser GeoJS lookup` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`854ac418`** - `fix(appwrite): restore owner access and realtime connectivity` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`29e8eec8`** - `fix(tailoring): restore ATS PDF and DOCX result exports` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`eb8587e9`** - `docs(qa): close P2/P3 closeout documentation after production verification`
@@ -43,7 +44,17 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: OWNER_PERMISSIONS_REALTIME_CSP_PRODUCTION_VERIFIED - The owner-scoped access fix for `user_preferences`, `jobs`, and `job_applications` has been implemented, committed, pushed, deployed by Vercel Git integration, and production browser verified. Appwrite schema setup and owner-permission migration were applied through repo-controlled scripts only. No Appwrite hub deploy, environment variable change, provider change, AI change, or credit-path change was performed.
+* **Session Status**: GEOJS_BROWSER_LOOKUP_REMOVED_PRODUCTION_VERIFIED - The browser-side visitor country lookup to GeoJS has been removed, committed, pushed, deployed by Vercel Git integration, and production browser verified. No CSP broadening, Appwrite hub deployment, Appwrite schema change, environment variable change, provider change, AI change, or credit-path change was performed.
+* **GeoJS Browser Lookup Resolution (2026-07-21)**:
+  - **Classification**: Browser GeoJS was `OPTIONAL_ANALYTICS_ENRICHMENT` with `PRIVACY_RISK`, not a required product dependency. It did not support auth, security, payments, AI, exports, Tailoring, Cover Letters, or user-visible workflows.
+  - **Confirmed Root Cause**: `src/lib/visitorTrack.ts` attempted `https://get.geojs.io/v1/ip/country.json` directly from the browser during page-view tracking. The active production CSP intentionally omitted GeoJS from `connect-src`, producing a console CSP warning.
+  - **Implemented Fix**: Removed the browser GeoJS request, browser country cache, and re-flush path. Visitor events now leave `country` unset client-side; the existing `track-visitor-event` Appwrite ingestion path may enrich missing country from Appwrite request metadata when available.
+  - **CSP Decision**: Did not add `https://get.geojs.io` to CSP. Production CSP remains limited to existing first-party Appwrite, Realtime, captcha, AI/provider, email, and telemetry endpoints.
+  - **Validation**: Focused GeoJS regression tests passed; `node tests/hubs/track-visitor-event.test.cjs`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` passed.
+  - **Deployment Status**: Product commit `d6f0709ecb517b5c8f246825765867bfd6ce24c5` deployed to Vercel production as `dpl_EwaBNSHJ2LSF6NiKnMfjnhzPro3n`, reached `READY`, and `origin/main` matched local `main` before Atlas closeout docs.
+  - **Production Browser Evidence**: Production landing and authenticated dashboard emitted no `get.geojs.io` or `country.json` requests, no GeoJS CSP violation appeared, `track-visitor-event` executions continued, visitor event payloads contained no browser-derived `country`, Appwrite account returned 200, and Appwrite Realtime websocket probes opened successfully.
+  - **Residual Risk**: The Appwrite `track-visitor-event` hub still contains a server-side GeoJS fallback if Appwrite country headers are unavailable. That path is outside the browser CSP issue and was not deployed or changed in this session.
+* **Previous Session Status**: OWNER_PERMISSIONS_REALTIME_CSP_PRODUCTION_VERIFIED - The owner-scoped access fix for `user_preferences`, `jobs`, and `job_applications` has been implemented, committed, pushed, deployed by Vercel Git integration, and production browser verified. Appwrite schema setup and owner-permission migration were applied through repo-controlled scripts only. No Appwrite hub deploy, environment variable change, provider change, AI change, or credit-path change was performed.
 * **Owner Permissions and Realtime CSP Fix (2026-07-21)**:
   - **Confirmed Root Causes**: `user_preferences`, `jobs`, and `job_applications` had `documentSecurity: false`; existing document permissions were ignored and `user_preferences` documents lacked owner permissions. Browser runtime still attempted server-only `tailor_history` reads. The active Vite meta CSP omitted `wss://fra.cloud.appwrite.io`.
   - **Implemented Fix**: New documents in the affected owner collections now receive owner read/update/delete permissions. Repo scripts now idempotently enforce document security and `create("users")` collection permissions for `user_preferences`, `jobs`, and `job_applications`, then backfill owner document permissions from `user_id`.
@@ -53,7 +64,7 @@
   - **Validation**: Changed Node scripts passed `node --check`; related Vitest suite passed 17 files / 121 tests; `npx tsc --noEmit`, `npm run build`, and `git diff --check` passed.
   - **Deployment Status**: Product commit `854ac4185c0a4e89196c73a2d4704babb571270d` deployed to Vercel production as `dpl_87S6QpMiXnETKAEsfA7bEPyScm4p`, reached `READY`, and `origin/main` matches local `main`.
   - **Production Browser Evidence**: Authenticated QA browser loaded `/dashboard`; Appwrite account returned 200; runtime and direct browser checks for `user_preferences`, `jobs`, and `job_applications` returned 200/201 with zero affected 401s; no runtime `tailor_history` requests were observed; Appwrite Realtime websocket opened.
-  - **Residual Risk**: An unrelated visitor tracking request to `https://get.geojs.io/v1/ip/country.json` remains blocked by CSP and should be handled as a separate P3 follow-up.
+  - **Residual Risk**: Browser GeoJS lookup has since been removed by commit `d6f0709e`; see the GeoJS Browser Lookup Resolution entry above.
 * **Previous Session Status**: TAILORED_RESULT_EXPORT_FIX_PRODUCTION_VERIFIED - The Tailoring Result ATS PDF and Word/DOCX export defect has been fixed, committed, pushed, deployed by Vercel Git integration, and production browser verified. No Appwrite deployment, Appwrite schema change, environment variable change, provider change, AI change, or credit-path change was performed.
 * **Tailoring Result Export Fix (2026-07-21)**:
   - **Confirmed Root Cause**: Designed PDF used `TailorQuickPdfExportDialog` and a user-activated native PDF download, while ATS PDF and DOCX opened `/preview?id=<tailoredId>&action=...`. `PreviewPage.tsx` intentionally converts URL export actions into a fallback CTA and does not auto-download, leaving the result page buttons inert.
@@ -100,7 +111,7 @@
 
 1. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
 2. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.
-3. **GeoJS CSP Follow-up**: Decide whether visitor geolocation should be allowed via `connect-src https://get.geojs.io` or removed/reworked; current production CSP blocks that request.
+3. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
 4. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
 5. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
