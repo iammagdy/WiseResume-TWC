@@ -15,9 +15,9 @@
  *   Pre-consent queued events are re-emitted with the persistent ID.
  *
  * Country:
- *   Resolved once per session via a lightweight geo API and cached in
- *   sessionStorage. Included in all events so the DevKit map/country KPIs
- *   show real data.
+ *   Not resolved in the browser. The Appwrite ingestion function enriches
+ *   missing country data server-side from Appwrite request metadata when
+ *   available, avoiding a third-party browser IP lookup.
  */
 import { functions } from '@/lib/appwrite';
 
@@ -25,7 +25,6 @@ export const CONSENT_KEY = 'wise_tracking_consent';
 export const ANON_ID_KEY  = 'wise_anon_id';
 
 const SESSION_ID_KEY    = 'wise_session_id';
-const COUNTRY_CACHE_KEY = 'wise_visitor_country';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -98,44 +97,6 @@ function detectOS(ua: string): string {
   if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS';
   if (/Linux/i.test(ua))      return 'Linux';
   return 'Other';
-}
-
-// ---------------------------------------------------------------------------
-// Country geo resolution
-// ---------------------------------------------------------------------------
-
-let _country: string | null = null;
-let _countryFetching = false;
-
-function getCachedCountry(): string | null {
-  if (_country) return _country;
-  try {
-    const cached = sessionStorage.getItem(COUNTRY_CACHE_KEY);
-    if (cached) { _country = cached; return cached; }
-  } catch { /* ignore */ }
-  return null;
-}
-
-/** Fetch country once per session; result is cached in sessionStorage + memory.
- *  After resolution succeeds, fires a flush so queued events pick up the country. */
-function resolveCountry(): void {
-  if (_country || _countryFetching) return;
-  _countryFetching = true;
-  fetch('https://get.geojs.io/v1/ip/country.json', { cache: 'no-store' })
-    .then((r) => r.json())
-    .then((data: { country?: string }) => {
-      const code = data?.country ?? null;
-      if (code && /^[A-Z]{2}$/.test(code)) {
-        _country = code;
-        try { sessionStorage.setItem(COUNTRY_CACHE_KEY, code); } catch { /* ignore */ }
-        // Re-emit queued events so they pick up the newly resolved country.
-        // This fixes the race where the first page_view flushes before
-        // country resolution completes.
-        void flush();
-      }
-    })
-    .catch(() => { /* geo lookup is best-effort */ })
-    .finally(() => { _countryFetching = false; });
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +188,6 @@ export function setVisitorUserId(id: string | null): void {
 
 function buildBaseEvent(useConsented: boolean): Omit<VisitorEvent, 'event_type' | 'page'> {
   const ua = navigator.userAgent;
-  const country = getCachedCountry();
   const persistentPreConsent = import.meta.env.VITE_ENABLE_PRECONSENT_PERSISTENT_ID === 'true';
   const usePersistentIdentity = useConsented || persistentPreConsent;
   let consentState: VisitorEvent['consent_state'] = 'pending';
@@ -248,7 +208,6 @@ function buildBaseEvent(useConsented: boolean): Omit<VisitorEvent, 'event_type' 
     is_internal: false,
     is_bot: false,
     identity_version: 'v2',
-    ...(country ? { country } : {}),
     ...(_utmParams.utm_source ? { utm_source: _utmParams.utm_source } : {}),
     ...(_utmParams.utm_medium ? { utm_medium: _utmParams.utm_medium } : {}),
     ...(_utmParams.utm_campaign ? { utm_campaign: _utmParams.utm_campaign } : {}),
@@ -330,14 +289,12 @@ function firePerfEvent(): void {
 /**
  * Fire a page view event.
  * Always records (pre-consent uses ephemeral session-only IDs).
- * Starts country geo resolution on first call.
  */
 export function trackPageView(path: string): void {
   // Exclude /devkit routes from tracking — admin pages should not count as visitor traffic
   if (path.startsWith('/devkit')) return;
 
   captureUtmParams();
-  resolveCountry();
   ensureFlushTimer();
 
   if (!_sessionStartTime) _sessionStartTime = Date.now();
@@ -356,8 +313,8 @@ export function trackPageView(path: string): void {
     page: path,
   });
 
-  // First flush: wait briefly for country resolution to complete
-  // so the first page_view includes country. Subsequent flushes run on the 10s timer.
+  // First flush: keep the existing short delay so initial navigation and load
+  // telemetry stay batched. Subsequent flushes run on the 10s timer.
   if (!_hasFlushed) {
     _hasFlushed = true;
     setTimeout(() => void flush(), 2000);
