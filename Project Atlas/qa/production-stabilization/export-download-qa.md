@@ -1,7 +1,7 @@
 # Phase 5 — Export / Download QA Report
 
 **Date:** 2026-07-05
-**Status:** Partial — Code analysis and endpoint verification completed; actual file download requires browser session
+**Status:** Tailoring Result export production browser verification completed; broader Arabic/mobile export coverage remains pending.
 **Auditor:** AI Agent
 **Production URL:** `https://wiseresume.app`
 
@@ -137,6 +137,12 @@ const initialAutoExportAction = useRef<string | null>(
 
 | Date | Evidence | Size | Verdict |
 |------|----------|------|---------|
+| 2026-07-21 | Tailoring Result Designed PDF production browser download (`Job.pdf`) | 22,156 bytes | PASS - `%PDF-1.4`, parsed as 1 page, tailored QA resume text present, no source marker |
+| 2026-07-21 | Tailoring Result ATS PDF production browser download (`Job_Resume_ATS.pdf`) | 22,228 bytes | PASS - `%PDF-1.4`, parsed as 1 page, ATS export path verified, tailored QA resume text present, no source marker |
+| 2026-07-21 | Tailoring Result DOCX production browser download (`QA_Manual_User_Resume.docx`) | 8,303 bytes | PASS - valid DOCX ZIP package with 20 entries, `word/document.xml`, tailored QA resume text present, no source marker |
+| 2026-07-21 | Tailoring Result Designed PDF local browser download (`Job.pdf`) | 54,571 bytes | PASS - `%PDF-1.4`, parsed as 1 page, contained tailored QA resume text, no source marker |
+| 2026-07-21 | Tailoring Result ATS PDF local browser download (`Job_Resume_ATS.pdf`) | 49,291 bytes | PASS - `%PDF-1.4`, parsed as 1 page, ATS result-page path verified, tailored QA resume text, no source marker |
+| 2026-07-21 | Tailoring Result DOCX local browser download (`QA_Manual_User_Resume.docx`) | 8,303 bytes | PASS - valid DOCX ZIP package with 20 entries, `word/document.xml`, tailored QA resume text, no source marker |
 | 2026-07-02 | Designed PDF (English) | 28,441 bytes | Visually verified, one page |
 | 2026-07-02 | ATS PDF (English) | 29,165 bytes | ATS-friendly layout |
 | 2026-07-02 | DOCX (English) | 8,277 bytes | Valid 20-entry package |
@@ -159,6 +165,7 @@ const initialAutoExportAction = useRef<string | null>(
 | EXP-03 | Server cannot verify client-provided HTML matches resume owner | MEDIUM | Server trusts pre-rendered HTML from any authenticated session |
 | EXP-04 | 15+ `console.log` in production PDF export (timing, buffer sizes) | LOW | Verbose but no PII |
 | EXP-05 | `execPath.slice(-50)` logged in production | LOW | Partial executable path |
+| EXP-06 | Tailoring Result ATS PDF and DOCX production verification pending after deploy | RESOLVED | Product commit `29e8eec89c72de8eba60d77e401814482c16bf97` deployed via Vercel `dpl_8W6Dbf7G2G9EALDLx1pPQU4kfN9x`; production artifacts verified 2026-07-21 |
 
 ---
 
@@ -187,7 +194,8 @@ const initialAutoExportAction = useRef<string | null>(
 | File validation | PASS — PDF signature, DOCX ZIP + entries checked |
 | Resume ID bootstrap | PASS — `?id=` param correctly hydrates store |
 | Historical file evidence | PASS — multiple verified export artifacts exist |
-| Actual file download | **UNVERIFIED** — requires browser session |
+| Tailoring Result local file downloads | PASS - Designed PDF, ATS PDF, and DOCX artifacts downloaded and parsed locally on 2026-07-21 |
+| Production Tailoring Result file downloads | PASS - Designed PDF, ATS PDF, and DOCX artifacts downloaded and parsed on production on 2026-07-21 |
 | Arabic export rendering | **UNVERIFIED** — requires visual inspection |
 
 ---

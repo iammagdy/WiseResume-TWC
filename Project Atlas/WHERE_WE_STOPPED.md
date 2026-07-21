@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-10
-**Status:** P2/P3 QA Remediation Pass Completed (Local Verified)
+**Last Verified:** 2026-07-21
+**Status:** Tailored Result ATS/DOCX Export Fix Production Verified
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -10,9 +10,9 @@
 
 * **Production Domain:** `https://wiseresume.app`
 * **Repository:** `iammagdy/WiseResume-TWC`
-* **Active Branch:** `audit/production-stabilization-qa`
+* **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_HzSUMD5ajKEu5TbKsTXEXftMnUSf`).
+* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_8W6Dbf7G2G9EALDLx1pPQU4kfN9x`).
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -24,7 +24,9 @@
 
 ## 2. Latest Important Commits
 
-* **`69eebee6`** — `docs(cover-letter): document and implement cover letters schema attributes and indexes in setup script` ← **LAST**
+* **`29e8eec8`** - `fix(tailoring): restore ATS PDF and DOCX result exports` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
+* **`eb8587e9`** - `docs(qa): close P2/P3 closeout documentation after production verification`
+* **`69eebee6`** — `docs(cover-letter): document and implement cover letters schema attributes and indexes in setup script`
 * **`65619950`** — `fix(cover-letter): persist saved letters with owner permissions`
 * **`465c93dc`** — `fix(ai-gateway): resolve tailoring route metadata crash`
 * **`b3cb0d91`** — `fix(qa): address confirmed P1 browser QA blockers`
@@ -40,7 +42,16 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: P2_P3_REMEDIATION_PRODUCTION_VERIFIED_WITH_FAST_TAILOR_CREDIT_LIMIT_CAVEAT — The consolidated P2/P3 QA Remediation Pass is completed and verified against production for commit `aaf77e87`.
+* **Session Status**: TAILORED_RESULT_EXPORT_FIX_PRODUCTION_VERIFIED - The Tailoring Result ATS PDF and Word/DOCX export defect has been fixed, committed, pushed, deployed by Vercel Git integration, and production browser verified. No Appwrite deployment, Appwrite schema change, environment variable change, provider change, AI change, or credit-path change was performed.
+* **Tailoring Result Export Fix (2026-07-21)**:
+  - **Confirmed Root Cause**: Designed PDF used `TailorQuickPdfExportDialog` and a user-activated native PDF download, while ATS PDF and DOCX opened `/preview?id=<tailoredId>&action=...`. `PreviewPage.tsx` intentionally converts URL export actions into a fallback CTA and does not auto-download, leaving the result page buttons inert.
+  - **Implemented Fix**: `src/pages/TailoringHubResultPage.tsx` now exports ATS PDF and DOCX directly from the loaded tailored resume snapshot, with duplicate-click guards and export-specific toasts. `src/components/job-match/TailorResultExportPanel.tsx` now shows disabled/loading states for those exports.
+  - **Regression Coverage**: Added `src/pages/__tests__/TailoringHubResultPage.export.test.tsx` for tailored document identity, ATS mode options, DOCX generator input, duplicate-click guards, failure handling, and Designed PDF behavior.
+  - **Validation**: Focused Tailoring Result export tests passed (8 tests), adjacent Preview/Tailoring tests passed (31 tests), `npx tsc --noEmit` passed, `npm run build` passed, and `git diff --check` passed with Windows line-ending warnings only.
+  - **Local Browser Artifacts**: Local authenticated route `/tailoring-hub/result/6a5f3d920002ef6c80c5` downloaded `Job.pdf` (54,571 bytes, `%PDF-1.4`), `Job_Resume_ATS.pdf` (49,291 bytes, `%PDF-1.4`), and `QA_Manual_User_Resume.docx` (8,303 bytes, valid DOCX ZIP with 20 entries). Parsed artifacts contained the tailored QA resume text and did not contain the source marker.
+  - **Deployment Status**: Product commit `29e8eec89c72de8eba60d77e401814482c16bf97` deployed to Vercel production as `dpl_8W6Dbf7G2G9EALDLx1pPQU4kfN9x`, reached `READY`, and the project domains include `wiseresume.app`.
+  - **Production Browser Artifacts**: Production route `https://wiseresume.app/tailoring-hub/result/6a5f3d920002ef6c80c5` downloaded `Job.pdf` (22,156 bytes, `%PDF-1.4`), `Job_Resume_ATS.pdf` (22,228 bytes, `%PDF-1.4`), and `QA_Manual_User_Resume.docx` (8,303 bytes, valid DOCX ZIP with 20 entries). Parsed artifacts contained tailored QA resume text and did not contain the source marker.
+* **Previous Session Status**: P2_P3_REMEDIATION_PRODUCTION_VERIFIED_WITH_FAST_TAILOR_CREDIT_LIMIT_CAVEAT — The consolidated P2/P3 QA Remediation Pass is completed and verified against production for commit `aaf77e87`.
 * **P2/P3 Remediation Closed**:
   - **Mock Interview (`/interview`)**: **PASS**. Resume selector auto-selected latest/active resume. Dropdown populated with 22 options and retrieved resumes via network (200 success).
   - **LinkedIn Optimizer (`/ai-studio/linkedin`)**: **PASS**. Active resume context resolved successfully and the `Generate LinkedIn Content` CTA was enabled (resumes query returned 200).
@@ -78,7 +89,7 @@
 1. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once the QA account credit usage is reset or a custom test account with positive credit balance is available.
 2. **Audit and Fix Remaining 401 Queries**: Resolve other queries that return 401 under user sessions (e.g. `tailor_history` and `user_preferences` collections).
 3. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
-4. **Verify QA Branch for Merge**: Keep all code on the safe branch `audit/production-stabilization-qa`. Review the remote commits and perform a manual, audited git merge/integration into `origin/main` when ready. Do NOT force-push or automatically overwrite `origin/main`.
+4. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account.
 5. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.

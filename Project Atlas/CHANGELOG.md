@@ -1,5 +1,49 @@
 # Project Atlas Master Changelog
 
+## 2026-07-21 - Tailored Result ATS PDF and DOCX Export Fix
+
+- **Classification**: VERIFIED_READY
+- **Scope**: Fixed the confirmed production defect where `/tailoring-hub/result/<tailored-resume-id>` Designed PDF worked but ATS PDF and Word/DOCX buttons did not initiate downloads.
+- **Product Commit**: `29e8eec89c72de8eba60d77e401814482c16bf97` - `fix(tailoring): restore ATS PDF and DOCX result exports`
+- **Root Cause**:
+  - Designed PDF used `TailorQuickPdfExportDialog` with the explicit tailored resume Appwrite document ID, so the dialog's user click executed native PDF generation and `downloadFile()`.
+  - ATS PDF and DOCX were wired to `window.open('/preview?id=<tailoredId>&action=...')`.
+  - `PreviewPage.tsx` intentionally converts URL export actions into a user-activated fallback CTA after bootstrap and does not auto-download from the opened URL.
+  - Result: ATS PDF and DOCX never called their generator/download functions from the Tailoring Result page.
+- **Changes**:
+  - Updated `src/pages/TailoringHubResultPage.tsx` so ATS PDF exports directly from the loaded tailored resume snapshot via native PDF generation with `atsMode: true`.
+  - Updated `src/pages/TailoringHubResultPage.tsx` so Word/DOCX exports directly through the existing DOCX generator using the same tailored resume snapshot.
+  - Added duplicate-click busy guards and export-specific failure toasts.
+  - Updated `src/components/job-match/TailorResultExportPanel.tsx` to show disabled/loading states for ATS PDF and Word while exports are preparing.
+  - Added `src/pages/__tests__/TailoringHubResultPage.export.test.tsx` covering tailored document identity, ATS mode options, DOCX generator input, duplicate-click guards, failure handling, and Designed PDF regression behavior.
+- **Validation**:
+  - `npx vitest run src/pages/__tests__/TailoringHubResultPage.export.test.tsx` - PASS, 8 tests.
+  - `npx vitest run src/pages/__tests__/PreviewPage.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts src/pages/__tests__/TailoringHubResultPage-F1.test.tsx src/pages/__tests__/TailoringHubResultPage.export.test.tsx` - PASS, 31 tests.
+  - `npx tsc --noEmit` - PASS.
+  - `npm run build` - PASS.
+  - `git diff --check` - PASS, with Windows line-ending warnings only.
+- **Local Browser Artifact Verification**:
+  - Route verified locally with authenticated storage state: `/tailoring-hub/result/6a5f3d920002ef6c80c5`.
+  - Designed PDF downloaded as `Job.pdf`, 54,571 bytes, `%PDF-1.4`, parsed as 1 page, contained tailored QA resume text, and did not contain the source marker.
+  - ATS PDF downloaded as `Job_Resume_ATS.pdf`, 49,291 bytes, `%PDF-1.4`, parsed as 1 page, contained tailored QA resume text, and did not contain the source marker.
+  - DOCX downloaded as `QA_Manual_User_Resume.docx`, 8,303 bytes, valid ZIP/DOCX package with 20 entries, included `word/document.xml`, contained tailored QA resume text, and did not contain the source marker.
+- **Deployment State**:
+  - Product commit was pushed to `origin/main` and picked up by Vercel Git integration.
+  - Vercel deployment `dpl_8W6Dbf7G2G9EALDLx1pPQU4kfN9x` reached `READY` for production.
+  - Vercel deployed commit SHA matched `29e8eec89c72de8eba60d77e401814482c16bf97`.
+  - Production project domains include `wiseresume.app`.
+  - No manual Vercel redeploy was performed.
+  - No Appwrite deployment, Appwrite schema change, environment variable change, provider change, AI change, or credit-path change was performed.
+- **Production Browser Artifact Verification**:
+  - Route verified on production with an approved runtime-authenticated QA session: `https://wiseresume.app/tailoring-hub/result/6a5f3d920002ef6c80c5`.
+  - Designed PDF downloaded as `Job.pdf`, 22,156 bytes, `%PDF-1.4`, parsed as 1 page, contained tailored QA resume text, and did not contain the source marker.
+  - ATS PDF downloaded as `Job_Resume_ATS.pdf`, 22,228 bytes, `%PDF-1.4`, parsed as 1 page, contained tailored QA resume text, did not contain the source marker, and was generated from the ATS export path.
+  - DOCX downloaded as `QA_Manual_User_Resume.docx`, 8,303 bytes, valid ZIP/DOCX package with 20 entries, included `word/document.xml`, contained tailored QA resume text, and did not contain the source marker.
+- **Remaining Follow-ups**:
+  - Existing non-blocking Appwrite 400/401 read warnings remain separate P2 follow-ups.
+  - Realtime websocket CSP warning remains a separate P2 follow-up.
+  - Cover Letter retest using a Pro/Premium QA account remains pending.
+
 ## 2026-07-10 — P2/P3 QA Remediation Pass (Resume Picker, Interview, Cover Letters & Fast Tailor Permissions)
 
 - **Classification**: P2_P3_REMEDIATION_PRODUCTION_VERIFIED_WITH_FAST_TAILOR_CREDIT_LIMIT_CAVEAT

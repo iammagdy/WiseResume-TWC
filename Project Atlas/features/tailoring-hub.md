@@ -1,6 +1,6 @@
 # Feature Specification: Tailoring Hub (AI Resume Tailoring)
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-21
 **Status:** Active Production Feature  
 **Location:** `Project Atlas/features/tailoring-hub.md`  
 
@@ -14,11 +14,15 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 ## 2. Routes & Navigation
 * `/tailoring-hub` — Main AI tailoring route.
 * `/ar/tailoring-hub` — Arabic localized AI tailoring route.
+* `/tailoring-hub/result/:resumeId` - Tailored resume result route with export actions.
 
 ---
 
 ## 3. Main Frontend Files
 * `src/pages/TailoringHubPage.tsx` — Main tailoring controller and job description input interface.
+* `src/pages/TailoringHubResultPage.tsx` - Tailored result page controller and export action owner.
+* `src/components/job-match/TailorResultExportPanel.tsx` - Result page export action panel.
+* `src/components/job-match/TailorQuickPdfExportDialog.tsx` - Designed PDF export dialog used by the result page.
 * `src/components/tailoring/TailorScoreDelta.tsx` — Visual score improvement indicator.
 * `src/components/tailoring/DiffViewer.tsx` — Rich diff viewer comparing base resume vs tailored resume.
 
@@ -32,6 +36,11 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 
 ## 5. Current Behavior
 * **Standard Tailoring:** User selects a base resume and pastes target job description text. Calls `ai-gateway` which returns calculated ATS score delta (e.g. 50 → 85), keyword match breakdown, and suggested bullet rewrites. Tailoring history runs are persisted to `tailor_history` collection. If no changes are detected, an amber warning is displayed.
+* **Tailored Result Exports:**
+  - Designed PDF opens `TailorQuickPdfExportDialog` with the explicit tailored resume document ID and downloads from the dialog's user-activated action.
+  - ATS PDF exports directly from `TailoringHubResultPage.tsx` using the loaded tailored resume snapshot, native PDF generation, and `atsMode: true`.
+  - Word/DOCX exports directly from `TailoringHubResultPage.tsx` using the loaded tailored resume snapshot and the existing DOCX generator.
+  - ATS PDF and Word/DOCX use duplicate-click guards and export-specific busy states in `TailorResultExportPanel.tsx`.
 * **Fast Tailoring (One-Click from `/jobs`):**
   - Directly tailors the user's default master CV (or prompts a choice if multiple exist) against the selected remote job description in one click.
   - Concurrently triggers CV tailoring and cover letter generation in parallel.
@@ -48,6 +57,7 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 
 ## 7. Known Risks & Edge Cases
 * Requires valid job description text (>50 characters) to initiate AI analysis.
+* Tailored Result Designed PDF, ATS PDF, and Word/DOCX exports were production browser verified on 2026-07-21 after Vercel deployment `dpl_8W6Dbf7G2G9EALDLx1pPQU4kfN9x`.
 
 ---
 
