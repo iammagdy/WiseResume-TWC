@@ -1,6 +1,6 @@
 # Feature Specification: In-App Notifications & Bell Dropdown
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-21
 **Status:** Active Production Feature  
 **Location:** `Project Atlas/features/notifications.md`  
 
@@ -35,6 +35,7 @@ Informs portfolio owners and active job seekers about visitor messages, portfoli
 * Top-bar Bell displays an unread count badge (e.g. `3`).
 * Clicking the Bell on desktop opens a Popover listing the 5 latest notifications with specialized icons, timestamps, and "Mark all as read" button.
 * Mobile view redirects directly to `/notifications`.
+* Appwrite Realtime subscriptions require `wss://fra.cloud.appwrite.io` in the frontend CSP `connect-src`; this was production browser verified on 2026-07-21.
 
 ---
 

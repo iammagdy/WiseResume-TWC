@@ -30,12 +30,12 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 
 ## 4. Related Appwrite Functions & Collections
 * **Functions:** `ai-gateway` (handles ATS keyword extraction, matching score calculation, and tailoring generation).
-* **Collections:** `resumes`, `tailor_history`.
+* **Collections:** `resumes`, `jobs`, `job_applications`. `tailor_history` exists as legacy server-only history and is not a browser runtime dependency.
 
 ---
 
 ## 5. Current Behavior
-* **Standard Tailoring:** User selects a base resume and pastes target job description text. Calls `ai-gateway` which returns calculated ATS score delta (e.g. 50 → 85), keyword match breakdown, and suggested bullet rewrites. Tailoring history runs are persisted to `tailor_history` collection. If no changes are detected, an amber warning is displayed.
+* **Standard Tailoring:** User selects a base resume and pastes target job description text. Calls `ai-gateway` which returns calculated ATS score delta (e.g. 50 -> 85), keyword match breakdown, and suggested bullet rewrites. Current browser history surfaces are reconstructed from owner-scoped tailored resume lineage and tailoring metadata. If no changes are detected, an amber warning is displayed.
 * **Tailored Result Exports:**
   - Designed PDF opens `TailorQuickPdfExportDialog` with the explicit tailored resume document ID and downloads from the dialog's user-activated action.
   - ATS PDF exports directly from `TailoringHubResultPage.tsx` using the loaded tailored resume snapshot, native PDF generation, and `atsMode: true`.
@@ -51,6 +51,7 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 
 ## 6. Important Rules & Constraints
 * Legacy `/tailor` path is deprecated; all resume tailoring operates via `/tailoring-hub`.
+* Browser code must not query legacy `tailor_history`; it is intentionally server-only.
 * `ai-gateway` must return genuine calculated score deltas or `null` if unchanged; fabricating fake static scores (e.g. 55→78) is strictly prohibited.
 
 ---
@@ -58,6 +59,7 @@ Enables job seekers to tailor an existing resume against a target job descriptio
 ## 7. Known Risks & Edge Cases
 * Requires valid job description text (>50 characters) to initiate AI analysis.
 * Tailored Result Designed PDF, ATS PDF, and Word/DOCX exports were production browser verified on 2026-07-21 after Vercel deployment `dpl_8W6Dbf7G2G9EALDLx1pPQU4kfN9x`.
+* Owner-scoped Appwrite reads for Tailoring Hub related `jobs` and `job_applications` were production browser verified on 2026-07-21 after Vercel deployment `dpl_87S6QpMiXnETKAEsfA7bEPyScm4p`.
 
 ---
 

@@ -1,6 +1,6 @@
 # Canonical Appwrite Backend Architecture
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-21
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/appwrite-architecture.md`  
 
@@ -25,4 +25,7 @@ WiseResume is an Appwrite-native application. All database persistence, user aut
 
 * Non-Appwrite backends (Supabase, Kinde, Firebase) are legacy and strictly prohibited.
 * Cross-user queries require Appwrite Functions with server keys (`X-DevKit-Key`).
-* Document Security (`documentSecurity: true`) is enforced on user-sensitive collections (`notifications`, `portfolio_visits`).
+* Document Security (`documentSecurity: true`) is enforced on user-sensitive collections including `notifications`, `portfolio_visits`, `user_preferences`, `jobs`, and `job_applications`.
+* Owner-scoped user collections must keep collection permissions narrowed to `create("users")`; owner read/update/delete access belongs on each document.
+* `tailor_history` is legacy server-only history. Frontend history surfaces use `resumes` lineage and tailoring metadata.
+* Browser CSP must allow Appwrite API and Realtime only through the narrow Appwrite origins: `https://fra.cloud.appwrite.io` and `wss://fra.cloud.appwrite.io`.

@@ -1,5 +1,47 @@
 # Project Atlas Master Changelog
 
+## 2026-07-21 - Owner Permissions, Tailor History Reads, and Appwrite Realtime CSP
+
+- **Classification**: VERIFIED_TARGET_READY_WITH_RESIDUAL_GEOJS_CSP_WARNING
+- **Scope**: Fixed P2 production access failures for owner-scoped Appwrite collections, removed unnecessary browser reads from the server-only legacy Tailor History collection, and allowed Appwrite Realtime websocket connections in the active frontend CSP.
+- **Product Commit**: `854ac4185c0a4e89196c73a2d4704babb571270d` - `fix(appwrite): restore owner access and realtime connectivity`
+- **Root Cause**:
+  - `user_preferences`, `jobs`, and `job_applications` had `documentSecurity: false`; existing document owner permissions were ignored, and `user_preferences` documents lacked owner permissions.
+  - Browser runtime paths still attempted legacy `tailor_history` reads even though that collection is intentionally server-only.
+  - The active Vite meta CSP allowed `https://fra.cloud.appwrite.io` but not `wss://fra.cloud.appwrite.io`, blocking Appwrite Realtime sockets.
+- **Changes**:
+  - Added a shared frontend owner-permission helper and attached owner read/update/delete permissions to new `user_preferences`, `jobs`, and `job_applications` documents.
+  - Added repo-controlled Appwrite schema setup and dry-run-first owner-permission migration scripts for `user_preferences`, `jobs`, and `job_applications`.
+  - Replaced browser `tailor_history` dependencies with owner-scoped resume lineage and tailoring metadata fallbacks across dashboard, applications, jobs, activity, and Tailoring Result flows.
+  - Added `wss://fra.cloud.appwrite.io` to the Vite CSP and mirrored it in `public/_headers`.
+  - Added focused security regression tests covering owner permissions, collection schema contracts, migration safety, Tailor History runtime removal, and CSP scope.
+- **Live Appwrite Schema and Migration**:
+  - Setup script applied to `user_preferences`, `jobs`, and `job_applications`; no Appwrite hubs were deployed and no `target=all` operation was used.
+  - `user_preferences`: document security enabled, collection permission set to `create("users")`, `language` ensured. Legacy `user_id` size prevents `user_id_idx` creation, but live authenticated `user_id` queries verified successfully.
+  - `jobs`: document security enabled, collection permission set to `create("users")`, `user_id_idx` available.
+  - `job_applications`: document security enabled, collection permission set to `create("users")`, required tracker attributes and `user_id_idx`, `status_idx`, `resume_id_idx`, `user_status_idx` available.
+  - Final dry-run after production browser probe: `user_preferences scanned=22 updated=0 already_correct=22`, `jobs scanned=4 updated=0 already_correct=4`, `job_applications scanned=0 updated=0`.
+- **Validation**:
+  - `node --check` for changed Node scripts - PASS.
+  - Related Vitest suite - PASS, 17 files / 121 tests.
+  - `npx tsc --noEmit` - PASS.
+  - `npm run build` - PASS, existing chunk-size and Browserslist warnings only.
+  - `git diff --check` - PASS, Windows line-ending warnings only.
+- **Deployment State**:
+  - Product commit was pushed to `origin/main`.
+  - Vercel production deployment `dpl_87S6QpMiXnETKAEsfA7bEPyScm4p` reached `READY` for commit `854ac4185c0a4e89196c73a2d4704babb571270d`.
+  - Production HTML at `https://wiseresume.app/` returned 200 and contained the active CSP meta entry for `wss://fra.cloud.appwrite.io`.
+  - Vercel runtime error scan for the last hour found no runtime errors.
+- **Production Browser Evidence**:
+  - Authenticated QA browser loaded `https://wiseresume.app/dashboard` with Appwrite account status 200.
+  - Runtime Appwrite calls to `user_preferences`, `jobs`, and `job_applications` returned 200/201 with zero affected 401s.
+  - Direct authenticated browser REST checks returned 200 for `user_preferences`, `jobs`, and `job_applications`.
+  - No runtime `tailor_history` requests were observed.
+  - Appwrite Realtime websocket opened from the app, and a manual `wss://fra.cloud.appwrite.io` websocket probe opened without a CSP block.
+- **Remaining Follow-ups**:
+  - Cover Letter Pro/Premium verification remains `BLOCKED_EXTERNAL_ACCESS` because the available QA account is Free.
+  - Unrelated visitor geolocation request to `https://get.geojs.io/v1/ip/country.json` is still blocked by CSP and should be triaged separately.
+
 ## 2026-07-21 - Tailored Result ATS PDF and DOCX Export Fix
 
 - **Classification**: VERIFIED_READY

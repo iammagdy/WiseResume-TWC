@@ -1,6 +1,6 @@
 # Canonical Authentication & Permissions Specification
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-21
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/auth-and-permissions.md`  
 
@@ -17,6 +17,8 @@ WiseResume uses **Appwrite Auth** exclusively for user session management.
 
 ## Document-Level Security & Permissions
 
-* **User Data Access:** Documents in `resumes`, `profiles`, and `portfolios` specify permissions granting access only to the owner (`Permission.read(Role.user(userId))`, `Permission.update(Role.user(userId))`).
-* **Document Security Enabled (`documentSecurity: true`):** Active on `notifications`, `portfolio_visits`, and `portfolio_history` collections to ensure Appwrite strictly enforces individual document permissions.
+* **User Data Access:** Documents in `resumes`, `profiles`, `portfolios`, `user_preferences`, `jobs`, and `job_applications` specify permissions granting access only to the owner (`Permission.read(Role.user(userId))`, `Permission.update(Role.user(userId))`, `Permission.delete(Role.user(userId))` where deletion is allowed by the feature).
+* **Owner-Scoped Collection Model:** `user_preferences`, `jobs`, and `job_applications` have `documentSecurity: true` and collection permissions restricted to `create("users")`. They must not use `Role.any()`, collection-wide read/update/delete permissions, or cross-user browser queries.
+* **Document Security Enabled (`documentSecurity: true`):** Active on `notifications`, `portfolio_visits`, `portfolio_history`, `user_preferences`, `jobs`, and `job_applications` collections to ensure Appwrite strictly enforces individual document permissions.
+* **Legacy Tailor History:** `tailor_history` is server-only legacy history. Browser runtime must derive current tailoring history from owner-scoped `resumes` lineage and tailoring metadata instead of querying `tailor_history`.
 * **Admin Privileges:** Cross-user data reads and administrative actions require server API keys authenticated through serverless Appwrite Functions (`admin-devkit-data`). Client-side database bypassing is strictly prohibited.

@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-21
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -18,9 +18,11 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
+* **Latest Verified Deployment:** `dpl_87S6QpMiXnETKAEsfA7bEPyScm4p` for commit `854ac4185c0a4e89196c73a2d4704babb571270d`.
 * **Trigger:** Pushes to the `main` branch automatically trigger Vercel production deployment workflows.
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist/`
+* **Active Frontend CSP:** Delivered through the Vite-injected meta tag. Appwrite access requires both `https://fra.cloud.appwrite.io` and `wss://fra.cloud.appwrite.io` in `connect-src`.
 * **Environment Variables:**
   * `VITE_APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1`
   * `VITE_APPWRITE_PROJECT_ID=69fd362b001eb325a192`
