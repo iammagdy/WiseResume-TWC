@@ -33,6 +33,9 @@ import { TemplateId } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
+import { sanitizeFileName } from '@/lib/sanitizeFileName';
+import { getPdfExportErrorMessage } from '@/lib/pdfExportErrors';
 import { TailorResumeCompare } from '@/components/job-match/TailorResumeCompare';
 import { ScaledResumePage } from '@/components/job-match/ScaledResumePage';
 import { TailorResultExportPanel } from '@/components/job-match/TailorResultExportPanel';
@@ -40,6 +43,7 @@ import { TailorResultCoverLetterPanel } from '@/components/job-match/TailorResul
 import { TailorQuickPdfExportDialog } from '@/components/job-match/TailorQuickPdfExportDialog';
 import { useCoverLetter, parseCoverLetter } from '@/hooks/useCoverLetters';
 import {
+  buildJobApplicationDisplayName,
   resolveTailorJobContext,
   saveCoverLetterPrefill,
   saveTailorJobDescriptionForResume,
@@ -62,6 +66,8 @@ interface ResultState {
   coverLetterId?: string;
   changeSummary?: ChangeSummary;
 }
+
+type ResultExportKind = 'ats-pdf' | 'docx';
 
 export function resolveTailoringResultState(params: {
   locationState?: ResultState | null;
@@ -170,8 +176,10 @@ export default function JobMatchResultPage() {
     () => migrateTemplateId(dbResume?.template),
   );
   const [pdfExportOpen, setPdfExportOpen] = useState(false);
+  const [resultExportBusy, setResultExportBusy] = useState<ResultExportKind | null>(null);
   const [coverLetterDownloadBusy, setCoverLetterDownloadBusy] = useState(false);
   const hasUserPickedRef = useRef(false);
+  const resultExportBusyRef = useRef<ResultExportKind | null>(null);
   const handlePickTemplate = useCallback((id: TemplateId) => {
     hasUserPickedRef.current = true;
     setSelectedTemplate(id);
@@ -294,6 +302,35 @@ export default function JobMatchResultPage() {
     }
   };
 
+  const syncTailoredResumeForExport = useCallback(() => {
+    if (!resumeId || !resume) {
+      toast.error('Resume is still loading, please try again in a moment.');
+      return null;
+    }
+
+    const tailoredSnapshot = {
+      ...resume,
+      id: resumeId,
+      templateId: selectedTemplate,
+    };
+
+    setCurrentResumeId(resumeId);
+    setCurrentResume(tailoredSnapshot);
+    setSelectedTemplateStore(selectedTemplate);
+    databases.updateDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId, {
+      template: selectedTemplate,
+    }).catch(() => {});
+
+    return tailoredSnapshot;
+  }, [
+    resume,
+    resumeId,
+    selectedTemplate,
+    setCurrentResume,
+    setCurrentResumeId,
+    setSelectedTemplateStore,
+  ]);
+
   const navigateWithTemplate = (path: string, newTab = false) => {
     if (!resumeId) return;
     if (!newTab) {
@@ -322,8 +359,87 @@ export default function JobMatchResultPage() {
     setSelectedTemplateStore(selectedTemplate);
     setPdfExportOpen(true);
   };
-  const handleAtsPDF = () => navigateWithTemplate(`/preview?id=${resumeId}&action=ats-pdf`, true);
-  const handleDocx = () => navigateWithTemplate(`/preview?id=${resumeId}&action=docx`, true);
+
+  const handleAtsPDF = useCallback(async () => {
+    if (resultExportBusyRef.current) return;
+    const tailoredSnapshot = syncTailoredResumeForExport();
+    if (!tailoredSnapshot) return;
+
+    resultExportBusyRef.current = 'ats-pdf';
+    setResultExportBusy('ats-pdf');
+
+    try {
+      haptics.medium();
+      const { exportResumePdfFromData } = await import('@/lib/exportResumePdf');
+      const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
+
+      const pdfBlob = await exportResumePdfFromData(tailoredSnapshot, selectedTemplate, {
+        atsMode: true,
+        showPageNumbers: false,
+        showBranding: true,
+        locale: getDocumentLocale(tailoredSnapshot),
+        renderTimeoutMs: 8000,
+      });
+      await validatePdfBlob(pdfBlob);
+
+      const baseName = sanitizeFileName(
+        buildJobApplicationDisplayName({
+          jobTitle: jobContext.jobTitle,
+          company: jobContext.company,
+          fullName: tailoredSnapshot.contactInfo?.fullName,
+        }),
+      );
+      const result = await downloadFile({
+        blob: pdfBlob,
+        fileName: `${baseName}_Resume_ATS.pdf`,
+        mimeType: 'application/pdf',
+      });
+
+      if (result.cancelled) {
+        toast.info('ATS PDF download cancelled. Tap again to save.');
+        return;
+      }
+      if (!result.success) {
+        throw new Error('Download failed');
+      }
+
+      haptics.success();
+      toast.success('ATS PDF download started');
+    } catch (err) {
+      haptics.error();
+      toast.error(getPdfExportErrorMessage(err), { duration: 8000 });
+    } finally {
+      resultExportBusyRef.current = null;
+      setResultExportBusy(null);
+    }
+  }, [jobContext.company, jobContext.jobTitle, selectedTemplate, syncTailoredResumeForExport]);
+
+  const handleDocx = useCallback(async () => {
+    if (resultExportBusyRef.current) return;
+    const tailoredSnapshot = syncTailoredResumeForExport();
+    if (!tailoredSnapshot) return;
+
+    resultExportBusyRef.current = 'docx';
+    setResultExportBusy('docx');
+
+    try {
+      haptics.medium();
+      const { generateAndDownloadDOCX } = await import('@/lib/docxGenerator');
+      const success = await generateAndDownloadDOCX(tailoredSnapshot);
+      if (!success) {
+        throw new Error('Download failed');
+      }
+
+      haptics.success();
+      toast.success('Word document download started');
+    } catch {
+      haptics.error();
+      toast.error('Failed to download Word document. Please try again.');
+    } finally {
+      resultExportBusyRef.current = null;
+      setResultExportBusy(null);
+    }
+  }, [syncTailoredResumeForExport]);
 
   const handleOpenEditor = () => {
     if (!resumeId) return;
@@ -647,6 +763,8 @@ export default function JobMatchResultPage() {
               onDesignedPdf={handleDesignedPDF}
               onAtsPdf={handleAtsPDF}
               onDocx={handleDocx}
+              atsPdfBusy={resultExportBusy === 'ats-pdf'}
+              docxBusy={resultExportBusy === 'docx'}
               onPreview={() => navigateWithTemplate(`/preview?id=${resumeId}`)}
               onEditor={handleOpenEditor}
               onCoverLetter={handleCoverLetter}

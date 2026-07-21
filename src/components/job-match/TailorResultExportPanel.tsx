@@ -1,4 +1,4 @@
-import { ChevronDown, Download, Edit3, ExternalLink, FileText, Mail } from 'lucide-react';
+import { ChevronDown, Download, Edit3, ExternalLink, FileText, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,6 +18,8 @@ interface TailorResultExportPanelProps {
   onDesignedPdf: () => void;
   onAtsPdf: () => void;
   onDocx: () => void;
+  atsPdfBusy?: boolean;
+  docxBusy?: boolean;
   onPreview: () => void;
   onEditor: () => void;
   onCoverLetter: () => void;
@@ -34,6 +36,8 @@ export function TailorResultExportPanel({
   onDesignedPdf,
   onAtsPdf,
   onDocx,
+  atsPdfBusy = false,
+  docxBusy = false,
   onPreview,
   onEditor,
   onCoverLetter,
@@ -44,6 +48,7 @@ export function TailorResultExportPanel({
   coverLetterBusy = false,
 }: TailorResultExportPanelProps) {
   const selectedName = templates.find((t) => t.id === selectedTemplate)?.name ?? 'Modern';
+  const secondaryExportBusy = atsPdfBusy || docxBusy;
 
   return (
     <aside className="jmw-export-panel">
@@ -118,13 +123,33 @@ export function TailorResultExportPanel({
       )}
 
       <div className="jmw-export-panel__secondary">
-        <button type="button" className="jmw-export-panel__alt-btn" onClick={onAtsPdf}>
-          <FileText className="w-4 h-4" aria-hidden />
-          ATS PDF
+        <button
+          type="button"
+          className="jmw-export-panel__alt-btn"
+          onClick={onAtsPdf}
+          disabled={secondaryExportBusy}
+          aria-busy={atsPdfBusy}
+        >
+          {atsPdfBusy ? (
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+          ) : (
+            <FileText className="w-4 h-4" aria-hidden />
+          )}
+          {atsPdfBusy ? 'Preparing...' : 'ATS PDF'}
         </button>
-        <button type="button" className="jmw-export-panel__alt-btn" onClick={onDocx}>
-          <FileText className="w-4 h-4" aria-hidden />
-          Word
+        <button
+          type="button"
+          className="jmw-export-panel__alt-btn"
+          onClick={onDocx}
+          disabled={secondaryExportBusy}
+          aria-busy={docxBusy}
+        >
+          {docxBusy ? (
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+          ) : (
+            <FileText className="w-4 h-4" aria-hidden />
+          )}
+          {docxBusy ? 'Preparing...' : 'Word'}
         </button>
       </div>
 
