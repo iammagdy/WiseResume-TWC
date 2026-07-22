@@ -25,7 +25,8 @@ describe('public portfolio performance contracts', () => {
   it('keeps monitoring and optional portfolio modules out of the hero window', () => {
     expect(mainSource).toContain('isPublicPortfolioRoute');
     expect(mainSource).toContain('setTimeout(loadMonitoring, 10000)');
-    expect(pageSource).toContain('setDeferredContentReady(true), 1000');
+    expect(pageSource).toContain('const DEFERRED_CONTENT_DELAY_MS = 4000');
+    expect(pageSource).toContain('DEFERRED_CONTENT_DELAY_MS,');
     expect(pageSource).toContain('deferredContentReady && profile.contactFormEnabled');
     expect(pageSource).toContain('deferredContentReady && (');
   });

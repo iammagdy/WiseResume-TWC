@@ -32,6 +32,8 @@ const PortfolioContactForm = lazyWithRetry(() => import('@/components/portfolio/
 
 const PortfolioPasswordGate = lazyWithRetry(() => import('@/components/portfolio/public/PortfolioPasswordGate').then(m => ({ default: m.PortfolioPasswordGate })));
 
+const DEFERRED_CONTENT_DELAY_MS = 4000;
+
 // ─── helpers ───────────────────────────────────────────────────────────────────
 function hexToRgb(hex: string): string {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -177,7 +179,10 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
       setDeferredContentReady(false);
       return;
     }
-    const timer = window.setTimeout(() => setDeferredContentReady(true), 1000);
+    const timer = window.setTimeout(
+      () => setDeferredContentReady(true),
+      DEFERRED_CONTENT_DELAY_MS,
+    );
     return () => window.clearTimeout(timer);
   }, [portfolio]);
 
