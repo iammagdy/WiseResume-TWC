@@ -28,6 +28,16 @@ describe('aiErrorToastMessage — AI-5 client-side error surfacing', () => {
     expect(
       aiErrorToastMessage({ code: 'too_many_concurrent_jobs', status: 429, message: '' }),
     ).toMatch(/operations running/i);
+    expect(
+      aiErrorToastMessage({ code: 'request_in_progress', status: 409, message: '' }),
+    ).toMatch(/still processing/i);
+  });
+
+  it('classifies bounded Tailoring timeout codes as timeout errors', () => {
+    expect(parseAIErrorBody({ code: 'request_timeout', message: 'bounded timeout' }, 504).code)
+      .toBe('timeout');
+    expect(parseAIErrorBody({ code: 'total_request_timeout', message: 'budget exhausted' }, 504).code)
+      .toBe('timeout');
   });
 
   it('parseAIErrorBody preserves the diag in info.message for console-only logging', () => {

@@ -135,6 +135,7 @@ export default function JobMatchWorkspacePage() {
   const [importJobOpen, setImportJobOpen] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const tailorInFlightRef = useRef(false);
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const importJob = useImportJob();
   const redactedResume = useRedactedResume(currentResume as ResumeData | null);
@@ -320,6 +321,7 @@ export default function JobMatchWorkspacePage() {
   }, [applyImportedJob, importJob, user]);
 
   const handleTailor = useCallback(async () => {
+    if (tailorInFlightRef.current) return;
     if (!currentResume || !jobDescription.trim() || !user) {
       toast.error('Select a resume and add a job description to continue.');
       return;
@@ -330,6 +332,7 @@ export default function JobMatchWorkspacePage() {
     }
 
     haptics.medium();
+    tailorInFlightRef.current = true;
     setIsTailoring(true);
     setTailorError(null);
     setTailorWarning(false);
@@ -499,13 +502,19 @@ export default function JobMatchWorkspacePage() {
 
     } catch (err: unknown) {
       if (abort.signal.aborted) return;
-      const msg = isAIError(err)
-        ? aiErrorToastMessage({ code: err.code, message: err.message, status: err.status })
+      const msg = isAIError(err) && err.code === 'timeout'
+        ? 'Tailoring reached its time limit. Your resume was not changed. Please retry.'
+        : isAIError(err) && err.code === 'invalid_ai_response'
+          ? 'Tailoring returned an unusable result. Your resume was not changed and your credit was not charged. Please retry.'
+        : isAIError(err)
+          ? aiErrorToastMessage({ code: err.code, message: err.message, status: err.status })
         : (err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setTailorError(msg);
       haptics.error();
       console.error('[TailoringHub] AI tailoring failed:', err);
     } finally {
+      tailorInFlightRef.current = false;
+      if (abortRef.current === abort) abortRef.current = null;
       if (!abort.signal.aborted) {
         setIsTailoring(false);
         setProgress(null);
@@ -523,6 +532,7 @@ export default function JobMatchWorkspacePage() {
     redactedResume,
     addTailorHistory,
     currentResumeId,
+    setJobDescription,
     queryClient,
     navigate,
   ]);
@@ -531,7 +541,9 @@ export default function JobMatchWorkspacePage() {
     abortRef.current?.abort();
     setIsTailoring(false);
     setProgress(null);
-    toast.info('Tailoring cancelled.');
+    toast.info('Stopped waiting for Tailoring.', {
+      description: 'A retry will not start duplicate AI work.',
+    });
   };
 
   return (

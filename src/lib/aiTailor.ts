@@ -2,7 +2,7 @@ import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress,
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
-import { AIError, isAIError, parseAIErrorBody } from './aiErrorParser';
+import { AIError, parseAIErrorBody } from './aiErrorParser';
 import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
@@ -63,6 +63,8 @@ const ENHANCED_STEPS: { step: EnhancedTailorStep; message: string; funFact: stri
 
 export type TailorIntensity = 'light' | 'moderate' | 'aggressive';
 
+export const TAILOR_FRONTEND_TIMEOUT_MS = 75_000;
+
 export async function tailorResumeWithProgress(
   resume: ResumeData,
   jobDescription: string,
@@ -71,13 +73,12 @@ export async function tailorResumeWithProgress(
   signal?: AbortSignal,
   userInstructions?: string
 ): Promise<SuperTailorResult> {
-  // Smooth ease-out progress: ramps toward 94% over ~2 min (tailoring can take 60–90s server-side).
+  // Smooth ease-out progress stays below completion until the bounded request resolves.
   const PROGRESS_CAP = 94;
-  const PROGRESS_RAMP_MS = 120_000;
+  const PROGRESS_RAMP_MS = TAILOR_FRONTEND_TIMEOUT_MS;
   const startTime = Date.now();
   const STEP_THRESHOLDS = [10, 20, 35, 50, 60, 70, 75, 80, 88]; // percentage thresholds for step transitions
   let lastStepIndex = -1;
-  let lastEmittedProgress = 0; // track live value for retry resume point
   let lastReportedProgress = -1;
 
   const progressInterval = setInterval(() => {
@@ -85,8 +86,6 @@ export async function tailorResumeWithProgress(
     const t = Math.min(elapsed / PROGRESS_RAMP_MS, 1);
     const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
     const currentProgress = Math.min(eased * PROGRESS_CAP, PROGRESS_CAP);
-    lastEmittedProgress = currentProgress; // always track live animated value for retry use
-
     // Determine which step we're on based on percentage thresholds
     let stepIndex = 0;
     for (let i = 0; i < STEP_THRESHOLDS.length; i++) {
@@ -122,6 +121,8 @@ export async function tailorResumeWithProgress(
   const invokeOnce = async (): Promise<SuperTailorResult> => {
     const { data, error } = await appwriteFunctions.invoke<SuperTailorResult>('tailor-resume', {
       body: { resume, jobDescription, intensity, ...(userInstructions ? { userInstructions } : {}) },
+      signal,
+      timeoutMs: TAILOR_FRONTEND_TIMEOUT_MS,
     });
 
     if (error) {
@@ -145,34 +146,7 @@ export async function tailorResumeWithProgress(
   };
 
   try {
-    let data: SuperTailorResult;
-    try {
-      data = await invokeOnce();
-    } catch (firstError: unknown) {
-      // Only retry transient errors (not auth/credits/rate-limit)
-      const code = isAIError(firstError) ? firstError.code : (firstError as TailorError).code;
-      if (code === 'rate_limit' || code === 'payment_required' || code === 'unauthorized') throw firstError;
-
-      // Auto-retry once after 4s — give transient provider overloads time to clear.
-      const isUpstreamOverload =
-        code === 'upstream_5xx' ||
-        code === 'provider_unavailable' ||
-        code === 'provider_busy' ||
-        code === 'timeout' ||
-        ((firstError as Error).message ?? '').toLowerCase().includes('upstream');
-      onProgress({
-        step: 'finalizing',
-        progress: Math.max(lastEmittedProgress, 88),
-        message: isUpstreamOverload
-          ? '⏳ Our AI is temporarily overloaded — retrying...'
-          : '🔄 Retrying — hang tight...',
-        funFact: FUN_FACTS[0],
-      } as EnhancedTailorProgress);
-
-      await new Promise(r => setTimeout(r, 4000));
-      if (signal?.aborted) throw firstError;
-      data = await invokeOnce();
-    }
+    const data = await invokeOnce();
 
     clearInterval(progressInterval);
     clearTimeout(slowTimer);

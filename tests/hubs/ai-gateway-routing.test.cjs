@@ -370,6 +370,21 @@ function runFeatureRouteTests() {
     false,
     'Unrelated tools should not gain the extra same-provider retry',
   );
+  assert.equal(
+    aiGateway.__test.shouldRetryPreferredStructuredProvider(
+      'tailor-resume',
+      { provider: 'deepseek' },
+      { code: 'ECONNABORTED', message: 'timeout' },
+      0,
+    ),
+    false,
+    'Tailoring should move to its bounded cross-provider fallback instead of retrying the primary',
+  );
+  assert.equal(
+    aiGateway.__test.shouldAttemptStructuredRepair('tailor-resume'),
+    false,
+    'Tailoring should not spend its request budget on structured repair',
+  );
 
   // --- Tests for tailor-resume custom prompt logic ---
   console.log('[TEST] Verifying tailor-resume prompt builder...');
@@ -420,19 +435,44 @@ function runFeatureRouteTests() {
   console.log('[TEST] Verifying tailor-resume timeout configuration...');
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('tailor-resume', 0, 3),
-    65_000,
-    'tailor-resume should get 65s timeout on attempt 0'
+    42_000,
+    'tailor-resume should get a 42s primary timeout'
   );
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('tailor-resume', 1, 3),
-    65_000,
-    'tailor-resume should get 65s timeout on attempt 1'
+    23_000,
+    'tailor-resume should get a 23s fallback timeout'
   );
   assert.equal(
     aiGateway.__test.candidateTimeoutForFeature('tailor-resume', 2, 3),
-    65_000,
-    'tailor-resume should get 65s timeout on attempt 2'
+    23_000,
+    'later Tailoring candidates should use the fallback timeout'
   );
+
+  const requestStartedAt = Date.now();
+  assert.equal(
+    aiGateway.__test.boundedCandidateTimeout('tailor-resume', 42_000, requestStartedAt),
+    42_000,
+    'the primary attempt should fit inside the total request budget',
+  );
+  assert.equal(
+    aiGateway.__test.boundedCandidateTimeout(
+      'tailor-resume',
+      23_000,
+      requestStartedAt - (aiGateway.__test.TAILOR_TOTAL_BUDGET_MS - 4_000),
+    ),
+    0,
+    'the gateway should refuse another provider attempt when only cleanup time remains',
+  );
+
+  const cachePayload = { status: 'success', data: { summary: 'x'.repeat(70_000) } };
+  const encodedPayload = aiGateway.__test.encodeIdempotencyPayload(cachePayload);
+  assert.ok(encodedPayload.startsWith('gzip:'), 'large Tailoring results should use the existing cache field safely');
+  assert.deepEqual(aiGateway.__test.decodeIdempotencyPayload(encodedPayload), cachePayload);
+
+  const contentKeys = aiGateway.__test.computeContentKeys('user-1', 'tailor-resume', { input: 'same' });
+  assert.equal(contentKeys.length, 2, 'the current and previous dedup buckets should both be checked');
+  assert.notEqual(contentKeys[0], contentKeys[1]);
 
   const manyCandidates = [
     { provider: 'deepseek', key: 'd1', routed: true },

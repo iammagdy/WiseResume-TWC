@@ -6,7 +6,7 @@
  * Custom headers are packed into `__headers` because SDK executions do not send
  * arbitrary HTTP headers to function runtimes.
  */
-import { AppwriteException, type ExecutionMethod } from 'appwrite';
+import { AppwriteException, type ExecutionMethod, type Models } from 'appwrite';
 import { functions } from '@/lib/appwrite';
 import { shouldRouteToAppwrite } from '@/lib/appwrite-bridge';
 import { getAppwriteJWT } from '@/lib/appwriteJWT';
@@ -18,6 +18,8 @@ interface InvokeOptions {
   body?: FormData | Record<string, unknown> | unknown;
   headers?: Record<string, string>;
   method?: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 interface InvokeResult<T> {
@@ -32,6 +34,70 @@ type SerializedFile = {
   size: number;
   base64: string;
 };
+
+const TAILOR_EXECUTION_TIMEOUT_MS = 75_000;
+const TAILOR_EXECUTION_POLL_MS = 750;
+const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed']);
+
+class FunctionWaitError extends Error {
+  code: string;
+  status: number;
+
+  constructor(code: string, message: string, status: number) {
+    super(message);
+    this.name = 'FunctionWaitError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new FunctionWaitError('request_cancelled', 'Tailoring wait cancelled.', 499);
+  }
+}
+
+async function waitForPoll(signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal);
+  await new Promise<void>((resolve, reject) => {
+    const finish = () => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    };
+    const timer = setTimeout(finish, TAILOR_EXECUTION_POLL_MS);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      reject(new FunctionWaitError('request_cancelled', 'Tailoring wait cancelled.', 499));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function waitForExecution(
+  functionId: string,
+  initialExecution: Models.Execution,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<Models.Execution> {
+  const startedAt = Date.now();
+  let execution = initialExecution;
+
+  while (!TERMINAL_EXECUTION_STATUSES.has(execution.status)) {
+    throwIfAborted(signal);
+    if (Date.now() - startedAt >= timeoutMs) {
+      throw new FunctionWaitError(
+        'request_timeout',
+        'Tailoring took too long to finish. Your resume was not changed. Please retry.',
+        504,
+      );
+    }
+    await waitForPoll(signal);
+    execution = await functions.getExecution(functionId, initialExecution.$id);
+  }
+
+  return execution;
+}
 
 const COUPON_FUNCTIONS = new Set(['coupons', 'get-subscription']);
 const WISEHIRE_FUNCTIONS = new Set([
@@ -276,13 +342,49 @@ export const appwriteFunctions = {
               ? JSON.stringify({ ...finalPayload, action: fnName })
         : JSON.stringify(finalPayload);
 
-      const execution = await functions.createExecution(
-        functionId,
-        executionBody,
-        false,
-        '/',
-        'POST' as ExecutionMethod,
-      );
+      let execution: Models.Execution;
+      if (routeToAiGateway && fnName === 'tailor-resume') {
+        throwIfAborted(options?.signal);
+        const backgroundExecution = await functions.createExecution(
+          functionId,
+          executionBody,
+          true,
+          '/',
+          'POST' as ExecutionMethod,
+        );
+        const terminalExecution = await waitForExecution(
+          functionId,
+          backgroundExecution,
+          options?.timeoutMs ?? TAILOR_EXECUTION_TIMEOUT_MS,
+          options?.signal,
+        );
+        throwIfAborted(options?.signal);
+
+        const resultPayload = {
+          ...finalPayload,
+          __headers: {
+            ...headers,
+            'X-Tailor-Result-Only': 'true',
+            'X-Tailor-Execution-Status': terminalExecution.status,
+            'X-Tailor-Execution-Http-Status': String(terminalExecution.responseStatusCode ?? 0),
+          },
+        };
+        execution = await functions.createExecution(
+          functionId,
+          JSON.stringify({ featureName: fnName, ...resultPayload }),
+          false,
+          '/',
+          'POST' as ExecutionMethod,
+        );
+      } else {
+        execution = await functions.createExecution(
+          functionId,
+          executionBody,
+          false,
+          '/',
+          'POST' as ExecutionMethod,
+        );
+      }
 
       if (execution.status === 'failed') {
         console.error('[appwriteFunctions] execution failed', execution.errors);
@@ -329,6 +431,21 @@ export const appwriteFunctions = {
 
       const statusCode = execution.responseStatusCode;
       if (statusCode >= 400) {
+        if (routeToAiGateway && parsed !== null && typeof parsed === 'object') {
+          const envelope = parsed as { code?: string; error?: string; message?: string };
+          if (envelope.code || envelope.error) {
+            const info = parseAIErrorBody(envelope, statusCode);
+            return {
+              data: null,
+              error: {
+                message: aiErrorToastMessage(info),
+                status: info.status,
+                code: info.code,
+                raw: parsed,
+              },
+            };
+          }
+        }
         return {
           data: null,
           error: {
@@ -391,6 +508,12 @@ export const appwriteFunctions = {
         };
       }
       const rawMessage = err instanceof Error ? err.message : String(err);
+      if (err instanceof FunctionWaitError) {
+        return {
+          data: null,
+          error: { message: rawMessage, status: err.status, code: err.code, raw: err },
+        };
+      }
       return { data: null, error: { message: rawMessage } };
     }
   },

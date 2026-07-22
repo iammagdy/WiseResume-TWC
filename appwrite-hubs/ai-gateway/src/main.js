@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const sdk = require('node-appwrite');
 const extractedPrompts = require('./extracted_prompts.json');
 
@@ -99,7 +100,13 @@ const DEFAULT_TEMPERATURE = 0.7;
 // --- Phase-2: Idempotency & credit resilience constants ----------------------
 const IDEMPOTENCY_CACHE_COLLECTION_ID = 'idempotency_cache';
 const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000;   // 5-minute dedup window
-const IDEMPOTENCY_RESULT_MAX_BYTES = 60000;  // truncate cached results above 60 KB
+const IDEMPOTENCY_RESULT_MAX_BYTES = 60000;
+const TAILOR_PENDING_TTL_MS = 80_000;
+const TAILOR_TOTAL_BUDGET_MS = 68_000;
+const TAILOR_PRIMARY_ATTEMPT_MS = 42_000;
+const TAILOR_FALLBACK_ATTEMPT_MS = 23_000;
+const TAILOR_MIN_ATTEMPT_MS = 5_000;
+const TAILOR_CLEANUP_BUFFER_MS = 2_000;
 const RECORD_USAGE_BACKOFFS = [100, 500, 2000]; // ms between credit-recording retry attempts
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Warn once per cold start when optional collections are unavailable.
@@ -886,16 +893,42 @@ function userCreditPermissions(userId) {
  * 5-minute window produce the same key - catches double-click, refresh, back-nav,
  * and multi-tab replay without needing a client-side UUID.
  */
-function computeContentKey(userId, featureName, sanitizedOpts) {
+function computeContentKey(userId, featureName, sanitizedOpts, bucketOffset = 0) {
   const payloadHash = crypto
     .createHash('sha256')
     .update(JSON.stringify(sanitizedOpts || {}))
     .digest('hex');
-  const bucket = Math.floor(Date.now() / IDEMPOTENCY_TTL_MS);
+  const bucket = Math.floor(Date.now() / IDEMPOTENCY_TTL_MS) + bucketOffset;
   return crypto
     .createHash('sha256')
     .update(`${userId}:${featureName}:${payloadHash}:${bucket}`)
     .digest('hex');
+}
+
+function computeContentKeys(userId, featureName, sanitizedOpts) {
+  return [
+    computeContentKey(userId, featureName, sanitizedOpts),
+    computeContentKey(userId, featureName, sanitizedOpts, -1),
+  ];
+}
+
+function encodeIdempotencyPayload(resultPayload) {
+  const raw = JSON.stringify(resultPayload);
+  if (Buffer.byteLength(raw, 'utf8') <= IDEMPOTENCY_RESULT_MAX_BYTES) return raw;
+  const compressed = `gzip:${zlib.gzipSync(Buffer.from(raw, 'utf8')).toString('base64')}`;
+  return compressed.length <= IDEMPOTENCY_RESULT_MAX_BYTES ? compressed : null;
+}
+
+function decodeIdempotencyPayload(value) {
+  if (!value) return null;
+  try {
+    const raw = String(value).startsWith('gzip:')
+      ? zlib.gunzipSync(Buffer.from(String(value).slice(5), 'base64')).toString('utf8')
+      : String(value);
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -914,22 +947,22 @@ async function checkIdempotencyCache(db, key, logFn) {
     const doc = res.documents?.[0];
     if (!doc) return { hit: false };
 
-    // Treat expired records as a miss - TTL is enforced by expiresAt, not Appwrite TTL.
-    if (new Date(doc.expires_at).getTime() < Date.now()) return { hit: false };
+    // Expired pending rows are deleted so a crashed request cannot block retry.
+    if (new Date(doc.expires_at).getTime() < Date.now()) {
+      await deleteIdempotencyDoc(db, doc.$id);
+      return { hit: false };
+    }
 
     if (doc.status === 'pending') {
       return { hit: true, status: 'pending', docId: doc.$id };
     }
     if (doc.status === 'success') {
-      let result = null;
-      if (doc.has_result && doc.cached_result) {
-        try { result = JSON.parse(doc.cached_result); } catch { result = null; }
-      }
+      const result = doc.has_result ? decodeIdempotencyPayload(doc.cached_result) : null;
       return { hit: true, status: 'success', result, docId: doc.$id };
     }
     if (doc.status === 'failed') {
-      // Failed earlier - allow retry (document already cleaned up or expired).
-      return { hit: false };
+      const result = doc.has_result ? decodeIdempotencyPayload(doc.cached_result) : null;
+      return { hit: true, status: 'failed', result, docId: doc.$id };
     }
     return { hit: false };
   } catch (err) {
@@ -951,6 +984,7 @@ async function checkIdempotencyCache(db, key, logFn) {
 async function createIdempotencyPending(db, key, userId, featureName) {
   try {
     const now = Date.now();
+    const ttlMs = featureName === 'tailor-resume' ? TAILOR_PENDING_TTL_MS : IDEMPOTENCY_TTL_MS;
     const doc = await db.createDocument(
       DB_ID,
       IDEMPOTENCY_CACHE_COLLECTION_ID,
@@ -963,11 +997,14 @@ async function createIdempotencyPending(db, key, userId, featureName) {
         has_result: false,
         cached_result: null,
         created_at: new Date(now).toISOString(),
-        expires_at: new Date(now + IDEMPOTENCY_TTL_MS).toISOString(),
+        expires_at: new Date(now + ttlMs).toISOString(),
       },
     );
     return doc.$id;
-  } catch { return null; } // collection missing or unique-key collision - skip gracefully
+  } catch (err) {
+    if (err?.code === 409 || /already exists|duplicate/i.test(err?.message || '')) return 'collision';
+    return null;
+  }
 }
 
 /**
@@ -975,16 +1012,32 @@ async function createIdempotencyPending(db, key, userId, featureName) {
  * Result is truncated if it exceeds IDEMPOTENCY_RESULT_MAX_BYTES.
  */
 async function updateIdempotencySuccess(db, docId, resultPayload) {
-  if (!docId) return;
+  if (!docId) return false;
   try {
-    const resultStr = JSON.stringify(resultPayload);
-    const hasResult = resultStr.length <= IDEMPOTENCY_RESULT_MAX_BYTES;
+    const resultStr = encodeIdempotencyPayload(resultPayload);
     await db.updateDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
       status:       'success',
-      has_result:   hasResult,
-      cached_result: hasResult ? resultStr : null,
+      has_result:   resultStr !== null,
+      cached_result: resultStr,
+      expires_at:   new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString(),
     });
-  } catch { /* non-fatal - a cache miss on next retry is acceptable */ }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function updateIdempotencyFailure(db, docId, resultPayload) {
+  if (!docId) return;
+  try {
+    const resultStr = encodeIdempotencyPayload(resultPayload);
+    await db.updateDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+      status:        'failed',
+      has_result:    resultStr !== null,
+      cached_result: resultStr,
+      expires_at:    new Date(Date.now() + TAILOR_PENDING_TTL_MS).toISOString(),
+    });
+  } catch { /* non-fatal - pending TTL still bounds crash recovery */ }
 }
 
 /** Delete the pending record so the user can retry after a provider failure. */
@@ -1083,8 +1136,8 @@ async function loadCreditState(db, userId, featureName, prefetchedPlan = null) {
 const CREDIT_LOCKS_COLLECTION_ID = 'credit_locks';
 const CREDIT_LOCK_TTL_MS = 30_000;
 
-async function acquireCreditLock(db, userId) {
-  const expiry = new Date(Date.now() + CREDIT_LOCK_TTL_MS).toISOString();
+async function acquireCreditLock(db, userId, ttlMs = CREDIT_LOCK_TTL_MS) {
+  const expiry = new Date(Date.now() + ttlMs).toISOString();
   try {
     await db.createDocument(DB_ID, CREDIT_LOCKS_COLLECTION_ID, userId, { locked_at: new Date().toISOString(), lock_expires_at: expiry });
     return true;
@@ -1247,7 +1300,11 @@ async function countPendingJobs(db, userId) {
       sdk.Query.greaterThanEqual('created_at', fiveMinutesAgo),
       sdk.Query.limit(10),
     ]);
-    return result.total ?? result.documents?.length ?? 0;
+    const now = Date.now();
+    return (result.documents || []).filter((doc) => {
+      const expiresAt = new Date(doc.expires_at).getTime();
+      return !Number.isFinite(expiresAt) || expiresAt >= now;
+    }).length;
   } catch {
     return 0;
   }
@@ -2819,8 +2876,7 @@ function shouldRetryPreferredStructuredProvider(featureName, candidate, candidat
   if (!candidate || candidate.provider !== 'deepseek') return false;
   if (
     featureName !== 'company-briefing' &&
-    featureName !== 'generate-question-bank' &&
-    featureName !== 'tailor-resume'
+    featureName !== 'generate-question-bank'
   ) {
     return false;
   }
@@ -3083,8 +3139,7 @@ function pickKey(pool, provider) {
 /** Tiered per-attempt timeout: DeepSeek is primary and needs more time than fast fallbacks. */
 function candidateTimeoutForFeature(featureName, i, total) {
   if (featureName === 'tailor-resume') {
-    // Full-resume tailoring often needs 40–60s for structured JSON; 28s caused false timeouts.
-    return 65_000;
+    return i === 0 ? TAILOR_PRIMARY_ATTEMPT_MS : TAILOR_FALLBACK_ATTEMPT_MS;
   }
   if (i === 0 && (featureName === 'company-briefing' || featureName === 'generate-question-bank')) {
     return 22_000;
@@ -3092,6 +3147,19 @@ function candidateTimeoutForFeature(featureName, i, total) {
   if (i === 0)         return 20_000; // primary (DeepSeek): give it sufficient time before falling back
   if (i === total - 1) return 28_000; // last resort: give it as much time as possible
   return 15_000;                      // middle fallbacks: moderate
+}
+
+function remainingRequestBudgetMs(featureName, requestStartedAt) {
+  if (featureName !== 'tailor-resume') return Number.POSITIVE_INFINITY;
+  return Math.max(0, TAILOR_TOTAL_BUDGET_MS - (Date.now() - requestStartedAt));
+}
+
+function boundedCandidateTimeout(featureName, requestedTimeoutMs, requestStartedAt) {
+  const remaining = remainingRequestBudgetMs(featureName, requestStartedAt);
+  if (!Number.isFinite(remaining)) return requestedTimeoutMs;
+  const available = remaining - TAILOR_CLEANUP_BUFFER_MS;
+  if (available < TAILOR_MIN_ATTEMPT_MS) return 0;
+  return Math.min(requestedTimeoutMs, available);
 }
 
 // --- Routing helpers ----------------------------------------------------------
@@ -3234,7 +3302,7 @@ function buildCandidates(featureName, pool, opts = {}) {
   return candidates;
 }
 
-/** Tailor is slow — avoid burning the whole function budget on many sequential 65s attempts. */
+/** Keep Tailoring to one preferred provider and one cross-provider fallback. */
 function limitCandidatesForFeature(featureName, candidates) {
   if (featureName !== 'tailor-resume' || candidates.length <= 2) return candidates;
 
@@ -3254,13 +3322,17 @@ function limitCandidatesForFeature(featureName, candidates) {
 module.exports = async ({ req, res, log, error }) => {
   enableLLMObs();
   const db = getDbClient();
+  const handlerStartedAt = Date.now();
   let activeCreditLockUserId = null;
-  await Promise.all([syncDynamicRoutes(db), loadKeyConfig(db)]);
+  let idempotencyDocId = null;
+  let contentKey = null;
+  let featureName = '';
 
   // Broad outer catch - preserves the JSON error contract on any unexpected failure.
   try {
+    await Promise.all([syncDynamicRoutes(db), loadKeyConfig(db)]);
     const opts = parseRequestBody(req);
-    const { featureName } = opts;
+    featureName = opts.featureName;
 
     log(`AI-Gateway Hub: Processing ${featureName || 'general'} request...`);
 
@@ -3505,6 +3577,64 @@ module.exports = async ({ req, res, log, error }) => {
         ? impersonatingUserId
         : auth.user.$id;
 
+    const isTailorResultOnly = featureName === 'tailor-resume' &&
+      getHeader(opts.__headers, 'X-Tailor-Result-Only').toLowerCase() === 'true';
+    if (isTailorResultOnly) {
+      const aiOpts = sanitizeAiPayload(opts);
+      const terminalStatus = getHeader(opts.__headers, 'X-Tailor-Execution-Status').toLowerCase();
+      const terminalHttpStatus = Number(getHeader(opts.__headers, 'X-Tailor-Execution-Http-Status')) || 0;
+      const resultKeys = computeContentKeys(effectiveUserId, featureName, aiOpts);
+      let cached = { hit: false };
+      for (const key of resultKeys) {
+        cached = await checkIdempotencyCache(db, key, log);
+        if (cached.hit) break;
+      }
+
+      if (cached.hit && cached.status === 'success' && cached.result) {
+        await flushDD();
+        return res.json(cached.result);
+      }
+      if (cached.hit && cached.status === 'failed') {
+        const failure = cached.result || {
+          status: 'error',
+          code: 'request_failed',
+          message: 'Tailoring could not complete. Please retry.',
+          httpStatus: 503,
+        };
+        await deleteIdempotencyDoc(db, cached.docId);
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: asString(failure.code) || 'request_failed',
+          message: asString(failure.message) || 'Tailoring could not complete. Please retry.',
+        }, Number(failure.httpStatus) || 503);
+      }
+      if (cached.hit && cached.status === 'pending') {
+        if (terminalStatus === 'failed' || terminalHttpStatus >= 500) {
+          await deleteIdempotencyDoc(db, cached.docId);
+          await flushDD();
+          return res.json({
+            status: 'error',
+            code: terminalStatus === 'failed' ? 'function_runtime_failed' : 'result_unavailable',
+            message: 'Tailoring stopped before producing a usable result. Please retry.',
+          }, 503);
+        }
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'request_in_progress',
+          message: 'Tailoring is still processing. Please wait a moment and retry.',
+        }, 409);
+      }
+
+      await flushDD();
+      return res.json({
+        status: 'error',
+        code: 'result_unavailable',
+        message: 'Tailoring finished without a retrievable result. Please retry.',
+      }, 503);
+    }
+
     // Fetch plan once here - reused by persistent rate limit and credit state.
     // Admin tests skip plan lookup (nonce already gates them).
     const plan = isAdminTest ? 'free' : await getEffectivePlan(db, effectiveUserId);
@@ -3584,13 +3714,17 @@ module.exports = async ({ req, res, log, error }) => {
     // Handles double-click, refresh, back-nav, and multi-tab replay without
     // requiring the client to generate or track a UUID across page loads.
     // Admin tests bypass idempotency - nonce validity is their dedup gate.
-    const clientIdempotencyKey = asString(opts.__headers?.['X-Idempotency-Key']).slice(0, 128);
-    let idempotencyDocId = null;
-    let contentKey = null;
-
     if (!isAdminTest) {
-      contentKey = computeContentKey(effectiveUserId, featureName, aiOpts);
-      const cacheHit = await checkIdempotencyCache(db, contentKey, log);
+      const contentKeys = computeContentKeys(effectiveUserId, featureName, aiOpts);
+      contentKey = contentKeys[0];
+      let cacheHit = { hit: false };
+      for (const key of contentKeys) {
+        cacheHit = await checkIdempotencyCache(db, key, log);
+        if (cacheHit.hit) {
+          contentKey = key;
+          break;
+        }
+      }
 
       if (cacheHit.hit && cacheHit.status === 'pending') {
         // Another request with the same fingerprint is already in flight.
@@ -3621,10 +3755,43 @@ module.exports = async ({ req, res, log, error }) => {
         }, 409);
       }
 
+      if (cacheHit.hit && cacheHit.status === 'failed') {
+        // A prior bounded failure is retryable. Result-only callers consume the
+        // cached error; a fresh user action clears it and starts one new job.
+        await deleteIdempotencyDoc(db, cacheHit.docId);
+        contentKey = contentKeys[0];
+      }
+
       // Cache miss - mark this key as in-flight so rapid duplicates get a 409.
       idempotencyDocId = await createIdempotencyPending(db, contentKey, effectiveUserId, featureName);
+      if (idempotencyDocId === 'collision') {
+        const collisionHit = await checkIdempotencyCache(db, contentKey, log);
+        if (collisionHit.hit && collisionHit.status === 'success' && collisionHit.result) {
+          await flushDD();
+          return res.json(collisionHit.result);
+        }
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'request_in_progress',
+          message: 'This request is already being processed. Please wait a moment and try again.',
+        }, 409);
+      }
     }
     // ---------------------------------------------------------------------------
+
+    async function finalizeIdempotencyFailure(code, message, httpStatus) {
+      if (featureName === 'tailor-resume') {
+        await updateIdempotencyFailure(db, idempotencyDocId, {
+          status: 'error',
+          code,
+          message,
+          httpStatus,
+        });
+        return;
+      }
+      await deleteIdempotencyDoc(db, idempotencyDocId);
+    }
 
     // -- CONCURRENCY GUARD -----------------------------------------------------
     // Prevent a user from running more than MAX_CONCURRENT_JOBS_PER_USER expensive
@@ -3636,7 +3803,11 @@ module.exports = async ({ req, res, log, error }) => {
       const concurrentLimit = plan === 'premium' ? 4 : plan === 'pro' ? 3 : 2;
       // pendingCount includes the doc we just created via createIdempotencyPending.
       if (pendingCount > concurrentLimit) {
-        await deleteIdempotencyDoc(db, idempotencyDocId);
+        await finalizeIdempotencyFailure(
+          'too_many_concurrent_jobs',
+          'You already have AI operations running. Please wait for one to complete.',
+          429,
+        );
         await flushDD();
         return res.json({
           status: 'error',
@@ -3649,10 +3820,17 @@ module.exports = async ({ req, res, log, error }) => {
 
     // Admin tests skip credit checks entirely - nonce validity is the gate.
     // Pass the pre-fetched plan to avoid a second subscription DB lookup.
-    const creditLockAcquired = isAdminTest ? false : await acquireCreditLock(db, effectiveUserId);
+    const creditLockTtlMs = featureName === 'tailor-resume'
+      ? TAILOR_TOTAL_BUDGET_MS + 10_000
+      : CREDIT_LOCK_TTL_MS;
+    const creditLockAcquired = isAdminTest ? false : await acquireCreditLock(db, effectiveUserId, creditLockTtlMs);
     if (creditLockAcquired) activeCreditLockUserId = effectiveUserId;
     if (!isAdminTest && getFeatureCreditCost(featureName) > 0 && !creditLockAcquired) {
-      await deleteIdempotencyDoc(db, idempotencyDocId);
+      await finalizeIdempotencyFailure(
+        'credit_lock_busy',
+        'Another AI request is updating your credits. Please retry in a moment.',
+        409,
+      );
       await flushDD();
       return res.json({
         status: 'error',
@@ -3666,7 +3844,11 @@ module.exports = async ({ req, res, log, error }) => {
     if (creditState.blocked) {
       if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
       // Release the in-flight lock so the user can try again (e.g. after topping up credits).
-      await deleteIdempotencyDoc(db, idempotencyDocId);
+      await finalizeIdempotencyFailure(
+        creditState.code || 'ai_credit_check_failed',
+        creditState.message,
+        creditState.status || 503,
+      );
       await flushDD();
       return res.json({
         status: 'error',
@@ -3687,7 +3869,7 @@ module.exports = async ({ req, res, log, error }) => {
 
     if (candidates.length === 0) {
       if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
-      await deleteIdempotencyDoc(db, idempotencyDocId);
+      await finalizeIdempotencyFailure('provider_unavailable', 'AI providers are not configured.', 503);
       error('No keys found in environment variables.');
       await flushDD();
       return res.json({ status: 'error', message: 'No AI keys found on server.' }, 503);
@@ -3743,6 +3925,12 @@ module.exports = async ({ req, res, log, error }) => {
 
     /** Call a single provider candidate with the given per-attempt timeout. */
     async function callCandidate(candidate, timeoutMs = 28000, overrideMessages = null) {
+      const boundedTimeoutMs = boundedCandidateTimeout(featureName, timeoutMs, handlerStartedAt);
+      if (boundedTimeoutMs === 0) {
+        const budgetError = new Error('Tailoring total request budget exhausted.');
+        budgetError.code = 'TOTAL_REQUEST_TIMEOUT';
+        throw budgetError;
+      }
       const response = await axios.post(BASES[candidate.provider], {
         model:      candidate.model,
         messages:   overrideMessages || requestMessages,
@@ -3750,7 +3938,7 @@ module.exports = async ({ req, res, log, error }) => {
         max_tokens: maxTokens,
       }, {
         headers: { 'Authorization': `Bearer ${candidate.key}`, 'Content-Type': 'application/json' },
-        timeout: timeoutMs,
+        timeout: boundedTimeoutMs,
       });
       return {
         content: response.data.choices[0].message.content,
@@ -3793,6 +3981,7 @@ module.exports = async ({ req, res, log, error }) => {
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
       const label     = candidate.routed ? 'preferred' : 'fallback';
+      const attemptStartedAt = Date.now();
       log(`Trying ${label} provider: ${candidate.provider} (model: ${candidate.model}) for ${featureName || 'general'}${i === 0 ? '' : ` [attempt ${i + 1}]`}`);
 
       try {
@@ -3804,6 +3993,11 @@ module.exports = async ({ req, res, log, error }) => {
         providerUsed = candidate.provider;
         modelUsed    = candidate.model;
         routedBy     = candidate.routed;
+        log(
+          `[ai-gateway][attempt] feature=${featureName || 'general'} provider=${candidate.provider} ` +
+          `model=${candidate.model} attempt=${i + 1} duration_ms=${Date.now() - attemptStartedAt} ` +
+          `outcome=success fallback=${!candidate.routed} remaining_ms=${Math.round(remainingRequestBudgetMs(featureName, handlerStartedAt))}`
+        );
 
         // Admin test: skip all structured parsing, return raw preview immediately.
         // Credits are not recorded. No API keys are included in the response.
@@ -3845,10 +4039,25 @@ module.exports = async ({ req, res, log, error }) => {
         if (STRUCTURED_AI_FEATURES.has(featureName)) {
           try {
             const structuredData = normalizeStructuredFeatureData(featureName, result.content, aiOpts);
-            await recordSuccessUsage();
             const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
             const responsePayload = { status: 'success', data: structuredData, meta };
-            await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+            if (featureName === 'tailor-resume') {
+              const cached = await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+              if (!cached) {
+                if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
+                await deleteIdempotencyDoc(db, idempotencyDocId);
+                await flushDD();
+                return res.json({
+                  status: 'error',
+                  code: 'result_unavailable',
+                  message: 'Tailoring finished but the result could not be saved safely. Your credit was not charged. Please retry.',
+                }, 503);
+              }
+            }
+            await recordSuccessUsage();
+            if (featureName !== 'tailor-resume') {
+              await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+            }
             safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
             await flushDD();
             return res.json(responsePayload);
@@ -3856,7 +4065,6 @@ module.exports = async ({ req, res, log, error }) => {
             error(`Provider ${candidate.provider} returned malformed ${featureName} JSON: ${parseErr.message}`);
             const repaired = await repairStructuredFeatureResponse(candidate, featureName, result.content, callCandidate);
             if (repaired) {
-              await recordSuccessUsage();
               const meta = {
                 feature: featureName,
                 provider: providerUsed,
@@ -3866,15 +4074,49 @@ module.exports = async ({ req, res, log, error }) => {
                 repaired: true,
               };
               const responsePayload = { status: 'success', data: repaired.structuredData, meta };
-              await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+              if (featureName === 'tailor-resume') {
+                const cached = await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+                if (!cached) {
+                  if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
+                  await deleteIdempotencyDoc(db, idempotencyDocId);
+                  await flushDD();
+                  return res.json({
+                    status: 'error',
+                    code: 'result_unavailable',
+                    message: 'Tailoring finished but the result could not be saved safely. Your credit was not charged. Please retry.',
+                  }, 503);
+                }
+              }
+              await recordSuccessUsage();
+              if (featureName !== 'tailor-resume') {
+                await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
+              }
               safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
               await flushDD();
               return res.json(responsePayload);
             }
             if (i === candidates.length - 1) {
-              await deleteIdempotencyDoc(db, idempotencyDocId);
+              if (featureName === 'tailor-resume') {
+                if (creditLockAcquired) {
+                  await releaseCreditLock(db, effectiveUserId);
+                  activeCreditLockUserId = null;
+                }
+                await finalizeIdempotencyFailure(
+                  'invalid_ai_response',
+                  'Tailoring returned malformed data. Your resume was not changed. Please retry.',
+                  500,
+                );
+              } else {
+                await deleteIdempotencyDoc(db, idempotencyDocId);
+              }
               await flushDD();
-              return res.json({ status: 'error', message: `${featureName} returned malformed data.` }, 500);
+              return featureName === 'tailor-resume'
+                ? res.json({
+                    status: 'error',
+                    code: 'invalid_ai_response',
+                    message: 'Tailoring returned malformed data. Your resume was not changed. Please retry.',
+                  }, 500)
+                : res.json({ status: 'error', message: `${featureName} returned malformed data.` }, 500);
             }
             continue;
           }
@@ -3930,6 +4172,7 @@ module.exports = async ({ req, res, log, error }) => {
       } catch (candidateErr) {
         const httpStatus = candidateErr.response?.status;
         const isTimeout  = candidateErr.code === 'ECONNABORTED' || /timeout/i.test(candidateErr.message || '');
+        const isTotalTimeout = candidateErr.code === 'TOTAL_REQUEST_TIMEOUT';
         // Classify error and set per-key backoff so the same dead key isn't hit again
         let backoffMs = 0;
         if (httpStatus === 429)                          backoffMs = 120_000; // rate limited - 2 min
@@ -3939,6 +4182,15 @@ module.exports = async ({ req, res, log, error }) => {
         if (backoffMs > 0) markKeyFailed(candidate.key, backoffMs);
 
         const errorMsg = candidateErr.response?.data?.error?.message || candidateErr.message || String(candidateErr);
+        const failureClass = isTotalTimeout
+          ? 'total_request_timeout'
+          : isTimeout
+            ? 'provider_timeout'
+            : httpStatus === 429
+              ? 'provider_rate_limit'
+              : httpStatus >= 500
+                ? 'provider_5xx'
+                : 'provider_error';
         attempts.push({
           provider: candidate.provider,
           model: candidate.model,
@@ -3949,18 +4201,37 @@ module.exports = async ({ req, res, log, error }) => {
           status: httpStatus || 500,
         });
 
-        error(`Provider ${candidate.provider} failed [${httpStatus ?? (isTimeout ? 'timeout' : candidateErr.code) ?? 'err'}]: ${candidateErr.message}`);
+        error(
+          `[ai-gateway][attempt] feature=${featureName || 'general'} provider=${candidate.provider} ` +
+          `model=${candidate.model} attempt=${i + 1} duration_ms=${Date.now() - attemptStartedAt} ` +
+          `outcome=${failureClass} fallback=${!candidate.routed} remaining_ms=${Math.round(remainingRequestBudgetMs(featureName, handlerStartedAt))}`
+        );
+        if (isTotalTimeout) {
+          if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
+          await finalizeIdempotencyFailure(
+            'request_timeout',
+            'Tailoring reached its time limit. Your resume was not changed. Please retry.',
+            504,
+          );
+          await flushDD();
+          return res.json({
+            status: 'error',
+            code: 'request_timeout',
+            message: 'Tailoring reached its time limit. Your resume was not changed. Please retry.',
+          }, 504);
+        }
         if (i === candidates.length - 1) {
           // All candidates exhausted - remove in-flight lock so user can retry.
           if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
-          await deleteIdempotencyDoc(db, idempotencyDocId);
-          await flushDD();
           const userMessage = isTimeout
             ? 'The AI request timed out. Please try again.'
             : httpStatus === 429
               ? 'AI providers are busy right now. Please wait a moment and try again.'
               : 'AI providers are temporarily unavailable. Please try again in a few minutes.';
           const responseStatus = isTimeout ? 504 : (httpStatus === 429 ? 429 : 503);
+
+          await finalizeIdempotencyFailure('provider_unavailable', userMessage, responseStatus);
+          await flushDD();
 
           if (isAdminTest) {
             return res.json({
@@ -3991,21 +4262,46 @@ module.exports = async ({ req, res, log, error }) => {
 
   } catch (err) {
     if (activeCreditLockUserId) await releaseCreditLock(db, activeCreditLockUserId);
-    if (idempotencyDocId) await deleteIdempotencyDoc(db, idempotencyDocId);
+    if (idempotencyDocId) {
+      if (featureName === 'tailor-resume') {
+        await updateIdempotencyFailure(db, idempotencyDocId, {
+          status: 'error',
+          code: 'gateway_exception',
+          message: 'Tailoring stopped unexpectedly. Your resume was not changed. Please retry.',
+          httpStatus: 500,
+        });
+      } else {
+        await deleteIdempotencyDoc(db, idempotencyDocId);
+      }
+    }
     // Catch-all - preserves stable JSON error contract on any unexpected failure.
     // Clean up any in-flight idempotency record so the user can retry.
     error('AI-Gateway Error: ' + err.message);
     await flushDD();
-    return res.json({ status: 'error', message: 'Internal server error' }, 500);
+    return res.json({
+      status: 'error',
+      code: featureName === 'tailor-resume' ? 'gateway_exception' : 'internal',
+      message: featureName === 'tailor-resume'
+        ? 'Tailoring stopped unexpectedly. Your resume was not changed. Please retry.'
+        : 'Internal server error',
+    }, 500);
   }
 };
 
 module.exports.__test = {
   FEATURE_ROUTES,
+  TAILOR_TOTAL_BUDGET_MS,
+  TAILOR_PRIMARY_ATTEMPT_MS,
+  TAILOR_FALLBACK_ATTEMPT_MS,
+  boundedCandidateTimeout,
   candidateTimeoutForFeature,
+  computeContentKeys,
+  decodeIdempotencyPayload,
+  encodeIdempotencyPayload,
   limitCandidatesForFeature,
   normalizeStructuredFeatureData,
   schemaPrompt,
+  shouldAttemptStructuredRepair,
   shouldRetryPreferredStructuredProvider,
   structuredFeatureInstructions,
   buildTailorResumeSystemPrompt,
