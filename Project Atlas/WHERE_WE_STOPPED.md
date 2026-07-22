@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-07-22
-**Status:** Performance Phase 1 Production Verified with Broadcast Schema Warning
+**Status:** Performance Phase 2 Editor Startup Production Verified with Known Residual Warnings
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,7 +12,7 @@
 * **Repository:** `iammagdy/WiseResume-TWC`
 * **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_FrRqPrrkm2nYXVSe7KXvnRqV8qP9` for the latest verified code-bearing change).
+* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_GLhcMR5mu95pRBSKw8VwSbNmEpx4` for the latest verified code-bearing change).
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -24,6 +24,7 @@
 
 ## 2. Latest Important Commits
 
+* **`e319737f`** - `perf(editor): reduce resume hydration startup delay` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`ddf16e16`** - `perf(frontend): remove public route overhead` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED WITH AUTHENTICATED BROADCAST SCHEMA WARNING**
 * **`d6f0709e`** - `fix(analytics): remove browser GeoJS lookup` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`854ac418`** - `fix(appwrite): restore owner access and realtime connectivity` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
@@ -45,6 +46,19 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
+* **Session Status**: PERFORMANCE_PHASE_2_EDITOR_STARTUP_PRODUCTION_VERIFIED_WITH_KNOWN_RESIDUAL_WARNINGS - Editor route bootstrap now keys the first document query from the URL, rejects stale store data until the requested document is confirmed, bounds the blocking Appwrite read, and provides distinct slow/error/missing states. Product commit `e319737f43527a5528b66b165e3a09bc22b5b07e` is deployed and verified on production. No Appwrite deployment, schema/permission change, auth architecture change, AI/credits change, persistence-model change, or unrelated feature change was performed.
+* **Performance Phase 2 (2026-07-22)**:
+  - **Confirmed Root Cause**: `EditorPage` called `useResume(currentResumeId)` before its passive URL-sync effect copied `?id=`/`?resumeId=` into the persisted Zustand store. A stale store ID could therefore query or render the previous resume first; an empty store delayed direct bootstrap. The blocking `getDocument` had no explicit timeout and inherited global retries. A separate Editor eight-second safety timer could redirect to Dashboard while this chain was unresolved.
+  - **Readiness Fix**: The URL resume ID is now the synchronous first-render query key. Only a matching, owner-confirmed document can initialize editable state; stale store content is treated as unavailable. The Editor does not wait for the full resume library.
+  - **Bounded UX**: The blocking document read has a `5,000 ms` timeout and `retry: false`. Immediate `Loading resume...` UI changes to a slow notice after `2,500 ms`; network/timeout failures offer Retry and Dashboard, while a true missing document has a separate state. The racing eight-second Editor redirect was removed.
+  - **Validation**: Focused startup tests passed `2` files / `11` tests; the related regression set passed `9` files / `47` tests; TypeScript, build, focused changed-file ESLint, and `git diff --check` passed. The full Vitest run passed `170` files / `983` tests with one skipped file and one todo; three Tailoring export tests timed out only under full-suite concurrency, while the complete file passed `8/8` in isolation.
+  - **Local Performance**: Five production-build hard refreshes reached interactive inputs in `1.263-1.763 s`, median `1.485 s`; Preview matched input readiness and the slow notice never activated.
+  - **Deployment Status**: Vercel deployment `dpl_GLhcMR5mu95pRBSKw8VwSbNmEpx4` reached `READY` for full SHA `e319737f43527a5528b66b165e3a09bc22b5b07e`; aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`. Appwrite deployment was not required.
+  - **Production Performance**: Five warm hard refreshes reached interactive inputs/Preview in `1.434-2.400 s`, median `1.653 s`, meeting the `<2.5 s` target. One cold post-deployment run took `4.427 s` and is retained as an outlier. Five Dashboard-to-Editor browser runs completed correctly; the recorded `3.123-3.143 s` includes the browser automation click-stabilization wait and is not a pure application timing claim.
+  - **Production Correctness**: Switching from `explore-test-blank-123` to `Test Resume` never displayed the previous resume; loading appeared before the correct target. A harmless name marker autosaved, survived hard refresh, and appeared in Preview; it was then cleared, autosaved, and verified absent after another refresh.
+  - **Request Evidence**: React Query integration tests prove one `getDocument` call for a stable resume ID and one call per target during route switching, with retries disabled. The selected in-app browser backend did not expose a production request timeline, so exact production Appwrite request count is `UNKNOWN`, not inferred.
+  - **Console Evidence**: Production emitted no Editor/resume load errors. All `15` observed warnings were the existing authenticated Broadcast `active` schema mismatch.
+  - **Remaining Performance Risks**: Public Portfolio mobile LCP/CLS/avatar behavior and Tailoring no-result/timeout behavior remain open. Authenticated Broadcast schema drift remains a separate Appwrite task.
 * **Session Status**: PERFORMANCE_PHASE_1_PRODUCTION_VERIFIED_WITH_BROADCAST_SCHEMA_WARNING - The universal charts dependency, public Editor prefetch, and public standalone Broadcast query have been removed from the public path. Product commit `ddf16e168516be84ecce7816821585291fc290fe` is deployed and verified on production. No Appwrite deployment, schema/permission change, auth architecture change, AI change, CSP change, dependency replacement, or redesign was performed.
 * **Performance Phase 1 (2026-07-22)**:
   - **Confirmed Charts Root Cause**: Rollup absorbed the shared `clsx` helper into the manually assigned `charts` chunk. The main entry then imported that helper from `charts`, producing `entry -> shared helper -> charts -> Recharts/D3` on every route.
@@ -123,7 +137,7 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Performance Phase 2 Decision**: Prioritize the Editor hard-refresh/hydration delay, then separately measure/fix Public Portfolio mobile LCP/CLS/avatar behavior. Keep Tailoring timeout investigation isolated.
+1. **Performance Phase 3 Decision**: Measure and fix Public Portfolio mobile LCP/CLS/avatar behavior. Keep Tailoring no-result/timeout investigation isolated from portfolio and Editor work.
 2. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
 3. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
 4. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.

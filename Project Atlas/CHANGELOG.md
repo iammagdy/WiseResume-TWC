@@ -1,5 +1,58 @@
 # Project Atlas Master Changelog
 
+## 2026-07-22 - Performance Phase 2: Editor Hard-Refresh and Hydration
+
+- **Classification**: PASS_WITH_WARNINGS
+- **Scope**: Fixed only Editor hard-refresh startup, requested-resume readiness sequencing, bounded document validation, stale-store protection, and loading/failure UX. Autosave semantics, persistence model, Appwrite schema/permissions, auth architecture, AI/credits, Tailoring, Cover Letters, exports, Portfolio, and Broadcast schema were not changed.
+- **Product Commit**: `e319737f43527a5528b66b165e3a09bc22b5b07e` - `perf(editor): reduce resume hydration startup delay`
+- **Confirmed Root Cause**:
+  - `EditorPage` initially called `useResume(currentResumeId)` from persisted Zustand state; only a later passive effect synchronized the route `?id=`/`?resumeId=` into the store.
+  - A stale persisted ID could request or expose the previous resume before the requested document was confirmed. An empty store delayed the route bootstrap.
+  - The readiness-critical `getDocument` had no explicit timeout and inherited global React Query retries.
+  - An independent eight-second Editor timer redirected to Dashboard if the chain remained unresolved; it was a racing fallback, not useful hydration progress.
+  - The Editor did not require the full resume-library query, so list loading was not the blocking dependency.
+- **Changes**:
+  - Added `src/lib/editorResumeStartup.ts` for route-first target resolution, matching-document confirmation, a `5,000 ms` request timeout, and a `2,500 ms` slow-loading threshold.
+  - Extended `useResume` with scoped timeout/retry options; Editor startup uses `retry: false` and preserves the distinction between missing, timeout, and network failures.
+  - Updated `EditorPage` so the route ID is the first-render query key, stale/nonmatching store data is unavailable to Editor effects and autosave, and only the owner-confirmed target initializes editable state.
+  - Removed the racing eight-second Editor redirect and added immediate loading, slow-loading, retryable failure, and distinct missing-resume states.
+  - Added focused route-bootstrap, stale-store, timeout, retry, caching, and request-deduplication tests.
+- **Validation**:
+  - Focused startup suites: PASS, 2 files / 11 tests.
+  - Related Editor/resume/auth regression set: PASS, 9 files / 47 tests.
+  - Full Vitest run: 170 files passed, 1 skipped; 983 tests passed, 1 todo. Three Tailoring export tests timed out under full-suite concurrency; the entire file passed 8/8 when rerun alone.
+  - `npx tsc --noEmit`: PASS.
+  - `npm run build`: PASS, 5,819 modules; no sourcemaps; existing Browserslist and large-chunk warnings only.
+  - Focused ESLint for the new startup utility/tests: PASS. Broader lint still exposes existing `useResumes.ts` explicit-`any` debt and existing `EditorPage` hook warnings.
+  - `git diff --check`: PASS.
+- **Local Production-Build Evidence**:
+
+  | Run | Auth ready | Resume loaded | Inputs interactive | Preview visible |
+  |---:|---:|---:|---:|---:|
+  | 1 | 1.071 s | 1.619 s | 1.763 s | 1.763 s |
+  | 2 | 0.866 s | 1.348 s | 1.485 s | 1.485 s |
+  | 3 | 0.734 s | 1.129 s | 1.263 s | 1.263 s |
+  | 4 | 0.846 s | 1.307 s | 1.463 s | 1.463 s |
+  | 5 | 0.814 s | 1.593 s | 1.735 s | 1.735 s |
+
+  Median usable time was `1.485 s`; fastest `1.263 s`; slowest `1.763 s`. The slow notice and removed eight-second path did not activate.
+- **Deployment State**:
+  - Vercel production deployment `dpl_GLhcMR5mu95pRBSKw8VwSbNmEpx4` reached `READY` for exact SHA `e319737f43527a5528b66b165e3a09bc22b5b07e`.
+  - Aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`.
+  - Appwrite deploy: `NOT REQUIRED`; no backend, schema, permission, auth, AI, environment, or settings change occurred.
+- **Production Evidence**:
+  - Five warm hard refreshes reached interactive inputs/Preview in `1.434-2.400 s`, median `1.653 s`, meeting the `<2.5 s` target. One cold post-deployment run took `4.427 s` and is retained separately.
+  - Five Dashboard-to-Editor browser runs completed correctly in `3.123-3.143 s`; this includes the automation locator's click-stabilization overhead and is not a pure app-ready measurement.
+  - Switching between two resumes showed loading and then the correct target without any stale-resume flash.
+  - A harmless marker autosaved, survived refresh, and appeared in Preview. Cleanup was autosaved and verified after refresh; no marker remains.
+  - Integration tests prove one `getDocument` per stable ID and one per route target, with retries disabled. Exact production request count is `UNKNOWN` because the selected browser backend did not expose a network timeline.
+  - Production had no Editor/resume load errors. All 15 observed warnings were the known Broadcast `active` schema mismatch.
+- **Warnings and Remaining Risks**:
+  - The cold post-deployment outlier exceeded the target; the five normal warm runs met it.
+  - Public Portfolio mobile LCP/CLS/avatar behavior remains open.
+  - Tailoring no-result/timeout behavior remains open.
+  - Authenticated Broadcast still expects a missing Appwrite `active` attribute and requires a separately approved schema/contract task.
+
 ## 2026-07-22 - Performance Phase 1: Public Bundle and Request Overhead
 
 - **Classification**: PASS_WITH_WARNINGS

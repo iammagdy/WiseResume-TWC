@@ -35,6 +35,17 @@
 * Authenticated route-aware prefetch is implemented in `AppInterior`; Dashboard/Upload/Editor workspace paths may warm their own route chunks after navigation context is known.
 * `tests/build/performance-build-contract.test.cjs` is the post-build regression contract for charts entry isolation, public Editor-prefetch exclusion, and heavy lazy chunk preservation.
 
+## Editor Startup and Hydration Policy
+
+* The Editor route is query-driven: `/editor?id=<resumeId>`, with `resumeId` accepted as a compatibility query parameter.
+* A valid URL target is the synchronous first-render React Query key. Persisted Zustand state must not delay route bootstrap or override a different URL target.
+* Editor readiness requires auth, the exact requested document, owner confirmation, and normalized editable state. The full resume library and noncritical workspace data are not readiness dependencies.
+* Rendering, autosave, Preview, and Editor effects may consume a resume only when its ID matches the requested target and the fetched document is confirmed for the authenticated owner.
+* `src/lib/editorResumeStartup.ts` owns the current route/store resolution and matching-document rules. Keep those rules centralized when changing startup behavior.
+* Readiness-critical Appwrite reads must be bounded and must distinguish not-found from timeout/network failure. Current Editor policy is a `5,000 ms` request timeout, no automatic query retry, immediate loading UI, and a `2,500 ms` slow-loading notice.
+* Do not restore the former eight-second Editor redirect. Startup failures require an explicit safe Retry/Dashboard state, not an unrelated timed navigation.
+* Stable query keys and TanStack Query caching provide same-document request deduplication. Do not add a parallel document-fetch layer.
+
 ## Authenticated Broadcast Policy
 
 * The `broadcasts` collection is treated as an authenticated workspace announcement source, separate from the public app-settings `AnnouncementBanner`.
