@@ -11,7 +11,7 @@ import {
   isValidEditorSheetId,
 } from '@/lib/editorSession';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Undo2, Redo2, FileDown, Palette, ChevronLeft, ChevronRight, Download, LayoutGrid, Star } from 'lucide-react';
+import { Sparkles, BarChart3, Scissors, ArrowLeft, Clock, AlertTriangle, Undo2, Redo2, FileDown, Palette, ChevronLeft, ChevronRight, Download, LayoutGrid, Star, RefreshCw } from 'lucide-react';
 import { useAIEnhancingStore } from '@/store/aiEnhancingStore';
 import { useIsMobile, EDITOR_MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -88,6 +88,78 @@ import { useTierGate } from '@/hooks/useTierGate';
 import { UpgradeDialog } from '@/components/plan/UpgradeDialog';
 import { useChatTriggerStore } from '@/store/chatTriggerStore';
 import { useLocale } from '@/i18n/LocaleProvider';
+import {
+  EDITOR_RESUME_REQUEST_TIMEOUT_MS,
+  EDITOR_RESUME_SLOW_NOTICE_MS,
+  isEditorResumeTimeoutError,
+  resolveEditorResumeTarget,
+  selectConfirmedEditorResume,
+} from '@/lib/editorResumeStartup';
+
+function EditorResumeLoadingState() {
+  const [showSlowNotice, setShowSlowNotice] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSlowNotice(true), EDITOR_RESUME_SLOW_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <main className="flex min-h-[100dvh] flex-col bg-background" aria-busy="true">
+      <div className="flex min-h-12 items-center justify-center gap-2 border-b border-border px-4 text-sm text-muted-foreground" role="status" aria-live="polite">
+        <MiniSpinner size={16} />
+        <span>{showSlowNotice ? 'Still loading your resume...' : 'Loading resume...'}</span>
+      </div>
+      <div className="flex-1">
+        <EditorSkeleton />
+      </div>
+    </main>
+  );
+}
+
+function EditorResumeFailureState({
+  missing = false,
+  timedOut = false,
+  onRetry,
+  onBack,
+}: {
+  missing?: boolean;
+  timedOut?: boolean;
+  onRetry: () => void;
+  onBack: () => void;
+}) {
+  const title = missing
+    ? 'Resume not found'
+    : timedOut
+      ? 'Resume is taking too long to load'
+      : 'Could not load resume';
+  const description = missing
+    ? 'This resume may have been removed or is no longer available.'
+    : 'Your resume was not changed. Check your connection and try again.';
+
+  return (
+    <main className="flex min-h-[100dvh] items-center justify-center bg-background p-6">
+      <section className="w-full max-w-md rounded-lg border border-border bg-card p-6 text-center shadow-sm" aria-labelledby="editor-load-title">
+        <AlertTriangle className="mx-auto h-6 w-6 text-amber-600 dark:text-amber-400" aria-hidden />
+        <h1 id="editor-load-title" className="mt-3 text-lg font-semibold text-foreground">{title}</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+          <button type="button" onClick={onBack} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-border px-4 text-sm font-medium text-foreground hover:bg-muted">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Dashboard
+          </button>
+          {!missing && (
+            <button type="button" onClick={onRetry} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Try again
+            </button>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default function EditorPage() {
   const { t, locale } = useLocale();
   const navigate = useNavigate();
@@ -100,7 +172,7 @@ export default function EditorPage() {
 
   // Use shallow selector to prevent unnecessary re-renders when unrelated store parts change
   const {
-    currentResume,
+    currentResume: storedResume,
     currentResumeId,
     matchScore,
     jobDescription,
@@ -123,14 +195,37 @@ export default function EditorPage() {
     setCurrentResumeId: state.setCurrentResumeId,
   })));
 
-  // Validate that the resume ID exists in the database
-  const { data: resumeFromDb, isLoading: isValidating } = useResume(currentResumeId);
+  const routeResumeId = searchParams.get('id') ?? searchParams.get('resumeId');
+  const targetId = resolveEditorResumeTarget({
+    routeResumeId,
+    storeHydrated,
+    currentResumeId,
+    defaultResumeId,
+  });
+
+  // The route ID is the query key on the first render. This prevents a stale
+  // persisted store ID from issuing a different document request first.
+  const {
+    data: resumeFromDb,
+    error: resumeLoadError,
+    refetch: retryResumeLoad,
+  } = useResume(targetId, {
+    requestTimeoutMs: EDITOR_RESUME_REQUEST_TIMEOUT_MS,
+    retry: false,
+  });
+  const currentResume = selectConfirmedEditorResume({
+    targetResumeId: targetId,
+    storedResume,
+    resumeDocument: resumeFromDb,
+    userId: user?.id,
+  });
   const { updateResume, createResume } = useResumeMutations();
 
   // Audit: track session duration
   const sessionStartRef = useRef<number | null>(null);
+  const confirmedResumeId = currentResume?.id ?? null;
   useEffect(() => {
-    if (!currentResumeId || !currentResume) return;
+    if (!currentResumeId || confirmedResumeId !== currentResumeId) return;
     sessionStartRef.current = Date.now();
     return () => {
       if (sessionStartRef.current) {
@@ -141,7 +236,7 @@ export default function EditorPage() {
         });
       }
     };
-  }, [currentResumeId]);
+  }, [currentResumeId, confirmedResumeId]);
 
   // Track last saved version to detect changes (declared here so both hooks share it)
   const lastSavedResumeRef = useRef<string>('');
@@ -149,44 +244,24 @@ export default function EditorPage() {
   // Track AI loading state to coordinate with autosave
   const isAILoadingRef = useRef(false);
 
-  // Read ?id= or ?resumeId= from the URL and seed the store on first mount.
-  // This lets users deep-link directly to /editor?id=<uuid> without a prior
-  // dashboard visit that would normally call setCurrentResumeId.
-  // As a fallback, if no URL param and no resume is active, use the user's
-  // defaultResumeId so clicking "Editor" in the sidebar always opens a resume.
-  useEffect(() => {
-    const urlId = searchParams.get('id') ?? searchParams.get('resumeId');
-    if (urlId && urlId !== currentResumeId) {
-      setCurrentResumeId(urlId);
-    } else if (!urlId && !currentResumeId && defaultResumeId) {
-      setCurrentResumeId(defaultResumeId);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Keep the shared store aligned for the rest of the Editor, but do it in a
+  // layout effect so passive session/autosave effects never observe a target
+  // resume paired with the previous resume ID.
+  useLayoutEffect(() => {
+    if (!storeHydrated || !targetId || targetId === currentResumeId) return;
+    setCurrentResumeId(targetId);
+  }, [storeHydrated, targetId, currentResumeId, setCurrentResumeId]);
 
   // Hook 1: DB→Zustand hydration, ownership check, stale-resume detection
   const { localLoadedAtRef } = useEditorHydration({
-    resumeFromDb,
-    currentResumeId,
+    resumeFromDb: storeHydrated ? resumeFromDb : undefined,
+    currentResumeId: targetId,
     user,
     setCurrentResumeId,
     navigate,
     lastSavedResumeRef,
     isSavingRef,
   });
-
-  // Safety timeout: if no resume after 8s, bail out (independent of storeHydrated)
-  useEffect(() => {
-    if (currentResume) return;
-    const timer = setTimeout(() => {
-      if (!useResumeStore.getState().currentResume) {
-        useResumeStore.getState().setCurrentResumeId(null);
-        toast.error('Could not load resume — please try again.', { duration: 4000 });
-        navigate('/dashboard', { replace: true });
-      }
-    }, 8000);
-    return () => clearTimeout(timer);
-  }, [currentResume, navigate]);
 
   const { isSyncing } = useOfflineSync();
   const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
@@ -533,7 +608,7 @@ export default function EditorPage() {
   // react-resizable-panels can leave the preview pane at 0px on first mount inside
   // a flex layout; a layout pass after paint restores the default 55/45 split.
   useLayoutEffect(() => {
-    if (authLoading || !storeHydrated || isMobile || !showPreview || !currentResume) return;
+    if (authLoading || !storeHydrated || isMobile || !showPreview || !confirmedResumeId) return;
     let outer = 0;
     let inner = 0;
     outer = requestAnimationFrame(() => {
@@ -545,7 +620,7 @@ export default function EditorPage() {
       cancelAnimationFrame(outer);
       cancelAnimationFrame(inner);
     };
-  }, [authLoading, storeHydrated, isMobile, showPreview, currentResume?.id, selectedTemplate]);
+  }, [authLoading, storeHydrated, isMobile, showPreview, confirmedResumeId, selectedTemplate]);
 
   // ───────────────── Editor session restore (per-resume) ─────────────────
   // Persists activeTab + per-tab scroll offset + open AI sheet to
@@ -1199,15 +1274,27 @@ export default function EditorPage() {
   // handleCustomizeApply removed — StyleCustomizationPanel patches via updateResume directly
 
   // === GUARDS (all inline, no effects — deterministic) ===
-  const urlId = searchParams.get('id') ?? searchParams.get('resumeId');
-  const targetId = urlId || currentResumeId || defaultResumeId;
-
-  if (authLoading) return <EditorSkeleton />;
-  if (!storeHydrated) return <EditorSkeleton />;
-  if (!targetId && !currentResume) return <Navigate to="/dashboard" replace />;
-  if (!currentResume && isValidating) return <EditorSkeleton />;
-  if (!currentResume && !resumeFromDb) return <Navigate to="/dashboard" replace />;
-  if (!currentResume) return <EditorSkeleton />;
+  if (authLoading || !storeHydrated) return <EditorResumeLoadingState />;
+  if (!targetId) return <Navigate to="/dashboard" replace />;
+  if (resumeLoadError && !resumeFromDb) {
+    return (
+      <EditorResumeFailureState
+        timedOut={isEditorResumeTimeoutError(resumeLoadError)}
+        onRetry={() => { void retryResumeLoad(); }}
+        onBack={() => navigate('/dashboard', { replace: true })}
+      />
+    );
+  }
+  if (resumeFromDb === null) {
+    return (
+      <EditorResumeFailureState
+        missing
+        onRetry={() => undefined}
+        onBack={() => navigate('/dashboard', { replace: true })}
+      />
+    );
+  }
+  if (!currentResume) return <EditorResumeLoadingState />;
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (

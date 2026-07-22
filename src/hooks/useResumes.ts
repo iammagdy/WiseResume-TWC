@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useResumeStore } from '@/store/resumeStore';
 import { readPersistedCache, writePersistedCache } from '@/lib/persistedQueryCache';
 import { migrateTemplateId } from '@/lib/templateMigration';
+import { withEditorResumeTimeout } from '@/lib/editorResumeStartup';
 
 export interface DatabaseResume {
   $id: string;
@@ -166,20 +167,29 @@ export function useResumes(options: { select?: (data: any[]) => any } = {}) {
   });
 }
 
-export function useResume(resumeId: string | null) {
+interface UseResumeOptions {
+  requestTimeoutMs?: number;
+  retry?: boolean | number;
+}
+
+export function useResume(resumeId: string | null, options: UseResumeOptions = {}) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ['resume', resumeId],
     queryFn: async () => {
       if (!resumeId || !user) return null;
       try {
-        return await databases.getDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId);
-      } catch (err: any) {
-        if (err.code === 404) return null;
+        const request = databases.getDocument(DATABASE_ID, COLLECTIONS.resumes, resumeId);
+        return options.requestTimeoutMs
+          ? await withEditorResumeTimeout(request, options.requestTimeoutMs)
+          : await request;
+      } catch (err: unknown) {
+        if (typeof err === 'object' && err !== null && 'code' in err && err.code === 404) return null;
         throw err;
       }
     },
     enabled: !!user && !!resumeId,
+    ...(options.retry !== undefined ? { retry: options.retry } : {}),
   });
 }
 
