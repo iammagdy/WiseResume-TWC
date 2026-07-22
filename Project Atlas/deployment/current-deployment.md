@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-07-21
+**Last Verified:** 2026-07-22
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -18,7 +18,7 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
-* **Latest Verified Code-Bearing Deployment:** `dpl_EwaBNSHJ2LSF6NiKnMfjnhzPro3n` for commit `d6f0709ecb517b5c8f246825765867bfd6ce24c5`.
+* **Latest Verified Code-Bearing Deployment:** `dpl_FrRqPrrkm2nYXVSe7KXvnRqV8qP9` for commit `ddf16e168516be84ecce7816821585291fc290fe`.
 * **Trigger:** Pushes to the `main` branch automatically trigger Vercel production deployment workflows.
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist/`

@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-21
-**Status:** GeoJS Browser Lookup Removed and Production Verified
+**Last Verified:** 2026-07-22
+**Status:** Performance Phase 1 Production Verified with Broadcast Schema Warning
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,7 +12,7 @@
 * **Repository:** `iammagdy/WiseResume-TWC`
 * **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_EwaBNSHJ2LSF6NiKnMfjnhzPro3n` for the latest verified code-bearing change).
+* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_FrRqPrrkm2nYXVSe7KXvnRqV8qP9` for the latest verified code-bearing change).
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -24,6 +24,7 @@
 
 ## 2. Latest Important Commits
 
+* **`ddf16e16`** - `perf(frontend): remove public route overhead` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED WITH AUTHENTICATED BROADCAST SCHEMA WARNING**
 * **`d6f0709e`** - `fix(analytics): remove browser GeoJS lookup` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`854ac418`** - `fix(appwrite): restore owner access and realtime connectivity` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`29e8eec8`** - `fix(tailoring): restore ATS PDF and DOCX result exports` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
@@ -44,6 +45,19 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
+* **Session Status**: PERFORMANCE_PHASE_1_PRODUCTION_VERIFIED_WITH_BROADCAST_SCHEMA_WARNING - The universal charts dependency, public Editor prefetch, and public standalone Broadcast query have been removed from the public path. Product commit `ddf16e168516be84ecce7816821585291fc290fe` is deployed and verified on production. No Appwrite deployment, schema/permission change, auth architecture change, AI change, CSP change, dependency replacement, or redesign was performed.
+* **Performance Phase 1 (2026-07-22)**:
+  - **Confirmed Charts Root Cause**: Rollup absorbed the shared `clsx` helper into the manually assigned `charts` chunk. The main entry then imported that helper from `charts`, producing `entry -> shared helper -> charts -> Recharts/D3` on every route.
+  - **Chunk Ownership Fix**: `clsx`, `class-variance-authority`, and `tailwind-merge` now live in a small `ui-utils` chunk. Recharts/D3 remain isolated in the lazy `charts` chunk. PDF/DOCX, OCR, DevTools, and monitoring chunk boundaries remain lazy and separate.
+  - **Editor Prefetch Fix**: `EditorPage` was removed from the global deferred prefetch list. Existing route-aware authenticated prefetch in `AppInterior` remains, so Dashboard may warm Editor while public routes do not.
+  - **Broadcast Fix**: Public standalone routes and pre-auth states do not mount the authenticated Broadcast query. Authenticated workspace routes still issue the query after auth readiness, and failures now log a scoped warning.
+  - **Build Evidence**: Initial payload changed from `1,642,130` to `1,211,201` raw bytes, `481,898` to `369,199` gzip bytes, and `408,529` to `315,710` Brotli bytes. Initial JavaScript Brotli changed from `316,689` to `223,870` bytes. The `93,229`-byte Brotli charts chunk is no longer in the public entry. Editor remains a lazy `57,547`-byte Brotli chunk and is not globally prefetched.
+  - **Validation**: Focused Vitest passed `2` files / `7` tests; the post-build Node contract passed `3` tests; focused source ESLint passed; `npx tsc --noEmit`, `npm run build`, sourcemap check, and `git diff --check` passed. `vite.config.ts` retains one pre-existing `@typescript-eslint/no-require-imports` lint finding at line 129.
+  - **Deployment Status**: Vercel deployment `dpl_FrRqPrrkm2nYXVSe7KXvnRqV8qP9` reached `READY` for full SHA `ddf16e168516be84ecce7816821585291fc290fe`; aliases include `wiseresume.app`.
+  - **Production Browser Evidence**: `/`, `/pricing`, `/guides`, `/examples`, and `/p/magdy` rendered with no charts, Editor, or Broadcast request and no new console issues. `/dashboard` retained intentional Editor prefetch. Navigating from Dashboard to `/editor?id=6a30964e000f3d1807de` loaded the Editor chunk and rendered the Export control without console errors.
+  - **Mobile Evidence**: At `390x844`, observed landing assets were `75` requests / `817,244` compressed-body bytes; public portfolio assets were `109` requests / `1,506,749` bytes. Both had zero charts, Editor, and Broadcast requests. The selected browser diagnostics did not expose LCP/TBT, and Google PageSpeed returned HTTP `429`; LCP/TBT are therefore `UNKNOWN`, not passed.
+  - **Known Warning**: The authenticated Dashboard correctly emits the Broadcast query, but production Appwrite returns `400 Invalid query: Attribute not found in schema: active`. This is existing schema drift outside this frontend-only pass. Public routes no longer issue that failing query. Do not broaden permissions or change schema without a separately approved Appwrite task.
+  - **Remaining Performance Risks**: Editor hard-refresh/hydration delay, Public Portfolio mobile LCP/CLS/avatar behavior, and Tailoring no-result/timeout behavior remain open and were not changed.
 * **Session Status**: GEOJS_BROWSER_LOOKUP_REMOVED_PRODUCTION_VERIFIED - The browser-side visitor country lookup to GeoJS has been removed, committed, pushed, deployed by Vercel Git integration, and production browser verified. No CSP broadening, Appwrite hub deployment, Appwrite schema change, environment variable change, provider change, AI change, or credit-path change was performed.
 * **GeoJS Browser Lookup Resolution (2026-07-21)**:
   - **Classification**: Browser GeoJS was `OPTIONAL_ANALYTICS_ENRICHMENT` with `PRIVACY_RISK`, not a required product dependency. It did not support auth, security, payments, AI, exports, Tailoring, Cover Letters, or user-visible workflows.
@@ -109,14 +123,16 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
-2. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.
-3. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
-4. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
-5. **Deeper Manual QA**:
+1. **Performance Phase 2 Decision**: Prioritize the Editor hard-refresh/hydration delay, then separately measure/fix Public Portfolio mobile LCP/CLS/avatar behavior. Keep Tailoring timeout investigation isolated.
+2. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
+3. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
+4. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.
+5. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
+6. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
+7. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.
-6. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
+8. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
 
 ---
 

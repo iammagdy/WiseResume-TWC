@@ -1,5 +1,58 @@
 # Project Atlas Master Changelog
 
+## 2026-07-22 - Performance Phase 1: Public Bundle and Request Overhead
+
+- **Classification**: PASS_WITH_WARNINGS
+- **Scope**: Removed the universal charts dependency, public Editor prefetch, and public standalone Broadcast query. Editor hydration, Public Portfolio image/LCP work, Tailoring timeout behavior, backend performance, AI routing, Appwrite schema/permissions, CSP, and UI design were not changed.
+- **Product Commit**: `ddf16e168516be84ecce7816821585291fc290fe` - `perf(frontend): remove public route overhead`
+- **Confirmed Root Causes**:
+  - Rollup absorbed `clsx` into the manually assigned `charts` chunk, causing the main entry to import shared UI code from the Recharts/D3 feature chunk.
+  - `EditorPage` was included in the universal deferred prefetch list, so every public route fetched authenticated Editor code after load.
+  - `AppInterior` mounted `BroadcastBanner` globally and the component queried before route/auth context could exclude public standalone routes.
+- **Changes**:
+  - Added `src/lib/buildChunkPolicy.ts`; shared class-name utilities now live in `ui-utils`, while Recharts/D3 stay isolated in `charts`.
+  - Removed `EditorPage` from global prefetch while retaining existing authenticated route-aware Editor warming.
+  - Added `src/lib/broadcastPolicy.ts`; Broadcast queries now require a non-public route, completed auth readiness, and a user ID.
+  - Added safe authenticated Broadcast failure logging.
+  - Added focused Vitest policy/component tests and a hash-independent post-build artifact contract.
+- **Before/After Build Evidence**:
+  - Initial raw payload: `1,642,130` -> `1,211,201` bytes (`-430,929`, `-26.24%`).
+  - Initial gzip payload: `481,898` -> `369,199` bytes (`-112,699`, `-23.39%`).
+  - Initial Brotli payload: `408,529` -> `315,710` bytes (`-92,819`, `-22.72%`).
+  - Initial JavaScript Brotli: `316,689` -> `223,870` bytes (`-92,819`, `-29.31%`).
+  - Charts chunk: `93,341` -> `93,229` Brotli bytes; it remains available but is no longer an initial public dependency.
+  - Editor chunk: `57,547` Brotli bytes in the final build; remains lazy and is no longer globally prefetched.
+  - Comparable public route systemic request count drops by two deferred/static feature requests: charts and Editor.
+- **Validation**:
+  - `npx vitest run src/components/layout/__tests__/BroadcastBanner.test.tsx src/lib/__tests__/viteChunkPolicy.test.ts` - PASS, 2 files / 7 tests.
+  - `node --test tests/build/performance-build-contract.test.cjs` - PASS, 3 tests.
+  - Focused source ESLint - PASS. `vite.config.ts` still has one pre-existing `@typescript-eslint/no-require-imports` finding at line 129.
+  - `npx tsc --noEmit` - PASS.
+  - `npm run build` - PASS, 5,818 modules; existing Browserslist and large-chunk warnings only; no sourcemaps.
+  - `git diff --check` - PASS with Windows line-ending warnings only.
+- **Deployment State**:
+  - Product commit was pushed to `origin/main` and deployed through Vercel Git integration without a manual deploy.
+  - Vercel production deployment `dpl_FrRqPrrkm2nYXVSe7KXvnRqV8qP9` reached `READY` for `ddf16e168516be84ecce7816821585291fc290fe`.
+  - Production aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`.
+  - Appwrite deploy: `NOT REQUIRED`; no schema, permission, hub, environment, auth, AI, or CSP change occurred.
+- **Production Evidence**:
+  - `/`: 74 observed requests / 817,088 measured compressed-body bytes; no charts, Editor, or Broadcast request; no console issue.
+  - `/pricing`: 73 / 1,007,086 bytes; no charts, Editor, or Broadcast request; no console issue.
+  - `/guides`: 65 / 782,764 bytes; no charts, Editor, or Broadcast request; no console issue.
+  - `/examples`: 84 / 860,766 bytes; no charts, Editor, or Broadcast request; no console issue.
+  - `/p/magdy`: 85 / 858,508 bytes; no charts, Editor, or Broadcast request; no console issue.
+  - `/dashboard`: authenticated workspace rendered; Editor prefetch remained intentional; Broadcast request emitted after auth readiness.
+  - `/editor?id=6a30964e000f3d1807de`: opened from Dashboard, Editor chunk loaded, Export rendered, and no console error occurred.
+- **Mobile Follow-up Measurement (`390x844`)**:
+  - Landing: 75 observed requests / 817,244 measured compressed-body bytes; no charts, Editor, or Broadcast request.
+  - Public Portfolio: 109 / 1,506,749 bytes; no charts, Editor, or Broadcast request.
+  - Browser diagnostics did not expose LCP/TBT and the Google PageSpeed API returned HTTP `429`; current LCP/TBT are `UNKNOWN` and the portfolio problem is not closed.
+- **Warning and Remaining Risks**:
+  - Authenticated Broadcast query still returns existing Appwrite `400 Invalid query: Attribute not found in schema: active`. The frontend now logs this safely. Public routes no longer emit the query; schema/contract repair requires a separately approved Appwrite task.
+  - Editor hard-refresh/hydration delay remains open.
+  - Public Portfolio mobile LCP/CLS/avatar behavior remains open.
+  - Tailoring no-result/timeout behavior remains open.
+
 ## 2026-07-21 - Remove Browser GeoJS Visitor Lookup
 
 - **Classification**: VERIFIED_READY
