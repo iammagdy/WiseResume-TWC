@@ -3,7 +3,6 @@ import { usePublicPortfolio, usePortfolioGate, type PortfolioSections } from '@/
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, SearchX, Languages, Heart, Check, Printer, Sparkles, ArrowUpRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +16,6 @@ import { getThemeById, buildThemeCSSVars } from '@/lib/portfolioThemes';
 
 import { usePortfolioTracking } from '@/hooks/usePortfolioTracking';
 import { usePortfolioSEO } from '@/hooks/usePortfolioSEO';
-import { PortfolioPasswordGate } from '@/components/portfolio/public/PortfolioPasswordGate';
 
 // Direct import for above-the-fold content
 import { PublicHero } from '@/components/portfolio/public/PublicHero';
@@ -31,6 +29,8 @@ const ChatWidget = lazyWithRetry(() => import('@/components/portfolio/public/Cha
 
 // Lazy-loaded Contact Form
 const PortfolioContactForm = lazyWithRetry(() => import('@/components/portfolio/public/PortfolioContactForm').then(m => ({ default: m.PortfolioContactForm })));
+
+const PortfolioPasswordGate = lazyWithRetry(() => import('@/components/portfolio/public/PortfolioPasswordGate').then(m => ({ default: m.PortfolioPasswordGate })));
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 function hexToRgb(hex: string): string {
@@ -50,11 +50,6 @@ function optionalSkills(item: object): string[] {
   const skills = (item as { skills?: unknown }).skills;
   return Array.isArray(skills) ? skills.filter((s): s is string => typeof s === 'string') : [];
 }
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] as const } },
-};
 
 function getThemeVars(style: string, accentColor: string | null, font: string): React.CSSProperties {
   const theme = getThemeById(style);
@@ -175,6 +170,16 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   const [activeLanguage, setActiveLanguage] = useState<string>('');
   const [interestSent, setInterestSent] = useState(false);
   const [sendingInterest, setSendingInterest] = useState(false);
+  const [deferredContentReady, setDeferredContentReady] = useState(false);
+
+  useEffect(() => {
+    if (!portfolio) {
+      setDeferredContentReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setDeferredContentReady(true), 1000);
+    return () => window.clearTimeout(timer);
+  }, [portfolio]);
 
   // Check if interest was already sent for this portfolio (localStorage)
   useEffect(() => {
@@ -334,15 +339,17 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   if (passwordRequired && !portfolio) {
     const accentColor = gateInfo?.accentColor || '#e84545';
     return (
-      <PortfolioPasswordGate
-        accentColor={accentColor}
-        onSubmit={(password) => {
-          setPasswordError(false);
-          setSubmittedPassword(password);
-        }}
-        hasError={passwordError}
-        isChecking={contentLoading}
-      />
+      <Suspense fallback={<PortfolioSkeleton />}>
+        <PortfolioPasswordGate
+          accentColor={accentColor}
+          onSubmit={(password) => {
+            setPasswordError(false);
+            setSubmittedPassword(password);
+          }}
+          hasError={passwordError}
+          isChecking={contentLoading}
+        />
+      </Suspense>
     );
   }
 
@@ -468,12 +475,9 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
         pStyle={pStyle}
       />
 
-      <motion.div
+      <div
         id="portfolio-content"
         className="max-w-4xl mx-auto min-h-screen relative w-full"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
       >
         <div data-section="portfolio-hero">
         <PublicHero 
@@ -491,10 +495,8 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
         </div>
 
         {hasTranslation && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-center pt-4 pb-1"
+          <div
+            className="flex justify-center pt-4 pb-1 pf-cta-entrance"
             data-pdf-exclude
           >
             <button
@@ -511,16 +513,14 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
                 ? `${secondaryLang} · Switch to ${primaryLang}`
                 : `${primaryLang} · Switch to ${secondaryLang}`}
             </button>
-          </motion.div>
+          </div>
         )}
 
         {/* Recruiter interest CTA — shown to all visitors (no login required) */}
         {(
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex justify-center pt-2 pb-1"
+          <div
+            className="flex justify-center pt-2 pb-1 pf-cta-entrance"
+            style={{ animationDelay: '400ms' }}
             data-pdf-exclude
           >
             <button
@@ -545,38 +545,38 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
               )}
               {interestSent ? 'Interest sent!' : "I'm Interested"}
             </button>
-          </motion.div>
+          </div>
         )}
 
-        <Suspense fallback={<SectionsSkeleton />}>
-          <div data-section="portfolio-sections">
-          <PublicSections 
-            profile={profile}
-            resume={resume}
-            pStyle={pStyle}
-            accentColor={accentColor}
-            isTwoCol={isTwoCol}
-            navSections={navSections}
-            highlights={highlights}
-            allSkills={allSkills}
-            portfolioSummary={activeLanguage && profile.portfolioTranslations?.[activeLanguage]?.portfolioSummary
-              ? profile.portfolioTranslations[activeLanguage].portfolioSummary
-              : portfolioSummary}
-            sectionOrder={sectionOrder}
-            scrollEffect={scrollEffect}
-            videoIntroUrl={videoIntroUrl}
-            activeLanguage={activeLanguage || undefined}
-          />
-          </div>
-        </Suspense>
+        {deferredContentReady ? (
+          <Suspense fallback={<SectionsSkeleton />}>
+            <div data-section="portfolio-sections">
+            <PublicSections
+              profile={profile}
+              resume={resume}
+              pStyle={pStyle}
+              accentColor={accentColor}
+              isTwoCol={isTwoCol}
+              navSections={navSections}
+              highlights={highlights}
+              allSkills={allSkills}
+              portfolioSummary={activeLanguage && profile.portfolioTranslations?.[activeLanguage]?.portfolioSummary
+                ? profile.portfolioTranslations[activeLanguage].portfolioSummary
+                : portfolioSummary}
+              sectionOrder={sectionOrder}
+              scrollEffect={scrollEffect}
+              videoIntroUrl={videoIntroUrl}
+              activeLanguage={activeLanguage || undefined}
+            />
+            </div>
+          </Suspense>
+        ) : <SectionsSkeleton />}
 
         {/* Contact Form */}
-        {profile.contactFormEnabled && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="px-4 pb-6 max-w-xl mx-auto w-full"
+        {deferredContentReady && profile.contactFormEnabled && (
+          <div
+            className="px-4 pb-6 max-w-xl mx-auto w-full pf-cta-entrance"
+            style={{ animationDelay: '200ms' }}
             data-pdf-exclude
           >
             <Suspense fallback={null}>
@@ -586,11 +586,11 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
                 ownerName={profile.fullName}
               />
             </Suspense>
-          </motion.div>
+          </div>
         )}
 
         {/* Footer */}
-        <motion.div variants={fadeUp} className="text-center py-10 border-t space-y-3" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>
+        <div className="text-center py-10 border-t space-y-3" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>
           <button
             onClick={handleDownload}
             aria-label="Print / Save as PDF"
@@ -666,17 +666,19 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
               </span>
             </a>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
-      <Suspense fallback={null}>
-        <ChatWidget
-          profile={profile}
-          resume={resume}
-          accentColor={accentColor}
-          pStyle={pStyle}
-        />
-      </Suspense>
+      {deferredContentReady && (
+        <Suspense fallback={null}>
+          <ChatWidget
+            profile={profile}
+            resume={resume}
+            accentColor={accentColor}
+            pStyle={pStyle}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -1,13 +1,13 @@
 import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
-import { isAppHostname } from "@/hooks/usePublicPortfolio";
+import { isAppHostname, usePortfolioGate, usePublicPortfolio } from "@/hooks/usePublicPortfolio";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
 import { LocaleAccountSync } from "@/i18n/LocaleAccountSync";
 
@@ -47,6 +47,22 @@ function PublicPortfolioRouteSkeleton() {
         <div className="h-12 w-72 max-w-full rounded bg-white/10" />
       </div>
     </div>
+  );
+}
+
+function PublicPortfolioRoute() {
+  const { username } = useParams<{ username: string }>();
+  const { data: gateInfo } = usePortfolioGate(username);
+
+  // Start the existing server-enforced gate and sanitized payload requests
+  // while the page chunk loads. React Query shares these exact keys with the
+  // page, so mounting the page does not issue duplicate function calls.
+  usePublicPortfolio(username, !gateInfo?.passwordEnabled);
+
+  return (
+    <Suspense fallback={<PublicPortfolioRouteSkeleton />}>
+      <PublicPortfolioPage />
+    </Suspense>
   );
 }
 
@@ -100,19 +116,11 @@ function InteriorMount({ onReady }: { onReady: () => void }) {
       <Route path="/ar/enterprises" element={<AppLanding />} />
       <Route
         path="/p/:username"
-        element={
-          <Suspense fallback={<PublicPortfolioRouteSkeleton />}>
-            <PublicPortfolioPage />
-          </Suspense>
-        }
+        element={<PublicPortfolioRoute />}
       />
       <Route
         path="/ar/p/:username"
-        element={
-          <Suspense fallback={<PublicPortfolioRouteSkeleton />}>
-            <PublicPortfolioPage />
-          </Suspense>
-        }
+        element={<PublicPortfolioRoute />}
       />
       <Route
         path="/wallpaper"

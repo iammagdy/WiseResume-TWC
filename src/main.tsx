@@ -134,7 +134,12 @@ if (import.meta.env.DEV && window.location.hostname === "127.0.0.1") {
       requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
     };
     const w = window as IdleWindow;
-    if (typeof w.requestIdleCallback === "function") {
+    const isPublicPortfolioRoute = /^\/(?:ar\/)?p\/[^/]+\/?$/.test(window.location.pathname);
+    if (isPublicPortfolioRoute) {
+      // Portfolio monitoring is still loaded, but only after the critical
+      // hero/avatar window so it cannot compete with the public data path.
+      setTimeout(loadMonitoring, 10000);
+    } else if (typeof w.requestIdleCallback === "function") {
       w.requestIdleCallback(loadMonitoring, { timeout: 2000 });
     } else {
       setTimeout(loadMonitoring, 1500);

@@ -1,7 +1,6 @@
 import { forwardRef, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MapPin, Linkedin, Github, Globe, X, Mail, Sparkles, PlayCircle, CalendarDays } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/public/TypewriterText';
 import { isActiveWithin24h } from '@/hooks/useActiveStatus';
 import { getThemeById } from '@/lib/portfolioThemes';
@@ -20,11 +19,6 @@ export interface PublicHeroProps {
   videoIntroUrl?: string | null;
   schedulingUrl?: string | null;
 }
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] as const } },
-};
 
 function getVideoEmbedUrl(url: string): string | null {
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -91,9 +85,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
     : null;
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      variants={fadeUp}
       className={`relative flex flex-col ${heroAlignClass} pt-16 pb-12 px-4 ${isSplitHero ? 'md:flex-row md:flex-wrap' : ''}`}
       style={heroBg}
     >
@@ -183,11 +176,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
             </div>
 
             {(profile.availabilityStatus === 'actively-looking' || (!profile.availabilityStatus && profile.openToWork)) && isActiveWithin24h(liveLastActiveAt) && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3"
+              <div
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3 pf-badge-entrance"
                 style={{ background: 'color-mix(in srgb, var(--pf-success) 10%, transparent)', color: 'var(--pf-success)', border: '1px solid color-mix(in srgb, var(--pf-success) 25%, transparent)' }}
               >
                 <span className="relative flex h-2 w-2">
@@ -195,7 +185,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                   <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: 'var(--pf-success)' }} />
                 </span>
                 Active today — responds within 24h
-              </motion.div>
+              </div>
             )}
 
             {profile.availabilityHeadline && (
@@ -303,11 +293,9 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
       })()}
 
       {videoIntroUrl && getVideoEmbedUrl(videoIntroUrl) && (
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="w-full max-w-xl mt-8 px-2"
+        <div
+          className="w-full max-w-xl mt-8 px-2 pf-cta-entrance"
+          style={{ animationDelay: '350ms' }}
         >
           <div
             className="rounded-2xl overflow-hidden relative"
@@ -353,9 +341,9 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
               </a>
             )}
           </div>
-        </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 });
 PublicHero.displayName = 'PublicHero';
