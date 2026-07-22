@@ -1,5 +1,5 @@
 import { forwardRef, useMemo, useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MapPin, Linkedin, Github, Globe, X, Mail, Sparkles, PlayCircle, CalendarDays } from 'lucide-react';
 import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/public/TypewriterText';
 import { isActiveWithin24h } from '@/hooks/useActiveStatus';
@@ -109,16 +109,20 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
             {initials}
           </AvatarFallback>
           {avatarSources && (
-            <AvatarImage
+            <img
               src={avatarSources.src}
               srcSet={avatarSources.srcSet}
               sizes={avatarSources.sizes}
+              className="absolute inset-0 z-10 h-full w-full object-cover"
               width={144}
               height={144}
               loading="eager"
               fetchPriority="high"
               decoding="async"
               alt={`${profile.fullName || 'Portfolio'} avatar`}
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
             />
           )}
         </Avatar>

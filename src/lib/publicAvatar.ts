@@ -50,7 +50,9 @@ export function getPublicAvatarSources(
     return { src: avatarUrl };
   }
 
-  const fallback = previews[Math.max(0, previews.length - 2)] ?? previews[0];
+  // React assigns the fallback `src` before the browser finishes evaluating
+  // `srcSet`. Match the largest mobile candidate to avoid a duplicate fetch.
+  const fallback = previews[previews.length - 1] ?? previews[0];
   return {
     src: fallback.url,
     srcSet: previews.map(({ width, url }) => `${url} ${width}w`).join(', '),

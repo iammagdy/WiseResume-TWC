@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { PublicHero } from "../PublicHero";
 import { mockProfile, mockResumes } from "../../../../test/mocks/data";
@@ -77,5 +77,22 @@ describe("PublicHero", () => {
     expect(avatar).toHaveAttribute("sizes", "144px");
     expect(avatar.getAttribute("src")).toContain("/preview?");
     expect(avatar.getAttribute("srcset")).toContain("432w");
+  });
+
+  it("keeps the initials fallback when the avatar cannot load", () => {
+    const props = {
+      ...defaultProps,
+      profile: {
+        ...mockProfile,
+        avatarUrl: "https://images.example.com/missing-avatar.png",
+      } as any,
+    };
+    render(<PublicHero {...props} />);
+
+    const avatar = screen.getByAltText(`${mockProfile.fullName} avatar`);
+    fireEvent.error(avatar);
+
+    expect(avatar).toHaveStyle({ display: "none" });
+    expect(screen.getByText("JD")).toBeDefined();
   });
 });

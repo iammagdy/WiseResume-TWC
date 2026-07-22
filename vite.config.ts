@@ -5,7 +5,11 @@ import path from "path";
 import { createHash } from "crypto";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
-import { getManualChunkName, PREFETCH_CHUNKS } from "./src/lib/buildChunkPolicy";
+import {
+  getManualChunkName,
+  PREFETCH_CHUNKS,
+  PUBLIC_PORTFOLIO_PREFETCH_EXCLUSION,
+} from "./src/lib/buildChunkPolicy";
 
 const CSP_BASE = [
   "default-src 'self'",
@@ -66,6 +70,7 @@ function prefetchPlugin(): Plugin {
         if (urls.length === 0) return html;
         const code =
           `(function(){var u=${JSON.stringify(urls)};` +
+          `if(new RegExp(${JSON.stringify(PUBLIC_PORTFOLIO_PREFETCH_EXCLUSION)}).test(location.pathname)){return;}` +
           `function go(){u.forEach(function(href){var l=document.createElement('link');` +
           `l.rel='prefetch';l.as='script';l.crossOrigin='';l.href=href;` +
           `document.head.appendChild(l);});}` +

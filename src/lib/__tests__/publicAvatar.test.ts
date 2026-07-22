@@ -20,7 +20,7 @@ describe('public avatar delivery', () => {
   it('returns responsive first-party sources in ascending width order', () => {
     const result = getPublicAvatarSources(appwriteAvatar, [432, 160, 288, 288], '144px');
 
-    expect(result.src).toContain('width=288');
+    expect(result.src).toContain('width=432');
     expect(result.srcSet).toContain('width=160');
     expect(result.srcSet).toContain('160w');
     expect(result.srcSet).toContain('width=432');

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getManualChunkName, PREFETCH_CHUNKS } from '../buildChunkPolicy';
+import {
+  getManualChunkName,
+  PREFETCH_CHUNKS,
+  PUBLIC_PORTFOLIO_PREFETCH_EXCLUSION,
+} from '../buildChunkPolicy';
 
 describe('production chunk policy', () => {
   it('keeps shared class-name utilities in a dedicated utility chunk', () => {
@@ -15,6 +19,15 @@ describe('production chunk policy', () => {
 
   it('does not globally prefetch the Editor route', () => {
     expect(PREFETCH_CHUNKS).not.toContain('EditorPage');
+  });
+
+  it('excludes exact public portfolio paths from unrelated app-route prefetches', () => {
+    const excludedPath = new RegExp(PUBLIC_PORTFOLIO_PREFETCH_EXCLUSION);
+
+    expect(excludedPath.test('/p/magdy')).toBe(true);
+    expect(excludedPath.test('/ar/p/magdy')).toBe(true);
+    expect(excludedPath.test('/p/magdy/settings')).toBe(false);
+    expect(excludedPath.test('/dashboard')).toBe(false);
   });
 
   it('preserves heavy lazy dependency ownership', () => {

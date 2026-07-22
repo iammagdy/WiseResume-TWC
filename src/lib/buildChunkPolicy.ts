@@ -1,5 +1,7 @@
 export const PREFETCH_CHUNKS = ['DashboardPage', 'UploadPage', 'framer', 'AnimatedSplash'];
 
+export const PUBLIC_PORTFOLIO_PREFETCH_EXCLUSION = '^/(?:ar/)?p/[^/]+/?$';
+
 export function getManualChunkName(id: string): string | undefined {
   if (id.includes('node_modules/framer-motion')) return 'framer';
   if (
