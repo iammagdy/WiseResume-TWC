@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-07-22
-**Status:** Performance Phase 2 Editor Startup Production Verified with Known Residual Warnings
+**Status:** Performance Phase 3 Public Portfolio Deployed and Verified with Cold-Mobile LCP Warning
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,7 +12,7 @@
 * **Repository:** `iammagdy/WiseResume-TWC`
 * **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_GLhcMR5mu95pRBSKw8VwSbNmEpx4` for the latest verified code-bearing change).
+* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_9hA3b3zKGZXddKKYrC4WmG54gBUn` for the latest verified code-bearing change).
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -24,6 +24,10 @@
 
 ## 2. Latest Important Commits
 
+* **`9e7020a0`** - `perf(portfolio): protect slow hero paint` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED WITH COLD-MOBILE LCP WARNING**
+* **`18110bb8`** - `perf(portfolio): remove residual avatar contention` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
+* **`8bab2a66`** - `perf(portfolio): defer noncritical public work` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
+* **`da5968bb`** - `perf(portfolio): optimize public mobile critical path` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`e319737f`** - `perf(editor): reduce resume hydration startup delay` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`ddf16e16`** - `perf(frontend): remove public route overhead` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED WITH AUTHENTICATED BROADCAST SCHEMA WARNING**
 * **`d6f0709e`** - `fix(analytics): remove browser GeoJS lookup` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
@@ -46,6 +50,18 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
+* **Session Status**: PERFORMANCE_PHASE_3_PUBLIC_PORTFOLIO_PASS_WITH_WARNINGS - Public Portfolio mobile CLS, avatar delivery, request startup, and optional-work contention were materially improved and production verified. The strict cold-mobile LCP target remains unmet, so this phase is not `VERIFIED_READY`. No Appwrite hub, schema, permission, auth, AI, credits, environment, or settings change was performed.
+* **Performance Phase 3 (2026-07-22)**:
+  - **Confirmed Baseline**: Direct production mobile throttling measured `15.388 s` LCP, `0.346` CLS, approximately `3.672 s` estimated TBT, `1,882,125` transferred bytes, and `110` requests. Gate/data started near `8.64 s`; the original Appwrite avatar `/view` was fetched twice at approximately `446 KB` per request and finished near LCP.
+  - **Implemented Critical Path**: Exact `/p/:username` and `/ar/p/:username` routes now bypass `AppInterior`; their existing gate and sanitized data queries begin in the route shell and share React Query keys with the page. The page and hero no longer require Framer Motion before first render. Monitoring waits ten seconds on exact portfolio routes, and below-fold sections/contact/chat wait four seconds after portfolio data.
+  - **Avatar and CLS**: First-party Appwrite `/preview` WebP sources use bounded responsive dimensions, explicit image size, eager/high-priority loading, and a native hero image over the existing initials fallback. Production now issues one `432 px` avatar request of `11.25-11.28 KB`. Typewriter space, the chat launcher, and avatar geometry are reserved; final mobile CLS is `0.064` median.
+  - **Final Local Evidence**: Five cache-cleared production-build preview runs measured `5.144-7.556 s` LCP (median `6.100 s`), `0.040-0.061` CLS, and a single approximately `11.27 KB` avatar request. Optional chunks began after LCP in every run. Vite preview serves uncompressed assets and is retained as a relative diagnostic, not the production acceptance result.
+  - **Final Production Evidence**: Three cold mobile runs measured `5.124 s`, `5.860 s`, and `6.408 s` LCP (median `5.860 s`), `0.064` median CLS, and `0.922 s` median estimated TBT. Warm mobile LCP was `2.784 s`. Gate/data begin near `3.62/3.64 s` in the median trace, each completes in about one second, and hero visibility is `5.249 s` median.
+  - **Acceptance**: Mobile CLS `<0.1` and avatar `<100 KB` pass. Cold-mobile LCP `<4.0 s` does not pass. Closing the residual requires a separately approved public-entry/provider or pre-React data-start architecture decision; the remaining delay occurs before optional portfolio chunks.
+  - **Production Behavior**: `/p/magdy`, `/ar/p/magdy`, and `/p/explore-test-123-updated-001` rendered without horizontal overflow. Contact rendered; analytics returned `200`; the interest action returned `200 {ok:true}` through the API path that creates the owner notification. Public gate/data responses exposed none of the scanned `user_id`, owner ID, password hash, portfolio settings, or contact-email fields.
+  - **Protected QA Limitation**: The documented `testprotected` fixture is stale. Production gate/data report `exists: false` / `Portfolio not found`, so live wrong-password/correct-unlock QA was unavailable. Focused frontend security tests and both portfolio Hub contract scripts pass. Realtime notification delivery was not safely observable anonymously because notification reads are owner-scoped.
+  - **Deployment Status**: Vercel deployment `dpl_9hA3b3zKGZXddKKYrC4WmG54gBUn` is `READY`/`PROMOTED` for SHA `9e7020a0b7ce25c62b00425351ca537cb8d9e612`; aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`. Appwrite deployment: `NOT REQUIRED`.
+  - **Report**: `Project Atlas/reports/performance/performance-phase-3-public-portfolio-remediation-2026-07-22.md`.
 * **Session Status**: PERFORMANCE_PHASE_2_EDITOR_STARTUP_PRODUCTION_VERIFIED_WITH_KNOWN_RESIDUAL_WARNINGS - Editor route bootstrap now keys the first document query from the URL, rejects stale store data until the requested document is confirmed, bounds the blocking Appwrite read, and provides distinct slow/error/missing states. Product commit `e319737f43527a5528b66b165e3a09bc22b5b07e` is deployed and verified on production. No Appwrite deployment, schema/permission change, auth architecture change, AI/credits change, persistence-model change, or unrelated feature change was performed.
 * **Performance Phase 2 (2026-07-22)**:
   - **Confirmed Root Cause**: `EditorPage` called `useResume(currentResumeId)` before its passive URL-sync effect copied `?id=`/`?resumeId=` into the persisted Zustand store. A stale store ID could therefore query or render the previous resume first; an empty store delayed direct bootstrap. The blocking `getDocument` had no explicit timeout and inherited global retries. A separate Editor eight-second safety timer could redirect to Dashboard while this chain was unresolved.
@@ -137,7 +153,7 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Performance Phase 3 Decision**: Measure and fix Public Portfolio mobile LCP/CLS/avatar behavior. Keep Tailoring no-result/timeout investigation isolated from portfolio and Editor work.
+1. **Public Portfolio Architecture Decision**: Phase 3 materially reduced transfer, CLS, avatar cost, request delay, and optional contention, but cold-mobile LCP remains `5.860 s` median against the `<4.0 s` target. Any follow-up must separately approve a smaller public entry/provider graph or an earlier pre-React server-function request strategy without duplicating or weakening the gate architecture.
 2. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
 3. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
 4. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.
@@ -152,6 +168,8 @@
 
 ## 5. Blocked / Pending Owner Verification
 
+* **Protected Portfolio Production Fixture**: `testprotected` now returns `Portfolio not found`. A safe current protected fixture is required to repeat live wrong-password and correct-unlock QA.
+* **Portfolio Realtime Notification Observation**: The interest API returned `200 {ok:true}` and creates the owner notification before responding, but an authenticated owner session is required to observe the Realtime notification event safely.
 * **LinkedIn OAuth Browser Verification**: PENDING_OWNER_VERIFICATION (requires manual check using owner credentials or test accounts on the deployed site).
 * **Public Portfolio Contact Form (Turnstile Captcha)**: Blocked in automated E2E browser environments because Cloudflare Turnstile rejects headless automation contexts. Verified working via manual owner submission in production.
 * **Billing / Payments Activation**: Blocked on explicit project owner business decision.

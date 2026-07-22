@@ -1,5 +1,74 @@
 # Project Atlas Master Changelog
 
+## 2026-07-22 - Performance Phase 3: Public Portfolio Mobile Critical Path
+
+- **Classification**: PASS_WITH_WARNINGS
+- **Scope**: Improved only Public Portfolio mobile LCP/CLS, Appwrite avatar delivery, gate/data startup, and proven optional-work contention. Portfolio content, privacy, password architecture, contact/interest behavior, analytics semantics, Appwrite auth, AI, Tailoring, Editor, Credits, custom domains, schema, permissions, environments, and settings were not changed.
+- **Product Commits**:
+  - `da5968bb5261023ef5531d5f61d7f8ec78e6ca91` - `perf(portfolio): optimize public mobile critical path`
+  - `8bab2a66aacce0e92b096c69853301f9c7fa75db` - `perf(portfolio): defer noncritical public work`
+  - `18110bb82ddfc14f5c138cf546019a0517e01326` - `perf(portfolio): remove residual avatar contention`
+  - `9e7020a0b7ce25c62b00425351ca537cb8d9e612` - `perf(portfolio): protect slow hero paint`
+- **Confirmed Root Causes**:
+  - Exact portfolio routes were dispatched through the broad app shell before the public page mounted. Gate/data calls therefore started around `8.64 s` in the direct baseline.
+  - The original Appwrite Storage `/view` avatar was requested twice at approximately `446 KB` per request and completed near the avatar LCP.
+  - Centered typewriter line wrapping produced the two largest layout shifts. The chat hint and deferred sections/footer added smaller shifts.
+  - Public page/hero Framer Motion, the global Framer/app-route prefetch, early monitoring, and one-second below-fold deferral competed with the slow hero window. Bundle-level evidence is strong; exact JavaScript function attribution remains `UNKNOWN`.
+- **Changes**:
+  - Added direct `/p/:username` and `/ar/p/:username` routing before `AppInterior`, with a stable skeleton and route-shell gate/data queries that share exact React Query keys with `PublicPortfolioPage`.
+  - Added first-party Appwrite `/preview` WebP URL generation with bounded responsive widths. External and legacy avatar URLs remain unchanged.
+  - Changed the hero to one native responsive image with explicit `144x144` dimensions, eager/high-priority loading, async decode, and the existing initials fallback. Sticky-header images remain lazy/low priority.
+  - Reserved the typewriter's phrase geometry and chat launcher size, and removed initial Framer Motion dependencies from the hero/page.
+  - Delayed monitoring by ten seconds only on exact portfolio paths. Excluded exact portfolio paths from the unrelated global app-route prefetch.
+  - Deferred PublicSections, contact setup, and chat for four seconds after sanitized portfolio data, preserving eventual functionality while keeping optional chunks after LCP.
+- **Validation**:
+  - Comprehensive focused portfolio suite before the final scheduling-only adjustment: PASS, 15 files / 98 tests.
+  - Final affected page/password/sections/contact/route suite after that adjustment: PASS, 6 files / 27 tests.
+  - `node tests/hubs/portfolio-password-verification.test.cjs`: PASS.
+  - `node tests/hubs/portfolio-settings.test.cjs`: PASS.
+  - `npx tsc --noEmit`: PASS; the exact final `npm run build` also reran TypeScript.
+  - `npm run build`: PASS, 5,820 modules; no sourcemaps; existing Browserslist and large-chunk warnings only.
+  - `git diff --check`: PASS with Windows line-ending warnings only.
+- **Before/After Evidence**:
+
+  | Metric | Direct production baseline | Final production |
+  |---|---:|---:|
+  | Cold mobile LCP | `15.388 s` | `5.860 s` median (`5.124-6.408 s`) |
+  | Mobile CLS | `0.346` | `0.064` median |
+  | Estimated TBT | `3.672 s` | `0.922 s` median |
+  | Hero visible | `9.994 s` | `5.249 s` median |
+  | Gate/data start | `8.638/8.649 s` | `3.623/3.635 s` median |
+  | Avatar | two approximately `446 KB` original `/view` requests | one `11.25-11.28 KB` `432 px` WebP `/preview` request |
+  | Requests | `110` | `73` median in the acceptance window |
+  | Transfer | `1.882 MB` | approximately `0.639 MB` median before late monitoring completes; approximately `0.797 MB` when it completes in-window |
+
+- **Local Production-Build Evidence**:
+
+  | Run | Data start | Hero visible | Avatar end | LCP | CLS | Transfer |
+  |---:|---:|---:|---:|---:|---:|---:|
+  | 1 | `3.740 s` | `5.625 s` | `5.292 s` | `7.556 s` | `0.040` | `611,147 B` |
+  | 2 | `3.493 s` | `5.255 s` | `4.991 s` | `5.432 s` | `0.061` | `611,154 B` |
+  | 3 | `3.933 s` | `5.943 s` | `5.548 s` | `6.100 s` | `0.041` | `611,154 B` |
+  | 4 | `3.671 s` | `6.233 s` | `5.861 s` | `6.432 s` | `0.041` | `611,144 B` |
+  | 5 | `3.367 s` | `5.099 s` | `4.960 s` | `5.144 s` | `0.060` | `611,154 B` |
+
+  Vite preview serves uncompressed assets. Median local LCP was `6.100 s`; median CLS approximately `0.041`; every run had one avatar request and optional chunks began after LCP.
+- **Deployment State**:
+  - Vercel deployment `dpl_9hA3b3zKGZXddKKYrC4WmG54gBUn` reached `READY`/`PROMOTED` for exact SHA `9e7020a0b7ce25c62b00425351ca537cb8d9e612`.
+  - Aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`; `aliasAssigned=true`, `aliasError=null`.
+  - Appwrite deployment: `NOT REQUIRED`; no Hub source changed.
+- **Production Behavior and Security**:
+  - `/p/magdy`, `/ar/p/magdy`, and `/p/explore-test-123-updated-001` rendered with no horizontal overflow.
+  - Contact rendered; analytics returned `200`; interest returned `200 {ok:true}` through the API transaction that creates the owner notification.
+  - Public gate/data response scans found no `user_id`, owner ID, `password_hash`, `portfolio_settings`, or owner contact-email fields.
+  - Exactly one gate and one public-data execution occurred per unprotected navigation. AppInterior and global route-prefetch work were absent; PublicSections/Framer/contact/chat started after LCP.
+  - Expected anonymous account `401`, meta `frame-ancestors` browser warning, and blocked portfolio-theme Google Font stylesheet remain existing console items; no page errors were observed.
+  - `testprotected` is stale and returns `Portfolio not found`; live protected wrong/correct-password QA is therefore unavailable. Realtime owner notification observation requires an authenticated owner session.
+- **Warning and Next Decision**:
+  - Mobile CLS `<0.1` and avatar `<100 KB` pass. Cold-mobile LCP `<4.0 s` does not pass, so this phase is not `VERIFIED_READY`.
+  - The remaining cold delay is before optional portfolio work: the shared entry/provider graph delays route-shell queries to approximately `3.6 s`, followed by about one second of Appwrite latency and hero paint. A smaller public entry/provider graph or earlier pre-React request requires a separately approved architecture pass.
+  - Tailoring no-result/timeout and authenticated Broadcast `active` schema drift remain separate tasks.
+
 ## 2026-07-22 - Performance Phase 2: Editor Hard-Refresh and Hydration
 
 - **Classification**: PASS_WITH_WARNINGS

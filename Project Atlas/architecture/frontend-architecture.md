@@ -31,9 +31,21 @@
 * Shared class-name utilities (`clsx`, `class-variance-authority`, and `tailwind-merge`) belong to `ui-utils`; they must not be absorbed into feature chunks.
 * Recharts and D3 packages belong to the `charts` feature chunk. Public/auth entry code must not statically import or module-preload that chunk.
 * PDF/DOCX dependencies remain in `doc-export`; Tesseract/Mammoth remain in `ocr`; DevTools and monitoring remain lazy route/feature chunks.
-* The global deferred prefetch list may warm Dashboard, Upload, Framer Motion, and the splash component, but it must not include `EditorPage`.
+* The global deferred prefetch list may warm Dashboard, Upload, Framer Motion, and the splash component, but it must not include `EditorPage` and must not run on exact `/p/:username` or `/ar/p/:username` routes.
 * Authenticated route-aware prefetch is implemented in `AppInterior`; Dashboard/Upload/Editor workspace paths may warm their own route chunks after navigation context is known.
 * `tests/build/performance-build-contract.test.cjs` is the post-build regression contract for charts entry isolation, public Editor-prefetch exclusion, and heavy lazy chunk preservation.
+
+## Public Portfolio Critical Render Policy
+
+* Exact `/p/:username` and `/ar/p/:username` routes are dispatched before `AppInterior`. Do not move them back into the authenticated workspace shell.
+* `PublicPortfolioRoute` starts `usePortfolioGate(username)` and `usePublicPortfolio(username, !gateInfo?.passwordEnabled)` while the page chunk loads. `PublicPortfolioPage` uses the same query keys; this is the request-deduplication boundary.
+* Security remains server-enforced. The browser must not read `profiles`, resumes, or `portfolio_settings` directly, and no early-render path may expose owner IDs, owner contact email, password hashes, or server-only settings.
+* `PublicHero` and the page shell must not import Framer Motion. Above-the-fold rendering is limited to the gate result, sanitized profile/resume payload, stable hero dimensions, optimized avatar or initials fallback, name/title, and primary actions.
+* Appwrite Storage `/view` avatar URLs may be converted only to first-party `/preview` URLs on Appwrite Cloud hosts. Current hero policy uses responsive `160/288/432 px` WebP candidates, `144x144` layout dimensions, eager loading, high fetch priority, async decoding, and one native image request. External and legacy URLs remain unchanged.
+* Typewriter and launcher geometry must be reserved before dynamic text or hints render. Do not reintroduce initial hidden-to-visible hero motion that delays LCP or causes layout shifts.
+* PublicSections, contact setup, and chat are optional for first paint and currently wait `4,000 ms` after sanitized portfolio data. Exact portfolio-route monitoring waits `10,000 ms`. Analytics semantics remain eventual and must not be removed.
+* Production Phase 3 evidence is `5.860 s` median cold-mobile LCP, `0.064` median mobile CLS, and `11.25-11.28 KB` for one mobile avatar request. The `<4.0 s` cold-mobile target remains unmet because the shared entry/provider graph delays route-shell requests to approximately `3.6 s`, followed by approximately one second of Appwrite latency and hero paint.
+* Further optimization requires a separately approved architecture pass for a smaller public entry/provider graph or earlier pre-React server-function request. Do not add a duplicate backend, bypass password checks, broaden Appwrite permissions, or hand-roll a second public data contract.
 
 ## Editor Startup and Hydration Policy
 
