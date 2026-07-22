@@ -10,6 +10,10 @@ interface Broadcast {
   severity: 'info' | 'warning' | 'critical';
 }
 
+interface BroadcastBannerProps {
+  enabled: boolean;
+}
+
 const DISMISSED_KEY = 'wiseresume_dismissed_broadcasts';
 const MAINT_COUNTDOWN_DISMISSED_KEY = 'wiseresume_maint_countdown_dismissed';
 
@@ -60,11 +64,13 @@ function formatCountdown(ms: number): string {
   return `${s}s`;
 }
 
-export function BroadcastBanner() {
+export function BroadcastBanner({ enabled }: BroadcastBannerProps) {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(getDismissed);
 
   useEffect(() => {
+    if (!enabled) return;
+
     let cancelled = false;
     databases
       .listDocuments(DATABASE_ID, COLLECTIONS.broadcasts, [
@@ -85,9 +91,11 @@ export function BroadcastBanner() {
         });
         setBroadcasts(items);
       })
-      .catch(() => { /* not critical — silent fail */ });
+      .catch((error: unknown) => {
+        if (!cancelled) console.warn('[BroadcastBanner] Failed to load broadcasts', error);
+      });
     return () => { cancelled = true; };
-  }, []);
+  }, [enabled]);
 
   const handleDismiss = (id: string) => {
     const next = new Set(dismissed);
@@ -97,7 +105,7 @@ export function BroadcastBanner() {
   };
 
   const visible = broadcasts.filter(b => !dismissed.has(b.id));
-  if (visible.length === 0) return null;
+  if (!enabled || visible.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-0.5">

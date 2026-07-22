@@ -5,6 +5,7 @@ import path from "path";
 import { createHash } from "crypto";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
+import { getManualChunkName, PREFETCH_CHUNKS } from "./src/lib/buildChunkPolicy";
 
 const CSP_BASE = [
   "default-src 'self'",
@@ -39,8 +40,6 @@ function cspPlugin(): Plugin {
     },
   };
 }
-
-const PREFETCH_CHUNKS = ['DashboardPage', 'EditorPage', 'UploadPage', 'framer', 'AnimatedSplash'];
 
 // Defer route prefetch until the page is interactive. Previously, prefetch
 // links were emitted directly into <head>, which competes with critical
@@ -190,43 +189,7 @@ export default defineConfig(({ mode }) => ({
     sourcemap: process.env.SENTRY_AUTH_TOKEN ? 'hidden' : false,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/framer-motion')) return 'framer';
-          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'charts';
-
-          // Document-export bundle: pdf-lib, pdfjs, docx, qr, html2canvas,
-          // image-crop are all only loaded on user-initiated export/upload
-          // paths. Merging them into one logical bundle reduces the small
-          // chunk count on cold start (each chunk costs an HTTP RTT on
-          // mobile) without adding to the critical path.
-          if (
-            id.includes('node_modules/pdf-lib') ||
-            id.includes('node_modules/pdfjs-dist') ||
-            id.includes('node_modules/docx') ||
-            id.includes('node_modules/qr-code-styling') ||
-            id.includes('node_modules/html2canvas') ||
-            id.includes('node_modules/react-image-crop')
-          ) return 'doc-export';
-
-          // OCR is the single largest dep family — keep isolated so it
-          // never pulls into the doc-export path on first PDF render.
-          if (id.includes('node_modules/tesseract') || id.includes('node_modules/mammoth')) return 'ocr';
-
-          if (id.includes('node_modules/@radix-ui')) return 'radix';
-          if (id.includes('node_modules/ogl')) return 'ogl';
-          if (id.includes('node_modules/appwrite')) return 'appwrite';
-          if (id.includes('node_modules/@tanstack/react-query')) return 'react-query';
-          if (id.includes('node_modules/zustand')) return 'zustand';
-          if (
-            id.includes('node_modules/react-markdown') ||
-            id.includes('node_modules/remark') ||
-            id.includes('node_modules/rehype') ||
-            id.includes('node_modules/micromark') ||
-            id.includes('node_modules/mdast') ||
-            id.includes('node_modules/hast') ||
-            id.includes('node_modules/unified')
-          ) return 'markdown';
-        },
+        manualChunks: getManualChunkName,
       },
     },
   },

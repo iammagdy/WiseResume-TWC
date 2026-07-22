@@ -29,6 +29,7 @@ import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { BroadcastBanner, MaintenanceCountdown } from "@/components/layout/BroadcastBanner";
 import { ActingAsBanner } from "@/components/layout/ActingAsBanner";
 import { isImpersonating, subscribe as subscribeImpersonation } from "@/lib/impersonationStore";
+import { shouldLoadBroadcasts } from "@/lib/broadcastPolicy";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
@@ -267,7 +268,7 @@ function AppRoutes() {
   }, [theme]);
 
   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
-  const { signOut, user } = useAuth();
+  const { signOut, user, authReady } = useAuth();
   const isAdmin = useIsAdmin();
   const navigate = useNavigate();
   const location = useLocation();
@@ -324,7 +325,13 @@ function AppRoutes() {
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />
         )}
-        <BroadcastBanner />
+        <BroadcastBanner
+          enabled={shouldLoadBroadcasts({
+            isPublicStandalone,
+            authReady,
+            userId: user?.id,
+          })}
+        />
         <MaintenanceCountdown
           windowStart={appSettings.maintenance_window_start}
           windowEnd={appSettings.maintenance_window_end}
