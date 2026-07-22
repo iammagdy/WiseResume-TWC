@@ -11,6 +11,12 @@ vi.mock("../TypewriterText", () => ({
   buildTypewriterPhrases: () => ["Phrase 1"],
 }));
 
+vi.mock("@/components/ui/avatar", () => ({
+  Avatar: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+  AvatarFallback: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+  AvatarImage: (props: any) => <img {...props} />,
+}));
+
 describe("PublicHero", () => {
   const defaultProps = {
     profile: mockProfile as any,
@@ -50,5 +56,26 @@ describe("PublicHero", () => {
     render(<PublicHero {...props} />);
     expect(screen.getByTitle("LinkedIn")).toBeDefined();
     expect(screen.getByTitle("GitHub")).toBeDefined();
+  });
+
+  it("renders the LCP avatar with responsive previews and stable dimensions", () => {
+    const props = {
+      ...defaultProps,
+      profile: {
+        ...mockProfile,
+        avatarUrl: "https://fra.cloud.appwrite.io/v1/storage/buckets/avatars/files/avatar-1/view?project=project-1",
+      } as any,
+    };
+    render(<PublicHero {...props} />);
+
+    const avatar = screen.getByAltText(`${mockProfile.fullName} avatar`);
+    expect(avatar).toHaveAttribute("width", "144");
+    expect(avatar).toHaveAttribute("height", "144");
+    expect(avatar).toHaveAttribute("loading", "eager");
+    expect(avatar).toHaveAttribute("fetchpriority", "high");
+    expect(avatar).toHaveAttribute("decoding", "async");
+    expect(avatar).toHaveAttribute("sizes", "144px");
+    expect(avatar.getAttribute("src")).toContain("/preview?");
+    expect(avatar.getAttribute("srcset")).toContain("432w");
   });
 });

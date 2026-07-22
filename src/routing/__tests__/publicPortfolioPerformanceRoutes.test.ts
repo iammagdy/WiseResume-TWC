@@ -1,0 +1,26 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+const chatSource = readFileSync(resolve(process.cwd(), 'src/components/portfolio/public/ChatWidget.tsx'), 'utf8');
+const stickySource = readFileSync(resolve(process.cwd(), 'src/components/portfolio/public/StickyHeader.tsx'), 'utf8');
+
+describe('public portfolio performance contracts', () => {
+  it.each(['/p/:username', '/ar/p/:username'])('routes %s before the AppInterior wildcard', (path) => {
+    const routeAt = appSource.indexOf(`path="${path}"`);
+    const wildcardAt = appSource.indexOf('path="*"');
+    expect(routeAt).toBeGreaterThan(0);
+    expect(routeAt).toBeLessThan(wildcardAt);
+  });
+
+  it('keeps the floating chat launcher geometry fixed when its hint appears', () => {
+    expect(chatSource).toContain('z-[60] h-14 w-14');
+    expect(chatSource).toContain('absolute bottom-0 right-[calc(100%+0.625rem)]');
+  });
+
+  it('does not request the sticky avatar until the header is visible', () => {
+    expect(stickySource).toContain('visible && avatarSources');
+    expect(stickySource).toContain('fetchPriority="low"');
+  });
+});

@@ -57,15 +57,36 @@ export function TypewriterText({ phrases, accentColor }: { phrases: string[]; ac
   if (phrases.length === 0) return null;
 
   const isMoving = phase === 'typing' || phase === 'deleting';
+  const currentPhrase = phrases[phraseIdx % phrases.length];
+  const typedLength = Math.min(displayed.length, currentPhrase.length);
 
   return (
-    <p className="text-sm italic mb-5 max-w-md leading-relaxed min-h-[1.5rem]" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-      "{displayed}
-      <span
-        className={`pf-cursor ${isMoving ? 'pf-cursor--typing' : ''}`}
-        style={{ color: accentColor }}
-      >|</span>
-      "
+    <p
+      className="relative mb-5 grid w-full max-w-md text-sm italic leading-relaxed"
+      style={{ color: 'var(--pf-muted, #9ca3af)' }}
+      aria-label={phrases[0]}
+    >
+      <span className="grid" aria-hidden="true" data-testid="typewriter-reserve">
+        {phrases.map((phrase) => (
+          <span
+            key={phrase}
+            className="invisible [grid-area:1/1] before:content-[attr(data-text)]"
+            data-text={`"${phrase}|"`}
+          />
+        ))}
+      </span>
+      <span className="absolute inset-0" aria-hidden="true" data-testid="typewriter-visible">
+        "{currentPhrase.slice(0, typedLength)}
+        <span
+          className={`pf-cursor ${isMoving ? 'pf-cursor--typing' : ''}`}
+          style={{ color: accentColor }}
+        >|</span>
+        <span
+          className="invisible before:content-[attr(data-text)]"
+          data-text={currentPhrase.slice(typedLength)}
+        />
+        "
+      </span>
     </p>
   );
 }

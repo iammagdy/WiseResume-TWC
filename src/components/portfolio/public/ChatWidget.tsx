@@ -192,7 +192,7 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
   return (
     <>
       {/* Floating launcher + first-visit nudge */}
-      <div className="fixed bottom-6 right-4 z-[60] flex items-center gap-2.5" data-pdf-exclude style={{ pointerEvents: 'none' }}>
+      <div className="fixed bottom-6 right-4 z-[60] h-14 w-14" data-pdf-exclude style={{ pointerEvents: 'none' }}>
         <AnimatePresence>
           {showHint && !open && (
             <motion.button
@@ -202,7 +202,7 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
               exit={{ opacity: 0, x: 16, scale: 0.9 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               onClick={() => { setOpen(true); setHasInteracted(true); setShowHint(false); }}
-              className="relative max-w-[210px] rounded-2xl rounded-br-md px-3.5 py-2.5 text-left shadow-xl"
+              className="absolute bottom-0 right-[calc(100%+0.625rem)] w-[210px] max-w-[calc(100vw-6rem)] rounded-2xl rounded-br-md px-3.5 py-2.5 text-left shadow-xl"
               style={{ background: bgPanel, border: `1px solid ${borderColor}`, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', pointerEvents: 'auto' }}
             >
               <span
@@ -222,7 +222,7 @@ export function ChatWidget({ profile, resume: _resume, accentColor, pStyle }: {
           )}
         </AnimatePresence>
 
-        <div className="relative" style={{ pointerEvents: 'auto' }}>
+        <div className="relative h-14 w-14" style={{ pointerEvents: 'auto' }}>
           {/* attention pulse — only while closed */}
           {!open && (
             <motion.span

@@ -6,6 +6,7 @@ import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/p
 import { isActiveWithin24h } from '@/hooks/useActiveStatus';
 import { getThemeById } from '@/lib/portfolioThemes';
 import { safeHref } from '@/lib/urlUtils';
+import { getPublicAvatarSources } from '@/lib/publicAvatar';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 
 export interface PublicHeroProps {
@@ -85,6 +86,9 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
   const heroJustify = heroAlign === 'center' ? 'justify-center' : 'justify-center md:justify-start';
 
   const contactHref = profile?.linkedinUrl || null;
+  const avatarSources = profile.avatarUrl
+    ? getPublicAvatarSources(profile.avatarUrl, [160, 288, 432], '144px')
+    : null;
 
   return (
     <motion.div
@@ -111,7 +115,19 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
           >
             {initials}
           </AvatarFallback>
-          {profile.avatarUrl && <AvatarImage src={profile.avatarUrl} />}
+          {avatarSources && (
+            <AvatarImage
+              src={avatarSources.src}
+              srcSet={avatarSources.srcSet}
+              sizes={avatarSources.sizes}
+              width={144}
+              height={144}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              alt={`${profile.fullName || 'Portfolio'} avatar`}
+            />
+          )}
         </Avatar>
       </div>
 
@@ -219,7 +235,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
               )}
             </div>
 
-            <div className="pf-fade-entrance" style={{ animationDelay: `${locationDelay}ms` }}>
+            <div className="pf-fade-entrance w-full max-w-md" style={{ animationDelay: `${locationDelay}ms` }}>
               {typewriterPhrases.length > 0 ? <TypewriterText phrases={typewriterPhrases} accentColor={accentColor} /> : null}
             </div>
 

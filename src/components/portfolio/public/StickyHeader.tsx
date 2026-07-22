@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useIsDark } from '@/hooks/useIsDark';
+import { getPublicAvatarSources } from '@/lib/publicAvatar';
 
 interface StickyHeaderProps {
   name: string | null;
@@ -13,6 +14,9 @@ interface StickyHeaderProps {
 
 export function StickyHeader({ name, avatarUrl, initials, accentColor, visible, pStyle = 'minimal' }: StickyHeaderProps) {
   const isDark = useIsDark();
+  const avatarSources = avatarUrl
+    ? getPublicAvatarSources(avatarUrl, [64, 96], '32px')
+    : null;
 
   return (
     <div
@@ -26,7 +30,19 @@ export function StickyHeader({ name, avatarUrl, initials, accentColor, visible, 
       <div className="relative z-[1] flex items-center justify-between px-4 py-2">
       <div className="flex items-center gap-2.5">
         <Avatar className="w-8 h-8 border" style={{ borderColor: accentColor }}>
-          <AvatarImage src={avatarUrl || undefined} />
+          {visible && avatarSources && (
+            <AvatarImage
+              src={avatarSources.src}
+              srcSet={avatarSources.srcSet}
+              sizes={avatarSources.sizes}
+              width={32}
+              height={32}
+              loading="lazy"
+              fetchPriority="low"
+              decoding="async"
+              alt={`${name || 'Portfolio'} avatar`}
+            />
+          )}
           <AvatarFallback className="text-xs font-bold" style={{ background: accentColor, color: '#fff' }}>{initials}</AvatarFallback>
         </Avatar>
         <span className="flex-1 min-w-0 truncate font-semibold text-sm" style={{ color: isDark ? 'var(--pf-fg, #f5f5ff)' : '#111827', fontFamily: 'var(--pf-heading-font)' }}>

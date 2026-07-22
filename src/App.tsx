@@ -26,10 +26,28 @@ const AppLanding = lazyWithRetry(() => import("./AppLanding"));
 // loaded when the user actually navigates into the app (or hits a
 // non-landing URL directly).
 const AppInterior = lazyWithRetry(() => import("./AppInterior"));
+const PublicPortfolioPage = lazyWithRetry(() => import("./pages/PublicPortfolioPage"));
 
 const LANDING_PATHS = new Set(["/", "/enterprises", "/ar", "/ar/enterprises"]);
 function isLandingPath(pathname: string) {
   return LANDING_PATHS.has(pathname);
+}
+
+function PublicPortfolioRouteSkeleton() {
+  return (
+    <div
+      className="min-h-screen bg-[#0a0a0f] px-6 pb-12 pt-16"
+      aria-label="Loading portfolio"
+      aria-busy="true"
+    >
+      <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 animate-pulse">
+        <div className="h-36 w-36 rounded-full bg-white/10" />
+        <div className="h-10 w-64 max-w-full rounded bg-white/10" />
+        <div className="h-6 w-44 rounded bg-white/10" />
+        <div className="h-12 w-72 max-w-full rounded bg-white/10" />
+      </div>
+    </div>
+  );
 }
 
 // On initial pageview to the landing route, kick off the Index chunk
@@ -80,6 +98,22 @@ function InteriorMount({ onReady }: { onReady: () => void }) {
       <Route path="/enterprises" element={<AppLanding />} />
       <Route path="/ar" element={<AppLanding />} />
       <Route path="/ar/enterprises" element={<AppLanding />} />
+      <Route
+        path="/p/:username"
+        element={
+          <Suspense fallback={<PublicPortfolioRouteSkeleton />}>
+            <PublicPortfolioPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/ar/p/:username"
+        element={
+          <Suspense fallback={<PublicPortfolioRouteSkeleton />}>
+            <PublicPortfolioPage />
+          </Suspense>
+        }
+      />
       <Route
         path="/wallpaper"
         element={
