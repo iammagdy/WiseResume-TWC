@@ -257,9 +257,19 @@ async function run() {
   const duplicate = await invoke('Role C requires platform engineering leadership and observability expertise.');
   assert.equal(duplicate.status, 409);
   assert.equal(duplicate.body.code, 'request_in_progress');
-  releaseProvider();
+  const waitingResult = invoke(
+    'Role C requires platform engineering leadership and observability expertise.',
+    {
+      'X-Tailor-Result-Only': 'true',
+      'X-Tailor-Result-Wait-Ms': '2000',
+    },
+  );
+  setTimeout(releaseProvider, 50);
   const completed = await firstInFlight;
+  const recoveredWhileWaiting = await waitingResult;
   assert.equal(completed.status, 200);
+  assert.equal(recoveredWhileWaiting.status, 200, 'result-only lookup should wait for the cached result');
+  assert.equal(recoveredWhileWaiting.body.status, 'success');
   assert.equal(collection('ai_credits').get('credits-1').daily_usage, 6, 'concurrent duplicates must result in one credit deduction');
 
   const resultOnly = await invoke(

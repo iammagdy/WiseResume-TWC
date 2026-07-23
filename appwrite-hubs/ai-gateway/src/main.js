@@ -107,6 +107,7 @@ const TAILOR_PRIMARY_ATTEMPT_MS = 42_000;
 const TAILOR_FALLBACK_ATTEMPT_MS = 23_000;
 const TAILOR_MIN_ATTEMPT_MS = 5_000;
 const TAILOR_CLEANUP_BUFFER_MS = 2_000;
+const TAILOR_RESULT_MAX_WAIT_MS = 8_000;
 const RECORD_USAGE_BACKOFFS = [100, 500, 2000]; // ms between credit-recording retry attempts
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Warn once per cold start when optional collections are unavailable.
@@ -3584,33 +3585,37 @@ module.exports = async ({ req, res, log, error }) => {
       const terminalStatus = getHeader(opts.__headers, 'X-Tailor-Execution-Status').toLowerCase();
       const terminalHttpStatus = Number(getHeader(opts.__headers, 'X-Tailor-Execution-Http-Status')) || 0;
       const resultKeys = computeContentKeys(effectiveUserId, featureName, aiOpts);
-      let cached = { hit: false };
-      for (const key of resultKeys) {
-        cached = await checkIdempotencyCache(db, key, log);
-        if (cached.hit) break;
-      }
+      const requestedWaitMs = Number(getHeader(opts.__headers, 'X-Tailor-Result-Wait-Ms')) || 0;
+      const waitUntil = Date.now() + Math.min(Math.max(requestedWaitMs, 0), TAILOR_RESULT_MAX_WAIT_MS);
 
-      if (cached.hit && cached.status === 'success' && cached.result) {
-        await flushDD();
-        return res.json(cached.result);
-      }
-      if (cached.hit && cached.status === 'failed') {
-        const failure = cached.result || {
-          status: 'error',
-          code: 'request_failed',
-          message: 'Tailoring could not complete. Please retry.',
-          httpStatus: 503,
-        };
-        await deleteIdempotencyDoc(db, cached.docId);
-        await flushDD();
-        return res.json({
-          status: 'error',
-          code: asString(failure.code) || 'request_failed',
-          message: asString(failure.message) || 'Tailoring could not complete. Please retry.',
-        }, Number(failure.httpStatus) || 503);
-      }
-      if (cached.hit && cached.status === 'pending') {
-        if (terminalStatus === 'failed' || terminalHttpStatus >= 500) {
+      while (true) {
+        let cached = { hit: false };
+        for (const key of resultKeys) {
+          cached = await checkIdempotencyCache(db, key, log);
+          if (cached.hit) break;
+        }
+
+        if (cached.hit && cached.status === 'success' && cached.result) {
+          await flushDD();
+          return res.json(cached.result);
+        }
+        if (cached.hit && cached.status === 'failed') {
+          const failure = cached.result || {
+            status: 'error',
+            code: 'request_failed',
+            message: 'Tailoring could not complete. Please retry.',
+            httpStatus: 503,
+          };
+          await deleteIdempotencyDoc(db, cached.docId);
+          await flushDD();
+          return res.json({
+            status: 'error',
+            code: asString(failure.code) || 'request_failed',
+            message: asString(failure.message) || 'Tailoring could not complete. Please retry.',
+          }, Number(failure.httpStatus) || 503);
+        }
+        if (cached.hit && cached.status === 'pending' &&
+            (terminalStatus === 'failed' || terminalHttpStatus >= 500)) {
           await deleteIdempotencyDoc(db, cached.docId);
           await flushDD();
           return res.json({
@@ -3619,20 +3624,23 @@ module.exports = async ({ req, res, log, error }) => {
             message: 'Tailoring stopped before producing a usable result. Please retry.',
           }, 503);
         }
-        await flushDD();
-        return res.json({
-          status: 'error',
-          code: 'request_in_progress',
-          message: 'Tailoring is still processing. Please wait a moment and retry.',
-        }, 409);
+        if (Date.now() >= waitUntil) {
+          await flushDD();
+          if (!terminalStatus || cached.status === 'pending') {
+            return res.json({
+              status: 'error',
+              code: 'request_in_progress',
+              message: 'Tailoring is still processing. Please wait a moment and retry.',
+            }, 409);
+          }
+          return res.json({
+            status: 'error',
+            code: 'result_unavailable',
+            message: 'Tailoring finished without a retrievable result. Please retry.',
+          }, 503);
+        }
+        await sleep(500);
       }
-
-      await flushDD();
-      return res.json({
-        status: 'error',
-        code: 'result_unavailable',
-        message: 'Tailoring finished without a retrievable result. Please retry.',
-      }, 503);
     }
 
     // Fetch plan once here - reused by persistent rate limit and credit state.

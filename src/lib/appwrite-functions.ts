@@ -37,6 +37,7 @@ type SerializedFile = {
 
 const TAILOR_EXECUTION_TIMEOUT_MS = 75_000;
 const TAILOR_EXECUTION_POLL_MS = 750;
+const TAILOR_RESULT_WAIT_MS = 8_000;
 const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed']);
 
 class FunctionWaitError extends Error {
@@ -97,6 +98,63 @@ async function waitForExecution(
   }
 
   return execution;
+}
+
+function executionResponseCode(execution: Models.Execution): string {
+  try {
+    const parsed = JSON.parse(execution.responseBody) as { code?: unknown };
+    return typeof parsed?.code === 'string' ? parsed.code : '';
+  } catch {
+    return '';
+  }
+}
+
+function isExecutionStatusUnavailable(error: unknown): boolean {
+  const code = Number((error as { code?: unknown } | null)?.code);
+  return error instanceof AppwriteException && [401, 403, 404].includes(code);
+}
+
+async function waitForTailorResult(
+  functionId: string,
+  executionBody: Record<string, unknown>,
+  headers: Record<string, string>,
+  startedAt: number,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<Models.Execution> {
+  while (true) {
+    throwIfAborted(signal);
+    const remainingMs = timeoutMs - (Date.now() - startedAt);
+    if (remainingMs <= 0) {
+      throw new FunctionWaitError(
+        'request_timeout',
+        'Tailoring took too long to finish. Your resume was not changed. Please retry.',
+        504,
+      );
+    }
+
+    const resultPayload = {
+      ...executionBody,
+      __headers: {
+        ...headers,
+        'X-Tailor-Result-Only': 'true',
+        'X-Tailor-Result-Wait-Ms': String(Math.min(TAILOR_RESULT_WAIT_MS, remainingMs)),
+      },
+    };
+    const execution = await functions.createExecution(
+      functionId,
+      JSON.stringify({ featureName: 'tailor-resume', ...resultPayload }),
+      false,
+      '/',
+      'POST' as ExecutionMethod,
+    );
+    if (
+      execution.responseStatusCode !== 409 ||
+      executionResponseCode(execution) !== 'request_in_progress'
+    ) {
+      return execution;
+    }
+  }
 }
 
 const COUPON_FUNCTIONS = new Set(['coupons', 'get-subscription']);
@@ -344,6 +402,8 @@ export const appwriteFunctions = {
 
       let execution: Models.Execution;
       if (routeToAiGateway && fnName === 'tailor-resume') {
+        const tailorStartedAt = Date.now();
+        const tailorTimeoutMs = options?.timeoutMs ?? TAILOR_EXECUTION_TIMEOUT_MS;
         throwIfAborted(options?.signal);
         const backgroundExecution = await functions.createExecution(
           functionId,
@@ -352,30 +412,42 @@ export const appwriteFunctions = {
           '/',
           'POST' as ExecutionMethod,
         );
-        const terminalExecution = await waitForExecution(
-          functionId,
-          backgroundExecution,
-          options?.timeoutMs ?? TAILOR_EXECUTION_TIMEOUT_MS,
-          options?.signal,
-        );
-        throwIfAborted(options?.signal);
+        try {
+          const terminalExecution = await waitForExecution(
+            functionId,
+            backgroundExecution,
+            tailorTimeoutMs,
+            options?.signal,
+          );
+          throwIfAborted(options?.signal);
 
-        const resultPayload = {
-          ...finalPayload,
-          __headers: {
-            ...headers,
-            'X-Tailor-Result-Only': 'true',
-            'X-Tailor-Execution-Status': terminalExecution.status,
-            'X-Tailor-Execution-Http-Status': String(terminalExecution.responseStatusCode ?? 0),
-          },
-        };
-        execution = await functions.createExecution(
-          functionId,
-          JSON.stringify({ featureName: fnName, ...resultPayload }),
-          false,
-          '/',
-          'POST' as ExecutionMethod,
-        );
+          const resultPayload = {
+            ...finalPayload,
+            __headers: {
+              ...headers,
+              'X-Tailor-Result-Only': 'true',
+              'X-Tailor-Execution-Status': terminalExecution.status,
+              'X-Tailor-Execution-Http-Status': String(terminalExecution.responseStatusCode ?? 0),
+            },
+          };
+          execution = await functions.createExecution(
+            functionId,
+            JSON.stringify({ featureName: fnName, ...resultPayload }),
+            false,
+            '/',
+            'POST' as ExecutionMethod,
+          );
+        } catch (error) {
+          if (!isExecutionStatusUnavailable(error)) throw error;
+          execution = await waitForTailorResult(
+            functionId,
+            finalPayload,
+            headers,
+            tailorStartedAt,
+            tailorTimeoutMs,
+            options?.signal,
+          );
+        }
       } else {
         execution = await functions.createExecution(
           functionId,

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AppwriteException } from 'appwrite';
 
 const { createExecution, getExecution } = vi.hoisted(() => ({
   createExecution: vi.fn(),
@@ -156,5 +157,40 @@ describe('appwriteFunctions Tailoring execution transport', () => {
     expect(response.data).toBeNull();
     expect(response.error).toMatchObject({ code: 'request_in_progress', status: 409 });
     expect(createExecution).toHaveBeenCalledTimes(2);
+  });
+
+  it('retrieves the cached result when Appwrite denies browser execution-status polling', async () => {
+    const result = { summary: 'Recovered tailored summary' };
+    createExecution
+      .mockResolvedValueOnce(execution())
+      .mockResolvedValueOnce(execution({
+        $id: 'pending-result-execution',
+        status: 'completed',
+        responseStatusCode: 409,
+        responseBody: JSON.stringify({ status: 'error', code: 'request_in_progress' }),
+      }))
+      .mockResolvedValueOnce(execution({
+        $id: 'successful-result-execution',
+        status: 'completed',
+        responseStatusCode: 200,
+        responseBody: JSON.stringify({ status: 'success', data: result }),
+      }));
+    getExecution.mockRejectedValueOnce(new AppwriteException('Execution not accessible.', 401));
+
+    const response = await appwriteFunctions.invoke('tailor-resume', {
+      body: { resume: { summary: 'Original' }, jobDescription: 'A complete role description' },
+      timeoutMs: 20_000,
+    });
+
+    expect(response).toEqual({ data: result, error: null });
+    expect(getExecution).toHaveBeenCalledTimes(1);
+    expect(createExecution).toHaveBeenCalledTimes(3);
+    expect(createExecution.mock.calls[0][2]).toBe(true);
+    expect(createExecution.mock.calls.slice(1).every((call) => call[2] === false)).toBe(true);
+    const resultBody = JSON.parse(createExecution.mock.calls[1][1]);
+    expect(resultBody.__headers).toMatchObject({
+      'X-Tailor-Result-Only': 'true',
+      'X-Tailor-Result-Wait-Ms': '8000',
+    });
   });
 });
