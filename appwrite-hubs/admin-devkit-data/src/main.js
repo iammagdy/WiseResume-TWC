@@ -11,6 +11,8 @@ const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWR
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://wiseresume.app';
 const IMPERSONATION_SESSIONS_COLLECTION = 'admin_impersonation_sessions';
+const BROADCASTS_COLLECTION = 'broadcasts';
+const BROADCAST_SEVERITIES = new Set(['info', 'warning', 'critical']);
 // Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
 // No hard-coded fallback: when absent, admin-only paths fail closed.
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
@@ -2205,6 +2207,94 @@ async function handleToggleAppSetting(body, log) {
 
 // â”€â”€â”€ get-key-modes / set-key-mode: slot pinning config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+function normalizeBroadcastInput(body) {
+  const title = typeof body?.title === 'string' ? body.title.trim() : '';
+  const message = typeof body?.body === 'string' ? body.body.trim() : '';
+  if (!title || !message) throw new Error('title and body are required');
+  if (title.length > 256) throw new Error('title must be 256 characters or fewer');
+  if (message.length > 4096) throw new Error('body must be 4096 characters or fewer');
+
+  const severity = BROADCAST_SEVERITIES.has(body?.severity) ? body.severity : 'info';
+  let expiresAt = null;
+  if (body?.expires_at !== null && body?.expires_at !== undefined && body?.expires_at !== '') {
+    const parsed = Date.parse(body.expires_at);
+    if (!Number.isFinite(parsed)) throw new Error('expires_at must be a valid ISO date');
+    expiresAt = new Date(parsed).toISOString();
+  }
+
+  return { title, message, severity, expiresAt };
+}
+
+function toAdminBroadcast(document) {
+  return {
+    id: document.$id,
+    title: document.title,
+    body: document.body,
+    severity: BROADCAST_SEVERITIES.has(document.severity) ? document.severity : 'info',
+    active: document.active === true,
+    created_by: document.created_by || null,
+    created_at: document.created_at || document.$createdAt,
+    expires_at: document.expires_at || null,
+  };
+}
+
+async function handleListBroadcasts(log) {
+  const result = await safeList(null, BROADCASTS_COLLECTION, [sdk.Query.limit(100)]);
+  if (result.error) throw new Error(`broadcasts collection error: ${result.error}`);
+  const broadcasts = result.documents
+    .map(toAdminBroadcast)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  log(`list-broadcasts: ${broadcasts.length} records`);
+  return { broadcasts, total: result.total };
+}
+
+async function handlePublishBroadcast(body, log) {
+  const { databases } = getClients();
+  const input = normalizeBroadcastInput(body);
+  const actorPayload = decodeSignedTokenPayload(bearerToken({ headers: {} }, body));
+  const document = {
+    title: input.title,
+    body: input.message,
+    severity: input.severity,
+    active: true,
+    created_by: actorPayload?.uid || 'devkit-admin',
+    created_at: isoNow(),
+  };
+  if (input.expiresAt) document.expires_at = input.expiresAt;
+
+  const created = await databases.createDocument(
+    DB_ID,
+    BROADCASTS_COLLECTION,
+    sdk.ID.unique(),
+    document,
+  );
+  await auditLog(databases, 'publish-broadcast', {
+    broadcast_id: created.$id,
+    severity: input.severity,
+    has_expiry: !!input.expiresAt,
+  }, actorPayload?.uid || null);
+  log(`publish-broadcast: ${created.$id}`);
+  return { broadcast: toAdminBroadcast(created) };
+}
+
+async function handleExpireBroadcast(body, log) {
+  const { databases } = getClients();
+  const id = typeof body?.id === 'string' ? body.id.trim() : '';
+  if (!id) throw new Error('id is required');
+  const actorPayload = decodeSignedTokenPayload(bearerToken({ headers: {} }, body));
+  const updated = await databases.updateDocument(
+    DB_ID,
+    BROADCASTS_COLLECTION,
+    id,
+    { active: false },
+  );
+  await auditLog(databases, 'expire-broadcast', {
+    broadcast_id: id,
+  }, actorPayload?.uid || null);
+  log(`expire-broadcast: ${id}`);
+  return { broadcast: toAdminBroadcast(updated) };
+}
+
 const VALID_KEY_MODES = new Set(['active', 'pinned', 'standby', 'disabled']);
 
 async function handleGetKeyModes(log) {
@@ -3093,6 +3183,9 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'home-summary') data = await handleHomeSummary(log, error);
     else if (action === 'list-app-settings') data = await handleListAppSettings(log);
     else if (action === 'toggle-app-setting') data = await handleToggleAppSetting(body, log);
+    else if (action === 'list-broadcasts') data = await handleListBroadcasts(log);
+    else if (action === 'publish-broadcast') data = await handlePublishBroadcast(body, log);
+    else if (action === 'expire-broadcast') data = await handleExpireBroadcast(body, log);
     else if (action === 'list-wisehire-waitlist') data = await handleListWisehireWaitlist(log);
     else if (action === 'approve-wisehire-waitlist') data = await handleApproveWisehireWaitlist(body, log);
     else if (action === 'dismiss-wisehire-waitlist') data = await handleDismissWisehireWaitlist(body, log);
@@ -3123,4 +3216,6 @@ module.exports._test = {
   signInternalRequest,
   handleSendAdminPasswordResetOtp,
   handleSendAdminPasswordResetLink,
+  normalizeBroadcastInput,
+  toAdminBroadcast,
 };

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Info, AlertTriangle, AlertOctagon, Clock } from 'lucide-react';
-import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { account } from '@/lib/appwrite';
 
 interface Broadcast {
   id: string;
@@ -69,32 +68,45 @@ export function BroadcastBanner({ enabled }: BroadcastBannerProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(getDismissed);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setBroadcasts([]);
+      return;
+    }
 
     let cancelled = false;
-    databases
-      .listDocuments(DATABASE_ID, COLLECTIONS.broadcasts, [
-        Query.equal('active', true),
-        Query.select(['$id', 'title', 'body', 'severity']),
-        Query.limit(20),
-      ])
-      .then(res => {
-        if (cancelled) return;
-        const items: Broadcast[] = res.documents.map(d => {
-          const doc = d as unknown as Record<string, unknown>;
-          return {
-            id: doc.$id as string,
-            title: (doc.title as string) ?? '',
-            body: (doc.body as string) ?? '',
-            severity: (doc.severity as Broadcast['severity']) ?? 'info',
-          };
+    const controller = new AbortController();
+
+    const loadBroadcasts = async () => {
+      try {
+        const { jwt } = await account.createJWT();
+        const response = await fetch('/api/broadcasts', {
+          credentials: 'same-origin',
+          headers: {
+            Accept: 'application/json',
+            'X-Appwrite-JWT': jwt,
+          },
+          signal: controller.signal,
         });
-        setBroadcasts(items);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) console.warn('[BroadcastBanner] Failed to load broadcasts', error);
-      });
-    return () => { cancelled = true; };
+        if (!response.ok) {
+          throw new Error(`Broadcast request failed (${response.status})`);
+        }
+
+        const payload = (await response.json()) as { broadcasts?: Broadcast[] };
+        if (cancelled) return;
+        setBroadcasts(Array.isArray(payload.broadcasts) ? payload.broadcasts : []);
+      } catch (error) {
+        if (!cancelled && !controller.signal.aborted) {
+          setBroadcasts([]);
+          console.warn('[BroadcastBanner] Failed to load broadcasts', error);
+        }
+      }
+    };
+
+    void loadBroadcasts();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [enabled]);
 
   const handleDismiss = (id: string) => {

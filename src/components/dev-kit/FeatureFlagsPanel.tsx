@@ -12,6 +12,7 @@ import { devKitCall } from '@/lib/devkit/devKitClient';
 import { useIsMounted } from '@/lib/devkit/hooks';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { DevKitErrorCard } from './DevKitErrorCard';
+import { BroadcastManagementPanel } from './BroadcastManagementPanel';
 
 // ─── App-wide settings types ──────────────────────────────────────────────────
 
@@ -739,6 +740,14 @@ export function FeatureFlagsPanel() {
           <div className="flex-1 h-px bg-border" />
         </div>
         <AppWideSettingsSection />
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-3">
+          <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Workspace Broadcasts</h3>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        <BroadcastManagementPanel />
       </section>
 
       {/* ── Divider ─────────────────────────────────────────────────────── */}
