@@ -1,6 +1,6 @@
 # Feature Specification: In-App Notifications & Bell Dropdown
 
-**Last Verified:** 2026-07-21
+**Last Verified:** 2026-07-24
 **Status:** Active Production Feature  
 **Location:** `Project Atlas/features/notifications.md`  
 
@@ -50,5 +50,9 @@ Informs portfolio owners and active job seekers about visitor messages, portfoli
 
 ---
 
-## 8. Historical Evidence & Reports
+## 8. Broadcast Boundary
+
+Workspace Broadcast banners are a separate platform-announcement feature with a server-only collection and authenticated delivery contract. See [`broadcasts.md`](./broadcasts.md).
+
+## 9. Historical Evidence & Reports
 * [`Project Atlas/qa/WiseResume_Portfolio_Notifications_System_2026-07-02.md`](../qa/WiseResume_Portfolio_Notifications_System_2026-07-02.md) — Notifications implementation & verification report.

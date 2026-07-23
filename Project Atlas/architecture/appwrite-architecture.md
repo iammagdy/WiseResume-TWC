@@ -1,6 +1,6 @@
 # Canonical Appwrite Backend Architecture
 
-**Last Verified:** 2026-07-21
+**Last Verified:** 2026-07-24
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/appwrite-architecture.md`  
 
@@ -28,5 +28,6 @@ WiseResume is an Appwrite-native application. All database persistence, user aut
 * Document Security (`documentSecurity: true`) is enforced on user-sensitive collections including `notifications`, `portfolio_visits`, `user_preferences`, `jobs`, and `job_applications`.
 * Owner-scoped user collections must keep collection permissions narrowed to `create("users")`; owner read/update/delete access belongs on each document.
 * `tailor_history` is legacy server-only history. Frontend history surfaces use `resumes` lineage and tailoring metadata.
+* `broadcasts` is server-only with empty collection permissions. Authenticated browser delivery must use the JWT-validated, sanitized Vercel endpoint; owner mutations must use signed `admin-devkit-data` actions.
 * Browser CSP must allow Appwrite API and Realtime only through the narrow Appwrite origins: `https://fra.cloud.appwrite.io` and `wss://fra.cloud.appwrite.io`.
 * Browser visitor tracking must not call third-party GeoIP endpoints directly. Visitor country enrichment is analytics-only and should stay server-side through Appwrite request metadata or an explicitly approved server-side fallback.

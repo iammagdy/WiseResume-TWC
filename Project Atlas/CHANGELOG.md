@@ -1,5 +1,44 @@
 # Project Atlas Master Changelog
 
+## 2026-07-24 - Authenticated Broadcast Schema and Delivery Repair
+
+- **Classification**: `PASS_WITH_WARNINGS`
+- **Scope**: Fixed only authenticated workspace Broadcast schema, delivery, visibility filtering, dismissal lifecycle, and owner management. Public announcement settings, notification ownership, auth architecture, AI, credits, Tailoring, exports, Portfolio implementation, and unrelated Appwrite permissions were not changed.
+- **Product Commit**: `51271e0a5ff355e5d5ad5c6078c7357b50f50f42` - `fix(broadcast): align workspace delivery with Appwrite schema`.
+- **Confirmed Root Cause**: `MULTIPLE_LAYERS`.
+  - `BroadcastBanner` directly queried `Query.equal('active', true)`.
+  - Live Appwrite `broadcasts` contained only optional `user_id`, no indexes, no documents, empty collection permissions, and `documentSecurity: false`.
+  - No replacement `enabled`, `published`, `status`, `starts_at`, or `ends_at` field existed.
+  - The historical Supabase contract defined `title`, `body`, `severity`, `active`, `created_by`, `created_at`, and optional `expires_at`, but the Appwrite migration retained only the frontend query.
+- **Implementation**:
+  - Added idempotent `scripts/setup_broadcasts_schema.cjs` with dry-run support, server-only permission guard, non-empty required-field stop condition, and no document mutation.
+  - Added `GET /api/broadcasts`, which validates a short-lived Appwrite JWT, reads the server-only collection with the Vercel server key, filters `active` and `expires_at`, rejects malformed records, and returns a sanitized four-field client model.
+  - Updated `BroadcastBanner` to use the authenticated endpoint only after existing route/auth readiness, abort stale requests, clear state on logout, and preserve session dismissal.
+  - Added DevKit Feature Control management through signed `admin-devkit-data` actions `list-broadcasts`, `publish-broadcast`, and `expire-broadcast`.
+  - Added targeted workflow schema provisioning only for `admin-devkit-data` or the prohibited general `all` mode; the actual deployment used only `admin-devkit-data`.
+- **Schema and Migration**:
+  - Pre-apply dry-run: `documents=0`, `attributesExisting=1`, `attributesPlanned=7`.
+  - Apply: `attributesCreated=7`; `documentsScanned=0 documentsUpdated=0 documentsSkipped=0 documentsFailed=0`.
+  - Post-apply dry-run: `attributesExisting=8`, `attributesPlanned=0`, collection permissions `0`, `documentSecurity=false`.
+  - No index was added because neither the server delivery path nor owner list path queries a Broadcast attribute.
+- **Validation**:
+  - Focused Broadcast tests: `5` files / `21` tests passed.
+  - Related auth/navigation/app-shell tests: `4` files / `23` tests passed.
+  - `node --check` for the schema helper and `admin-devkit-data`, `npx tsc --noEmit`, focused ESLint, `npm run build`, no-sourcemap verification, and `git diff --check` passed.
+- **Deployment**:
+  - Vercel deployment `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` reached `READY` for the exact product commit; aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`.
+  - Targeted Appwrite workflow `30051406249` deployed only `admin-devkit-data`; deployment `6a629b8351abe36cd0c3` reached `ready`; safe smoke returned HTTP 200.
+  - Deployed source hash: `21a8df1890e76655c36e403fc8c17813de11db4e22d6b77ecaba8a2539e97e02`.
+- **Production Evidence**:
+  - Authenticated Dashboard, Editor, Tailoring Hub/result, Applications, Notifications, Settings, and Cover Letters produced `/api/broadcasts` HTTP 200 on the exact deployment.
+  - Public Portfolio `/p/explore-test-portfolio` produced no Broadcast request.
+  - The fresh production tab emitted no Broadcast warning; Vercel reported no `/api/broadcasts` runtime errors.
+  - Dashboard, Editor, Tailoring, Cover Letters, Applications, Notifications, Settings, Public Portfolio, and designed PDF / ATS PDF / Word controls passed the stabilization smoke.
+- **Warning**:
+  - Production contains zero Broadcast records. No real announcement was created or changed, so active/inactive/expiry/dismissal behavior is verified by focused tests rather than live content mutation.
+  - One unrelated controlled/uncontrolled Select warning appeared during the production route smoke.
+  - Public Portfolio cold-mobile LCP remains above the four-second target.
+
 ## 2026-07-24 - Tailoring Project Metadata Preservation Verified
 
 - **Classification**: `VERIFIED_READY`

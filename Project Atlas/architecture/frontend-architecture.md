@@ -1,6 +1,6 @@
 # Canonical Frontend Architecture
 
-**Last Verified:** 2026-07-22
+**Last Verified:** 2026-07-24
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/frontend-architecture.md`  
 
@@ -61,6 +61,9 @@
 ## Authenticated Broadcast Policy
 
 * The `broadcasts` collection is treated as an authenticated workspace announcement source, separate from the public app-settings `AnnouncementBanner`.
-* Public standalone routes and pre-auth states must not issue the Broadcast collection query.
-* Authenticated workspace routes may query only after `authReady` and a user ID are present. Unexpected authenticated failures must produce a scoped safe warning.
-* Production currently reports `400 Invalid query: Attribute not found in schema: active` for the authenticated Broadcast query. Resolve that schema/contract drift only in a separately approved Appwrite task; do not broaden public permissions.
+* Public standalone routes and pre-auth states must not issue the Broadcast request.
+* Authenticated workspace routes may request Broadcasts only after `authReady` and a user ID are present. `BroadcastBanner` creates a short-lived Appwrite JWT and calls `GET /api/broadcasts`.
+* The Vercel endpoint validates the JWT through Appwrite `/account`, reads the server-only collection with the server API key, filters active/non-expired records, fails closed for malformed required fields or expiry values, and returns only `id`, `title`, `body`, and `severity`.
+* Browser code must not query the `broadcasts` collection directly. Collection permissions remain empty; normal users have no create, update, delete, activate, or schedule access.
+* The canonical status field is `active`; the only approved schedule field is optional `expires_at`. Start-time scheduling is not part of the current contract.
+* Session dismissal remains browser-local. Disabling the authenticated policy clears loaded Broadcast state so logout cannot retain a prior workspace banner.

@@ -1,6 +1,6 @@
 # Project Atlas — Source of Truth Master Inventory Map
 
-**Last Verified:** 2026-07-03
+**Last Verified:** 2026-07-24
 **Status:** Canonical Documentation Index
 **Consolidation Status:** Documentation consolidation merged to main at `9567aa3066d58dd7636369d894f6eec15d72555b`. Living Docs Normalization merged to main at `5497ce41a657245125fd0ebeca949e6bdd1fa58d`. Phase 2 Routing Rules merged at `ceace5c1`.
 **Location:** `Project Atlas/SOURCE_OF_TRUTH_MAP.md`
@@ -52,6 +52,7 @@
 * `features/cover-letters.md` — Cover Letters specification.
 * `features/jobs-applications.md` — Remote Jobs and Applications specification.
 * `features/notifications.md` — In-App Notifications & Bell Dropdown specification.
+* `features/broadcasts.md` — Authenticated Workspace Broadcasts specification.
 * `features/devkit-admin.md` — DevKit Admin Hub specification.
 * `features/plans/` — Active feature execution plans (e.g. `interview-feature-fix-plan.md`, `english-default-localization.md`).
 * `features/specs/` — Detailed feature design specifications (e.g. `social-preview-landing-route-design.md`).

@@ -18,7 +18,7 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
-* **Latest Verified Code-Bearing Deployment:** Vercel deployment `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm` for commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c`; environment URL `https://wise-resume-duk55phaa-iam-magdy.vercel.app`; Vercel status `READY`.
+* **Latest Verified Code-Bearing Deployment:** Vercel deployment `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`; environment URL `https://wise-resume-8rc0tr8nr-iam-magdy.vercel.app`; Vercel status `READY`; aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`.
 * **Trigger:** Pushes to the `main` branch automatically trigger Vercel production deployment workflows.
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist/`
@@ -42,14 +42,13 @@ Appwrite Functions are deployed independently from the frontend application usin
 
 ### Latest Verified Appwrite Deployment
 
-* **Target:** `ai-gateway` only.
-* **GitHub Actions Run:** `30048216417` - success in `2m29s`.
-* **Appwrite Deployment:** `6a628eafd09be552df71` - `ready`.
-* **Source Hash:** `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12`.
-* **Runtime Timeout:** `180 s`. Tailoring internally remains bounded to its `68 s` gateway budget.
+* **Target:** `admin-devkit-data` only.
+* **GitHub Actions Run:** `30051406249` - success in `1m15s`.
+* **Appwrite Deployment:** `6a629b8351abe36cd0c3` - `ready`.
+* **Source Hash:** `21a8df1890e76655c36e403fc8c17813de11db4e22d6b77ecaba8a2539e97e02`.
 * **Smoke:** HTTP 200.
-* **Schema Scope:** All general schema workflow steps were skipped; no schema change was made.
-* **Repository Parity:** The active `ai-gateway` deployment matches the repository hash. Tailoring project metadata preservation was production verified after this targeted deployment.
+* **Schema Scope:** The new Broadcast schema helper created seven canonical attributes and retained empty collection permissions. General schema steps were skipped. The workflow's existing idempotent `admin-devkit-data` impersonation-session dependency check also ran.
+* **Repository Parity:** The active `admin-devkit-data` deployment matches the repository hash. Post-apply Broadcast dry-run reports eight total attributes, zero planned changes, zero documents, and no migration work.
 
 ---
 

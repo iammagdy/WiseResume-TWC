@@ -1,6 +1,6 @@
 # Canonical Data Model & Collections Specification
 
-**Last Verified:** 2026-07-21
+**Last Verified:** 2026-07-24
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/data-model.md`  
 
@@ -42,3 +42,10 @@ Appwrite Databases stores application entities across 96+ collections.
   * `$id`: Unique notification ID.
   * Attributes: `user_id`, `type`, `title`, `message`, `is_read`, `created_at`.
   * Security: `documentSecurity: true`.
+* **`broadcasts`**:
+  * `$id`: Unique workspace announcement ID.
+  * Canonical attributes: `title`, `body`, `severity`, `active`, `created_by`, `created_at`, optional `expires_at`.
+  * Legacy attribute retained non-destructively: optional `user_id`.
+  * Security: server-only collection with empty collection permissions and `documentSecurity: false`. Normal users never read or mutate documents directly.
+  * Delivery: authenticated, sanitized `GET /api/broadcasts`; owner writes use signed `admin-devkit-data` actions.
+  * Scheduling: `active` plus optional expiry only. No start-time field is currently supported.

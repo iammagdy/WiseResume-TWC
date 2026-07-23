@@ -1,6 +1,6 @@
 # Feature Specification: DevKit Admin Hub
 
-**Last Verified:** 2026-07-21
+**Last Verified:** 2026-07-24
 **Status:** Active Production Feature  
 **Location:** `Project Atlas/features/devkit-admin.md`  
 
@@ -27,7 +27,7 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 
 ## 4. Related Appwrite Functions & Collections
 * **Functions:** `admin-devkit-data` (cross-user operations and Act As issuance), `admin-impersonate` (Act As verification/revocation), `email-service` (admin-triggered verification and password-reset-code delivery), `admin-visitor-analytics`, `admin-feature-flags`.
-* **Collections:** `profiles`, `resumes`, `portfolio_visits`, `admin_impersonation_sessions`, `admin_audit_logs`.
+* **Collections:** `profiles`, `resumes`, `portfolio_visits`, `admin_impersonation_sessions`, `admin_audit_logs`, `broadcasts`.
 * **Required Function Environment Variables:**
   - `EMAIL_SERVICE_INTERNAL_HMAC_SECRET`: Required dedicated internal HMAC signing secret for cross-function authentication between `admin-devkit-data` and `email-service` (must be configured on both functions before deployment).
 
@@ -41,12 +41,14 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 * User controls are grouped into Access, Account, Moderation, and Advanced areas. Identity-collision actions are drawer-only, require a confirmed collision, and suspend the duplicate profile without transferring data.
 * Admins can send a secure single-use 15-minute password-reset link (`https://wiseresume.app/auth/reset-password?email=...&challengeToken=...`) to the selected Appwrite Auth user. Requests route through `admin-devkit-data` (`send-admin-password-reset-link`, which resolves the user's email) and pass an internal HMAC-signed payload (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`) to `email-service` (`internal-send-admin-password-reset-link`). Only the HMAC hash of the challenge token is stored at rest (`challenge_token_hash` in `password_reset_otps`). The link is never displayed in DevKit or stored in audit logs, and a success audit (`admin-password-reset-link-sent`) is written only after delivery succeeds.
 * Act As sessions are fail-closed and stored in the server-only `admin_impersonation_sessions` collection provisioned by the targeted Appwrite Hubs workflow.
+* Feature Control includes Workspace Broadcast management. Signed owner-only `admin-devkit-data` actions list, publish, and expire records using the canonical `active` and optional `expires_at` fields. Audit metadata records the document ID, severity, and expiry presence without copying message content.
 * AI Keys Page includes a real AI Key & Model Tester powered by `inspect-ai-keys` (`test-ai-key-slot`, `test-ai-provider`, `test-all-ai-keys`). Issues real OpenAI-compatible completion pings (`"Reply with only OK."`, max 10 tokens, 12s timeout) with 2-request concurrency batching, strict status mapping (`success`, `missing_key`, `invalid_key`, `model_not_found`, `rate_limited`, `provider_error`, `timeout`), status chips, latency, timestamp, unsaved model warning pills (`"Testing unsaved model selection"`), and graceful persistence to `app_settings.ai_key_test_results`.
 
 ---
 
 ## 6. Important Rules & Constraints
 * Browser-side client SDK calls are strictly forbidden from reading cross-user data; all DevKit data operations MUST route through `admin-devkit-data`.
+* Broadcast collection permissions must remain empty. Do not grant normal users direct read, create, update, delete, activate, or schedule access.
 * Password gate must lock out invalid attempts.
 * Public user-initiated password reset remains strictly OTP-based. Admin-triggered password reset is strictly link-based.
 * Password-reset link actions are send-link-only. DevKit must never display, log, or store raw challenge tokens, reset URLs, passwords, OTPs, email bodies, or provider payloads.
