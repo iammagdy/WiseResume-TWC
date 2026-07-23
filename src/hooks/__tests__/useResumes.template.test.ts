@@ -41,3 +41,53 @@ describe('resumeDataToDb — default template (B2)', () => {
     expect(resumeDataToDb({ ...resume, templateId: 'executive' } as ResumeData, 'u1').template).toBe('executive');
   });
 });
+
+describe('resume project metadata mapping', () => {
+  it('round-trips project identity, dates, current state, and URLs', () => {
+    const resume: ResumeData = {
+      title: 'Project metadata fixture',
+      templateId: 'modern',
+      contactInfo: { fullName: 'QA Candidate', email: '', phone: '', location: '' },
+      summary: '',
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      awards: [],
+      projects: [
+        {
+          id: 'project-current',
+          name: 'Atlas Console',
+          role: 'Lead Developer',
+          startDate: '2024-02',
+          endDate: '',
+          current: true,
+          technologies: ['React'],
+          description: 'Current project.',
+          url: 'https://example.com/atlas',
+          githubUrl: 'https://github.com/example/atlas',
+        },
+        {
+          id: 'project-complete',
+          name: 'Signal API',
+          role: 'Backend Developer',
+          startDate: '2022-03',
+          endDate: '2023-07',
+          current: false,
+          technologies: ['Node.js'],
+          description: 'Completed project.',
+        },
+      ],
+    };
+
+    const stored = resumeDataToDb(resume, 'qa-user');
+    const hydrated = dbToResumeData({
+      ...stored,
+      $id: 'resume-1',
+      $createdAt: '2026-07-24T00:00:00.000Z',
+      $updatedAt: '2026-07-24T00:00:00.000Z',
+    });
+
+    expect(hydrated.projects).toEqual(resume.projects);
+  });
+});

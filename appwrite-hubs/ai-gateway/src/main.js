@@ -1805,6 +1805,121 @@ function preserveStructuredIds(parsedItems, originalItems, matcher) {
   });
 }
 
+function projectIdentityName(item) {
+  return normalizeIdentityValue(item.name || item.title);
+}
+
+function projectIdentityRole(item) {
+  return normalizeIdentityValue(item.role);
+}
+
+function findUniqueProjectFallbackIndex(originalIndex, originals, parsedList, matches, usedParsedIndexes) {
+  const original = originals[originalIndex];
+  const name = projectIdentityName(original);
+  if (!name) return -1;
+
+  const unmatchedOriginalIndexes = originals
+    .map((_, index) => index)
+    .filter((index) => matches[index] === -1);
+  const availableParsedIndexes = parsedList
+    .map((_, index) => index)
+    .filter((index) => !usedParsedIndexes.has(index) && !asString(parsedList[index].id));
+  const role = projectIdentityRole(original);
+
+  if (role) {
+    const sourceMatches = unmatchedOriginalIndexes.filter((index) => (
+      projectIdentityName(originals[index]) === name &&
+      projectIdentityRole(originals[index]) === role
+    ));
+    const parsedMatches = availableParsedIndexes.filter((index) => (
+      projectIdentityName(parsedList[index]) === name &&
+      projectIdentityRole(parsedList[index]) === role
+    ));
+    if (sourceMatches.length === 1 && parsedMatches.length === 1) return parsedMatches[0];
+  }
+
+  const sourceMatches = unmatchedOriginalIndexes.filter((index) => (
+    projectIdentityName(originals[index]) === name
+  ));
+  const parsedMatches = availableParsedIndexes.filter((index) => (
+    projectIdentityName(parsedList[index]) === name
+  ));
+  return sourceMatches.length === 1 && parsedMatches.length === 1 ? parsedMatches[0] : -1;
+}
+
+function normalizeSourceProjectForTailor(original) {
+  const technologies = toStringArray(original.technologies);
+  return {
+    id: asString(original.id),
+    name: asString(original.name || original.title),
+    role: asString(original.role),
+    startDate: asString(original.startDate),
+    endDate: asString(original.endDate),
+    current: original.current != null ? asBoolean(original.current) : asBoolean(original.isCurrent),
+    technologies,
+    description: asString(original.description),
+    url: asOptionalString(original.url || original.link),
+    githubUrl: asOptionalString(original.githubUrl),
+  };
+}
+
+function mergeTailoredProjectWithSource(original, tailored) {
+  const source = normalizeSourceProjectForTailor(original);
+  const tailoredTechnologies = toStringArray(tailored.technologies);
+  return {
+    id: source.id,
+    name: asString(tailored.name || tailored.title) || source.name,
+    role: asString(tailored.role) || source.role,
+    startDate: source.startDate,
+    endDate: source.endDate,
+    current: source.current,
+    technologies: tailoredTechnologies.length ? tailoredTechnologies : source.technologies,
+    description: asString(tailored.description) || source.description,
+    url: source.url,
+    githubUrl: source.githubUrl,
+  };
+}
+
+function mergeTailorProjectsWithOriginals(parsedItems, originalItems) {
+  const originals = Array.isArray(originalItems) ? originalItems.filter(isRecord) : [];
+  if (!originals.length) return [];
+
+  const parsedList = Array.isArray(parsedItems) ? parsedItems.filter(isRecord) : [];
+  const matches = originals.map(() => -1);
+  const usedParsedIndexes = new Set();
+
+  originals.forEach((original, originalIndex) => {
+    const originalId = asString(original.id);
+    if (!originalId) return;
+    const parsedIndex = parsedList.findIndex((item, index) => (
+      !usedParsedIndexes.has(index) && asString(item.id) === originalId
+    ));
+    if (parsedIndex === -1) return;
+    matches[originalIndex] = parsedIndex;
+    usedParsedIndexes.add(parsedIndex);
+  });
+
+  originals.forEach((_, originalIndex) => {
+    if (matches[originalIndex] !== -1) return;
+    const parsedIndex = findUniqueProjectFallbackIndex(
+      originalIndex,
+      originals,
+      parsedList,
+      matches,
+      usedParsedIndexes,
+    );
+    if (parsedIndex === -1) return;
+    matches[originalIndex] = parsedIndex;
+    usedParsedIndexes.add(parsedIndex);
+  });
+
+  return originals.map((original, index) => (
+    matches[index] === -1
+      ? normalizeSourceProjectForTailor(original)
+      : mergeTailoredProjectWithSource(original, parsedList[matches[index]])
+  ));
+}
+
 function normalizeTailorResumeCollections(parsed, opts = {}) {
   const resume = isRecord(opts.resume) ? opts.resume : {};
   return {
@@ -1832,14 +1947,7 @@ function normalizeTailorResumeCollections(parsed, opts = {}) {
         normalizeIdentityValue(original.degree) === normalizeIdentityValue(item.degree)
       ),
     ),
-    projects: mergeTailorItemsWithOriginals(
-      parsed.projects,
-      resume.projects,
-      (original, item) => (
-        normalizeIdentityValue(original.name) !== '' &&
-        normalizeIdentityValue(original.name) === normalizeIdentityValue(item.name)
-      ),
-    ),
+    projects: mergeTailorProjectsWithOriginals(parsed.projects, resume.projects),
     certifications: mergeTailorItemsWithOriginals(
       parsed.certifications,
       resume.certifications,
@@ -2179,7 +2287,7 @@ function schemaPrompt(featureName, opts) {
   const schemas = {
     'score-resume': '{"overallScore":0,"skillsMatch":0,"experienceRelevance":0,"keywordAlignment":0,"atsCompatibility":0,"strengths":[],"improvements":[]}',
     'analyze-resume': '{"score":{"overallScore":0,"overall":0,"skillsMatch":0,"skills":0,"experienceRelevance":0,"experience":0,"keywordAlignment":0,"keywords":0,"atsCompatibility":0,"strengths":[],"improvements":[]},"gaps":{"missingKeywords":[],"missingSkills":[],"suggestedSections":[],"recommendedPhrases":[],"priorityImprovements":[]}}',
-    'tailor-resume': '{"summary":"","skills":[],"experience":[{"id":"","company":"","position":"","startDate":"","endDate":"","current":false,"description":"","achievements":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","gpa":""}],"projects":[{"id":"","name":"","role":"","startDate":"","endDate":"","technologies":[],"description":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}],"awards":[{"id":"","title":"","issuer":"","date":"","description":""}],"keyChanges":[""],"overallScore":{"before":0,"after":0},"bulletTransformations":[{"experienceId":"","bulletIndex":0,"originalBullet":"","enhancedBullet":""}]}',
+    'tailor-resume': '{"summary":"","skills":[],"experience":[{"id":"","company":"","position":"","startDate":"","endDate":"","current":false,"description":"","achievements":[]}],"education":[{"id":"","institution":"","degree":"","field":"","startDate":"","endDate":"","gpa":""}],"projects":[{"id":"","name":"","role":"","startDate":"","endDate":"","current":false,"technologies":[],"description":"","url":"","githubUrl":""}],"certifications":[{"id":"","name":"","issuer":"","date":""}],"awards":[{"id":"","title":"","issuer":"","date":"","description":""}],"keyChanges":[""],"overallScore":{"before":0,"after":0},"bulletTransformations":[{"experienceId":"","bulletIndex":0,"originalBullet":"","enhancedBullet":""}]}',
     'generate-cover-letter': '{"coverLetter":""}',
     'recruiter-simulation': '{"analysis":{"hireabilityScore":0,"scoreExplanation":"","firstImpression":"","redFlags":[],"questionsIdAsk":[],"callMeFactors":[],"overallVerdict":"maybe_call","verdictReasoning":"","topPriorityFix":""}}',
     'detect-and-humanize': opts.action === 'humanize' ? '{"humanized":{"original":"","humanized":"","changes":[]}}' : '{"detection":{"aiScore":0,"humanScore":0,"confidence":"medium","flags":[],"verdict":""}}',
@@ -2329,8 +2437,11 @@ function buildTailorResumeSystemPrompt(opts) {
     '      "role": "<role - align with job terminology>",\n' +
     '      "startDate": "<keep original>",\n' +
     '      "endDate": "<keep original>",\n' +
+    '      "current": <keep original boolean>,\n' +
     '      "technologies": ["<techs used>"],\n' +
-    '      "description": "<ENHANCED description highlighting job relevance>"\n' +
+    '      "description": "<ENHANCED description highlighting job relevance>",\n' +
+    '      "url": "<keep original if present>",\n' +
+    '      "githubUrl": "<keep original if present>"\n' +
     '    }\n' +
     '  ],\n' +
     '  "certifications": [\n' +
@@ -2420,7 +2531,14 @@ function buildTailorMessages(opts) {
     resumeDisplay += 'PROJECTS:\n';
     for (const proj of resume.projects) {
       if (!isRecord(proj)) continue;
-      resumeDisplay += `[ID: ${proj.id}] ${proj.name || ''} (${proj.role || ''}): ${proj.description || ''}\n`;
+      resumeDisplay += `[ID: ${proj.id}] ${proj.name || proj.title || ''} (${proj.role || ''}): ${proj.description || ''}\n`;
+      resumeDisplay += `Metadata (preserve exactly): ${JSON.stringify({
+        startDate: proj.startDate || '',
+        endDate: proj.endDate || '',
+        current: proj.current != null ? proj.current === true : proj.isCurrent === true,
+        url: proj.url || proj.link || '',
+        githubUrl: proj.githubUrl || '',
+      })}\n`;
       if (Array.isArray(proj.technologies)) {
         resumeDisplay += `Technologies: ${proj.technologies.join(', ')}\n`;
       }

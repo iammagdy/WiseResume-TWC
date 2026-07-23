@@ -32,24 +32,145 @@ function findExperienceMatch(
   return undefined;
 }
 
-function findProjectMatch(
-  original: NonNullable<ResumeData['projects']>[number],
-  tailoredProjects: NonNullable<ResumeData['projects']>,
-  index: number,
-  originalLength: number,
-): NonNullable<ResumeData['projects']>[number] | undefined {
-  const byId = tailoredProjects.find((item) => item.id === original.id);
-  if (byId) return byId;
+type ProjectItem = NonNullable<ResumeData['projects']>[number];
+type ProjectItemWithAliases = ProjectItem & {
+  title?: string;
+  isCurrent?: boolean;
+  link?: string;
+};
 
-  const name = normalizeMatchValue(original.name);
-  const byName = tailoredProjects.find((item) => normalizeMatchValue(item.name) === name && name !== '');
-  if (byName) return byName;
+function nonBlankProjectText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
 
-  if (tailoredProjects.length === originalLength) {
-    return tailoredProjects[index];
+function projectIdentityName(project: ProjectItem): string {
+  const item = project as ProjectItemWithAliases;
+  return normalizeMatchValue(item.name || item.title);
+}
+
+function projectIdentityRole(project: ProjectItem): string {
+  return normalizeMatchValue(project.role);
+}
+
+function findUniqueProjectFallbackIndex(
+  originalIndex: number,
+  originals: ProjectItem[],
+  tailoredProjects: ProjectItem[],
+  matches: number[],
+  usedTailoredIndexes: Set<number>,
+): number {
+  const original = originals[originalIndex];
+  const name = projectIdentityName(original);
+  if (!name) return -1;
+
+  const unmatchedOriginalIndexes = originals
+    .map((_, index) => index)
+    .filter((index) => matches[index] === -1);
+  const availableTailoredIndexes = tailoredProjects
+    .map((_, index) => index)
+    .filter((index) => !usedTailoredIndexes.has(index) && !tailoredProjects[index].id);
+  const role = projectIdentityRole(original);
+
+  if (role) {
+    const sourceMatches = unmatchedOriginalIndexes.filter((index) => (
+      projectIdentityName(originals[index]) === name &&
+      projectIdentityRole(originals[index]) === role
+    ));
+    const tailoredMatches = availableTailoredIndexes.filter((index) => (
+      projectIdentityName(tailoredProjects[index]) === name &&
+      projectIdentityRole(tailoredProjects[index]) === role
+    ));
+    if (sourceMatches.length === 1 && tailoredMatches.length === 1) {
+      return tailoredMatches[0];
+    }
   }
 
-  return undefined;
+  const sourceMatches = unmatchedOriginalIndexes.filter((index) => (
+    projectIdentityName(originals[index]) === name
+  ));
+  const tailoredMatches = availableTailoredIndexes.filter((index) => (
+    projectIdentityName(tailoredProjects[index]) === name
+  ));
+  return sourceMatches.length === 1 && tailoredMatches.length === 1
+    ? tailoredMatches[0]
+    : -1;
+}
+
+function sourceProject(project: ProjectItem): ProjectItem {
+  const item = project as ProjectItemWithAliases;
+  return {
+    id: item.id || '',
+    name: item.name || item.title || '',
+    role: item.role || '',
+    startDate: item.startDate || '',
+    endDate: item.endDate || '',
+    current: item.current ?? item.isCurrent,
+    technologies: Array.isArray(item.technologies) ? item.technologies : [],
+    description: item.description || '',
+    url: item.url || item.link,
+    githubUrl: item.githubUrl,
+  };
+}
+
+function mergeTailoredProject(original: ProjectItem, tailored: ProjectItem): ProjectItem {
+  const source = sourceProject(original);
+  const tailoredItem = tailored as ProjectItemWithAliases;
+  const tailoredTechnologies = Array.isArray(tailored.technologies)
+    ? tailored.technologies.filter((technology) => typeof technology === 'string' && technology.trim())
+    : [];
+  return {
+    id: source.id,
+    name: nonBlankProjectText(tailoredItem.name || tailoredItem.title) || source.name,
+    role: nonBlankProjectText(tailoredItem.role) || source.role,
+    startDate: source.startDate,
+    endDate: source.endDate,
+    current: source.current,
+    technologies: tailoredTechnologies.length ? tailoredTechnologies : source.technologies,
+    description: nonBlankProjectText(tailoredItem.description) || source.description,
+    url: source.url,
+    githubUrl: source.githubUrl,
+  };
+}
+
+function mergeTailorProjectsWithOriginals(
+  originals: ProjectItem[],
+  tailoredProjects: ProjectItem[] | undefined,
+): ProjectItem[] {
+  if (!originals.length) return [];
+
+  const tailoredList = Array.isArray(tailoredProjects) ? tailoredProjects : [];
+  const matches = originals.map(() => -1);
+  const usedTailoredIndexes = new Set<number>();
+
+  originals.forEach((original, originalIndex) => {
+    if (!original.id) return;
+    const tailoredIndex = tailoredList.findIndex((item, index) => (
+      !usedTailoredIndexes.has(index) && item.id === original.id
+    ));
+    if (tailoredIndex === -1) return;
+    matches[originalIndex] = tailoredIndex;
+    usedTailoredIndexes.add(tailoredIndex);
+  });
+
+  originals.forEach((_, originalIndex) => {
+    if (matches[originalIndex] !== -1) return;
+    const tailoredIndex = findUniqueProjectFallbackIndex(
+      originalIndex,
+      originals,
+      tailoredList,
+      matches,
+      usedTailoredIndexes,
+    );
+    if (tailoredIndex === -1) return;
+    matches[originalIndex] = tailoredIndex;
+    usedTailoredIndexes.add(tailoredIndex);
+  });
+
+  return originals.map((original, index) => (
+    matches[index] === -1
+      ? sourceProject(original)
+      : mergeTailoredProject(original, tailoredList[matches[index]])
+  ));
 }
 
 function findCertificationMatch(
@@ -416,10 +537,9 @@ export function buildMergedResume(
     });
   }
   if (enabledSections.includes('projects')) {
-    mergedResume.projects = mergeListWithOriginals(
+    mergedResume.projects = mergeTailorProjectsWithOriginals(
       currentResume.projects ?? [],
       tailorResult.projects,
-      (orig, list, index, length) => findProjectMatch(orig, list, index, length),
     );
   }
   if (enabledSections.includes('certifications')) {

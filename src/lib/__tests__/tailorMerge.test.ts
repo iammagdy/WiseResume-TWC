@@ -387,4 +387,216 @@ describe('buildMergedResume', () => {
     );
     expect(result.experience[0].achievements[0]).toBe('Built React app');
   });
+
+  it('preserves source project metadata when reordered AI projects omit or blank it', () => {
+    const resumeWithProjects: ResumeData = {
+      ...mockResume,
+      projects: [
+        {
+          id: 'project-current',
+          name: 'Atlas Console',
+          role: 'Lead Developer',
+          startDate: '2024-02',
+          endDate: '',
+          current: true,
+          technologies: ['React', 'TypeScript'],
+          description: 'Built an internal operations console.',
+          url: 'https://example.com/atlas',
+          githubUrl: 'https://github.com/example/atlas',
+        },
+        {
+          id: 'project-complete',
+          name: 'Signal API',
+          role: 'Backend Developer',
+          startDate: '2022-03',
+          endDate: '2023-07',
+          current: false,
+          technologies: ['Node.js'],
+          description: 'Built an event ingestion API.',
+          url: 'https://example.com/signal',
+        },
+      ],
+    };
+    const tailoredProjects = [
+      {
+        id: 'project-complete',
+        name: 'Signal API',
+        role: 'Backend Developer',
+        startDate: null,
+        endDate: '',
+        current: true,
+        technologies: [],
+        description: 'Built a resilient event ingestion API for high-volume workloads.',
+        url: '',
+      },
+      {
+        id: 'project-current',
+        name: 'Atlas Console',
+        role: 'Lead Developer',
+        technologies: ['React', 'TypeScript', 'Accessibility'],
+        description: 'Led delivery of an accessible operations console.',
+      },
+    ] as unknown as NonNullable<SuperTailorResult['projects']>;
+
+    const result = buildMergedResume(
+      resumeWithProjects,
+      { ...mockTailorResult, projects: tailoredProjects },
+      ['projects'],
+    );
+
+    expect(result.projects).toEqual([
+      {
+        ...resumeWithProjects.projects![0],
+        technologies: ['React', 'TypeScript', 'Accessibility'],
+        description: 'Led delivery of an accessible operations console.',
+      },
+      {
+        ...resumeWithProjects.projects![1],
+        description: 'Built a resilient event ingestion API for high-volume workloads.',
+      },
+    ]);
+    expect(result.experience).toEqual(resumeWithProjects.experience);
+    expect(result.education).toEqual(resumeWithProjects.education);
+  });
+
+  it('uses unique name and role fallback only when AI project IDs are absent', () => {
+    const duplicateNames: ResumeData = {
+      ...mockResume,
+      projects: [
+        {
+          id: 'project-web',
+          name: 'Launchpad',
+          role: 'Frontend Developer',
+          startDate: '2023-01',
+          endDate: '2023-08',
+          current: false,
+          technologies: ['React'],
+          description: 'Built the web application.',
+        },
+        {
+          id: 'project-api',
+          name: 'Launchpad',
+          role: 'Backend Developer',
+          startDate: '2023-02',
+          endDate: '',
+          current: true,
+          technologies: ['Node.js'],
+          description: 'Built the API.',
+        },
+      ],
+    };
+    const projectsWithoutIds = [
+      {
+        id: '',
+        name: 'Launchpad',
+        role: 'Backend Developer',
+        description: 'Scaled the API for production traffic.',
+        technologies: ['Node.js', 'PostgreSQL'],
+      },
+      {
+        id: '',
+        name: 'Launchpad',
+        role: 'Frontend Developer',
+        description: 'Improved the web application experience.',
+        technologies: ['React', 'TypeScript'],
+      },
+      {
+        id: 'ai-only',
+        name: 'Invented Project',
+        role: 'Owner',
+        description: 'This must not be added.',
+        technologies: ['Unknown'],
+      },
+    ] as unknown as NonNullable<SuperTailorResult['projects']>;
+
+    const result = buildMergedResume(
+      duplicateNames,
+      { ...mockTailorResult, projects: projectsWithoutIds },
+      ['projects'],
+    );
+
+    expect(result.projects).toHaveLength(2);
+    expect(result.projects?.map((project) => project.id)).toEqual(['project-web', 'project-api']);
+    expect(result.projects?.map((project) => project.description)).toEqual([
+      'Improved the web application experience.',
+      'Scaled the API for production traffic.',
+    ]);
+    expect(result.projects?.map((project) => [project.startDate, project.endDate, project.current])).toEqual([
+      ['2023-01', '2023-08', false],
+      ['2023-02', '', true],
+    ]);
+  });
+
+  it('does not cross-merge ambiguous projects or append AI-only projects', () => {
+    const ambiguousProjects: ResumeData = {
+      ...mockResume,
+      projects: [
+        {
+          id: 'project-a',
+          name: 'Client Portal',
+          role: 'Developer',
+          startDate: '2021-01',
+          endDate: '2021-05',
+          current: false,
+          technologies: ['React'],
+          description: 'Original project A.',
+        },
+        {
+          id: 'project-b',
+          name: 'Client Portal',
+          role: 'Developer',
+          startDate: '2022-01',
+          endDate: '2022-05',
+          current: false,
+          technologies: ['Vue'],
+          description: 'Original project B.',
+        },
+      ],
+    };
+    const ambiguousAiProjects = [
+      {
+        id: '',
+        name: 'Client Portal',
+        role: 'Developer',
+        description: 'Ambiguous rewrite.',
+        technologies: ['Unknown'],
+      },
+      {
+        id: 'unknown-project',
+        name: 'AI-only Project',
+        role: 'Developer',
+        description: 'Invented rewrite.',
+        technologies: ['Unknown'],
+      },
+    ] as unknown as NonNullable<SuperTailorResult['projects']>;
+
+    const result = buildMergedResume(
+      ambiguousProjects,
+      { ...mockTailorResult, projects: ambiguousAiProjects },
+      ['projects'],
+    );
+
+    expect(result.projects).toEqual(ambiguousProjects.projects);
+  });
+
+  it('does not create projects when the source resume has none', () => {
+    const aiOnlyProject = [{
+      id: 'ai-only',
+      name: 'Invented Project',
+      role: 'Developer',
+      startDate: '2026-01',
+      endDate: '',
+      current: true,
+      technologies: ['React'],
+      description: 'Invented content.',
+    }];
+
+    const result = buildMergedResume(
+      mockResume,
+      { ...mockTailorResult, projects: aiOnlyProject },
+      ['projects'],
+    );
+
+    expect(result.projects).toEqual([]);
+  });
 });
