@@ -1,7 +1,8 @@
 # Performance Phase 4 - Tailoring Bounded Execution and Recovery
 
 **Date:** 2026-07-23
-**Verdict:** PASS_WITH_WARNINGS
+**Phase Verdict:** `PASS_WITH_WARNINGS`
+**Current Tailoring Status:** `PRODUCT_BUG`
 **Production:** `https://wiseresume.app`
 **Branch:** `main`
 
@@ -118,9 +119,24 @@ Post-recovery smoke:
 
 The browser's observed terminal state occurred well below the 75-second frontend cap. The selected `Test Resume` produced no meaningful changes, so this run verified result transport and the unchanged-output recovery path, not creation of a new result page.
 
+## Final Rich Production Verification
+
+A later controlled run used a fictional, content-rich marketing resume and an aligned fictional SaaS growth job description.
+
+* Initial provider execution `6a62838657ab0172051b` completed HTTP 200 in `14.811 s`; DeepSeek `deepseek-chat` succeeded on attempt one in `11.929 s`, with no fallback.
+* The first result-only Appwrite execution failed transiently at the platform layer. One controlled retry recovered the cached result through executions `6a6283ef9634bade737b` and `6a6283f0e6b7f9158a7a` without provider work or another charge.
+* The retry reached result resume `6a6283f40001464122f4` in `9.809 s`.
+* Exactly one child resume was created; the source remained unchanged; result refresh and direct reopen passed.
+* The summary, both role descriptions, and all eight experience bullets changed materially. No employer, title, degree, certification, or unsupported numerical achievement was invented.
+* Exactly one two-credit charge was recorded for the entire action/recovery sequence.
+
+The rich run also found a content-integrity product bug: project start/end dates were dropped, and an empty current-role end date was normalized to `Present`. Code inspection proved that `buildTailorMessages()` omits project `startDate` and `endDate` from the model context even though the result schema expects them.
+
+Full evidence: `Project Atlas/qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md`.
+
 ## Remaining Risks
 
-* A newly created meaningful Tailoring result and result-page navigation should be confirmed with one richer controlled QA fixture. Do not repeatedly consume production credits to force this.
+* Tailoring project-date preservation must be fixed in a separately approved product task and retested with one controlled rich fixture. Do not change provider routing, models, credits, or unrelated prompt behavior.
 * External provider latency and outages remain possible but are bounded by the 42/23/68-second backend contract and 75-second frontend cap.
 * Public Portfolio cold-mobile LCP remains above the four-second target and was not reopened.
 * Authenticated Broadcast still queries a missing `active` attribute and was not changed.

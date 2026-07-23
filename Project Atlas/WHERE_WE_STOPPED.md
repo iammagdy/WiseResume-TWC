@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-07-23
-**Status:** Performance Phase 4 Tailoring Recovery Deployed and Verified with Meaningful-Result QA Warning
+**Status:** Tailoring Timing/Recovery Verified; Content-Integrity Product Bug Open
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,7 +12,7 @@
 * **Repository:** `iammagdy/WiseResume-TWC`
 * **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (Production deployment ID: `dpl_9hA3b3zKGZXddKKYrC4WmG54gBUn` for the latest verified code-bearing change).
+* **Frontend Hosting:** Vercel (latest verified code-bearing production: GitHub deployment `5579487506` for commit `66df7a3978c79a525742a6c07ab2836a4ca0cadf`).
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -52,7 +52,22 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: PERFORMANCE_PHASE_4_TAILORING_PASS_WITH_WARNINGS - Tailoring now has bounded provider and frontend waits, safe async Appwrite execution, idempotent result retrieval, actionable failure/no-result states, and no automatic provider retry. Production recovery is verified. A newly created meaningful tailored result was not proven because the available QA fixture correctly reached the unchanged-output guard.
+* **Session Status**: `BLOCKED_ON_TAILORING_CONTENT_INTEGRITY` - Interrupted-session recovery, implementation audit, focused validation, deployment parity, one rich production Tailoring run, and the full Atlas documentation reconciliation are complete. No product code was changed after the product bug was confirmed.
+* **Final Rich Tailoring Verification (2026-07-23)**:
+  - A fictional rich marketing resume and aligned fictional SaaS growth job description produced meaningful summary, role-description, and eight-bullet changes.
+  - Initial provider execution `6a62838657ab0172051b` completed in `14.811 s`; DeepSeek `deepseek-chat` succeeded on the first attempt in `11.929 s`; no fallback was used.
+  - The first result-only Appwrite execution failed transiently. One controlled retry recovered the cached result without provider work or another charge and reached child resume `6a6283f40001464122f4` in `9.809 s`.
+  - Exactly one child resume was created. The source remained unchanged; navigation, refresh, direct reopen, lineage, and result actions passed.
+  - Exactly one two-credit charge was recorded. There was no duplicate provider execution, duplicate child resume, or permanent idempotency lock.
+  - **Confirmed Product Bug**: Project `startDate` and `endDate` were dropped, and an empty current-role end date was normalized to `Present`. `buildTailorMessages()` omits project dates from the model context even though the result schema expects them.
+  - **Verdict**: `PRODUCT_BUG`. Timing/recovery remains verified, but Tailoring is not `VERIFIED_READY`.
+  - **Evidence**: `Project Atlas/qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md`.
+* **Documentation Reconciliation (2026-07-23)**:
+  - Added the missing Critical Functionality Smoke, Premium Cover Letter, July Production Performance Audit, and final rich Tailoring evidence reports.
+  - Corrected current AI architecture to document `resume-section-ai` and `job-import` exceptions.
+  - Corrected the Appwrite deployment workflow name and 28-function registry.
+  - Removed stale current Hostinger, Kinde/Supabase, Cover Letter access-blocked, and meaningful-Tailoring-pending claims from living docs.
+* **Previous Session Status**: PERFORMANCE_PHASE_4_TAILORING_PASS_WITH_WARNINGS - Tailoring has bounded provider and frontend waits, safe async Appwrite execution, idempotent result retrieval, actionable failure/no-result states, and no automatic provider retry.
 * **Performance Phase 4 (2026-07-22 to 2026-07-23)**:
   - **Confirmed Root Cause**: Two historical Tailoring executions (`6a6086ce7a33f9ad3e62`, `6a6086f0a9630fc42edb`) failed at Appwrite's exact 30-second synchronous execution ceiling. The old gateway could spend about 195 seconds across a 65-second primary, same-provider retry, and fallback, while the frontend had no effective bounded transport wait and automatically retried once. Stale pending idempotency rows and a short credit-lock TTL increased recovery risk.
   - **Bounded Backend**: Tailoring now has a 68-second total gateway budget, a 42-second primary attempt, one 23-second cross-provider fallback, a five-second minimum remaining-attempt gate, and a two-second cleanup reserve. Tailoring same-provider retry is disabled; routing order and models are unchanged.
@@ -62,7 +77,7 @@
   - **Validation**: Focused frontend recovery tests passed `5` files / `24` tests. Gateway routing and Tailoring recovery integration scripts passed. `node --check`, focused ESLint, `git diff --check`, TypeScript, production build, and no-sourcemap verification passed. The broader phase run passed `174` files / `1,004` tests with one skipped file and one todo; four load-sensitive tests timed out under full-suite concurrency and passed in isolated reruns.
   - **Deployment Status**: Vercel production deployment for recovery commit `66df7a3978c79a525742a6c07ab2836a4ca0cadf` succeeded as GitHub deployment `5579487506` (`https://wise-resume-d700lmekx-iam-magdy.vercel.app`). Targeted Appwrite workflow run `30042810382` deployed only `ai-gateway`; deployment `6a627b81bff27daaf366` is `ready`, source hash `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`, and the safe smoke returned HTTP 200.
   - **Production Evidence**: One post-fix request created exactly two Appwrite executions: provider execution `6a627c387a11d6e9ae91` completed in `4.754 s` with DeepSeek success in `2.902 s`; result-only execution `6a627c398ed25d37f977` completed in `3.653 s`. One `ai_request_logs` row recorded one two-credit charge and no idempotency hit. The UI exited loading in under the 75-second cap and displayed the actionable unchanged-output state with Retry/Edit controls; it did not save or navigate.
-  - **Warning**: The available production `Test Resume` fixture produced no meaningful changes, so post-fix creation/navigation to a new result page remains pending a richer controlled QA fixture. Do not consume repeated production credits to force this check.
+  - **Superseded Warning**: The first production `Test Resume` fixture produced no meaningful changes. The richer follow-up is now complete and exposed the project-date preservation defect documented above.
   - **Report**: `Project Atlas/reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md`.
 * **Session Status**: PERFORMANCE_PHASE_3_PUBLIC_PORTFOLIO_PASS_WITH_WARNINGS - Public Portfolio mobile CLS, avatar delivery, request startup, and optional-work contention were materially improved and production verified. The strict cold-mobile LCP target remains unmet, so this phase is not `VERIFIED_READY`. No Appwrite hub, schema, permission, auth, AI, credits, environment, or settings change was performed.
 * **Performance Phase 3 (2026-07-22)**:
@@ -167,22 +182,22 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Tailoring Meaningful-Result QA**: Use one richer controlled QA resume and one specific job description to confirm post-fix result creation/navigation. Do not alter prompts, routing, models, schemas, or credit policy for this verification.
+1. **Tailoring Content-Integrity Fix**: In a separately approved product task, pass project dates into Tailoring model context and preserve factual/date fields exactly. Add focused tests and use one controlled production retest. Do not change routing, models, credit policy, scoring, schemas, or unrelated prompt behavior.
 2. **Public Portfolio Architecture Decision**: Phase 3 materially reduced transfer, CLS, avatar cost, request delay, and optional contention, but cold-mobile LCP remains `5.860 s` median against the `<4.0 s` target. Any follow-up must separately approve a smaller public entry/provider graph or an earlier pre-React server-function request strategy without duplicating or weakening the gate architecture.
 3. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
-4. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
-5. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.
-6. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
-7. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
-8. **Deeper Manual QA**:
+4. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and Cover Letter generation flow once QA credits or a controlled test account are available.
+5. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
+6. **Existing Cover Letter Permissions Migration**: Existing Cover Letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
+7. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.
-9. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
+8. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
 
 ---
 
 ## 5. Blocked / Pending Owner Verification
 
+* **Tailoring Content Integrity**: Product fix and one controlled production retest require owner authorization. Current saved Tailoring results can drop project dates.
 * **Protected Portfolio Production Fixture**: `testprotected` now returns `Portfolio not found`. A safe current protected fixture is required to repeat live wrong-password and correct-unlock QA.
 * **Portfolio Realtime Notification Observation**: The interest API returned `200 {ok:true}` and creates the owner notification before responding, but an authenticated owner session is required to observe the Realtime notification event safely.
 * **LinkedIn OAuth Browser Verification**: PENDING_OWNER_VERIFICATION (requires manual check using owner credentials or test accounts on the deployed site).
@@ -201,7 +216,7 @@
 > 3. **Do NOT re-enable billing without explicit owner decision**: Billing is intentionally disabled / Coming Soon.
 > 4. **Do NOT treat `Project Atlas/archive/` as current truth**: Archive files are historical-only and non-canonical.
 > 5. **Do NOT perform target-all function deploys (`target=all`)**: Always specify targeted function directories (e.g. `node scripts/deploy_hubs.cjs --only=job-import`).
-> 6. **Do NOT force-push or overwrite `origin/main`**: A branch/repo mismatch risk exists on main; keep changes isolated on `audit/production-stabilization-qa`.
+> 6. **Do NOT force-push or overwrite `origin/main`**: Start from a freshly verified branch and preserve unrelated owner work. The stale `audit/production-stabilization-qa` branch warning is no longer current.
 
 ---
 

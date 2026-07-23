@@ -46,11 +46,13 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **GitHub Actions Run:** `30042810382` - success in `1m58s`.
 * **Appwrite Deployment:** `6a627b81bff27daaf366` - `ready`.
 * **Source Hash:** `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`.
+* **Runtime Timeout:** `180 s`. Tailoring internally remains bounded to its `68 s` gateway budget.
 * **Smoke:** HTTP 200.
 * **Schema Scope:** All global schema workflow steps were skipped. Existing `ai_credits` resources were checked idempotently; no schema change was made.
+* **Repository Parity:** The active `ai-gateway` deployment matches the repository hash. The later Tailoring project-date finding is a product-code defect, not deployment drift.
 
 ---
 
 ## 4. Legacy Deployment Reference
 
-* Historical documentation for legacy Hostinger FTP deployments is preserved for reference in [`Project Atlas/archive/legacy-hostinger-deployment-guide.md`](../archive/legacy-hostinger-deployment-guide.md).
+* Historical Hostinger/FTP material is preserved only in the Atlas archive and chronological handover. It is not current WiseResume deployment truth.

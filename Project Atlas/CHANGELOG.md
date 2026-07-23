@@ -1,5 +1,38 @@
 # Project Atlas Master Changelog
 
+## 2026-07-23 - Final Tailoring Verification and Atlas Audit Reconciliation
+
+- **Overall Classification**: `BLOCKED`
+- **Tailoring Classification**: `PRODUCT_BUG`
+- **Scope**: Recovered the interrupted session, audited the committed Tailoring timing/recovery implementation, reran focused validation, verified Vercel/Appwrite parity, performed one rich production Tailoring action plus one permitted cache-only recovery retry, and reconciled the full functionality/performance documentation sequence.
+- **Product Code**: No product files changed. No schema, permission, environment, provider, model, credit-policy, Vercel setting, or Appwrite setting changed. No deployment was performed.
+- **Implementation and Validation**:
+  - Implementation matched the previous timing/recovery report: `42 s` primary, at most one `23 s` cross-provider fallback, `68 s` backend budget, `75 s` frontend cap, async execution, authenticated result-only recovery, no silent provider retry, duplicate suppression, and result-only no-charge behavior.
+  - Focused Vitest passed `5` files / `24` tests.
+  - Gateway routing and Tailoring recovery Node scripts passed.
+  - `node --check`, `npx tsc --noEmit`, `npm run build`, source-hash recomputation, and `git diff --check` passed.
+  - Repository/deployment parity passed for Appwrite deployment `6a627b81bff27daaf366`, workflow `30042810382`, and source hash `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`.
+- **Rich Production Evidence**:
+  - Provider execution `6a62838657ab0172051b` completed in `14.811 s`; DeepSeek `deepseek-chat` succeeded on attempt one in `11.929 s`; no fallback.
+  - The first result-only Appwrite execution failed transiently. One controlled retry recovered the cached result without provider work or another charge.
+  - Exactly one child resume `6a6283f40001464122f4` was created. Source integrity, lineage, navigation, refresh/reopen persistence, and result actions passed.
+  - Summary, both role descriptions, and all eight experience bullets changed materially. No employer, title, degree, certification, or unsupported numerical achievement was invented.
+  - Exactly one two-credit charge was recorded; no duplicate provider execution or duplicate child resume occurred.
+- **Confirmed Product Bug**:
+  - Project `startDate` and `endDate` were dropped from the saved tailored resume; an empty current-role end date was normalized to `Present`.
+  - `buildTailorMessages()` omits project dates from the model context even though the structured result schema expects them.
+  - Per the stop condition, no product fix was attempted. Tailoring remains blocked pending a separately approved factual/date-preservation fix and one controlled retest.
+- **Documentation Added**:
+  - `Project Atlas/qa/production-stabilization/critical-functionality-smoke-audit-2026-07-21.md`
+  - `Project Atlas/qa/production-stabilization/premium-cover-letter-production-verification-2026-07-21.md`
+  - `Project Atlas/reports/performance/production-performance-audit-2026-07-22.md`
+  - `Project Atlas/qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md`
+  - `Project Atlas/features/jobs-applications.md`
+- **Documentation Reconciled**:
+  - Updated current state, handover, Tailoring, Cover Letters, AI Gateway, Appwrite Functions, deployment, AI reliability, architecture, governance, ADR, design-system context, and Phase 4 evidence.
+  - Corrected the Appwrite workflow name, 28-function registry, standalone AI exceptions, stale current Hostinger/Kinde/Supabase claims, stale Cover Letter access blocker, and stale meaningful-Tailoring-pending warning.
+  - Preserved original historical verdicts and marked unretained evidence `UNKNOWN`.
+
 ## 2026-07-23 - Performance Phase 4: Tailoring Bounded Execution and Production Recovery
 
 - **Classification**: PASS_WITH_WARNINGS

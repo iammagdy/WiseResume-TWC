@@ -1,6 +1,6 @@
 # WiseResume Architecture Overview
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-23
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/overview.md`  
 
@@ -43,7 +43,9 @@ WiseResume is a full-stack, Appwrite-native web application for resume creation,
 * **Database:** Appwrite Databases (`main` database) containing user profiles, resumes, tailoring histories, portfolios, and notifications.
 * **File Storage:** Appwrite Storage buckets for user avatars, uploaded resume files, and exported artifacts.
 * **Serverless Functions (`appwrite-hubs/`):**
-  * `ai-gateway`: Single server-side gateway for OpenAI / OpenRouter / Anthropic AI calls.
+  * `ai-gateway`: Server-side gateway for most product AI features.
+  * `resume-section-ai`: Explicit standalone server-side section-improvement hub.
+  * `job-import`: Explicit standalone server-side job/resume parsing hub.
   * `admin-devkit-data`: Privileged admin hub for DevKit data operations.
   * `admin-visitor-analytics`: Aggregates visitor stats and analytics.
 
@@ -52,6 +54,6 @@ WiseResume is a full-stack, Appwrite-native web application for resume creation,
 ## 3. Key Architectural Rules
 
 1. **Appwrite-Native:** The application uses Appwrite Auth, Databases, Storage, and Functions. Non-Appwrite backends (e.g. Supabase, Kinde) are legacy and strictly prohibited.
-2. **AI Routing:** All AI interactions must pass through the server-side Appwrite `ai-gateway` function to enforce rate limits, token validation, and API key security. Direct client-side AI provider calls are forbidden.
+2. **AI Routing:** Most AI interactions pass through `ai-gateway`; `resume-section-ai` and `job-import` are documented standalone Appwrite exceptions. Direct client-side provider calls and new undocumented bypasses are forbidden.
 3. **Admin Operation Security:** Cross-user database reads and writes must be executed server-side via Appwrite Functions (`admin-devkit-data`), never via direct client-side database permissions.
 4. **Billing Status:** Billing and paid subscriptions are currently disabled or set to "Coming Soon".

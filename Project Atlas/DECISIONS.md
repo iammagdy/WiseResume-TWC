@@ -40,8 +40,9 @@
 * **Status:** Approved
 * **Date:** 2026-06-26
 * **Context:** Direct client-side AI API calls presented security risks and rate-limiting issues.
-* **Decision:** All AI features (resume tailoring, cover letter generation, interview assistance) route through the server-side Appwrite `ai-gateway` function.
-* **Consequences:** Client code must not call external AI provider endpoints directly.
+* **Decision:** AI features use server-side Appwrite functions. Most route through `ai-gateway`; the existing `resume-section-ai` and `job-import` hubs are explicit standalone exceptions.
+* **2026-07-23 Amendment:** The earlier "all features" wording did not match the deployed source. This correction documents the exceptions without approving additional bypasses.
+* **Consequences:** Client code must not call external AI provider endpoints directly. New AI features should use `ai-gateway` unless a separate architecture decision approves another server-side boundary.
 
 ---
 

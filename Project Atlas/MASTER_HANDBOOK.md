@@ -1,6 +1,6 @@
 # Project Atlas — Master Handbook & AI Operating Manual
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-07-23
 **Status:** Living Master Operating Manual & Primary Entry Point  
 **Repository:** `iammagdy/WiseResume-TWC`  
 **Production Domain:** `wiseresume.app`  
@@ -39,7 +39,7 @@ All work on this repository must preserve `Project Atlas/` as the single, clean,
 * **Frontend Hosting:** Vercel
 * **Backend:** Appwrite Cloud (Databases, Storage, Serverless Functions)
 * **Auth:** Appwrite Auth exclusively
-* **AI Architecture:** All AI interactions route through the server-side Appwrite `ai-gateway` function
+* **AI Architecture:** Most AI interactions route through the server-side Appwrite `ai-gateway`; `resume-section-ai` and `job-import` are documented server-side exceptions
 * **Billing / Payments:** Disabled / Coming Soon
 
 ---
@@ -78,6 +78,7 @@ Before initiating any task, read these documents in order:
 * **[`upload-import.md`](./features/upload-import.md)** — Client-side CV parsing (PDF.js / Mammoth.js).
 * **[`preview-export.md`](./features/preview-export.md)** — PDF generation and printing.
 * **[`cover-letters.md`](./features/cover-letters.md)** — AI cover letter generator.
+* **[`jobs-applications.md`](./features/jobs-applications.md)** - Remote jobs and application tracker.
 * **[`notifications.md`](./features/notifications.md)** — In-app notifications & top bar Bell popover.
 * **[`devkit-admin.md`](./features/devkit-admin.md)** — Operations & DevKit administration.
 
@@ -97,4 +98,4 @@ Before initiating any task, read these documents in order:
 * Do NOT run target-all deploys (`target=all`). Always specify targeted function hubs (e.g. `--only=ai-gateway`).
 * Do NOT delete documentation files. Move stale files into `Project Atlas/archive/`.
 * Do NOT commit API secrets or credentials.
-* Do NOT bypass `ai-gateway` for AI functionality.
+* Do NOT add browser-to-provider AI calls or new gateway bypasses. The existing `resume-section-ai` and `job-import` exceptions require a separately approved consolidation task.

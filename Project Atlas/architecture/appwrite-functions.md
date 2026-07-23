@@ -1,84 +1,83 @@
 # Canonical Appwrite Functions Specification
 
-**Last Verified:** 2026-07-21
-**Status:** Canonical Architecture Specification  
-**Location:** `Project Atlas/architecture/appwrite-functions.md`  
+**Last Verified:** 2026-07-23
+**Status:** Canonical Architecture Specification
+**Location:** `Project Atlas/architecture/appwrite-functions.md`
 
 ---
 
 ## Overview
 
-WiseResume uses Appwrite Cloud Serverless Functions (`appwrite-hubs/`) to execute secure server-side logic, AI provider gateway calls, admin DevKit operations, and background tasks.
+WiseResume uses Appwrite Cloud Serverless Functions under `appwrite-hubs/` for secure AI calls, portfolio/public APIs, email, admin operations, scheduled work, and business logic.
 
-Code-adjacent `README.md` files located within `appwrite-hubs/*/` serve as short developer pointers to this canonical document.
+The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the source of truth for deployment targets.
 
----
+## Deployable Functions
 
-## Deployed Appwrite Functions Index
+### AI and Resume Processing
 
-All 26 functions are registered in `scripts/deploy_hubs.cjs` (the single source of truth for deployment). Functions listed below are ordered by functional domain.
+| Function | Purpose | Boundary |
+|---|---|---|
+| `ai-gateway` | Gateway for most AI features, including Tailoring, Cover Letters, chat, and interview prep | Auth, credits, rate limits, idempotency, provider keys |
+| `resume-section-ai` | Standalone section improvements | Auth-gated; explicitly not routed through `ai-gateway` |
+| `job-import` | Standalone job/resume parsing and URL import | Auth-gated; explicitly not routed through `ai-gateway` |
+| `ai-health` | Provider health and availability checks | Server/admin use |
+| `inspect-ai-keys` | DevKit provider-key inspection and completion checks | DevKit/admin authentication |
 
-### AI & Resume Processing
+### Portfolio and Public Pages
 
-| Function Name | Location in Repo | Core Purpose | Security & Permissions |
-|---|---|---|---|
-| **`ai-gateway`** | `appwrite-hubs/ai-gateway/` | Single server-side gateway for all AI interactions (resume tailoring, cover letters, chat, interview prep). Credit lock, rate limiting, provider fallback. | Server-only / Auth-gated. Validates Turnstile captcha for anonymous forms. |
-| **`resume-section-ai`** | `appwrite-hubs/resume-section-ai/` | AI-powered single-section resume content generation (bullet points, summary). NOT routed through `ai-gateway`. | Auth-gated (user session). No credit lock. |
-| **`job-import`** | `appwrite-hubs/job-import/` | Parse and import job descriptions from URLs using AI. | Auth-gated (user session). |
-| **`ai-health`** | `appwrite-hubs/ai-health/` | AI provider health checks and availability monitoring. | Server-only invocation. |
-| **`inspect-ai-keys`** | `appwrite-hubs/inspect-ai-keys/` | DevKit AI provider key inspection, slot model override management, and real completion test pings. | Admin key / DevKit signed session token required. |
+| Function | Purpose | Boundary |
+|---|---|---|
+| `get-public-portfolio` | Sanitized public portfolio payload | Public trigger with password/session controls |
+| `portfolio-gate` | Lightweight existence/protection gate | Public trigger |
+| `verify-portfolio-password` | Password verification and rate limiting | Public trigger |
+| `portfolio-settings` | Owner settings and password operations | Authenticated owner |
+| `track-visitor-event` | Visitor analytics ingestion | Public trigger with validation |
+| `public-share` | Resume share-link creation and validation | Public/auth contract |
 
-### Portfolio & Public Pages
+### Email and Notifications
 
-| Function Name | Location in Repo | Core Purpose | Security & Permissions |
-|---|---|---|---|
-| **`get-public-portfolio`** | `appwrite-hubs/get-public-portfolio/` | Serves the full public portfolio payload (profile + resume). Password gate, session tokens, brute-force lockout. | Public HTTP trigger. Password-gated access. |
-| **`portfolio-gate`** | `appwrite-hubs/portfolio-gate/` | Lightweight gate check — returns whether a portfolio exists and is password-protected (no data). | Public HTTP trigger. |
-| **`verify-portfolio-password`** | `appwrite-hubs/verify-portfolio-password/` | Standalone password verification for portfolio access. | Public HTTP trigger. Rate-limited. |
-| **`portfolio-settings`** | `appwrite-hubs/portfolio-settings/` | Read/write portfolio password and settings for the authenticated owner. | Auth-gated (owner only). |
-| **`track-visitor-event`** | `appwrite-hubs/track-visitor-event/` | Records anonymised visitor interactions (page views, clicks) on public portfolios. | Public HTTP trigger. |
-| **`public-share`** | `appwrite-hubs/public-share/` | Generates and validates public share links for resumes. | Public & Auth-gated. |
+| Function | Purpose | Boundary |
+|---|---|---|
+| `email-service` | Transactional email delivery | Action-specific public/session controls |
+| `admin-email` | Admin-triggered email operations | DevKit/admin authentication |
+| `admin-testmail` | Email configuration test utility | DevKit/admin authentication |
 
-### Email & Notifications
+### Admin and DevKit
 
-| Function Name | Location in Repo | Core Purpose | Security & Permissions |
-|---|---|---|---|
-| **`email-service`** | `appwrite-hubs/email-service/` | Consolidated transactional email delivery (verification, password reset, welcome, DevKit test). Sends via Resend. | Public (send-password-reset) & session-gated. DevKit test requires admin auth. |
-| **`email-templates`** | `appwrite-hubs/email-templates/` | Email template management and sync with Appwrite Messaging. | Server-only invocation. |
-| **`admin-email`** | `appwrite-hubs/admin-email/` | Admin-triggered system email delivery. | Admin key required. |
-| **`admin-testmail`** | `appwrite-hubs/admin-testmail/` | DevKit email testing utility (send test emails to verify configuration). | Admin key required. |
+| Function | Purpose | Boundary |
+|---|---|---|
+| `admin-devkit-data` | Cross-user data, diagnostics, and admin operations | DevKit/admin authentication |
+| `admin-deploy-hubs` | DevKit-triggered targeted hub deployment | DevKit/admin authentication |
+| `admin-feature-flags` | Feature-flag administration | DevKit/admin authentication |
+| `admin-moderation` | Moderation and report operations | DevKit/admin authentication |
+| `admin-impersonate` | Support impersonation flow | Signed/admin authorization |
+| `admin-onboarding-funnel` | Onboarding analytics | DevKit/admin authentication |
+| `admin-portfolio-usernames` | Username validation and reservation | Auth/function validation |
+| `admin-visitor-analytics` | Visitor analytics aggregation | DevKit/admin authentication |
+| `admin-sentry` | Sentry bridge/webhook processing | Signed/server boundary |
 
-### Admin & DevKit
+### Jobs and Business Logic
 
-| Function Name | Location in Repo | Core Purpose | Security & Permissions |
-|---|---|---|---|
-| **`admin-devkit-data`** | `appwrite-hubs/admin-devkit-data/` | Admin DevKit cross-user data queries, user management, system stats, impersonation, routing config. | Admin key required (`X-DevKit-Key`) or signed DevKit session token. |
-| **`admin-deploy-hubs`** | `appwrite-hubs/admin-deploy-hubs/` | Self-hosted hub deployment from the DevKit UI (alternative to GitHub Actions). | Admin key required. |
-| **`admin-feature-flags`** | `appwrite-hubs/admin-feature-flags/` | Dynamic feature toggle configuration and deployment flags. | Admin key required. |
-| **`admin-moderation`** | `appwrite-hubs/admin-moderation/` | User content moderation and reporting tools. | Admin key required. |
-| **`admin-impersonate`** | `appwrite-hubs/admin-impersonate/` | Admin user impersonation for support/debugging. | Admin key required. Signed HMAC payload. |
-| **`admin-onboarding-funnel`** | `appwrite-hubs/admin-onboarding-funnel/` | Onboarding metrics tracking and funnel analytics. | Admin key required. |
-| **`admin-portfolio-usernames`** | `appwrite-hubs/admin-portfolio-usernames/` | Custom portfolio username availability checks and reservation rules. | Auth-gated & server-side validation. |
-| **`admin-visitor-analytics`** | `appwrite-hubs/admin-visitor-analytics/` | Visitor tracking aggregation, geo-IP resolution, and analytics dashboard feed. | Admin key required. |
-| **`admin-sentry`** | `appwrite-hubs/admin-sentry/` | Error reporting bridge to Sentry for server-side function errors. | Server-only invocation. |
+| Function | Purpose | Boundary |
+|---|---|---|
+| `coupons` | Coupon validation and redemption | Server/auth contract |
+| `wisehire-gateway` | WiseHire gateway operations | Server/auth contract |
+| `job-feed-sync` | Scheduled remote-job ingestion and refresh | Scheduled server invocation |
+| `get-remote-jobs` | Product remote-jobs feed | Function-level access controls |
+| `track-job-action` | Job interaction events | Function-level validation/rate limits |
 
-### Business Logic
+## Registry Notes
 
-| Function Name | Location in Repo | Core Purpose | Security & Permissions |
-|---|---|---|---|
-| **`coupons`** | `appwrite-hubs/coupons/` | Coupon code validation, redemption, and management. | Server-only & Auth-gated. |
-| **`wisehire-gateway`** | `appwrite-hubs/wisehire-gateway/` | WiseHire job board gateway — job listing ingestion and matching. | Server-only invocation. |
+* `admin-sentry` uses fixed function ID `6a0760710000ff231048`.
+* `appwrite-hubs/email-templates/` exists in source but is not a target in the current `scripts/deploy_hubs.cjs` registry. Do not claim canonical-workflow deployment without separate evidence.
+* Functions use the Appwrite `main` database where database access is required.
+* Function variables remain server-side. Never document secret values.
+* `track-visitor-event` receives no browser-derived GeoJS country. The deployed function may enrich from Appwrite request metadata and still contains a server-side GeoJS fallback; changing that requires a separate targeted review.
 
-### Notes
-- **`admin-sentry`** has a fixed `functionId` (`6a0760710000ff231048`) because it was created before the deploy script managed IDs.
-- All functions use `DB_ID = 'main'` and access the shared Appwrite database.
-- Environment variables are set per-function in the Appwrite Console and documented in each hub's `src/main.js` header.
-- **`track-visitor-event`** receives visitor events without browser-derived country data. Browser code must not call GeoJS. The current deployed hub can enrich missing country from Appwrite request metadata when available and still contains a server-side GeoJS fallback; changing that fallback requires a separate targeted Appwrite review and owner-approved hub deployment.
+## Deployment
 
----
-
-## Deployment Procedures
-
-Appwrite Functions deploy via targeted GitHub Actions workflows (`.github/workflows/deploy-ai-hubs.yml`) or via the `scripts/deploy_hubs.cjs` CLI helper.
-
-> **Rule:** Avoid target-all deploys (`target=all`). Always specify individual function names (e.g. `--only=ai-gateway`).
+* **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml`
+* **Helper:** `node scripts/deploy_hubs.cjs --only=<function-name>`
+* **Rule:** Never use `target=all`; always name the approved target(s).
+* **Latest verified target:** `ai-gateway` only, workflow run `30042810382`, deployment `6a627b81bff27daaf366`, status `ready`.

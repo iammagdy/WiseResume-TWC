@@ -1,80 +1,79 @@
-# Feature Specification: Tailoring Hub (AI Resume Tailoring)
+# Feature Specification: Tailoring Hub
 
 **Last Verified:** 2026-07-23
-**Status:** Active Production Feature - Bounded Recovery Verified
-**Location:** `Project Atlas/features/tailoring-hub.md`  
+**Status:** Active Production Feature - Content-Integrity Product Bug Open
+**Location:** `Project Atlas/features/tailoring-hub.md`
 
 ---
 
 ## 1. User Goal
-Enables job seekers to tailor an existing resume against a target job description, generating ATS keyword optimizations, score deltas, and tailored summary/experience suggestions.
 
----
+Tailor an existing resume to a target job description while preserving factual source data, improving ATS alignment, and saving a separate child resume.
 
-## 2. Routes & Navigation
-* `/tailoring-hub` — Main AI tailoring route.
-* `/ar/tailoring-hub` — Arabic localized AI tailoring route.
-* `/tailoring-hub/result/:resumeId` - Tailored resume result route with export actions.
+## 2. Routes
 
----
+* `/tailoring-hub` - Main Tailoring workspace.
+* `/ar/tailoring-hub` - Arabic localized route.
+* `/tailoring-hub/result/:resumeId` - Saved tailored result, comparison, export, Editor, and Cover Letter actions.
+* `/tailor` - Deprecated legacy path.
 
 ## 3. Main Frontend Files
-* `src/pages/TailoringHubPage.tsx` — Main tailoring controller and job description input interface.
-* `src/pages/TailoringHubResultPage.tsx` - Tailored result page controller and export action owner.
-* `src/components/job-match/TailorResultExportPanel.tsx` - Result page export action panel.
-* `src/components/job-match/TailorQuickPdfExportDialog.tsx` - Designed PDF export dialog used by the result page.
-* `src/components/tailoring/TailorScoreDelta.tsx` — Visual score improvement indicator.
-* `src/components/tailoring/DiffViewer.tsx` — Rich diff viewer comparing base resume vs tailored resume.
 
----
+* `src/pages/TailoringHubPage.tsx` - Input, execution, recovery, merge, save, and navigation controller.
+* `src/pages/TailoringHubResultPage.tsx` - Saved result page and export owner.
+* `src/lib/appwrite-functions.ts` - Async Appwrite execution and result-only recovery transport.
+* `src/lib/aiTailor.ts` - Tailoring client contract and merge helpers.
+* `src/lib/aiErrorParser.ts` - Safe user-facing error classification.
+* `src/components/job-match/TailorResultExportPanel.tsx` - Result actions.
+* `src/components/job-match/TailorQuickPdfExportDialog.tsx` - Designed PDF.
 
-## 4. Related Appwrite Functions & Collections
-* **Functions:** `ai-gateway` (handles ATS keyword extraction, matching score calculation, and tailoring generation).
-* **Collections:** `resumes`, `jobs`, `job_applications`. `tailor_history` exists as legacy server-only history and is not a browser runtime dependency.
+## 4. Backend and Data
 
----
+* **Function:** `ai-gateway`, action `tailor-resume`.
+* **Primary collection:** `resumes`.
+* **Related collections:** `jobs`, `job_applications`, `idempotency_cache`, `ai_request_logs`, and `ai_credits`.
+* **Legacy collection:** `tailor_history` is server-only and must not be queried by browser runtime code.
+* **Lineage:** Current browser history is reconstructed from owner-scoped tailored resume metadata and parent/source lineage.
 
-## 5. Current Behavior
-* **Standard Tailoring:** User selects a base resume and pastes target job description text. Calls `ai-gateway` which returns calculated ATS score delta (e.g. 50 -> 85), keyword match breakdown, and suggested bullet rewrites. Current browser history surfaces are reconstructed from owner-scoped tailored resume lineage and tailoring metadata. If no changes are detected, an amber warning is displayed.
-* **Execution and Recovery:**
-  - A user action starts one asynchronous `ai-gateway` provider execution. The browser never automatically starts another provider request.
-  - The total frontend wait is capped at 75 seconds. Cancellation stops the local wait without deleting a successful server result.
-  - When browser execution-status reads are unavailable, the client retrieves the authenticated, user-scoped result from the existing idempotency cache. Result-only calls cannot invoke a provider or deduct credit.
-  - Timeout, provider failure, malformed output, and unchanged output all return actionable retry/edit states. Failure paths do not save a tailored resume or navigate to an empty result.
-  - Duplicate clicks are blocked immediately. Concurrent identical requests receive `request_in_progress` rather than creating duplicate provider work.
-* **Tailored Result Exports:**
-  - Designed PDF opens `TailorQuickPdfExportDialog` with the explicit tailored resume document ID and downloads from the dialog's user-activated action.
-  - ATS PDF exports directly from `TailoringHubResultPage.tsx` using the loaded tailored resume snapshot, native PDF generation, and `atsMode: true`.
-  - Word/DOCX exports directly from `TailoringHubResultPage.tsx` using the loaded tailored resume snapshot and the existing DOCX generator.
-  - ATS PDF and Word/DOCX use duplicate-click guards and export-specific busy states in `TailorResultExportPanel.tsx`.
-* **Fast Tailoring (One-Click from `/jobs`):**
-  - Directly tailors the user's default master CV (or prompts a choice if multiple exist) against the selected remote job description in one click.
-  - Concurrently triggers CV tailoring and cover letter generation in parallel.
-  - Automates entry creation in `job_applications` tracker collection with status `ready_to_apply`.
-  - Automatically handles locks (`isTailoringRef`) to block double-click concurrency and optimistic daily credit limits validation (`checkCredits()`).
+## 5. Current Execution Contract
 
----
+* One user action starts one asynchronous provider execution.
+* The browser waits at most `75,000 ms`; it never silently starts a second provider request.
+* Backend provider work is bounded to a `68,000 ms` total budget: `42,000 ms` primary, at most one `23,000 ms` cross-provider fallback, a `5,000 ms` minimum-attempt gate, and a `2,000 ms` cleanup reserve.
+* Same-provider retry and structured-output repair are disabled for Tailoring.
+* If browser execution-status reads are unavailable, authenticated result-only calls retrieve the user-scoped idempotency result. They cannot invoke a provider or deduct credit.
+* Duplicate clicks are blocked immediately. Concurrent identical requests receive `request_in_progress`.
+* Timeout, provider failure, malformed output, and unchanged output produce actionable states. Failure paths do not save or navigate.
+* A successful result creates one child resume; the source resume must remain unchanged.
 
-## 6. Important Rules & Constraints
-* Legacy `/tailor` path is deprecated; all resume tailoring operates via `/tailoring-hub`.
-* Browser code must not query legacy `tailor_history`; it is intentionally server-only.
-* `ai-gateway` must return genuine calculated score deltas or `null` if unchanged; fabricating fake static scores (e.g. 55→78) is strictly prohibited.
-* Tailoring backend work must remain within the approved 68-second total budget: 42-second primary attempt, at most one 23-second cross-provider fallback, and cleanup reserve.
-* Provider/model routing, prompt behavior, merge semantics, score behavior, and credit cost must not be changed as part of timeout/recovery maintenance without separate evidence and approval.
-* Successful and failed outcomes use the existing `idempotency_cache`; no new Tailoring idempotency schema is required.
+## 6. Result and Export Contract
 
----
+* The result page loads the saved child resume by explicit Appwrite document ID.
+* Designed PDF uses `TailorQuickPdfExportDialog`.
+* ATS PDF uses native PDF generation with `atsMode: true`.
+* Word/DOCX uses the existing DOCX generator.
+* ATS PDF and Word use duplicate-click guards and export-specific busy states.
+* Result refresh and direct reopen must load the same child resume and preserve lineage.
 
-## 7. Known Risks & Edge Cases
-* Requires valid job description text (>50 characters) to initiate AI analysis.
-* Tailored Result Designed PDF, ATS PDF, and Word/DOCX exports were production browser verified on 2026-07-21 after Vercel deployment `dpl_8W6Dbf7G2G9EALDLx1pPQU4kfN9x`.
-* Owner-scoped Appwrite reads for Tailoring Hub related `jobs` and `job_applications` were production browser verified on 2026-07-21 after Vercel deployment `dpl_87S6QpMiXnETKAEsfA7bEPyScm4p`.
-* Bounded async recovery was production verified on 2026-07-23. One provider execution completed in `4.754 s`, its result-only retrieval completed in `3.653 s`, and exactly one two-credit charge was recorded.
-* The post-fix production fixture reached the legitimate unchanged-output guard. New meaningful result creation/navigation remains pending one richer controlled QA fixture.
+## 7. Factual-Preservation Rules
 
----
+* Tailoring may rewrite summary, role descriptions, and achievement phrasing for relevance and clarity.
+* It must not invent or drop employers, titles, dates, degrees, certifications, responsibilities, or unsupported numerical achievements.
+* Every source field that the result schema requires the model to preserve must be present in the model context.
+* Score deltas must be calculated from actual content changes; static/fabricated score movement is prohibited.
 
-## 8. Historical Evidence & Reports
-* [`Project Atlas/archive/historical-audits/one-page-wizard-analysis.md`](../archive/historical-audits/one-page-wizard-analysis.md) — Historical one-page wizard analysis.
-* [`Project Atlas/reports/ui-ux/auto-fit-template-audit.md`](../reports/ui-ux/auto-fit-template-audit.md) — Auto-fit template audit writeup.
-* [`Project Atlas/reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md`](../reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md) - Bounded execution, recovery, deployment, and production evidence.
+## 8. Current Evidence and Blocker
+
+* Tailoring result Designed PDF, ATS PDF, and Word/DOCX were production verified on 2026-07-21.
+* Owner-scoped `jobs` and `job_applications` reads and removal of browser `tailor_history` reads were production verified on 2026-07-21.
+* Bounded async recovery was production verified on 2026-07-23 with one provider execution and result-only recovery, one two-credit charge, and no duplicate provider work.
+* A rich controlled run later on 2026-07-23 verified meaningful summary and bullet changes, one saved child resume, result navigation, refresh/reopen persistence, no duplicate provider work, and no double charge.
+* That rich run confirmed a product bug: project `startDate` and `endDate` were dropped because `buildTailorMessages()` does not include project dates in the model context. The current role's empty end date was also normalized to `Present`.
+* Tailoring is therefore `PRODUCT_BUG`, not `VERIFIED_READY`, until exact factual/date preservation is fixed and retested.
+
+## 9. Evidence
+
+* [`export-download-qa.md`](../qa/production-stabilization/export-download-qa.md)
+* [`owner-permissions-realtime-csp-2026-07-21.md`](../qa/production-stabilization/owner-permissions-realtime-csp-2026-07-21.md)
+* [`performance-phase-4-tailoring-remediation-2026-07-23.md`](../reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md)
+* [`tailoring-meaningful-production-verification-2026-07-23.md`](../qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md)

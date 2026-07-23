@@ -57,7 +57,7 @@ Recommended first step: run an audit using `AUDIT_CHECKLIST.md`, then ask the co
 
 ## Product context
 
-WiseResume / WiseHire is operated by **thewise.cloud**. Two distinct surfaces share one React codebase, one auth (Kinde), one Supabase backend, and one design system — but each ships with its own brand color, hero, pricing page, sidebar shell and route prefix.
+WiseResume / WiseHire is operated by **thewise.cloud**. Two distinct surfaces share one React codebase, Appwrite Auth, an Appwrite backend, and one design system, while retaining separate brand colors, product routes, and audience-specific surfaces.
 
 ### WiseResume (job-seeker)
 AI career assistant for candidates. Core surfaces:

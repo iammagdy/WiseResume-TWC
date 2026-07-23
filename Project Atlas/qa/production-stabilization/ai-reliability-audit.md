@@ -8,22 +8,31 @@
 
 ## 2026-07-23 Addendum - Tailoring Bounded Execution and Recovery
 
-**Verdict:** PASS_WITH_WARNINGS
+**Timing/Recovery Verdict:** `PASS_WITH_WARNINGS`
+**Current Tailoring Verdict:** `PRODUCT_BUG`
 
 The original audit's Tailoring timeout and credit-cost rows are superseded by current production evidence:
 
 * Current `tailor-resume` cost is two credits.
+* Current `generate-cover-letter` cost is two credits.
 * Historic production Tailoring executions failed at the Appwrite synchronous 30-second ceiling.
 * Tailoring now uses one asynchronous provider execution, a 68-second backend budget, and a 75-second frontend cap.
 * Provider work is limited to a 42-second primary plus at most one 23-second cross-provider fallback. Same-provider retry and structured repair are disabled for Tailoring.
 * Result-only recovery reads the existing user-scoped idempotency cache and cannot invoke a provider or charge credit.
 * Focused integration coverage proves fallback success, all-provider timeout, malformed output, explicit retry, concurrent duplicate suppression, cached replay, no charge on failure, and one charge on success.
 * Production executions `6a627c387a11d6e9ae91` and `6a627c398ed25d37f977` prove one provider success plus one result-only recovery. One request-log row recorded one two-credit charge.
-* The production UI resolved to an actionable unchanged-output state instead of remaining stuck. A post-fix meaningful-result page remains pending a richer controlled QA fixture.
+* The production UI resolved to an actionable unchanged-output state instead of remaining stuck.
+* A later rich production run recovered a cached result without another provider call or charge, created one child resume, navigated, refreshed, and reopened successfully.
+* That result dropped project start/end dates. `buildTailorMessages()` omits those dates from the model context, so current Tailoring status is `PRODUCT_BUG` even though timing/recovery passed.
 
-Full evidence: `Project Atlas/reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md`.
+Full evidence:
+
+* `Project Atlas/reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md`
+* `Project Atlas/qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md`
 
 ---
+
+> **Historical snapshot notice:** Sections 2-9 below preserve the original 2026-07-05 audit. Their feature costs, provider ordering, and timeout rows are not current operational truth where the 2026-07-23 addendum supersedes them. Use `Project Atlas/ai/ai-gateway.md` and current source for current behavior.
 
 ## 1. AI Architecture Overview
 

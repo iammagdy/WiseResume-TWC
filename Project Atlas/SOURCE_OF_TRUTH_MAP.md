@@ -50,6 +50,7 @@
 * `features/upload-import.md` — CV Upload & Extraction specification.
 * `features/preview-export.md` — Preview & Export specification.
 * `features/cover-letters.md` — Cover Letters specification.
+* `features/jobs-applications.md` — Remote Jobs and Applications specification.
 * `features/notifications.md` — In-App Notifications & Bell Dropdown specification.
 * `features/devkit-admin.md` — DevKit Admin Hub specification.
 * `features/plans/` — Active feature execution plans (e.g. `interview-feature-fix-plan.md`, `english-default-localization.md`).

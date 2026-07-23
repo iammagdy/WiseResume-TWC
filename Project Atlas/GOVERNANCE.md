@@ -1,11 +1,11 @@
 # Atlas Governance
 
-**Last verified:** 2026-05-12
+**Last verified:** 2026-07-23
 **Type:** governance
 **Sources:**
 - `Project Atlas/MASTER_HANDOVER_2026.md`
 - `Project Atlas/RULES.md`
-- `Project Atlas/DEPLOYMENT_GUIDE.md`
+- `Project Atlas/deployment/current-deployment.md`
 - Current Appwrite-native repository state
 **Canonical owner:** this file and `Project Atlas/RULES.md`
 
@@ -25,11 +25,11 @@ The current codebase and live service state still matter: when the Atlas and cod
 
 - Production architecture is Appwrite-native: Appwrite Auth, Appwrite Databases, Appwrite Storage, and Appwrite Functions.
 - The frontend is React 18, TypeScript 5, Vite 6, Tailwind, Radix UI, and shadcn/ui.
-- AI calls go through the consolidated Appwrite `ai-gateway` Function.
+- Most AI calls go through `ai-gateway`; `resume-section-ai` and `job-import` are documented server-side exceptions.
 - Admin DevKit cross-user reads and writes must go through Appwrite admin Functions, especially `admin-devkit-data`; browser SDK calls must not read other users' protected documents.
 - Production secrets live in Appwrite Function variables or GitHub Secrets as appropriate. Replit is development only and must not hold production secrets.
 - The mobile app is legacy and not migrated to Appwrite; do not touch `mobile/` during web Appwrite cleanup unless the task explicitly targets mobile.
-- PDF export is still pending Appwrite rebuild and may return a 503 placeholder.
+- Designed PDF, ATS PDF, and DOCX export paths are active; Tailoring result exports were production artifact verified on 2026-07-21.
 
 ---
 
@@ -71,14 +71,14 @@ WiseHire and WiseResume share infrastructure but must keep account-type boundari
 
 ## Deployment Rules
 
-`Project Atlas/DEPLOYMENT_GUIDE.md` is mandatory before touching workflows, FTP paths, Hostinger deployment, or GitHub Actions deployment logic.
+`Project Atlas/deployment/current-deployment.md` is mandatory before touching Vercel, Appwrite deployment workflows, or domain routing.
 
-The critical deployment invariant:
+The current deployment invariants:
 
-- `resume.thewise.cloud` deploys to Hostinger `resume/`.
-- `thewise.cloud` landing deploys one file to FTP root using `put`, not a deleting mirror.
-- `quran.thewise.cloud` belongs to the separate `iammagdy/wisequran` repo.
-- Never run `mirror --delete` against `.` from this repo.
+- `wiseresume.app` is hosted by Vercel.
+- Appwrite functions deploy only through explicit targeted workflows/helpers.
+- Never use `target=all`.
+- Hostinger/FTP instructions are historical and must not be used for WiseResume production unless the owner explicitly assigns a separate legacy-domain task.
 
 ---
 
