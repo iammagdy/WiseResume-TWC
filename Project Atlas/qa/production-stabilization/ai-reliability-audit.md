@@ -6,10 +6,24 @@
 
 ---
 
+## 2026-07-24 Addendum - Tailoring Project Metadata Resolution
+
+**Current Tailoring Verdict:** `VERIFIED_READY`
+
+The 2026-07-23 `PRODUCT_BUG` finding below remains historical evidence. Product commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c` added project metadata to Tailoring context and allowlisted gateway/frontend reconciliation. Targeted Appwrite deployment `6a628eafd09be552df71` was production verified with one DeepSeek `deepseek-chat` provider request, one two-credit charge, one saved child, exact metadata retention for one current and one completed project, source immutability, refresh/direct-reopen persistence, and no duplicate provider work.
+
+Current operational details remain canonical in:
+
+* `Project Atlas/ai/ai-gateway.md`
+* `Project Atlas/features/tailoring-hub.md`
+* `Project Atlas/qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md`
+
+---
+
 ## 2026-07-23 Addendum - Tailoring Bounded Execution and Recovery
 
 **Timing/Recovery Verdict:** `PASS_WITH_WARNINGS`
-**Current Tailoring Verdict:** `PRODUCT_BUG`
+**Tailoring Verdict at This Historical Checkpoint:** `PRODUCT_BUG`
 
 The original audit's Tailoring timeout and credit-cost rows are superseded by current production evidence:
 
@@ -23,7 +37,7 @@ The original audit's Tailoring timeout and credit-cost rows are superseded by cu
 * Production executions `6a627c387a11d6e9ae91` and `6a627c398ed25d37f977` prove one provider success plus one result-only recovery. One request-log row recorded one two-credit charge.
 * The production UI resolved to an actionable unchanged-output state instead of remaining stuck.
 * A later rich production run recovered a cached result without another provider call or charge, created one child resume, navigated, refreshed, and reopened successfully.
-* That result dropped project start/end dates. `buildTailorMessages()` omits those dates from the model context, so current Tailoring status is `PRODUCT_BUG` even though timing/recovery passed.
+* That result dropped project start/end dates. At this checkpoint, `buildTailorMessages()` omitted those dates from the model context, so Tailoring was `PRODUCT_BUG` even though timing/recovery passed. The 2026-07-24 addendum above records the later fix and retest.
 
 Full evidence:
 

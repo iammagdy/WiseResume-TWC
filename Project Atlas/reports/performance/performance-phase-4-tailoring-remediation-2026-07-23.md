@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-23
 **Phase Verdict:** `PASS_WITH_WARNINGS`
-**Current Tailoring Status:** `PRODUCT_BUG`
+**Current Tailoring Status:** `VERIFIED_READY` after the 2026-07-24 resolution addendum
 **Production:** `https://wiseresume.app`
 **Branch:** `main`
 
@@ -134,9 +134,22 @@ The rich run also found a content-integrity product bug: project start/end dates
 
 Full evidence: `Project Atlas/qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md`.
 
+## Project-Date Preservation Resolution Addendum
+
+The project-date defect above was fixed and production verified on 2026-07-24 without reopening the Phase 4 timing/recovery architecture.
+
+* Product commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c` added exact project metadata context and allowlisted gateway/frontend reconciliation.
+* The `42/23/68 s` backend contract, `75 s` frontend cap, async recovery, provider routing, model, idempotency, and two-credit cost were unchanged.
+* Vercel deployment `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm` reached `READY`.
+* Targeted Appwrite workflow `30048216417` deployed only `ai-gateway`; deployment `6a628eafd09be552df71` reached `ready`; source hash is `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12`.
+* One controlled production action completed with one DeepSeek `deepseek-chat` provider request in `12.199 s`, no fallback, one two-credit charge, and no retry.
+* Exactly one child resume was created. One current and one completed project retained their exact IDs, dates, current states, and URL states while both descriptions changed materially.
+* Source immutability, result navigation, refresh, direct reopen, and export preview passed.
+
+Tailoring is now `VERIFIED_READY`. The performance sequence is `CLOSED_WITH_PORTFOLIO_LCP_WARNING`.
+
 ## Remaining Risks
 
-* Tailoring project-date preservation must be fixed in a separately approved product task and retested with one controlled rich fixture. Do not change provider routing, models, credits, or unrelated prompt behavior.
 * External provider latency and outages remain possible but are bounded by the 42/23/68-second backend contract and 75-second frontend cap.
 * Public Portfolio cold-mobile LCP remains above the four-second target and was not reopened.
 * Authenticated Broadcast still queries a missing `active` attribute and was not changed.

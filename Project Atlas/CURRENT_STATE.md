@@ -1,7 +1,7 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-07-23
-**Status:** Canonical Production Snapshot - Tailoring Content-Integrity Blocker Open
+**Last Verified:** 2026-07-24
+**Status:** Canonical Production Snapshot - Tailoring Verified Ready; Portfolio LCP Warning Retained
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
@@ -30,7 +30,7 @@ WiseResume is a full-stack, Appwrite-native application for resume building, AI 
 ## 2. Current Stack and Architecture
 
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui, TanStack Query, and Zustand.
-* **Frontend hosting:** Vercel. The latest verified code-bearing production deployment is GitHub deployment `5579487506` for commit `66df7a3978c79a525742a6c07ab2836a4ca0cadf`.
+* **Frontend hosting:** Vercel. The latest verified code-bearing production deployment is `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm` for commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c`; environment URL `https://wise-resume-duk55phaa-iam-magdy.vercel.app`.
 * **Backend:** Appwrite Cloud Databases, Storage, and Serverless Functions.
 * **Authentication:** Appwrite Auth exclusively.
 * **AI:** Most product AI features route through the server-side `ai-gateway`. The explicitly documented standalone exceptions are `resume-section-ai` and `job-import`; browser code must never call provider APIs directly.
@@ -43,21 +43,22 @@ WiseResume is a full-stack, Appwrite-native application for resume building, AI 
 
 ## 3. Current Product Status
 
-* **Critical functionality smoke sequence:** `PASS_WITH_WARNINGS`; follow-up export, owner-permission, Realtime, GeoJS, and Premium Cover Letter work is documented and closed.
+* **Critical functionality smoke sequence:** `CLOSED`; follow-up export, owner-permission, Realtime, GeoJS, Premium Cover Letter, and Tailoring content-integrity work is documented and closed.
 * **Performance Phase 1:** Closed with the authenticated Broadcast `active` schema warning.
 * **Performance Phase 2:** Editor startup closed with a retained cold-run warning.
 * **Performance Phase 3:** Closed for approved scope, but Public Portfolio cold-mobile LCP remains `5.860 s` median against the `<4.0 s` target.
 * **Performance Phase 4 timing/recovery:** Bounded provider timing, async execution, result-only recovery, duplicate prevention, idempotency, and exactly-once charging are production verified.
-* **Tailoring current status:** `PRODUCT_BUG`. A rich production result dropped project start/end dates because those values are omitted from the project context sent to the model. No product fix was made during the verification task.
+* **Tailoring current status:** `VERIFIED_READY`. Project identity, chronology, current state, and URLs are now preserved at both gateway and frontend merge boundaries. One controlled production action created child resume `6a62910a0013a37009a3`, retained both source projects and their exact metadata, materially rewrote both descriptions, charged exactly two credits, and survived refresh, direct reopen, and export-preview rendering.
 * **Premium Cover Letter:** Generation, save, update, durable persistence, owner permissions, and one two-credit charge are proven. The exact original browser refresh/reopen trace was not retained.
+* **Performance sequence:** `CLOSED_WITH_PORTFOLIO_LCP_WARNING`; the remaining known performance warning is Public Portfolio cold-mobile LCP.
 
 ## 4. Deployment State
 
-* **Frontend code:** Commit `66df7a3978c79a525742a6c07ab2836a4ca0cadf` is the latest verified code-bearing Vercel deployment.
+* **Frontend code:** Commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c` is the latest verified code-bearing Vercel deployment (`dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm`, `READY`).
 * **Appwrite target:** `ai-gateway` only.
-* **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml`, run `30042810382`.
-* **Active deployment:** `6a627b81bff27daaf366`, status `ready`, runtime timeout `180 s`.
-* **Source hash:** `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`.
+* **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml`, run `30048216417`.
+* **Active deployment:** `6a628eafd09be552df71`, status `ready`, runtime timeout `180 s`.
+* **Source hash:** `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12`.
 * **Parity:** Deployed `ai-gateway` source matches the repository implementation.
 
 ## 5. Operational Rules

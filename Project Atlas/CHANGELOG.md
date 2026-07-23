@@ -1,5 +1,37 @@
 # Project Atlas Master Changelog
 
+## 2026-07-24 - Tailoring Project Metadata Preservation Verified
+
+- **Classification**: `VERIFIED_READY`
+- **Scope**: Fixed only Tailoring preservation of project identity, chronology, current state, URLs, and source ordering. Timeout budgets, result recovery, idempotency, credit policy, provider/model routing, Appwrite database schema/permissions, exports, and UI design were unchanged.
+- **Product Commit**: `a14b306da29e4ac7a1db16e85fcc54c790c3727c` - `fix(tailoring): preserve project dates and metadata`.
+- **Confirmed Root Cause**: `MULTIPLE_LAYERS`.
+  - `buildTailorMessages()` did not send project dates/current/URLs to the model.
+  - The Tailoring structured project schema omitted current and URL fields.
+  - Gateway normalization preserved only project IDs.
+  - The generic frontend merge allowed blank AI metadata to overwrite source values and appended unmatched AI-only projects.
+- **Implementation**:
+  - Added explicit project metadata to the model context and supported structured output.
+  - Added allowlisted reconciliation at gateway and frontend boundaries: exact ID matching first; deterministic unique normalized name/role fallback only when IDs are absent.
+  - Preserved source IDs, dates, current state, URLs, and order; rejected unknown IDs, ambiguous fallback matches, unmatched entries, and AI-only projects.
+  - Kept description and safe technology rewriting available without copying unknown provider fields.
+- **Validation**:
+  - Focused Vitest: `7` files / `63` tests passed.
+  - `tests/hubs/ai-gateway-tailoring-project-metadata.test.cjs`, gateway routing, and Tailoring recovery scripts passed.
+  - `node --check appwrite-hubs/ai-gateway/src/main.js`, `npx tsc --noEmit`, `npm run build`, source-hash recomputation, and `git diff --check` passed.
+  - Only the `ai-gateway` source hash changed.
+- **Deployment**:
+  - Vercel deployment `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm` reached `READY` for product commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c`.
+  - Targeted Appwrite workflow `30048216417` deployed only `ai-gateway`; deployment `6a628eafd09be552df71` reached `ready`; safe smoke returned HTTP 200.
+  - Deployed source hash: `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12`.
+- **Controlled Production Verification**:
+  - One initial action created exactly one child resume `6a62910a0013a37009a3`.
+  - One provider request used DeepSeek `deepseek-chat` in `12.199 s`, no fallback, with exactly one two-credit charge. Result-only polling made no provider request and no additional charge.
+  - Two distinct projects retained exact IDs, dates, current states, and URL states; both descriptions changed materially; no project or date was invented.
+  - The source resume remained unchanged. Result navigation, refresh, direct reopen, and export preview retained both project date displays.
+- **Historical Evidence**: The 2026-07-23 `PRODUCT_BUG` entry and affected child `6a6283f40001464122f4` remain intact below as the pre-fix finding.
+- **Final Status**: Tailoring `VERIFIED_READY`; quick functionality audit `CLOSED`; performance sequence `CLOSED_WITH_PORTFOLIO_LCP_WARNING`; Project Atlas `COMPLETE_AND_ROUTED`.
+
 ## 2026-07-23 - Final Tailoring Verification and Atlas Audit Reconciliation
 
 - **Overall Classification**: `BLOCKED`

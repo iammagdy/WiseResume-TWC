@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-07-23
+**Last Verified:** 2026-07-24
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -18,7 +18,7 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
-* **Latest Verified Code-Bearing Deployment:** GitHub deployment `5579487506` for commit `66df7a3978c79a525742a6c07ab2836a4ca0cadf`; environment URL `https://wise-resume-d700lmekx-iam-magdy.vercel.app`; Vercel status `success`.
+* **Latest Verified Code-Bearing Deployment:** Vercel deployment `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm` for commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c`; environment URL `https://wise-resume-duk55phaa-iam-magdy.vercel.app`; Vercel status `READY`.
 * **Trigger:** Pushes to the `main` branch automatically trigger Vercel production deployment workflows.
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist/`
@@ -43,13 +43,13 @@ Appwrite Functions are deployed independently from the frontend application usin
 ### Latest Verified Appwrite Deployment
 
 * **Target:** `ai-gateway` only.
-* **GitHub Actions Run:** `30042810382` - success in `1m58s`.
-* **Appwrite Deployment:** `6a627b81bff27daaf366` - `ready`.
-* **Source Hash:** `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`.
+* **GitHub Actions Run:** `30048216417` - success in `2m29s`.
+* **Appwrite Deployment:** `6a628eafd09be552df71` - `ready`.
+* **Source Hash:** `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12`.
 * **Runtime Timeout:** `180 s`. Tailoring internally remains bounded to its `68 s` gateway budget.
 * **Smoke:** HTTP 200.
-* **Schema Scope:** All global schema workflow steps were skipped. Existing `ai_credits` resources were checked idempotently; no schema change was made.
-* **Repository Parity:** The active `ai-gateway` deployment matches the repository hash. The later Tailoring project-date finding is a product-code defect, not deployment drift.
+* **Schema Scope:** All general schema workflow steps were skipped; no schema change was made.
+* **Repository Parity:** The active `ai-gateway` deployment matches the repository hash. Tailoring project metadata preservation was production verified after this targeted deployment.
 
 ---
 

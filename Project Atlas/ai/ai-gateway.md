@@ -1,7 +1,7 @@
 # Appwrite AI Gateway Serverless Function Specification
 
-**Last Verified:** 2026-07-23
-**Status:** Living Architecture - Tailoring Content-Integrity Blocker Open
+**Last Verified:** 2026-07-24
+**Status:** Living Architecture - Tailoring Project Metadata Verified
 **Location:** `Project Atlas/ai/ai-gateway.md`
 **Function Source:** `appwrite-hubs/ai-gateway/`
 
@@ -41,7 +41,7 @@ The explicitly documented standalone Appwrite exceptions are `resume-section-ai`
 * Pending Tailoring rows expire after `80,000 ms`; the Tailoring credit lock lasts `78,000 ms`.
 * Success and recoverable failure states are cached before the final response.
 
-Performance Phase 4 did not change the approved provider/model routing, prompt, feature cost, scoring, normalization, or merge behavior.
+Performance Phase 4 did not change the approved provider/model routing, prompt, feature cost, scoring, normalization, or merge behavior. The later project-metadata fix changed only Tailoring project context, structured project fields, and allowlisted project reconciliation; timing, routing, models, idempotency, and credits remain unchanged.
 
 ## 5. Safe Tailoring Diagnostics
 
@@ -51,18 +51,27 @@ Tailoring attempt logs may contain only feature, provider, model, attempt number
 
 * **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml`
 * **Target:** `ai-gateway` only
-* **Workflow run:** `30042810382`
-* **Deployment:** `6a627b81bff27daaf366`, `ready`
+* **Workflow run:** `30048216417`
+* **Deployment:** `6a628eafd09be552df71`, `ready`
 * **Runtime timeout:** `180 s`
-* **Source hash:** `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`
+* **Source hash:** `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12`
 
 Never use `target=all`.
 
-## 7. Tailoring Content-Integrity Blocker
+## 7. Tailoring Project Metadata Integrity
 
-The 2026-07-23 rich production verification proved that `buildTailorMessages()` omits project `startDate` and `endDate` from the source context even though the structured result schema expects project dates. A saved tailored resume consequently dropped both project dates.
+The 2026-07-23 rich production verification proved that project metadata was lost across multiple layers: model context omitted dates/current/URLs, structured output omitted current/URLs, and generic normalization/merge behavior could accept blank metadata or unsupported projects.
 
-Timing and recovery remain verified, but Tailoring is `PRODUCT_BUG` until source project dates and exact factual/date preservation are fixed and production retested.
+The deployed contract now:
+
+* Sends exact source project ID, chronology, current state, and URL metadata in Tailoring context.
+* Allows supported project metadata in structured output without treating provider output as authoritative.
+* Reconciles provider projects against source projects by exact ID first, then deterministic unique fallback only for absent IDs.
+* Preserves source identity, chronology, current state, URLs, and order.
+* Drops unknown IDs, ambiguous/unmatched fallback entries, AI-only projects, and unknown provider fields.
+* Allows only approved project content rewrites.
+
+Product commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c` and Appwrite deployment `6a628eafd09be552df71` were production verified on 2026-07-24. One controlled request retained both QA projects and their exact metadata, rewrote both descriptions, used one provider request, and charged exactly two credits. Tailoring is `VERIFIED_READY`.
 
 ## 8. Related Specifications and Evidence
 

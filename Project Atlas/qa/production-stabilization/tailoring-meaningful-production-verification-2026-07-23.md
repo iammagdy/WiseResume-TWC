@@ -3,7 +3,8 @@
 **Date:** 2026-07-23
 **Production:** `https://wiseresume.app`
 **Repository code HEAD:** `17a767d4e25220596d382c5b1233db4d0c3c905b`
-**Final classification:** `PRODUCT_BUG`
+**Original classification:** `PRODUCT_BUG`
+**Current classification after 2026-07-24 resolution:** `VERIFIED_READY`
 
 ## Scope and Fixture
 
@@ -80,3 +81,85 @@ Code inspection proves the project-date loss mechanism: the Tailoring structured
 Timing, bounded recovery, idempotency, duplicate prevention, exactly-once charging, save/navigation, and refresh/reopen persistence passed. Tailoring is nevertheless `PRODUCT_BUG` because user-authored project dates can be lost in a saved tailored resume.
 
 Per the task stop condition, no product code, prompt, provider routing, model, credit policy, schema, permission, environment, or deployment setting was changed.
+
+## Resolution Addendum - 2026-07-24
+
+The original finding above is retained as historical evidence. A separately approved product task fixed the project metadata defect and ran one controlled production retest.
+
+### Root Cause and Fix
+
+The root cause classification is `MULTIPLE_LAYERS`:
+
+* `buildTailorMessages()` omitted project dates, current state, and URLs.
+* The structured Tailoring project schema omitted current and URL fields.
+* Gateway normalization preserved only IDs.
+* Generic frontend merging could allow blank AI metadata to erase source values and could append unsupported AI-only projects.
+
+Product commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c` added project metadata to the model context/schema and explicit allowlisted reconciliation at both gateway and frontend boundaries. Exact IDs are preferred; absent-ID fallback requires a deterministic unique identity match. Source IDs, chronology, current state, URLs, and order are authoritative. Unknown, ambiguous, unmatched, and AI-only projects are rejected.
+
+### Validation
+
+Focused Vitest passed `7` files / `63` tests:
+
+```bash
+npx vitest run src/lib/__tests__/tailorMerge.test.ts src/hooks/__tests__/useResumes.template.test.ts src/pages/__tests__/TailoringHubPage-F1.test.tsx src/pages/__tests__/TailoringHubPage-recovery.test.tsx src/pages/__tests__/TailoringHubResultPage.test.ts src/lib/__tests__/appwrite-functions.tailoring.test.ts src/lib/__tests__/aiTailor-D1.test.ts
+```
+
+Gateway metadata, routing, and recovery scripts passed:
+
+```bash
+node tests/hubs/ai-gateway-tailoring-project-metadata.test.cjs
+node tests/hubs/ai-gateway-routing.test.cjs
+node tests/hubs/ai-gateway-tailoring-recovery.test.cjs
+```
+
+Syntax, type, build, hash, and diff validation passed:
+
+```bash
+node --check appwrite-hubs/ai-gateway/src/main.js
+npx tsc --noEmit
+npm run build
+node scripts/compute-source-hashes.mjs
+git diff --check
+```
+
+Only the `ai-gateway` source hash changed.
+
+### Deployment
+
+| Signal | Evidence |
+|---|---|
+| Vercel | `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm`, `READY` |
+| Appwrite workflow | `30048216417`, targeted `ai-gateway` only |
+| Appwrite deployment | `6a628eafd09be552df71`, `ready` |
+| Source hash | `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12` |
+| Safe smoke | HTTP 200 |
+
+### Controlled Production Retest
+
+One initial Tailoring action was run; no retry was required.
+
+| Signal | Evidence |
+|---|---|
+| Start | `2026-07-23T22:08:59.632Z` |
+| Result resume | `6a62910a0013a37009a3` |
+| Provider execution | `6a6290fa703089c4479e`, completed HTTP 200 |
+| Provider/model | DeepSeek `deepseek-chat` |
+| Provider latency | `12.199 s` |
+| Fallback | No |
+| Provider requests | One |
+| Credits | Exactly two; daily/total moved `4/84` to `6/86` |
+| Result-only polling | `6a6290fb830f8d25676c` returned 409 and `6a629103ef677584ec84` returned 200; neither invoked a provider |
+
+Safe project evidence:
+
+| Project | ID | Source dates | Saved dates | Current | URL state | Content |
+|---|---|---|---|---|---|---|
+| Lifecycle Campaign QA Program | `e1e00a5b-9fcf-495d-ada5-f527f929447b` | `Apr 2024` to empty | `Apr 2024` to empty | `true` -> `true` | Preserved | Description hash changed; length `132` -> `183` |
+| Growth Performance Dashboard | `qa-project-dashboard` | `2023-02` to `2023-06` | `2023-02` to `2023-06` | `false` -> `false` | Absent -> absent | Description hash changed; length `114` -> `186` |
+
+The source resume timestamp remained `2026-07-23T22:05:28.458+00:00`. Exactly one new child was created, no project or date was invented, and no project metadata crossed between projects. The result page showed `Apr 2024 - Present` and `Feb 2023 - Jun 2023`; refresh, direct reopen, and `/preview` retained both displays and the current project's URL. The production Word action reported that its document download started, and ATS PDF completed its preparing state without an error. Both export paths consume the same loaded child resume snapshot; no export code changed in this fix.
+
+### Resolution Verdict
+
+Tailoring is `VERIFIED_READY`. Timing/recovery, no-duplicate behavior, exactly-once charging, source immutability, result persistence, project metadata integrity, and export-preview rendering all passed.

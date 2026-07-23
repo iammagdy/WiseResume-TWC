@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-23
-**Status:** Tailoring Timing/Recovery Verified; Content-Integrity Product Bug Open
+**Last Verified:** 2026-07-24
+**Status:** Tailoring Verified Ready; Performance Sequence Closed with Portfolio LCP Warning
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,7 +12,7 @@
 * **Repository:** `iammagdy/WiseResume-TWC`
 * **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (latest verified code-bearing production: GitHub deployment `5579487506` for commit `66df7a3978c79a525742a6c07ab2836a4ca0cadf`).
+* **Frontend Hosting:** Vercel (latest verified code-bearing production: deployment `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm` for commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c`).
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -24,6 +24,7 @@
 
 ## 2. Latest Important Commits
 
+* **`a14b306d`** - `fix(tailoring): preserve project dates and metadata` - **PRODUCT FIX PUSHED, DEPLOYED, AND PRODUCTION VERIFIED**
 * **`66df7a39`** - `fix(tailoring): recover async results in production` - **PRODUCTION RECOVERY FIX PUSHED AND VERIFIED**
 * **`ac4065f1`** - `perf(tailoring): bound AI execution and recovery` - **PRODUCT FIX PUSHED AND DEPLOYED**
 * **`9e7020a0`** - `perf(portfolio): protect slow hero paint` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED WITH COLD-MOBILE LCP WARNING**
@@ -52,15 +53,16 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status**: `BLOCKED_ON_TAILORING_CONTENT_INTEGRITY` - Interrupted-session recovery, implementation audit, focused validation, deployment parity, one rich production Tailoring run, and the full Atlas documentation reconciliation are complete. No product code was changed after the product bug was confirmed.
-* **Final Rich Tailoring Verification (2026-07-23)**:
-  - A fictional rich marketing resume and aligned fictional SaaS growth job description produced meaningful summary, role-description, and eight-bullet changes.
-  - Initial provider execution `6a62838657ab0172051b` completed in `14.811 s`; DeepSeek `deepseek-chat` succeeded on the first attempt in `11.929 s`; no fallback was used.
-  - The first result-only Appwrite execution failed transiently. One controlled retry recovered the cached result without provider work or another charge and reached child resume `6a6283f40001464122f4` in `9.809 s`.
-  - Exactly one child resume was created. The source remained unchanged; navigation, refresh, direct reopen, lineage, and result actions passed.
-  - Exactly one two-credit charge was recorded. There was no duplicate provider execution, duplicate child resume, or permanent idempotency lock.
-  - **Confirmed Product Bug**: Project `startDate` and `endDate` were dropped, and an empty current-role end date was normalized to `Present`. `buildTailorMessages()` omits project dates from the model context even though the result schema expects them.
-  - **Verdict**: `PRODUCT_BUG`. Timing/recovery remains verified, but Tailoring is not `VERIFIED_READY`.
+* **Session Status**: `TAILORING_PROJECT_METADATA_VERIFIED_READY` - The confirmed project-date loss was fixed at the gateway and frontend merge boundaries, deployed, and verified with one controlled production Tailoring action.
+* **Project Metadata Preservation Resolution (2026-07-24)**:
+  - **Root Cause**: `MULTIPLE_LAYERS`. `buildTailorMessages()` omitted project chronology/current/URL metadata; the structured output omitted current/URL fields; the gateway preserved only IDs; and the generic frontend spread allowed blank AI values and AI-only projects.
+  - **Fix**: Tailoring now sends supported source project metadata, matches by stable ID first with deterministic unique-name/role fallback only when IDs are absent, preserves source identity/chronology/current/URLs, retains source order, rejects unmatched/ambiguous/AI-only projects, and allows AI rewriting only for approved content fields.
+  - **Validation**: Focused Vitest passed `7` files / `63` tests. Gateway project-metadata, routing, and recovery scripts passed. `node --check`, TypeScript, build, source-hash recomputation, and `git diff --check` passed.
+  - **Deployment**: Product commit `a14b306da29e4ac7a1db16e85fcc54c790c3727c` is live in Vercel deployment `dpl_BC5DxdhG1wEJR1m3TBuxhf9ZDfjm`. Targeted Appwrite workflow `30048216417` deployed only `ai-gateway`; deployment `6a628eafd09be552df71` is `ready`, hash `6a61da4d2b3efa73449ca7e3f77ebb6797d35dd005ff8f01f81644439bd72d12`.
+  - **Production Proof**: One initial action created exactly one new child resume `6a62910a0013a37009a3`. Provider execution `6a6290fa703089c4479e` used DeepSeek `deepseek-chat`; request telemetry recorded `12.199 s`, no fallback, one two-credit charge, and no idempotency hit. The two result-only polling executions made no provider call.
+  - **Integrity Proof**: The source timestamp remained `2026-07-23T22:05:28.458+00:00`. Both source projects retained their exact IDs, dates, current states, and URL states in the child while both descriptions changed materially. Result-page display, refresh, direct reopen, and export preview all retained the dates.
+  - **Historical Finding Preserved**: Earlier child resume `6a6283f40001464122f4` remains evidence of the pre-fix project-date defect; this later resolution does not rewrite that finding.
+  - **Verdict**: Tailoring `VERIFIED_READY`; quick functionality audit `CLOSED`; performance sequence `CLOSED_WITH_PORTFOLIO_LCP_WARNING`.
   - **Evidence**: `Project Atlas/qa/production-stabilization/tailoring-meaningful-production-verification-2026-07-23.md`.
 * **Documentation Reconciliation (2026-07-23)**:
   - Added the missing Critical Functionality Smoke, Premium Cover Letter, July Production Performance Audit, and final rich Tailoring evidence reports.
@@ -182,22 +184,20 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Tailoring Content-Integrity Fix**: In a separately approved product task, pass project dates into Tailoring model context and preserve factual/date fields exactly. Add focused tests and use one controlled production retest. Do not change routing, models, credit policy, scoring, schemas, or unrelated prompt behavior.
-2. **Public Portfolio Architecture Decision**: Phase 3 materially reduced transfer, CLS, avatar cost, request delay, and optional contention, but cold-mobile LCP remains `5.860 s` median against the `<4.0 s` target. Any follow-up must separately approve a smaller public entry/provider graph or an earlier pre-React server-function request strategy without duplicating or weakening the gate architecture.
-3. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
-4. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and Cover Letter generation flow once QA credits or a controlled test account are available.
-5. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
-6. **Existing Cover Letter Permissions Migration**: Existing Cover Letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
-7. **Deeper Manual QA**:
+1. **Public Portfolio Architecture Decision**: Phase 3 materially reduced transfer, CLS, avatar cost, request delay, and optional contention, but cold-mobile LCP remains `5.860 s` median against the `<4.0 s` target. Any follow-up must separately approve a smaller public entry/provider graph or an earlier pre-React server-function request strategy without duplicating or weakening the gate architecture.
+2. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
+3. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and Cover Letter generation flow once QA credits or a controlled test account are available.
+4. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
+5. **Existing Cover Letter Permissions Migration**: Existing Cover Letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
+6. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.
-8. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
+7. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
 
 ---
 
 ## 5. Blocked / Pending Owner Verification
 
-* **Tailoring Content Integrity**: Product fix and one controlled production retest require owner authorization. Current saved Tailoring results can drop project dates.
 * **Protected Portfolio Production Fixture**: `testprotected` now returns `Portfolio not found`. A safe current protected fixture is required to repeat live wrong-password and correct-unlock QA.
 * **Portfolio Realtime Notification Observation**: The interest API returned `200 {ok:true}` and creates the owner notification before responding, but an authenticated owner session is required to observe the Realtime notification event safely.
 * **LinkedIn OAuth Browser Verification**: PENDING_OWNER_VERIFICATION (requires manual check using owner credentials or test accounts on the deployed site).

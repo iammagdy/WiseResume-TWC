@@ -1,9 +1,10 @@
 # Critical Functionality Smoke Audit - Reconciled Record
 
 **Original audit date:** 2026-07-21
-**Reconciled:** 2026-07-23
+**Reconciled:** 2026-07-24
 **Production:** `https://wiseresume.app`
-**Verdict at sequence close:** `PASS_WITH_WARNINGS`
+**Historical verdict at initial sequence close:** `PASS_WITH_WARNINGS`
+**Current sequence status:** `CLOSED`
 **Readiness at sequence close:** `READY_FOR_BROAD_USER_TESTING`
 
 ## Evidence Note
@@ -23,7 +24,7 @@ The smoke covered authentication/session persistence, Dashboard counts and resum
 | Authentication/session | Passed; exact original evidence not retained | Later authenticated production phases reused the persisted session successfully | `COMPLETE` |
 | Dashboard/resume targeting | Passed with no cross-resume issue recorded | Editor Phase 2 later verified route-first document identity and no stale-resume flash | `COMPLETE` |
 | Editor persistence/AI | Passed with warnings | Editor Phase 2 verified edit, autosave, refresh, Preview, and cleanup persistence | `COMPLETE` |
-| Tailoring generation/result | Passed at the time | Later export and recovery phases added stronger evidence; the 2026-07-23 rich run found a separate date-preservation bug | `REOPENED_PRODUCT_BUG` |
+| Tailoring generation/result | Passed at the time | Later export and recovery phases added stronger evidence; the 2026-07-23 date-preservation bug was fixed by `a14b306d` and production verified on 2026-07-24 | `COMPLETE` |
 | Tailoring result exports | ATS PDF and DOCX failed from the result page | Fixed by `29e8eec8`; production artifacts verified in `export-download-qa.md` | `COMPLETE` |
 | Owner collections | Browser reads exposed P2 access failures | Fixed by `854ac418` for `user_preferences`, `jobs`, and `job_applications` | `COMPLETE` |
 | Legacy `tailor_history` | Unnecessary browser reads generated authorization noise | Removed from browser runtime by `854ac418` | `COMPLETE` |
@@ -39,12 +40,13 @@ The smoke covered authentication/session persistence, Dashboard counts and resum
 | Tailoring result ATS PDF/DOCX | `29e8eec8` | `308a5578` |
 | Owner permissions, runtime history reads, Realtime CSP | `854ac418` | `63d0e31d` |
 | Browser GeoJS removal | `d6f0709e` | `a2ccc7cd` |
+| Tailoring project metadata preservation | `a14b306d` | This Atlas closeout |
 
 The Premium Cover Letter verification was audit-only and did not produce a product commit.
 
 ## Final Status
 
-The original smoke sequence reached `PASS_WITH_WARNINGS` and was sufficient to begin the separate performance audit. That historical outcome remains valid. It does not override the later 2026-07-23 `PRODUCT_BUG` finding for Tailoring project-date preservation.
+The original smoke sequence reached `PASS_WITH_WARNINGS` and was sufficient to begin the separate performance audit. That historical outcome remains valid. The later 2026-07-23 Tailoring project-date finding was fixed and production verified on 2026-07-24, so the quick functionality audit is now `CLOSED`. Public Portfolio cold-mobile LCP remains a separate performance warning.
 
 ## Evidence Links
 
