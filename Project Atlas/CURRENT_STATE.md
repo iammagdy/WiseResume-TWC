@@ -30,7 +30,7 @@ WiseResume is a full-stack, Appwrite-native application for resume building, AI 
 ## 2. Current Stack and Architecture
 
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui, TanStack Query, and Zustand.
-* **Frontend hosting:** Vercel. The latest verified code-bearing production deployment is `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`; environment URL `https://wise-resume-8rc0tr8nr-iam-magdy.vercel.app`.
+* **Frontend hosting:** Vercel. The current production deployment is `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for documentation-only commit `e7e92aba0261a5e587c766654dc9bf601732072d`; it is `READY` and owns the production aliases. The latest verified code-bearing deployment remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend:** Appwrite Cloud Databases, Storage, and Serverless Functions.
 * **Authentication:** Appwrite Auth exclusively.
 * **AI:** Most product AI features route through the server-side `ai-gateway`. The explicitly documented standalone exceptions are `resume-section-ai` and `job-import`; browser code must never call provider APIs directly.
@@ -56,7 +56,8 @@ WiseResume is a full-stack, Appwrite-native application for resume building, AI 
 
 ## 4. Deployment State
 
-* **Frontend code:** Commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42` is the latest verified code-bearing Vercel deployment (`dpl_Hvot534UMdVDKrLwtDNuQHpiMigr`, `READY`).
+* **Current Vercel deployment:** Documentation-only commit `e7e92aba0261a5e587c766654dc9bf601732072d` is live as `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` (`READY`); no product code changed between it and the verified Broadcast build.
+* **Frontend code:** Commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42` remains the latest verified code-bearing deployment (`dpl_Hvot534UMdVDKrLwtDNuQHpiMigr`, `READY`).
 * **Appwrite target:** `admin-devkit-data` only.
 * **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml`, run `30051406249`.
 * **Active deployment:** `6a629b8351abe36cd0c3`, status `ready`.

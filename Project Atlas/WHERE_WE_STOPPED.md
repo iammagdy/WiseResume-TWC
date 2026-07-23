@@ -12,7 +12,7 @@
 * **Repository:** `iammagdy/WiseResume-TWC`
 * **Active Branch:** `main`
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
-* **Frontend Hosting:** Vercel (latest verified code-bearing production: deployment `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`).
+* **Frontend Hosting:** Vercel. Current production is documentation-only deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for commit `e7e92aba0261a5e587c766654dc9bf601732072d`; latest verified code-bearing production remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
 * **Authentication:** Appwrite Auth.
 * **Database & Storage:** Appwrite Databases (`main` DB) and Appwrite Storage (`avatars` and asset buckets).
@@ -24,6 +24,7 @@
 
 ## 2. Latest Important Commits
 
+* **`e7e92aba`** - `docs(atlas): record broadcast production verification` - **DOCUMENTATION PUSHED; DOCS-ONLY VERCEL DEPLOYMENT READY**
 * **`51271e0a`** - `fix(broadcast): align workspace delivery with Appwrite schema` - **PRODUCT FIX PUSHED, DEPLOYED, AND PRODUCTION VERIFIED**
 * **`a14b306d`** - `fix(tailoring): preserve project dates and metadata` - **PRODUCT FIX PUSHED, DEPLOYED, AND PRODUCTION VERIFIED**
 * **`66df7a39`** - `fix(tailoring): recover async results in production` - **PRODUCTION RECOVERY FIX PUSHED AND VERIFIED**
@@ -55,18 +56,12 @@
 ## 3. Where We Stopped & Current Active Focus
 
 * **Session Status**: `BROADCAST_DELIVERY_PRODUCTION_VERIFIED_WITH_EMPTY_COLLECTION_WARNING` - The authenticated Broadcast schema/query failure is fixed in production without broadening Appwrite permissions.
-* **Broadcast Schema and Delivery Resolution (2026-07-24)**:
-  - **Root Cause**: `MULTIPLE_LAYERS`. The Appwrite migration retained the historical Supabase `active` client query but did not migrate the Broadcast fields, admin write path, or row-level delivery model. Live `broadcasts` contained only optional `user_id`, no indexes, no documents, no collection permissions, and `documentSecurity: false`.
-  - **Canonical Model**: `title`, `body`, `severity`, `active`, `created_by`, `created_at`, and optional `expires_at`. Start-time scheduling is not part of the approved historical contract and was not invented.
-  - **Security Model**: The collection remains server-only with empty collection permissions. Authenticated clients obtain a short-lived Appwrite JWT and call `GET /api/broadcasts`; the Vercel function validates `/account`, reads with the server key, filters `active` and `expires_at`, fails closed on malformed records, and returns only `id`, `title`, `body`, and `severity`.
-  - **Admin Model**: DevKit Feature Control now lists, publishes, and expires Broadcasts through signed owner-only `admin-devkit-data` actions. Normal users have no create/update/delete/activate/schedule permission.
-  - **Schema and Migration**: Workflow run `30051406249` created seven attributes. Post-apply dry-run reported `attributesExisting=8`, `attributesPlanned=0`, permissions `0`, `documentSecurity=false`, and migration counts `scanned=0 updated=0 skipped=0 failed=0`.
-  - **Validation**: Focused Broadcast tests passed `5` files / `21` tests; related shell/auth/navigation tests passed `4` files / `23` tests. Node syntax, TypeScript, focused ESLint, production build, no-sourcemap check, and `git diff --check` passed.
-  - **Deployment**: Product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42` is live in Vercel deployment `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` with the production aliases active. Targeted Appwrite workflow `30051406249` deployed only `admin-devkit-data`; deployment `6a629b8351abe36cd0c3` is `ready`, source hash `21a8df1890e76655c36e403fc8c17813de11db4e22d6b77ecaba8a2539e97e02`, and smoke returned HTTP 200.
-  - **Production Proof**: Dashboard, Editor, Tailoring Hub/result, Applications, Notifications, Settings, and Cover Letters generated authenticated `/api/broadcasts` HTTP 200 responses on the exact deployment. Public Portfolio `/p/explore-test-portfolio` generated no Broadcast request. The fresh production tab had no Broadcast warning; the production asset contains the JWT-backed `/api/broadcasts` path.
-  - **Warning**: Production has zero Broadcast records. No real announcement was created, so active/inactive/expiry/dismissal behavior is verified by focused tests rather than a live content mutation. One unrelated existing controlled/uncontrolled Select warning appeared during the route smoke. Public Portfolio cold-mobile LCP remains the known performance warning.
-  - **Verdict**: Broadcast fix `PASS_WITH_WARNINGS`; stabilization smoke `PASS_WITH_WARNINGS`; product is not blocked.
-  - **Evidence**: `Project Atlas/qa/production-stabilization/broadcast-schema-production-verification-2026-07-24.md`.
+* **Broadcast Closeout (2026-07-24)**:
+  - Product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42` is production verified; targeted Appwrite workflow `30051406249` deployed only `admin-devkit-data`, and deployment `6a629b8351abe36cd0c3` is `ready`.
+  - Authenticated workspace routes return `/api/broadcasts` HTTP 200 without the prior warning; the tested public Portfolio route makes no Broadcast request.
+  - Current production is the subsequent documentation-only Vercel deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` (`READY`), which contains the same product code as verified deployment `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr`.
+  - Active warnings: the collection has zero records, so content visibility/dismissal remains test-proven rather than live-content-proven; the unrelated Select warning and Public Portfolio cold-mobile LCP warning remain.
+  - Verdict: Broadcast and stabilization smoke `PASS_WITH_WARNINGS`; product is not blocked. Detailed evidence: `Project Atlas/qa/production-stabilization/broadcast-schema-production-verification-2026-07-24.md`.
 * **Session Status**: `TAILORING_PROJECT_METADATA_VERIFIED_READY` - The confirmed project-date loss was fixed at the gateway and frontend merge boundaries, deployed, and verified with one controlled production Tailoring action.
 * **Project Metadata Preservation Resolution (2026-07-24)**:
   - **Root Cause**: `MULTIPLE_LAYERS`. `buildTailorMessages()` omitted project chronology/current/URL metadata; the structured output omitted current/URL fields; the gateway preserved only IDs; and the generic frontend spread allowed blank AI values and AI-only projects.
