@@ -1,5 +1,43 @@
 # Project Atlas Master Changelog
 
+## 2026-07-23 - Performance Phase 4: Tailoring Bounded Execution and Production Recovery
+
+- **Classification**: PASS_WITH_WARNINGS
+- **Scope**: Fixed Tailoring request duration, async Appwrite transport, no-result/timeout recovery, idempotency cleanup, duplicate execution risk, and exactly-once credit behavior. Provider/model routing, prompts, merge semantics, scoring, plan limits, schemas, auth, Portfolio, Editor, Cover Letters, and unrelated AI features were not changed.
+- **Product Commits**:
+  - `ac4065f1e74e3128a3f197973e2e6a1d7a2809b4` - `perf(tailoring): bound AI execution and recovery`
+  - `66df7a3978c79a525742a6c07ab2836a4ca0cadf` - `fix(tailoring): recover async results in production`
+- **Confirmed Root Cause**:
+  - Historical executions `6a6086ce7a33f9ad3e62` and `6a6086f0a9630fc42edb` failed at `30.003 s` and `30.002 s`, matching Appwrite's synchronous execution ceiling.
+  - The prior gateway allowed approximately `195 s` of Tailoring provider work (`65 s` primary + same-provider retry + fallback). The frontend used synchronous execution, had no effective bounded transport wait, and automatically retried once.
+  - Production verification of the first fix exposed a second transport defect: the provider succeeded in `3.591 s`, but browser `getExecution` access was denied before result retrieval, leaving a cached result stranded.
+  - Structured-output repair was already disabled for Tailoring and was not part of the failure.
+- **Implementation**:
+  - `appwrite-hubs/ai-gateway/src/main.js`: added a `68 s` total Tailoring budget, `42 s` primary, one `23 s` cross-provider fallback, remaining-budget enforcement, safe failure caching, stale pending cleanup, 78-second credit lock, compressed cache payload support, and bounded eight-second result-only long polling.
+  - `src/lib/appwrite-functions.ts`: starts Tailoring asynchronously, attempts execution-status polling, falls back to authenticated result-only cache retrieval on Appwrite `401/403/404`, and stops after `75 s`.
+  - `src/lib/aiTailor.ts`: forwards cancellation/timeout and removed the automatic frontend provider retry.
+  - `src/pages/TailoringHubPage.tsx`: added immediate duplicate-click protection, cancellation, actionable timeout/no-result recovery, and no save/navigation on failure.
+  - `src/lib/aiErrorParser.ts`: classifies in-progress and bounded timeout responses.
+  - Added focused transport, page recovery, gateway routing, timeout, idempotency, duplicate, and credit tests.
+- **Validation**:
+  - Focused frontend: PASS, `5` files / `24` tests.
+  - Gateway routing and Tailoring recovery integration scripts: PASS.
+  - `node --check`, focused changed-file ESLint, `git diff --check`, and `npm run build`: PASS.
+  - Production build transformed 5,820 modules and contained no sourcemaps; existing Browserslist and large-chunk warnings remain.
+  - Broader phase suite: `174` files / `1,004` tests passed, one skipped file, one todo. Four tests timed out only under full-suite load and passed in isolated reruns.
+- **Deployment**:
+  - Vercel production succeeded for recovery SHA `66df7a3978c79a525742a6c07ab2836a4ca0cadf`; GitHub deployment `5579487506`, environment URL `https://wise-resume-d700lmekx-iam-magdy.vercel.app`.
+  - Targeted Appwrite workflow run `30042810382` deployed only `ai-gateway`. Deployment `6a627b81bff27daaf366` reached `ready`; safe smoke HTTP 200.
+  - Deployed `ai-gateway` source hash: `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`.
+- **Production Evidence**:
+  - Provider execution `6a627c387a11d6e9ae91`: completed HTTP 200 in `4.754 s`; DeepSeek `deepseek-chat` succeeded on attempt one in `2.902 s`.
+  - Result-only execution `6a627c398ed25d37f977`: completed HTTP 200 in `3.653 s`; no provider call.
+  - Exactly one request-log row recorded one two-credit charge. No duplicate provider execution occurred.
+  - The UI exited loading and displayed actionable unchanged-output recovery with Retry/Edit controls, with no save or navigation.
+- **Warning**:
+  - The production QA fixture returned a legitimate unchanged result. A newly created meaningful result page was not proven post-fix and remains a one-run QA follow-up using a richer controlled resume.
+  - Public Portfolio cold-mobile LCP remains above four seconds, authenticated Broadcast still expects a missing `active` attribute, and external provider variability remains bounded by the new Tailoring budgets.
+
 ## 2026-07-22 - Performance Phase 3: Public Portfolio Mobile Critical Path
 
 - **Classification**: PASS_WITH_WARNINGS

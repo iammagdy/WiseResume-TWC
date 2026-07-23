@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-07-23 Addendum - Tailoring Bounded Execution and Recovery
+
+**Verdict:** PASS_WITH_WARNINGS
+
+The original audit's Tailoring timeout and credit-cost rows are superseded by current production evidence:
+
+* Current `tailor-resume` cost is two credits.
+* Historic production Tailoring executions failed at the Appwrite synchronous 30-second ceiling.
+* Tailoring now uses one asynchronous provider execution, a 68-second backend budget, and a 75-second frontend cap.
+* Provider work is limited to a 42-second primary plus at most one 23-second cross-provider fallback. Same-provider retry and structured repair are disabled for Tailoring.
+* Result-only recovery reads the existing user-scoped idempotency cache and cannot invoke a provider or charge credit.
+* Focused integration coverage proves fallback success, all-provider timeout, malformed output, explicit retry, concurrent duplicate suppression, cached replay, no charge on failure, and one charge on success.
+* Production executions `6a627c387a11d6e9ae91` and `6a627c398ed25d37f977` prove one provider success plus one result-only recovery. One request-log row recorded one two-credit charge.
+* The production UI resolved to an actionable unchanged-output state instead of remaining stuck. A post-fix meaningful-result page remains pending a richer controlled QA fixture.
+
+Full evidence: `Project Atlas/reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md`.
+
+---
+
 ## 1. AI Architecture Overview
 
 ```txt

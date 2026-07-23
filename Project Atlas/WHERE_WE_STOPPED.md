@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-07-22
-**Status:** Performance Phase 3 Public Portfolio Deployed and Verified with Cold-Mobile LCP Warning
+**Last Verified:** 2026-07-23
+**Status:** Performance Phase 4 Tailoring Recovery Deployed and Verified with Meaningful-Result QA Warning
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -24,6 +24,8 @@
 
 ## 2. Latest Important Commits
 
+* **`66df7a39`** - `fix(tailoring): recover async results in production` - **PRODUCTION RECOVERY FIX PUSHED AND VERIFIED**
+* **`ac4065f1`** - `perf(tailoring): bound AI execution and recovery` - **PRODUCT FIX PUSHED AND DEPLOYED**
 * **`9e7020a0`** - `perf(portfolio): protect slow hero paint` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED WITH COLD-MOBILE LCP WARNING**
 * **`18110bb8`** - `perf(portfolio): remove residual avatar contention` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
 * **`8bab2a66`** - `perf(portfolio): defer noncritical public work` - **PRODUCT FIX PUSHED AND PRODUCTION VERIFIED**
@@ -50,6 +52,18 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
+* **Session Status**: PERFORMANCE_PHASE_4_TAILORING_PASS_WITH_WARNINGS - Tailoring now has bounded provider and frontend waits, safe async Appwrite execution, idempotent result retrieval, actionable failure/no-result states, and no automatic provider retry. Production recovery is verified. A newly created meaningful tailored result was not proven because the available QA fixture correctly reached the unchanged-output guard.
+* **Performance Phase 4 (2026-07-22 to 2026-07-23)**:
+  - **Confirmed Root Cause**: Two historical Tailoring executions (`6a6086ce7a33f9ad3e62`, `6a6086f0a9630fc42edb`) failed at Appwrite's exact 30-second synchronous execution ceiling. The old gateway could spend about 195 seconds across a 65-second primary, same-provider retry, and fallback, while the frontend had no effective bounded transport wait and automatically retried once. Stale pending idempotency rows and a short credit-lock TTL increased recovery risk.
+  - **Bounded Backend**: Tailoring now has a 68-second total gateway budget, a 42-second primary attempt, one 23-second cross-provider fallback, a five-second minimum remaining-attempt gate, and a two-second cleanup reserve. Tailoring same-provider retry is disabled; routing order and models are unchanged.
+  - **Bounded Frontend**: The browser starts one asynchronous provider execution and waits at most 75 seconds. It never automatically starts a second provider request. Duplicate clicks are blocked, cancellation stops waiting, and failures do not save or navigate.
+  - **Production Transport Recovery**: Production proved browser users cannot read async execution status through `getExecution`. Recovery commit `66df7a39` falls back to authenticated result-only polling. The gateway long-polls the existing idempotency cache for at most eight seconds per lookup; these lookups never invoke a provider or deduct credit.
+  - **Idempotency/Credits**: Successful or failed Tailoring outcomes are cached before final response; stale pending rows expire after 80 seconds; failed results are consumed so an explicit retry can start one new job. The Tailoring credit lock is 78 seconds. Controlled tests prove one charge on success and no charge on provider timeout or unusable output.
+  - **Validation**: Focused frontend recovery tests passed `5` files / `24` tests. Gateway routing and Tailoring recovery integration scripts passed. `node --check`, focused ESLint, `git diff --check`, TypeScript, production build, and no-sourcemap verification passed. The broader phase run passed `174` files / `1,004` tests with one skipped file and one todo; four load-sensitive tests timed out under full-suite concurrency and passed in isolated reruns.
+  - **Deployment Status**: Vercel production deployment for recovery commit `66df7a3978c79a525742a6c07ab2836a4ca0cadf` succeeded as GitHub deployment `5579487506` (`https://wise-resume-d700lmekx-iam-magdy.vercel.app`). Targeted Appwrite workflow run `30042810382` deployed only `ai-gateway`; deployment `6a627b81bff27daaf366` is `ready`, source hash `244f6be15693770dc1c6129a8e258c4fc956a6ddd04793522edc314ab712adc0`, and the safe smoke returned HTTP 200.
+  - **Production Evidence**: One post-fix request created exactly two Appwrite executions: provider execution `6a627c387a11d6e9ae91` completed in `4.754 s` with DeepSeek success in `2.902 s`; result-only execution `6a627c398ed25d37f977` completed in `3.653 s`. One `ai_request_logs` row recorded one two-credit charge and no idempotency hit. The UI exited loading in under the 75-second cap and displayed the actionable unchanged-output state with Retry/Edit controls; it did not save or navigate.
+  - **Warning**: The available production `Test Resume` fixture produced no meaningful changes, so post-fix creation/navigation to a new result page remains pending a richer controlled QA fixture. Do not consume repeated production credits to force this check.
+  - **Report**: `Project Atlas/reports/performance/performance-phase-4-tailoring-remediation-2026-07-23.md`.
 * **Session Status**: PERFORMANCE_PHASE_3_PUBLIC_PORTFOLIO_PASS_WITH_WARNINGS - Public Portfolio mobile CLS, avatar delivery, request startup, and optional-work contention were materially improved and production verified. The strict cold-mobile LCP target remains unmet, so this phase is not `VERIFIED_READY`. No Appwrite hub, schema, permission, auth, AI, credits, environment, or settings change was performed.
 * **Performance Phase 3 (2026-07-22)**:
   - **Confirmed Baseline**: Direct production mobile throttling measured `15.388 s` LCP, `0.346` CLS, approximately `3.672 s` estimated TBT, `1,882,125` transferred bytes, and `110` requests. Gate/data started near `8.64 s`; the original Appwrite avatar `/view` was fetched twice at approximately `446 KB` per request and finished near LCP.
@@ -153,16 +167,17 @@
 
 ## 4. Next Recommended Tasks
 
-1. **Public Portfolio Architecture Decision**: Phase 3 materially reduced transfer, CLS, avatar cost, request delay, and optional contention, but cold-mobile LCP remains `5.860 s` median against the `<4.0 s` target. Any follow-up must separately approve a smaller public entry/provider graph or an earlier pre-React server-function request strategy without duplicating or weakening the gate architecture.
-2. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
-3. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
-4. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.
-5. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
-6. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
-7. **Deeper Manual QA**:
+1. **Tailoring Meaningful-Result QA**: Use one richer controlled QA resume and one specific job description to confirm post-fix result creation/navigation. Do not alter prompts, routing, models, schemas, or credit policy for this verification.
+2. **Public Portfolio Architecture Decision**: Phase 3 materially reduced transfer, CLS, avatar cost, request delay, and optional contention, but cold-mobile LCP remains `5.860 s` median against the `<4.0 s` target. Any follow-up must separately approve a smaller public entry/provider graph or an earlier pre-React server-function request strategy without duplicating or weakening the gate architecture.
+3. **Broadcast Schema Decision**: Inspect the live `broadcasts` collection and intended announcement contract in a separately approved Appwrite task. The current authenticated query expects `active`, but production schema does not provide it.
+4. **Cover Letter Pro/Premium Retest**: Retest Cover Letter flows using a Pro/Premium QA account; current Free QA account keeps this `BLOCKED_EXTERNAL_ACCESS`.
+5. **Fast Tailor E2E Generation Verification**: Verify the full end-to-end tailoring and cover letter generation flow once QA credits or a controlled test account are available.
+6. **Optional Server-Side Visitor Country Privacy Review**: The browser GeoJS request is removed and no CSP allowance is needed. If visitor country analytics remain important, separately review whether the existing Appwrite `track-visitor-event` server-side GeoJS fallback should be retained, replaced with first-party request metadata only, or removed.
+7. **Existing Cover Letter Permissions Migration**: Existing cover letter documents, if any, may not have owner document-level permissions and may need a separate safe owner-permission migration/inspection. (Non-blocking follow-up).
+8. **Deeper Manual QA**:
    - Perform a manual browser QA verification of the `/upload` file and URL import using an authenticated account.
    - Run a mobile UX sweep of the new FeatureGate translation alignment on RTL/Arabic screen views.
-8. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
+9. **Appwrite Console Security Audit**: Audit Appwrite database collection read/write permissions to ensure all custom collections setup in this batch (e.g. `portfolio_session_rate_limits`) have the narrowest access boundaries.
 
 ---
 
