@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-07-24 - Public Repository Security Hardening Recovery
+
+- **Classification:** `DEPLOYED_PENDING_BROWSER_VERIFICATION`.
+- Corrective PR #158 (`78656e7f`, merged as `0d030df4`) tracked the three ignored Jobs hub lockfiles and made deployment hardening tests Git-aware and CRLF-safe.
+- The earlier 28-target workflow `30100163770` stopped after 25 ready deployments; exact recovery workflow `30101982337` deployed only `job-feed-sync`, `get-remote-jobs`, and `track-job-action`, then completed one authorized sync.
+- Live verification reports 28/28 execute-policy matches. Anonymous `job-feed-sync` and `track-job-action` calls return 401; anonymous `get-remote-jobs` completes as intended.
+- Focused and full Hub Node tests passed (30), as did TypeScript and production build. `npm audit --omit=dev` retains only the documented two moderate React Router advisories.
+- Browser automation was unavailable; authenticated owner-scoped job-action and broader visual production QA remain pending. No rollback, secret change, broad deployment, or history rewrite occurred.
+
 ## 2026-07-24 - Public Repository Security Hardening (Local, Not Deployed)
 
 - **Classification:** `TESTED_LOCAL` with external owner actions pending.

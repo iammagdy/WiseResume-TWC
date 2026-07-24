@@ -54,6 +54,6 @@ Let authenticated users browse remote jobs, save job context, tailor application
 * [`owner-permissions-realtime-csp-2026-07-21.md`](../qa/production-stabilization/owner-permissions-realtime-csp-2026-07-21.md)
 * [`critical-functionality-smoke-audit-2026-07-21.md`](../qa/production-stabilization/critical-functionality-smoke-audit-2026-07-21.md)
 
-## 2026-07-24 Security Hardening (Local Only)
+## 2026-07-24 Security Hardening (Deployed)
 
-`job-feed-sync` is no longer Client-SDK executable. Its native `0 */6 * * *` schedule and approved API-key server trigger remain supported, with a side-effect-free authorization probe test. Deployment and live permission verification remain pending approval.
+Recovery workflow `30101982337` deployed only the three Jobs hubs. `job-feed-sync` is no longer Client-SDK executable, retains its native `0 */6 * * *` schedule, and denied an anonymous probe with 401; one approved internal sync completed. `get-remote-jobs` remains public and completed an anonymous read. `track-job-action` now requires an Appwrite user and denied an anonymous probe with 401. Authenticated owner-scoped action and cross-user mutation browser QA remain pending.

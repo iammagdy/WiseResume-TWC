@@ -55,13 +55,12 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **Session Status:** `PUBLIC_REPOSITORY_HARDENING_TESTED_LOCAL_NOT_DEPLOYED`.
-  - The current working branch is `security/public-repository-hardening`; its local changes are intentionally dirty, backed up outside the repository, and must not be reset, committed, pushed, or deployed without owner review.
-  - Local implementation includes the explicit 28-function Appwrite policy, `job-feed-sync` client-execution denial with preserved six-hour schedule, HMAC-gated Sentry webhook exception, strict portfolio CSS/redirect/URL-import/password-throttle defenses, public error sanitization, removal of `api/admin-diagnostics.ts`, workflow/package hardening, and repository governance files.
-  - Read-only runtime/settings checks found GitHub security controls disabled; owner must enable Secret Scanning, Push Protection, Dependabot alerts/security updates/automated fixes, and Private Vulnerability Reporting if eligible. Owner reports the Security Log was reviewed with no suspicious activity.
-  - A revoked historical credential remains only in reachable history. Containment is complete per owner; no new credential was read or displayed. The required cleanup plan is `Project Atlas/security/credential-history-cleanup-plan-2026-07-24.md`; do not rewrite history without separate explicit authorization.
-  - Deployment status is `NOT_DEPLOYED`. The next authorized action is owner review, then explicit targeted deployment and runtime verification as documented in `Project Atlas/security/public-repository-hardening.md`.
-  - Final pre-commit review passed the production build, dedicated policy/authorization Node gate, and diff check; the URL-import feature specification now records the authenticated, rate-limited, DNS-pinned contract. No commit, push, deployment, settings, or environment change occurred.
+* **Session Status:** `DEPLOYED_PENDING_BROWSER_VERIFICATION` for public-repository hardening.
+  - PR #148 merged the hardening implementation; PR #158 (`78656e7f`, merged `0d030df4`) corrected three ignored hub lockfiles after failed workflow `30100163770` stopped with 25 ready deployments.
+  - Recovery workflow `30101982337` deployed only `job-feed-sync`, `get-remote-jobs`, and `track-job-action`; all are ready, the 28-function live policy verifier reports 28/28 matches, and one approved internal sync completed.
+  - `job-feed-sync` retains `execute: []` and `0 */6 * * *`; anonymous `job-feed-sync` and `track-job-action` probes returned 401, while public `get-remote-jobs` completed. No rollback, broad rollout, secret change, or history rewrite occurred.
+  - Browser automation was unavailable. Authenticated owner-scoped job-action/cross-user mutation proof and broader visual production QA remain pending; do not classify them as verified.
+  - Historical credential cleanup remains separately pending under `Project Atlas/security/credential-history-cleanup-plan-2026-07-24.md`; no history rewrite is authorized.
 
 * **Session Status**: `BROADCAST_DELIVERY_PRODUCTION_VERIFIED_WITH_EMPTY_COLLECTION_WARNING` - The authenticated Broadcast schema/query failure is fixed in production without broadening Appwrite permissions.
 * **Broadcast Closeout (2026-07-24)**:

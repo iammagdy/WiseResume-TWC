@@ -43,13 +43,10 @@ Appwrite Functions are deployed independently from the frontend application usin
 
 ### Latest Verified Appwrite Deployment
 
-* **Target:** `admin-devkit-data` only.
-* **GitHub Actions Run:** `30051406249` - success in `1m15s`.
-* **Appwrite Deployment:** `6a629b8351abe36cd0c3` - `ready`.
-* **Source Hash:** `21a8df1890e76655c36e403fc8c17813de11db4e22d6b77ecaba8a2539e97e02`.
-* **Smoke:** HTTP 200.
-* **Schema Scope:** The new Broadcast schema helper created seven canonical attributes and retained empty collection permissions. General schema steps were skipped. The workflow's existing idempotent `admin-devkit-data` impersonation-session dependency check also ran.
-* **Repository Parity:** The active `admin-devkit-data` deployment matches the repository hash. Post-apply Broadcast dry-run reports eight total attributes, zero planned changes, zero documents, and no migration work.
+* **Target:** `job-feed-sync,get-remote-jobs,track-job-action` only.
+* **GitHub Actions Run:** `30101982337` - success in `5m15s` after corrective PR #158.
+* **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
+* **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
 
 ---
 
@@ -57,6 +54,6 @@ Appwrite Functions are deployed independently from the frontend application usin
 
 * Historical Hostinger/FTP material is preserved only in the Atlas archive and chronological handover. It is not current WiseResume deployment truth.
 
-## Public-Repository Hardening Pending Deployment (2026-07-24)
+## Public-Repository Hardening Recovery (2026-07-24)
 
-Local-only changes require owner approval. The workflow now requires explicit known targets, rejects `all`, pins actions by SHA, and builds hubs using lockfile-backed `npm ci`. Follow the targeted deployment, verification, and rollback sequence in [`../security/public-repository-hardening.md`](../security/public-repository-hardening.md).
+The failed 28-target workflow `30100163770` was not rerun. PR #158 tracked the three missing hub lockfiles and hardened the lockfile guard; targeted recovery used only the three Jobs hubs above. See [`../security/public-repository-hardening.md`](../security/public-repository-hardening.md).

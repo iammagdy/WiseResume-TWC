@@ -82,6 +82,6 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 * **Rule:** Never use `target=all`; always name the approved target(s).
 * **Latest verified target:** `ai-gateway` only, workflow run `30042810382`, deployment `6a627b81bff27daaf366`, status `ready`.
 
-## Public-Repository Hardening (2026-07-24, Local Only)
+## Public-Repository Hardening (2026-07-24, Deployed)
 
-The repository now has an explicit 28-function execution-policy map. `job-feed-sync` is schedule/API-key only (`execute: []`) with its six-hour schedule preserved; client-facing admin functions use `users` plus their signed handler checks. `admin-sentry` remains the documented HMAC-signed external-webhook exception. See [`../security/public-repository-hardening.md`](../security/public-repository-hardening.md). No Appwrite deployment was performed.
+The repository has an explicit 28-function execution-policy map. Recovery workflow `30101982337` completed after the earlier 28-target run stopped on untracked lockfiles: `job-feed-sync` is schedule/API-key only (`execute: []`) with its six-hour schedule preserved, `track-job-action` is `users`, and `get-remote-jobs` remains public. The live verifier reports 28/28 policy matches. See [`../security/public-repository-hardening.md`](../security/public-repository-hardening.md).

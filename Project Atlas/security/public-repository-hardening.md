@@ -1,7 +1,7 @@
 # Public Repository Security Hardening
 
 **Last verified:** 2026-07-24
-**Status:** `TESTED_LOCAL`, not deployed
+**Status:** `DEPLOYED_PENDING_BROWSER_VERIFICATION`
 **Scope:** public repository controls, Vercel public APIs, and Appwrite Function execution boundaries.
 
 ## Implemented controls
@@ -56,6 +56,8 @@ Old live policy was `any` for all rows. `users` means an authenticated Appwrite 
 
 Read-only repository inspection found Secret Scanning, non-provider scanning, validity checks, push protection, Dependabot alerts/security updates, automated fixes, and Private Vulnerability Reporting disabled. The owner must enable each in GitHub: **Repository → Settings → Security → Code security and analysis**, then enable Secret scanning, Push protection, Dependabot alerts, Dependabot security updates/automated fixes, and Private vulnerability reporting where plan eligibility permits. Owner reports the Security Log had no suspicious activity.
 
-## Deployment plan (not executed)
+## Deployment and verification (2026-07-24)
 
-After review, dispatch **Deploy Appwrite Hubs** once per explicit changed target—never `all`: `job-feed-sync,admin-sentry,email-service,get-public-portfolio,verify-portfolio-password,portfolio-gate,public-share,track-visitor-event`. Deploy Vercel separately for `api/*` and frontend changes. Verify live policy with `node scripts/verify-function-execute-policy.cjs --enforce`; assert anonymous `job-feed-sync` is 401/403, schedule is `0 */6 * * *`, one controlled API-key sync creates one run record, public jobs still read, portfolio password lockout/recovery works, URL import requires a JWT, and public failures reveal no internals. Roll back each target to its prior ready deployment; stop immediately on any policy or public-flow regression.
+The initial 28-target workflow `30100163770` stopped at the first untracked hub lockfile after 25 ready deployments; no rollback was required. Corrective PR #158 (`78656e7f`, merged as `0d030df4`) tracked the three missing locks and made the guard test Git-aware and CRLF-safe. The exact recovery workflow `30101982337` then deployed only `job-feed-sync` (`6a637988c75fbc22829a`), `get-remote-jobs` (`6a63799d79e6a27a64f3`), and `track-job-action` (`6a6379ae192857be7a6e`), all `ready`.
+
+The live verifier reported 28/28 policy matches. Anonymous execution of `job-feed-sync` and `track-job-action` was denied with 401; anonymous `get-remote-jobs` completed as designed. One approved internal `job-feed-sync` execution completed with the six-hour schedule preserved. Full authenticated browser QA was not performed because browser automation was unavailable; do not infer owner-scoped job-action proof from this deployment evidence.
