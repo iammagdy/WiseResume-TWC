@@ -130,3 +130,6 @@ reports/e2e-results-*.json
 
 # Appwrite function lockfiles and mappings
 appwrite-hubs/*/package-lock.json
+!appwrite-hubs/job-feed-sync/package-lock.json
+!appwrite-hubs/get-remote-jobs/package-lock.json
+!appwrite-hubs/track-job-action/package-lock.json
