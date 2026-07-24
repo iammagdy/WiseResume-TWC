@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 const emailService = readFileSync('appwrite-hubs/email-service/src/main.js', 'utf8');
 const publicPortfolio = readFileSync('api/public-portfolio.ts', 'utf8');
 const trackView = readFileSync('api/track-portfolio-view.ts', 'utf8');
+const portfolioInterest = readFileSync('api/portfolio-interest.ts', 'utf8');
 
 describe('public privacy hardening', () => {
   it('requires a current-user JWT for email verification status and does not return email', () => {
@@ -21,6 +22,9 @@ describe('public privacy hardening', () => {
     expect(publicPortfolio).toContain('recordPasswordFailure(db, username, clientIp)');
     expect(publicPortfolio).toContain('clearPasswordFailures(db, username, clientIp)');
     expect(publicPortfolio).toContain("return res.status(429).json({ error: 'rate_limited'");
+    expect(publicPortfolio).toContain("req.headers['x-vercel-forwarded-for']");
+    expect(publicPortfolio).toContain('infrastructureFailure');
+    expect(publicPortfolio).not.toContain("req.headers['cf-connecting-ip']");
   });
 
   it('serves portfolio-visit analytics from a server-side Vercel route that validates input and stores no visitor IP', () => {
@@ -39,5 +43,12 @@ describe('public privacy hardening', () => {
     expect(dataBlock).not.toMatch(/\bip\b/i);
     expect(dataBlock).not.toMatch(/email/i);
     expect(trackView).not.toContain('contactEmail');
+  });
+
+  it('keeps public errors generic and never reflects underlying error messages', () => {
+    for (const source of [emailService, publicPortfolio, portfolioInterest]) {
+      expect(source).not.toMatch(/return\s+json\(res,\s*\{\s*error:\s*msg\s*\}/);
+      expect(source).not.toContain("error: 'config_error'");
+    }
   });
 });

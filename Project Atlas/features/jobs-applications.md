@@ -53,3 +53,7 @@ Let authenticated users browse remote jobs, save job context, tailor application
 
 * [`owner-permissions-realtime-csp-2026-07-21.md`](../qa/production-stabilization/owner-permissions-realtime-csp-2026-07-21.md)
 * [`critical-functionality-smoke-audit-2026-07-21.md`](../qa/production-stabilization/critical-functionality-smoke-audit-2026-07-21.md)
+
+## 2026-07-24 Security Hardening (Local Only)
+
+`job-feed-sync` is no longer Client-SDK executable. Its native `0 */6 * * *` schedule and approved API-key server trigger remain supported, with a side-effect-free authorization probe test. Deployment and live permission verification remain pending approval.

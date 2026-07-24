@@ -12,6 +12,7 @@ import {
 } from '@/lib/portfolioDraftStorage';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { normalizeCssColor } from '@/lib/security/cssColor';
 
 export type CareerLevel = 'entry' | 'mid' | 'senior' | 'executive';
 
@@ -248,7 +249,7 @@ export function useProfile(userId: string | undefined) {
         portfolioMetaDescription: (doc.portfolio_meta_description as string | null) ?? null,
         portfolioStyle: (doc.portfolio_style as string | null) ?? null,
         portfolioLayout: (doc.portfolio_layout as string | null) ?? null,
-        portfolioAccentColor: (doc.portfolio_accent_color as string | null) ?? null,
+        portfolioAccentColor: normalizeCssColor(doc.portfolio_accent_color),
         portfolioFont: (doc.portfolio_font as string | null) ?? null,
         openToWork: (doc.open_to_work as boolean) ?? false,
         portfolioExtras: parseJsonField(doc.portfolio_extras),
@@ -338,7 +339,15 @@ export function useProfile(userId: string | undefined) {
     if (updates.portfolioMetaDescription !== undefined) data.portfolio_meta_description = updates.portfolioMetaDescription;
     if (updates.portfolioStyle !== undefined) data.portfolio_style = updates.portfolioStyle;
     if (updates.portfolioLayout !== undefined) data.portfolio_layout = updates.portfolioLayout;
-    if (updates.portfolioAccentColor !== undefined) data.portfolio_accent_color = updates.portfolioAccentColor;
+    if (updates.portfolioAccentColor !== undefined) {
+      if (updates.portfolioAccentColor === null) {
+        data.portfolio_accent_color = null;
+      } else {
+        const accentColor = normalizeCssColor(updates.portfolioAccentColor);
+        if (!accentColor) throw new Error('Invalid portfolio accent color');
+        data.portfolio_accent_color = accentColor;
+      }
+    }
     if (updates.portfolioFont !== undefined) data.portfolio_font = updates.portfolioFont;
     if (updates.openToWork !== undefined) data.open_to_work = updates.openToWork;
     if (updates.availabilityHeadline !== undefined) data.availability_headline = updates.availabilityHeadline;

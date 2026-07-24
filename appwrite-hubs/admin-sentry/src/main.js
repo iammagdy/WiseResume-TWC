@@ -137,19 +137,22 @@ function verifyWebhookSig(rawBody, signature, secret) {
   // verify the request came from Sentry, so reject it rather than trusting an
   // unsigned webhook. SENTRY_WEBHOOK_SECRET must be set in the admin-sentry
   // function env (and GitHub secret) for webhooks to be accepted.
-  if (!secret) return false;
-  if (!signature) return false;
+  if (!secret || typeof signature !== 'string' || !/^[0-9a-f]{64}$/i.test(signature)) return false;
   const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
-  } catch {
-    return false;
-  }
+  return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
+}
+
+function header(req, name) {
+  const headers = req.headers || {};
+  const expected = name.toLowerCase();
+  const key = Object.keys(headers).find(candidate => candidate.toLowerCase() === expected);
+  const value = key ? headers[key] : '';
+  return Array.isArray(value) ? value[0] || '' : String(value || '');
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-module.exports = async ({ req, res, log, error }) => {
+const handler = async ({ req, res, log, error }) => {
   const rid = requestId();
   let body = {};
   try {
@@ -160,14 +163,14 @@ module.exports = async ({ req, res, log, error }) => {
   const cfg = getSentryConfig();
 
   // ── Sentry webhook (no DevKit auth; verified by Sentry signature) ──────────
-  const isSentryWebhook = !!(req.headers?.['sentry-hook-resource'] || action === 'webhook');
+  const isSentryWebhook = !!(header(req, 'sentry-hook-resource') || action === 'webhook');
   if (isSentryWebhook) {
     const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
-    const sig = req.headers?.['sentry-hook-signature'] || '';
+    const sig = header(req, 'sentry-hook-signature');
     if (!verifyWebhookSig(rawBody, sig, cfg.webhookSecret)) {
-      return json(res, rid, { success: false, error: 'Invalid webhook signature' }, 401);
+      return json(res, rid, { success: false, error: 'Unauthorized' }, 401);
     }
-    const resource = req.headers?.['sentry-hook-resource'] || body?.resource || 'unknown';
+    const resource = header(req, 'sentry-hook-resource') || body?.resource || 'unknown';
     const evt = body?.action || 'unknown';
     log(`Sentry webhook: resource=${resource} event=${evt}`);
     return json(res, rid, { success: true, received: true });
@@ -181,8 +184,7 @@ module.exports = async ({ req, res, log, error }) => {
   if (!sentryConfigured(cfg)) {
     return json(res, rid, {
       success: false,
-      error: 'Sentry not fully configured. Set SENTRY_AUTH_TOKEN, SENTRY_ORG_SLUG, and SENTRY_PROJECT_SLUG in Appwrite function variables.',
-      configured: { authToken: !!cfg.authToken, org: !!cfg.org, project: !!cfg.project },
+      error: 'Sentry integration is temporarily unavailable.',
     }, 503);
   }
 
@@ -196,7 +198,7 @@ module.exports = async ({ req, res, log, error }) => {
       return json(res, rid, { success: true, ...result });
     } catch (err) {
       error(`get-issues: ${err.message}`);
-      return json(res, rid, { success: false, error: err.message }, 500);
+      return json(res, rid, { success: false, error: 'Sentry request failed.' }, 500);
     }
   }
 
@@ -206,7 +208,7 @@ module.exports = async ({ req, res, log, error }) => {
       return json(res, rid, { success: true, ...stats });
     } catch (err) {
       error(`get-stats: ${err.message}`);
-      return json(res, rid, { success: false, error: err.message }, 500);
+      return json(res, rid, { success: false, error: 'Sentry request failed.' }, 500);
     }
   }
 
@@ -218,7 +220,7 @@ module.exports = async ({ req, res, log, error }) => {
       return json(res, rid, { success: true, issue });
     } catch (err) {
       error(`resolve-issue: ${err.message}`);
-      return json(res, rid, { success: false, error: err.message }, 500);
+      return json(res, rid, { success: false, error: 'Sentry request failed.' }, 500);
     }
   }
 
@@ -230,7 +232,7 @@ module.exports = async ({ req, res, log, error }) => {
       return json(res, rid, { success: true, issue });
     } catch (err) {
       error(`ignore-issue: ${err.message}`);
-      return json(res, rid, { success: false, error: err.message }, 500);
+      return json(res, rid, { success: false, error: 'Sentry request failed.' }, 500);
     }
   }
 
@@ -239,3 +241,6 @@ module.exports = async ({ req, res, log, error }) => {
     error: `Unknown action "${action}". Valid actions: get-issues, get-stats, resolve-issue, ignore-issue, webhook`,
   }, 400);
 };
+
+handler.__test = { header, verifySignedToken, verifyWebhookSig };
+module.exports = handler;

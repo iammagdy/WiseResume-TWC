@@ -2,6 +2,7 @@ import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
 import { getThemeById } from '@/lib/portfolioThemes';
 import { safeHref } from '@/lib/urlUtils';
+import { safeCssColor } from '@/lib/security/cssColor';
 
 function esc(str: string | null | undefined): string {
   if (!str) return '';
@@ -29,22 +30,6 @@ function dateRange(start: string | null | undefined, end: string | null | undefi
   return `${s} – ${e}`;
 }
 
-/**
- * Accepts only valid CSS hex colors (#RGB, #RRGGBB, #RRGGBBAA) and named safe
- * colors. Rejects anything that could break out of a style context.
- */
-function safeCssColor(value: string | null | undefined, fallback = '#e84545'): string {
-  if (!value) return fallback;
-  const trimmed = value.trim();
-  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
-    return trimmed;
-  }
-  if (/^rgba?\(/i.test(trimmed)) {
-    return trimmed;
-  }
-  return fallback;
-}
-
 export function generatePortfolioPrintHTML(
   profile: PublicProfile,
   resume: PublicResume,
@@ -57,9 +42,9 @@ export function generatePortfolioPrintHTML(
   const theme = getThemeById(profile.portfolioStyle || profile.theme || 'minimal');
   const bg = safeCssColor(theme?.colors.bg, '#0a0a14');
   const fg = safeCssColor(theme?.colors.fg, '#f5f5ff');
-  const muted = theme?.colors.muted || '#9ca3af';
-  const card = theme?.colors.card || 'rgba(255,255,255,0.05)';
-  const border = theme?.colors.border || 'rgba(255,255,255,0.08)';
+  const muted = safeCssColor(theme?.colors.muted, '#9ca3af');
+  const card = safeCssColor(theme?.colors.card, 'rgba(255,255,255,0.05)');
+  const border = safeCssColor(theme?.colors.border, 'rgba(255,255,255,0.08)');
   const headingFont = theme?.typography.headingFont || 'Inter, system-ui, sans-serif';
   const bodyFont = theme?.typography.bodyFont || 'Inter, system-ui, sans-serif';
   const initials = (profile.fullName || '')

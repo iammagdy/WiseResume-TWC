@@ -63,6 +63,10 @@ Provides administrators and operators with an internal Operations Hub (`/devkit`
 * Live verification on 2026-07-04 confirmed schema provisioning, hash synchronization, and Act As lifecycle behavior. Admin password-reset architecture has been updated to route via `admin-devkit-data` → `email-service` internal HMAC signing (`EMAIL_SERVICE_INTERNAL_HMAC_SECRET`), eliminating browser-held backend credentials and resolving the HTTP 401 boundary error. Pending owner-approved deployment of `admin-devkit-data,email-service`.
 * The deployed `track-visitor-event` hub still contains a server-side GeoJS fallback if Appwrite country metadata is unavailable. This does not require a browser CSP allowance and should be treated as a separate privacy review if country analytics need further hardening.
 
+## 2026-07-24 Security Hardening (Local Only)
+
+DevKit functions now require authenticated Appwrite execution in addition to existing signed server-side checks. `admin-sentry` accepts only a constant-time HMAC-signed external webhook; ordinary actions still require a signed DevKit token.
+
 ---
 
 ## 8. Historical Evidence & Reports

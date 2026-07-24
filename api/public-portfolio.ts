@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Databases, Query } from 'node-appwrite';
 import { createHash, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcryptjs';
+import { safeCssColor } from '../src/lib/security/cssColor.js';
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID =
@@ -53,10 +54,8 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 function getClientIp(req: VercelRequest): string {
-  const cfIp = typeof req.headers['cf-connecting-ip'] === 'string' ? req.headers['cf-connecting-ip'].trim() : '';
-  if (cfIp) return cfIp;
-  const realIp = typeof req.headers['x-real-ip'] === 'string' ? req.headers['x-real-ip'].trim() : '';
-  if (realIp) return realIp;
+  const vercelForwarded = req.headers['x-vercel-forwarded-for'];
+  if (typeof vercelForwarded === 'string') return vercelForwarded.split(',')[0]?.trim() || 'unknown';
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
   return 'unknown';
@@ -77,9 +76,20 @@ async function getPasswordAttemptState(db: Databases, username: string, ip: stri
       return { blocked: true, id, retryAfterSeconds: Math.ceil((resetAt - Date.now()) / 1000) };
     }
     return { blocked: false, id };
-  } catch {
-    return { blocked: false, id };
+  } catch (error) {
+    if ((error as { code?: number })?.code === 404) return { blocked: false, id };
+    return { blocked: true, infrastructureFailure: true, id, retryAfterSeconds: 60 };
   }
+}
+
+async function clearPasswordFailures(db: Databases, username: string, ip: string): Promise<void> {
+  const id = await portfolioPasswordAttemptId(username, ip);
+  try {
+    await db.updateDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, {
+      count: 0,
+      reset_at: new Date(Date.now() + PASSWORD_ATTEMPT_WINDOW_MS).toISOString(),
+    });
+  } catch { }
 }
 
 async function recordPasswordFailure(db: Databases, username: string, ip: string): Promise<void> {
@@ -95,21 +105,10 @@ async function recordPasswordFailure(db: Databases, username: string, ip: string
       return;
     }
     await db.updateDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, { count: count + 1 });
-  } catch {
-    try {
-      await db.createDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, { count: 1, reset_at: resetAt });
-    } catch { }
+  } catch (error) {
+    if ((error as { code?: number })?.code !== 404) throw error;
+    await db.createDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, { count: 1, reset_at: resetAt });
   }
-}
-
-async function clearPasswordFailures(db: Databases, username: string, ip: string): Promise<void> {
-  const id = await portfolioPasswordAttemptId(username, ip);
-  try {
-    await db.updateDocument(DATABASE_ID, PORTFOLIO_RATE_LIMIT_COLLECTION, id, {
-      count: 0,
-      reset_at: new Date(Date.now() + PASSWORD_ATTEMPT_WINDOW_MS).toISOString(),
-    });
-  } catch { }
 }
 
 async function findProfileByUsername(db: Databases, username: string) {
@@ -199,7 +198,7 @@ function mapProfile(doc: Record<string, unknown>) {
     portfolioEnabled: Boolean(doc.portfolio_enabled),
     portfolioStyle: (doc.portfolio_style as string | null) ?? null,
     portfolioLayout: (doc.portfolio_layout as string | null) ?? null,
-    portfolioAccentColor: (doc.portfolio_accent_color as string | null) ?? null,
+    portfolioAccentColor: safeCssColor(doc.portfolio_accent_color),
     portfolioFont: (doc.portfolio_font as string | null) ?? null,
     portfolioSections: parseJsonField<Record<string, unknown> | null>(doc.portfolio_sections, null),
     portfolioMetaTitle: (doc.portfolio_meta_title as string | null) ?? null,
@@ -298,7 +297,7 @@ async function getResume(db: Databases, profile: Record<string, unknown>) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!PROJECT_ID || !API_KEY) {
-    return res.status(500).json({ error: 'config_error', message: 'Public portfolio API is not configured.' });
+    return res.status(503).json({ error: 'temporarily_unavailable', message: 'Public portfolio is temporarily unavailable.' });
   }
 
   const db = getDb();
@@ -315,7 +314,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const settings = await getPortfolioSettings(db, String(profile.user_id || ''));
       return res.status(200).json({
         passwordEnabled: settings.passwordEnabled,
-        accentColor: (profile.portfolio_accent_color as string) || '#e84545',
+        accentColor: safeCssColor(profile.portfolio_accent_color),
         exists: true,
       });
     }
@@ -345,6 +344,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (settings.passwordEnabled) {
         const clientIp = getClientIp(req);
         const attemptState = await getPasswordAttemptState(db, username, clientIp);
+        if (attemptState.infrastructureFailure) {
+          return res.status(503).json({ error: 'temporarily_unavailable' });
+        }
         if (attemptState.blocked) {
           return res.status(429).json({ error: 'rate_limited', retryAfterSeconds: attemptState.retryAfterSeconds });
         }
@@ -370,7 +372,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: 'method_not_allowed' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Public portfolio request failed.';
-    return res.status(500).json({ error: 'server_error', message });
+    console.error('[public-portfolio] Request failed:', error);
+    return res.status(500).json({ error: 'server_error', message: 'Public portfolio request failed.' });
   }
 }

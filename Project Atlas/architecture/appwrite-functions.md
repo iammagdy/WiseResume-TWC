@@ -81,3 +81,7 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 * **Helper:** `node scripts/deploy_hubs.cjs --only=<function-name>`
 * **Rule:** Never use `target=all`; always name the approved target(s).
 * **Latest verified target:** `ai-gateway` only, workflow run `30042810382`, deployment `6a627b81bff27daaf366`, status `ready`.
+
+## Public-Repository Hardening (2026-07-24, Local Only)
+
+The repository now has an explicit 28-function execution-policy map. `job-feed-sync` is schedule/API-key only (`execute: []`) with its six-hour schedule preserved; client-facing admin functions use `users` plus their signed handler checks. `admin-sentry` remains the documented HMAC-signed external-webhook exception. See [`../security/public-repository-hardening.md`](../security/public-repository-hardening.md). No Appwrite deployment was performed.

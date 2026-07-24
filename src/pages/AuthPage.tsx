@@ -14,6 +14,7 @@ import { clearAllPersistedCaches } from '@/lib/persistedQueryCache';
 import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
 import { clearPlanCache } from '@/lib/planCache';
+import { safeInternalRedirect } from '@/lib/security/safeInternalRedirect';
 
 const SIGNUP_PLAN_KEY = 'signup_plan_intent';
 
@@ -42,7 +43,7 @@ export default function AuthPage() {
   const [challengeToken, setChallengeToken] = useState('');
   const [doneSlot, setDoneSlot] = useState<React.ReactNode | null>(null);
 
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const redirectTo = safeInternalRedirect(searchParams.get('redirect'));
 
   useEffect(() => {
     const planParam = searchParams.get('plan');

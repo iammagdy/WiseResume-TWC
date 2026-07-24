@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-07-24 - Public Repository Security Hardening (Local, Not Deployed)
+
+- **Classification:** `TESTED_LOCAL` with external owner actions pending.
+- Added least-privilege Appwrite execution policy coverage for all 28 functions; `job-feed-sync` is schedule/API-key only and the six-hour schedule is preserved.
+- Hardened public CSS color handling, redirects, authenticated URL import, portfolio throttling, public error responses, webhook signing, workflow target safety, deterministic hub installs, and repository governance.
+- Removed the temporary public diagnostics endpoint. Added a factual third-party asset inventory and a history-rewrite plan for the revoked historical credential; no token value, rewrite, deploy, setting change, license change, commit, or push occurred.
+- Local focused tests, TypeScript, build, source hashes, syntax checks, and diff check passed before documentation closeout. Production audit leaves two moderate React Router v6 advisories whose available upstream fix is the separately planned breaking v7 migration.
+- Final pre-commit review updated `Project Atlas/features/upload-import.md` with the authenticated, durable-rate-limited, DNS-pinned URL-import contract; production build and dedicated security-policy tests passed locally. The current Atlas tree has no active `04-For You (Plain Language)` directory, so no owner-facing duplicate was created.
+
 ## 2026-07-24 - Authenticated Broadcast Schema and Delivery Repair
 
 - **Classification**: `PASS_WITH_WARNINGS`

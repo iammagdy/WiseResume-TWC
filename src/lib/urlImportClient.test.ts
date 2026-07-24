@@ -12,7 +12,10 @@ describe('URL import client', () => {
       status: 200,
       headers: { 'content-type': 'application/json' },
     }));
-    await expect(fetchUrlHtml('https://example.com/resume', fetchImpl)).resolves.toBe('<main>Resume content</main>');
+    await expect(fetchUrlHtml('https://example.com/resume', fetchImpl, async () => 'test-jwt')).resolves.toBe('<main>Resume content</main>');
+    expect(fetchImpl).toHaveBeenCalledWith('/api/fetch-url', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer test-jwt' }),
+    }));
   });
 
   it('rejects endpoint errors so the flow cannot falsely continue', async () => {
@@ -21,7 +24,7 @@ describe('URL import client', () => {
       error: 'This URL cannot be imported.',
     }), { status: 400, headers: { 'content-type': 'application/json' } }));
 
-    await expect(fetchUrlHtml('http://127.0.0.1', fetchImpl)).rejects.toMatchObject({
+    await expect(fetchUrlHtml('http://127.0.0.1', fetchImpl, async () => 'test-jwt')).rejects.toMatchObject({
       name: 'UrlImportRequestError',
       code: 'BLOCKED_URL',
     });
@@ -29,9 +32,17 @@ describe('URL import client', () => {
 
   it('turns network failures into a controlled client error', async () => {
     const fetchImpl = vi.fn(async () => { throw new Error('internal network detail'); });
-    await expect(fetchUrlHtml('https://example.com', fetchImpl)).rejects.toEqual(
+    await expect(fetchUrlHtml('https://example.com', fetchImpl, async () => 'test-jwt')).rejects.toEqual(
       new UrlImportRequestError('FETCH_FAILED'),
     );
+  });
+
+  it('does not call the endpoint without an authenticated session', async () => {
+    const fetchImpl = vi.fn();
+    await expect(fetchUrlHtml('https://example.com', fetchImpl, async () => null)).rejects.toEqual(
+      new UrlImportRequestError('AUTH_REQUIRED'),
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it.each([

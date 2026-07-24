@@ -1173,7 +1173,24 @@ async function fetchLeverJobs(log) {
 
 // ─── MAIN HANDLER ─────────────────────────────────────────────────────────────
 
+function isPermissionProbe(req) {
+  try {
+    const raw = req?.body;
+    const body = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+    return body.action === 'permission-probe';
+  } catch {
+    return false;
+  }
+}
+
 module.exports = async ({ req, res, log, error }) => {
+  // Side-effect-free canary used only to prove the platform blocks anonymous
+  // execution. If execute permissions regress, the deployment smoke test fails
+  // safely without fetching feeds or writing documents.
+  if (isPermissionProbe(req)) {
+    return res.json({ ok: true, probe: true });
+  }
+
   log('Starting expanded job-feed-sync task...');
   const startedAt = new Date().toISOString();
   const db = getDbClient();
@@ -1315,3 +1332,5 @@ module.exports = async ({ req, res, log, error }) => {
   log(`Sync complete! Inserted: ${insertedCount}, Updated: ${updatedCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
   return res.json({ ok: true, summary });
 };
+
+module.exports.__test = { isPermissionProbe };

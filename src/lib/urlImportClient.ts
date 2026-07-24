@@ -44,12 +44,22 @@ export function normalizePublicUrl(rawUrl: string): string {
   return parsed.toString();
 }
 
-export async function fetchUrlHtml(url: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+export async function fetchUrlHtml(
+  url: string,
+  fetchImpl: typeof fetch = fetch,
+  getJwtImpl: () => Promise<string | null> = getAppwriteJWT,
+): Promise<string> {
+  const jwt = await getJwtImpl();
+  if (!jwt) throw new UrlImportRequestError('AUTH_REQUIRED');
+
   let response: Response;
   try {
     response = await fetchImpl('/api/fetch-url', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${jwt}`,
+      },
       body: JSON.stringify({ url }),
     });
   } catch {
@@ -71,3 +81,4 @@ export async function fetchUrlHtml(url: string, fetchImpl: typeof fetch = fetch)
   }
   return body.html;
 }
+import { getAppwriteJWT } from '@/lib/appwriteJWT';

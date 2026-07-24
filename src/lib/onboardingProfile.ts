@@ -667,7 +667,10 @@ export async function probeLinkedInUrl(rawUrl: string): Promise<LinkedInProbeRes
     {
       const proxyRes = await fetch('/api/fetch-url', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ url }),
       });
       if (proxyRes.ok) {

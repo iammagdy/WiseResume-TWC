@@ -3,6 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
+const {
+    assertFunctionPolicyCoverage,
+    getFunctionExecutionPolicy,
+    parseExplicitHubTargets,
+} = require('./appwrite-function-policy.cjs');
 
 function loadEnvFile(fileName) {
     const filePath = path.join(process.cwd(), fileName);
@@ -96,6 +101,8 @@ const HUBS = [
     { id: 'track-job-action', name: 'Track Job Action Hub', file: 'track-job-action.tar.gz' },
 ];
 
+assertFunctionPolicyCoverage(HUBS.map(hub => hub.id));
+
 const SAFE_SMOKE_CHECKS = new Map([
     // admin-sentry is fail-closed: an UNSIGNED Sentry webhook must be REJECTED
     // with 401. Treat 401 as the expected PASS — a 200 here would mean the
@@ -115,13 +122,15 @@ const SAFE_SMOKE_CHECKS = new Map([
     // ai-health now requires an authenticated user session: an anonymous request
     // must be REJECTED with 401. Treat 401 as the expected PASS.
     ['ai-health', { auth: 'none', body: {}, okStatuses: [401] }],
+    // job-feed-sync is schedule/internal-service only. An anonymous platform
+    // execution must be rejected before the handler runs.
+    ['job-feed-sync', { auth: 'anonymous-platform', body: { action: 'permission-probe' }, okStatuses: [401, 403] }],
 ]);
 
 function selectedHubIds() {
     const arg = process.argv.find(v => v.startsWith('--only='));
     const raw = (arg ? arg.slice('--only='.length) : process.env.HUB_FILTER || '').trim();
-    if (!raw) return null;
-    return new Set(raw.split(',').map(v => v.trim()).filter(Boolean));
+    return new Set(parseExplicitHubTargets(raw, HUBS.map(hub => hub.id)));
 }
 
 function sleep(ms) {
@@ -158,6 +167,15 @@ function manifestConfigForHub(hub) {
     const fn = appwriteManifest.byFunctionId.get(fnId)
         || appwriteManifest.byFunctionId.get(hub.id);
     if (!fn) throw new Error(`Missing appwrite.json entry for ${hub.id} (${fnId})`);
+    const intendedExecute = [...getFunctionExecutionPolicy(hub.id).execute];
+    const manifestExecute = Array.isArray(fn.execute) ? fn.execute : null;
+    if (
+        !manifestExecute ||
+        manifestExecute.length !== intendedExecute.length ||
+        !manifestExecute.every(role => intendedExecute.includes(role))
+    ) {
+        throw new Error(`appwrite.json execute policy does not match ${hub.id}`);
+    }
     return fn;
 }
 
@@ -167,8 +185,12 @@ function buildHub(hub) {
     if (!fs.existsSync(hubDir)) throw new Error(`Hub directory not found: ${hubDir}`);
     const pkgJson = path.join(hubDir, 'package.json');
     if (fs.existsSync(pkgJson)) {
+        const packageLock = path.join(hubDir, 'package-lock.json');
+        if (!fs.existsSync(packageLock)) {
+            throw new Error(`Deterministic build blocked: ${hub.id} is missing package-lock.json`);
+        }
         console.log(`  Installing deps for ${hub.id}...`);
-        execSync('npm install --omit=dev --silent', { cwd: hubDir, stdio: 'inherit' });
+        execSync('npm ci --omit=dev --ignore-scripts --silent', { cwd: hubDir, stdio: 'inherit' });
     }
     console.log(`  Packaging ${hub.id}...`);
     execSync(`tar -czf "${archivePath}" .`, { cwd: hubDir });
@@ -186,11 +208,12 @@ const databases = new sdk.Databases(client);
 function desiredFunctionSettings(hub, currentFn = null) {
     const manifestEntry = manifestConfigForHub(hub);
     const timeoutTarget = HUB_TIMEOUTS[hub.id] ?? DEFAULT_TIMEOUT;
+    const executionPolicy = getFunctionExecutionPolicy(hub.id);
     return {
         functionId: functionIdForHub(hub),
         name: manifestEntry.name || hub.name,
         runtime: manifestEntry.runtime || currentFn?.runtime || DEFAULT_RUNTIME,
-        execute: ['any'],
+        execute: [...executionPolicy.execute],
         events: Array.isArray(currentFn?.events) ? currentFn.events : [],
         // Warmup CRON for the public portfolio functions; otherwise preserve any
         // existing schedule. (HUB_SCHEDULES may set '' to explicitly clear one.)
@@ -359,6 +382,28 @@ async function smokeFunction(hubId, smoke) {
     if (!hub) throw new Error(`Unknown hub for smoke test: ${hubId}`);
     const functionId = functionIdForHub(hub);
     const body = { ...(smoke.body || {}) };
+    if (smoke.auth === 'anonymous-platform') {
+        const endpoint = (process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
+        const projectId = process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192';
+        const response = await fetch(`${endpoint}/functions/${functionId}/executions`, {
+            method: 'POST',
+            headers: {
+                'X-Appwrite-Project': projectId,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                body: JSON.stringify(body),
+                async: false,
+                path: '/',
+                method: 'POST',
+            }),
+        });
+        if (!smoke.okStatuses.includes(response.status)) {
+            throw new Error(`${hubId} anonymous platform probe returned HTTP ${response.status} (expected ${smoke.okStatuses.join('/')})`);
+        }
+        console.log(`  Smoke ${hubId}: HTTP ${response.status} (expected - platform rejected anonymous execution)`);
+        return response;
+    }
     if (smoke.auth === 'devkit') {
         body.__headers = { Authorization: `Bearer ${devKitToken()}` };
     } else if (smoke.auth === 'gateway-internal') {
@@ -801,7 +846,7 @@ async function syncVariablesForHubs(hubIds) {
     if (selected.has('track-visitor-event')) {
         // track-visitor-event writes visitor_events server-side via the API key so
         // unauthenticated visitors never need collection write permission. Its
-        // Execute permission is already forced to `any` by desiredFunctionSettings.
+        // anonymous execute permission is declared by the canonical function policy.
         // Only the API key is set here; nothing else is touched.
         await ensureVariable('track-visitor-event', 'APPWRITE_API_KEY', process.env.APPWRITE_API_KEY);
     }
@@ -819,7 +864,6 @@ async function syncVariablesForHubs(hubIds) {
 }
 
 function resolveRequestedHubs(requestedIds) {
-    if (!requestedIds) return HUBS;
     const selected = [];
     const unknown = [];
 
@@ -842,9 +886,7 @@ async function run() {
     const requestedIds = selectedHubIds();
     const hubsToDeploy = resolveRequestedHubs(requestedIds);
 
-    if (requestedIds) {
-        console.log(`Deploying selected hubs only: ${hubsToDeploy.map(h => h.id).join(', ')}`);
-    }
+    console.log(`Deploying selected hubs only: ${hubsToDeploy.map(h => h.id).join(', ')}`);
 
     const deployed = [];
     for (const hub of hubsToDeploy) {

@@ -38,10 +38,8 @@ function asString(value: unknown): string {
 }
 
 function getClientIp(req: VercelRequest): string {
-  const cfIp = typeof req.headers['cf-connecting-ip'] === 'string' ? req.headers['cf-connecting-ip'].trim() : '';
-  if (cfIp) return cfIp;
-  const realIp = typeof req.headers['x-real-ip'] === 'string' ? req.headers['x-real-ip'].trim() : '';
-  if (realIp) return realIp;
+  const vercelForwarded = req.headers['x-vercel-forwarded-for'];
+  if (typeof vercelForwarded === 'string') return vercelForwarded.split(',')[0]?.trim() || 'unknown';
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
   return 'unknown';
@@ -56,8 +54,7 @@ function sha256(data: string): string {
 }
 
 async function checkRateLimit(db: Databases, ip: string): Promise<boolean> {
-  if (!ip || ip === 'unknown') return true;
-  const ipHash = sha256(ip + ':interest').slice(0, 32);
+  const ipHash = sha256((ip || 'unknown') + ':interest').slice(0, 32);
   try {
     let doc;
     try {
@@ -149,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!PROJECT_ID || !API_KEY) {
-    return res.status(500).json({ error: 'config_error', message: 'Portfolio interest API is not configured.' });
+    return res.status(503).json({ error: 'temporarily_unavailable', message: 'Portfolio interest is temporarily unavailable.' });
   }
 
   const db = getDb();
@@ -204,6 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (/unique|duplicate|already exists/i.test(message)) {
       return res.status(200).json({ ok: true, duplicate: true });
     }
-    return res.status(500).json({ error: 'server_error', message });
+    console.error('[portfolio-interest] Request failed:', error);
+    return res.status(500).json({ error: 'server_error', message: 'Portfolio interest request failed.' });
   }
 }
