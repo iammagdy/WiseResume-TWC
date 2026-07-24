@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { functions } from '@/lib/appwrite';
 import type { ExecutionMethod } from 'appwrite';
 import { resolvePublicApiBase } from '@/lib/publicApiBase';
+import { safeCssColor } from '@/lib/security/cssColor';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 // NOTE: These interfaces match what the existing Public Portfolio UI expects.
@@ -150,7 +151,7 @@ export function usePortfolioGate(username: string | undefined) {
         exists: result.exists ?? false,
         portfolioEnabled: result.portfolioEnabled ?? false,
         passwordEnabled: result.passwordEnabled ?? false,
-        accentColor: result.accentColor || '#e84545',
+        accentColor: safeCssColor(result.accentColor),
       };
     },
     enabled: !!username,
@@ -210,7 +211,10 @@ export function usePublicPortfolio(
       }
 
       return {
-        profile: result.profile,
+        profile: {
+          ...result.profile,
+          portfolioAccentColor: safeCssColor(result.profile?.portfolioAccentColor),
+        },
         resume: result.resume,
         sessionToken: result.sessionToken,
       };

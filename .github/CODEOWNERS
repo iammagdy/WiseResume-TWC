@@ -1,0 +1,19 @@
+# Security-sensitive application and delivery boundaries
+/.github/ @iammagdy
+/appwrite-hubs/ @iammagdy
+/api/ @iammagdy
+/scripts/deploy_hubs.cjs @iammagdy
+/scripts/appwrite-function-policy.cjs @iammagdy
+/scripts/validate-hub-targets.cjs @iammagdy
+/scripts/verify-function-execute-policy.cjs @iammagdy
+/appwrite.json @iammagdy
+/src/lib/security/ @iammagdy
+/src/lib/appwrite* @iammagdy
+/src/hooks/useAuth.tsx @iammagdy
+/package.json @iammagdy
+/package-lock.json @iammagdy
+/SECURITY.md @iammagdy
+/Project\ Atlas/security/ @iammagdy
+/Project\ Atlas/deployment/ @iammagdy
+/Project\ Atlas/architecture/auth-and-permissions.md @iammagdy
+/Project\ Atlas/architecture/appwrite-functions.md @iammagdy

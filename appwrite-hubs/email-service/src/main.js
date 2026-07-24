@@ -751,7 +751,7 @@ async function handleSendVerification({ req, res, log, error, body }) {
     }
 
     error(`send-verification failed for user ${userId}: ${msg}`);
-    return json(res, { error: msg }, 500);
+    return json(res, { error: 'Email delivery is temporarily unavailable.' }, 500);
   }
 }
 
@@ -802,7 +802,7 @@ async function handleSendWelcome({ req, res, log, error, body }) {
     const msg = err instanceof Error ? err.message : String(err);
     // Non-fatal for the user (they're already verified), but log the failure.
     error(`send-welcome failed: ${msg}`);
-    return json(res, { error: msg }, 500);
+    return json(res, { error: 'Email delivery is temporarily unavailable.' }, 500);
   }
 }
 
@@ -907,7 +907,7 @@ async function handleCompleteEmailVerification({ res, log, error, body }) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error(`complete-email-verification failed for ${userId}: ${msg}`);
-    return json(res, { error: msg }, 400);
+    return json(res, { error: 'Email verification could not be completed.' }, 400);
   }
 }
 
@@ -924,7 +924,7 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
   }
 
   if (!appwriteApiKey()) {
-    return json(res, { error: 'APPWRITE_API_KEY is not configured' }, 500);
+    return json(res, { error: 'Email service is temporarily unavailable' }, 500);
   }
 
   try {
@@ -967,7 +967,7 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error(`send-admin-verification failed for ${targetUserId}: ${msg}`);
-    return json(res, { error: msg }, 500);
+    return json(res, { error: 'Email delivery is temporarily unavailable.' }, 500);
   }
 }
 
@@ -1018,7 +1018,7 @@ async function handleSendTest({ req, res, log, error, body }) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error(`send-test (${template}) failed for ${to}: ${msg}`);
-    return json(res, { error: msg }, 500);
+    return json(res, { error: 'Email delivery is temporarily unavailable.' }, 500);
   }
 }
 
@@ -1602,7 +1602,7 @@ module.exports = async ({ req, res, log, error }) => {
 
     default:
       error(`Unknown action: ${action}`);
-      return json(res, { error: `Unknown action: ${action || '(none)'}` }, 400);
+      return json(res, { error: 'Unsupported email request.' }, 400);
   }
 };
 

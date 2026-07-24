@@ -22,3 +22,7 @@ WiseResume uses **Appwrite Auth** exclusively for user session management.
 * **Document Security Enabled (`documentSecurity: true`):** Active on `notifications`, `portfolio_visits`, `portfolio_history`, `user_preferences`, `jobs`, and `job_applications` collections to ensure Appwrite strictly enforces individual document permissions.
 * **Legacy Tailor History:** `tailor_history` is server-only legacy history. Browser runtime must derive current tailoring history from owner-scoped `resumes` lineage and tailoring metadata instead of querying `tailor_history`.
 * **Admin Privileges:** Cross-user data reads and administrative actions require server API keys authenticated through serverless Appwrite Functions (`admin-devkit-data`). Client-side database bypassing is strictly prohibited.
+
+## 2026-07-24 Local Hardening Note
+
+Untrusted login return paths are restricted to internal routes. URL import now verifies an Appwrite JWT and uses durable per-user throttling. Portfolio password throttles use only Appwrite's platform client-IP signal (or a shared unknown bucket) and fail closed on storage errors. No production deployment occurred.

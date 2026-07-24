@@ -536,7 +536,7 @@ async function handlePortfolioInterest(db, body, res) {
 module.exports = async ({ req, res, error }) => {
   try {
     if (!API_KEY) {
-      return res.json({ status: 'error', message: 'Appwrite API key is not configured.' }, 500);
+      return res.json({ status: 'error', message: 'Public sharing is temporarily unavailable.' }, 500);
     }
 
     const body = parseBody(req);
@@ -556,7 +556,7 @@ module.exports = async ({ req, res, error }) => {
       return await handlePortfolioInterest(databases, body, res);
     }
 
-    return res.json({ status: 'error', message: `Unknown public share action: ${action}` }, 400);
+    return res.json({ status: 'error', message: 'Unsupported public sharing request.' }, 400);
   } catch (err) {
     error(`Public share error: ${err.message}`);
     return res.json({ status: 'error', message: 'Public share request failed.' }, 500);

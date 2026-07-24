@@ -239,9 +239,9 @@ module.exports = async ({ req, res, error }) => {
     if (action === 'validate') return validateCoupon(body, res);
     if (action === 'redeem') return redeemCoupon(body, res);
     if (action === 'get-subscription') return getMySubscription(body, res);
-    return json(res, { status: 'error', message: `Unknown coupons action: ${action}` }, 400);
+    return json(res, { status: 'error', message: 'Unsupported coupons request.' }, 400);
   } catch (err) {
     error(`Coupons error: ${err.message}`);
-    return json(res, { status: 'error', message: err.message || 'Coupons function failed.' }, 500);
+    return json(res, { status: 'error', message: 'Coupons function failed.' }, 500);
   }
 };

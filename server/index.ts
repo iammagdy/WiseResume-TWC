@@ -20,7 +20,6 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
-import dns from 'dns';
 import puppeteer from 'puppeteer';
 import { PDFDocument } from 'pdf-lib';
 import {
@@ -33,16 +32,9 @@ import {
   type ExportAvoidBounds,
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
-import {
-  MAX_PUBLIC_FETCH_BYTES,
-  MAX_PUBLIC_FETCH_REDIRECTS,
-  assertPublicHttpUrl,
-  isPrivateOrLocalHostname,
-  isPrivateOrLocalIpAddress,
-  isPuppeteerRequestUrlAllowed,
-  resolveRedirectUrl,
-} from '../src/lib/security/ssrfGuards';
+import { isPuppeteerRequestUrlAllowed } from '../src/lib/security/ssrfGuards';
 import { fetchAppSettingsFromDb } from './appSettingsFetch';
+import fetchUrlHandler from '../api/fetch-url';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -603,73 +595,6 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
  *   - IPv4 special: 0.x, 192.0.2.x, 198.18-19.x, 255.x
  *   - IPv6 loopback (::1) and private (fc00::/7)
  */
-function isBlockedHost(hostname: string): boolean {
-  return isPrivateOrLocalHostname(hostname);
-}
-
-async function assertResolvedHostIsPublic(url: URL): Promise<void> {
-  const results = await dns.promises.lookup(url.hostname, { all: true, verbatim: true });
-  for (const result of results) {
-    if (isPrivateOrLocalIpAddress(result.address)) {
-      throw new Error('URL host resolves to a private address.');
-    }
-  }
-}
-
-async function readResponseTextWithLimit(response: globalThis.Response): Promise<string> {
-  if (!response.body) {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_PUBLIC_FETCH_BYTES) throw new Error('Response body is too large.');
-    return buffer.toString('utf8');
-  }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (!value) continue;
-    total += value.byteLength;
-    if (total > MAX_PUBLIC_FETCH_BYTES) {
-      await reader.cancel().catch(() => undefined);
-      throw new Error('Response body is too large.');
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString('utf8');
-}
-
-async function fetchPublicHtmlWithRedirects(rawUrl: string): Promise<string> {
-  let currentUrl = assertPublicHttpUrl(rawUrl);
-  for (let redirectCount = 0; redirectCount <= MAX_PUBLIC_FETCH_REDIRECTS; redirectCount += 1) {
-    await assertResolvedHostIsPublic(currentUrl);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const response = await fetch(currentUrl.toString(), {
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'WiseResume/4.0 (resume-import-bot; +https://thewise.cloud)',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      });
-
-      if (response.status >= 300 && response.status < 400) {
-        if (redirectCount >= MAX_PUBLIC_FETCH_REDIRECTS) throw new Error('Too many redirects.');
-        currentUrl = resolveRedirectUrl(currentUrl, response.headers.get('location'));
-        continue;
-      }
-
-      return readResponseTextWithLimit(response);
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  throw new Error('Too many redirects.');
-}
-
 // ── Portfolio view tracker (sendBeacon target) ────────────────────────────────
 // Receives the portfolio visit payload from navigator.sendBeacon and writes it
 // to the Appwrite database using the server-side API key — guaranteed delivery
@@ -899,49 +824,7 @@ app.post('/api/portfolio-interest', async (req: Request, res: Response) => {
 //      on each resolved address, defeating DNS-rebinding attacks where a public
 //      hostname resolves to a private IP.
 app.post('/api/fetch-url', async (req: Request, res: Response) => {
-  const { url } = req.body as { url?: string };
-  if (!url || typeof url !== 'string') {
-    res.status(400).json({ code: 'INVALID_URL', error: 'Enter a valid URL.' });
-    return;
-  }
-  let parsedUrl: URL;
-  try {
-    parsedUrl = assertPublicHttpUrl(url);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid URL.';
-    const code = /invalid url/i.test(message) ? 'INVALID_URL' : 'BLOCKED_URL';
-    const error = code === 'INVALID_URL' ? 'Enter a valid URL.' : 'This URL cannot be imported.';
-    res.status(400).json({ code, error });
-    return;
-  }
-  // Layer 2: DNS resolution — check all resolved IPs against private ranges
-  try {
-    await assertResolvedHostIsPublic(parsedUrl);
-  } catch {
-    // DNS lookup failed — could be NXDOMAIN or network error.
-    // Fail closed: reject the request rather than risk fetching an unknown target.
-    res.status(400).json({ code: 'BLOCKED_URL', error: 'This URL cannot be imported.' });
-    return;
-  }
-  try {
-    const html = await fetchPublicHtmlWithRedirects(url);
-    res.json({ html });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch the requested URL.';
-    if (err instanceof Error && err.name === 'AbortError') {
-      res.status(504).json({ code: 'FETCH_TIMEOUT', error: 'The website took too long to respond.' });
-      return;
-    }
-    if (/too large/i.test(message)) {
-      res.status(413).json({ code: 'RESPONSE_TOO_LARGE', error: 'The page is too large to import.' });
-      return;
-    }
-    if (/invalid|not permitted|only http|credentials|resolve|redirect/i.test(message)) {
-      res.status(400).json({ code: 'BLOCKED_URL', error: 'This URL cannot be imported.' });
-      return;
-    }
-    res.status(502).json({ code: 'FETCH_FAILED', error: 'The website could not be reached.' });
-  }
+  await fetchUrlHandler(req as never, res as never);
 });
 
 // ── OG Image generation ───────────────────────────────────────────────────────

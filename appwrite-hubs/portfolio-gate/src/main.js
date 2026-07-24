@@ -10,6 +10,18 @@ const API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_AP
 const PROFILES_COLLECTION_ID = 'profiles';
 const PORTFOLIO_SETTINGS_COLLECTION_ID = 'portfolio_settings';
 
+function safeCssColor(value, fallback = '#e84545') {
+  if (typeof value !== 'string' || value.length > 64) return fallback;
+  const color = value.trim();
+  if (!color || /[\u0000-\u001f\u007f]/.test(color)) return fallback;
+  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) return color;
+  const match = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*((?:0(?:\.\d+)?|1(?:\.0+)?|\.\d+)))?\s*\)$/i.exec(color);
+  if (!match || match.slice(1, 4).some(channel => Number(channel) > 255)) return fallback;
+  const isRgba = color.slice(0, 4).toLowerCase() === 'rgba';
+  if (isRgba !== (match[4] !== undefined) || (match[4] !== undefined && Number(match[4]) > 1)) return fallback;
+  return color;
+}
+
 function getClient() {
   return new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
 }
@@ -47,7 +59,7 @@ function isWarmupRequest(req, body) {
 
 module.exports = async ({ req, res, error }) => {
   if (!API_KEY) {
-    return res.json({ success: false, error: 'Appwrite API key is not configured.' }, 500);
+    return res.json({ success: false, error: 'Portfolio service is temporarily unavailable.' }, 500);
   }
 
   const body = parseBody(req);
@@ -90,7 +102,7 @@ module.exports = async ({ req, res, error }) => {
 
     const profile = profileRes.documents[0];
     const portfolioEnabled = profile.portfolio_enabled === true || profile.portfolioEnabled === true;
-    const accentColor = profile.portfolio_accent_color || profile.portfolioAccentColor || '#e84545';
+    const accentColor = safeCssColor(profile.portfolio_accent_color || profile.portfolioAccentColor);
 
     // Check password protection (server-side only, NO HASH EXPOSED)
     // SECURITY: Default to true if settings read fails (fail closed)

@@ -56,3 +56,7 @@ Appwrite Functions are deployed independently from the frontend application usin
 ## 4. Legacy Deployment Reference
 
 * Historical Hostinger/FTP material is preserved only in the Atlas archive and chronological handover. It is not current WiseResume deployment truth.
+
+## Public-Repository Hardening Pending Deployment (2026-07-24)
+
+Local-only changes require owner approval. The workflow now requires explicit known targets, rejects `all`, pins actions by SHA, and builds hubs using lockfile-backed `npm ci`. Follow the targeted deployment, verification, and rollback sequence in [`../security/public-repository-hardening.md`](../security/public-repository-hardening.md).

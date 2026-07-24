@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const settings = await fetchAppSettingsFromDb();
     return res.status(200).json(settings);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load app settings';
-    return res.status(500).json({ error: 'server_error', message });
+    console.error('[app-settings] Request failed:', error);
+    return res.status(500).json({ error: 'server_error', message: 'Failed to load app settings.' });
   }
 }

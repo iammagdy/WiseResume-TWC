@@ -77,3 +77,7 @@ Allows job seekers to publish interactive online portfolios, customize layout an
 * [`Project Atlas/reports/portfolio-audit-2026-06-22/PORTFOLIO_FULL_DISCOVERY_AUDIT.md`](../reports/portfolio-audit-2026-06-22/PORTFOLIO_FULL_DISCOVERY_AUDIT.md) - Portfolio discovery audit.
 * [`Project Atlas/qa/WiseResume_Portfolio_Notifications_System_2026-07-02.md`](../qa/WiseResume_Portfolio_Notifications_System_2026-07-02.md) - Portfolio notifications QA report.
 * [`Project Atlas/reports/performance/performance-phase-3-public-portfolio-remediation-2026-07-22.md`](../reports/performance/performance-phase-3-public-portfolio-remediation-2026-07-22.md) - Current mobile performance remediation and production evidence.
+
+## 2026-07-24 Security Hardening (Local Only)
+
+Portfolio accent colors now use a full CSS-color allowlist at read/write boundaries. Password throttles use durable fail-closed storage and platform client-IP only; public portfolio/interest errors are generic. Runtime verification is pending deployment approval.

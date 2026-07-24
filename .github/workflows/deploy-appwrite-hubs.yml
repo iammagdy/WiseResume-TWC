@@ -4,9 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Hub target to deploy ("all" or comma-separated hub ids)'
-        required: false
-        default: 'all'
+        description: 'Required comma-separated hub ids; broad/all deployment is intentionally disabled'
+        required: true
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy-appwrite-hubs-${{ github.ref }}
@@ -18,18 +20,24 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        # actions/checkout v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        # actions/setup-node v4.4.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Validate explicit hub targets
+        id: targets
+        run: node scripts/validate-hub-targets.cjs "${{ inputs.target }}"
 
       - name: Recompute hub source hashes
         run: node scripts/compute-source-hashes.mjs
@@ -37,16 +45,8 @@ jobs:
       - name: Ensure source hash manifest is committed
         run: git diff --exit-code -- src/lib/devkit/sourceHashes.generated.json
 
-      - name: Ensure observability schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_observability_schema.cjs
-
       - name: Ensure app settings schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' || contains(github.event.inputs.target, 'inspect-ai-keys') }}
+        if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'inspect-ai-keys') }}
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
@@ -54,150 +54,30 @@ jobs:
         run: node scripts/setup_app_settings_schema.cjs
 
       - name: Ensure broadcasts schema
-        if: ${{ github.event.inputs.target == 'all' || contains(github.event.inputs.target, 'admin-devkit-data') }}
+        if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'admin-devkit-data') }}
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/setup_broadcasts_schema.cjs
 
-      - name: Ensure AI logs schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_ai_logs_schema.cjs
-
-      - name: Ensure idempotency cache schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_idempotency_schema.cjs
-
-      - name: Ensure company briefings schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_company_briefings_schema.cjs
-
-      - name: Ensure tailoring lineage schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_tailoring_lineage_schema.cjs
-
-      - name: Ensure security collections schema (FIX-16)
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup-security-collections.cjs
-
-      - name: Ensure AI credits schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_ai_credits_schema.cjs
-
-      - name: Ensure edge function logs schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_edge_function_logs_schema.cjs
-
-      - name: Ensure error log schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_error_log_schema.cjs
-
-      - name: Ensure discount codes schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_discount_codes_schema.cjs
-
-      - name: Ensure feature flags schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_feature_flags_schema.cjs
-
-      - name: Ensure WiseHire collections schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_wisehire_collections_schema.cjs
-
-      - name: Ensure AI routing config schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_ai_routing_config_schema.cjs
-
-      - name: Ensure contact requests schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_contact_requests_schema.cjs
-
-      - name: Ensure audit logs schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_audit_logs_schema.cjs
-
       - name: Ensure impersonation sessions schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' || contains(github.event.inputs.target, 'admin-devkit-data') || contains(github.event.inputs.target, 'admin-impersonate') }}
+        if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'admin-devkit-data') || contains(fromJSON(steps.targets.outputs.targets_json), 'admin-impersonate') }}
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/setup_impersonation_sessions_schema.cjs
 
-      - name: Ensure notifications schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' }}
-        env:
-          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
-          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-        run: node scripts/setup_notifications_schema.cjs
-
       - name: Ensure remote jobs feed schema
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == '' || contains(github.event.inputs.target, 'job-feed-sync') || contains(github.event.inputs.target, 'get-remote-jobs') || contains(github.event.inputs.target, 'track-job-action') }}
+        if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'job-feed-sync') || contains(fromJSON(steps.targets.outputs.targets_json), 'get-remote-jobs') || contains(fromJSON(steps.targets.outputs.targets_json), 'track-job-action') }}
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         run: node scripts/setup_remote_jobs_feed_schema.cjs
 
-      - name: Deploy Appwrite hubs
+      - name: Deploy explicitly selected Appwrite hubs
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192
@@ -241,16 +121,11 @@ jobs:
           JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
           PORTFOLIO_JWT_SECRET: ${{ secrets.PORTFOLIO_JWT_SECRET }}
           PASSWORD_RESET_OTP_SECRET: ${{ secrets.PASSWORD_RESET_OTP_SECRET }}
-          HUB_TARGET: ${{ github.event.inputs.target || 'all' }}
-        run: |
-          if [ "${HUB_TARGET}" = "all" ]; then
-            node scripts/deploy_hubs.cjs
-          else
-            node scripts/deploy_hubs.cjs --only="${HUB_TARGET}"
-          fi
+          HUB_TARGET: ${{ steps.targets.outputs.targets_csv }}
+        run: node scripts/deploy_hubs.cjs --only="${HUB_TARGET}"
 
       - name: Trigger remote job feed sync
-        if: ${{ contains(github.event.inputs.target, 'job-feed-sync') }}
+        if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'job-feed-sync') }}
         env:
           APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
           APPWRITE_PROJECT_ID: 69fd362b001eb325a192

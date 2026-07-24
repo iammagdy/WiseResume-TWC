@@ -75,17 +75,13 @@ async function verifyStoredPassword(password, storedHash) {
   return false;
 }
 
-// PORT-P1-03: best-effort per-(username, IP) brute-force lockout (fails open on
-// rate-limit infrastructure errors so legitimate visitors are never hard-locked).
+// PORT-P1-03: per-(username, platform IP) durable brute-force lockout.
 function getClientIp(req) {
   const headers = (req && req.headers) || {};
-  const cfIp = typeof headers['cf-connecting-ip'] === 'string' ? headers['cf-connecting-ip'].trim() : '';
-  if (cfIp) return cfIp;
-  const realIp = typeof headers['x-real-ip'] === 'string' ? headers['x-real-ip'].trim() : '';
-  if (realIp) return realIp;
-  const forwarded = headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim() || 'unknown';
-  return 'unknown';
+  const platformIp = typeof headers['x-appwrite-client-ip'] === 'string'
+    ? headers['x-appwrite-client-ip'].trim()
+    : '';
+  return platformIp || 'unknown';
 }
 
 function passwordAttemptId(username, ip) {
@@ -103,8 +99,21 @@ async function getPasswordAttemptState(db, username, ip) {
       return { blocked: true, retryAfterSeconds: Math.ceil((resetAt - Date.now()) / 1000) };
     }
     return { blocked: false };
+  } catch (err) {
+    if (err && err.code === 404) return { blocked: false };
+    return { blocked: true, infrastructureFailure: true, retryAfterSeconds: 60 };
+  }
+}
+
+async function clearPasswordFailures(db, username, ip) {
+  const id = passwordAttemptId(username, ip);
+  try {
+    await db.updateDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, {
+      count: 0,
+      reset_at: new Date(Date.now() + PASSWORD_ATTEMPT_WINDOW_MS).toISOString(),
+    });
   } catch {
-    return { blocked: false };
+    // Best-effort reset.
   }
 }
 
@@ -121,30 +130,15 @@ async function recordPasswordFailure(db, username, ip) {
       return;
     }
     await db.updateDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, { count: count + 1 });
-  } catch {
-    try {
-      await db.createDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, { count: 1, reset_at: resetAt });
-    } catch {
-      // Rate-limit collection unavailable — fail open.
-    }
-  }
-}
-
-async function clearPasswordFailures(db, username, ip) {
-  const id = passwordAttemptId(username, ip);
-  try {
-    await db.updateDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, {
-      count: 0,
-      reset_at: new Date(Date.now() + PASSWORD_ATTEMPT_WINDOW_MS).toISOString(),
-    });
-  } catch {
-    // Best-effort reset.
+  } catch (err) {
+    if (!err || err.code !== 404) throw err;
+    await db.createDocument(DB_ID, PORTFOLIO_RATE_LIMIT_COLLECTION_ID, id, { count: 1, reset_at: resetAt });
   }
 }
 
 async function handler({ req, res, error }) {
   if (!API_KEY) {
-    return res.json({ success: false, error: 'Appwrite API key is not configured.' }, 500);
+    return res.json({ success: false, error: 'Portfolio verification is temporarily unavailable.' }, 500);
   }
 
   const db = getDatabases();
@@ -190,12 +184,15 @@ async function handler({ req, res, error }) {
     }
 
     if (!storedHash) {
-      return res.json({ success: false, error: 'Portfolio password is not configured' }, 401);
+      return res.json({ success: false, error: 'Portfolio verification is unavailable' }, 401);
     }
 
     // PORT-P1-03: brute-force lockout before attempting verification.
     const clientIp = getClientIp(req);
     const attempt = await getPasswordAttemptState(db, username, clientIp);
+    if (attempt.infrastructureFailure) {
+      return res.json({ success: false, error: 'temporarily_unavailable' }, 503);
+    }
     if (attempt.blocked) {
       return res.json({
         success: false,
@@ -233,4 +230,8 @@ module.exports.__test = {
   sha256Hex,
   timingSafeCompare,
   verifyStoredPassword,
+  getClientIp,
+  getPasswordAttemptState,
+  clearPasswordFailures,
+  recordPasswordFailure,
 };

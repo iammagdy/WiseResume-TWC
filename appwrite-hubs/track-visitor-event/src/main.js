@@ -61,9 +61,9 @@ async function resolveCountryServerSide(headers) {
   }
 
   // Fallback: resolve from client IP via geo API
-  const ip = headers['x-appwrite-client-ip']
-    || String((headers['x-forwarded-for'] || headers['x-real-ip']) || '')
-      .split(',')[0].trim();
+  const ip = typeof headers['x-appwrite-client-ip'] === 'string'
+    ? headers['x-appwrite-client-ip'].trim()
+    : '';
   if (!ip || ip === '::1' || ip === '127.0.0.1') return null;
 
   const now = Date.now();
@@ -94,7 +94,8 @@ async function resolveCountryServerSide(headers) {
 }
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
-// In-memory, per-runtime throttle keyed by session_id / anon_id / forwarded IP.
+// In-memory, per-runtime throttle keyed by session_id / anon_id / Appwrite's
+// platform-provided client IP. Arbitrary forwarded headers are never trusted.
 // Deliberately NOT a per-call DB read+write: this is a high-volume analytics
 // ingestion path, and adding a durable round-trip to every page view would be a
 // real latency/cost regression. Combined with Appwrite's platform per-execution
@@ -111,9 +112,9 @@ const _rlBuckets = new Map(); // key -> { count, windowStart }
 
 function rateLimitKey(body, headers) {
   const ev = Array.isArray(body.events) && body.events.length ? body.events[0] : body;
-  const ip = String((headers && (headers['x-forwarded-for'] || headers['x-real-ip'])) || '')
-    .split(',')[0]
-    .trim();
+  const ip = typeof headers?.['x-appwrite-client-ip'] === 'string'
+    ? headers['x-appwrite-client-ip'].trim()
+    : '';
   const raw = String((ev && (ev.session_id || ev.anon_id)) || ip || 'anon');
   return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 32);
 }
@@ -238,7 +239,7 @@ async function writeEvent(databases, doc) {
 
 async function handler({ req, res, error }) {
   if (!API_KEY) {
-    return res.json({ ok: false, error: 'APPWRITE_API_KEY is not configured' }, 500);
+    return res.json({ ok: false, error: 'Visitor tracking is temporarily unavailable' }, 500);
   }
 
   const body = parseBody(req);

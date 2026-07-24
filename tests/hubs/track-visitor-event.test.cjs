@@ -39,7 +39,7 @@ assert.equal(BOT_UA.test('Mozilla/5.0 (compatible; Googlebot/2.1)'), true, 'bot 
 assert.equal(BOT_UA.test('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)'), false, 'human not flagged');
 
 // rate limiting — same key throttled after the window budget, other keys unaffected
-const key = rateLimitKey({ events: [{ session_id: 'sess-A' }] }, { 'x-forwarded-for': '9.9.9.9' });
+const key = rateLimitKey({ events: [{ session_id: 'sess-A' }] }, { 'x-appwrite-client-ip': '9.9.9.9' });
 let allowed = 0;
 let blocked = 0;
 for (let i = 0; i < RL_MAX_PER_WINDOW + 5; i++) {
@@ -52,10 +52,13 @@ const otherKey = rateLimitKey({ events: [{ anon_id: 'anon-B' }] }, {});
 assert.equal(isRateLimited(otherKey), false, 'a different caller is not throttled');
 
 // key derivation prefers session_id, then anon_id, then IP
-const kSession = rateLimitKey({ events: [{ session_id: 's', anon_id: 'a' }] }, { 'x-forwarded-for': '1.1.1.1' });
-const kAnon = rateLimitKey({ events: [{ anon_id: 'a' }] }, { 'x-forwarded-for': '1.1.1.1' });
-const kIp = rateLimitKey({ events: [{}] }, { 'x-forwarded-for': '1.1.1.1' });
+const kSession = rateLimitKey({ events: [{ session_id: 's', anon_id: 'a' }] }, { 'x-appwrite-client-ip': '1.1.1.1' });
+const kAnon = rateLimitKey({ events: [{ anon_id: 'a' }] }, { 'x-appwrite-client-ip': '1.1.1.1' });
+const kIp = rateLimitKey({ events: [{}] }, { 'x-appwrite-client-ip': '1.1.1.1' });
+const spoofedForwarded = rateLimitKey({ events: [{}] }, { 'x-forwarded-for': '8.8.8.8' });
+const unknownIdentity = rateLimitKey({ events: [{}] }, {});
 assert.notEqual(kSession, kAnon, 'session vs anon produce different keys');
 assert.notEqual(kAnon, kIp, 'anon vs ip produce different keys');
+assert.equal(spoofedForwarded, unknownIdentity, 'untrusted forwarded headers do not create a new rate-limit bucket');
 
 console.log('✓ track-visitor-event hub: sanitize + bot guard + rate limit OK');
