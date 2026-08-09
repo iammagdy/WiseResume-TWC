@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-09 - Safe Dependency Security Remediation (Local, Not Deployed)
+
+- **Classification:** `PASS_WITH_WARNINGS` / `TESTED_LOCAL` on `security/dependency-remediation-2026-08`; no application source, configuration, secrets, push, or deployment changed.
+- Refreshed six Appwrite hub lockfiles to resolve Axios `1.19.0` and form-data `4.0.6`; refreshed the root lock for the planned NanoID, js-yaml, Undici, fast-uri, and compatible brace-expansion resolutions.
+- Aligned dev `puppeteer` to `^25.3.0` with production `puppeteer-core@25.3.0`, resolving the invalid Puppeteer/proxy-agent dependency-tree warning. The remaining js-yaml `npm ls` warning is an intentional security override conflict with an exact transitive Vercel build-tool dependency, not a runtime blocker.
+- An isolated `origin/main` worktree reproduced the four exact current focused-test failures. The remediated branch reproduces the same four only; they are recorded as `PRE_EXISTING_BASELINE_FAILURE`, not suppressed or fixed in this dependency batch. Clean install, TypeScript, focused hub tests, hub syntax checks, full production build, public OSV re-audit, and diff checks passed.
+- React Router v6 advisories remain `DEFERRED_SECURITY_MIGRATION`; a separately authorized v7 migration branch is required. Authenticated GitHub Dependabot reconciliation also remains owner-pending.
+- Any later Appwrite deploy must target only `admin-devkit-data`, `admin-sentry`, `ai-gateway`, `job-import`, `resume-section-ai`, and `wisehire-gateway`, never `all`; root dependency changes need the normal Vercel deployment path after owner approval and push.
+
 ## 2026-08-09 - Read-Only Dependency Security Audit
 
 - Added `Project Atlas/security/dependency-security-audit-2026-08-09.md`; no application code, manifest, lockfile, workflow, configuration, secret, deployment, commit, or push changed.
