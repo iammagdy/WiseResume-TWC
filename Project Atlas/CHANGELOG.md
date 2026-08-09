@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-09 - Authenticated Two-Owner Security-Hardening Browser Closeout
+
+- **Classification:** `PUBLIC_REPOSITORY_HARDENING_PRODUCTION_BROWSER_VERIFIED_WITH_RESIDUAL_WARNINGS` (replaces `DEPLOYED_PENDING_BROWSER_VERIFICATION` for this hardening scope).
+- Verified two distinct authenticated QA identities through the normal `/profile` UI, backed by `AuthContext.refreshSession()` and Appwrite `Account.get()`. QA emails, user IDs, tokens, cookies, headers, and fixture identifiers were runtime-only and were not documented.
+- A disposable User-A saved-job fixture persisted after a full reload and remained unchanged during the User-B phase. The verified User-A session then removed it through the normal control; a full reload proved cleanup persisted.
+- After User-A cleanup, the verified distinct User-B session still displayed its saved state for the same public job after a full reload, proving User-B's independent owner-scoped record was unaffected by User-A cleanup. No User-B mutation was performed for this evidence.
+- `track-job-action` derives the caller with JWT-backed `Account.get()`, accepts no client `user_id` or action-document ID, derives `action_key` from authenticated user plus job item, and scopes selection and permissions to that owner. `get-remote-jobs` scopes action enrichment to the authenticated user. A supported User-B request cannot target User-A's action record, so a forced cross-user mutation test was neither constructible nor fabricated.
+- Normal non-admin `/devkit` denial remains browser-verified. No deployment, schema, permission, environment, function, or secret change occurred; this is a documentation-only closeout.
+- Residual warnings remain outside the closed browser-verification gap: GitHub repository security controls require owner enablement, `admin-sentry` has no transport-level replay-expiry support, historical credential cleanup remains separately planned, and broader visual QA is not covered by this focused security verification.
+
 ## 2026-08-09 - Repository Synchronization Verification
 
 - Fetched `origin` and verified local `main` and `origin/main` both resolve to `34e2210a` (`chore(deps): update form-data in admin-deploy-hubs (#159)`); the branch is `0` commits ahead and `0` behind with a clean worktree.

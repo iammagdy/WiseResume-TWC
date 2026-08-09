@@ -57,12 +57,13 @@
 
 * **Repository synchronization review (2026-08-09):** Local `main` and `origin/main` were fetched and verified at the same commit, `34e2210a` (`chore(deps): update form-data in admin-deploy-hubs (#159)`), with `0` commits ahead and `0` behind and a clean worktree. The fetch only discovered current remote Dependabot branch references; it did not change `main`. The five commits after the 2026-07-24 Atlas handover are dependency-maintenance changes only, so the production verification status and active operational focus below remain unchanged.
 
-* **Session Status:** `DEPLOYED_PENDING_BROWSER_VERIFICATION` for public-repository hardening.
+* **Session Status:** `PUBLIC_REPOSITORY_HARDENING_PRODUCTION_BROWSER_VERIFIED_WITH_RESIDUAL_WARNINGS`.
   - PR #148 merged the hardening implementation; PR #158 (`78656e7f`, merged `0d030df4`) corrected three ignored hub lockfiles after failed workflow `30100163770` stopped with 25 ready deployments.
   - Recovery workflow `30101982337` deployed only `job-feed-sync`, `get-remote-jobs`, and `track-job-action`; all are ready, the 28-function live policy verifier reports 28/28 matches, and one approved internal sync completed.
   - `job-feed-sync` retains `execute: []` and `0 */6 * * *`; anonymous `job-feed-sync` and `track-job-action` probes returned 401, while public `get-remote-jobs` completed. No rollback, broad rollout, secret change, or history rewrite occurred.
-  - Browser automation was unavailable. Authenticated owner-scoped job-action/cross-user mutation proof and broader visual production QA remain pending; do not classify them as verified.
-  - Historical credential cleanup remains separately pending under `Project Atlas/security/credential-history-cleanup-plan-2026-07-24.md`; no history rewrite is authorized.
+  - Authenticated two-owner production browser QA is closed: a User-A saved-job fixture persisted across reload; a verified distinct User-B retained an independent saved state for the same public job after User-A cleanup; User-A's fixture was unchanged before its authorized cleanup; and cleanup persisted. No QA emails, user IDs, tokens, cookies, or fixture identifiers are recorded.
+  - A supported cross-user mutation is structurally unconstructible: the hardened path derives the caller from JWT-backed `Account.get()`, accepts no client owner or action-document identifier, scopes read/update/delete selection to the derived `<user-id>:<job-feed-item-id>` key, and grants owner-only document permissions. Normal non-admin `/devkit` denial was also browser-verified.
+  - Broader non-security visual production QA remains outside this hardening closeout. Residual warnings: GitHub security controls require owner enablement; `admin-sentry` lacks transport-level replay expiry; and historical credential cleanup remains separately pending under `Project Atlas/security/credential-history-cleanup-plan-2026-07-24.md` with no authorized history rewrite.
 
 * **Session Status**: `BROADCAST_DELIVERY_PRODUCTION_VERIFIED_WITH_EMPTY_COLLECTION_WARNING` - The authenticated Broadcast schema/query failure is fixed in production without broadening Appwrite permissions.
 * **Broadcast Closeout (2026-07-24)**:

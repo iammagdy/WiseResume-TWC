@@ -1,7 +1,7 @@
 # Public Repository Security Hardening
 
-**Last verified:** 2026-07-24
-**Status:** `DEPLOYED_PENDING_BROWSER_VERIFICATION`
+**Last verified:** 2026-08-09
+**Status:** `PUBLIC_REPOSITORY_HARDENING_PRODUCTION_BROWSER_VERIFIED_WITH_RESIDUAL_WARNINGS`
 **Scope:** public repository controls, Vercel public APIs, and Appwrite Function execution boundaries.
 
 ## Implemented controls
@@ -60,4 +60,18 @@ Read-only repository inspection found Secret Scanning, non-provider scanning, va
 
 The initial 28-target workflow `30100163770` stopped at the first untracked hub lockfile after 25 ready deployments; no rollback was required. Corrective PR #158 (`78656e7f`, merged as `0d030df4`) tracked the three missing locks and made the guard test Git-aware and CRLF-safe. The exact recovery workflow `30101982337` then deployed only `job-feed-sync` (`6a637988c75fbc22829a`), `get-remote-jobs` (`6a63799d79e6a27a64f3`), and `track-job-action` (`6a6379ae192857be7a6e`), all `ready`.
 
-The live verifier reported 28/28 policy matches. Anonymous execution of `job-feed-sync` and `track-job-action` was denied with 401; anonymous `get-remote-jobs` completed as designed. One approved internal `job-feed-sync` execution completed with the six-hour schedule preserved. Full authenticated browser QA was not performed because browser automation was unavailable; do not infer owner-scoped job-action proof from this deployment evidence.
+The live verifier reported 28/28 policy matches. Anonymous execution of `job-feed-sync` and `track-job-action` was denied with 401; anonymous `get-remote-jobs` completed as designed. One approved internal `job-feed-sync` execution completed with the six-hour schedule preserved. At deployment time, full authenticated browser QA had not yet been performed; the subsequent two-owner verification is recorded below.
+
+## Authenticated two-owner browser verification (2026-08-09)
+
+Two distinct authenticated QA identities were verified through the normal `/profile` UI, whose identity is populated by `AuthContext.refreshSession()` from Appwrite `Account.get()`. The actual emails, user IDs, tokens, cookies, headers, and job identifiers were retained only at runtime and are not recorded here.
+
+- QA User A created one disposable saved-job fixture through `/jobs`; the `Remove from saved` control remained present after a full reload and exactly one matching job card was found.
+- QA User B was verified as a different authenticated identity. The same public job displayed a saved marker after a full reload, without any User-B mutation.
+- QA User A was re-verified after switching back. The original fixture remained saved and singular, then was removed through the legitimate product control; a full reload showed `Save job`, proving User-A cleanup persisted.
+- QA User B was re-verified after switching again. After User-A cleanup, the same public job still displayed `Remove from saved` after a full reload. This proves an independent User-B owner-scoped record: User-A cleanup did not alter User-B state.
+- A normal authenticated non-admin user was denied access to `/devkit` in the prior authenticated browser check.
+
+The mutation contract structurally prevents a supported User-B request from targeting User-A's action record: `track-job-action` authenticates the JWT with `Account.get()`, accepts no client `user_id` or action-document ID, derives `action_key` as `<authenticated-user-id>:<job_feed_item_id>`, selects update/delete only by that derived key, and assigns document permissions to that derived user. `get-remote-jobs` scopes action enrichment to the authenticated user ID. A direct cross-user mutation is therefore not constructible through the supported product/API contract; this is implementation-level prevention, not a fabricated negative mutation test.
+
+**Verdict:** the previously pending authenticated ownership-boundary browser verification is closed. Residual warnings outside this closeout remain: repository security controls still require owner enablement, `admin-sentry` lacks transport-level replay-expiry support, and historical credential cleanup remains separately planned with no authorized history rewrite.
