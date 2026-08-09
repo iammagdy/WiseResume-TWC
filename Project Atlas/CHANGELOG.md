@@ -1,5 +1,11 @@
 # Project Atlas Master Changelog
 
+## 2026-08-09 - Read-Only Dependency Security Audit
+
+- Added `Project Atlas/security/dependency-security-audit-2026-08-09.md`; no application code, manifest, lockfile, workflow, configuration, secret, deployment, commit, or push changed.
+- GitHub Dependabot alert inventory could not be authenticated from this workspace, so no historical count was represented as current. A supplemental public-OSV scan covered the root lockfile and all 28 Appwrite-hub lockfiles.
+- The supplemental scan found 72 manifest-advisory instances (23 high, 49 moderate), including 50 stale-Axios advisory instances across five deployed hubs and five `form-data` instances. Source review found no confirmed exploit preconditions and no P0.
+- Recommended future work is a separately approved, targeted six-hub Axios/form-data lock-refresh batch; React Router v6 advisories require an independently planned v7 migration. No deployment target was selected or executed.
 ## 2026-08-09 - Repository Synchronization Verification
 
 - Fetched `origin` and verified local `main` and `origin/main` both resolve to `34e2210a` (`chore(deps): update form-data in admin-deploy-hubs (#159)`); the branch is `0` commits ahead and `0` behind with a clean worktree.
