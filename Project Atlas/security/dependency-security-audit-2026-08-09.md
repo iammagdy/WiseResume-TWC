@@ -127,3 +127,45 @@ None. No confirmed or highly likely production exploitability was found.
 ## 16. Recommended Next Action
 
 Authorize **Batch 1 only** after the owner can supply authenticated GitHub Dependabot read access or export so the exact GitHub alert set can be reconciled first. Then refresh only the six affected hub lockfiles, validate the named hub paths, and deploy only the affected targets after explicit approval.
+
+## 17. Remediation Appendix — 2026-08-09
+
+**Classification:** `PASS_WITH_WARNINGS` / `TESTED_LOCAL`, on `security/dependency-remediation-2026-08`; not pushed or deployed.
+
+### Implemented lock and manifest resolutions
+
+| Scope | Result |
+|---|---|
+| Six affected Appwrite hubs | Resolved `axios` to `1.19.0` and `form-data` to `4.0.6` in the locks for `admin-devkit-data`, `admin-sentry`, `ai-gateway`, `job-import`, `resume-section-ai`, and `wisehire-gateway`. |
+| Root dependency lock | Resolved `nanoid` 5 to `5.1.16`, NanoID 3 to `3.3.18`, `js-yaml` to `4.3.1`, production Undici to `6.28.0`, test Undici to `7.29.0`, `fast-uri` to `3.1.5`, and compatible `brace-expansion` entries. |
+| Puppeteer dependency tree | Aligned direct dev dependency `puppeteer` from `^24.42.0` to `^25.3.0` with production `puppeteer-core@25.3.0`. This removes the invalid deduped `proxy-agent` / `ip-address` development chain without changing product code. |
+
+### Baseline and validation evidence
+
+- An isolated detached worktree at `origin/main` (`72312375`) reproduced the four exact focused-test failures: one stale DevKit workflow-contract expectation and three load-sensitive/cascading ATS-export test failures.
+- The remediated branch reproduced the same four failures and no additional failures. They are classified `PRE_EXISTING_BASELINE_FAILURE`, not a dependency regression; no product or test code was changed to hide them.
+- Passed: clean `npm ci --ignore-scripts`, TypeScript, all eight focused hub Node test files, syntax checks for all six affected hubs, production build, `git diff --check`, and source-hash drift review.
+- Full suite: 185 files, 1,080 tests; 182 files / 1,067 tests passed, 2 files / 4 tests failed as the verified baseline, 8 skipped, 1 todo. This is `PASS_WITH_WARNINGS`.
+- Public OSV re-audit returned no vulnerabilities for the remediated target versions. It is supplemental evidence only; authenticated GitHub Dependabot inventory remains unavailable.
+
+### Intentional resolver warning
+
+- `npm ls js-yaml` still reports an override diagnostic because the security override resolves `js-yaml@4.3.1`, while transitive `@vercel/python-analysis@0.11.1` exactly requests `4.1.1`.
+- The override is necessary to retain the `GHSA-5p4m-2wfm-xmqj` fix; no compatible parent release available during this work removes the diagnostic. This is a build/config resolver warning, not a product runtime blocker.
+- The previous Puppeteer `proxy-agent` invalid diagnostic is resolved by the aligned Puppeteer 25 tree.
+
+### Explicitly deferred security migration
+
+- `react-router@6.30.4` and `react-router-dom@6.30.4` retain the three public-OSV advisories documented above. This is `DEFERRED_SECURITY_MIGRATION`, not safe lockfile maintenance.
+- A future, separately authorized branch may be named `security/react-router-v7-migration`; it must include routing/auth-redirect/browser regression work. No such branch was created or started here.
+
+### Deployment and source-hash disposition
+
+- No push or deployment occurred. After owner approval, Appwrite deployment must be limited to the six named hubs above, never `target=all`; the root dependency change also requires the normal Vercel deployment path after push.
+- `scripts/compute-source-hashes.mjs` hashes hub `src/main.js` only. No hub source changed, so source-hash recomputation and drift deployment checks were not required; lockfiles are not hashed inputs.
+
+### Remaining warnings
+
+- Resolve the four verified baseline test failures in separately scoped work; do not treat them as dependency-remediation regressions.
+- GitHub Dependabot alerts still require authenticated owner reconciliation.
+- Deprecated `@esbuild-kit` packages and `glob` remain maintenance items.
