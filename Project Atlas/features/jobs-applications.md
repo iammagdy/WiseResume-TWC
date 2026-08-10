@@ -1,7 +1,7 @@
 # Feature Specification: Jobs and Applications
 
-**Last Verified:** 2026-07-23
-**Status:** Active Workspace Feature - Local Navigation Exposure Validated
+**Last Verified:** 2026-08-10
+**Status:** Visible Production Feature
 **Location:** `Project Atlas/features/jobs-applications.md`
 
 ---
@@ -61,6 +61,6 @@ Let authenticated users browse remote jobs, save job context, tailor application
 
 Recovery workflow `30101982337` deployed only the three Jobs hubs. `job-feed-sync` is no longer Client-SDK executable, retains its native `0 */6 * * *` schedule, and denied an anonymous probe with 401; one approved internal sync completed. `get-remote-jobs` remains public and completed an anonymous read. `track-job-action` now requires an Appwrite user and denied an anonymous probe with 401. Authenticated owner-scoped action and cross-user mutation browser QA remain pending.
 
-## 2026-08-10 Workspace Exposure (Local, Not Deployed)
+## 2026-08-10 Workspace Exposure (Production Verified)
 
-The `/jobs` route was promoted from direct-access-only to a visible workspace feature without changing its backend or product workflows. Local validation covered focused jobs/navigation tests, TypeScript, production build, and an unauthenticated hard refresh that preserved `/jobs` as the login redirect target. Appwrite deployment is not required; merge/push will require only the normal Vercel frontend deployment. Authenticated visual and action QA needs an owner test session.
+PR #175 merged the `/jobs` route promotion as `1d937467` without changing its backend or product workflows. The normal Vercel production deployment `dpl_2Exk8ZwPRwYDP4SMYefSAM8nSZnd` is ready. Local validation covered focused jobs/navigation tests, TypeScript, production build, and an unauthenticated hard refresh that preserved `/jobs` as the login redirect target. An authenticated production session verified the sidebar exposure/active state, workspace title, real feed, search, advanced filters, and saved-job persistence with cleanup. A mobile render exposed the menu affordance and Jobs controls, while browser-controller timeouts prevented a sheet-tap assertion; verify that one interaction on a physical device. Appwrite deployment is not required.
