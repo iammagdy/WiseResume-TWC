@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-10
-**Status:** Repository Synchronization Verified; Broadcast Delivery Production Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
+**Status:** Dependency Remediation Runtime Verified Ready; React Router v7 Deferred; Portfolio LCP Warning Retained
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -10,7 +10,7 @@
 
 * **Production Domain:** `https://wiseresume.app`
 * **Repository:** `iammagdy/WiseResume-TWC`
-* **Active Branch:** `codex/qa-runtime-observability-fixtures` (QA observability commits prepared for PR review)
+* **Active Branch:** `main` at `fdbfb8dea8cc1c2eecbd941b21938d3eb11d7997` (AI runtime receipt CI wiring merged)
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
 * **Frontend Hosting:** Vercel. Current production is documentation-only deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for commit `e7e92aba0261a5e587c766654dc9bf601732072d`; latest verified code-bearing production remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
@@ -24,6 +24,8 @@
 
 ## 2. Latest Important Commits
 
+* **`fdbfb8de`** - `Merge pull request #173 from iammagdy/codex/ai-runtime-receipts-ci-schema` - **CI SCHEMA PROVISIONING MERGED; TARGETED APPWRITE RUNTIME VERIFIED**
+* **`6d07a24e`** - `Merge pull request #172 from iammagdy/codex/qa-runtime-observability-fixtures` - **RUNTIME RECEIPT OBSERVABILITY MERGED**
 * **`e7e92aba`** - `docs(atlas): record broadcast production verification` - **DOCUMENTATION PUSHED; DOCS-ONLY VERCEL DEPLOYMENT READY**
 * **`51271e0a`** - `fix(broadcast): align workspace delivery with Appwrite schema` - **PRODUCT FIX PUSHED, DEPLOYED, AND PRODUCTION VERIFIED**
 * **`a14b306d`** - `fix(tailoring): preserve project dates and metadata` - **PRODUCT FIX PUSHED, DEPLOYED, AND PRODUCTION VERIFIED**
@@ -55,13 +57,13 @@
 
 ## 3. Where We Stopped & Current Active Focus
 
-* **QA observability and deterministic fixture infrastructure (2026-08-10, committed and pending PR review):** An isolated, metadata-only `ai_runtime_receipts` design is committed for `ai-gateway`, `resume-section-ai`, and `job-import`; it intentionally does not alter `ai_request_logs`, the gateway rate-limit signal, provider routing, credits, idempotency behavior, permissions, schemas, configuration, or production. The branch also contains a signed-DevKit, read-only evidence panel/action and a normal public static job-page fixture that exercises the existing URL-validation, fetch, extraction, and provider-parsing path without appearing in the job feed or bypassing SSRF safeguards. The idempotent schema script has **not** been run, and no migration, deployment, or production test action occurred. Node syntax checks, focused DevKit Vitest and hub regressions, TypeScript, and production build passed. The explicit broad-suite DevKit workflow assertion failure was reproduced in a clean `origin/main` worktree and is unrelated. Next owner decision: review the PR and, only after merge, separately authorize schema provisioning followed by targeted deployment of exactly `admin-devkit-data`, `ai-gateway`, `resume-section-ai`, and `job-import` plus the normal Vercel path for the DevKit UI/static fixture. A dedicated non-production WiseHire HR account remains owner-created/manual only; no real account or HR data will be changed automatically.
+* **Dependency remediation runtime closeout (2026-08-10):** `DEPENDENCY_REMEDIATION_VERIFIED_READY_WITH_DEFERRED_SECURITY_MIGRATION`. PR #172 merged as `6d07a24e`; PR #173 merged as `fdbfb8de` after adding one target-aware trusted CI step that provisions `ai_runtime_receipts` before deploying any selected receipt-writing hub. Official workflow `31375728081` succeeded for exactly `admin-devkit-data,ai-gateway,job-import,resume-section-ai`; the server-only collection schema was ready before deployment. The authorized, read-only DevKit panel then recorded exactly one new completed, one-credit, `miss` receipt for deterministic `ai-gateway`, `resume-section-ai`, and guarded public-fixture `job-import` flows. The section-AI preview was not applied. The fixture remains `noindex,nofollow` and absent from the Remote Jobs feed. WiseHire HR fixture QA is still a separate owner-created/manual follow-up.
 
 * **Repository synchronization review (2026-08-09):** Local `main` and `origin/main` were fetched and verified at the same commit, `34e2210a` (`chore(deps): update form-data in admin-deploy-hubs (#159)`), with `0` commits ahead and `0` behind and a clean worktree. The fetch only discovered current remote Dependabot branch references; it did not change `main`. The five commits after the 2026-07-24 Atlas handover are dependency-maintenance changes only, so the production verification status and active operational focus below remain unchanged.
 
 * **Dependabot/dependency security audit (2026-08-09):** Read-only Atlas report: `Project Atlas/security/dependency-security-audit-2026-08-09.md`. The authenticated GitHub Dependabot inventory could not be read from this workspace, so no current GitHub total is claimed. A public-OSV scan of every committed root and hub lockfile found 72 supplemental manifest-advisory instances (23 high, 49 moderate), concentrated in stale Axios/form-data locks across six hubs. No confirmed WiseResume exploit or P0 was established. Recommended next work, only after authenticated GitHub alert reconciliation and owner approval: a medium-risk, six-hub Axios/form-data lock-refresh batch with targeted validation and no `target=all` deployment.
 
-* **Dependency security remediation (2026-08-09, local and not deployed):** `PASS_WITH_WARNINGS` / `TESTED_LOCAL` on `security/dependency-remediation-2026-08`. Six affected Appwrite hub locks now resolve Axios `1.19.0` and form-data `4.0.6`; the root lock resolves the planned NanoID, js-yaml, Undici, fast-uri, and compatible brace-expansion updates. `puppeteer` was aligned to `^25.3.0` with the existing production `puppeteer-core@25.3.0`, eliminating its invalid proxy-agent diagnostic without source changes. Clean install, TypeScript, eight focused hub test files, hub syntax checks, production build, public OSV re-audit, and `git diff --check` passed. The full suite has exactly four `PRE_EXISTING_BASELINE_FAILURE` tests reproduced in a detached `origin/main` worktree, so no test/product change was made. `npm ls js-yaml` retains an intentional override diagnostic required for the fixed `js-yaml@4.3.1`; it is build/config-only. React Router v6 advisories are `DEFERRED_SECURITY_MIGRATION` for a future separately authorized v7 branch. No push/deploy occurred. Owner review is required before deploying only `admin-devkit-data`, `admin-sentry`, `ai-gateway`, `job-import`, `resume-section-ai`, and `wisehire-gateway`, plus the normal Vercel path for root dependencies. Full evidence: `Project Atlas/security/dependency-security-audit-2026-08-09.md` section 17.
+* **Dependency security remediation (2026-08-10):** Production runtime evidence is complete for the receipt-writing WiseResume paths. The remediation source merged in PR #170; follow-up PR #172 provided sanitized receipts and PR #173 made their server-only schema a pre-deploy CI requirement. The four receipt-writing hubs above were deployed only through the official target-filtered workflow, then deterministic browser QA proved a successful provider-backed path per hub with one factual credit and no duplicate receipt. Current authenticated Dependabot inventory is 0 critical, 0 high, and 3 medium React Router advisories. React Router v6 remains `DEFERRED_SECURITY_MIGRATION`; the remaining WiseHire HR fixture is a separate secondary-product follow-up. Full evidence: `Project Atlas/security/dependency-security-audit-2026-08-09.md` section 18.
 
 * **Session Status:** `DEPLOYED_PENDING_BROWSER_VERIFICATION` for public-repository hardening.
   - PR #148 merged the hardening implementation; PR #158 (`78656e7f`, merged `0d030df4`) corrected three ignored hub lockfiles after failed workflow `30100163770` stopped with 25 ready deployments.
