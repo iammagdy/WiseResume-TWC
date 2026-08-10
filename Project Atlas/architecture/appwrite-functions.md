@@ -85,3 +85,9 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 ## Public-Repository Hardening (2026-07-24, Deployed)
 
 The repository has an explicit 28-function execution-policy map. Recovery workflow `30101982337` completed after the earlier 28-target run stopped on untracked lockfiles: `job-feed-sync` is schedule/API-key only (`execute: []`) with its six-hour schedule preserved, `track-job-action` is `users`, and `get-remote-jobs` remains public. The live verifier reports 28/28 policy matches. See [`../security/public-repository-hardening.md`](../security/public-repository-hardening.md).
+
+## Local QA Runtime Observability (2026-08-10, Not Deployed)
+
+`ai-gateway`, `resume-section-ai`, and `job-import` have a local-only, server-generated runtime-receipt design. It records bounded metadata—request ID, optional runtime execution ID, hub, feature, provider/model, status, latency, credit count, idempotency state, and a classified failure—in a separate server-only `ai_runtime_receipts` collection. It intentionally does not reuse `ai_request_logs`, because that collection participates in gateway rate limiting.
+
+The required idempotent provisioner is `scripts/setup_ai_runtime_receipts_schema.cjs`; it has not been run against any Appwrite environment. The receipts have a 30-day expiry field and a 500-record write-time cap. `admin-devkit-data` exposes only a signed-DevKit, read-only, sanitized evidence feed; it masks internal user references and excludes prompts, provider output, request bodies, raw errors, credentials, and headers.

@@ -15,6 +15,7 @@ Supabase Edge Functions are decommissioned for the active app. Any script whose 
 | `setup_app_settings_schema.cjs` | Repairs the `app_settings` key/value schema used by DevKit operational settings and deployed hashes. | Appwrite credentials |
 | `setup_impersonation_sessions_schema.cjs` | Idempotently creates or repairs the server-only `admin_impersonation_sessions` collection used by DevKit Act As. The revoke-path index and required attributes fail closed; optional cleanup indexes fail softly. | Appwrite credentials |
 | `setup_ai_logs_schema.cjs` | Creates the `ai_request_logs` schema used by the AI gateway request log writer. | Appwrite credentials |
+| `setup_ai_runtime_receipts_schema.cjs` | Idempotently creates the server-only, metadata-only `ai_runtime_receipts` schema used for QA correlation; it is not run automatically. | Appwrite credentials |
 | `setup_owner_collections_schema.cjs` | Idempotently repairs owner-scoped `user_preferences`, `jobs`, and `job_applications` schema, collection create permission, and document security. | Appwrite credentials |
 | `migrate_owner_document_permissions.cjs` | Dry-run-first backfill that derives owner document permissions from each document's `user_id` and reports counts only. | Appwrite credentials |
 | `ensure-puppeteer-chrome.mjs` | Ensure local Chromium dependency exists for screenshot/browser checks. | None |

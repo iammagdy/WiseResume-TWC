@@ -2559,6 +2559,64 @@ async function handleAIRequestAnalytics(body, log) {
   };
 }
 
+function maskRuntimeUserId(userId) {
+  const value = typeof userId === 'string' ? userId.trim() : '';
+  return value ? `user_…${value.slice(-6)}` : 'unknown';
+}
+
+function safeRuntimeReceipt(document) {
+  return {
+    requestId: document.request_id || '',
+    executionId: document.execution_id || null,
+    hub: document.hub || 'unknown',
+    feature: document.feature_id || 'unknown',
+    provider: document.provider || 'not_invoked',
+    model: document.model || 'not_invoked',
+    status: document.status || 'unknown',
+    httpStatus: Number(document.http_status || 0),
+    latencyMs: Number(document.latency_ms || 0),
+    fallback: document.is_fallback === true,
+    adminTest: document.is_admin_test === true,
+    userRef: maskRuntimeUserId(document.user_id),
+    creditsCharged: Number(document.credits_charged || 0),
+    idempotencyState: document.idempotency_state || 'unknown',
+    errorClass: document.error_class || null,
+    startedAt: document.started_at || null,
+    completedAt: document.completed_at || null,
+  };
+}
+
+/**
+ * Read-only DevKit evidence feed. The contract intentionally excludes prompt,
+ * result, request body, auth headers, raw error text, and raw user identity.
+ */
+async function handleListAiRuntimeReceipts(body, log) {
+  const limit = Math.min(Math.max(1, Number(body.limit) || 50), 100);
+  const queries = [
+    sdk.Query.greaterThanEqual('expires_at', isoNow()),
+    sdk.Query.orderDesc('completed_at'),
+    sdk.Query.limit(limit),
+  ];
+  const safeToken = (value, max = 64) => typeof value === 'string' && new RegExp(`^[a-z0-9_-]{1,${max}}$`, 'i').test(value);
+  if (safeToken(body.request_id)) queries.push(sdk.Query.equal('request_id', body.request_id));
+  if (safeToken(body.feature)) queries.push(sdk.Query.equal('feature_id', body.feature));
+  if (safeToken(body.hub)) queries.push(sdk.Query.equal('hub', body.hub));
+  if (safeToken(body.status, 24)) queries.push(sdk.Query.equal('status', body.status));
+  if (typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since))) {
+    queries.push(sdk.Query.greaterThanEqual('completed_at', new Date(body.since).toISOString()));
+  }
+
+  const result = await safeList(null, 'ai_runtime_receipts', queries);
+  const missingCollection = !!result.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(result.error);
+  log(`list-ai-runtime-receipts: ${result.documents?.length || 0} safe receipt(s)`);
+  return {
+    receipts: (result.documents || []).map(safeRuntimeReceipt),
+    total: result.total || 0,
+    missingCollection,
+    fetchError: missingCollection || !result.error ? null : 'Runtime receipt query failed safely.',
+  };
+}
+
 async function handleListAiGatewayActivity(body, log) {
   const { functions } = getClients();
   const limit = Math.min(Math.max(1, Number(body.limit) || 10), 25);
@@ -3192,6 +3250,7 @@ module.exports = async ({ req, res, log, error }) => {
     else if (action === 'send-wisehire-invite') data = await handleSendWisehireInvite(body, log);
     else if (action === 'list-ai-gateway-activity') data = await handleListAiGatewayActivity(body, log);
     else if (action === 'ai-request-analytics') data = await handleAIRequestAnalytics(body, log);
+    else if (action === 'list-ai-runtime-receipts') data = await handleListAiRuntimeReceipts(body, log);
     else if (action === 'list-routing-config') data = await handleListRoutingConfig();
     else if (action === 'update-routing-config') data = await handleUpdateRoutingConfig(body, log);
     else if (action === 'create-routing-config') data = await handleCreateRoutingConfig(body, log);

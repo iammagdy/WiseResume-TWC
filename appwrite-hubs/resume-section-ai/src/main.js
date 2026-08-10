@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const sdk = require('node-appwrite');
+const runtimeReceipts = require('./runtime-receipts.cjs');
 
 const DB_ID = 'main';
 const AI_CREDITS_COLLECTION_ID = 'ai_credits';
@@ -222,6 +223,12 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function attachRuntimeReceipt(payload, requestId) {
+  return isRecord(payload)
+    ? { ...payload, _runtime: { requestId } }
+    : { data: payload, _runtime: { requestId } };
+}
+
 function asString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -380,7 +387,7 @@ async function loadCreditState(db, userId, aiAction, action) {
 
 async function recordAiUsage(db, creditState) {
   if (!creditState || creditState.blocked || creditState.cost <= 0 || !creditState.doc) {
-    return;
+    return false;
   }
   await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
     daily_usage: creditState.currentUsage + creditState.cost,
@@ -388,6 +395,7 @@ async function recordAiUsage(db, creditState) {
     total_usage: Number(creditState.doc.total_usage || 0) + creditState.cost,
     usage_date: creditState.today,
   });
+  return true;
 }
 
 function checkServerRateLimit(userId, aiAction) {
@@ -415,17 +423,49 @@ function httpError(status, code, message) {
   return err;
 }
 
-async function callChargedLLM(messages, pool, db, userId, aiAction, action) {
+async function callChargedLLM(messages, pool, db, userId, aiAction, action, runtime) {
   const creditState = await loadCreditState(db, userId, aiAction, action);
   if (creditState.blocked) {
     throw httpError(creditState.status || 503, creditState.code || 'ai_credit_check_failed', creditState.message);
   }
-  const content = await callLLM(messages, pool);
-  await recordAiUsage(db, creditState);
-  return content;
+  let providerMeta = null;
+  try {
+    const content = await callLLM(messages, pool, meta => { providerMeta = meta; });
+    const creditsCharged = await recordAiUsage(db, creditState) ? creditState.cost : 0;
+    await runtimeReceipts.writeReceipt(db, {
+      ...runtime,
+      feature: 'resume-section-ai',
+      provider: providerMeta?.provider,
+      model: providerMeta?.model,
+      status: 'completed',
+      httpStatus: 200,
+      latencyMs: Date.now() - runtime.startedAt.getTime(),
+      fallback: providerMeta?.fallback,
+      userId,
+      credits: creditsCharged,
+      idempotencyState: 'miss',
+    });
+    return content;
+  } catch (err) {
+    await runtimeReceipts.writeReceipt(db, {
+      ...runtime,
+      feature: 'resume-section-ai',
+      provider: providerMeta?.provider,
+      model: providerMeta?.model,
+      status: 'failed',
+      httpStatus: err.httpStatus || err.response?.status || 500,
+      latencyMs: Date.now() - runtime.startedAt.getTime(),
+      fallback: providerMeta?.fallback,
+      userId,
+      credits: 0,
+      idempotencyState: 'miss',
+      errorClass: runtimeReceipts.classifyError(err),
+    });
+    throw err;
+  }
 }
 
-async function callLLM(messages, pool) {
+async function callLLM(messages, pool, onSuccess) {
   if (pool.length === 0) throw new Error('No AI provider keys configured');
   let lastError;
   for (const entry of pool) {
@@ -440,6 +480,7 @@ async function callLLM(messages, pool) {
         headers: { 'Authorization': `Bearer ${entry.key}`, 'Content-Type': 'application/json' },
         timeout: timeoutMs,
       });
+      onSuccess?.({ provider: entry.provider, model: entry.model, fallback: entry !== pool[0] });
       return response.data.choices[0].message.content;
     } catch (err) {
       lastError = err;
@@ -829,6 +870,8 @@ function parseEnhanceResponse(rawContent, currentContent) {
 module.exports = async ({ req, res, log, error }) => {
   let db = null;
   let idemDocId = null;
+  const runtimeStartedAt = new Date();
+  const runtimeRequestId = runtimeReceipts.createRequestId();
 
   // -- CORS pre-flight ----------------------------------------------------------
   if (req.method === 'OPTIONS') {
@@ -853,6 +896,7 @@ module.exports = async ({ req, res, log, error }) => {
     if (!auth.ok) {
       return res.json({ error: true, code: 'unauthorized', message: auth.message }, auth.status);
     }
+    const runtime = { requestId: runtimeRequestId, hub: 'resume-section-ai', startedAt: runtimeStartedAt };
 
     // Action is sent in the body (Appwrite SDK doesn't forward custom headers)
     const aiAction = body['x-resume-section-ai-action'] || 'enhance';
@@ -876,7 +920,13 @@ module.exports = async ({ req, res, log, error }) => {
     if (idemCheck.hit) {
       if (idemCheck.status === 'success' && idemCheck.result) {
         log(`resume-section-ai: idempotency cache hit key=${idemKey}`);
-        return res.json({ ...idemCheck.result, _cached: true });
+        await runtimeReceipts.writeReceipt(db, {
+          ...runtime,
+          feature: 'resume-section-ai', provider: 'cache', model: 'not_invoked',
+          status: 'cached', httpStatus: 200, latencyMs: Date.now() - runtimeStartedAt.getTime(),
+          userId: auth.user.$id, credits: 0, idempotencyState: 'hit',
+        }, log);
+        return res.json(attachRuntimeReceipt({ ...idemCheck.result, _cached: true }, runtimeRequestId));
       }
       if (idemCheck.status === 'pending') {
         return res.json({
@@ -919,16 +969,16 @@ module.exports = async ({ req, res, log, error }) => {
           return res.json(buildSuggestTechQuestionsResponse());
         }
         const messages = buildSuggestTechMessages(currentContent, context);
-        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
-        const result = parseSuggestTechResponse(rawContent);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
+        const result = attachRuntimeReceipt(parseSuggestTechResponse(rawContent), runtimeRequestId);
         await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
       if (action === 'suggest_technologies_with_answers') {
         const messages = buildSuggestTechWithAnswersMessages(currentContent, context);
-        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
-        const result = parseSuggestTechResponse(rawContent);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
+        const result = attachRuntimeReceipt(parseSuggestTechResponse(rawContent), runtimeRequestId);
         await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
@@ -970,23 +1020,23 @@ module.exports = async ({ req, res, log, error }) => {
       if (action === 'generate_with_answers') {
         const baseAction = section === 'summary' ? 'generate' : 'generate';
         const messages = buildEnhanceMessages(section, baseAction, currentContent, context);
-        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
-        const result = parseEnhanceResponse(rawContent, currentContent);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
+        const result = attachRuntimeReceipt(parseEnhanceResponse(rawContent, currentContent), runtimeRequestId);
         await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
       if (action === 'add_metrics_with_answers') {
         const messages = buildEnhanceMessages(section, 'add_metrics', currentContent, context);
-        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
-        const result = parseEnhanceResponse(rawContent, currentContent);
+        const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
+        const result = attachRuntimeReceipt(parseEnhanceResponse(rawContent, currentContent), runtimeRequestId);
         await updateIdempotencySuccess(db, idemDocId, result);
         return res.json(result);
       }
 
       const messages = buildEnhanceMessages(section, action, currentContent, context);
-      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
-      const result = parseEnhanceResponse(rawContent, currentContent);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
+      const result = attachRuntimeReceipt(parseEnhanceResponse(rawContent, currentContent), runtimeRequestId);
       await updateIdempotencySuccess(db, idemDocId, result);
       return res.json(result);
     }
@@ -994,15 +1044,15 @@ module.exports = async ({ req, res, log, error }) => {
     if (aiAction === 'tailor') {
       // Tailor a single section to match a job description
       const messages = buildEnhanceMessages(section, 'tailor', currentContent, context);
-      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
-      const result = parseEnhanceResponse(rawContent, currentContent);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
+      const result = attachRuntimeReceipt(parseEnhanceResponse(rawContent, currentContent), runtimeRequestId);
       await updateIdempotencySuccess(db, idemDocId, result);
       return res.json(result);
     }
 
     if (aiAction === 'fill-gap') {
       const messages = buildFillGapMessages(body);
-      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
       let suggestions;
       try {
         const match = rawContent.match(/\[[\s\S]*\]/);
@@ -1010,14 +1060,14 @@ module.exports = async ({ req, res, log, error }) => {
       } catch (_) {
         suggestions = [];
       }
-      const fillResult = { suggestions, improved: null, changes: [] };
+      const fillResult = attachRuntimeReceipt({ suggestions, improved: null, changes: [] }, runtimeRequestId);
       await updateIdempotencySuccess(db, idemDocId, fillResult);
       return res.json(fillResult);
     }
 
     if (aiAction === 'explain-gap') {
       const messages = buildExplainGapMessages(body);
-      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action);
+      const rawContent = await callChargedLLM(messages, pool, db, auth.user.$id, aiAction, action, runtime);
       let result;
       try {
         const match = rawContent.match(/\{[\s\S]*\}/);
@@ -1025,7 +1075,7 @@ module.exports = async ({ req, res, log, error }) => {
       } catch (_) {
         result = { explanation: rawContent, talking_points: [] };
       }
-      const explainResult = { ...result, improved: null, changes: [] };
+      const explainResult = attachRuntimeReceipt({ ...result, improved: null, changes: [] }, runtimeRequestId);
       await updateIdempotencySuccess(db, idemDocId, explainResult);
       return res.json(explainResult);
     }
@@ -1045,3 +1095,5 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json({ error: true, code: 'internal', message: err.message }, 500);
   }
 };
+
+module.exports.__test = { recordAiUsage, attachRuntimeReceipt, checkIdempotencyCache };

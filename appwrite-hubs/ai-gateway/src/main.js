@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const zlib = require('zlib');
 const sdk = require('node-appwrite');
 const extractedPrompts = require('./extracted_prompts.json');
+const runtimeReceipts = require('./runtime-receipts.cjs');
 
 function enableLLMObs() { /* Datadog removed - dd-trace has native Windows binaries incompatible with Linux Appwrite */ }
 async function flushDD() { /* no-op */ }
@@ -1174,7 +1175,7 @@ const AI_REQUEST_LOGS_COLLECTION_ID = 'ai_request_logs';
  */
 async function safeLogAiRequest(
   db,
-  { feature, provider, model, latencyMs, fallback, adminTest, credits, idempotencyKey, isIdempotencyHit },
+  { feature, provider, model, latencyMs, fallback, adminTest, credits, idempotencyKey, isIdempotencyHit, requestId, status, httpStatus, errorClass, startedAt },
   userId,
 ) {
   try {
@@ -1200,11 +1201,33 @@ async function safeLogAiRequest(
       );
     }
   }
+  await runtimeReceipts.writeReceipt(db, {
+    requestId,
+    hub: 'ai-gateway',
+    feature,
+    provider,
+    model,
+    status: status || (isIdempotencyHit ? 'cached' : 'completed'),
+    httpStatus: httpStatus || 200,
+    latencyMs,
+    fallback,
+    adminTest,
+    userId,
+    credits,
+    idempotencyState: isIdempotencyHit ? 'hit' : 'miss',
+    errorClass,
+    startedAt,
+  });
+}
+
+function withCurrentRequestId(payload, requestId) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+  return { ...payload, meta: { ...(payload.meta || {}), requestId } };
 }
 
 async function recordAiUsage(db, creditState) {
   if (!creditState?.chargeable || creditState.blocked || creditState.cost <= 0 || !creditState.doc) {
-    return;
+    return false;
   }
   // Optimistic locking (M-2 partial mitigation):
   // Re-read the credit doc immediately before writing. If another request
@@ -1240,6 +1263,7 @@ async function recordAiUsage(db, creditState) {
     total_usage: Number(baseDoc.total_usage || 0) + cost,
     usage_date:  today,
   });
+  return true;
 }
 
 function checkServerRateLimit(userId, featureName) {
@@ -3442,6 +3466,8 @@ module.exports = async ({ req, res, log, error }) => {
   enableLLMObs();
   const db = getDbClient();
   const handlerStartedAt = Date.now();
+  const runtimeRequestId = runtimeReceipts.createRequestId();
+  const runtimeStartedAt = new Date(handlerStartedAt);
   let activeCreditLockUserId = null;
   let idempotencyDocId = null;
   let contentKey = null;
@@ -3714,8 +3740,14 @@ module.exports = async ({ req, res, log, error }) => {
         }
 
         if (cached.hit && cached.status === 'success' && cached.result) {
+          await safeLogAiRequest(db, {
+            feature: featureName, provider: 'cache', model: 'none', latencyMs: Date.now() - handlerStartedAt,
+            fallback: false, adminTest: false, credits: 0,
+            idempotencyKey: resultKeys[0], isIdempotencyHit: true, requestId: runtimeRequestId,
+            startedAt: runtimeStartedAt,
+          }, effectiveUserId);
           await flushDD();
-          return res.json(cached.result);
+          return res.json(withCurrentRequestId(cached.result, runtimeRequestId));
         }
         if (cached.hit && cached.status === 'failed') {
           const failure = cached.result || {
@@ -3866,13 +3898,14 @@ module.exports = async ({ req, res, log, error }) => {
       if (cacheHit.hit && cacheHit.status === 'success') {
         // Exact duplicate within the dedup window - return cached result at zero cost.
         log(`Idempotency cache hit for user=${effectiveUserId} feature=${featureName} key=${contentKey.slice(0, 16)}...`);
-        safeLogAiRequest(db, {
+        await safeLogAiRequest(db, {
           feature: featureName, provider: 'cache', model: 'none', latencyMs: 0,
           fallback: false, adminTest: false, credits: 0,
-          idempotencyKey: contentKey, isIdempotencyHit: true,
-        }, effectiveUserId).catch(() => {});
+          idempotencyKey: contentKey, isIdempotencyHit: true, requestId: runtimeRequestId,
+          startedAt: runtimeStartedAt,
+        }, effectiveUserId);
         await flushDD();
-        if (cacheHit.result) return res.json(cacheHit.result);
+        if (cacheHit.result) return res.json(withCurrentRequestId(cacheHit.result, runtimeRequestId));
         // Result payload was larger than the 60 KB cache limit - can't replay.
         return res.json({
           status: 'error',
@@ -3893,8 +3926,14 @@ module.exports = async ({ req, res, log, error }) => {
       if (idempotencyDocId === 'collision') {
         const collisionHit = await checkIdempotencyCache(db, contentKey, log);
         if (collisionHit.hit && collisionHit.status === 'success' && collisionHit.result) {
+          await safeLogAiRequest(db, {
+            feature: featureName, provider: 'cache', model: 'none', latencyMs: Date.now() - handlerStartedAt,
+            fallback: false, adminTest: false, credits: 0,
+            idempotencyKey: contentKey, isIdempotencyHit: true, requestId: runtimeRequestId,
+            startedAt: runtimeStartedAt,
+          }, effectiveUserId);
           await flushDD();
-          return res.json(collisionHit.result);
+          return res.json(withCurrentRequestId(collisionHit.result, runtimeRequestId));
         }
         await flushDD();
         return res.json({
@@ -4014,13 +4053,13 @@ module.exports = async ({ req, res, log, error }) => {
     // Provider call has already succeeded at this point - do not throw on credit
     // failure, but log loudly so ops can investigate reconciliation.
     async function recordSuccessUsage() {
-      if (isAdminTest) return;
+      if (isAdminTest) return 0;
       let lastErr;
       for (let attempt = 0; attempt <= RECORD_USAGE_BACKOFFS.length; attempt++) {
         try {
-          await recordAiUsage(db, creditState);
+          const charged = await recordAiUsage(db, creditState);
           if (creditLockAcquired) { await releaseCreditLock(db, effectiveUserId); activeCreditLockUserId = null; }
-          return; // success
+          return charged ? creditState.cost : 0;
         } catch (err) {
           lastErr = err;
           if (attempt < RECORD_USAGE_BACKOFFS.length) await sleep(RECORD_USAGE_BACKOFFS[attempt]);
@@ -4031,6 +4070,7 @@ module.exports = async ({ req, res, log, error }) => {
         `[CRITICAL] Credit recording failed after ${RECORD_USAGE_BACKOFFS.length + 1} attempts ` +
         `for user=${effectiveUserId} feature=${featureName}: ${lastErr?.message}`
       );
+      return 0;
     }
 
     async function repairStructuredFeatureResponse(candidate, featureName, rawContent, callCandidateFn) {
@@ -4128,6 +4168,22 @@ module.exports = async ({ req, res, log, error }) => {
         // Admin test: skip all structured parsing, return raw preview immediately.
         // Credits are not recorded. No API keys are included in the response.
         if (isAdminTest) {
+          await runtimeReceipts.writeReceipt(db, {
+            requestId: runtimeRequestId,
+            hub: 'ai-gateway',
+            feature: featureName,
+            provider: providerUsed,
+            model: modelUsed,
+            status: 'completed',
+            httpStatus: 200,
+            latencyMs: Date.now() - requestStartTime,
+            fallback: !routedBy,
+            adminTest: true,
+            userId: effectiveUserId,
+            credits: 0,
+            idempotencyState: 'not_applicable',
+            startedAt: runtimeStartedAt,
+          }, log);
           await flushDD();
           return res.json({
             status: 'ok',
@@ -4137,18 +4193,18 @@ module.exports = async ({ req, res, log, error }) => {
             model: modelUsed,
             slot: candidate.slot || 1,
             preview: String(content || '').slice(0, 300),
-            meta: { feature: featureName, provider: providerUsed, model: modelUsed, slot: candidate.slot || 1, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true, attempts },
+            meta: { feature: featureName, provider: providerUsed, model: modelUsed, slot: candidate.slot || 1, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, adminTest: true, requestId: runtimeRequestId, attempts },
           });
         }
 
         if (featureName === 'parse-resume') {
           try {
             const parsedResume = normalizeResumeData(result.content);
-            await recordSuccessUsage();
-            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            const creditsCharged = await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, requestId: runtimeRequestId, startedAt: runtimeStartedAt };
             const responsePayload = { status: 'success', data: parsedResume, meta };
             await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
-            safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
+            await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
             await flushDD();
             return res.json(responsePayload);
           } catch (parseErr) {
@@ -4165,7 +4221,7 @@ module.exports = async ({ req, res, log, error }) => {
         if (STRUCTURED_AI_FEATURES.has(featureName)) {
           try {
             const structuredData = normalizeStructuredFeatureData(featureName, result.content, aiOpts);
-            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, requestId: runtimeRequestId, startedAt: runtimeStartedAt };
             const responsePayload = { status: 'success', data: structuredData, meta };
             if (featureName === 'tailor-resume') {
               const cached = await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
@@ -4180,11 +4236,11 @@ module.exports = async ({ req, res, log, error }) => {
                 }, 503);
               }
             }
-            await recordSuccessUsage();
+            const creditsCharged = await recordSuccessUsage();
             if (featureName !== 'tailor-resume') {
               await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
             }
-            safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
+            await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
             await flushDD();
             return res.json(responsePayload);
           } catch (parseErr) {
@@ -4197,6 +4253,8 @@ module.exports = async ({ req, res, log, error }) => {
                 model: modelUsed,
                 latencyMs: Date.now() - requestStartTime,
                 fallback: !routedBy,
+                requestId: runtimeRequestId,
+                startedAt: runtimeStartedAt,
                 repaired: true,
               };
               const responsePayload = { status: 'success', data: repaired.structuredData, meta };
@@ -4213,11 +4271,11 @@ module.exports = async ({ req, res, log, error }) => {
                   }, 503);
                 }
               }
-              await recordSuccessUsage();
+              const creditsCharged = await recordSuccessUsage();
               if (featureName !== 'tailor-resume') {
                 await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
               }
-              safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
+              await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
               await flushDD();
               return res.json(responsePayload);
             }
@@ -4250,11 +4308,11 @@ module.exports = async ({ req, res, log, error }) => {
 
         if (featureName === 'agentic-chat') {
           const structuredResponse = parseAgenticChatResponse(result.content);
-          await recordSuccessUsage();
-          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+          const creditsCharged = await recordSuccessUsage();
+          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, requestId: runtimeRequestId, startedAt: runtimeStartedAt };
           const responsePayload = { status: 'success', data: structuredResponse, meta };
           await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
-          safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
+          await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
           await flushDD();
           return res.json(responsePayload);
         }
@@ -4265,11 +4323,11 @@ module.exports = async ({ req, res, log, error }) => {
             const outcomes = Array.isArray(parsed)
               ? parsed
               : (Array.isArray(parsed.outcomes) ? parsed.outcomes : []);
-            await recordSuccessUsage();
-            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+            const creditsCharged = await recordSuccessUsage();
+            const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, requestId: runtimeRequestId, startedAt: runtimeStartedAt };
             const responsePayload = { status: 'success', data: { success: true, outcomes }, meta };
             await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
-            safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
+            await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
             await flushDD();
             return res.json(responsePayload);
           } catch (parseErr) {
@@ -4284,11 +4342,11 @@ module.exports = async ({ req, res, log, error }) => {
         }
 
         if (featureName === 'ask-portfolio') {
-          await recordSuccessUsage();
-          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+          const creditsCharged = await recordSuccessUsage();
+          const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, requestId: runtimeRequestId, startedAt: runtimeStartedAt };
           const responsePayload = { status: 'success', data: { answer: result.content, isFallback: false, chatDisabled: false }, meta };
           await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
-          safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
+          await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
           await flushDD();
           return res.json(responsePayload);
         }
@@ -4339,6 +4397,23 @@ module.exports = async ({ req, res, log, error }) => {
             'Tailoring reached its time limit. Your resume was not changed. Please retry.',
             504,
           );
+          await runtimeReceipts.writeReceipt(db, {
+            requestId: runtimeRequestId,
+            hub: 'ai-gateway',
+            feature: featureName,
+            provider: candidate.provider,
+            model: candidate.model,
+            status: 'failed',
+            httpStatus: 504,
+            latencyMs: Date.now() - requestStartTime,
+            fallback: !candidate.routed,
+            adminTest: isAdminTest,
+            userId: effectiveUserId,
+            credits: 0,
+            idempotencyState: 'miss',
+            errorClass: failureClass,
+            startedAt: runtimeStartedAt,
+          }, log);
           await flushDD();
           return res.json({
             status: 'error',
@@ -4357,6 +4432,23 @@ module.exports = async ({ req, res, log, error }) => {
           const responseStatus = isTimeout ? 504 : (httpStatus === 429 ? 429 : 503);
 
           await finalizeIdempotencyFailure('provider_unavailable', userMessage, responseStatus);
+          await runtimeReceipts.writeReceipt(db, {
+            requestId: runtimeRequestId,
+            hub: 'ai-gateway',
+            feature: featureName,
+            provider: candidate.provider,
+            model: candidate.model,
+            status: 'failed',
+            httpStatus: responseStatus,
+            latencyMs: Date.now() - requestStartTime,
+            fallback: !candidate.routed,
+            adminTest: isAdminTest,
+            userId: effectiveUserId,
+            credits: 0,
+            idempotencyState: 'miss',
+            errorClass: failureClass,
+            startedAt: runtimeStartedAt,
+          }, log);
           await flushDD();
 
           if (isAdminTest) {
@@ -4378,11 +4470,11 @@ module.exports = async ({ req, res, log, error }) => {
       }
     }
 
-    await recordSuccessUsage();
-    const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy };
+    const creditsCharged = await recordSuccessUsage();
+    const meta = { feature: featureName, provider: providerUsed, model: modelUsed, latencyMs: Date.now() - requestStartTime, fallback: !routedBy, requestId: runtimeRequestId, startedAt: runtimeStartedAt };
     const responsePayload = { status: 'success', data: { content, providerUsed, modelUsed, routedByFeature: routedBy }, meta };
     await updateIdempotencySuccess(db, idempotencyDocId, responsePayload);
-    safeLogAiRequest(db, { ...meta, credits: creditState.cost, idempotencyKey: contentKey }, effectiveUserId).catch(() => {});
+    await safeLogAiRequest(db, { ...meta, credits: creditsCharged, idempotencyKey: contentKey }, effectiveUserId);
     await flushDD();
     return res.json(responsePayload);
 
@@ -4399,6 +4491,20 @@ module.exports = async ({ req, res, log, error }) => {
       } else {
         await deleteIdempotencyDoc(db, idempotencyDocId);
       }
+    }
+    if (featureName) {
+      await runtimeReceipts.writeReceipt(db, {
+        requestId: runtimeRequestId,
+        hub: 'ai-gateway',
+        feature: featureName,
+        status: 'failed',
+        httpStatus: 500,
+        latencyMs: Date.now() - handlerStartedAt,
+        credits: 0,
+        idempotencyState: 'miss',
+        errorClass: runtimeReceipts.classifyError(err),
+        startedAt: runtimeStartedAt,
+      }, log);
     }
     // Catch-all - preserves stable JSON error contract on any unexpected failure.
     // Clean up any in-flight idempotency record so the user can retry.
@@ -4433,4 +4539,5 @@ module.exports.__test = {
   buildTailorResumeSystemPrompt,
   buildTailorMessages,
   buildMessages,
+  recordAiUsage,
 };

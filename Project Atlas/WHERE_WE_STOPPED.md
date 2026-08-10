@@ -1,6 +1,6 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-09
+**Last Verified:** 2026-08-10
 **Status:** Repository Synchronization Verified; Broadcast Delivery Production Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -10,7 +10,7 @@
 
 * **Production Domain:** `https://wiseresume.app`
 * **Repository:** `iammagdy/WiseResume-TWC`
-* **Active Branch:** `main`
+* **Active Branch:** `codex/qa-runtime-observability-fixtures` (QA observability commits prepared for PR review)
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
 * **Frontend Hosting:** Vercel. Current production is documentation-only deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for commit `e7e92aba0261a5e587c766654dc9bf601732072d`; latest verified code-bearing production remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
@@ -54,6 +54,8 @@
 ---
 
 ## 3. Where We Stopped & Current Active Focus
+
+* **QA observability and deterministic fixture infrastructure (2026-08-10, committed and pending PR review):** An isolated, metadata-only `ai_runtime_receipts` design is committed for `ai-gateway`, `resume-section-ai`, and `job-import`; it intentionally does not alter `ai_request_logs`, the gateway rate-limit signal, provider routing, credits, idempotency behavior, permissions, schemas, configuration, or production. The branch also contains a signed-DevKit, read-only evidence panel/action and a normal public static job-page fixture that exercises the existing URL-validation, fetch, extraction, and provider-parsing path without appearing in the job feed or bypassing SSRF safeguards. The idempotent schema script has **not** been run, and no migration, deployment, or production test action occurred. Node syntax checks, focused DevKit Vitest and hub regressions, TypeScript, and production build passed. The explicit broad-suite DevKit workflow assertion failure was reproduced in a clean `origin/main` worktree and is unrelated. Next owner decision: review the PR and, only after merge, separately authorize schema provisioning followed by targeted deployment of exactly `admin-devkit-data`, `ai-gateway`, `resume-section-ai`, and `job-import` plus the normal Vercel path for the DevKit UI/static fixture. A dedicated non-production WiseHire HR account remains owner-created/manual only; no real account or HR data will be changed automatically.
 
 * **Repository synchronization review (2026-08-09):** Local `main` and `origin/main` were fetched and verified at the same commit, `34e2210a` (`chore(deps): update form-data in admin-deploy-hubs (#159)`), with `0` commits ahead and `0` behind and a clean worktree. The fetch only discovered current remote Dependabot branch references; it did not change `main`. The five commits after the 2026-07-24 Atlas handover are dependency-maintenance changes only, so the production verification status and active operational focus below remain unchanged.
 

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { URL } = require('url');
 const sdk = require('node-appwrite');
 const { Client, Account } = sdk;
+const runtimeReceipts = require('./runtime-receipts.cjs');
 
 // â”€â”€â”€ SSRF protection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -209,13 +210,14 @@ async function loadCreditState(db, userId, cost) {
 }
 
 async function recordAiUsage(db, creditState) {
-  if (!creditState || creditState.blocked || creditState.cost <= 0 || !creditState.doc) return;
+  if (!creditState || creditState.blocked || creditState.cost <= 0 || !creditState.doc) return false;
   await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
     daily_usage: creditState.currentUsage + creditState.cost,
     daily_limit: creditState.dailyLimit,
     total_usage: Number(creditState.doc.total_usage || 0) + creditState.cost,
     usage_date: creditState.today,
   });
+  return true;
 }
 
 function computeJobImportKey(userId, url) {
@@ -302,7 +304,7 @@ function buildPool() {
   return pool;
 }
 
-async function callLLM(messages, pool) {
+async function callLLM(messages, pool, onSuccess) {
   if (pool.length === 0) throw new Error('No AI provider keys configured');
   let lastError;
   for (const entry of pool) {
@@ -316,6 +318,8 @@ async function callLLM(messages, pool) {
         headers: { 'Authorization': `Bearer ${entry.key}`, 'Content-Type': 'application/json' },
         timeout: 8000,
       });
+      const provider = entry.url.includes('deepseek') ? 'deepseek' : entry.url.includes('groq') ? 'groq' : 'openrouter';
+      onSuccess?.({ provider, model: entry.model, fallback: entry !== pool[0] });
       return response.data.choices[0].message.content;
     } catch (err) {
       lastError = err;
@@ -560,6 +564,9 @@ module.exports = async ({ req, res, log, error }) => {
 
   const { url } = body || {};
   const userId = auth.userId;
+  const runtimeStartedAt = new Date();
+  const runtimeRequestId = runtimeReceipts.createRequestId();
+  const runtime = { requestId: runtimeRequestId, hub: 'job-import', feature: 'parse-job', startedAt: runtimeStartedAt, userId };
 
   if (!url || typeof url !== 'string') {
     return res.json({ ok: false, error: 'url is required' }, 400);
@@ -588,7 +595,12 @@ module.exports = async ({ req, res, log, error }) => {
   const idemKey = computeJobImportKey(userId, url);
   const cached = await checkIdempotencyCache(db, idemKey);
   if (cached.hit && cached.status === 'success') {
-    return res.json({ ...cached.result, cached: true });
+    await runtimeReceipts.writeReceipt(db, {
+      ...runtime,
+      provider: 'cache', model: 'not_invoked', status: 'cached', httpStatus: 200,
+      latencyMs: Date.now() - runtimeStartedAt.getTime(), credits: 0, idempotencyState: 'hit',
+    }, log);
+    return res.json({ ...cached.result, cached: true, runtime: { requestId: runtimeRequestId } });
   }
 
   // ── Credit check BEFORE the expensive fetch/LLM. Charged only on success. ────
@@ -604,6 +616,11 @@ module.exports = async ({ req, res, log, error }) => {
     html = await fetchJobPageHtml(url, log);
   } catch (err) {
     error(`Fetch failed for ${url}: ${err.message}`);
+    await runtimeReceipts.writeReceipt(db, {
+      ...runtime,
+      status: 'failed', httpStatus: 422, latencyMs: Date.now() - runtimeStartedAt.getTime(),
+      credits: 0, idempotencyState: 'miss', errorClass: 'source_fetch_failed',
+    }, log);
     await deleteIdempotencyDoc(db, idemDocId); // fetch failed → do not charge
     return res.json({
       ok: false,
@@ -630,6 +647,7 @@ module.exports = async ({ req, res, log, error }) => {
   // AI parse
   const pool = buildPool();
   let rawAI;
+  let providerMeta = null;
   try {
     rawAI = await callLLM([
       {
@@ -654,9 +672,15 @@ module.exports = async ({ req, res, log, error }) => {
 Content:
 ${context}`,
       },
-    ], pool);
+    ], pool, meta => { providerMeta = meta; });
   } catch (err) {
     error(`LLM call failed: ${err.message}`);
+    await runtimeReceipts.writeReceipt(db, {
+      ...runtime, provider: providerMeta?.provider, model: providerMeta?.model,
+      status: 'failed', httpStatus: 500, latencyMs: Date.now() - runtimeStartedAt.getTime(),
+      fallback: providerMeta?.fallback, credits: 0, idempotencyState: 'miss',
+      errorClass: runtimeReceipts.classifyError(err),
+    }, log);
     await deleteIdempotencyDoc(db, idemDocId); // provider failure → do not charge
     return res.json({ ok: false, error: 'AI parsing failed. Please try again.' }, 500);
   }
@@ -671,6 +695,11 @@ ${context}`,
   }
 
   if (!parsed || !parsed.title) {
+    await runtimeReceipts.writeReceipt(db, {
+      ...runtime, provider: providerMeta?.provider, model: providerMeta?.model,
+      status: 'failed', httpStatus: 422, latencyMs: Date.now() - runtimeStartedAt.getTime(),
+      fallback: providerMeta?.fallback, credits: 0, idempotencyState: 'miss', errorClass: 'invalid_provider_output',
+    }, log);
     await deleteIdempotencyDoc(db, idemDocId); // no usable result → do not charge
     return res.json({ ok: false, error: 'Could not extract job details from this page.' }, 422);
   }
@@ -715,9 +744,20 @@ ${context}`,
     persisted: persisted,
     fallbackRequired: !persisted,
     reason: reason,
+    runtime: { requestId: runtimeRequestId },
   };
-  try { await recordAiUsage(db, creditState); } catch (err) { error(`Credit charge failed: ${err.message}`); }
+  let creditsCharged = 0;
+  try {
+    if (await recordAiUsage(db, creditState)) creditsCharged = creditState.cost;
+  } catch (err) {
+    error(`Credit charge failed: ${err.message}`);
+  }
   await updateIdempotencySuccess(db, idemDocId, responsePayload);
+  await runtimeReceipts.writeReceipt(db, {
+    ...runtime, provider: providerMeta?.provider, model: providerMeta?.model,
+    status: 'completed', httpStatus: 200, latencyMs: Date.now() - runtimeStartedAt.getTime(),
+    fallback: providerMeta?.fallback, credits: creditsCharged, idempotencyState: 'miss',
+  }, log);
 
   return res.json(responsePayload);
 };
