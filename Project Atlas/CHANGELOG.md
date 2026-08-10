@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-10 - QA Runtime Observability and Deterministic Job-Import Fixture (Validated, Not Deployed)
+
+- **Classification:** `TESTED_LOCAL` on `codex/qa-runtime-observability-fixtures`; no Appwrite schema execution, configuration change, deployment, or production mutation occurred.
+- **Runtime receipts:** Added metadata-only writers to `appwrite-hubs/ai-gateway/src/main.js`, `appwrite-hubs/resume-section-ai/src/main.js`, and `appwrite-hubs/job-import/src/main.js`. A server-generated request ID is returned on successful traceable paths and is persisted with hub, feature, provider/model, status, latency, charge count, idempotency state, and classified failure only. Prompt/input/output/headers/tokens/raw errors are excluded.
+- **Schema and retention:** Added the idempotent, unexecuted `scripts/setup_ai_runtime_receipts_schema.cjs` for a separate server-only `ai_runtime_receipts` collection. It uses 30-day expiry metadata and a 500-record write-time cap. `ai_request_logs` remains unchanged because it is a production gateway rate-limit input.
+- **DevKit:** Added signed-admin-only `list-ai-runtime-receipts` and the read-only `AI QA Evidence` panel. The response masks user references and provides no mutation control or raw private data.
+- **Fixture:** Added `public/qa-fixtures/job-import-safe.html`, a static `JobPosting` document that remains outside the user-facing job feed and follows the existing job-import URL/DNS/SSRF/fetch/parser route without a special-case bypass. WiseHire HR QA remains an owner-created, non-production-account procedure only.
+- **Validation:** `node --check` passed for all changed hubs and the schema provisioner. Focused DevKit Vitest, observability, credit, SSRF, job-routing, and gateway-routing tests passed; TypeScript and the production build passed. The one explicit broad-suite failure is a pre-existing DevKit workflow assertion reproduced in a clean `origin/main` worktree; it is unrelated to this change.
+
 ## 2026-08-09 - Safe Dependency Security Remediation (Local, Not Deployed)
 
 - **Classification:** `PASS_WITH_WARNINGS` / `TESTED_LOCAL` on `security/dependency-remediation-2026-08`; no application source, configuration, secrets, push, or deployment changed.
