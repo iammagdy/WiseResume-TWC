@@ -61,6 +61,22 @@ test('the deployment workflow requires explicit targets and uses immutable actio
   assert.throws(() => assertWorkflowHardening(workflow.replace('required: true', 'required: false')));
 });
 
+test('the AI runtime receipt schema is provisioned before any receipt-writing hub deployment', () => {
+  const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
+  const setup = 'node scripts/setup_ai_runtime_receipts_schema.cjs';
+  const deploy = 'Deploy explicitly selected Appwrite hubs';
+  assert.match(workflow, new RegExp(setup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.ok(workflow.indexOf(setup) < workflow.indexOf(deploy), 'receipt schema setup must precede hub deployment');
+
+  for (const hub of ['admin-devkit-data', 'ai-gateway', 'job-import', 'resume-section-ai']) {
+    assert.match(
+      workflow,
+      new RegExp(`contains\\(fromJSON\\(steps\\.targets\\.outputs\\.targets_json\\), '${hub}'\\)`),
+      `receipt schema setup must cover ${hub}`,
+    );
+  }
+});
+
 test('every deployable hub lockfile is present and tracked by Git', () => {
   const script = read('scripts/deploy_hubs.cjs');
   assert.match(script, /missing package-lock\.json/);

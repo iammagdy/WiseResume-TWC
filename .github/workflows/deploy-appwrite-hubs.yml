@@ -45,6 +45,14 @@ jobs:
       - name: Ensure source hash manifest is committed
         run: git diff --exit-code -- src/lib/devkit/sourceHashes.generated.json
 
+      - name: Ensure AI runtime receipts schema
+        if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'admin-devkit-data') || contains(fromJSON(steps.targets.outputs.targets_json), 'ai-gateway') || contains(fromJSON(steps.targets.outputs.targets_json), 'job-import') || contains(fromJSON(steps.targets.outputs.targets_json), 'resume-section-ai') }}
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: node scripts/setup_ai_runtime_receipts_schema.cjs
+
       - name: Ensure app settings schema
         if: ${{ contains(fromJSON(steps.targets.outputs.targets_json), 'inspect-ai-keys') }}
         env:
