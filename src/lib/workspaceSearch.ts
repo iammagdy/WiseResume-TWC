@@ -62,6 +62,7 @@ const WORKSPACE_ITEMS: WorkspaceSearchItem[] = [
   { id: 'ideas', label: 'Content Ideas', keywords: ['ideas', 'content', 'writing'], path: '/ai-studio/ideas', icon: Lightbulb, group: 'ai' },
   { id: 'customize', label: 'Customize Design', keywords: ['design', 'template', 'customize'], path: '/ai-studio/customize', icon: Palette, group: 'ai' },
   { id: 'dashboard', label: 'Dashboard', keywords: ['home', 'workspace', 'dashboard'], path: '/dashboard', icon: Home, group: 'navigation' },
+  { id: 'jobs', label: 'Jobs', keywords: ['jobs', 'remote jobs', 'job feed', 'vacancies', 'opportunities', 'work', 'careers', 'وظائف', 'وظائف عن بعد', 'فرص عمل', 'شواغر'], path: '/jobs', icon: Briefcase, group: 'navigation' },
   { id: 'applications', label: 'Job Applications', keywords: ['applications', 'jobs', 'tracker'], path: '/applications', icon: Briefcase, group: 'navigation' },
   { id: 'templates', label: 'Templates', keywords: ['templates', 'designs', 'layouts'], path: '/templates', icon: Palette, group: 'navigation' },
   { id: 'guides', label: 'Career Guides', keywords: ['guides', 'help', 'learn'], path: '/guides', icon: BookOpen, group: 'navigation' },

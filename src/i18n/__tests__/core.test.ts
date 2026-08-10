@@ -55,6 +55,12 @@ describe('Arabic locale foundation', () => {
     expect(translate('export.pageCutSetup', 'ar')).toBe('إعداد فواصل الصفحات');
   });
 
+  it('localizes the Jobs navigation label and feed positioning', () => {
+    expect(translate('app.jobs', 'en')).toBe('Jobs');
+    expect(translate('app.jobs', 'ar')).toBe('الوظائف');
+    expect(translate('app.remoteJobs.title', 'ar')).toBe('وظائف عن بُعد');
+  });
+
   it('reports RTL locale and isolates machine-readable values as LTR', () => {
     expect(isRtlLocale('ar')).toBe(true);
     expect(getTextDirection('name@example.com', 'ar')).toBe('ltr');

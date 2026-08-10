@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   getMobileShellLayout,
 } from "@/components/layout/appShellLayout";
+import {
+  isWorkspaceShellRoute,
+  WORKSPACE_SHELL_ROUTES,
+} from "@/components/layout/AppShell";
 
 describe("appShellLayout", () => {
   it("reserves bottom spacing and shows Ask FAB on standard mobile workspace routes", () => {
@@ -27,5 +31,10 @@ describe("appShellLayout", () => {
       showAskFab: false,
       askFabOffsetClass: null,
     });
+  });
+
+  it("treats the Jobs feed as a normal workspace-shell route", () => {
+    expect(WORKSPACE_SHELL_ROUTES).toContain("/jobs");
+    expect(isWorkspaceShellRoute("/jobs")).toBe(true);
   });
 });

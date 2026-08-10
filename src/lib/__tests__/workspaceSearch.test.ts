@@ -40,6 +40,15 @@ describe('workspaceSearch', () => {
     expect(results.some((item) => item.id === 'tailoring-hub')).toBe(true);
   });
 
+  it('finds the Jobs feed without duplicating the application tracker', () => {
+    const results = searchWorkspaceItems('remote jobs');
+
+    expect(results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'jobs', label: 'Jobs', path: '/jobs' }),
+    ]));
+    expect(searchWorkspaceItems('وظائف عن بعد').some((item) => item.id === 'jobs')).toBe(true);
+  });
+
   it('extracts searchable resume parts', () => {
     const parts = getResumeSearchParts(resume({}));
     expect(parts).toEqual(

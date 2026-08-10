@@ -152,7 +152,8 @@ describe('RemoteJobsPage Component', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('Remote Jobs Feed')).toBeInTheDocument();
+    expect(screen.getByText('Remote Jobs')).toBeInTheDocument();
+    expect(screen.getByText('Find remote opportunities and tailor your resume in one click.')).toBeInTheDocument();
     expect(screen.getByText('Senior React Developer')).toBeInTheDocument();
     expect(screen.getByText('TechCorp')).toBeInTheDocument();
     expect(screen.getByText('Apply on website')).toBeInTheDocument();

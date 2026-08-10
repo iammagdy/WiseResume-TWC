@@ -242,6 +242,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                 'Editor': 'common.editor',
                 'AI Tools': 'app.aiStudioNavLabel',
                 'Tailoring Hub': 'app.tailoringHub',
+                'Jobs': 'app.jobs',
                 'Activity': 'app.applications',
                 'Portfolio': 'app.portfolio',
                 'Settings': 'app.settings',

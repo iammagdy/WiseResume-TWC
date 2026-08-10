@@ -3,6 +3,7 @@ import {
   FileText,
   Wand2,
   Target,
+  Briefcase,
   Globe,
   BarChart3,
   Settings,
@@ -48,6 +49,12 @@ export const APP_SIDEBAR_LINKS: AppSidebarNavItem[] = [
     label: 'Tailoring Hub',
     icon: Target,
     match: ['/tailoring-hub'],
+  },
+  {
+    path: '/jobs',
+    label: 'Jobs',
+    icon: Briefcase,
+    match: ['/jobs'],
   },
   {
     path: '/applications',

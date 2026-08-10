@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-10 - Remote Jobs Feed Workspace Exposure (Local, Not Deployed)
+
+- **Classification:** `TESTED_LOCAL` on `feat/show-jobs-feed`; the existing authenticated Remote Jobs Feed is now a visible first-class WiseResume workspace feature. No Appwrite hub, cron, schema, persistence, credits, tracking model, Fast Tailor behavior, or AI integration changed.
+- **Navigation and shell:** `src/components/layout/appSidebarNav.ts` adds `Jobs` at `/jobs` with the Lucide `Briefcase` icon between Tailoring Hub and Activity. `AppShell.tsx` includes `/jobs` in the shared workspace-shell route set, so the existing desktop sidebar, workspace top bar, and mobile navigation sheet are used without a separate shell.
+- **Discovery and titles:** `pageTitles.ts` maps `/jobs` to `Jobs` before `/job`, preserving `/job/:id` as `Job Details`. `workspaceSearch.ts` adds the Jobs feed as a navigation result with English and Arabic discovery keywords, separate from the Activity/application tracker.
+- **Localization and positioning:** English and Arabic catalogs now provide the Jobs label (`Jobs` / `الوظائف`), the workspace-top-bar title, and production-facing feed copy (`Remote Jobs`; `Find remote opportunities and tailor your resume in one click.`). The internal MVP badge and unproven verified-source claim were removed while actual sync/source indicators remain.
+- **Validation:** Focused Vitest passed `8` files / `44` tests; `tsc --noEmit`, Vite production build, no-sourcemap check, and `git diff --check` passed. A local hard refresh of `/jobs` redirected an unauthenticated browser to `/auth?mode=login&redirect=%2Fjobs` with no Vite overlay. Authenticated visual feed/action QA remains pending because no test user session is available.
+- **Deployment:** Appwrite deployment is **not required**. Vercel receives the normal frontend deployment only after owner-approved merge and push.
+
 ## 2026-08-10 - AI Runtime Receipt CI Provisioning and Dependency Remediation Runtime Closeout
 
 - **Classification:** `DEPENDENCY_REMEDIATION_VERIFIED_READY_WITH_DEFERRED_SECURITY_MIGRATION`. PR #172 merged as `6d07a24e`; CI schema wiring PR #173 merged as `fdbfb8de`. No React Router v7 work was started.
