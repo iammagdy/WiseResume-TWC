@@ -31,6 +31,7 @@ import { DeployHubsPanel } from '@/components/dev-kit/DeployHubsPanel';
 import { AIKeysPanel } from '@/components/dev-kit/AIKeysPanel';
 import { AIRoutingSwitcher } from '@/components/dev-kit/AIRoutingSwitcher';
 import { AIRadarPanel } from '@/components/dev-kit/AIRadarPanel';
+import { AIRuntimeEvidencePanel } from '@/components/dev-kit/AIRuntimeEvidencePanel';
 import { PANEL_GROUPS, DEVTOOLS_PANEL_ALIASES, allPanels, groupForPanel, type PanelDef, type PanelStatus } from '@/lib/devkit/devToolsPanelConfig';
 import { DevKitNavItem, DevKitSidebarGroup, DevKitStatusBadge, DevKitSection, DevKitPanelHeader, type DevKitStatusVariant } from '@/components/dev-kit/DevKitUI';
 
@@ -187,6 +188,7 @@ function DevToolsInner() {
       case 'ai-health':         return wrap('AI Health',        <AICommandCenterPanel />);
       case 'ai-tools-map':      return wrap('AI Tools Map',     <AIRoutingSwitcher />);
       case 'ai-radar':          return wrap('AI Radar',         <AIRadarPanel />);
+      case 'ai-qa-evidence':    return wrap('AI QA Evidence',   <AIRuntimeEvidencePanel />);
       case 'ai-keys':           return wrap('API Keys',         <AIKeysPanel />);
       case 'flags':             return wrap('Feature Flags',    <FeatureFlagsPanel />);
       case 'moderation':        return wrap('Moderation',       <ModerationPanel />);

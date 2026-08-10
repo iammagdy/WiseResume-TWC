@@ -3,6 +3,7 @@ import {
   BarChart2,
   Briefcase,
   BrainCircuit,
+  ClipboardList,
   Radar,
   Database,
   Flag,
@@ -50,6 +51,7 @@ export const PANEL_GROUPS: { label: string; panels: PanelDef[] }[] = [
     { id: 'ai-health',         title: 'AI Health',           icon: BrainCircuit,     status: 'Live' },
     { id: 'ai-tools-map',      title: 'AI Tools Map',        icon: Wrench,           status: 'Live' },
     { id: 'ai-radar',          title: 'AI Radar',            icon: Radar,            status: 'Live' },
+    { id: 'ai-qa-evidence',    title: 'AI QA Evidence',      icon: ClipboardList,    status: 'Live' },
     { id: 'ai-keys',           title: 'API Keys',            icon: KeyRound,         status: 'Live' },
   ]},
   { label: 'Support & Business Ops', panels: [

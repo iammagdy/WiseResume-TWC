@@ -5,8 +5,8 @@ describe('devToolsPanelConfig', () => {
   it('promotes AI Control Center into three visible panels', () => {
     const aiGroup = PANEL_GROUPS.find(group => group.label === 'AI Control Center');
 
-    expect(aiGroup?.panels.map(panel => panel.id)).toEqual(['ai-health', 'ai-tools-map', 'ai-radar', 'ai-keys']);
-    expect(aiGroup?.panels.map(panel => panel.title)).toEqual(['AI Health', 'AI Tools Map', 'AI Radar', 'API Keys']);
+    expect(aiGroup?.panels.map(panel => panel.id)).toEqual(['ai-health', 'ai-tools-map', 'ai-radar', 'ai-qa-evidence', 'ai-keys']);
+    expect(aiGroup?.panels.map(panel => panel.title)).toEqual(['AI Health', 'AI Tools Map', 'AI Radar', 'AI QA Evidence', 'API Keys']);
   });
 
   it('uses the approved sidebar labels', () => {

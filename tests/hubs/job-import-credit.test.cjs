@@ -81,9 +81,15 @@ function mockDb({ plan = 'free', dailyUsage = 0, dailyLimit = 5 }) {
   const okDb = mockDb({ dailyUsage: 0, dailyLimit: 5 });
   const okState = await t.loadCreditState(okDb, 'u1', t.PARSE_JOB_CREDIT_COST);
   assert.equal(okState.blocked, false, 'under limit → not blocked');
-  await t.recordAiUsage(okDb, okState);
+  assert.equal(await t.recordAiUsage(okDb, okState), true, 'successful write reports a factual charge');
   assert.equal(okDb.updates.length, 1, 'recordAiUsage writes once');
   assert.equal(okDb.updates[0].patch.daily_usage, 1, 'charges exactly the cost (1)');
+
+  assert.equal(await t.recordAiUsage(okDb, { ...okState, cost: 0 }), false, 'no-charge paths report zero factual charge');
+
+  const failingChargeDb = mockDb({ dailyUsage: 0, dailyLimit: 5 });
+  failingChargeDb.updateDocument = async () => { throw new Error('credit store unavailable'); };
+  await assert.rejects(() => t.recordAiUsage(failingChargeDb, okState), /credit store unavailable/);
 
   // At limit → blocked with 402, and the provider must never be called.
   const fullDb = mockDb({ dailyUsage: 5, dailyLimit: 5 });
