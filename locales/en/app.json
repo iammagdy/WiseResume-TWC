@@ -153,6 +153,7 @@
   },
   "applications": "Applications",
   "tailoringHub": "Tailoring Hub",
+  "jobs": "Jobs",
   "interview": "Interview Coach",
   "aiStudioNavLabel": "AI Tools",
   "career": "Career Advisor",
@@ -1258,8 +1259,8 @@
     }
   },
   "remoteJobs": {
-    "title": "Remote Jobs Feed",
-    "subtitle": "Discover verified remote opportunities aggregated from official remote job feeds.",
+    "title": "Remote Jobs",
+    "subtitle": "Find remote opportunities and tailor your resume in one click.",
     "searchPlaceholder": "Search by job title, company, or keyword...",
     "sourceFilter": "All Sources",
     "categoryFilter": "All Categories",

@@ -16,6 +16,7 @@ const PAGE_TITLES: [string, string][] = [
   ['/resignation-letters', 'Resignation Letters'],
   ['/applications', 'Activity'],
   ['/application', 'Application'],
+  ['/jobs', 'Jobs'],
   ['/job', 'Job Details'],
   ['/settings', 'Settings'],
   ['/profile', 'Profile'],

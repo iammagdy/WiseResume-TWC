@@ -1,7 +1,7 @@
 # Feature Specification: Jobs and Applications
 
 **Last Verified:** 2026-07-23
-**Status:** Active Production Feature - Owner Access Verified
+**Status:** Active Workspace Feature - Local Navigation Exposure Validated
 **Location:** `Project Atlas/features/jobs-applications.md`
 
 ---
@@ -12,7 +12,7 @@ Let authenticated users browse remote jobs, save job context, tailor application
 
 ## 2. Routes
 
-* `/jobs` - Remote jobs feed, save actions, and Fast Tailor entry.
+* `/jobs` - First-class workspace Remote Jobs feed, save actions, and Fast Tailor entry.
 * `/applications` - Application tracker/list.
 * `/application/:id` - Application detail/tracker route.
 
@@ -35,6 +35,9 @@ Let authenticated users browse remote jobs, save job context, tailor application
 
 ## 5. Current Behavior
 
+* The Jobs feed is visible to authenticated users in the shared workspace sidebar (between Tailoring Hub and Activity), mobile workspace navigation sheet, workspace command palette, and normal workspace shell/top bar.
+* `/jobs` is titled `Jobs`, ahead of the `/job/:id` Job Details prefix mapping; English and Arabic navigation labels are `Jobs` and `الوظائف`.
+* The feed positions itself as `Remote Jobs` with the supporting copy “Find remote opportunities and tailor your resume in one click.” It retains its actual sync and source indicators and does not claim unproven verification.
 * Saved job queries run only after authentication is ready and filter by the current `user_id`.
 * New saved jobs and application records use `ownerDocumentPermissions(user.id)`.
 * Application statuses include saved, applied, screening, interviewing, offer, rejected, tailored, and ready-to-apply states.
@@ -57,3 +60,7 @@ Let authenticated users browse remote jobs, save job context, tailor application
 ## 2026-07-24 Security Hardening (Deployed)
 
 Recovery workflow `30101982337` deployed only the three Jobs hubs. `job-feed-sync` is no longer Client-SDK executable, retains its native `0 */6 * * *` schedule, and denied an anonymous probe with 401; one approved internal sync completed. `get-remote-jobs` remains public and completed an anonymous read. `track-job-action` now requires an Appwrite user and denied an anonymous probe with 401. Authenticated owner-scoped action and cross-user mutation browser QA remain pending.
+
+## 2026-08-10 Workspace Exposure (Local, Not Deployed)
+
+The `/jobs` route was promoted from direct-access-only to a visible workspace feature without changing its backend or product workflows. Local validation covered focused jobs/navigation tests, TypeScript, production build, and an unauthenticated hard refresh that preserved `/jobs` as the login redirect target. Appwrite deployment is not required; merge/push will require only the normal Vercel frontend deployment. Authenticated visual and action QA needs an owner test session.

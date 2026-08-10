@@ -40,6 +40,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
     ['/editor', 'common.editor'],
     ['/ai-studio', 'app.aiStudioNavLabel'],
     ['/tailor', 'app.tailoringHub'],
+    ['/jobs', 'app.jobs'],
     ['/applications', 'app.applications'],
     ['/portfolio', 'app.portfolio'],
     ['/settings', 'app.settings'],

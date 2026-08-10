@@ -476,14 +476,11 @@ export default function RemoteJobsPage() {
               <Briefcase className="w-6 h-6 text-[#9E1B22]" />
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-              {t('remoteJobs.title', 'Remote Jobs Feed')}
+              {t('remoteJobs.title', 'Remote Jobs')}
             </h1>
-            <Badge variant="secondary" className="text-xs font-semibold px-2 py-0.5 bg-primary/10 text-[#9E1B22] border-none">
-              MVP
-            </Badge>
           </div>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            {t('remoteJobs.subtitle', 'Discover entry-level, customer support, data entry, marketing, sales, writing, and tech opportunities from verified remote sources.')}
+            {t('remoteJobs.subtitle', 'Find remote opportunities and tailor your resume in one click.')}
           </p>
         </div>
 

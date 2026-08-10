@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import { shouldExitOnBack } from '@/lib/navigation';
 import { getMobileShellLayout } from './appShellLayout';
 
-const TAB_ROUTES = [
+export const WORKSPACE_SHELL_ROUTES = [
   '/dashboard',
   '/upload',
   '/settings',
@@ -37,6 +37,7 @@ const TAB_ROUTES = [
   '/templates',
   '/resume',
   '/job',
+  '/jobs',
   '/application',
   '/notifications',
   '/cover-letters',
@@ -60,6 +61,10 @@ const TAB_ROUTES = [
   '/tailoring-hub',
 ];
 
+export function isWorkspaceShellRoute(pathname: string): boolean {
+  return WORKSPACE_SHELL_ROUTES.some((route) => pathname.startsWith(route));
+}
+
 /**
  * AppShell — thin provider wrapper so that AppShellInner and all its hooks
  * (including useKeyboardAwareScroll) run inside KeyboardProvider scope.
@@ -75,7 +80,7 @@ export function AppShell() {
 function AppShellInner() {
   const location = useLocation();
   const currentOutlet = useOutlet();
-  const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
+  const showBottomNav = isWorkspaceShellRoute(location.pathname);
   const isDashboardWorkspace = location.pathname === '/dashboard';
   const useGlobalSidebar = showBottomNav;
   const outletWrapperClassName = 'flex-1 flex flex-col min-h-0';
