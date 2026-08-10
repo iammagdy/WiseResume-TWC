@@ -169,3 +169,14 @@ Authorize **Batch 1 only** after the owner can supply authenticated GitHub Depen
 - Resolve the four verified baseline test failures in separately scoped work; do not treat them as dependency-remediation regressions.
 - GitHub Dependabot alerts still require authenticated owner reconciliation.
 - Deprecated `@esbuild-kit` packages and `glob` remain maintenance items.
+
+## 18. Production Runtime Closeout — 2026-08-10
+
+**Classification:** `DEPENDENCY_REMEDIATION_VERIFIED_READY_WITH_DEFERRED_SECURITY_MIGRATION`.
+
+- PR #170 merged the approved dependency remediation. PR #172 merged the bounded, metadata-only runtime receipt evidence as `6d07a24e8b876b7a0cbabf668aa24974f0f2ed65`. PR #173 merged the trusted CI schema wiring as `fdbfb8dea8cc1c2eecbd941b21938d3eb11d7997`.
+- The official `Deploy Appwrite Hubs` workflow run `31375728081` accepted exactly `admin-devkit-data,ai-gateway,job-import,resume-section-ai`. It successfully ran `scripts/setup_ai_runtime_receipts_schema.cjs` before deployment, reporting `ai_runtime_receipts schema is ready (server-only collection permissions).`
+- Deployment records: `admin-devkit-data` `6a799cd9082d67d74d75`; `ai-gateway` `6a799ce7544aafdd236d`; `job-import` `6a799cf5b2dd613074c9`; `resume-section-ai` `6a799d063b4fbd2314e7`. The targeted workflow completed successfully and did not run remote job-feed sync.
+- The authorized read-only DevKit evidence panel confirmed one new completed receipt, one factual credit, and `miss` idempotency state for each deterministic path: `ai-gateway` / `agentic-chat` request `air_msn23myh_d26d69eacd3f234c`; `resume-section-ai` request `air_msn29fby_ab84e5856dc53d2c` (recorded fallback); and `job-import` / `parse-job` request `air_msn2dqtf_27843c672741fa53`. No duplicate receipt was created for any path. The section-AI result remained preview-only and was not applied.
+- The job-import action used only `https://wiseresume.app/qa-fixtures/job-import-safe.html` through the normal authenticated import flow. It returned a usable structured job result; the fixture's live robots directive is `noindex, nofollow` and it is absent from the Remote Jobs feed.
+- Current authenticated Dependabot inventory is 0 critical, 0 high, and 3 medium React Router alerts: `GHSA-337j-9hxr-rhxg`, `GHSA-jjmj-jmhj-qwj2`, and `GHSA-wrjc-x8rr-h8h6`. React Router v7 remains `DEFERRED_SECURITY_MIGRATION`; no migration was started. WiseHire HR fixture QA remains a separate owner-created/manual secondary-product follow-up.

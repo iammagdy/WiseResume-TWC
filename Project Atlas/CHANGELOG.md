@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-10 - AI Runtime Receipt CI Provisioning and Dependency Remediation Runtime Closeout
+
+- **Classification:** `DEPENDENCY_REMEDIATION_VERIFIED_READY_WITH_DEFERRED_SECURITY_MIGRATION`. PR #172 merged as `6d07a24e`; CI schema wiring PR #173 merged as `fdbfb8de`. No React Router v7 work was started.
+- **Trusted provisioning/deployment:** The official `Deploy Appwrite Hubs` workflow now runs the idempotent server-only `ai_runtime_receipts` provisioner before an explicit target set containing `admin-devkit-data`, `ai-gateway`, `job-import`, or `resume-section-ai`. Workflow run `31375728081` succeeded for exactly `admin-devkit-data,ai-gateway,job-import,resume-section-ai`; it reported server-only schema readiness and deployed `6a799cd9082d67d74d75`, `6a799ce7544aafdd236d`, `6a799cf5b2dd613074c9`, and `6a799d063b4fbd2314e7` respectively.
+- **Production runtime evidence:** The authorized, metadata-only DevKit evidence panel recorded exactly one new completed receipt for each deterministic QA path: `ai-gateway` / `agentic-chat` (`air_msn23myh_d26d69eacd3f234c`), `resume-section-ai` (`air_msn29fby_ab84e5856dc53d2c`), and `job-import` / `parse-job` (`air_msn2dqtf_27843c672741fa53`). Each reports one factual credit and `miss` idempotency; the resume-section path used its recorded fallback and its preview was not applied.
+- **Fixture:** The normal authenticated job-import flow successfully fetched and structured the public `qa-fixtures/job-import-safe.html` fixture. Its live `noindex, nofollow` directive remains present and it is absent from the empty Remote Jobs feed.
+- **Validation:** CI workflow contract, observability, signed DevKit auth, job-import SSRF/routing, and ai-gateway routing tests passed; `npx tsc --noEmit` and `npm run build` passed. PR Validation and Vercel Preview passed. TestSprite's unchanged no-tests signal is non-applicable.
+- **Residuals:** Dependabot is 0 critical, 0 high, 3 medium React Router advisories. React Router v7 remains `DEFERRED_SECURITY_MIGRATION`; the WiseHire HR fixture remains a separate owner-created/manual QA follow-up.
+
 ## 2026-08-10 - QA Runtime Observability and Deterministic Job-Import Fixture (Validated, Not Deployed)
 
 - **Classification:** `TESTED_LOCAL` on `codex/qa-runtime-observability-fixtures`; no Appwrite schema execution, configuration change, deployment, or production mutation occurred.
