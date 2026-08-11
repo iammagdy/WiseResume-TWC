@@ -43,6 +43,8 @@ Let authenticated users browse remote jobs, save job context, tailor application
 * Application statuses include saved, applied, screening, interviewing, offer, rejected, tailored, and ready-to-apply states.
 * Fast Tailor can create a `ready_to_apply` application after generating the related materials.
 * Tailoring result pages may look up the related owner-scoped application to reconstruct job context.
+* Saved Jobs is backed only by owner-scoped job/action persistence. Browser-local tailoring history is not synthesized into saved jobs.
+* Resume/tailoring browser state is namespaced by authenticated user. On account transition, the active namespace is cleared and then the destination account's state is hydrated.
 
 ## 6. Rules and Risks
 
@@ -50,6 +52,7 @@ Let authenticated users browse remote jobs, save job context, tailor application
 * `jobs` and `job_applications` must retain document security and owner document permissions.
 * The legacy browser `tailor_history` collection is not a replacement for job/application lineage.
 * Full Fast Tailor production generation remains a separate QA follow-up; do not infer it from feed loading or dialog behavior alone.
+* Historical tailoring records may outlive a deleted resume. Such a result must state that the tailored resume is unavailable and must not show ready, download, or reusable-bundle framing.
 * Authenticated Broadcast schema drift is unrelated to these collections.
 
 ## 7. Evidence

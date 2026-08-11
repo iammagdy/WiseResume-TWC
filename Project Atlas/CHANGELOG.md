@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-11 - Auth Recovery and Jobs State Stabilization (Local, Not Deployed)
+
+- **Classification:** `TESTED_LOCAL`; branch `codex/fix-auth-jobs-stabilization`. No commit, push, deployment, schema, secret, OAuth-provider, Resend, Appwrite, or Vercel configuration change occurred.
+- **Auth UI and signup:** `src/components/auth/AuthBold.tsx` now permits vertical document scrolling while retaining horizontal clipping. `src/pages/AuthPage.tsx` checks both `data.error` and `error` from `appwriteFunctions.invoke('email-service')`, so a created account is routed to verification with a truthful send-failure state instead of a false inbox-success claim.
+- **OAuth:** `src/pages/AuthCallbackPage.tsx` distinguishes missing session completion from successful authentication followed by profile-seed failure. The latter exposes retry/continue recovery UI rather than reporting a LinkedIn authentication failure. `AuthPage.tsx` provides safe cancellation, provider-unavailable, configuration/scope, duplicate-account, and session-completion messages.
+- **Verification delivery:** `appwrite-hubs/email-service/src/main.js` accepts a successful authenticated Appwrite verification request without requiring a secret unavailable to the function runtime. The secret is not sent to the browser; the handler reports `delivery: 'appwrite'` and does not send duplicate Appwrite/Resend mail. The change requires deployment of **`email-service` only** before production delivery can be verified.
+- **Account isolation and Jobs:** `src/store/resumeStore.ts` now isolates persisted drafts/history by authenticated user namespace and skips automatic browser-global hydration. `src/hooks/useSavedJobPostings.ts` no longer converts tailoring history into synthetic saved jobs; owner-scoped job records are the sole Saved Jobs source. `AuthContext.tsx` switches the store on account transitions.
+- **Tracker and historical-result UX:** `KanbanCard.tsx` stops delete-menu propagation; `useJobApplications.ts` invalidates application, activity-stat, and timeline queries after confirmed deletion; `ApplicationsPage.tsx` receives the locale function as a `JobCard` prop. `TailoringHubResultPage.tsx` accurately presents a deleted tailored resume as unavailable and suppresses the ready-to-apply bundle framing.
+- **Validation:** `tsc --noEmit`, `node --check appwrite-hubs/email-service/src/main.js`, `git diff --check`, focused Vitest (`6` files / `18` tests), and the focused deleted-result test (`1` passed, `7` skipped) passed. An authenticated production read-only `/jobs` audit found no horizontal overflow at 360–1440 px but current feed data reports `0 remote jobs` and `Not yet synced` (`ENVIRONMENT ISSUE`).
+
 ## 2026-08-10 - Remote Jobs Feed Workspace Exposure (Production Verified)
 
 - **Classification:** `VISIBLE_PRODUCTION_FEATURE`, merged in PR #175 as `1d937467`; the existing authenticated Remote Jobs Feed is now a visible first-class WiseResume workspace feature. No Appwrite hub, cron, schema, persistence, credits, tracking model, Fast Tailor behavior, or AI integration changed.
