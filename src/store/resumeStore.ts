@@ -431,8 +431,14 @@ export const useResumeStore = create<ResumeState>()(
       }),
     }),
     {
-      name: 'resume-storage',
+      // This store contains user-owned drafts and history. Never hydrate a
+      // browser-global record before the authenticated owner is known.
+      name: 'resume-storage:anonymous',
       storage: createJSONStorage(() => localStorage),
+      // Hydration is explicitly owned by AuthContext once the Appwrite user is
+      // known. Automatic startup hydration could otherwise restore another
+      // account's browser state before identity resolution finishes.
+      skipHydration: true,
       partialize: (state) => ({
         currentResume: state.currentResume,
         currentResumeId: state.currentResumeId,
@@ -455,6 +461,37 @@ export const useResumeStore = create<ResumeState>()(
     }
   )
 );
+
+/**
+ * Switches persisted editor state to the authenticated owner's namespace.
+ * The outgoing account's state is left intact; only the active in-memory
+ * store is cleared before the target namespace is hydrated.
+ */
+export async function hydrateResumeStoreForUser(userId: string | null): Promise<void> {
+  const storageKey = `resume-storage:${userId ?? 'anonymous'}`;
+  let persistedState: Partial<ResumeState> | undefined;
+  try {
+    const serialized = localStorage.getItem(storageKey);
+    if (serialized) {
+      persistedState = (JSON.parse(serialized) as { state?: Partial<ResumeState> }).state;
+    }
+  } catch {
+    // Private browsing or malformed legacy storage should fall back to the
+    // blank state for the authenticated account.
+  }
+
+  useResumeStore.persist.setOptions({ name: storageKey });
+  useResumeStore.getState().clearAll();
+  hasHydrated = false;
+  if (persistedState) {
+    useResumeStore.setState({
+      ...persistedState,
+      selectedTemplate: migrateTemplateId(persistedState.selectedTemplate),
+    });
+  }
+  hasHydrated = true;
+  hydrationListeners.forEach(listener => listener());
+}
 
 export const useResumeStoreHydration = () => {
   const [hydrated, setHydrated] = useState(getResumeStoreHasHydrated);

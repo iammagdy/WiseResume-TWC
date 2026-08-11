@@ -18,6 +18,16 @@ beforeEach(() => {
 });
 
 describe('AuthBold', () => {
+  it('allows vertical scrolling when a short viewport cannot contain the form', () => {
+    renderWithProviders(<AuthBold mode="signup" onSubmit={vi.fn()} />);
+
+    const styles = Array.from(document.querySelectorAll('style'))
+      .map((style) => style.textContent)
+      .join('\n');
+
+    expect(styles).toContain('overflow-x:hidden;overflow-y:auto');
+  });
+
   it('renders Arabic sign-in copy with RTL layout and LTR credentials', () => {
     renderWithProviders(
       <LocaleProvider initialLocale="ar">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { mockNavigate, mockLocation } from '@/test/mocks/router';
 import AuthCallbackPage from '../AuthCallbackPage';
@@ -56,7 +56,7 @@ describe('AuthCallbackPage Page', () => {
 
     await waitFor(() => {
       expect(mockRefreshSession).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith('/auth?error=oauth_failed', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/auth?error=oauth_session_completion', { replace: true });
     });
   });
 
@@ -71,7 +71,30 @@ describe('AuthCallbackPage Page', () => {
 
     await waitFor(() => {
       expect(mockRefreshSession).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith('/ar/auth?error=oauth_failed', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/ar/auth?error=oauth_session_completion', { replace: true });
+    });
+  });
+
+  it('shows a recovery state when authentication succeeds but profile setup fails', async () => {
+    mockLocation.pathname = '/auth/callback';
+    vi.mocked(useAuth).mockReturnValue({
+      refreshSession: vi.fn().mockResolvedValue({
+        id: 'user-abc', email: 'user@example.com', name: 'John Doe',
+      }),
+    } as any);
+    vi.mocked(upsertProfileIdentity)
+      .mockRejectedValueOnce(new Error('profiles unavailable'))
+      .mockResolvedValueOnce('profile-123');
+
+    renderWithProviders(<AuthCallbackPage />);
+
+    expect(await screen.findByText('You’re signed in')).toBeInTheDocument();
+    expect(screen.getByText(/LinkedIn sign-in worked/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry setup' }));
+    await waitFor(() => {
+      expect(upsertProfileIdentity).toHaveBeenCalledTimes(2);
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true });
     });
   });
 });

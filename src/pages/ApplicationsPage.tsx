@@ -49,7 +49,7 @@ const STATUS_BADGE_CLASSES: Record<ApplicationStatus, string> = {
   rejected: 'bg-destructive/10 text-destructive border-destructive/30'
 };
 
-function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: {job: Job;onClick: () => void;matchScore: JobMatchResult | null;onTailor: () => void;onMarkApplied: () => void;}) {
+function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied, t }: {job: Job;onClick: () => void;matchScore: JobMatchResult | null;onTailor: () => void;onMarkApplied: () => void;t: (key: string, fallback?: string) => string;}) {
   return (
     <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-2">
       <button
@@ -555,6 +555,7 @@ export default function ApplicationsPage() {
               <JobCard
                 key={job.id}
                 job={job}
+                t={t}
                 onClick={() => navigate(`/job/${job.id}`)}
                 matchScore={matchScores[job.id] || null}
                 onTailor={() => {

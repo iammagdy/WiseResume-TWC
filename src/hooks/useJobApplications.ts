@@ -84,6 +84,8 @@ export function useJobApplicationMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+      queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
       toast.success('Application deleted');
     }
   });

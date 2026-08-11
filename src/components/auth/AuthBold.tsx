@@ -76,7 +76,7 @@ const STYLES = `
   --theme-bg:rgba(255,255,255,.06); --theme-bd:#2c2c33; --theme-fg:#a1a1aa;
   --sc-shell:#2b2730; --sc-screen:#16131a; --sc-socket:#0c0910; --sc-line:#6b6470;
   --err-fg:#ef4444;
-  position:relative;width:100%;min-height:100dvh;background:var(--bg);overflow:hidden;
+  position:relative;width:100%;min-height:100dvh;background:var(--bg);overflow-x:hidden;overflow-y:auto;
   font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--fg);container-type:inline-size;
   transition:background-color .3s ease;
 }

@@ -111,6 +111,18 @@ export default function AuthPage() {
       'denied'
     ].some(term => errorStr.toLowerCase().includes(term.toLowerCase()));
 
+    const isSessionCompletionError = [
+      'oauth_session_completion',
+      'session completion',
+      'session hydration',
+    ].some(term => errorStr.toLowerCase().includes(term.toLowerCase()));
+
+    const isProviderUnavailable = [
+      'provider unavailable',
+      'temporarily unavailable',
+      'service unavailable',
+    ].some(term => errorStr.toLowerCase().includes(term.toLowerCase()));
+
     let friendlyError = '';
     if (isDuplicate) {
       friendlyError = locale === 'ar'
@@ -124,6 +136,14 @@ export default function AuthPage() {
       friendlyError = locale === 'ar'
         ? 'تم إلغاء تسجيل الدخول عبر LinkedIn. يمكنك المحاولة مرة أخرى أو تسجيل الدخول بالإيميل والباسورد.'
         : 'LinkedIn sign-in was cancelled. You can try again or sign in with email and password.';
+    } else if (isSessionCompletionError) {
+      friendlyError = locale === 'ar'
+        ? 'تمت العودة من LinkedIn، لكن لم نتمكن من إكمال جلسة WiseResume. سجّل الدخول مرة أخرى.'
+        : 'LinkedIn returned successfully, but we could not complete your WiseResume session. Please sign in again.';
+    } else if (isProviderUnavailable) {
+      friendlyError = locale === 'ar'
+        ? 'خدمة تسجيل الدخول عبر LinkedIn غير متاحة مؤقتًا. حاول مرة أخرى لاحقًا أو استخدم البريد الإلكتروني وكلمة المرور.'
+        : 'LinkedIn sign-in is temporarily unavailable. Please try again later or use email and password.';
     } else {
       friendlyError = locale === 'ar'
         ? 'فشل تسجيل الدخول عبر LinkedIn. حاول مرة أخرى أو سجّل الدخول بالإيميل والباسورد.'
@@ -320,7 +340,13 @@ export default function AuthPage() {
       }
       let emailSent = true;
       try {
-        await appwriteFunctions.invoke('email-service', { body: { action: 'send-verification', locale } });
+        const { data, error: fnError } = await appwriteFunctions.invoke<{ alreadyVerified?: boolean; error?: string }>(
+          'email-service',
+          { body: { action: 'send-verification', locale } },
+        );
+        if (fnError || data?.error) {
+          throw new Error(fnError?.message || data?.error || 'Verification email could not be sent.');
+        }
       } catch {
         emailSent = false;
       }
@@ -355,7 +381,7 @@ export default function AuthPage() {
     try {
       const origin = typeof window !== 'undefined' ? window.location.origin : 'https://wiseresume.app';
       const successUrl = `${origin}${locale === 'ar' ? '/ar' : ''}/auth/callback`;
-      const failureUrl = `${origin}${locale === 'ar' ? '/ar' : ''}/auth?error=oauth_failed`;
+      const failureUrl = `${origin}${locale === 'ar' ? '/ar' : ''}/auth?error=oauth_provider_failure`;
       await appwriteAccount.createOAuth2Session('linkedin', successUrl, failureUrl);
     } catch (err: unknown) {
       console.error('[AuthPage] LinkedIn OAuth redirect failed');

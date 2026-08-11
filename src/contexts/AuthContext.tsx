@@ -8,6 +8,7 @@ import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
 import { clearPlanCache } from '@/lib/planCache';
 import { setErrorBoundaryUserId } from '@/components/ErrorBoundary';
+import { hydrateResumeStoreForUser } from '@/store/resumeStore';
 import {
   isImpersonating as isImpersonatingFn,
   getImpersonationState,
@@ -148,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (lastSeenUserIdRef.current !== currentId) {
       const previousId = lastSeenUserIdRef.current;
       lastSeenUserIdRef.current = currentId;
+      void hydrateResumeStoreForUser(currentId);
       // Only clear caches on actual user switch or sign-out,
       // not on the initial transition from null to authenticated.
       if (previousId !== null && previousId !== currentId) {
@@ -167,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAllCachedScores();
     clearAllEditorSessions();
     clearPlanCache();
+    await hydrateResumeStoreForUser(null);
     lastSeenUserIdRef.current = null;
     setAppwriteUser(null);
     persistSessionUser(null);

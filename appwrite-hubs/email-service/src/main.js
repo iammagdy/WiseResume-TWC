@@ -731,11 +731,11 @@ async function handleSendVerification({ req, res, log, error, body }) {
       return json(res, { success: true, delivery: 'resend' });
     }
 
-    // Token was created but Appwrite did not return a secret — Resend email cannot be sent.
-    error(`Verification token created for ${sessionUser.email} but no secret returned — cannot send Resend email`);
-    return json(res, {
-      error: 'Verification email could not be sent. Please try again.',
-    }, 500);
+    // Appwrite accepted the authenticated request and owns the token/email.
+    // The secret is deliberately unavailable in this execution context, so it
+    // must never be returned to the browser or used to send a second message.
+    log(`Verification email requested from Appwrite for ${sessionUser.email}`);
+    return json(res, { success: true, delivery: 'appwrite' });
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

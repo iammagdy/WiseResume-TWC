@@ -386,7 +386,8 @@ describe('TailoringHubResultPage export actions', () => {
   it('does not crash when the tailored resume is missing', async () => {
     await renderResultPage();
 
-    expect(screen.getByText('Resume not found.')).toBeInTheDocument();
+    expect(screen.getByText('Tailored resume unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/can no longer be opened, downloaded, or reused/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'ATS PDF' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Word' })).not.toBeInTheDocument();
   });
