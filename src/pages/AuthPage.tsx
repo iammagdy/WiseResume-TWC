@@ -340,18 +340,24 @@ export default function AuthPage() {
       }
       let emailSent = true;
       try {
-        const { data, error: fnError } = await appwriteFunctions.invoke<{ alreadyVerified?: boolean; error?: string }>(
+        const { data, error: fnError } = await appwriteFunctions.invoke<{
+          success?: boolean;
+          delivery?: 'appwrite';
+          providerAccepted?: boolean;
+          alreadyVerified?: boolean;
+          error?: string;
+        }>(
           'email-service',
           { body: { action: 'send-verification', locale } },
         );
-        if (fnError || data?.error) {
+        if (fnError || data?.error || data?.success !== true || data.delivery !== 'appwrite' || data.providerAccepted !== true) {
           throw new Error(fnError?.message || data?.error || 'Verification email could not be sent.');
         }
       } catch {
         emailSent = false;
       }
       if (emailSent) {
-        toast.success('Account created! Check your email to verify your account.');
+        toast.success('Account created! We requested a verification email.');
       } else {
         toast.warning(
           'Account created! We had trouble sending the verification email — you can resend it from the next page.',

@@ -4,13 +4,13 @@
  * email-service — Appwrite Function
  *
  * Single consolidated function for ALL WiseResume transactional emails.
- * Sends branded HTML emails via Resend, bypassing Appwrite's template system.
+ * Sends non-verification branded HTML emails via Resend.
  *
  * ─── How it works ────────────────────────────────────────────────────────────
  *
- * Verification and password-reset: create Appwrite tokens, then send branded
- * HTML via Resend (reliable delivery). Appwrite Messaging templates are also
- * synced (`syncAuthEmailTemplates`) as a fallback if SMTP is enabled.
+ * Email verification uses Appwrite's official Account lifecycle. Appwrite owns
+ * the token and sends through its configured Custom SMTP/template. Password
+ * reset and welcome mail retain their existing independent behavior.
  *
  * Welcome email and DevKit `send-test` go through Resend directly.
  *
@@ -19,7 +19,7 @@
  *   send-verification
  *     Requires: active user session (Appwrite injects x-appwrite-user-jwt)
  *     Body:     { action: 'send-verification' }
- *     Sends:    branded email-verification email
+ *     Sends:    Appwrite email-verification request through Custom SMTP
  *
  *   send-password-reset
  *     Requires: nothing (user is not logged in when they forget their password)
@@ -42,7 +42,7 @@
  *   send-admin-verification
  *     Requires: DevKit admin session
  *     Body:     { action: 'send-admin-verification', target_user_id: '...' }
- *     Sends:    branded email-verification email for an admin-selected user
+ *     Sends:    Appwrite email-verification request for an admin-selected user
  *
  *   send-test   (DevKit admin only)
  *     Body:     { action: 'send-test', to: 'email', template: 'welcome|verification|password-reset',
@@ -177,82 +177,34 @@ function appwriteApiKey() {
   return process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 }
 
-/** Create an email-verification token; Appwrite sends the synced auth template. */
-async function createEmailVerificationToken(userId, redirectUrl) {
-  const apiKey = appwriteApiKey();
-  if (!apiKey) {
-    throw new Error('APPWRITE_API_KEY is not configured');
-  }
+/** Appwrite's Account endpoint is the only supported verification request path. */
 
-  const tokenRes = await fetch(`${ENDPOINT}/users/${encodeURIComponent(userId)}/verification`, {
-    method: 'POST',
-    headers: {
-      'X-Appwrite-Project': PROJECT_ID,
-      'X-Appwrite-Key': apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ url: redirectUrl }),
-  });
-
-  const tokenText = await tokenRes.text();
-  let token;
-  try { token = JSON.parse(tokenText); } catch { token = { raw: tokenText }; }
-
-  if (!tokenRes.ok || !token?.secret) {
-    const msg = token?.message || token?.error || `Appwrite token creation failed (${tokenRes.status})`;
-    throw new Error(msg);
-  }
-
-  return token;
-}
-
-function buildVerificationUrl(redirectUrl, userId, secret) {
-  return `${redirectUrl}?userId=${encodeURIComponent(userId)}&secret=${encodeURIComponent(secret)}`;
-}
 
 /**
- * Create exactly ONE Appwrite verification token.
+ * Request exactly ONE Appwrite verification email.
  * Each POST /account/verifications/email triggers an Appwrite email — never call more than once.
  */
-async function createUserVerificationTokenOnce({ userJwt, userId, redirectUrl, log }) {
-  let jwt = userJwt;
-
-  if (!jwt && userId && appwriteApiKey()) {
-    const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(appwriteApiKey());
-    const jwtDoc = await new sdk.Users(adminClient).createJWT(userId);
-    jwt = jwtDoc?.jwt || jwtDoc;
-  }
-
-  if (!jwt) {
-    throw new Error('No user JWT available to create verification token');
-  }
+async function requestUserEmailVerification({ userJwt, redirectUrl }) {
+  if (!userJwt) throw new Error('No user JWT available to request email verification');
 
   const res = await fetch(`${ENDPOINT}/account/verifications/email`, {
     method: 'POST',
     headers: {
       'X-Appwrite-Project': PROJECT_ID,
-      'X-Appwrite-JWT': jwt,
+      'X-Appwrite-JWT': userJwt,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ url: redirectUrl }),
   });
 
+  if (res.ok) return;
+
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { data = { raw: text.slice(0, 200) }; }
+  const msg = data?.message || text.slice(0, 200) || `HTTP ${res.status}`;
+  throw new Error(msg);
 
-  if (!res.ok) {
-    const msg = data?.message || text.slice(0, 200) || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-
-  const secret = data?.secret || '';
-  const tokenUserId = data?.userId || userId;
-  if (!secret) {
-    log(`verification token created for ${tokenUserId} but secret not returned to function runtime`);
-  }
-
-  return { userId: tokenUserId, secret: secret || null };
 }
 
 /** Complete email verification (no session required). */
@@ -682,7 +634,7 @@ async function handleSendVerification({ req, res, log, error, body }) {
   // Appwrite automatically injects this when the function is called via SDK
   // with an active user session.
   const userJwt = headerValue(req, body, ['x-appwrite-user-jwt', 'X-Appwrite-JWT']);
-  let userId = headerValue(req, body, ['x-appwrite-user-id']);
+  let userId = null;
 
   if (!userJwt) {
     error('send-verification called without active user session');
@@ -702,7 +654,7 @@ async function handleSendVerification({ req, res, log, error, body }) {
   try {
     const redirectUrl = `${FRONTEND_URL}${locale === 'ar' ? '/ar' : ''}/auth/verify-email`;
     const sessionUser = await acct.get();
-    userId = userId || sessionUser.$id;
+    userId = sessionUser.$id;
 
     if (!sessionUser.email) {
       error(`User ${userId} has no email address`);
@@ -718,24 +670,9 @@ async function handleSendVerification({ req, res, log, error, body }) {
       });
     }
 
-    const token = await createUserVerificationTokenOnce({ userJwt, userId, redirectUrl, log });
-
-    if (token.secret) {
-      const verifyUrl = buildVerificationUrl(redirectUrl, token.userId, token.secret);
-      await resendSend({
-        to:      sessionUser.email,
-        subject: locale === 'ar' ? 'تأكيد بريدك الإلكتروني في WiseResume' : 'Verify your WiseResume email address',
-        html:    verificationEmail(verifyUrl, locale),
-      });
-      log(`Verification email sent via Resend (single token) to ${sessionUser.email}`);
-      return json(res, { success: true, delivery: 'resend' });
-    }
-
-    // Appwrite accepted the authenticated request and owns the token/email.
-    // The secret is deliberately unavailable in this execution context, so it
-    // must never be returned to the browser or used to send a second message.
-    log(`Verification email requested from Appwrite for ${sessionUser.email}`);
-    return json(res, { success: true, delivery: 'appwrite' });
+    await requestUserEmailVerification({ userJwt, redirectUrl });
+    log(`Appwrite accepted verification email request for user ${userId}`);
+    return json(res, { success: true, delivery: 'appwrite', providerAccepted: true });
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -751,7 +688,7 @@ async function handleSendVerification({ req, res, log, error, body }) {
     }
 
     error(`send-verification failed for user ${userId}: ${msg}`);
-    return json(res, { error: 'Email delivery is temporarily unavailable.' }, 500);
+    return json(res, { error: 'Verification email request was not accepted. Please try again.' }, 500);
   }
 }
 
@@ -944,26 +881,9 @@ async function handleSendAdminVerification({ req, res, log, error, body }) {
     const jwtDoc = await new sdk.Users(adminClient).createJWT(targetUserId);
     const adminUserJwt = jwtDoc?.jwt || jwtDoc;
 
-    const token = await createUserVerificationTokenOnce({
-      userJwt: adminUserJwt,
-      userId: targetUserId,
-      redirectUrl,
-      log,
-    });
-
-    if (token.secret) {
-      const verifyUrl = buildVerificationUrl(redirectUrl, token.userId, token.secret);
-      await resendSend({
-        to: user.email,
-        subject: locale === 'ar' ? 'تأكيد بريدك الإلكتروني في WiseResume' : 'Verify your WiseResume email address',
-        html: verificationEmail(verifyUrl, locale),
-      });
-      log(`send-admin-verification: Resend email sent to ${user.email} (locale=${locale})`);
-      return json(res, { success: true, email: user.email, delivery: 'resend' });
-    }
-
-    log(`send-admin-verification: Appwrite mailer only for ${user.email}`);
-    return json(res, { success: true, email: user.email, delivery: 'appwrite' });
+    await requestUserEmailVerification({ userJwt: adminUserJwt, redirectUrl });
+    log(`send-admin-verification: Appwrite accepted verification request for ${targetUserId}`);
+    return json(res, { success: true, email: user.email, delivery: 'appwrite', providerAccepted: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error(`send-admin-verification failed for ${targetUserId}: ${msg}`);
@@ -1612,4 +1532,6 @@ module.exports._test = {
   verifyInternalRequestSignature,
   handleInternalSendAdminPasswordResetOtp,
   handleInternalSendAdminPasswordResetLink,
+  requestUserEmailVerification,
+  resendSend,
 };
