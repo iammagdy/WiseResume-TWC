@@ -215,7 +215,14 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      const { data, error: fnError } = await appwriteFunctions.invoke<{ alreadyVerified?: boolean; message?: string; error?: string }>(
+      const { data, error: fnError } = await appwriteFunctions.invoke<{
+        success?: boolean;
+        delivery?: 'appwrite';
+        providerAccepted?: boolean;
+        alreadyVerified?: boolean;
+        message?: string;
+        error?: string;
+      }>(
         'email-service',
         { body: { action: 'send-verification', locale } },
       );
@@ -226,7 +233,10 @@ export default function AuthVerifyEmailPage() {
         navigate('/dashboard', { replace: true });
         return;
       }
-      toast.success('Verification email sent — check your inbox.');
+      if (data?.success !== true || data.delivery !== 'appwrite' || data.providerAccepted !== true) {
+        throw new Error('Verification email request was not accepted. Please try again.');
+      }
+      toast.success('Verification email request accepted. Delivery may take a moment.');
       try { localStorage.setItem('wr_verify_resend_ts', String(Date.now())); } catch { /* ignore */ }
       startCooldown(60);
     } catch (err) {
@@ -292,7 +302,7 @@ export default function AuthVerifyEmailPage() {
                     (meData?.profile as Record<string, unknown> | undefined)?.email as string | undefined;
                   return (
                     <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                      We sent a verification link to{' '}
+                      We requested a verification link for{' '}
                       {userEmail ? (
                         <span className="font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{userEmail}</span>
                       ) : (

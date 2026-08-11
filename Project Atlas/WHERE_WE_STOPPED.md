@@ -1,8 +1,17 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-10
-**Status:** Dependency Remediation Runtime Verified Ready; React Router v7 Deferred; Portfolio LCP Warning Retained
+**Last Verified:** 2026-08-11
+**Status:** Email Verification Official Appwrite Lifecycle Ready for Owner Commit Review
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+---
+
+## Current owner-review hold (2026-08-11)
+
+* **Status:** `READY_FOR_OWNER_COMMIT_REVIEW` on `codex/fix-verification-delivery`. No commit, push, Appwrite deploy, Vercel deploy, secret/configuration edit, or provider setting change occurred.
+* **Verification contract:** `email-service` authenticates the current Appwrite user, makes exactly one official `POST /account/verifications/email` request, and returns success only when Appwrite accepts it. A read-only console gate confirms Custom SMTP is enabled and the Verification template has populated content; protected values were neither viewed nor changed. The client does not claim inbox delivery from that request.
+* **Removed behavior:** No server-side `POST /users/{userId}/verification`, verification-token/secret extraction, or direct Resend verification email remains. Password-reset and welcome-email behavior are unchanged.
+* **Validated locally:** syntax, focused runtime email tests, focused AuthPage suite (6/6), TypeScript, Vite production build/no-sourcemap check, source hash, and diff check passed. Required future Appwrite target: **`email-service` only**. Frontend changes require normal Vercel deployment after review.
 
 ---
 
@@ -56,6 +65,8 @@
 ---
 
 ## 3. Where We Stopped & Current Active Focus
+
+* **Read-only verification-email trace (2026-08-11):** `OWNER_ACTION_REQUIRED`. Initial execution `6a7afac5396ba739be3a` (`200`, completed, `1s`) and cooldown-permitted resend execution `6a7afb564390b4d78def` (`200`, completed, `246ms`) both confirm the Appwrite fallback branch: the verification secret was unavailable to the function and Appwrite owned the mail request. Neither recorded a Resend send; read-only Resend activity found no matching recipient event. Strongest root cause: `APPWRITE_FALLBACK_NOT_DELIVERABLE`; secondary product issue: `FALSE EMAIL DELIVERY SUCCESS`. The owner must restore a usable Appwrite verification-mail template/mailer or make the branded Resend path available. No manual verification, additional account, inbox access, secret inspection, code, deployment, or configuration mutation occurred.
 
 * **Production verification delivery failure (2026-08-11):** `OWNER_ACTION_REQUIRED`. After owner-authorized fresh-account signup, the account was created and the verification page loaded. The initial send and one cooldown-permitted resend both returned client success, but the owner-confirmed inbox received neither message. No manual verification, additional account, inbox access, secret inspection, or configuration modification occurred. Exact known boundary is `ACCOUNT_CREATION_AND_CLIENT_FUNCTION_RESULT_SUCCESS` → `MAIL_DELIVERY_UNCONFIRMED_FAILURE`; the frontend does not surface the function `delivery` discriminator. Owner must read the corresponding Appwrite `email-service` executions and Resend delivery activity to determine Appwrite-fallback versus Resend transport, suppression, sender/domain, or provider rejection. Do not make any external change until that evidence is available.
 

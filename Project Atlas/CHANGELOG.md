@@ -1,5 +1,22 @@
 # Project Atlas Master Changelog
 
+## 2026-08-11 - Official Appwrite Email Verification Lifecycle (Local, Ready for Review)
+
+- **Architecture:** `email-service` now requests verification only through Appwrite's official authenticated `POST /account/verifications/email` lifecycle. Appwrite owns the verification token, configured Custom SMTP transport, template, and existing completion endpoint; the function neither creates a server-side verification token nor extracts one.
+- **Removed path:** the stale server-key `POST /users/{userId}/verification` helper and the direct branded-Resend verification branch are removed. Password-reset, welcome email, LinkedIn, Jobs, AI, credits, and schemas are unchanged.
+- **Factual contract:** a verification success means Appwrite accepted the request through its configured delivery path (`delivery: 'appwrite'`, `providerAccepted: true`). The signup and resend callers reject any missing or ambiguous result and say only that the request was accepted; they do not claim inbox delivery.
+- **Validation:** email-service syntax, runtime-focused official-request and Resend success/error tests, auth caller-contract test, existing focused AuthPage Vitest suite (6/6), TypeScript, production build/no-sourcemap check, source-hash generation, and `git diff --check` passed. The generated email-service hash is `5dffc7dd54aeaf9f30efc8b43e0dfe9b991c081accf4a7a5ba4a41a16639c39b`.
+- **Safe configuration audit:** the read-only console gate confirms Custom SMTP is enabled, non-secret sender/transport fields are populated, and the Verification template has populated subject/message fields. No secret value was viewed or changed.
+- **Status:** `READY_FOR_OWNER_COMMIT_REVIEW`; no commit, push, Vercel deployment, Appwrite deployment, or external configuration change occurred. A later Appwrite deployment must target exactly **`email-service`**; the frontend changes also require the normal Vercel deployment after review.
+
+## 2026-08-11 - Read-Only Email Delivery Trace (Appwrite Fallback Confirmed)
+
+- **Initial request:** execution `6a7afac5396ba739be3a` completed HTTP `200` in `1s`. Its safe runtime log confirms that the verification secret was unavailable to the function and that Appwrite owned the mail request; it contains no Resend-send evidence.
+- **Cooldown-permitted resend:** execution `6a7afb564390b4d78def` completed HTTP `200` in `246ms`. Its safe runtime log shows the same Appwrite-fallback path and no Resend-send evidence.
+- **Provider correlation:** Resend activity, searched only for the authorized QA recipient, returned no matching event. No Resend message ID, accepted request, bounce, suppression, or rejection exists for either request. Resend sender/domain and SPF/DKIM state were not available in the read-only console view and are therefore not asserted.
+- **Verdict:** `APPWRITE_FALLBACK_NOT_DELIVERABLE`, with secondary `PRODUCT BUG — FALSE EMAIL DELIVERY SUCCESS`. The production function reports successful delivery after Appwrite accepts the verification request even though it has no provider delivery ID or proof of inbox delivery. The owner-confirmed absence of both messages completes the evidence chain. No configuration, user, email, deployment, code, or secret changed during this trace.
+- **Owner action required:** Read-only evidence points to the Appwrite fallback mail path, not Resend. Restore a usable Appwrite verification-mail delivery/template configuration or ensure the branded Resend path receives the verification secret; do not make either change automatically. A subsequent approved code change should not report delivery success without a provider acceptance identifier or an explicitly non-delivery-confirmed fallback state.
+
 ## 2026-08-11 - Production Verification Delivery Failure (Owner Investigation Required)
 
 - **Observed flow:** One fresh email/password account was created successfully and reached the verification page. The initial verification-send result and one cooldown-permitted resend both reported success in the client. The owner monitored the authorized inbox and confirmed that neither message arrived. No manual Appwrite verification, additional account, inbox access, or secret inspection occurred.
