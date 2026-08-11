@@ -33,3 +33,11 @@
 **What changed:** The email service was redeployed safely and checked without viewing any private settings.
 
 **What you'll notice:** The remaining sign-up email test will continue as soon as a permitted test inbox is available.
+
+## Verification emails need delivery tracing (2026-08-11)
+
+**What was the situation:** A new account and a resend request both said they were sent, but the monitored inbox did not receive either message.
+
+**What changed:** The issue was recorded without changing email, domain, or account settings automatically.
+
+**What you'll notice:** The next step is a safe check of the email delivery records to identify where the messages stopped before any setting is changed.

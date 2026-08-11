@@ -1,5 +1,11 @@
 # Project Atlas Master Changelog
 
+## 2026-08-11 - Production Verification Delivery Failure (Owner Investigation Required)
+
+- **Observed flow:** One fresh email/password account was created successfully and reached the verification page. The initial verification-send result and one cooldown-permitted resend both reported success in the client. The owner monitored the authorized inbox and confirmed that neither message arrived. No manual Appwrite verification, additional account, inbox access, or secret inspection occurred.
+- **Exact boundary:** `ACCOUNT_CREATION_AND_CLIENT_FUNCTION_RESULT_SUCCESS` → `MAIL_DELIVERY_UNCONFIRMED_FAILURE`. The current client contract does not surface the function's `delivery` discriminator, so it cannot distinguish the Appwrite fallback hand-off from a Resend transport attempt. Source indicates that an Appwrite fallback combined with the intentionally blank branded template is a candidate, but this has not been asserted from runtime logs.
+- **Owner action required:** Read-only inspection of the two `email-service` executions and Resend delivery activity is required to determine whether the request selected Appwrite fallback or Resend and whether a sender/domain, suppression, or provider rejection occurred. Do not alter Resend, Appwrite, DNS, or provider settings automatically.
+
 ## 2026-08-11 - Email-Service Production Redeploy (Inbox QA Awaiting Accessible Fixture)
 
 - **Targeted deployment:** After owner-completed Resend production configuration, official `Deploy Appwrite Hubs` run `31481279174` passed every target-validation, source-hash recomputation, manifest-alignment, and selected-hub deployment step for **`email-service` only**. All unrelated schema and Jobs-sync steps were skipped. Secret values were neither read nor recorded.

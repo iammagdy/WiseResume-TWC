@@ -1,6 +1,6 @@
 # Auth and Jobs Stabilization QA — 2026-08-11
 
-**Status:** `PRODUCTION_QA_FIXTURE_BLOCKED`
+**Status:** `OWNER_ACTION_REQUIRED`
 
 ## Release evidence
 
@@ -8,6 +8,7 @@
 * Official Appwrite workflow run `31480913343` deployed only `email-service`; deployment `6a7af4d3a5df0ba745b2` became `ready`, and source-hash recomputation matched `bc17f522f7edf778435f0f1c305394ce4b68737302ee6590a1d042e82d72f487`.
 * **Stop condition:** workflow logs show empty Resend API/sender configuration and an intentionally blank Appwrite verification template for the branded Resend route. Actual signup/resend inbox delivery, verification completion, and LinkedIn QA are blocked until the owner configures Resend; no external configuration was changed.
 * **Configuration follow-up:** after the owner completed the required server-side setup, official workflow run `31481279174` passed its exact `email-service` target and source-hash/manifest validation. Secret values were not inspected. The disposable-inbox provider is blocked by browser policy, so end-to-end delivery evidence is still pending a permitted inbox fixture.
+* **Owner-monitored inbox QA:** a fresh account was created and reached the verification screen. Its initial verification request and one cooldown-permitted resend both showed successful client results, but the owner confirmed no inbox message for either. No manual Appwrite verification, extra account, inbox access, or configuration mutation occurred. Classify `ACCOUNT_CREATION_AND_CLIENT_FUNCTION_RESULT_SUCCESS` → `MAIL_DELIVERY_UNCONFIRMED_FAILURE`; function execution and Resend activity evidence are required to resolve the exact route.
 
 ## Verified local
 
@@ -23,7 +24,7 @@
 
 ## Pending after owner review and deployment
 
-* Real signup delivery, verification resend, actual inbox receipt, and confirmation with an owner-provided accessible disposable inbox.
-* LinkedIn new-user and existing-user flows, including provider-console diagnosis if a failure persists, after email QA is unblocked.
+* Read-only Appwrite `email-service` execution and Resend delivery activity inspection; do not change provider configuration until the route/rejection evidence is known.
+* Verification completion, welcome email, LinkedIn new-user and existing-user flows after actual email delivery is restored.
 * Two authorized QA identities through A → B → A with hard refreshes.
 * Populated Jobs filters/cards/dialogs, light/dark, RTL, mobile sheet, tracker deletion persistence, and external-link behavior.
