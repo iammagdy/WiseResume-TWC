@@ -70,6 +70,7 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 ## Registry Notes
 
 * **Email verification contract (local 2026-08-11):** `send-verification` derives the target user from the authenticated Appwrite session, creates one Appwrite verification request, and never returns a verification secret. If the runtime cannot access that secret, it returns a successful `delivery: 'appwrite'` result and must not send a second Resend message. Any deployment is `email-service` only.
+* **Email verification deployment hold (2026-08-11):** official run `31480913343` deployed `email-service` deployment `6a7af4d3a5df0ba745b2` with the committed hash. The workflow reports empty Resend API/sender settings and intentionally blanks the Appwrite verification template for the Resend-branded route. Real inbox delivery is therefore unverified and requires owner-provided Resend configuration; do not automatically modify variables, DNS, or sender configuration.
 
 * `admin-sentry` uses fixed function ID `6a0760710000ff231048`.
 * `appwrite-hubs/email-templates/` exists in source but is not a target in the current `scripts/deploy_hubs.cjs` registry. Do not claim canonical-workflow deployment without separate evidence.

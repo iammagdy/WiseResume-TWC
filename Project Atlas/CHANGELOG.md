@@ -1,5 +1,12 @@
 # Project Atlas Master Changelog
 
+## 2026-08-11 - Auth and Jobs Stabilization Production Release (Blocked Email QA)
+
+- **Release:** PR `#177` merged as `5225c130c6ccd376b28ab36af4d321db38223633`; Vercel production deployment `dpl_5YpEvmcVUeiyhh3DJuK2K38EMZ5n` reached `READY` for that SHA. GitHub Actions PR Validation run `31479960006` passed. The TestSprite pre-check remained the documented non-applicable `No tests detected` external signal.
+- **Targeted Appwrite deployment:** Official `Deploy Appwrite Hubs` run `31480913343` deployed **only** `email-service`; Appwrite deployment `6a7af4d3a5df0ba745b2` reached `ready` and the committed `email-service` source hash `bc17f522f7edf778435f0f1c305394ce4b68737302ee6590a1d042e82d72f487` matched workflow recomputation. No Jobs or unrelated hub was deployed.
+- **Owner action required:** Deployment logs show the Resend API key and sender identity values are empty while the Appwrite verification template is intentionally blanked for the branded Resend delivery path. Do not claim actual signup/resend delivery or run disposable-account email QA until the owner configures valid Resend API and sender settings. No external configuration was changed in this release task.
+- **Production Jobs observation:** Current authenticated `/jobs` remains `0 remote jobs available` and `Last updated: Not yet synced`; no 360 px horizontal overflow was observed. Classify feed availability as `ENVIRONMENT ISSUE`; scheduler/collection diagnosis remains authorized read-only follow-up.
+
 ## 2026-08-11 - Auth Recovery and Jobs State Stabilization (Local, Not Deployed)
 
 - **Classification:** `TESTED_LOCAL`; branch `codex/fix-auth-jobs-stabilization`. No commit, push, deployment, schema, secret, OAuth-provider, Resend, Appwrite, or Vercel configuration change occurred.

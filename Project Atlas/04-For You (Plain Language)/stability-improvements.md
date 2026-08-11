@@ -17,3 +17,11 @@
 **What changed:** The app now gives clearer next steps for account setup and verification problems, and it avoids presenting a deleted tailored resume as ready to use.
 
 **What you'll notice:** You will see more accurate guidance when setup needs another try, and old tailoring records clearly say when their related resume is no longer available.
+
+## Email verification needs its sending service connected (2026-08-11)
+
+**What was the situation:** The sign-up improvements were released, but the email sending service does not currently have the required sender details.
+
+**What changed:** The release was checked safely and the missing setup was identified without changing any account, sender, or domain settings automatically.
+
+**What you'll notice:** Verification-email testing will resume once the sending service details are supplied. Until then, the app should not be considered proven to deliver sign-up or resend emails.
