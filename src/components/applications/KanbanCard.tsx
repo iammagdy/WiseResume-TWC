@@ -153,7 +153,11 @@ export const KanbanCard = memo(function KanbanCard({ application, onDelete }: Ka
             )}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              onClick={() => { haptics.medium(); onDelete(application.id); }}
+              onClick={(event) => {
+                event.stopPropagation();
+                haptics.medium();
+                onDelete(application.id);
+              }}
             >
               <Trash2 className="w-3.5 h-3.5 mr-2" />
               Delete

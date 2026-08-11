@@ -504,6 +504,7 @@ export default function JobMatchResultPage() {
 
   const linkedCoverLetter = linkedCoverLetterById ?? linkedCoverLetterByResume ?? null;
   const hasApplicationBundle = !!linkedCoverLetter;
+  const resultAvailable = !isLoading && !!resume;
 
   const handleDownloadCoverLetterPdf = useCallback(async () => {
     if (!linkedCoverLetter || coverLetterDownloadBusy) return;
@@ -548,8 +549,8 @@ export default function JobMatchResultPage() {
 
         <div className="jmw-result-topbar__title-block min-w-0">
           <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" aria-hidden />
-            <span className="jmw-result-topbar__eyebrow">Tailored CV ready</span>
+            <CheckCircle2 className={cn('w-4 h-4 shrink-0', resultAvailable ? 'text-emerald-500' : 'text-muted-foreground')} aria-hidden />
+            <span className="jmw-result-topbar__eyebrow">{resultAvailable ? 'Tailored CV ready' : 'Historical tailoring result'}</span>
           </div>
           <h1 className="jmw-result-topbar__title truncate">
             {isLoading ? 'Loading…' : dbResume?.title ?? 'Tailored CV'}
@@ -595,7 +596,7 @@ export default function JobMatchResultPage() {
         )}
       </header>
 
-      {hasAppReady && (
+      {hasAppReady && resultAvailable && (
         <div className="bg-rose-50 dark:bg-rose-950/20 border-y border-rose-100 dark:border-rose-900/30 px-4 py-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
           <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300">
             <span className="relative flex h-2 w-2 shrink-0">
@@ -670,7 +671,10 @@ export default function JobMatchResultPage() {
           </div>
         ) : !resume ? (
           <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-            <p className="text-sm text-muted-foreground">Resume not found.</p>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Tailored resume unavailable</p>
+              <p className="text-sm text-muted-foreground">This historical tailoring result references a resume that has been deleted. It can no longer be opened, downloaded, or reused.</p>
+            </div>
             <Button variant="outline" onClick={() => navigate('/tailoring-hub')}>
               Back to Tailoring Hub
             </Button>

@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
-import { useResumeStore } from '@/store/resumeStore';
 import type { Job } from '@/hooks/useJobs';
 
 function docToJob(doc: Record<string, unknown>): Job {
@@ -39,36 +38,6 @@ async function listJobsCollection(userId: string): Promise<Job[]> {
     Query.limit(200),
   ]);
   return res.documents.map((d) => docToJob(d as unknown as Record<string, unknown>));
-}
-
-function jobsFromLocalHistory(
-  userId: string,
-  localHistory: Array<{
-    id: string;
-    jobTitle: string;
-    company: string;
-    jobDescription: string;
-    jobUrl?: string | null;
-    createdAt: string;
-  }>,
-): Job[] {
-  return localHistory.map((entry) => ({
-    id: `local:${entry.id}`,
-    user_id: userId,
-    title: entry.jobTitle || 'Untitled role',
-    company: entry.company || '',
-    company_logo: null,
-    description: entry.jobDescription || '',
-    requirements: '',
-    location: '',
-    salary_range: null,
-    job_type: 'full-time',
-    posted_date: entry.createdAt,
-    source_url: entry.jobUrl ?? null,
-    is_saved: true,
-    created_at: entry.createdAt,
-    updated_at: entry.createdAt,
-  }));
 }
 
 function mergeSavedJobs(sources: Job[][]): Job[] {
@@ -131,12 +100,6 @@ async function fetchSavedJobPostings(userId: string): Promise<Job[]> {
 export function useSavedJobPostings() {
   const { user, authReady } = useAuth();
   const userId = user?.id;
-  const localHistory = useResumeStore((s) => s.tailorHistory) || [];
-
-  const localJobs = useMemo(
-    () => (userId ? jobsFromLocalHistory(userId, localHistory) : []),
-    [userId, localHistory],
-  );
 
   const query = useQuery({
     queryKey: ['saved-job-postings', userId],
@@ -150,10 +113,7 @@ export function useSavedJobPostings() {
     placeholderData: (previous) => previous,
   });
 
-  const jobs = useMemo(
-    () => mergeSavedJobs([query.data ?? [], localJobs]),
-    [query.data, localJobs],
-  );
+  const jobs = useMemo(() => mergeSavedJobs([query.data ?? []]), [query.data]);
 
   const awaitingNetwork = !query.isFetched && !query.isError;
   const isLoading =
