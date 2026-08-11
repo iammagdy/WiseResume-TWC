@@ -215,11 +215,12 @@ export default function AuthVerifyEmailPage() {
     if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      const { data, error: fnError } = await appwriteFunctions.invoke<{ alreadyVerified?: boolean; message?: string }>(
+      const { data, error: fnError } = await appwriteFunctions.invoke<{ alreadyVerified?: boolean; message?: string; error?: string }>(
         'email-service',
         { body: { action: 'send-verification', locale } },
       );
       if (fnError) throw new Error(fnError.message);
+      if (data?.error) throw new Error(data.error);
       if (data?.alreadyVerified) {
         toast.info(data.message || 'Your email is already verified. Redirecting…');
         navigate('/dashboard', { replace: true });
