@@ -1,8 +1,17 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-10
-**Status:** Dependency Remediation Runtime Verified Ready; React Router v7 Deferred; Portfolio LCP Warning Retained
+**Last Verified:** 2026-08-11
+**Status:** Email Verification Official Appwrite Lifecycle Ready for Owner Commit Review
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+---
+
+## Current owner-review hold (2026-08-11)
+
+* **Status:** `READY_FOR_OWNER_COMMIT_REVIEW` on `codex/fix-verification-delivery`. No commit, push, Appwrite deploy, Vercel deploy, secret/configuration edit, or provider setting change occurred.
+* **Verification contract:** `email-service` authenticates the current Appwrite user, makes exactly one official `POST /account/verifications/email` request, and returns success only when Appwrite accepts it. A read-only console gate confirms Custom SMTP is enabled and the Verification template has populated content; protected values were neither viewed nor changed. The client does not claim inbox delivery from that request.
+* **Removed behavior:** No server-side `POST /users/{userId}/verification`, verification-token/secret extraction, or direct Resend verification email remains. Password-reset and welcome-email behavior are unchanged.
+* **Validated locally:** syntax, focused runtime email tests, focused AuthPage suite (6/6), TypeScript, Vite production build/no-sourcemap check, source hash, and diff check passed. Required future Appwrite target: **`email-service` only**. Frontend changes require normal Vercel deployment after review.
 
 ---
 

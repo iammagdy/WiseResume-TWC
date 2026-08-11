@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-08-11
 
+## More honest verification-email messages (2026-08-11)
+
+**What changed:** The app now asks its account service to send verification emails using the supported built-in account process. It no longer builds its own verification links or sends a second verification message through a separate route.
+
+**What you'll notice:** After signing up or asking to resend, the app says only that the request was accepted. It does not say the message reached your inbox until that can be confirmed separately.
+
+**Still needed:** This local change is waiting for owner review and deployment. The sending setup was checked safely and is present; it was not changed during this work.
+
 ## Safer sign-in and job history (2026-08-11)
 
 **What was the situation:** On short screens, the sign-up button could be out of reach, and switching accounts in one browser could show job-related history from the previous account.
