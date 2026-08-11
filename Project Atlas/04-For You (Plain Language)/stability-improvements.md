@@ -41,3 +41,9 @@
 **What changed:** The issue was recorded without changing email, domain, or account settings automatically.
 
 **What you'll notice:** The next step is a safe check of the email delivery records to identify where the messages stopped before any setting is changed.
+
+## Verification-email trace result (2026-08-11)
+
+**What was found:** The service used Appwrite's backup email path for both messages, not the branded email provider. That backup path accepted the request but did not prove a message reached the inbox.
+
+**What happens next:** An owner must repair the Appwrite verification-email setup or make the branded sending path available. The app also needs a later code improvement so it does not say an email was delivered when it only knows that the backup service accepted a request.

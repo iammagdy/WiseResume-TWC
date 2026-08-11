@@ -12,6 +12,13 @@
 
 ## Verified local
 
+## Read-only production delivery trace
+
+* Initial execution `6a7afac5396ba739be3a` (`200`, completed, `1s`) and cooldown-permitted resend execution `6a7afb564390b4d78def` (`200`, completed, `246ms`) both used the Appwrite fallback path: the verification secret was unavailable to the function runtime and Appwrite owned the mail request.
+* Neither execution contains Resend-send evidence. Resend activity has no matching recipient event, so no provider message ID, acceptance, bounce, suppression, or rejection exists for the two sends.
+* Verdict: `APPWRITE_FALLBACK_NOT_DELIVERABLE`; secondary `PRODUCT BUG — FALSE EMAIL DELIVERY SUCCESS`. The fallback response is accepted by the client without a delivery-provider acceptance ID or inbox proof.
+* Resend sender-domain, SPF, and DKIM status were not exposed by the read-only console view and are not asserted. No user, secret, email, configuration, code, or deployment was changed.
+
 * TypeScript completed with no errors.
 * Focused Vitest passed: Auth error/callback recovery, account-namespaced resume persistence, Remote Jobs owner-ID contract, Application Tracker render, and tailoring-result behavior (`6` files / `18` tests).
 * The deleted-resume result assertion passed independently (`1` passed, `7` deliberately skipped by name filter).

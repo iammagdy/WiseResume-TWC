@@ -1,5 +1,13 @@
 # Project Atlas Master Changelog
 
+## 2026-08-11 - Read-Only Email Delivery Trace (Appwrite Fallback Confirmed)
+
+- **Initial request:** execution `6a7afac5396ba739be3a` completed HTTP `200` in `1s`. Its safe runtime log confirms that the verification secret was unavailable to the function and that Appwrite owned the mail request; it contains no Resend-send evidence.
+- **Cooldown-permitted resend:** execution `6a7afb564390b4d78def` completed HTTP `200` in `246ms`. Its safe runtime log shows the same Appwrite-fallback path and no Resend-send evidence.
+- **Provider correlation:** Resend activity, searched only for the authorized QA recipient, returned no matching event. No Resend message ID, accepted request, bounce, suppression, or rejection exists for either request. Resend sender/domain and SPF/DKIM state were not available in the read-only console view and are therefore not asserted.
+- **Verdict:** `APPWRITE_FALLBACK_NOT_DELIVERABLE`, with secondary `PRODUCT BUG — FALSE EMAIL DELIVERY SUCCESS`. The production function reports successful delivery after Appwrite accepts the verification request even though it has no provider delivery ID or proof of inbox delivery. The owner-confirmed absence of both messages completes the evidence chain. No configuration, user, email, deployment, code, or secret changed during this trace.
+- **Owner action required:** Read-only evidence points to the Appwrite fallback mail path, not Resend. Restore a usable Appwrite verification-mail delivery/template configuration or ensure the branded Resend path receives the verification secret; do not make either change automatically. A subsequent approved code change should not report delivery success without a provider acceptance identifier or an explicitly non-delivery-confirmed fallback state.
+
 ## 2026-08-11 - Production Verification Delivery Failure (Owner Investigation Required)
 
 - **Observed flow:** One fresh email/password account was created successfully and reached the verification page. The initial verification-send result and one cooldown-permitted resend both reported success in the client. The owner monitored the authorized inbox and confirmed that neither message arrived. No manual Appwrite verification, additional account, inbox access, or secret inspection occurred.
