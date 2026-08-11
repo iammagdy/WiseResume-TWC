@@ -1,5 +1,10 @@
 # Project Atlas Master Changelog
 
+## 2026-08-11 - Email-Service Production Redeploy (Inbox QA Awaiting Accessible Fixture)
+
+- **Targeted deployment:** After owner-completed Resend production configuration, official `Deploy Appwrite Hubs` run `31481279174` passed every target-validation, source-hash recomputation, manifest-alignment, and selected-hub deployment step for **`email-service` only**. All unrelated schema and Jobs-sync steps were skipped. Secret values were neither read nor recorded.
+- **QA hold:** Browser policy blocked access to the disposable-inbox provider, so no fresh account, verification URL, resend, welcome-email, LinkedIn, account-switch, tracker-delete, or tombstone mutation was performed. This is a QA-fixture access limitation, not evidence of email delivery failure or a request for further external configuration.
+
 ## 2026-08-11 - Auth and Jobs Stabilization Production Release (Blocked Email QA)
 
 - **Release:** PR `#177` merged as `5225c130c6ccd376b28ab36af4d321db38223633`; Vercel production deployment `dpl_5YpEvmcVUeiyhh3DJuK2K38EMZ5n` reached `READY` for that SHA. GitHub Actions PR Validation run `31479960006` passed. The TestSprite pre-check remained the documented non-applicable `No tests detected` external signal.

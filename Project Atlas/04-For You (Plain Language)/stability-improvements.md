@@ -25,3 +25,11 @@
 **What changed:** The release was checked safely and the missing setup was identified without changing any account, sender, or domain settings automatically.
 
 **What you'll notice:** Verification-email testing will resume once the sending service details are supplied. Until then, the app should not be considered proven to deliver sign-up or resend emails.
+
+## Email sending setup has been rechecked (2026-08-11)
+
+**What was the situation:** The email sending details were completed, but the test inbox service is not available in the current testing environment.
+
+**What changed:** The email service was redeployed safely and checked without viewing any private settings.
+
+**What you'll notice:** The remaining sign-up email test will continue as soon as a permitted test inbox is available.
