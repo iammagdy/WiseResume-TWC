@@ -11,7 +11,7 @@
 * **Final status:** `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`. The corrected Appwrite Verification template persisted with a non-empty subject, body, and required `{{redirect}}` variable. No manual Appwrite verification, duplicate resend, secret inspection, or credential recording occurred.
 * **Verified production path:** authenticated WiseResume user -> `email-service` -> official Appwrite email-verification lifecycle -> Appwrite Custom SMTP -> Resend -> Appwrite Verification template -> WiseResume verification link -> explicit confirmation action -> Appwrite email verification true. Appwrite owns the lifecycle and token; Resend is transport. No custom parallel token system, stale server-token helper, or direct Resend verification branch is active.
 * **Production evidence:** one controlled resend completed through `email-service` with HTTP `200`, Appwrite accepted the request, and Resend recorded the verification message as delivered. The owner confirmed receipt; the real link and explicit WiseResume action completed verification, routed to onboarding, and triggered a welcome email that Resend also recorded as delivered.
-* **Scope closed / still pending:** signup verification request handling, verification delivery and completion, and welcome-email delivery are closed. LinkedIn first-time and existing-user production verification remain pending. Jobs remains `VISIBLE_PRODUCTION_FEATURE`; A->B->A isolation, tracker deletion, Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI QA, and read-only diagnosis of `0 remote jobs / Not yet synced` remain separate pending work.
+* **Scope closed / still pending:** signup verification request handling, verification delivery and completion, welcome-email delivery, and two-owner Jobs account-state isolation are closed. LinkedIn first-time and existing-user production verification remain pending. Jobs remains `VISIBLE_PRODUCTION_FEATURE`; tracker deletion, Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI QA, and read-only diagnosis of `0 remote jobs / Not yet synced` remain separate pending work.
 
 ---
 
@@ -19,7 +19,7 @@
 
 * **Production Domain:** `https://wiseresume.app`
 * **Repository:** `iammagdy/WiseResume-TWC`
-* **Active Branch:** `main` at `cfcaf82e37eb10fe20693399a190e8a6626242b0` (official Appwrite verification lifecycle merged)
+* **Active Branch:** `main`. The repository-state baseline was synchronized at `8fc45e010722f72ed7f3dc9a9f252eeb19045c83` after PR #179; this reconciliation is a subsequent documentation-only record.
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
 * **Frontend Hosting:** Vercel. Current production is documentation-only deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for commit `e7e92aba0261a5e587c766654dc9bf601732072d`; latest verified code-bearing production remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
@@ -70,7 +70,7 @@
 
 * **Email verification recovery (2026-08-11 to 2026-08-13):** `CLOSED` as `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`. The historical request/transport investigation concluded with the actual root cause: the Appwrite Verification template had whitespace-only subject and message fields and no `{{redirect}}`. After the approved template correction, one controlled resend completed through `email-service` with HTTP `200`, Appwrite accepted the request, and Resend recorded the message as delivered. The owner confirmed inbox receipt; the real verification link and explicit WiseResume action completed Appwrite verification and routed to onboarding. The welcome email was also sent and delivered. No manual verification or further owner action remains for email verification.
 
-* **Current Auth and Jobs scope:** Auth short-viewport scrolling, signup verification request handling, verification delivery/completion, and welcome-email delivery are closed. LinkedIn first-time and existing-user production verification remain pending. Jobs remains `VISIBLE_PRODUCTION_FEATURE`; A->B->A account-state isolation, tracker deletion, Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI QA, and read-only diagnosis of `0 remote jobs / Not yet synced` remain pending and must not be promoted from this email closeout.
+* **Current Auth and Jobs scope:** Auth short-viewport scrolling, signup verification request handling, verification delivery/completion, welcome-email delivery, and A->B->A account-state isolation are closed. The two-owner verification proved independent saved-job state across account switches and User-A cleanup. LinkedIn first-time and existing-user production verification remain pending. Jobs remains `VISIBLE_PRODUCTION_FEATURE`; tracker deletion, broader Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI QA, and read-only diagnosis of `0 remote jobs / Not yet synced` remain pending and must not be promoted from this closeout.
 
 ### Historical email-recovery evidence (superseded as a current blocker)
 
@@ -96,12 +96,13 @@ The dated entries immediately below preserve the investigation trail. Their `OWN
 
 * **Dependency security remediation (2026-08-10):** Production runtime evidence is complete for the receipt-writing WiseResume paths. The remediation source merged in PR #170; follow-up PR #172 provided sanitized receipts and PR #173 made their server-only schema a pre-deploy CI requirement. The four receipt-writing hubs above were deployed only through the official target-filtered workflow, then deterministic browser QA proved a successful provider-backed path per hub with one factual credit and no duplicate receipt. Current authenticated Dependabot inventory is 0 critical, 0 high, and 3 medium React Router advisories. React Router v6 remains `DEFERRED_SECURITY_MIGRATION`; the remaining WiseHire HR fixture is a separate secondary-product follow-up. Full evidence: `Project Atlas/security/dependency-security-audit-2026-08-09.md` section 18.
 
-* **Session Status:** `DEPLOYED_PENDING_BROWSER_VERIFICATION` for public-repository hardening.
+* **Session Status:** `PUBLIC_REPOSITORY_HARDENING_PRODUCTION_BROWSER_VERIFIED_WITH_RESIDUAL_WARNINGS`.
   - PR #148 merged the hardening implementation; PR #158 (`78656e7f`, merged `0d030df4`) corrected three ignored hub lockfiles after failed workflow `30100163770` stopped with 25 ready deployments.
   - Recovery workflow `30101982337` deployed only `job-feed-sync`, `get-remote-jobs`, and `track-job-action`; all are ready, the 28-function live policy verifier reports 28/28 matches, and one approved internal sync completed.
   - `job-feed-sync` retains `execute: []` and `0 */6 * * *`; anonymous `job-feed-sync` and `track-job-action` probes returned 401, while public `get-remote-jobs` completed. No rollback, broad rollout, secret change, or history rewrite occurred.
-  - Browser automation was unavailable. Authenticated owner-scoped job-action/cross-user mutation proof and broader visual production QA remain pending; do not classify them as verified.
-  - Historical credential cleanup remains separately pending under `Project Atlas/security/credential-history-cleanup-plan-2026-07-24.md`; no history rewrite is authorized.
+  - Authenticated two-owner browser QA is verified: User-A saved state persisted through reload, a distinct User-B retained independent saved state for the same public job after User-A cleanup, and User-A cleanup persisted. No account identifiers, tokens, or fixture details are recorded.
+  - The supported mutation path derives the caller from a JWT-backed Appwrite account, accepts no client-selected owner or action-document ID, scopes records by the derived owner/action key, and assigns owner-only permissions. Normal non-admin `/devkit` denial remains verified.
+  - Broader visual Jobs QA remains outside this security closeout. Residual warnings: GitHub security controls require owner enablement, `admin-sentry` lacks transport-level replay expiry, and historical credential cleanup remains separately pending under `Project Atlas/security/credential-history-cleanup-plan-2026-07-24.md` with no authorized history rewrite.
 
 * **Session Status**: `BROADCAST_DELIVERY_PRODUCTION_VERIFIED_WITH_EMPTY_COLLECTION_WARNING` - The authenticated Broadcast schema/query failure is fixed in production without broadening Appwrite permissions.
 * **Broadcast Closeout (2026-07-24)**:

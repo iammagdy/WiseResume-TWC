@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-08-13
 
+## Saved jobs stay separate between accounts (2026-08-13)
+
+**What was the situation:** The current project record had not yet captured the completed production check proving that one person's saved-job changes do not alter another person's saved jobs.
+
+**What changed:** The team reconciled the focused two-account production check into the living records. One account's saved job and later removal survived reloads, while the other account's saved state remained independent.
+
+**What you'll notice:** Saving or removing a job in your account does not change another account's saved-job state. Other Jobs and sign-in checks still have their own tracked follow-up work.
+
 ## Email verification is now working in production (2026-08-13)
 
 **What was the situation:** New accounts could request a verification email, but the email message itself had no usable subject, content, or verification link.
