@@ -1,6 +1,14 @@
 # Stability improvements
 
-**Last verified:** 2026-08-11
+**Last verified:** 2026-08-13
+
+## Email verification is now working in production (2026-08-13)
+
+**What was the situation:** New accounts could request a verification email, but the email message itself had no usable subject, content, or verification link.
+
+**What changed:** The approved WiseResume verification template was corrected in the production account service, including the required link placeholder that Appwrite fills securely for each user.
+
+**What you'll notice:** Verification emails now arrive with a clear subject and a working confirmation button. After confirmation, the account opens its Getting Started screen and a welcome email is sent.
 
 ## More honest verification-email messages (2026-08-11)
 
@@ -8,7 +16,7 @@
 
 **What you'll notice:** After signing up or asking to resend, the app says only that the request was accepted. It does not say the message reached your inbox until that can be confirmed separately.
 
-**Still needed:** This local change is waiting for owner review and deployment. The sending setup was checked safely and is present; it was not changed during this work.
+**Verification result:** This flow is now live and confirmed end to end in production.
 
 ## Safer sign-in and job history (2026-08-11)
 
@@ -26,32 +34,9 @@
 
 **What you'll notice:** You will see more accurate guidance when setup needs another try, and old tailoring records clearly say when their related resume is no longer available.
 
-## Email verification needs its sending service connected (2026-08-11)
 
-**What was the situation:** The sign-up improvements were released, but the email sending service does not currently have the required sender details.
+## Earlier email-delivery investigation (2026-08-11)
 
-**What changed:** The release was checked safely and the missing setup was identified without changing any account, sender, or domain settings automatically.
+**What was found:** Earlier requests were accepted but did not reach the inbox because the verification message had no usable subject, content, or confirmation-link placeholder.
 
-**What you'll notice:** Verification-email testing will resume once the sending service details are supplied. Until then, the app should not be considered proven to deliver sign-up or resend emails.
-
-## Email sending setup has been rechecked (2026-08-11)
-
-**What was the situation:** The email sending details were completed, but the test inbox service is not available in the current testing environment.
-
-**What changed:** The email service was redeployed safely and checked without viewing any private settings.
-
-**What you'll notice:** The remaining sign-up email test will continue as soon as a permitted test inbox is available.
-
-## Verification emails need delivery tracing (2026-08-11)
-
-**What was the situation:** A new account and a resend request both said they were sent, but the monitored inbox did not receive either message.
-
-**What changed:** The issue was recorded without changing email, domain, or account settings automatically.
-
-**What you'll notice:** The next step is a safe check of the email delivery records to identify where the messages stopped before any setting is changed.
-
-## Verification-email trace result (2026-08-11)
-
-**What was found:** The service used Appwrite's backup email path for both messages, not the branded email provider. That backup path accepted the request but did not prove a message reached the inbox.
-
-**What happens next:** An owner must repair the Appwrite verification-email setup or make the branded sending path available. The app also needs a later code improvement so it does not say an email was delivered when it only knows that the backup service accepted a request.
+**Final result:** That historical issue is resolved. A controlled resend was delivered, the confirmation link completed verification, and the welcome email was delivered too.

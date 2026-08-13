@@ -1,5 +1,20 @@
 # Project Atlas Master Changelog
 
+## 2026-08-13 - Email Verification Recovery Documentation Closeout
+
+- **Living-state reconciliation:** Updated the active handover, production snapshot, Auth/function specifications, Auth/Jobs stabilization QA report, and owner plain-language record to classify email verification as `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`.
+- **Current facts:** Recorded the official Appwrite lifecycle, Custom SMTP/Resend transport, required `{{redirect}}` template variable, one controlled delivered resend, owner-confirmed inbox receipt, normal verification completion, onboarding routing, and delivered welcome email.
+- **Historical integrity:** Preserved the dated initial delivery failure and read-only trace as historical evidence, while removing their stale current `OWNER_ACTION_REQUIRED` interpretation.
+- **Scope boundaries:** LinkedIn first-time and existing-user production verification and the listed Jobs production checks remain pending. This closeout changes documentation only; it changes no application code, configuration, credentials, provider settings, or deployment.
+
+## 2026-08-13 - Production Email Verification Delivery Confirmed
+
+- **Appwrite Verification template:** Updated the English Verification template only. It now has the approved non-empty subject and HTML message with the official `{{redirect}}` completion variable. No SMTP field, sender identity, Resend setting, DNS record, Appwrite function variable, code, or deployment changed.
+- **Delivery trace:** One cooldown-permitted resend completed through `email-service` with HTTP `200`; the function logged Appwrite acceptance. Resend recorded the corresponding verification message as `sent` and `delivered`, and the owner confirmed receipt in the monitored inbox.
+- **Completion flow:** The received Appwrite verification URL opened WiseResume's explicit confirmation page. The normal `Verify my email` action completed, the Appwrite Auth user is marked `Verified email`, and the product routed the account to onboarding.
+- **Welcome mail:** The post-verification welcome-email call completed successfully; Resend recorded the welcome message as `sent` and `delivered`.
+- **Classification:** `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`. No manual Appwrite verification or repeated resend occurred.
+
 ## 2026-08-11 - Official Appwrite Email Verification Lifecycle (Local, Ready for Review)
 
 - **Architecture:** `email-service` now requests verification only through Appwrite's official authenticated `POST /account/verifications/email` lifecycle. Appwrite owns the verification token, configured Custom SMTP transport, template, and existing completion endpoint; the function neither creates a server-side verification token nor extracts one.

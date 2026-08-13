@@ -1,6 +1,6 @@
 # Canonical Appwrite Functions Specification
 
-**Last Verified:** 2026-07-23
+**Last Verified:** 2026-08-13
 **Status:** Canonical Architecture Specification
 **Location:** `Project Atlas/architecture/appwrite-functions.md`
 
@@ -69,11 +69,9 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 
 ## Registry Notes
 
-* **Email verification contract (local 2026-08-11):** `send-verification` derives the target user from the authenticated Appwrite session and makes exactly one official `POST /account/verifications/email` request. Appwrite owns the verification token, Custom SMTP/Resend delivery path, verification template, and existing completion endpoint. The function returns no verification secret and reports success only as `delivery: 'appwrite', providerAccepted: true`, which is request acceptance rather than inbox-delivery proof. Any deployment is `email-service` only.
-* **Email verification deployment hold (2026-08-11):** official run `31480913343` deployed `email-service` deployment `6a7af4d3a5df0ba745b2` with the committed hash. The workflow reports empty Resend API/sender settings and intentionally blanks the Appwrite verification template for the Resend-branded route. Real inbox delivery is therefore unverified and requires owner-provided Resend configuration; do not automatically modify variables, DNS, or sender configuration.
-* **Email verification redeploy (2026-08-11):** after the owner completed the server-side sender configuration, official run `31481279174` passed its explicit `email-service` target, source-hash recomputation, and manifest-alignment checks. Values were not inspected. End-to-end inbox proof remains pending an accessible disposable QA inbox.
-* **Live delivery diagnostic boundary (2026-08-11):** a fresh account and two accepted verification-send responses did not result in owner-confirmed inbox messages. The browser client does not expose the function `delivery` field, so only read-only Appwrite execution logs and Resend activity can establish whether the function used fallback or branded transport. Do not infer a successful provider hand-off from the toast.
-* **Read-only delivery trace (2026-08-11):** execution `6a7afac5396ba739be3a` (initial, `200`, completed, `1s`) and `6a7afb564390b4d78def` (resend, `200`, completed, `246ms`) both logged that the verification secret was not returned to the function runtime and that Appwrite owned the verification mail request. Neither logged a Resend send, and Resend activity has no matching recipient event. This confirms the Appwrite fallback branch; its return value is not provider-delivery proof. Treat the production condition as `APPWRITE_FALLBACK_NOT_DELIVERABLE` and the success UI as a false-delivery-success bug until owner-directed remediation and a fresh approved test.
+* **Email verification contract (production verified 2026-08-13):** `send-verification` derives the target user from the authenticated Appwrite session and makes exactly one official `POST /account/verifications/email` request. Appwrite owns the verification token, Custom SMTP/Resend delivery path, Verification template, and existing completion endpoint. The function returns no verification secret and reports success only as `delivery: 'appwrite', providerAccepted: true`, which is request acceptance rather than an inbox-delivery claim. The only approved function target for future source deployment is `email-service`.
+* **Production recovery evidence:** the earlier code deployment was targeted to `email-service` with source-hash alignment. The final production blocker was the Appwrite Verification template: whitespace-only subject/body and no `{{redirect}}`. Once corrected, one controlled resend completed via `email-service` with HTTP `200`, Appwrite accepted it, Resend recorded delivery, the owner confirmed receipt, and the normal WiseResume confirmation action completed Appwrite verification and onboarding. The welcome email was also delivered. The template correction required no code change or deployment.
+* **Historical delivery trace (2026-08-11):** the two earlier accepted sends had no matching Resend event. This is retained as dated diagnostic evidence, not a current `APPWRITE_FALLBACK_NOT_DELIVERABLE` condition or owner-action blocker.
 
 * `admin-sentry` uses fixed function ID `6a0760710000ff231048`.
 * `appwrite-hubs/email-templates/` exists in source but is not a target in the current `scripts/deploy_hubs.cjs` registry. Do not claim canonical-workflow deployment without separate evidence.
@@ -86,7 +84,7 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 * **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml`
 * **Helper:** `node scripts/deploy_hubs.cjs --only=<function-name>`
 * **Rule:** Never use `target=all`; always name the approved target(s).
-* **Latest verified target:** `ai-gateway` only, workflow run `30042810382`, deployment `6a627b81bff27daaf366`, status `ready`.
+* **Latest email-verification target:** `email-service` only; the merged official-lifecycle source hash is `5dffc7dd54aeaf9f30efc8b43e0dfe9b991c081accf4a7a5ba4a41a16639c39b`, and the verified production delivery flow required no deployment after the template correction.
 
 ## Public-Repository Hardening (2026-07-24, Deployed)
 
