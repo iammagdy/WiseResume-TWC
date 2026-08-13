@@ -1,7 +1,7 @@
 # Public Repository Security Hardening
 
-**Last verified:** 2026-07-24
-**Status:** `DEPLOYED_PENDING_BROWSER_VERIFICATION`
+**Last verified:** 2026-08-13
+**Status:** `PUBLIC_REPOSITORY_HARDENING_PRODUCTION_BROWSER_VERIFIED_WITH_RESIDUAL_WARNINGS`
 **Scope:** public repository controls, Vercel public APIs, and Appwrite Function execution boundaries.
 
 ## Implemented controls
@@ -60,4 +60,17 @@ Read-only repository inspection found Secret Scanning, non-provider scanning, va
 
 The initial 28-target workflow `30100163770` stopped at the first untracked hub lockfile after 25 ready deployments; no rollback was required. Corrective PR #158 (`78656e7f`, merged as `0d030df4`) tracked the three missing locks and made the guard test Git-aware and CRLF-safe. The exact recovery workflow `30101982337` then deployed only `job-feed-sync` (`6a637988c75fbc22829a`), `get-remote-jobs` (`6a63799d79e6a27a64f3`), and `track-job-action` (`6a6379ae192857be7a6e`), all `ready`.
 
-The live verifier reported 28/28 policy matches. Anonymous execution of `job-feed-sync` and `track-job-action` was denied with 401; anonymous `get-remote-jobs` completed as designed. One approved internal `job-feed-sync` execution completed with the six-hour schedule preserved. Full authenticated browser QA was not performed because browser automation was unavailable; do not infer owner-scoped job-action proof from this deployment evidence.
+The live verifier reported 28/28 policy matches. Anonymous execution of `job-feed-sync` and `track-job-action` was denied with 401; anonymous `get-remote-jobs` completed as designed. One approved internal `job-feed-sync` execution completed with the six-hour schedule preserved. At deployment time, full authenticated browser QA had not yet been performed; the subsequent focused two-owner verification is recorded below.
+
+## Authenticated two-owner browser verification (2026-08-09; reconciled 2026-08-13)
+
+Two distinct authenticated QA identities were verified through the normal `/profile` UI. Account identifiers, tokens, cookies, headers, and job identifiers were runtime-only and are not recorded.
+
+- User A saved one disposable job fixture; it stayed saved after a full reload.
+- User B was verified as a distinct identity. After User A removed their own fixture and reloaded, User B still displayed saved state for the same public job.
+- User A's authorized removal persisted after a full reload.
+- A normal authenticated non-admin user was denied access to `/devkit`.
+
+The supported mutation paths derive their owner from the active JWT-backed Appwrite account. They accept no client-selected owner or action-document ID, derive `action_key` from that owner and the public job item, and apply owner-only document permissions. The browser fallback uses the active authenticated user and the same derived key. A supported cross-user mutation is therefore not constructible through the product/API contract; this is implementation-level prevention, not a fabricated negative mutation test.
+
+**Verdict:** account isolation and authorized saved-job cleanup are verified. This focused evidence does not close tracker deletion, broader Saved Jobs rendering, populated Jobs UI, LinkedIn, or other QA outside the ownership boundary. Residual warnings remain: GitHub security controls require owner enablement, `admin-sentry` lacks transport-level replay expiry, and historical credential cleanup remains separately pending under `Project Atlas/security/credential-history-cleanup-plan-2026-07-24.md` with no authorized history rewrite.

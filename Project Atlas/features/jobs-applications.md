@@ -1,6 +1,6 @@
 # Feature Specification: Jobs and Applications
 
-**Last Verified:** 2026-08-10
+**Last Verified:** 2026-08-13
 **Status:** Visible Production Feature
 **Location:** `Project Atlas/features/jobs-applications.md`
 
@@ -62,7 +62,7 @@ Let authenticated users browse remote jobs, save job context, tailor application
 
 ## 2026-07-24 Security Hardening (Deployed)
 
-Recovery workflow `30101982337` deployed only the three Jobs hubs. `job-feed-sync` is no longer Client-SDK executable, retains its native `0 */6 * * *` schedule, and denied an anonymous probe with 401; one approved internal sync completed. `get-remote-jobs` remains public and completed an anonymous read. `track-job-action` now requires an Appwrite user and denied an anonymous probe with 401. Authenticated owner-scoped action and cross-user mutation browser QA remain pending.
+Recovery workflow `30101982337` deployed only the three Jobs hubs. `job-feed-sync` is no longer Client-SDK executable, retains its native `0 */6 * * *` schedule, and denied an anonymous probe with 401; one approved internal sync completed. `get-remote-jobs` remains public and completed an anonymous read. `track-job-action` now requires an Appwrite user and denied an anonymous probe with 401. Focused two-owner production QA is verified: a saved job persisted for User A through reload, User B retained independent saved state for the same public job after User A cleanup, and User A's authorized cleanup persisted. The supported mutation contract derives ownership from the JWT-backed Appwrite account, accepts no client-selected owner or action-document ID, and applies owner-only permissions. This closes the account-isolation and authorized cleanup boundary only; tracker deletion, broader Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI, and the `0 remote jobs / Not yet synced` diagnosis remain pending.
 
 ## 2026-08-10 Workspace Exposure (Production Verified)
 

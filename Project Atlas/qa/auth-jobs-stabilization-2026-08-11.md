@@ -1,13 +1,19 @@
 # Auth and Jobs Stabilization QA — 2026-08-11
 
-**Status:** `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`; LinkedIn and Jobs production QA remain pending
+**Status:** `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`; two-owner Jobs ownership verification closed; LinkedIn and remaining Jobs QA pending
 
 ## Current closeout (2026-08-13)
 
 * **Email verification:** `CLOSED`. The Appwrite Verification template was corrected to include a non-empty subject/body and `{{redirect}}`. One controlled resend was accepted by Appwrite through `email-service` with HTTP `200`, appeared in Resend, and reached `delivered`; the owner confirmed inbox receipt.
 * **Completion and welcome:** The real WiseResume verification link and explicit confirmation action completed Appwrite email verification, routed the user to onboarding, and caused a welcome email that Resend also recorded as delivered. No manual Appwrite verification, duplicate resend, secret inspection, or credential recording occurred.
 * **Current architecture:** authenticated user -> `email-service` -> official Appwrite verification lifecycle -> Appwrite Custom SMTP -> Resend -> Appwrite template with `{{redirect}}` -> explicit WiseResume confirmation -> Appwrite email verification true. Appwrite owns the token; Resend is transport; no custom parallel token path, direct Resend verification branch, or stale server-token helper is used.
-* **Still pending:** LinkedIn first-time and existing-user production verification; A->B->A account-state isolation; tracker deletion; Saved Jobs rendering; deleted-resume tombstone; populated Jobs UI; and read-only diagnosis of `0 remote jobs / Not yet synced`. Jobs remains `VISIBLE_PRODUCTION_FEATURE` and is not promoted by this email closeout.
+* **Still pending:** LinkedIn first-time and existing-user production verification; tracker deletion; broader Saved Jobs rendering; deleted-resume tombstone; populated Jobs UI; and read-only diagnosis of `0 remote jobs / Not yet synced`. Jobs remains `VISIBLE_PRODUCTION_FEATURE` and is not promoted by this email closeout.
+
+## Closed ownership verification (2026-08-09; reconciled 2026-08-13)
+
+* Two authorized identities completed an A-to-B-to-A account switch through the normal UI and full reloads. User A's saved job persisted, User B's independent saved state remained after User A's cleanup, and User A's authorized cleanup persisted.
+* No account identifiers, session material, or job fixture identifiers are recorded in Atlas.
+* The supported mutation implementation derives ownership from the active JWT-backed Appwrite account and applies owner-only permissions; the browser fallback uses the active authenticated user and the same derived action key.
 
 ## Release evidence
 

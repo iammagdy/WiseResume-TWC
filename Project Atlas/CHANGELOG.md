@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-13 - Final repository-state reconciliation
+
+- Reconciled the still-unmerged documentation-only commit `606ceddf` into current Atlas records without merging its historical branch wholesale.
+- Independently confirmed the current supported job-action contract: the Appwrite function derives the caller from a JWT-backed account, accepts no client-selected owner or action-document ID, derives the owner/action key, and assigns owner-only permissions. The browser fallback uses the active authenticated user and the same derived key.
+- Recorded the focused two-owner production evidence as closed for saved-job account isolation and authorized cleanup across reloads, without recording account or fixture identifiers.
+- Kept tracker deletion, broader Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI, LinkedIn, and `0 remote jobs / Not yet synced` diagnosis explicitly pending.
+- Corrected the stale `WHERE_WE_STOPPED.md` current-main reference by retaining `8fc45e010722f72ed7f3dc9a9f252eeb19045c83` only as the PR #179 synchronization baseline.
+- No product code, deployment, Appwrite configuration, Vercel configuration, secrets, or historical Git rewrite changed.
+
 ## 2026-08-13 - Email Verification Recovery Documentation Closeout
 
 - **Living-state reconciliation:** Updated the active handover, production snapshot, Auth/function specifications, Auth/Jobs stabilization QA report, and owner plain-language record to classify email verification as `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`.
