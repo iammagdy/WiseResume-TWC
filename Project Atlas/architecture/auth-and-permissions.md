@@ -1,6 +1,6 @@
 # Canonical Authentication & Permissions Specification
 
-**Last Verified:** 2026-07-21
+**Last Verified:** 2026-08-13
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/auth-and-permissions.md`  
 
@@ -12,9 +12,9 @@ WiseResume uses **Appwrite Auth** exclusively for user session management.
 
 * **Session Types:** Email/Password authentication, OAuth SSO providers (Google, GitHub), and secure OTP Password Resets.
 * **OTP Password Reset Flow:** Operates via server-side Appwrite function `email-service` and server-only collection `password_reset_otps` with timing-safe HMAC challenge tokens and 5-attempt rate-limiting.
-* **Email verification delivery (local 2026-08-11):** The authenticated `email-service` action makes exactly one official Appwrite Account verification request. Appwrite is the single source of truth for the token, Custom SMTP/Resend transport, template, and existing completion flow. Browser callers accept only explicit `success`, `delivery: 'appwrite'`, and `providerAccepted: true`; that means Appwrite accepted the request, not that an inbox received it. Verification secrets and Appwrite API keys never reach the browser, and no direct Resend verification branch or server-token helper is used.
-* **Production delivery verification (2026-08-11):** after the owner completed the server-side sender configuration, official workflow run `31481279174` redeployed the exact `email-service` target with source-hash alignment. No values were inspected. Actual inbox delivery remains unverified only because the disposable-inbox provider is unavailable to the current browser; no client-side bypass or manual verification is permitted.
-* **Observed delivery failure (2026-08-11):** an owner-monitored inbox received neither the initial verification send nor one permitted resend, despite client success results. Treat this as a provider/fallback hand-off investigation, not as proof of delivery. Read-only server/provider evidence is required before any sender, domain, DNS, or variable change.
+* **Email verification delivery (production verified 2026-08-13):** The authenticated `email-service` action makes exactly one official Appwrite Account verification request. Appwrite is the single source of truth for the token, Custom SMTP/Resend transport, template, and existing completion flow. Browser callers receive factual request acceptance only (`success`, `delivery: 'appwrite'`, `providerAccepted: true`); that does not itself claim inbox delivery. The function does not return a verification secret or Appwrite API key, and no direct Resend verification branch or server-token helper is used.
+* **Production evidence:** following correction of the Appwrite Verification template to include a non-empty subject/body and `{{redirect}}`, one controlled resend was accepted by Appwrite through `email-service` with HTTP `200`, recorded by Resend as `delivered`, and confirmed by the owner. The normal verification link and explicit WiseResume action completed the Appwrite lifecycle, marked the user verified, routed to onboarding, and sent a delivered welcome email. No manual Appwrite verification was used.
+* **Historical failure (2026-08-11):** earlier accepted sends did not reach the inbox and had no Resend event. That investigation is retained as historical evidence; its root cause was the malformed Appwrite Verification template, and it is no longer an owner-action or delivery blocker.
 * **OAuth recovery:** Appwrite user ID is the identity source of truth. A missing OAuth session is a session-completion failure; a profile-seed failure after a valid session must remain an authenticated recovery state, not be described as a provider login failure.
 
 ---

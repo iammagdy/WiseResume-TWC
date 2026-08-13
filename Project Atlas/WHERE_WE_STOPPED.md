@@ -1,17 +1,17 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-11
-**Status:** Email Verification Official Appwrite Lifecycle Ready for Owner Commit Review
+**Last Verified:** 2026-08-13
+**Status:** Email Verification Production Verified; LinkedIn and Jobs Production QA Remain Pending
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
-## Current owner-review hold (2026-08-11)
+## Current email-verification closeout (2026-08-13)
 
-* **Status:** `READY_FOR_OWNER_COMMIT_REVIEW` on `codex/fix-verification-delivery`. No commit, push, Appwrite deploy, Vercel deploy, secret/configuration edit, or provider setting change occurred.
-* **Verification contract:** `email-service` authenticates the current Appwrite user, makes exactly one official `POST /account/verifications/email` request, and returns success only when Appwrite accepts it. A read-only console gate confirms Custom SMTP is enabled and the Verification template has populated content; protected values were neither viewed nor changed. The client does not claim inbox delivery from that request.
-* **Removed behavior:** No server-side `POST /users/{userId}/verification`, verification-token/secret extraction, or direct Resend verification email remains. Password-reset and welcome-email behavior are unchanged.
-* **Validated locally:** syntax, focused runtime email tests, focused AuthPage suite (6/6), TypeScript, Vite production build/no-sourcemap check, source hash, and diff check passed. Required future Appwrite target: **`email-service` only**. Frontend changes require normal Vercel deployment after review.
+* **Final status:** `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`. The corrected Appwrite Verification template persisted with a non-empty subject, body, and required `{{redirect}}` variable. No manual Appwrite verification, duplicate resend, secret inspection, or credential recording occurred.
+* **Verified production path:** authenticated WiseResume user -> `email-service` -> official Appwrite email-verification lifecycle -> Appwrite Custom SMTP -> Resend -> Appwrite Verification template -> WiseResume verification link -> explicit confirmation action -> Appwrite email verification true. Appwrite owns the lifecycle and token; Resend is transport. No custom parallel token system, stale server-token helper, or direct Resend verification branch is active.
+* **Production evidence:** one controlled resend completed through `email-service` with HTTP `200`, Appwrite accepted the request, and Resend recorded the verification message as delivered. The owner confirmed receipt; the real link and explicit WiseResume action completed verification, routed to onboarding, and triggered a welcome email that Resend also recorded as delivered.
+* **Scope closed / still pending:** signup verification request handling, verification delivery and completion, and welcome-email delivery are closed. LinkedIn first-time and existing-user production verification remain pending. Jobs remains `VISIBLE_PRODUCTION_FEATURE`; A->B->A isolation, tracker deletion, Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI QA, and read-only diagnosis of `0 remote jobs / Not yet synced` remain separate pending work.
 
 ---
 
@@ -19,7 +19,7 @@
 
 * **Production Domain:** `https://wiseresume.app`
 * **Repository:** `iammagdy/WiseResume-TWC`
-* **Active Branch:** `main` at `fdbfb8dea8cc1c2eecbd941b21938d3eb11d7997` (AI runtime receipt CI wiring merged)
+* **Active Branch:** `main` at `cfcaf82e37eb10fe20693399a190e8a6626242b0` (official Appwrite verification lifecycle merged)
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
 * **Frontend Hosting:** Vercel. Current production is documentation-only deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for commit `e7e92aba0261a5e587c766654dc9bf601732072d`; latest verified code-bearing production remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
@@ -33,6 +33,8 @@
 
 ## 2. Latest Important Commits
 
+* **`cfcaf82e`** - `Merge pull request #178 from iammagdy/codex/fix-verification-delivery` - **OFFICIAL APPWRITE EMAIL-VERIFICATION LIFECYCLE MERGED; PRODUCTION DELIVERY NOW VERIFIED**
+* **`5225c130`** - Auth/jobs stabilization production release - **FRONTEND PRODUCTION DEPLOYED; REMAINING LINKEDIN AND JOBS QA IS SEPARATE**
 * **`fdbfb8de`** - `Merge pull request #173 from iammagdy/codex/ai-runtime-receipts-ci-schema` - **CI SCHEMA PROVISIONING MERGED; TARGETED APPWRITE RUNTIME VERIFIED**
 * **`6d07a24e`** - `Merge pull request #172 from iammagdy/codex/qa-runtime-observability-fixtures` - **RUNTIME RECEIPT OBSERVABILITY MERGED**
 * **`e7e92aba`** - `docs(atlas): record broadcast production verification` - **DOCUMENTATION PUSHED; DOCS-ONLY VERCEL DEPLOYMENT READY**
@@ -65,6 +67,14 @@
 ---
 
 ## 3. Where We Stopped & Current Active Focus
+
+* **Email verification recovery (2026-08-11 to 2026-08-13):** `CLOSED` as `EMAIL_VERIFICATION_PRODUCTION_VERIFIED`. The historical request/transport investigation concluded with the actual root cause: the Appwrite Verification template had whitespace-only subject and message fields and no `{{redirect}}`. After the approved template correction, one controlled resend completed through `email-service` with HTTP `200`, Appwrite accepted the request, and Resend recorded the message as delivered. The owner confirmed inbox receipt; the real verification link and explicit WiseResume action completed Appwrite verification and routed to onboarding. The welcome email was also sent and delivered. No manual verification or further owner action remains for email verification.
+
+* **Current Auth and Jobs scope:** Auth short-viewport scrolling, signup verification request handling, verification delivery/completion, and welcome-email delivery are closed. LinkedIn first-time and existing-user production verification remain pending. Jobs remains `VISIBLE_PRODUCTION_FEATURE`; A->B->A account-state isolation, tracker deletion, Saved Jobs rendering, deleted-resume tombstone, populated Jobs UI QA, and read-only diagnosis of `0 remote jobs / Not yet synced` remain pending and must not be promoted from this email closeout.
+
+### Historical email-recovery evidence (superseded as a current blocker)
+
+The dated entries immediately below preserve the investigation trail. Their `OWNER_ACTION_REQUIRED`, delivery-failure, fallback, and fixture-blocked classifications were resolved by the verified 2026-08-13 template correction and production proof above; they are not active email-verification status.
 
 * **Read-only verification-email trace (2026-08-11):** `OWNER_ACTION_REQUIRED`. Initial execution `6a7afac5396ba739be3a` (`200`, completed, `1s`) and cooldown-permitted resend execution `6a7afb564390b4d78def` (`200`, completed, `246ms`) both confirm the Appwrite fallback branch: the verification secret was unavailable to the function and Appwrite owned the mail request. Neither recorded a Resend send; read-only Resend activity found no matching recipient event. Strongest root cause: `APPWRITE_FALLBACK_NOT_DELIVERABLE`; secondary product issue: `FALSE EMAIL DELIVERY SUCCESS`. The owner must restore a usable Appwrite verification-mail template/mailer or make the branded Resend path available. No manual verification, additional account, inbox access, secret inspection, code, deployment, or configuration mutation occurred.
 
