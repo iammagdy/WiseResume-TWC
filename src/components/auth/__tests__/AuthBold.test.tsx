@@ -120,6 +120,24 @@ describe('AuthBold', () => {
     });
   });
 
+  it('submits actual DOM values when React state is stale and no input handler fires', () => {
+    const onSubmit = vi.fn();
+    renderWithProviders(<AuthBold mode="signin" email="" password="" onSubmit={onSubmit} />);
+
+    const emailInput = screen.getByPlaceholderText('you@email.com') as HTMLInputElement;
+    const passwordInput = screen.getByPlaceholderText('••••••••') as HTMLInputElement;
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    nativeValueSetter?.call(emailInput, 'user@example.com');
+    nativeValueSetter?.call(passwordInput, '  p@ss word  ');
+
+    fireEvent.submit(screen.getByRole('form'));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      password: '  p@ss word  ',
+    });
+  });
+
   it('shows an error pill when error prop is set', () => {
     renderWithProviders(
       <AuthBold mode="signin" error="Invalid email or password." onSubmit={vi.fn()} />,
