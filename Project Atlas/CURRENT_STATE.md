@@ -16,6 +16,16 @@
 * **Evidence boundary:** Direct independent equality for every protected Function aggregate was not established because raw response bodies were not replayed or retained. No code, Appwrite, schema, permission, environment, secret, deployment, account, production-data, or destructive DevKit action was changed.
 * **Report:** [`reports/devkit/2026-08-14-live-data-verification.md`](./reports/devkit/2026-08-14-live-data-verification.md)
 
+## DevKit Phase 1 fix branch (2026-08-14)
+
+* **Status:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Branch `fix/devkit-phase1-live-data`, implementation commit `c1600bc0a176b6af4911aefa94cfd82364532ea6`, created from clean `main`.
+* **Scope:** Exact unverified Auth totals with an explicitly labelled ten-user sample; null-preserving backend failure semantics; effective-plan zero preservation; separate AI transport reachability and stored completion/key/model health; truthful actual usage sample and Unknown/Unattributed rows; bounded App Overview and Onboarding terminal states.
+* **Validation:** Focused Phase 1 suite passed with 1 file and 4 tests; `npx tsc --noEmit`, changed-hub `node --check`, `git diff --check`, and `npm run build` passed. Existing Vite large-chunk warnings remain non-blocking.
+* **Deployment drift:** Production read-only inspection confirmed `ai-gateway` and `admin-devkit-data` `Needs Redeploy`. `ai-gateway` is legacy PR #181 debt; `admin-devkit-data` has PR #181 drift plus this branch’s new changes. `admin-onboarding-funnel` was live `In Sync` before this branch and now requires a targeted deploy for its new backend error propagation. `email-service` remains a PR #181 targeted candidate, but distinct live parity was not visible in the fresh Functions slice; visible `admin-email` was `In Sync`.
+* **Future targeted deploys:** `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and the PR #181 `email-service` candidate after exact-ID/status confirmation. No `target=all` operation is approved.
+* **Boundary:** No PR, merge, deployment, Appwrite change, schema/permission change, secret/environment change, account change, production-data change, or destructive DevKit action occurred.
+* **Report:** [`reports/devkit/2026-08-14-phase1-fix.md`](./reports/devkit/2026-08-14-phase1-fix.md)
+
 ## 1. System Overview
 
 WiseResume is a full-stack, Appwrite-native application for resume building, AI tailoring, cover letter generation, and portfolio publishing.

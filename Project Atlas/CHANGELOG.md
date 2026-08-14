@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - DevKit Phase 1 Fix Branch (Implemented, Validated, Not Deployed)
+
+- **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Branch `fix/devkit-phase1-live-data` was created from clean `main`; implementation commit `c1600bc0a176b6af4911aefa94cfd82364532ea6` contains only the scoped DevKit application, backend, generated-hash, and regression-test changes.
+- **Implementation:** Exact unverified Auth totals are returned separately from the explicitly labelled ten-user sample; backend failures render as unavailable/partial/error rather than fake zero or empty success; effective-plan Premium/Pro counts preserve legitimate zero; AI transport reachability is separated from stored completion/key/model health; the usage panel reports the actual returned sample and Unknown/Unattributed records; App Overview and Onboarding have bounded terminal loading, success, empty, error, and timeout states.
+- **Validation:** Focused Phase 1 suite passed (`1` file / `4` tests), `npx tsc --noEmit` passed, changed-hub `node --check` passed, `git diff --check` passed, and `npm run build` passed. Existing Vite large-chunk warnings remain non-blocking.
+- **Deployment drift:** Read-only production inspection confirmed `ai-gateway` and `admin-devkit-data` `Needs Redeploy`. `ai-gateway` is legacy PR #181 deployment debt; `admin-devkit-data` has the PR #181 drift plus this branch’s new changes. `admin-onboarding-funnel` was live `In Sync` before this branch and now needs a targeted deploy for the new error propagation. Distinct `email-service` status was not visible in the fresh loaded slice; visible `admin-email` was `In Sync`, so the PR #181 `email-service` target requires exact-ID/status confirmation.
+- **Future deployment:** Obtain owner approval and use only targeted Appwrite deployments for `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and the confirmed PR #181 `email-service` target. Do not use `target=all`; run the required workflow/preflight for the PR #181-affected hubs.
+- **Boundary:** No PR opened, merge performed, Appwrite deployment, Vercel deployment, schema/permission change, secret/environment change, account change, production-data change, or destructive DevKit action occurred.
+- **Report:** [`reports/devkit/2026-08-14-phase1-fix.md`](./reports/devkit/2026-08-14-phase1-fix.md)
+
 ## 2026-08-14 - DevKit Live Data Verification
 
 - **Verdict:** `LIVE_PARTIALLY_VERIFIED_WITH_CONFIRMED_MISMATCHES`. Authenticated production DevKit verification was completed read-only. Core panels loaded or returned explicit states, while App Overview and Onboarding remained skeleton/unavailable.
