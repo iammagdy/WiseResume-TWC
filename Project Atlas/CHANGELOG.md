@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - Final Production Login Verification
+
+- **Verdict:** `PRODUCTION_LOGIN_VERIFIED_WITH_UNVERIFIED_FAILURE_PATHS`. The canonical production site `https://wiseresume.app` served the merged login behavior: the live `AuthPage-e5sPUydC.js` chunk contained the safe classifier strings and the live `AuthBold-CDoi4g_q.js` chunk contained `name="email"`, `name="password"`, and `onInput` submission markers.
+- **Deployment:** Atlas identifies the current production Vercel deployment as `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX`, status `READY`, with production aliases. The public production response returned HTTP 200 from Vercel. The public response does not expose a commit SHA, so the runtime-to-Git SHA mapping is recorded as verified by served bundle markers rather than by a public header.
+- **Successful login:** PASS. Authorized credentials redirected to `https://wiseresume.app/dashboard`; the authenticated workspace rendered with the signed-in account and normal navigation.
+- **Invalid credentials:** PASS. A deliberately invalid, non-user pair displayed only `Invalid email or password. You can reset your password if needed.` No raw Appwrite error, credential, token, or internal detail appeared in the UI.
+- **Input handling:** PASS for the observed successful login using the requested surrounding-email-whitespace path, based on dashboard redirect; the deployed bundle preserves exact password handoff and applies `.trim()` only to the email. Direct byte-level capture of the real submitted password was not performed.
+- **Safe diagnostics:** PASS for the observed browser session; the console contained no output after the verified login, and no credential or token logging was observed.
+- **Unverified paths:** Rate-limit, network/service-failure, and unknown-auth-error UI paths were not intentionally triggered in production. Autofill/password-manager causation remains `UNCONFIRMED`.
+- **Boundary:** No code, Appwrite, schema, permissions, environment variables, secrets, accounts, production data, or manual deployment were changed.
+
 ## 2026-08-14 - PR #183 Merged; Login Fix Deployment Pending
 
 - **Merge result:** PR #183 (`fix/login-error-classification` → `main`) was merged successfully with merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076`. The two login-fix commits `f29e612f` and `1f38dbb` are contained in `main`.

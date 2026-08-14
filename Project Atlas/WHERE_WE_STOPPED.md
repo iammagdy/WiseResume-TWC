@@ -1,20 +1,30 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-14
-**Status:** `MERGED_PENDING_DEPLOYMENT` — PR #183 merged into `main`; Vercel deployment and live login verification remain pending; Appwrite is unchanged
+**Status:** `PRODUCTION_LOGIN_VERIFIED_WITH_UNVERIFIED_FAILURE_PATHS` — PR #183 is merged into `main`; production served the merged login behavior and successful/invalid-credential checks passed; Appwrite is unchanged
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
 ## Email/password login closeout (2026-08-14)
 
+### Final production verification (2026-08-14)
+
+* **Production deployment:** The canonical site `https://wiseresume.app` returned HTTP 200 from Vercel. Atlas identifies the current Vercel deployment as `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX`, status `READY`, with production aliases. The public response did not expose a commit SHA; the merged behavior was verified from the served AuthPage/AuthBold asset markers.
+* **Successful login:** `PASS`. Authorized credentials redirected to `https://wiseresume.app/dashboard`, and the authenticated workspace rendered normally.
+* **Invalid credentials:** `PASS`. A deliberately invalid non-user pair displayed only the generic `Invalid email or password. You can reset your password if needed.` message. No raw Appwrite error, credential, token, or internal detail appeared.
+* **Email/password handling:** The deployed bundle includes email-only `.trim()` and exact password handoff. The observed successful login used the requested surrounding-email-whitespace path, but direct byte-level capture of the real submitted password was not performed.
+* **Safe diagnostics:** `PASS` for the observed session; no console output or credential/token logging was observed after login.
+* **Unverified:** Rate-limit, network/service-failure, and unknown-auth-error UI paths were not intentionally triggered in production. Autofill/password-manager causation remains `UNCONFIRMED`.
+
+
 * **Merge:** PR #183 (`fix/login-error-classification` → `main`) merged successfully with merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076`. Final `main` contains both login-fix commits `f29e612f` and `1f38dbb`.
 * **Confirmed root cause:** The production email/password login path masked every Appwrite/authentication exception as `Invalid email or password`, so users could not distinguish invalid credentials from network, rate-limit, service, or unknown failures.
 * **Merged behavior:** Safe user-facing authentication error classification, credential-safe diagnostics, submit-time DOM reconciliation for stale controlled/autofill/password-manager values, email surrounding-whitespace trimming only, and exact password preservation.
 * **Historical boundary:** Autofill/password-manager state mismatch remains `UNCONFIRMED` as the cause of the historical incident. The verified root cause is login error masking.
 * **Validation:** Required PR checks completed successfully; focused authentication tests, TypeScript validation, `git diff --check`, and production build passed. The non-required TestSprite pre-check reported `No tests detected` and did not block merge.
-* **Deployment:** `MERGED_PENDING_DEPLOYMENT`. No Appwrite change, schema/permission change, secret/environment change, manual Vercel deployment, or production-data change occurred. The normal Vercel integration may deploy from `main`; live login verification remains pending.
-* **Stop point:** Main is merged and documentation closeout is complete. The next action is to observe/verify the normal Vercel deployment and then perform read-only production login verification; do not change Appwrite or claim the historical autofill hypothesis as proven.
+* **Deployment:** `PRODUCTION_LOGIN_VERIFIED_WITH_UNVERIFIED_FAILURE_PATHS`. No Appwrite change, schema/permission change, secret/environment change, manual Vercel deployment, or production-data change occurred. The current Vercel deployment is recorded as `READY`; runtime-to-Git SHA mapping is not exposed by the public response and is supported by served bundle markers.
+* **Stop point:** Main is merged and final read-only production login verification is complete for deployment identity, successful login, invalid credentials, input-handling markers, and safe diagnostics. Do not change Appwrite or claim the historical autofill hypothesis as proven. Optional future QA may exercise rate-limit/network/service/unknown-error presentation in a non-production environment.
 
 ---
 
