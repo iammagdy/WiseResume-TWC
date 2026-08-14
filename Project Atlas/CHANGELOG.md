@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - Public Repository P2 Security Remediation (Local, Not Deployed)
+
+- **Classification:** `PASS_WITH_WARNINGS`; all seven P2 findings from the public-repository audit were remediated and tested locally. No P0 or P1 issue was discovered during remediation, and the corrected audit count is seven P2 findings rather than six.
+- **Dependency and routing:** Upgraded `react-router` and `react-router-dom` to `7.18.2` without changing the declarative routing architecture or redirect-sanitization contract.
+- **Backend security:** Replaced AI quota read-check-write counters with Appwrite atomic reservations and release paths; replaced password-reset `Math.random()` OTP generation with `crypto.randomInt`; added nonce-bound single-use internal reset HMAC requests; and added durable PDF rate/concurrency leases plus bounded inputs, output, segments, height, and render time to the production Vercel route `api/export/pdf-native.ts`.
+- **Anonymous identity and testing:** Centralized Vercel client-IP extraction through `@vercel/functions`; updated all reviewed anonymous Vercel routes; repaired stale security contract tests; added concurrency, OTP/replay, PDF, and trusted-IP tests; and added the secret-free path-filtered `.github/workflows/security-validation.yml` workflow.
+- **Schema:** Added repository-controlled setup definitions for `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`, including expiry indexes and server-only permissions. No production schema mutation occurred.
+- **Validation:** `node scripts/compute-source-hashes.mjs`, `git diff --check`, `npx tsc --noEmit`, `npm run build`, `npx vitest run src/lib/security` (`24` files / `126` tests passed), and `node --check` for `ai-gateway`, `email-service`, and `admin-devkit-data` all passed.
+- **Deployment:** `NOT_DEPLOYED`. Owner approval is required before the official targeted Appwrite workflow deploys exactly `ai-gateway`, `email-service`, and `admin-devkit-data`, followed by the repository-controlled schema setup. The normal Vercel integration is required after merge. No `target=all` deployment was used.
+- **Residual owner actions:** After deployment, verify Vercel edge handling with a normal-versus-spoofed-IP-header integration test; enable GitHub Secret Scanning and Push Protection. No production or edge verification is claimed.
+
 ## 2026-08-13 - Final repository-state reconciliation
 
 - Reconciled the still-unmerged documentation-only commit `606ceddf` into current Atlas records without merging its historical branch wholesale.

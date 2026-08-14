@@ -117,9 +117,43 @@ async function main() {
     { key: 'idx_pdu_date',  type: IndexType.Key, attributes: ['date'],          orders: ['DESC'] },
   ]);
 
+  await ensureCollection('chat_sessions', 'Chat Sessions', [
+    { type: 'integer', key: 'question_count', required: true, min: 0, max: 10, defaultVal: 0 },
+  ]);
+
+  await ensureCollection('admin_reset_request_nonces', 'Admin Reset Request Nonces', [
+    { type: 'string', key: 'nonce',          required: true, size: 128 },
+    { type: 'string', key: 'target_user_id', required: true, size: 64 },
+    { type: 'string', key: 'target_email',   required: true, size: 254 },
+    { type: 'string', key: 'actor_user_id',  required: false, size: 64 },
+    { type: 'string', key: 'created_at',     required: true, size: 32 },
+    { type: 'string', key: 'expires_at',     required: true, size: 32 },
+  ], [
+    { key: 'idx_arn_expires', type: IndexType.Key, attributes: ['expires_at'], orders: ['ASC'] },
+  ]);
+
   await ensureCollection('credit_locks', 'Credit Locks', [
     { type: 'string', key: 'locked_at',      required: true,  size: 32 },
     { type: 'string', key: 'lock_expires_at',required: true,  size: 32 },
+  ]);
+
+  await ensureCollection('pdf_export_rate_limits', 'PDF Export Rate Limits', [
+    { type: 'string',  key: 'owner_user_id', required: true, size: 64 },
+    { type: 'string',  key: 'window_key',    required: true, size: 32 },
+    { type: 'integer', key: 'slot',          required: true, min: 0, max: 10 },
+    { type: 'datetime', key: 'expires_at',   required: true },
+  ], [
+    { key: 'idx_perl_expires', type: IndexType.Key, attributes: ['expires_at'], orders: ['ASC'] },
+  ]);
+
+  await ensureCollection('pdf_export_active_leases', 'PDF Export Active Leases', [
+    { type: 'string',  key: 'owner_key',  required: true, size: 64 },
+    { type: 'string',  key: 'scope',      required: true, size: 64 },
+    { type: 'integer', key: 'slot',       required: true, min: 0, max: 16 },
+    { type: 'datetime', key: 'created_at', required: true },
+    { type: 'datetime', key: 'expires_at', required: true },
+  ], [
+    { key: 'idx_pael_expires', type: IndexType.Key, attributes: ['expires_at'], orders: ['ASC'] },
   ]);
 
   console.log('[setup] Done.');

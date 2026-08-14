@@ -1,8 +1,20 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-13
-**Status:** Email Verification Production Verified; LinkedIn and Jobs Production QA Remain Pending
+**Last Verified:** 2026-08-14
+**Status:** `PASS_WITH_WARNINGS` — public-repository P2 remediation tested locally; deployment and external edge verification pending
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+---
+
+## Public-repository P2 remediation closeout (2026-08-14)
+
+* **Scope:** Remediation branch `security/public-audit-p2-remediation`, based on the public-audit baseline `main` at `71b2864a5bb09b4082729db59950e2dc778abba3`. The corrected audit interpretation is seven P2 findings, with no P0 or P1 discovered during remediation.
+* **Implementation status:** All seven P2 code/test gaps were addressed locally: React Router `7.18.2`; atomic AI quota reservation and release; cryptographic reset OTPs; nonce-bound, single-use internal reset HMAC requests; durable PDF rate/concurrency and input/output bounds in the production Vercel route; trusted Vercel IP extraction across anonymous routes; and a reliable security suite with a path-filtered, secret-free CI workflow.
+* **Schema status:** The repository-controlled setup script now provisions `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases` with expiry indexes and server-only permissions. Production schema application has not occurred.
+* **Validation:** `git diff --check`, `npx tsc --noEmit`, `npm run build`, the security suite (`24` files / `126` tests), three changed-hub `node --check` commands, and source-hash regeneration all passed locally.
+* **Deployment state:** `NOT_DEPLOYED`. The exact Appwrite targets requiring the approved targeted workflow are `ai-gateway`, `email-service`, and `admin-devkit-data`; the schema setup script must run afterward through the approved repository-controlled process. The normal Vercel integration is required after review and merge. No `target=all` deployment was used.
+* **Owner actions:** After deployment, verify that Vercel does not allow caller-supplied IP headers to change the trusted client identity using a normal-versus-spoofed-header integration test. Enable GitHub Secret Scanning and Push Protection. These external checks are not claimed as verified from the sandbox.
+* **Stop point:** No commit, push, Appwrite deployment, Vercel deployment, schema mutation, or production configuration change was performed in this session until owner review and authorization.
 
 ---
 

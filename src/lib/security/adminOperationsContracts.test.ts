@@ -17,8 +17,8 @@ describe('DevKit admin operations contracts', () => {
     expect(schema).toContain('if (index.required) throw error;');
     expect(schema).not.toContain('nonce_unique');
     expect(workflow).toContain('node scripts/setup_impersonation_sessions_schema.cjs');
-    expect(workflow).toContain("contains(github.event.inputs.target, 'admin-devkit-data')");
-    expect(workflow).toContain("contains(github.event.inputs.target, 'admin-impersonate')");
+    expect(workflow).toContain("contains(fromJSON(steps.targets.outputs.targets_json), 'admin-devkit-data')");
+    expect(workflow).toContain("contains(fromJSON(steps.targets.outputs.targets_json), 'admin-impersonate')");
   });
 
   it('keeps identity collision behavior suspension-only and guarded', () => {

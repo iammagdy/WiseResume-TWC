@@ -109,7 +109,7 @@ describe('Admin Password Reset Link Flow & Security Contracts', () => {
       actor_user_id: 'usr_admin_001',
     };
 
-    const { timestamp, signature } = signInternalRequest(payload);
+    const { timestamp, nonce, signature } = signInternalRequest(payload);
 
     const validBody = {
       action: 'internal-send-admin-password-reset-link',
@@ -117,6 +117,7 @@ describe('Admin Password Reset Link Flow & Security Contracts', () => {
       target_user_id: payload.target_user_id,
       target_email: payload.target_email,
       actor_user_id: payload.actor_user_id,
+      nonce,
       signature,
     };
 

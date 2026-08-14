@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Databases, Query } from 'node-appwrite';
 import { createHash, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcryptjs';
+import { getTrustedVercelClientIp } from './_lib/trustedClientIp.js';
 import { safeCssColor } from '../src/lib/security/cssColor.js';
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -54,11 +55,7 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 function getClientIp(req: VercelRequest): string {
-  const vercelForwarded = req.headers['x-vercel-forwarded-for'];
-  if (typeof vercelForwarded === 'string') return vercelForwarded.split(',')[0]?.trim() || 'unknown';
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
-  return 'unknown';
+  return getTrustedVercelClientIp(req);
 }
 
 async function portfolioPasswordAttemptId(username: string, ip: string): Promise<string> {

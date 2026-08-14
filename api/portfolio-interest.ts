@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Databases, Query, Permission, Role, ID } from 'node-appwrite';
 import { createHash } from 'crypto';
+import { getTrustedVercelClientIp } from './_lib/trustedClientIp.js';
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID =
@@ -38,11 +39,7 @@ function asString(value: unknown): string {
 }
 
 function getClientIp(req: VercelRequest): string {
-  const vercelForwarded = req.headers['x-vercel-forwarded-for'];
-  if (typeof vercelForwarded === 'string') return vercelForwarded.split(',')[0]?.trim() || 'unknown';
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
-  return 'unknown';
+  return getTrustedVercelClientIp(req);
 }
 
 const RATE_LIMIT_COLLECTION = 'portfolio_session_rate_limits';
