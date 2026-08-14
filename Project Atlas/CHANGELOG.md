@@ -4,6 +4,7 @@
 
 - **Merge result:** PR #181 (`security/public-audit-p2-remediation` → `main`) was merged successfully with merge commit `6acb230f2948653826b73c64877bec3617c1bead`. The complete remediation commit `432409d0b3e5a8ca8ce320ae41409f93db085c38` is contained in `main`.
 - **Documentation reconciliation:** Atlas now records all seven P2 fixes, the final Appwrite/PDF blocker corrections, the passing local validation matrix, and the targeted-workflow requirement to provision schema before deploying `ai-gateway`, `email-service`, or `admin-devkit-data`.
+- **Checks:** Required PR checks `Typecheck + portfolio tests` and `Security regression suite` completed successfully. The non-required `TestSprite Pre-Check` reported `No tests detected` and did not block the merge.
 - **Deployment boundary:** Status is `MERGED_PENDING_DEPLOYMENT`. No Appwrite deployment, Vercel deployment, production schema mutation, secret/environment change, or `target=all` operation occurred.
 - **Remaining owner actions:** Deploy the approved Appwrite hubs through the targeted workflow, allow the normal Vercel integration after review, perform live trusted-Vercel-IP verification against spoofed headers, and enable GitHub Secret Scanning and Push Protection.
 
