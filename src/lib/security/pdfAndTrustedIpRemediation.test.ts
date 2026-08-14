@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, afterEach } from 'vitest';
 import { getTrustedVercelClientIp } from '../../../api/_lib/trustedClientIp';
+import { createAppwriteDocumentId } from '../../../api/_lib/appwriteDocumentId';
 
 const pdfSource = readFileSync(resolve(process.cwd(), 'api/export/pdf-native.ts'), 'utf8');
 const trustedIpSource = readFileSync(resolve(process.cwd(), 'api/_lib/trustedClientIp.ts'), 'utf8');
@@ -42,8 +43,21 @@ describe('production PDF abuse controls', () => {
     expect(pdfSource).toContain("return res.status(503).json({ error: 'limiter_unavailable'");
     expect(pdfSource).toContain('withPdfTimeout(renderHtmlToPdfBuffer(');
     expect(pdfSource).toContain('await releasePdfLease(pdfDb, userLeaseId);');
+    expect(pdfSource).toContain('cleanupExpiredPdfRateLimits');
+    expect(pdfSource).toContain('Query.lessThan');
     expect(pdfSource.indexOf('claimPdfRateSlot')).toBeLessThan(pdfSource.indexOf('puppeteer.launch'));
     expect(pdfSource).toContain('isPuppeteerRequestUrlAllowed');
     expect(pdfSource).not.toMatch(/new Map\s*<.*pdf/i);
+  });
+
+  it('creates deterministic Appwrite-safe document IDs within the 36-character limit', () => {
+    const first = createAppwriteDocumentId('rate', 'owner-with-a-long-window-scope-and-timestamp', 4);
+    const second = createAppwriteDocumentId('rate', 'owner-with-a-long-window-scope-and-timestamp', 4);
+    const differentSlot = createAppwriteDocumentId('rate', 'owner-with-a-long-window-scope-and-timestamp', 5);
+
+    expect(first).toBe(second);
+    expect(first).not.toBe(differentSlot);
+    expect(first).toHaveLength(32);
+    expect(first).toMatch(/^[A-Za-z0-9._-]{1,36}$/);
   });
 });

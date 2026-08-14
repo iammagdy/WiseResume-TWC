@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - PR #181 Appwrite/PDF Blocker Corrections
+
+- **Appwrite IDs:** Replaced long PDF rate-slot and lease document IDs with deterministic 32-character lowercase-hex IDs, with regression tests covering determinism, length, and allowed characters.
+- **Chat-session schema:** Changed `chat_sessions.question_count` to an optional integer without a default, because Appwrite rejects `required: true` with `default: 0`. The AI gateway backfills missing legacy counters to zero before atomic reservation.
+- **Schema readiness:** Updated `scripts/setup-security-collections.cjs` to poll attributes until Appwrite reports `available` before creating dependent indexes; the setup script comment now correctly states it runs before affected hub deployment.
+- **PDF cleanup:** Added bounded best-effort deletion of expired `pdf_export_rate_limits` records through the indexed `expires_at` field.
+- **Validation:** Focused security tests passed (`24` files / `129` tests), `npx tsc --noEmit`, `npm run build`, `node --check` for the setup script and changed hub, `git diff --check`, and source-hash regeneration all passed. No merge or deployment occurred.
+- **Git state:** Before this pass, the branch was three commits ahead of `origin/main`; this correction is the fourth commit on `security/public-audit-p2-remediation`.
+
 ## 2026-08-14 - Appwrite Security Schema Sequencing Correction
 
 - **Deployment sequencing:** Updated `.github/workflows/deploy-appwrite-hubs.yml` so the official targeted workflow runs `scripts/setup-security-collections.cjs` before deploying any selected affected hub: `ai-gateway`, `email-service`, or `admin-devkit-data`. The workflow continues to validate explicit targets and does not permit `target=all`.

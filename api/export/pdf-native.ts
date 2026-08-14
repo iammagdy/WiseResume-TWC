@@ -11,9 +11,10 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash } from 'node:crypto';
-import { Client, Databases } from 'node-appwrite';
+import { Client, Databases, Query } from 'node-appwrite';
 import chromium from '@sparticuz/chromium';
 import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards.js';
+import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId';
 // The static Chromium import is intentional: Vercel's file tracer must see the
 // dependency so it ships the package and its compressed browser binaries.
 // Keep puppeteer-core lazy because simple validation responses do not need it.
@@ -57,6 +58,7 @@ const PDF_MAX_CUSTOM_BREAKS = 100;
 const PDF_MAX_CONTENT_HEIGHT_PX = 100_000;
 const PDF_MAX_SEGMENTS = 50;
 const PDF_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
+const PDF_RATE_CLEANUP_BATCH_SIZE = 100;
 const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const APPWRITE_PROJECT_ID =
   process.env.APPWRITE_PROJECT_ID ||
@@ -108,12 +110,35 @@ function isNotFoundError(error: unknown): boolean {
   return candidate.code === 404 || /could not be found|not found/i.test(candidate.message || '');
 }
 
+async function cleanupExpiredPdfRateLimits(db: Databases, now = Date.now()): Promise<void> {
+  try {
+    const expired = await db.listDocuments(APPWRITE_DATABASE_ID, PDF_RATE_LIMIT_COLLECTION, [
+      Query.lessThan('expires_at', new Date(now).toISOString()),
+      Query.limit(PDF_RATE_CLEANUP_BATCH_SIZE),
+    ]);
+    for (const document of expired.documents || []) {
+      try {
+        await db.deleteDocument(APPWRITE_DATABASE_ID, PDF_RATE_LIMIT_COLLECTION, document.$id);
+      } catch (error) {
+        if (!isNotFoundError(error)) {
+          console.warn('[pdf] expired rate-limit cleanup failed:', (error as { code?: number }).code ?? 'unknown');
+        }
+      }
+    }
+  } catch (error) {
+    // Cleanup is best effort; limiter admission remains fail-closed if its
+    // deterministic slot writes cannot be completed.
+    console.warn('[pdf] expired rate-limit listing failed:', (error as { code?: number }).code ?? 'unknown');
+  }
+}
+
 async function claimPdfRateSlot(db: Databases, userId: string, now = Date.now()): Promise<string | null> {
+  await cleanupExpiredPdfRateLimits(db, now);
   const windowStart = Math.floor(now / PDF_RATE_WINDOW_MS) * PDF_RATE_WINDOW_MS;
   const prefix = `${hashPdfKey(userId)}-${windowStart}`;
   const expiresAt = new Date(windowStart + PDF_RATE_WINDOW_MS).toISOString();
   for (let slot = 0; slot < PDF_RATE_LIMIT; slot += 1) {
-    const documentId = `${prefix}-${slot}`;
+    const documentId = createAppwriteDocumentId('rate', prefix, slot);
     try {
       await db.createDocument(APPWRITE_DATABASE_ID, PDF_RATE_LIMIT_COLLECTION, documentId, {
         owner_user_id: userId,
@@ -138,7 +163,7 @@ async function claimPdfLease(
 ): Promise<string | null> {
   const expiresAt = new Date(now + PDF_LEASE_TTL_MS).toISOString();
   for (let slot = 0; slot < limit; slot += 1) {
-    const documentId = `${prefix}-${slot}`;
+    const documentId = createAppwriteDocumentId('lease', prefix, slot);
     try {
       await db.createDocument(APPWRITE_DATABASE_ID, PDF_ACTIVE_LEASES_COLLECTION, documentId, {
         owner_key: ownerKey,

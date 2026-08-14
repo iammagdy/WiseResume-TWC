@@ -25,6 +25,14 @@ class AtomicCounterDb {
     return { ...document };
   }
 
+  async updateDocument(_databaseId: string, collectionId: string, documentId: string, data: Record<string, unknown>) {
+    const key = this.key(collectionId, documentId);
+    const document = this.documents.get(key);
+    if (!document) throw Object.assign(new Error('Document not found'), { code: 404 });
+    Object.assign(document, data);
+    return { ...document };
+  }
+
   async incrementDocumentAttribute(
     _databaseId: string,
     collectionId: string,
@@ -65,6 +73,16 @@ class AtomicCounterDb {
 }
 
 describe('public portfolio AI quota concurrency', () => {
+  it('backfills a legacy chat session counter before reserving its first slot', async () => {
+    const db = new AtomicCounterDb();
+    await db.createDocument('main', 'chat_sessions', 'legacy-session', {});
+
+    const result = await aiGateway.__test.validatePortfolioSession(db, 'legacy-session');
+
+    expect(result).toMatchObject({ ok: true });
+    expect(db.count('chat_sessions', 'legacy-session', 'question_count')).toBe(1);
+  });
+
   it('never admits more than ten simultaneous questions for one chat session', async () => {
     const db = new AtomicCounterDb();
     await db.createDocument('main', 'chat_sessions', 'session-concurrency-test', {

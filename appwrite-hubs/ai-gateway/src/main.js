@@ -331,7 +331,18 @@ async function reserveCounterSlot(db, {
     return { ok: false, unavailable: true };
   }
 
-  const current = Number(doc?.[attribute]);
+  let currentValue = doc?.[attribute];
+  if (currentValue === undefined || currentValue === null) {
+    try {
+      doc = await db.updateDocument(DB_ID, collectionId, documentId, { [attribute]: 0 });
+      currentValue = doc?.[attribute];
+    } catch (backfillError) {
+      console.warn(`[ai-gateway][warn] quota counter ${collectionId}.${attribute} backfill failed: ${backfillError.message}`);
+      return { ok: false, unavailable: true };
+    }
+  }
+
+  const current = Number(currentValue);
   if (!Number.isInteger(current) || current < 0) {
     console.warn(`[ai-gateway][warn] quota counter ${collectionId}.${attribute} is missing or invalid`);
     return { ok: false, unavailable: true };
@@ -1439,13 +1450,6 @@ async function validatePortfolioSession(db, sessionToken) {
   }
   try {
     const doc = await db.getDocument(DB_ID, CHAT_SESSIONS_COLLECTION_ID, sessionToken);
-    if (!Number.isInteger(doc.question_count) || doc.question_count < 0) {
-      console.warn('[ai-gateway][warn] chat_sessions.question_count is missing or invalid; rejecting the request closed.');
-      return { ok: false, status: 503, code: 'session_quota_unavailable', message: 'Unable to validate the portfolio chat limit right now. Please try again shortly.' };
-    }
-    if (doc.question_count >= PORTFOLIO_MAX_QUESTIONS) {
-      return { ok: false, status: 429, code: 'session_limit_reached', message: 'Question limit reached for this portfolio session.' };
-    }
     const reservation = await reserveCounterSlot(db, {
       collectionId: CHAT_SESSIONS_COLLECTION_ID,
       documentId: doc.$id,
