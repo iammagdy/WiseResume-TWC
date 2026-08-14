@@ -24,7 +24,7 @@ The remediation rechecked the original public-repository audit baseline at `main
 
 ### Appwrite schema and deployment boundary
 
-The repository-controlled setup script adds idempotent server-side collections for `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`, including the required attributes and expiry indexes. These schema changes have **not** been applied to production from this session. The official targeted Appwrite workflow must deploy exactly `ai-gateway`, `email-service`, and `admin-devkit-data`; the setup script must then be run through the approved repository-controlled process. The prohibited `target=all` form was not used.
+The repository-controlled setup script adds idempotent server-side collections for `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`, including the required attributes and expiry indexes. These schema changes have **not** been applied to production from this session. The official targeted Appwrite workflow now runs `scripts/setup-security-collections.cjs` **before** deploying any affected hub and deploys exactly `ai-gateway`, `email-service`, and `admin-devkit-data` when selected. The prohibited `target=all` form was not used. Before this final correction, the branch was two commits ahead of `origin/main`; this workflow and Atlas correction is the third branch commit.
 
 The frontend/API code has also not been deployed from this session. After review and merge, the normal Vercel integration is required for the Vercel route and trusted-IP helper changes. No production verification is claimed.
 

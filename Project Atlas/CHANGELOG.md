@@ -1,12 +1,20 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - Appwrite Security Schema Sequencing Correction
+
+- **Deployment sequencing:** Updated `.github/workflows/deploy-appwrite-hubs.yml` so the official targeted workflow runs `scripts/setup-security-collections.cjs` before deploying any selected affected hub: `ai-gateway`, `email-service`, or `admin-devkit-data`. The workflow continues to validate explicit targets and does not permit `target=all`.
+- **Schema boundary:** Production Appwrite schema and hub deployment remain unapplied. Schema provisioning is no longer documented as a manual after-deploy step; it is an automated pre-deployment gate in the targeted workflow.
+- **Git state:** The branch was two commits ahead of `origin/main` before this correction. This workflow and Atlas documentation correction is the third commit on `security/public-audit-p2-remediation`; no merge to `main` was performed.
+- **Validation:** Focused security tests passed (`24` files / `126` tests), `npx tsc --noEmit` passed, `node --check scripts/setup-security-collections.cjs` passed, `git diff --check` passed, and a static workflow assertion confirmed schema setup precedes hub deployment.
+
 ## 2026-08-14 - Public Repository P2 Security Remediation Final Check (Branch Pushed, Not Deployed)
 
 - **Final verification:** Re-ran `git diff --check`, `npx tsc --noEmit`, `npm run build`, the focused security suite (`24` files / `126` tests), and the complete repository suite (`189` files passed, `1` skipped; `1,088` tests passed, `8` skipped, `1` todo). All passed. Changed-hub syntax, Appwrite SDK schema API availability, and `npm audit --omit=dev` (`0` vulnerabilities) also passed.
 - **Compatibility:** The React Router v7 declarative route graph and auth/provider wiring remained intact; the full repository suite and production build passed without route/auth regressions. No unrelated code changes were found beyond the documented remediation, tests, CI, generated source hashes, dependencies, and Atlas records.
-- **Git state:** Commit `fdb58d6bba90c2b8c46c82ceb0c67199eb286c5e` was pushed to `security/public-audit-p2-remediation`, which remains one commit ahead of `origin/main`; no merge was performed.
+- **Git state:** Commit `fdb58d6bba90c2b8c46c82ceb0c67199eb286c5e` was pushed to `security/public-audit-p2-remediation`, which remains two commits ahead of `origin/main`; no merge was performed.
 - **Security boundary:** Appwrite schema definitions remain repository-only and were not applied. No Vercel deployment, Appwrite deployment, production configuration change, or secret exposure occurred.
-- **Owner actions:** Deploy only the approved Appwrite targets (`ai-gateway`, `email-service`, `admin-devkit-data`) after review, run the setup script for the four new collections/indexes, deploy Vercel through the normal integration after merge, verify trusted-IP behavior against spoofed headers, and enable GitHub Secret Scanning and Push Protection.
+- **Deployment sequencing:** The official targeted Appwrite workflow now runs `scripts/setup-security-collections.cjs` before deploying any selected affected hub (`ai-gateway`, `email-service`, or `admin-devkit-data`); it does not use `target=all`. Production schema and hub deployment remain unapplied from this task.
+- **Owner actions:** After review, use the targeted workflow for the approved Appwrite hubs, deploy Vercel through the normal integration after merge, verify trusted-IP behavior against spoofed headers, and enable GitHub Secret Scanning and Push Protection.
 
 ## 2026-08-14 - Public Repository P2 Security Remediation (Local, Not Deployed)
 
@@ -16,7 +24,7 @@
 - **Anonymous identity and testing:** Centralized Vercel client-IP extraction through `@vercel/functions`; updated all reviewed anonymous Vercel routes; repaired stale security contract tests; added concurrency, OTP/replay, PDF, and trusted-IP tests; and added the secret-free path-filtered `.github/workflows/security-validation.yml` workflow.
 - **Schema:** Added repository-controlled setup definitions for `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`, including expiry indexes and server-only permissions. No production schema mutation occurred.
 - **Validation:** `node scripts/compute-source-hashes.mjs`, `git diff --check`, `npx tsc --noEmit`, `npm run build`, `npx vitest run src/lib/security` (`24` files / `126` tests passed), and `node --check` for `ai-gateway`, `email-service`, and `admin-devkit-data` all passed.
-- **Deployment:** `NOT_DEPLOYED`. Owner approval is required before the official targeted Appwrite workflow deploys exactly `ai-gateway`, `email-service`, and `admin-devkit-data`, followed by the repository-controlled schema setup. The normal Vercel integration is required after merge. No `target=all` deployment was used.
+- **Deployment:** `NOT_DEPLOYED`. Owner approval is required before the official targeted Appwrite workflow provisions the security schema first and deploys exactly `ai-gateway`, `email-service`, and `admin-devkit-data`. The normal Vercel integration is required after merge. No `target=all` deployment was used.
 - **Residual owner actions:** After deployment, verify Vercel edge handling with a normal-versus-spoofed-IP-header integration test; enable GitHub Secret Scanning and Push Protection. No production or edge verification is claimed.
 
 ## 2026-08-13 - Final repository-state reconciliation
