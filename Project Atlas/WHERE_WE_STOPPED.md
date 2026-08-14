@@ -1,8 +1,20 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-14
-**Status:** `MERGED_PENDING_DEPLOYMENT` — PR #181 merged into `main`; Appwrite/Vercel deployment and external edge verification remain pending
+**Status:** `MERGED_PENDING_DEPLOYMENT` — PR #183 merged into `main`; Vercel deployment and live login verification remain pending; Appwrite is unchanged
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+---
+
+## Email/password login closeout (2026-08-14)
+
+* **Merge:** PR #183 (`fix/login-error-classification` → `main`) merged successfully with merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076`. Final `main` contains both login-fix commits `f29e612f` and `1f38dbb`.
+* **Confirmed root cause:** The production email/password login path masked every Appwrite/authentication exception as `Invalid email or password`, so users could not distinguish invalid credentials from network, rate-limit, service, or unknown failures.
+* **Merged behavior:** Safe user-facing authentication error classification, credential-safe diagnostics, submit-time DOM reconciliation for stale controlled/autofill/password-manager values, email surrounding-whitespace trimming only, and exact password preservation.
+* **Historical boundary:** Autofill/password-manager state mismatch remains `UNCONFIRMED` as the cause of the historical incident. The verified root cause is login error masking.
+* **Validation:** Required PR checks completed successfully; focused authentication tests, TypeScript validation, `git diff --check`, and production build passed. The non-required TestSprite pre-check reported `No tests detected` and did not block merge.
+* **Deployment:** `MERGED_PENDING_DEPLOYMENT`. No Appwrite change, schema/permission change, secret/environment change, manual Vercel deployment, or production-data change occurred. The normal Vercel integration may deploy from `main`; live login verification remains pending.
+* **Stop point:** Main is merged and documentation closeout is complete. The next action is to observe/verify the normal Vercel deployment and then perform read-only production login verification; do not change Appwrite or claim the historical autofill hypothesis as proven.
 
 ---
 
@@ -32,7 +44,7 @@
 
 * **Production Domain:** `https://wiseresume.app`
 * **Repository:** `iammagdy/WiseResume-TWC`
-* **Active Branch:** `main`. The repository-state baseline was synchronized at `8fc45e010722f72ed7f3dc9a9f252eeb19045c83` after PR #179; this reconciliation is a subsequent documentation-only record.
+* **Active Branch:** `main`. Current post-merge main is `4bea728dba622ae2124d0192241cc7b26bdf6076`, which contains PR #183’s login-fix commits `f29e612f` and `1f38dbb`; the earlier `8fc45e010722f72ed7f3dc9a9f252eeb19045c83` remains only as the PR #179 synchronization baseline.
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
 * **Frontend Hosting:** Vercel. Current production is documentation-only deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for commit `e7e92aba0261a5e587c766654dc9bf601732072d`; latest verified code-bearing production remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
@@ -46,6 +58,7 @@
 
 ## 2. Latest Important Commits
 
+* **`4bea728d`** - `Merge pull request #183 from iammagdy/fix/login-error-classification` - **LOGIN ERROR-MASKING FIX MERGED; VERCEL DEPLOYMENT AND LIVE LOGIN VERIFICATION PENDING**
 * **`cfcaf82e`** - `Merge pull request #178 from iammagdy/codex/fix-verification-delivery` - **OFFICIAL APPWRITE EMAIL-VERIFICATION LIFECYCLE MERGED; PRODUCTION DELIVERY NOW VERIFIED**
 * **`5225c130`** - Auth/jobs stabilization production release - **FRONTEND PRODUCTION DEPLOYED; REMAINING LINKEDIN AND JOBS QA IS SEPARATE**
 * **`fdbfb8de`** - `Merge pull request #173 from iammagdy/codex/ai-runtime-receipts-ci-schema` - **CI SCHEMA PROVISIONING MERGED; TARGETED APPWRITE RUNTIME VERIFIED**

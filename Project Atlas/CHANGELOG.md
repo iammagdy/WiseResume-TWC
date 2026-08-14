@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - PR #183 Merged; Login Fix Deployment Pending
+
+- **Merge result:** PR #183 (`fix/login-error-classification` → `main`) was merged successfully with merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076`. The two login-fix commits `f29e612f` and `1f38dbb` are contained in `main`.
+- **Confirmed root cause:** The production email/password login path masked every Appwrite/authentication failure as `Invalid email or password`, preventing safe distinction between invalid credentials and network, rate-limit, service, or unknown failures.
+- **Implemented behavior:** Login now classifies safe user-facing failure categories without exposing Appwrite internals, credentials, tokens, or secrets; preserves generic messaging for confirmed invalid credentials; reconciles submit-time DOM values for stale autofill/password-manager state; trims surrounding email whitespace only; and preserves the password exactly as entered.
+- **Validation:** Required PR checks completed successfully: `Typecheck + portfolio tests` and Vercel checks passed. Focused authentication tests, TypeScript validation, `git diff --check`, and production build passed before merge. The non-required TestSprite pre-check reported `No tests detected`; it did not block the merge.
+- **Historical incident boundary:** The historical production autofill/state-mismatch cause remains `UNCONFIRMED`; the verified root cause is login error masking.
+- **Deployment boundary:** Status is `MERGED_PENDING_DEPLOYMENT`. No manual Vercel deployment, Appwrite deployment, schema mutation, permission change, secret/environment change, or production-data change occurred. A push to `main` may trigger the normal Vercel integration; its resulting production deployment still requires verification.
+- **Remaining owner actions:** Confirm the Vercel deployment for merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076`, perform read-only production login verification, and keep Appwrite configuration unchanged.
+
 ## 2026-08-14 - PR #181 Merged; Deployment Pending
 
 - **Merge result:** PR #181 (`security/public-audit-p2-remediation` → `main`) was merged successfully with merge commit `6acb230f2948653826b73c64877bec3617c1bead`. The complete remediation commit `432409d0b3e5a8ca8ce320ae41409f93db085c38` is contained in `main`.
