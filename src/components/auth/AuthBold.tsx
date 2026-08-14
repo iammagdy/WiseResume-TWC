@@ -28,6 +28,11 @@ import { useLocale } from '@/i18n/LocaleProvider';
 
 export type AuthBoldMode = 'signin' | 'signup' | 'forgot' | 'reset' | 'change';
 
+export interface AuthSubmitValues {
+  email: string;
+  password: string;
+}
+
 export interface AuthBoldProps {
   mode: AuthBoldMode;
   onModeChange?: (mode: AuthBoldMode) => void;
@@ -55,7 +60,7 @@ export interface AuthBoldProps {
   doneSlot?: ReactNode;
 
   onLinkedInLogin?: () => void | Promise<void>;
-  onSubmit: () => void | Promise<void>;
+  onSubmit: (values?: AuthSubmitValues) => void | Promise<void>;
 }
 
 const PRIMARY = '#9E1B22';
@@ -609,10 +614,22 @@ export function AuthBold({
     else onModeChange('signin');
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (loading) return;
     if (showMismatch) return;
+
+    if (mode === 'signin') {
+      const form = e.currentTarget;
+      const emailInput = form.elements.namedItem('email') as HTMLInputElement | null;
+      const passwordInput = form.elements.namedItem('password') as HTMLInputElement | null;
+      void onSubmit({
+        email: emailInput?.value ?? email ?? '',
+        password: passwordInput?.value ?? password ?? '',
+      });
+      return;
+    }
+
     void onSubmit();
   };
 
@@ -736,6 +753,7 @@ export function AuthBold({
                     <div className="ab-field" style={{ marginBottom: 14 }}>
                       <Mail />
                       <input
+                        name="email"
                         type="email"
                         dir="ltr"
                         placeholder="you@email.com"
@@ -744,9 +762,10 @@ export function AuthBold({
                         onFocus={onEmailFocus}
                         onBlur={onBlur}
                         onChange={(e) => {
-                           onEmailInput();
-                           onEmailChange?.(e.target.value);
+                          onEmailInput();
+                          onEmailChange?.(e.target.value);
                         }}
+                        onInput={(e) => onEmailChange?.(e.currentTarget.value)}
                         required
                       />
                     </div>
@@ -810,12 +829,14 @@ export function AuthBold({
                       <input
                         type={showPw ? 'text' : 'password'}
                         dir="ltr"
+                        name="password"
                         placeholder="••••••••"
                         autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                         value={password}
                         onFocus={onPwFocus}
                         onBlur={onBlur}
                         onChange={onText(onPasswordChange)}
+                        onInput={(e) => onPasswordChange?.(e.currentTarget.value)}
                         required
                         minLength={mode === 'signin' ? undefined : 8}
                       />

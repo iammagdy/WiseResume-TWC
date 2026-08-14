@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { AuthBold } from '../AuthBold';
@@ -88,19 +89,53 @@ describe('AuthBold', () => {
     expect(screen.getByRole('button', { name: /reset password/i })).toBeInTheDocument();
   });
 
-  it('fires onSubmit when the form is submitted with valid input', () => {
+  it('fires onSubmit with the current form values, including paste/autofill-style input', () => {
     const onSubmit = vi.fn();
-    renderWithProviders(
-      <AuthBold
-        mode="signin"
-        email="user@example.com"
-        password="hunter22a"
-        onSubmit={onSubmit}
-      />,
-    );
+    function ControlledLogin() {
+      const [email, setEmail] = React.useState('');
+      const [password, setPassword] = React.useState('');
+      return (
+        <AuthBold
+          mode="signin"
+          email={email}
+          onEmailChange={setEmail}
+          password={password}
+          onPasswordChange={setPassword}
+          onSubmit={onSubmit}
+        />
+      );
+    }
 
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    renderWithProviders(<ControlledLogin />);
+
+    const emailInput = screen.getByPlaceholderText('you@email.com');
+    const passwordInput = screen.getByPlaceholderText('••••••••');
+    fireEvent.input(emailInput, { target: { value: 'user@example.com' } });
+    fireEvent.input(passwordInput, { target: { value: '  p@ss word  ' } });
+    fireEvent.submit(screen.getByRole('form'));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      password: '  p@ss word  ',
+    });
+  });
+
+  it('submits actual DOM values when React state is stale and no input handler fires', () => {
+    const onSubmit = vi.fn();
+    renderWithProviders(<AuthBold mode="signin" email="" password="" onSubmit={onSubmit} />);
+
+    const emailInput = screen.getByPlaceholderText('you@email.com') as HTMLInputElement;
+    const passwordInput = screen.getByPlaceholderText('••••••••') as HTMLInputElement;
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    nativeValueSetter?.call(emailInput, 'user@example.com');
+    nativeValueSetter?.call(passwordInput, '  p@ss word  ');
+
+    fireEvent.submit(screen.getByRole('form'));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      password: '  p@ss word  ',
+    });
   });
 
   it('shows an error pill when error prop is set', () => {
