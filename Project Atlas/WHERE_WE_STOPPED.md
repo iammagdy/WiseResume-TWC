@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-14
-**Status:** `PASS_WITH_WARNINGS` — public-repository P2 remediation fully re-verified and pushed to the remediation branch; deployment and external edge verification pending
+**Status:** `MERGED_PENDING_DEPLOYMENT` — PR #181 merged into `main`; Appwrite/Vercel deployment and external edge verification remain pending
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,10 +12,10 @@
 * **Implementation status:** All seven P2 code/test gaps were addressed locally: React Router `7.18.2`; atomic AI quota reservation and release; cryptographic reset OTPs; nonce-bound, single-use internal reset HMAC requests; durable PDF rate/concurrency and input/output bounds in the production Vercel route; trusted Vercel IP extraction across anonymous routes; and a reliable security suite with a path-filtered, secret-free CI workflow.
 * **Schema status:** The repository-controlled setup script now provisions `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases` with expiry indexes and server-only permissions. `chat_sessions.question_count` is optional for Appwrite compatibility; the AI gateway backfills missing legacy counters to zero before atomic reservation. Attribute readiness is polled before dependent indexes. Production schema application has not occurred.
 * **Validation:** The fresh final check passed `git diff --check`, `npx tsc --noEmit`, `npm run build`, the focused security suite (`24` files / `129` tests after the legacy-counter, schema-readiness, and Appwrite-ID regressions), the complete repository suite (`189` files passed, `1` skipped; `1,088` tests passed, `8` skipped, `1` todo), three changed-hub `node --check` commands, the Appwrite SDK schema API contract check, and `npm audit --omit=dev` with zero vulnerabilities. Source-hash regeneration remains represented in the committed remediation manifest.
-* **Git state:** Before this blocker-correction pass, `security/public-audit-p2-remediation` was three commits ahead of `origin/main`. This Appwrite/PDF/schema correction is the fourth branch commit; after push, the working tree is clean.
-* **Deployment state:** `NOT_DEPLOYED`. The exact Appwrite targets requiring the approved targeted workflow are `ai-gateway`, `email-service`, and `admin-devkit-data`; that workflow now runs `scripts/setup-security-collections.cjs` before deploying any of those affected hubs. The normal Vercel integration is required after review and merge. No `target=all` deployment was used, and no production schema mutation occurred.
+* **Git state:** PR #181 was merged into `main` with merge commit `6acb230f2948653826b73c64877bec3617c1bead`. The merged remediation commit `432409d0b3e5a8ca8ce320ae41409f93db085c38` is contained in `origin/main`; the documentation-only post-merge closeout follows on `main`.
+* **Deployment state:** `MERGED_PENDING_DEPLOYMENT`. The exact Appwrite targets requiring the approved targeted workflow are `ai-gateway`, `email-service`, and `admin-devkit-data`; that workflow runs `scripts/setup-security-collections.cjs` before deploying any of those affected hubs. Vercel deployment remains pending; the trusted Vercel client-IP behavior still requires live verification against spoofed headers after deployment. No `target=all` deployment was used, and no production schema mutation occurred.
 * **Owner actions:** After deployment, verify that Vercel does not allow caller-supplied IP headers to change the trusted client identity using a normal-versus-spoofed-header integration test. Enable GitHub Secret Scanning and Push Protection. These external checks are not claimed as verified from the sandbox.
-* **Stop point:** Stop after branch push and owner review. No merge, Appwrite deployment, Vercel deployment, production schema mutation, or production configuration change was performed.
+* **Stop point:** PR #181 is merged, and this post-merge documentation closeout is the final local action. No Appwrite deployment, Vercel deployment, production schema mutation, or production configuration change was performed.
 
 ---
 

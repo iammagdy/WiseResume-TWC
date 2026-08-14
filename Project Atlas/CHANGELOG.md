@@ -1,5 +1,12 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - PR #181 Merged; Deployment Pending
+
+- **Merge result:** PR #181 (`security/public-audit-p2-remediation` → `main`) was merged successfully with merge commit `6acb230f2948653826b73c64877bec3617c1bead`. The complete remediation commit `432409d0b3e5a8ca8ce320ae41409f93db085c38` is contained in `main`.
+- **Documentation reconciliation:** Atlas now records all seven P2 fixes, the final Appwrite/PDF blocker corrections, the passing local validation matrix, and the targeted-workflow requirement to provision schema before deploying `ai-gateway`, `email-service`, or `admin-devkit-data`.
+- **Deployment boundary:** Status is `MERGED_PENDING_DEPLOYMENT`. No Appwrite deployment, Vercel deployment, production schema mutation, secret/environment change, or `target=all` operation occurred.
+- **Remaining owner actions:** Deploy the approved Appwrite hubs through the targeted workflow, allow the normal Vercel integration after review, perform live trusted-Vercel-IP verification against spoofed headers, and enable GitHub Secret Scanning and Push Protection.
+
 ## 2026-08-14 - PR #181 Appwrite/PDF Blocker Corrections
 
 - **Appwrite IDs:** Replaced long PDF rate-slot and lease document IDs with deterministic 32-character lowercase-hex IDs, with regression tests covering determinism, length, and allowed characters.
