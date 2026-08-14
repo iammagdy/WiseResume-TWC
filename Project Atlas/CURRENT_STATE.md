@@ -1,11 +1,20 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-14
-**Status:** Canonical Production Snapshot - Login Error-Masking Fix Production Verified With Unverified Negative Paths; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
+**Status:** Canonical Production Snapshot - DevKit Live Verification Completed With Confirmed Mismatches and Unverified/Code-Only Findings; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## DevKit live verification closeout (2026-08-14)
+
+* **Verdict:** `LIVE_PARTIALLY_VERIFIED_WITH_CONFIRMED_MISMATCHES`. The authenticated production DevKit was read in a live session without any mutation. Core panels loaded or returned explicit states, but App Overview and Onboarding remained skeleton/unavailable, so their analytics values were not verified independently.
+* **Confirmed live observations:** Data Integrity displayed 44 Auth Users versus 33 Verified plus 10 Unverified; AI Health displayed 44 attributed calls under a `last 50 calls` label; AI Health provider pings were successful while AI Keys marked OpenRouter Slot 1 `Rate Limited`; and Appwrite Functions marked `ai-gateway` and `admin-devkit-data` `Needs Redeploy` because source/deployed hashes differed.
+* **Verified scope:** Visitor Deep Dive explicitly disclosed a 5,000-event cap; Observability showed explicit empty states; Diagnostics reported 47 healthy, 0 warning, 0 broken, and 0 not configured; Mission Control and Diagnostics confirmed deployed/reachable posture but do not replace source-hash parity.
+* **Finding classifications:** P1-01 `CONFIRMED_CODE_ONLY`; P1-02 `DOWNGRADED`; P2-01 `CONFIRMED_CODE_ONLY`; P2-02 `CONFIRMED_LIVE`; P2-03 `CONFIRMED_CODE_ONLY`; P2-04 `CONFIRMED_CODE_ONLY`; P2-05 `DOWNGRADED`.
+* **Evidence boundary:** Direct independent equality for every protected Function aggregate was not established because raw response bodies were not replayed or retained. No code, Appwrite, schema, permission, environment, secret, deployment, account, production-data, or destructive DevKit action was changed.
+* **Report:** [`reports/devkit/2026-08-14-live-data-verification.md`](./reports/devkit/2026-08-14-live-data-verification.md)
 
 ## 1. System Overview
 

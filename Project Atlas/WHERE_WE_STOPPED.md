@@ -1,8 +1,20 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-14
-**Status:** `PRODUCTION_LOGIN_VERIFIED_WITH_UNVERIFIED_FAILURE_PATHS` — PR #183 is merged into `main`; production served the merged login behavior and successful/invalid-credential checks passed; Appwrite is unchanged
+**Status:** `DEVKIT_LIVE_VERIFICATION_COMPLETED_WITH_CONFIRMED_MISMATCHES` — authenticated production DevKit was verified read-only; no application or Appwrite changes were made
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+---
+
+## DevKit live verification closeout (2026-08-14)
+
+* **Verdict:** `LIVE_PARTIALLY_VERIFIED_WITH_CONFIRMED_MISMATCHES`. The authenticated production DevKit session reached Home, Data Integrity, Users, Visitor Deep Dive, AI Health, AI Keys, Observability, Functions, Mission Control, and Diagnostics. App Overview and Onboarding remained skeleton/unavailable during repeated captures.
+* **Confirmed live mismatches:** Data Integrity showed 44 Auth Users versus 33 Verified plus 10 Unverified; AI Health showed 44 attributed calls under a `last 50 calls` label; AI Health provider pings were successful while AI Keys marked OpenRouter Slot 1 `Rate Limited`; and `ai-gateway` plus `admin-devkit-data` showed `Needs Redeploy` hash drift.
+* **Confirmed live scope disclosures:** Visitor Deep Dive disclosed a 5,000-event cap. Observability displayed explicit empty states. Diagnostics returned 47 healthy, 0 warning, 0 broken, and 0 not configured. Mission Control reported 28/28 deployed and no new drift for its posture check, which is distinct from source-hash parity.
+* **P1/P2 classifications:** P1-01 `CONFIRMED_CODE_ONLY`; P1-02 `DOWNGRADED`; P2-01 `CONFIRMED_CODE_ONLY`; P2-02 `CONFIRMED_LIVE`; P2-03 `CONFIRMED_CODE_ONLY`; P2-04 `CONFIRMED_CODE_ONLY`; P2-05 `DOWNGRADED`.
+* **Evidence boundary:** Protected Function response bodies were not replayed or retained as independent raw exports; therefore exact equality for every displayed aggregate is not claimed. No code, Appwrite, schema, permissions, environment variables, secrets, accounts, production data, deployments, or destructive DevKit actions were changed.
+* **Report:** [`reports/devkit/2026-08-14-live-data-verification.md`](./reports/devkit/2026-08-14-live-data-verification.md)
+* **Stop point:** Live verification and documentation closeout are complete. Do not implement fixes or run deployment/Appwrite operations from this task. Any remediation requires a separate approved task.
 
 ---
 

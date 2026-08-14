@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-14 - DevKit Live Data Verification
+
+- **Verdict:** `LIVE_PARTIALLY_VERIFIED_WITH_CONFIRMED_MISMATCHES`. Authenticated production DevKit verification was completed read-only. Core panels loaded or returned explicit states, while App Overview and Onboarding remained skeleton/unavailable.
+- **Confirmed live mismatches:** Data Integrity showed `44 Auth Users` versus `33 Verified + 10 Unverified`; AI Health displayed `44` attributed calls under a `last 50 calls` label; AI Health provider pings were successful while AI Keys marked OpenRouter Slot 1 `Rate Limited`; and `ai-gateway` plus `admin-devkit-data` showed `Needs Redeploy` source/deployed hash drift.
+- **Confirmed live disclosures/matches:** Visitor Deep Dive disclosed the `5,000`-event cap; Observability used explicit empty states; Diagnostics returned `47 healthy / 0 warning / 0 broken / 0 not configured`; Mission Control and Diagnostics confirmed deployed/reachable posture, which is distinct from source-hash parity.
+- **Reclassification:** P1-01 `CONFIRMED_CODE_ONLY`; P1-02 `DOWNGRADED`; P2-01 `CONFIRMED_CODE_ONLY`; P2-02 `CONFIRMED_LIVE`; P2-03 `CONFIRMED_CODE_ONLY`; P2-04 `CONFIRMED_CODE_ONLY`; P2-05 `DOWNGRADED`.
+- **Evidence boundary:** Protected Function response bodies were not replayed or retained as independent raw exports, so exact equality for every displayed aggregate is not claimed. No application code, Appwrite, schema, permissions, environment variables, secrets, accounts, production data, deployment, or destructive DevKit action was changed.
+- **Report:** [`reports/devkit/2026-08-14-live-data-verification.md`](./reports/devkit/2026-08-14-live-data-verification.md).
+
 ## 2026-08-14 - Final Production Login Verification
 
 - **Verdict:** `PRODUCTION_LOGIN_VERIFIED_WITH_UNVERIFIED_FAILURE_PATHS`. The canonical production site `https://wiseresume.app` served the merged login behavior: the live `AuthPage-e5sPUydC.js` chunk contained the safe classifier strings and the live `AuthBold-CDoi4g_q.js` chunk contained `name="email"`, `name="password"`, and `onInput` submission markers.
