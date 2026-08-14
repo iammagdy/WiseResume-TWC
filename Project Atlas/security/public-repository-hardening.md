@@ -30,7 +30,7 @@ The frontend/API code has also not been deployed from this session. After review
 
 ### Validation and residual risk
 
-Local validation completed successfully: `git diff --check`; `npx tsc --noEmit`; `npm run build`; `npx vitest run src/lib/security` with 24 files and 126 tests passing; `node --check` for all three changed hubs; and source-hash regeneration via `node scripts/compute-source-hashes.mjs`. The security workflow contains no secrets and runs only on the listed security-sensitive paths.
+Local validation completed successfully: `git diff --check`; `npx tsc --noEmit`; `npm run build`; `npx vitest run src/lib/security` with 24 files and 126 tests passing; the complete repository suite with 189 files passed and 1 skipped, 1,088 tests passed, 8 skipped, and 1 todo; `node --check` for all three changed hubs; the Appwrite SDK schema API contract check; and `npm audit --omit=dev` with zero vulnerabilities. The security workflow contains no secrets and runs only on the listed security-sensitive paths. The final remediation commit was pushed to `security/public-audit-p2-remediation`; no merge or deployment occurred.
 
 The remaining external checks are precise and bounded. The owner must confirm after Vercel deployment that a request-supplied `x-forwarded-for`, `x-real-ip`, or `cf-connecting-ip` value cannot alter the identity returned by the trusted-IP helper; a production integration test should compare a normal request with the same request carrying spoofed values and confirm the authoritative identity is unchanged. The owner must also enable GitHub Secret Scanning and Push Protection, as already noted in this document’s external-control section. No secret value, token, OTP, signature, reset URL, or credential was exposed.
 
