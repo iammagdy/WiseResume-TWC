@@ -22,7 +22,7 @@ describe('public privacy hardening', () => {
     expect(publicPortfolio).toContain('recordPasswordFailure(db, username, clientIp)');
     expect(publicPortfolio).toContain('clearPasswordFailures(db, username, clientIp)');
     expect(publicPortfolio).toContain("return res.status(429).json({ error: 'rate_limited'");
-    expect(publicPortfolio).toContain("req.headers['x-vercel-forwarded-for']");
+    expect(publicPortfolio).toContain('getTrustedVercelClientIp(req)');
     expect(publicPortfolio).toContain('infrastructureFailure');
     expect(publicPortfolio).not.toContain("req.headers['cf-connecting-ip']");
   });

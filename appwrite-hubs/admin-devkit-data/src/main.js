@@ -2727,9 +2727,10 @@ function getInternalHmacSecret() {
 function signInternalRequest(payload) {
   const secret = getInternalHmacSecret();
   const timestamp = Date.now();
-  const message = `${timestamp}:${payload.target_user_id}:${payload.target_email}:${payload.actor_user_id || ''}`;
+  const nonce = crypto.randomBytes(16).toString('base64url');
+  const message = `${timestamp}:${payload.target_user_id}:${payload.target_email}:${payload.actor_user_id || ''}:${nonce}`;
   const signature = crypto.createHmac('sha256', secret).update(message).digest('base64url');
-  return { timestamp, signature };
+  return { timestamp, nonce, signature };
 }
 
 async function handleSendAdminPasswordResetOtp(body, log, req) {
@@ -2744,7 +2745,7 @@ async function handleSendAdminPasswordResetOtp(body, log, req) {
   const token = bearerToken(req, body);
   const actorUserId = decodeSignedTokenPayload(token)?.uid || null;
 
-  const { timestamp, signature } = signInternalRequest({
+  const { timestamp, nonce, signature } = signInternalRequest({
     target_user_id: targetUserId,
     target_email: targetUser.email,
     actor_user_id: actorUserId,
@@ -2761,6 +2762,7 @@ async function handleSendAdminPasswordResetOtp(body, log, req) {
         target_email: targetUser.email,
         actor_user_id: actorUserId,
         timestamp,
+        nonce,
         signature,
         locale: body?.locale,
       }),
@@ -2829,7 +2831,7 @@ async function handleSendAdminPasswordResetLink(body, log, req) {
   const token = bearerToken(req, body);
   const actorUserId = decodeSignedTokenPayload(token)?.uid || null;
 
-  const { timestamp, signature } = signInternalRequest({
+  const { timestamp, nonce, signature } = signInternalRequest({
     target_user_id: resolvedUserId || 'unknown',
     target_email: resolvedEmail,
     actor_user_id: actorUserId,
@@ -2846,6 +2848,7 @@ async function handleSendAdminPasswordResetLink(body, log, req) {
         target_email: resolvedEmail,
         actor_user_id: actorUserId,
         timestamp,
+        nonce,
         signature,
         locale: body?.locale,
       }),

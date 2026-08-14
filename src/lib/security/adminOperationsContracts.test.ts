@@ -17,8 +17,24 @@ describe('DevKit admin operations contracts', () => {
     expect(schema).toContain('if (index.required) throw error;');
     expect(schema).not.toContain('nonce_unique');
     expect(workflow).toContain('node scripts/setup_impersonation_sessions_schema.cjs');
-    expect(workflow).toContain("contains(github.event.inputs.target, 'admin-devkit-data')");
-    expect(workflow).toContain("contains(github.event.inputs.target, 'admin-impersonate')");
+    expect(workflow).toContain("contains(fromJSON(steps.targets.outputs.targets_json), 'admin-devkit-data')");
+    expect(workflow).toContain("contains(fromJSON(steps.targets.outputs.targets_json), 'admin-impersonate')");
+  });
+
+  it('creates security schema compatibly and waits for attribute readiness before indexes', () => {
+    const schema = read('scripts/setup-security-collections.cjs');
+    const readinessWait = schema.indexOf('await waitForAttribute(collectionId, attr.key);');
+    const indexLoop = schema.indexOf('for (const idx of indexes)');
+
+    expect(schema).toContain("{ type: 'integer', key: 'question_count', required: false, min: 0, max: 10 }");
+    expect(schema).not.toContain("key: 'question_count', required: true, min: 0, max: 10, defaultVal: 0");
+    expect(read('appwrite-hubs/ai-gateway/src/main.js')).toContain('db.updateDocument(DB_ID, collectionId, documentId, { [attribute]: 0 })');
+    expect(schema).toContain('const ATTRIBUTE_WAIT_ATTEMPTS = 60;');
+    expect(schema).toContain("attribute?.status === 'available'");
+    expect(readinessWait).toBeGreaterThan(-1);
+    expect(indexLoop).toBeGreaterThan(readinessWait);
+    expect(schema).toContain('Run before deploying affected hubs');
+    expect(schema).not.toContain('Run once after deployment');
   });
 
   it('keeps identity collision behavior suspension-only and guarded', () => {

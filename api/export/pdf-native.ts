@@ -10,8 +10,11 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createHash } from 'node:crypto';
+import { Client, Databases, Query } from 'node-appwrite';
 import chromium from '@sparticuz/chromium';
 import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards.js';
+import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId';
 // The static Chromium import is intentional: Vercel's file tracer must see the
 // dependency so it ships the package and its compressed browser binaries.
 // Keep puppeteer-core lazy because simple validation responses do not need it.
@@ -42,6 +45,28 @@ const EXPORT_FOOTER_HEIGHT_PX = 44;
 const EXPORT_BRAND_URL = 'https://wiseresume.app';
 const DEFAULT_MIN_GAP_PX = 40;
 const SECTION_HEADING_GUARD_PX = 80;
+const PDF_RATE_LIMIT_COLLECTION = 'pdf_export_rate_limits';
+const PDF_ACTIVE_LEASES_COLLECTION = 'pdf_export_active_leases';
+const PDF_RATE_WINDOW_MS = 10 * 60 * 1000;
+const PDF_RATE_LIMIT = 5;
+const PDF_USER_CONCURRENCY_LIMIT = 2;
+const PDF_GLOBAL_CONCURRENCY_LIMIT = 8;
+const PDF_LEASE_TTL_MS = 90_000;
+const PDF_RENDER_TIMEOUT_MS = 45_000;
+const PDF_MAX_HTML_BYTES = 2 * 1024 * 1024;
+const PDF_MAX_CUSTOM_BREAKS = 100;
+const PDF_MAX_CONTENT_HEIGHT_PX = 100_000;
+const PDF_MAX_SEGMENTS = 50;
+const PDF_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
+const PDF_RATE_CLEANUP_BATCH_SIZE = 100;
+const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+const APPWRITE_PROJECT_ID =
+  process.env.APPWRITE_PROJECT_ID ||
+  process.env.VITE_APPWRITE_PROJECT_ID ||
+  process.env.APPWRITE_FUNCTION_PROJECT_ID ||
+  '';
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+const APPWRITE_DATABASE_ID = 'main';
 const NEAR_SECTION_TOP_PX = 24;
 
 interface ExportPageSegment {
@@ -61,6 +86,131 @@ interface ExportAvoidBounds {
   top: number;
   bottom: number;
   childTops: number[];
+}
+
+function getPdfDb(): Databases {
+  const client = new Client()
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID)
+    .setKey(APPWRITE_API_KEY);
+  return new Databases(client);
+}
+
+function hashPdfKey(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 40);
+}
+
+function isConflictError(error: unknown): boolean {
+  const candidate = error as { code?: number; message?: string };
+  return candidate.code === 409 || /already exists|duplicate/i.test(candidate.message || '');
+}
+
+function isNotFoundError(error: unknown): boolean {
+  const candidate = error as { code?: number; message?: string };
+  return candidate.code === 404 || /could not be found|not found/i.test(candidate.message || '');
+}
+
+async function cleanupExpiredPdfRateLimits(db: Databases, now = Date.now()): Promise<void> {
+  try {
+    const expired = await db.listDocuments(APPWRITE_DATABASE_ID, PDF_RATE_LIMIT_COLLECTION, [
+      Query.lessThan('expires_at', new Date(now).toISOString()),
+      Query.limit(PDF_RATE_CLEANUP_BATCH_SIZE),
+    ]);
+    for (const document of expired.documents || []) {
+      try {
+        await db.deleteDocument(APPWRITE_DATABASE_ID, PDF_RATE_LIMIT_COLLECTION, document.$id);
+      } catch (error) {
+        if (!isNotFoundError(error)) {
+          console.warn('[pdf] expired rate-limit cleanup failed:', (error as { code?: number }).code ?? 'unknown');
+        }
+      }
+    }
+  } catch (error) {
+    // Cleanup is best effort; limiter admission remains fail-closed if its
+    // deterministic slot writes cannot be completed.
+    console.warn('[pdf] expired rate-limit listing failed:', (error as { code?: number }).code ?? 'unknown');
+  }
+}
+
+async function claimPdfRateSlot(db: Databases, userId: string, now = Date.now()): Promise<string | null> {
+  await cleanupExpiredPdfRateLimits(db, now);
+  const windowStart = Math.floor(now / PDF_RATE_WINDOW_MS) * PDF_RATE_WINDOW_MS;
+  const prefix = `${hashPdfKey(userId)}-${windowStart}`;
+  const expiresAt = new Date(windowStart + PDF_RATE_WINDOW_MS).toISOString();
+  for (let slot = 0; slot < PDF_RATE_LIMIT; slot += 1) {
+    const documentId = createAppwriteDocumentId('rate', prefix, slot);
+    try {
+      await db.createDocument(APPWRITE_DATABASE_ID, PDF_RATE_LIMIT_COLLECTION, documentId, {
+        owner_user_id: userId,
+        window_key: String(windowStart),
+        slot,
+        expires_at: expiresAt,
+      });
+      return documentId;
+    } catch (error) {
+      if (!isConflictError(error)) throw error;
+    }
+  }
+  return null;
+}
+
+async function claimPdfLease(
+  db: Databases,
+  prefix: string,
+  limit: number,
+  ownerKey: string,
+  now = Date.now(),
+): Promise<string | null> {
+  const expiresAt = new Date(now + PDF_LEASE_TTL_MS).toISOString();
+  for (let slot = 0; slot < limit; slot += 1) {
+    const documentId = createAppwriteDocumentId('lease', prefix, slot);
+    try {
+      await db.createDocument(APPWRITE_DATABASE_ID, PDF_ACTIVE_LEASES_COLLECTION, documentId, {
+        owner_key: ownerKey,
+        scope: prefix,
+        slot,
+        created_at: new Date(now).toISOString(),
+        expires_at: expiresAt,
+      });
+      return documentId;
+    } catch (error) {
+      if (!isConflictError(error)) throw error;
+      try {
+        const existing = await db.getDocument(APPWRITE_DATABASE_ID, PDF_ACTIVE_LEASES_COLLECTION, documentId);
+        if (typeof existing.expires_at === 'string' && new Date(existing.expires_at).getTime() <= now) {
+          await db.deleteDocument(APPWRITE_DATABASE_ID, PDF_ACTIVE_LEASES_COLLECTION, documentId);
+          slot -= 1;
+        }
+      } catch (lookupError) {
+        if (!isNotFoundError(lookupError)) throw lookupError;
+      }
+    }
+  }
+  return null;
+}
+
+async function releasePdfLease(db: Databases, documentId: string | null): Promise<void> {
+  if (!documentId) return;
+  try {
+    await db.deleteDocument(APPWRITE_DATABASE_ID, PDF_ACTIVE_LEASES_COLLECTION, documentId);
+  } catch (error) {
+    if (!isNotFoundError(error)) {
+      console.warn('[pdf] lease cleanup failed:', (error as { code?: number }).code ?? 'unknown');
+    }
+  }
+}
+
+function withPdfTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('PDF_RENDER_TIMEOUT')), timeoutMs);
+    promise.then((value) => {
+      clearTimeout(timer);
+      resolve(value);
+    }, (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
 }
 
 function normalizeBreakPositions(
@@ -656,6 +806,10 @@ function isPuppeteerUrlAllowed(rawUrl: string): boolean {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  let browser: any;
+  let pdfDb: Databases | null = null;
+  let userLeaseId: string | null = null;
+  let globalLeaseId: string | null = null;
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'method_not_allowed', message: 'Only POST is supported' });
   }
@@ -675,6 +829,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[pdf] APPWRITE_PROJECT_ID env var not configured');
     return res.status(500).json({ error: 'config_error', message: 'Server configuration error' });
   }
+  let ownerUserId = '';
   try {
     const authRes = await fetch(`${appwriteEndpoint}/account`, {
       headers: {
@@ -683,6 +838,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
     if (!authRes.ok) {
+      return res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' });
+    }
+    const account = await authRes.json() as { $id?: unknown };
+    ownerUserId = typeof account?.$id === 'string' ? account.$id : '';
+    if (!ownerUserId) {
       return res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' });
     }
   } catch {
@@ -718,10 +878,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!html || typeof html !== 'string') {
     return res.status(400).json({ error: 'bad_request', message: 'Missing html body' });
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let browser: any;
+  if (Buffer.byteLength(html, 'utf8') > PDF_MAX_HTML_BYTES) {
+    return res.status(413).json({ error: 'payload_too_large', message: 'PDF HTML exceeds the allowed size.' });
+  }
+  if (!Array.isArray(customBreakPositions) || customBreakPositions.length > PDF_MAX_CUSTOM_BREAKS || customBreakPositions.some((value) => !Number.isFinite(value))) {
+    return res.status(400).json({ error: 'invalid_custom_breaks', message: 'Too many or invalid page breaks.' });
+  }
+  for (const value of [totalContentHeightPx, layoutContentHeightPx]) {
+    if (value !== undefined && (!Number.isFinite(value) || value < 0 || value > PDF_MAX_CONTENT_HEIGHT_PX)) {
+      return res.status(400).json({ error: 'invalid_content_height', message: 'PDF content height is outside the allowed range.' });
+    }
+  }
+  if (!APPWRITE_PROJECT_ID || !APPWRITE_API_KEY) {
+    console.error('[pdf] durable limiter configuration is incomplete');
+    return res.status(503).json({ error: 'limiter_unavailable', message: 'PDF export is temporarily unavailable.' });
+  }
   try {
+    pdfDb = getPdfDb();
+    const rateSlotId = await claimPdfRateSlot(pdfDb, ownerUserId);
+    if (!rateSlotId) {
+      return res.status(429).json({ error: 'rate_limited', message: 'Too many PDF exports. Please try again later.' });
+    }
+    userLeaseId = await claimPdfLease(pdfDb, `pdf-user-${hashPdfKey(ownerUserId)}`, PDF_USER_CONCURRENCY_LIMIT, hashPdfKey(`${ownerUserId}:${Date.now()}`));
+    if (!userLeaseId) {
+      return res.status(429).json({ error: 'concurrency_limited', message: 'Too many PDF exports are already running for this account.' });
+    }
+    globalLeaseId = await claimPdfLease(pdfDb, 'pdf-global', PDF_GLOBAL_CONCURRENCY_LIMIT, hashPdfKey(`${ownerUserId}:${Date.now()}`));
+    if (!globalLeaseId) {
+      return res.status(503).json({ error: 'capacity_limited', message: 'PDF export capacity is temporarily full. Please try again shortly.' });
+    }
+
+    const renderDeadline = Date.now() + PDF_RENDER_TIMEOUT_MS;
     // Dynamic imports keep Vercel's serverless bundle from crashing during
     // module startup. Cache modules after the first load to avoid repeated work.
     console.log('[pdf] loading modules');
@@ -744,6 +931,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       args: chromium.args,
       executablePath: execPath,
       headless: true,
+      timeout: Math.min(20_000, Math.max(1_000, renderDeadline - Date.now())),
     });
     console.log('[pdf] step: browser launched');
 
@@ -781,6 +969,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // sentinel. Keep it for custom-break validation below, but never let it
     // inflate the rendered content height and create a footer-only page.
     contentHeight = Math.max(Math.round(contentHeight), measuredHeight, contentPageHeight);
+    if (contentHeight > PDF_MAX_CONTENT_HEIGHT_PX) {
+      return res.status(413).json({ error: 'content_too_large', message: 'PDF content exceeds the allowed height.' });
+    }
+    if (Date.now() >= renderDeadline) {
+      return res.status(504).json({ error: 'render_timeout', message: 'PDF rendering exceeded the allowed time.' });
+    }
 
     // ── Custom-break validation height ─────────────────────────────────
     // clampBreakPositions/normalizeBreakPositions filter positions where:
@@ -867,6 +1061,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     console.log('[pdf] segments:', segments.length, 'footer:', footerHeight, 'px',
       'contentHeight:', contentHeight);
+    if (segments.length === 0 || segments.length > PDF_MAX_SEGMENTS) {
+      return res.status(413).json({ error: 'too_many_pages', message: 'PDF page count exceeds the allowed limit.' });
+    }
+    if (Date.now() >= renderDeadline) {
+      return res.status(504).json({ error: 'render_timeout', message: 'PDF rendering exceeded the allowed time.' });
+    }
 
     // 5. Render each segment as a separate PDF page.
     const pdfBuffers: Buffer[] = [];
@@ -888,12 +1088,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         showBranding,
         locale,
       });
-      const buf = await renderHtmlToPdfBuffer(
+      const buf = await withPdfTimeout(renderHtmlToPdfBuffer(
         browser,
         segHtml,
         dims.widthPx,
         segment.heightPx + footerHeight,
-      );
+      ), Math.max(1, Math.min(PDF_RENDER_TIMEOUT_MS, renderDeadline - Date.now())));
       pdfBuffers.push(buf);
       console.log('[pdf] segment', segment.index + 1, 'done:', buf.length, 'bytes');
     }
@@ -903,8 +1103,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[pdf] merging', buffersToMerge.length, 'buffer(s)');
 
     // 7. Merge segment PDFs into the final file.
-    const pdfBuffer = await mergePdfBuffers(buffersToMerge);
+    const pdfBuffer = await withPdfTimeout(mergePdfBuffers(buffersToMerge), Math.max(1, Math.min(PDF_RENDER_TIMEOUT_MS, renderDeadline - Date.now())));
     console.log('[pdf] done, total size:', pdfBuffer.length, 'bytes');
+    if (pdfBuffer.length > PDF_MAX_OUTPUT_BYTES) {
+      return res.status(413).json({ error: 'output_too_large', message: 'Generated PDF exceeds the allowed size.' });
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
@@ -917,6 +1120,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (firstStackLine) console.error('[pdf-trace]', firstStackLine);
     res.status(500).json({ error: 'pdf_failed', message: 'PDF generation failed. Please try again.' });
   } finally {
+    if (pdfDb) {
+      await releasePdfLease(pdfDb, userLeaseId);
+      await releasePdfLease(pdfDb, globalLeaseId);
+    }
     await browser?.close();
   }
 }

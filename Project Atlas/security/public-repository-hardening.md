@@ -1,8 +1,38 @@
 # Public Repository Security Hardening
 
-**Last verified:** 2026-08-13
-**Status:** `PUBLIC_REPOSITORY_HARDENING_PRODUCTION_BROWSER_VERIFIED_WITH_RESIDUAL_WARNINGS`
+**Last verified:** 2026-08-14
+**Status:** `PASS_WITH_WARNINGS` — local remediation complete; production deployment and edge verification remain pending
 **Scope:** public repository controls, Vercel public APIs, and Appwrite Function execution boundaries.
+
+## Public-repository P2 remediation closeout (2026-08-14)
+
+### Audit reconciliation
+
+The remediation rechecked the original public-repository audit baseline at `main` commit `71b2864a5bb09b4082729db59950e2dc778abba3`. No P0 or P1 issue was discovered during remediation. The audit contains **seven P2 findings**, not six: React Router dependency exposure; AI quota read-check-write races; non-cryptographic password-reset OTP generation; replayable internal admin HMAC requests; PDF export resource abuse; trusted-proxy/IP identity assumptions; and security-test/CI reliability. All seven have local code and test remediations. No finding is classified as unresolved in code; production deployment and one Vercel edge-behavior check are `OWNER_ACTION_REQUIRED`.
+
+### Implemented remediation
+
+| Finding | Root cause | Local remediation and evidence | Status |
+|---|---|---|---|
+| P2-01 React Router | The application remained on the vulnerable React Router 6.x dependency line. | Upgraded `react-router` and `react-router-dom` to `7.18.2`; existing declarative routing and redirect sanitization remain covered by the security suite. | `TESTED_LOCAL` |
+| P2-02 AI quota concurrency | Session and owner daily counters used a read-check-write sequence, allowing concurrent admissions to observe stale counts. | AI Gateway now uses Appwrite atomic increment/decrement operations with server-side caps, reserves idempotency before provider admission, and releases reservations on failed requests. Concurrency regression tests cover session and owner limits. | `TESTED_LOCAL` |
+| P2-03 OTP randomness | Password-reset OTPs used `Math.random()`, which is not a cryptographic generator. | `email-service` now uses `crypto.randomInt(100000, 1000000)` while preserving six-digit range, expiry, cooldown, HMAC-at-rest, and attempt controls. | `TESTED_LOCAL` |
+| P2-04 Internal HMAC replay | Internal reset signatures bound target and timestamp but had no one-time request identifier or durable consumption record. | Signed payloads now include a nonce; the receiver validates format, freshness, target/actor binding, and atomically consumes a nonce in `admin_reset_request_nonces` with expiry metadata. | `TESTED_LOCAL` |
+| P2-05 PDF resource abuse | The production Vercel PDF route lacked durable per-user rate limiting, cross-instance concurrency controls, and complete pre-Chromium bounds. | `api/export/pdf-native.ts` now applies durable rate and lease controls, HTML/segment/custom-break/height/output bounds, fail-fast validation, lease cleanup, and a hard 45-second render timeout while preserving authentication and SSRF controls. | `TESTED_LOCAL` |
+| P2-06 Trusted proxy identity | Anonymous rate-limit identity was derived from proxy headers without an explicit platform-trusted source contract. | Vercel routes now use the shared `getTrustedVercelClientIp` helper backed by `@vercel/functions` `ipAddress()`. Live edge overwrite behavior remains an external verification item. | `IMPLEMENTED_UNVERIFIED` / `OWNER_ACTION_REQUIRED` |
+| P2-07 Security test reliability | Hub tests could not reliably resolve runtime dependencies from a fresh root checkout, and PR validation did not run the full security suite for security-sensitive changes. | Added the required root `axios` dependency, repaired stale contract assertions, added focused regression tests, and added the secret-free path-filtered `.github/workflows/security-validation.yml` gate. | `TESTED_LOCAL` |
+
+### Appwrite schema and deployment boundary
+
+The repository-controlled setup script adds idempotent server-side collections for `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`, including the required attributes and expiry indexes. `chat_sessions.question_count` is optional because Appwrite rejects a required integer attribute with a default; the AI gateway backfills missing legacy counters to zero before atomic reservation. The setup script polls new attributes until `available` before creating dependent indexes. These schema changes have **not** been applied to production from this session. The official targeted Appwrite workflow now runs `scripts/setup-security-collections.cjs` **before** deploying any affected hub and deploys exactly `ai-gateway`, `email-service`, and `admin-devkit-data` when selected. The prohibited `target=all` form was not used. Before this blocker-correction pass, the branch was three commits ahead of `origin/main`; this correction is the fourth branch commit.
+
+The production PDF route now uses deterministic 32-character lowercase-hex Appwrite document IDs for rate slots and leases, with focused tests for the 36-character/allowed-character contract. Each rate-limit admission performs bounded best-effort cleanup of expired records through the indexed `expires_at` field. The frontend/API code has also not been deployed from this session. After review and merge, the normal Vercel integration is required for the Vercel route and trusted-IP helper changes. No production verification is claimed.
+
+### Validation and residual risk
+
+Local validation completed successfully: `git diff --check`; `npx tsc --noEmit`; `npm run build`; `npx vitest run src/lib/security` with 24 files and 129 tests passing; the complete repository suite with 189 files passed and 1 skipped, 1,088 tests passed, 8 skipped, and 1 todo; `node --check` for all three changed hubs; the Appwrite SDK schema API contract check; and `npm audit --omit=dev` with zero vulnerabilities. The security workflow contains no secrets and runs only on the listed security-sensitive paths. The final remediation commit was pushed to `security/public-audit-p2-remediation`; no merge or deployment occurred.
+
+The remaining external checks are precise and bounded. The owner must confirm after Vercel deployment that a request-supplied `x-forwarded-for`, `x-real-ip`, or `cf-connecting-ip` value cannot alter the identity returned by the trusted-IP helper; a production integration test should compare a normal request with the same request carrying spoofed values and confirm the authoritative identity is unchanged. The owner must also enable GitHub Secret Scanning and Push Protection, as already noted in this document’s external-control section. No secret value, token, OTP, signature, reset URL, or credential was exposed.
 
 ## Implemented controls
 
