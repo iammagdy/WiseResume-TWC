@@ -4,6 +4,7 @@ const sdk = require('node-appwrite');
 const axios = require('axios');
 const crypto = require('crypto');
 const { normalizeUserQuery, filterAndSortUsers } = require('./user-query.cjs');
+const { deriveExactUserCounts, buildUsageStats, summarizeCompletionHealth } = require('./phase1-semantics.cjs');
 
 const DB_ID = 'main';
 const SESSION_TTL_MS = 60 * 60 * 1000;
@@ -223,13 +224,21 @@ async function listAllAuthUsers() {
   return { users, total };
 }
 
-async function countDocumentsForUserIds(collectionId, userIds) {
-  if (!userIds.length) return 0;
-  const counts = await Promise.all(chunk(userIds, 100).map(async ids => {
-    const page = await safeList(null, collectionId, [sdk.Query.equal('user_id', ids), sdk.Query.limit(1)]);
-    return page.total || 0;
+async function countDocumentsForUserIdsDetailed(collectionId, userIds) {
+  if (!userIds.length) return { count: 0, error: null };
+  const results = await Promise.all(chunk(userIds, 100).map(async ids => {
+    try {
+      const page = await listDocuments(collectionId, [sdk.Query.equal('user_id', ids), sdk.Query.limit(1)]);
+      return { count: page.total || 0, error: null };
+    } catch (e) {
+      return { count: null, error: e.message };
+    }
   }));
-  return counts.reduce((sum, count) => sum + count, 0);
+  const firstError = results.find(result => result.error)?.error || null;
+  return {
+    count: firstError ? null : results.reduce((sum, result) => sum + (result.count || 0), 0),
+    error: firstError,
+  };
 }
 
 async function safeList(databases, collectionId, queries = []) {
@@ -410,6 +419,30 @@ async function handlePingProviders() {
   return { pings, checkedAt: isoNow() };
 }
 
+async function readStoredAiCompletionHealth(databases, log) {
+  const result = await safeList(databases, 'app_settings', [sdk.Query.equal('key', 'ai_key_test_results'), sdk.Query.limit(1)]);
+  if (result.error) {
+    log(`[warn] completion health read failed: ${result.error}`);
+    return { status: 'error', checkedAt: null, results: {}, message: 'Stored completion health is unavailable.' };
+  }
+  if (!result.documents?.[0]?.value) {
+    return { status: 'unavailable', checkedAt: null, results: {}, message: 'No stored completion probe has been recorded.' };
+  }
+  try {
+    const parsed = JSON.parse(result.documents[0].value);
+    const results = parsed && typeof parsed === 'object' ? parsed : {};
+    const checkedAt = Object.values(results)
+      .map(item => item && typeof item === 'object' ? item.testedAt : null)
+      .filter(Boolean)
+      .sort()
+      .pop() || null;
+    return { status: 'available', checkedAt, results };
+  } catch (e) {
+    log(`[warn] completion health parse failed: ${e.message}`);
+    return { status: 'error', checkedAt: null, results: {}, message: 'Stored completion health is malformed.' };
+  }
+}
+
 async function handleListProviderModels(body, log) {
   const { databases } = getClients();
   const CACHE_KEY = 'ai_model_catalog';
@@ -542,6 +575,7 @@ async function handleMissionControl(log, error) {
   } catch (e) { error(`Site ping failed: ${e.message}`); }
 
   const providerPings = await runProviderPings();
+  const completionHealth = await readStoredAiCompletionHealth(databases, log);
 
   const errorDocs = await safeList(databases, 'error_log', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(10)]);
   const adminDocs = await safeList(databases, 'admin_audit_logs', [sdk.Query.orderDesc('$createdAt'), sdk.Query.limit(5)]);
@@ -552,6 +586,13 @@ async function handleMissionControl(log, error) {
     deploy,
     ai: {
       providerPings,
+      reachability: {
+        status: providerPings.length > 0 ? 'available' : 'error',
+        checkedAt: now,
+        providers: providerPings,
+      },
+      completionHealth,
+      completionHealthByProvider: Object.fromEntries(['openrouter', 'groq', 'deepseek', 'nvidia'].map(provider => [provider, summarizeCompletionHealth(completionHealth?.results, provider)])),
       openrouterConfigured: !!process.env.OPENROUTER_KEY_1,
       openrouter2Configured: !!process.env.OPENROUTER_KEY_2,
       groqConfigured: !!process.env.GROQ_KEY_1,
@@ -728,60 +769,96 @@ async function handleObservability(body, log) {
 }
 
 async function handleOverviewStats(log) {
-  // Hard cap at 500 users to avoid the per-user parallel DB fan-out timing out.
-  // listAllAuthUsers() with hundreds of users + countDocumentsForUserIds() with
-  // one query per user can exceed the Appwrite function timeout even at 300s.
+  // The user list is intentionally bounded for the per-user resume ownership fan-out.
+  // Exact Auth totals are still returned from Appwrite's list response; only the
+  // displayed user sample is bounded.
   const MAX_USERS = 500;
+  const SAMPLE_LIMIT = 10;
   let authPage;
   try {
     authPage = await listUsers([sdk.Query.limit(MAX_USERS)]);
   } catch (e) {
     log(`[warn] handleOverviewStats: listUsers failed: ${e.message}`);
-    authPage = { users: [], total: 0 };
+    authPage = { users: [], total: null, error: e.message };
   }
+
   const users = authPage.users || [];
-  const total = authPage.total || users.length;
-  const truncated = total > MAX_USERS;
+  const authAvailable = !authPage.error;
+  const total = authAvailable ? (authPage.total ?? users.length) : null;
+  const truncated = authAvailable ? total > MAX_USERS : false;
+  let unverifiedExact;
+  try {
+    unverifiedExact = await listUsers([sdk.Query.equal('emailVerification', false), sdk.Query.limit(1)]);
+  } catch (e) {
+    log(`[warn] handleOverviewStats: exact unverified count failed: ${e.message}`);
+    unverifiedExact = { total: null, error: e.message };
+  }
 
   const authUserIds = users.map(u => u.$id);
-
-  // Use parallel single-count queries rather than one query per user.
   const [resumeRes, activeUserOwnedResumes] = await Promise.all([
     safeList(null, 'resumes', [sdk.Query.limit(1)]),
-    countDocumentsForUserIds('resumes', authUserIds),
+    countDocumentsForUserIdsDetailed('resumes', authUserIds),
   ]);
 
-  const orphanedResumes = Math.max(0, (resumeRes.total || 0) - activeUserOwnedResumes);
-  log(`handleOverviewStats: ${users.length}/${total} users checked (truncated=${truncated})`);
+  const resumesAvailable = !resumeRes.error && !activeUserOwnedResumes.error;
+  const rawResumeDocuments = resumeRes.error ? null : (resumeRes.total ?? 0);
+  const totalResumes = activeUserOwnedResumes.error ? null : activeUserOwnedResumes.count;
+  const orphanedResumes = resumesAvailable && rawResumeDocuments != null && totalResumes != null
+    ? Math.max(0, rawResumeDocuments - totalResumes)
+    : null;
+  const exactCounts = deriveExactUserCounts(total, unverifiedExact.error ? null : (unverifiedExact.total ?? 0));
+  const unverifiedTotal = exactCounts.unverifiedUsersTotal;
+  const verifiedTotal = exactCounts.verifiedUsers;
+  const availability = {
+    overall: authAvailable && !unverifiedExact.error && resumesAvailable ? 'available' : (authAvailable || !resumeRes.error ? 'partial' : 'error'),
+    authUsers: authAvailable ? 'available' : 'error',
+    unverifiedUsers: unverifiedExact.error ? 'error' : 'available',
+    resumes: resumesAvailable ? 'available' : 'error',
+  };
+
+  log(`handleOverviewStats: ${users.length}/${total ?? 'unavailable'} users checked (sample_truncated=${truncated})`);
   return {
     totalAuthUsers: total,
-    verifiedUsers: users.filter(u => u.emailVerification).length,
-    totalResumes: activeUserOwnedResumes,
-    rawResumeDocuments: resumeRes.total || 0,
-    orphanedResumes,
-    truncated,
+    verifiedUsers: verifiedTotal,
+    unverifiedUsersTotal: unverifiedTotal,
+    unverifiedUsersTotalExact: unverifiedTotal != null,
     unverifiedUsers: users
       .filter(u => !u.emailVerification)
       .map(u => ({ user_id: u.$id, email: u.email || null, name: u.name || null, created_at: u.$createdAt }))
-      .slice(0, 10),
+      .slice(0, SAMPLE_LIMIT),
+    unverifiedUsersSampleLimit: SAMPLE_LIMIT,
+    unverifiedUsersIsSample: true,
+    totalResumes,
+    rawResumeDocuments,
+    orphanedResumes,
+    truncated,
+    availability,
   };
 }
 
 async function countUniqueTodayVisitors(since) {
   const ids = new Set();
   let cursor = null;
+  let error = null;
+  let truncated = false;
   // Cap at 10 pages (5000 events) to prevent dashboard timeout
   for (let i = 0; i < 10; i++) {
     const q = [sdk.Query.greaterThanEqual('$createdAt', since), sdk.Query.limit(500)];
     if (cursor) q.push(sdk.Query.cursorAfter(cursor));
     let page;
-    try { page = await listDocuments('visitor_events', q); } catch { break; }
+    try {
+      page = await listDocuments('visitor_events', q);
+    } catch (e) {
+      error = e.message;
+      break;
+    }
     const docs = page.documents || [];
     for (const d of docs) { if (d.anon_id) ids.add(d.anon_id); }
     if (docs.length < 500) break;
     cursor = docs[docs.length - 1].$id;
+    if (i === 9) truncated = true;
   }
-  return ids.size;
+  return { count: error ? null : ids.size, error, truncated };
 }
 
 async function handleGlobalStats(log) {
@@ -793,16 +870,31 @@ async function handleGlobalStats(log) {
     safeList(null, 'subscriptions', [sdk.Query.equal('effective_plan', 'pro'), sdk.Query.limit(1)]),
     safeList(null, 'subscriptions', [sdk.Query.equal('plan', 'pro'), sdk.Query.limit(1)]),
     safeList(null, 'profiles', [sdk.Query.equal('is_suspended', true), sdk.Query.limit(1)]),
-    listUsers([sdk.Query.limit(1)]),
+    listUsers([sdk.Query.limit(1)]).catch(e => ({ total: null, error: e.message })),
     countUniqueTodayVisitors(todaySince),
   ]);
+  const metric = source => effectivePlanCount(source);
+  const availability = {
+    total: auth.error ? 'error' : 'available',
+    profiles: profiles.error ? 'error' : 'available',
+    premium: premiumEffective.error ? 'error' : 'available',
+    pro: proEffective.error ? 'error' : 'available',
+    suspended: suspended.error ? 'error' : 'available',
+    activeToday: activeToday.error ? 'error' : (activeToday.truncated ? 'partial' : 'available'),
+  };
+  log(`handleGlobalStats: effective_plan premium=${metric(premiumEffective)} pro=${metric(proEffective)}; activeToday=${activeToday.count ?? 'unavailable'}`);
   return {
-    total: auth.total,
-    profilesTotal: profiles.total,
-    premium: (premiumEffective.total || premiumBase.total || 0),
-    pro: (proEffective.total || proBase.total || 0),
-    suspended: suspended.total,
-    activeToday,
+    total: auth.error ? null : (auth.total ?? 0),
+    profilesTotal: metric(profiles),
+    premium: metric(premiumEffective),
+    pro: metric(proEffective),
+    suspended: metric(suspended),
+    activeToday: activeToday.count,
+    sources: {
+      premium: { field: 'effective_plan', count: metric(premiumEffective), legacyPlanCount: metric(premiumBase), status: availability.premium },
+      pro: { field: 'effective_plan', count: metric(proEffective), legacyPlanCount: metric(proBase), status: availability.pro },
+    },
+    availability,
   };
 }
 
@@ -2637,20 +2729,19 @@ async function handleListAiGatewayActivity(body, log) {
     log(`list-ai-gateway-activity: executions fetch failed: ${e.message}`);
   }
 
-  const usageRes = await safeList(null, 'ai_request_logs', [sdk.Query.limit(50), sdk.Query.orderDesc('created_at')]);
+  const USAGE_SAMPLE_LIMIT = 50;
+  const usageRes = await safeList(null, 'ai_request_logs', [sdk.Query.limit(USAGE_SAMPLE_LIMIT), sdk.Query.orderDesc('created_at')]);
   const missingUsageCollection = !!usageRes.error && /not\s+found|could not be found|collection.*missing|does not exist/i.test(usageRes.error);
   const usageFetchError = usageRes.error && !missingUsageCollection ? usageRes.error : null;
+  const usageDocs = usageRes.documents || [];
+  const usageAvailable = !usageRes.error;
+  const counts = buildUsageStats(usageDocs, {
+    requestedLimit: USAGE_SAMPLE_LIMIT,
+    availableTotal: usageAvailable ? (usageRes.total ?? usageDocs.length) : null,
+    error: !usageAvailable,
+  });
 
-  const counts = { total: usageRes.total || 0, openrouter: 0, groq: 0, deepseek: 0, nvidia: 0 };
-  for (const d of (usageRes.documents || [])) {
-    const p = (d.provider || '').toLowerCase();
-    if (p.includes('openrouter')) counts.openrouter++;
-    else if (p.includes('groq')) counts.groq++;
-    else if (p.includes('deepseek')) counts.deepseek++;
-    else if (p.includes('nvidia')) counts.nvidia++;
-  }
-
-  log(`list-ai-gateway-activity: ${executions.length} executions, ${counts.total} usage logs${executionsFetchError ? ` (exec error: ${executionsFetchError})` : ''}${usageFetchError ? ` (usage error: ${usageFetchError})` : ''}`);
+  log(`list-ai-gateway-activity: ${executions.length} executions, ${counts.total ?? 'unavailable'} usage logs in requested window${executionsFetchError ? ` (exec error: ${executionsFetchError})` : ''}${usageFetchError ? ` (usage error: ${usageFetchError})` : ''}`);
   return {
     executions,
     usageStats: counts,
@@ -3274,6 +3365,9 @@ module.exports = async ({ req, res, log, error }) => {
 };
 
 module.exports._test = {
+  deriveExactUserCounts,
+  buildUsageStats,
+  summarizeCompletionHealth,
   getInternalHmacSecret,
   signInternalRequest,
   handleSendAdminPasswordResetOtp,

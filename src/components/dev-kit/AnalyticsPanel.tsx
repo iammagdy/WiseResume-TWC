@@ -102,6 +102,7 @@ export function AnalyticsPanel() {
   const [visitorData, setVisitorData] = useState<VisitorDashboard | null>(null);
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error' | 'timeout'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [range, setRange] = useState<AnalyticsRange>('7d');
@@ -115,11 +116,12 @@ export function AnalyticsPanel() {
     const token = getDevKitToken();
     if (!token) return;
     setLoading(true);
+    setLoadState('loading');
     setError(null);
     try {
       // Fire all three requests concurrently — visitor analytics and health
       // are best-effort so their failures must never block the primary call.
-      const [tuple, visitorResult, healthResult] = await Promise.all([
+      const request = Promise.all([
         invokeWithRetry('admin-devkit-data', {
           headers: devKitAuthHeaders(),
           body: { action: 'analytics', range: r },
@@ -136,9 +138,21 @@ export function AnalyticsPanel() {
           timeoutMs: 30_000,
         }).catch(() => ({ ok: false as const, error: { code: 'NETWORK_ERROR' as const, message: 'health unavailable' } })),
       ]);
+      const [tuple, visitorResult, healthResult] = await Promise.race([
+        request,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Analytics request timed out after 45 seconds')), 45_000)),
+      ]);
 
       const result = unwrapAdminResponse<PremiumAnalyticsData>(tuple, 'admin-devkit-data');
-      if (!result) throw new Error('No data returned');
+      const hasPrimaryData = Boolean(result && (result.rangeKpis || result.activitySeries?.length || result.topPages?.length || result.topFeaturesRanged?.length));
+      if (!hasPrimaryData) {
+        if (!isMounted()) return;
+        setData(null);
+        setVisitorData(null);
+        setHealth(null);
+        setLoadState('empty');
+        return;
+      }
       if (!isMounted()) return;
       setData({ ...result, lastUpdatedAt: new Date() });
       setSecondsAgo(0);
@@ -151,8 +165,11 @@ export function AnalyticsPanel() {
       }
 
       setLastLoadedAt(new Date());
+      setLoadState('success');
     } catch (e) {
       if (!isMounted()) return;
+      const message = e instanceof Error ? e.message : String(e);
+      setLoadState(message.includes('timed out') ? 'timeout' : 'error');
       setError(formatEdgeError(e, 'Failed to load analytics'));
     } finally {
       if (isMounted()) setLoading(false);
@@ -167,6 +184,7 @@ export function AnalyticsPanel() {
       setData(null);
       setVisitorData(null);
       setHealth(null);
+      setLoadState('idle');
       setError(null);
     }
   }, [isUnlocked, range, fetchAnalytics]);
@@ -329,11 +347,14 @@ export function AnalyticsPanel() {
         </div>
       </div>
 
-      {error && (
-        <DevKitErrorCard error={error} title="Couldn't load analytics" context={{ panel: 'Analytics', function: 'admin-devkit-data' }} />
+      {(loadState === 'error' || loadState === 'timeout') && !data && error && (
+        <DevKitErrorCard error={error} title={loadState === 'timeout' ? 'Analytics timed out' : "Couldn't load analytics"} onRetry={() => fetchAnalytics(range)} context={{ panel: 'Analytics', function: 'admin-devkit-data' }} />
+      )}
+      {loadState === 'empty' && !loading && !data && (
+        <EmptyState message={`No analytics data is available for ${rangeLabel[range]}.`} />
       )}
 
-      {loading && !data && (
+      {loadState === 'loading' && !data && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[...Array(8)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />)}
@@ -357,17 +378,17 @@ export function AnalyticsPanel() {
           <div className="rounded-xl border border-border bg-muted/20 p-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
               <span className="font-medium text-foreground">
-                {visitorData?.kpis?.totalVisits?.toLocaleString() ?? data?.rangeKpis?.views?.current?.toLocaleString() ?? '0'}
+                {visitorData?.kpis?.totalVisits?.toLocaleString() ?? data?.rangeKpis?.views?.current?.toLocaleString() ?? 'Unavailable'}
               </span>
               <span className="text-muted-foreground">visitor events</span>
               <span className="text-muted-foreground/40">·</span>
               <span className="font-medium text-foreground">{data?.rangeKpis?.activeUsers?.current?.toLocaleString() ?? 'Unavailable'}</span>
               <span className="text-muted-foreground">active users</span>
               <span className="text-muted-foreground/40">·</span>
-              <span className="font-medium text-foreground">{data?.rangeKpis?.aiCredits?.current?.toLocaleString() ?? '0'}</span>
+                <span className="font-medium text-foreground">{data?.rangeKpis?.aiCredits?.current?.toLocaleString() ?? 'Unavailable'}</span>
               <span className="text-muted-foreground">AI credits</span>
               <span className="text-muted-foreground/40">·</span>
-              <span className="font-medium text-foreground">{data?.rangeKpis?.portfolioViews?.current?.toLocaleString() ?? '0'}</span>
+                <span className="font-medium text-foreground">{data?.rangeKpis?.portfolioViews?.current?.toLocaleString() ?? 'Unavailable'}</span>
               <span className="text-muted-foreground">portfolio views</span>
               {visitorData?.kpis?.topCountry && (
                 <>
@@ -411,14 +432,14 @@ export function AnalyticsPanel() {
             />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiCard label="DAU" value={data?.rangeKpis?.dau?.toLocaleString() ?? '0'} sub="last 24h"
+            <KpiCard label="DAU" value={data?.rangeKpis?.dau?.toLocaleString() ?? ''} unavailable={data?.rangeKpis?.dau == null} sub="last 24h"
               icon={Activity} accent="blue" hideDelta />
-            <KpiCard label="WAU" value={data?.rangeKpis?.wau?.toLocaleString() ?? '0'} sub="last 7 days"
+            <KpiCard label="WAU" value={data?.rangeKpis?.wau?.toLocaleString() ?? ''} unavailable={data?.rangeKpis?.wau == null} sub="last 7 days"
               icon={Users} accent="blue" hideDelta />
-            <KpiCard label="Stickiness" value={data?.rangeKpis?.stickiness != null ? `${data.rangeKpis.stickiness}%` : '0%'} sub="DAU / WAU"
+            <KpiCard label="Stickiness" value={data?.rangeKpis?.stickiness != null ? `${data.rangeKpis.stickiness}%` : ''} unavailable={data?.rangeKpis?.stickiness == null} sub="DAU / WAU"
               icon={TrendingUp} accent="rose" hideDelta />
             <KpiCard
-              label="Portfolio views" value={data?.rangeKpis?.portfolioViews?.current?.toLocaleString() ?? '0'}
+              label="Portfolio views" value={data?.rangeKpis?.portfolioViews?.current?.toLocaleString() ?? ''} unavailable={data?.rangeKpis?.portfolioViews?.current == null}
               sub={`vs previous ${rangeLabel[range]}`}
               icon={Eye} accent="purple"
               current={data?.rangeKpis?.portfolioViews?.current} previous={data?.rangeKpis?.portfolioViews?.previous}
@@ -432,7 +453,7 @@ export function AnalyticsPanel() {
             description="Visitor → Signup → Created Resume → Used AI → Tailored → Exported/Shared"
             icon={TrendingUp}
           >
-            <div className="space-y-2">
+            {funnelSteps.length === 0 ? <EmptyState message="Growth funnel data is unavailable for this range." /> : <div className="space-y-2">
               {funnelSteps.map((step, i) => {
                 const pct = Math.round((step.count / maxFunnelCount) * 100);
                 const conversionPct = i > 0 && funnelSteps[0].count > 0
@@ -457,7 +478,7 @@ export function AnalyticsPanel() {
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </SectionCard>
 
           {/* D. Traffic & active users chart — full width */}
