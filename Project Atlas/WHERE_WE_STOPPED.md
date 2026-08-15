@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-15
-**Status:** `AI_RUNTIME_RECEIPTS_CONTRACT_FIX_VALIDATED_NOT_PUSHED` — schema-contract fix is validated on branch `fix/ai-runtime-receipts-schema-contract`; no Appwrite or manual Vercel deployment was performed
+**Status:** `AI_RUNTIME_RECEIPTS_CONTRACT_FIX_PR_OPEN_PENDING_CHECKS` — PR #187 is open from `fix/ai-runtime-receipts-schema-contract` to `main`; deployment status remains `NOT_DEPLOYED`; no Appwrite or manual Vercel deployment was performed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -13,7 +13,7 @@
 * **Security:** The current live collection was observed with `permissions=[]` and `documentSecurity=false`; the reported security assertion failure is not reproducible now, and its historical operand/origin is `UNKNOWN`.
 * **Contract:** `request_id`, `hub`, `feature_id`, `status`, `completed_at`, and `expires_at` are now required in the repository contract. Other attributes and indexes remain unchanged.
 * **Validation:** Focused AI runtime schema tests passed (8 tests); relevant Node syntax checks, TypeScript, and diff checks passed.
-* **Stop point:** Branch is ready to push and review. Do not run production setup or deployment; no PR was opened automatically.
+* **PR status:** `PR_OPEN_PENDING_CHECKS`. PR #187 is open from `fix/ai-runtime-receipts-schema-contract` to `main`. Deployment status remains `NOT_DEPLOYED`; do not run production setup or deployment, and do not merge.
 
 ## DevKit production crash hotfix (2026-08-15)
 
