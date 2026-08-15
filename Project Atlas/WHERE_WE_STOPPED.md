@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-15
-**Status:** `FULL_POST_CHANGE_REGRESSION_AUDIT_PASS_WITH_WARNINGS` — PR #187 remains merged into `main` with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`; deployment status remains `NOT_DEPLOYED`; no Appwrite or manual Vercel deployment was performed
+**Status:** `FULL_POST_CHANGE_REGRESSION_AUDIT_PASS_WITH_WARNINGS` — PR #187 remains merged into `main` with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`; PR #188 is open and unmerged for the scoped public-share fix; deployment status remains `NOT_DEPLOYED`; no Appwrite or manual Vercel deployment was performed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
@@ -12,8 +12,9 @@
 * **Proven regression:** `/share/:token` blanked during slow/missing lookup because `SharePage.tsx` returned `null` while the retrying public-share query was loading. Branch `audit/full-regression-public-share-fix` replaces the blank with `ShareSkeleton` and adds one focused regression test. The fix is pending review and is not merged or deployed.
 * **Production:** Public, authenticated, Arabic/RTL, WiseHire public, DevKit v2, and representative protected routes rendered stable states. The former `/devkit` CommonJS crash was not reproduced; legacy `/devkit` remained at admin-session verification because its targeted backend was not deployed.
 * **Deployment:** `NOT_DEPLOYED`. Workflow runs `31871663976` and `31875957559` both failed at the `ai_runtime_receipts` schema assertion (`permissionsIsArray=false, permissionCount=unknown, documentSecurity=false`); no function was deployed. No Appwrite Console, schema, permissions, secrets, environment variables, data, or manual Vercel deployment were changed.
+* **PR:** #188 — [fix(share): render loading state for public share lookups](https://github.com/iammagdy/WiseResume-TWC/pull/188), head `49a2a9d33698f2dd143f747553fbe4005288898a`, is open and unmerged. PR Validation, Vercel, and Vercel Preview Comments passed; TestSprite remains the known non-applicable `No tests detected` warning.
 * **Report:** [`reports/2026-08-15-full-post-change-regression-audit.md`](./reports/2026-08-15-full-post-change-regression-audit.md)
-* **Stop point:** Commit and push the scoped fix and Atlas/report files, open a PR to `main`, and leave merge/deployment decisions to the owner. After normal approved merge/deployment, reverify both public-share variants and the legacy DevKit panels.
+* **Stop point:** PR is open for review. Do not merge or deploy from this task. After normal approved merge/deployment, reverify both public-share variants and the legacy DevKit panels.
 
 ## AI runtime receipts schema contract remediation (2026-08-15)
 

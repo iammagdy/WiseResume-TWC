@@ -1,7 +1,7 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-15
-**Status:** Canonical Production Snapshot - Full post-change regression audit completed with verdict `PASS_WITH_WARNINGS`; workflow `31871663976` failed before deployment; deployment status remains `NOT_DEPLOYED`; all Appwrite deployments remain blocked pending a separate owner-authorized targeted deployment task; DevKit module-boundary crash hotfix PR #185 merged and former browser crash not reproduced; DevKit Phase 1 PR #184 remains merged pending targeted deployment; legacy `/devkit` remains blocked at admin-session verification while `/devkit2` Command Home is live; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
+**Status:** Canonical Production Snapshot - Full post-change regression audit completed with verdict `PASS_WITH_WARNINGS`; PR #188 is open and unmerged for the scoped public-share loading fix; workflows `31871663976` and `31875957559` failed before deployment; deployment status remains `NOT_DEPLOYED`; all Appwrite deployments remain blocked pending a separate owner-authorized targeted deployment task; DevKit module-boundary crash hotfix PR #185 merged and former browser crash not reproduced; DevKit Phase 1 PR #184 remains merged pending targeted deployment; legacy `/devkit` remains blocked at admin-session verification while `/devkit2` Command Home is live; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
@@ -13,6 +13,7 @@
 * **Proven regression:** `/share/:token` showed a blank page during slow/missing lookup because `SharePage.tsx` returned `null` while `usePublicResume` was loading and retrying. The scoped branch `audit/full-regression-public-share-fix` renders `ShareSkeleton` and adds a focused regression test. The fix is not merged or deployed.
 * **Runtime:** The former `/devkit` `ReferenceError: module is not defined` was not reproduced. Legacy `/devkit` remained indefinitely at admin-session verification because the targeted backend functions were not deployed. `/devkit2` Command Home rendered live summary data; other v2 hubs explicitly remain Step 2 placeholders.
 * **Deployment boundary:** Appwrite deployment remains `NOT_DEPLOYED`. Runs `31871663976` and `31875957559` both failed at the `ai_runtime_receipts` schema assertion with `permissionsIsArray=false, permissionCount=unknown, documentSecurity=false`; no function was deployed. Vercel production remained `READY`; no manual Vercel deployment was performed.
+* **PR:** #188 — [fix(share): render loading state for public share lookups](https://github.com/iammagdy/WiseResume-TWC/pull/188), head `49a2a9d33698f2dd143f747553fbe4005288898a`, open and unmerged. PR Validation, Vercel, and Vercel Preview Comments passed; TestSprite remains the known non-applicable `No tests detected` warning.
 * **Report:** [`reports/2026-08-15-full-post-change-regression-audit.md`](./reports/2026-08-15-full-post-change-regression-audit.md)
 
 ## AI runtime receipts schema contract remediation (2026-08-15)
