@@ -8,6 +8,7 @@ const {
     getFunctionExecutionPolicy,
     parseExplicitHubTargets,
 } = require('./appwrite-function-policy.cjs');
+const { readManagedAuthTemplates } = require('./auth-template-contract.cjs');
 
 function loadEnvFile(fileName) {
     const filePath = path.join(process.cwd(), fileName);
@@ -474,26 +475,29 @@ async function patchAuthEmailTemplate(type, subject, message) {
 }
 
 async function syncAuthEmailTemplates() {
-    const templatesDir = path.join(ROOT, 'appwrite-hubs', 'email-templates');
-
     console.log('\nConfiguring Appwrite auth email templates...');
 
+    let templates;
     try {
-        await patchAuthEmailTemplate('verification', ' ', ' ');
-        console.log('  Blanked verification template (Resend is the branded verification email)');
+        templates = readManagedAuthTemplates(ROOT);
     } catch (e) {
-        console.warn(`  Could not blank verification template: ${e.message}`);
+        throw new Error(`Managed auth email template contract failed: ${e.message}`);
     }
 
-    const recoveryPath = path.join(templatesDir, 'password-recovery.html');
-    if (fs.existsSync(recoveryPath)) {
-        try {
-            const message = fs.readFileSync(recoveryPath, 'utf8');
-            await patchAuthEmailTemplate('recovery', 'Reset your WiseResume password', message);
-            console.log('  Synced recovery template (password-recovery.html)');
-        } catch (e) {
-            console.warn(`  Could not sync recovery template: ${e.message}`);
-        }
+    try {
+        const verification = templates.verification;
+        await patchAuthEmailTemplate(verification.type, verification.subject, verification.message);
+        console.log('  Synced verification template (email-verification.html)');
+    } catch (e) {
+        console.warn(`  Could not sync verification template: ${e.message}`);
+    }
+
+    try {
+        const recovery = templates.recovery;
+        await patchAuthEmailTemplate(recovery.type, recovery.subject, recovery.message);
+        console.log('  Synced recovery template (password-recovery.html)');
+    } catch (e) {
+        console.warn(`  Could not sync recovery template: ${e.message}`);
     }
 }
 
