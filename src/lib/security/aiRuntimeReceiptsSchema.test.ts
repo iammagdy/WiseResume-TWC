@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const require = createRequire(import.meta.url);
 const schema = require('../../../scripts/setup_ai_runtime_receipts_schema.cjs') as {
   ATTRIBUTE_SPECS: Array<{ key: string; required: boolean }>;
-  assertServerOnlyCollection: (collection: { permissions?: unknown; documentSecurity?: unknown }) => void;
+  assertServerOnlyCollection: (collection: { $permissions?: unknown; permissions?: unknown; documentSecurity?: unknown; enabled?: unknown }) => void;
 };
 
 const writerPaths = [
@@ -63,27 +63,29 @@ describe('AI runtime receipts schema contract', () => {
     expect(receipt.expires_at).toEqual(expect.any(String));
   });
 
-  it('accepts a compatible server-only collection', () => {
-    expect(() => schema.assertServerOnlyCollection({ permissions: [], documentSecurity: false })).not.toThrow();
+  it('accepts the Appwrite Collection response shape for a compatible server-only collection', () => {
+    expect(() => schema.assertServerOnlyCollection({ $permissions: [], documentSecurity: false, enabled: true })).not.toThrow();
   });
 
-  it('fails closed for incompatible server-only settings', () => {
-    expect(() => schema.assertServerOnlyCollection({ permissions: ['role:any'], documentSecurity: false })).toThrow();
-    expect(() => schema.assertServerOnlyCollection({ permissions: [], documentSecurity: true })).toThrow();
-    expect(() => schema.assertServerOnlyCollection({ permissions: 'not-an-array', documentSecurity: false })).toThrow();
+  it('fails closed for incompatible server-only settings and undocumented permission shapes', () => {
+    expect(() => schema.assertServerOnlyCollection({ $permissions: ['role:any'], documentSecurity: false })).toThrow();
+    expect(() => schema.assertServerOnlyCollection({ $permissions: [], documentSecurity: true })).toThrow();
+    expect(() => schema.assertServerOnlyCollection({ $permissions: 'not-an-array', documentSecurity: false })).toThrow();
+    expect(() => schema.assertServerOnlyCollection({ permissions: [], documentSecurity: false })).toThrow(
+      /permissionsIsArray=false, permissionCount=unknown, documentSecurity=false/,
+    );
   });
 
   it('reports only safe security metadata in assertion diagnostics', () => {
-    expect(() => schema.assertServerOnlyCollection({ permissions: ['sensitive-permission-value'], documentSecurity: true })).toThrow(
+    expect(() => schema.assertServerOnlyCollection({ $permissions: ['sensitive-permission-value'], documentSecurity: true })).toThrow(
       /permissionsIsArray=true, permissionCount=1, documentSecurity=true/,
     );
     try {
-      schema.assertServerOnlyCollection({ permissions: ['sensitive-permission-value'], documentSecurity: true });
+      schema.assertServerOnlyCollection({ $permissions: ['sensitive-permission-value'], documentSecurity: true });
     } catch (error) {
       const message = String(error);
       expect(message).not.toContain('sensitive-permission-value');
       expect(message).not.toContain('role:any');
-      expect(message).not.toContain('sensitive-permission-value');
       expect(message).not.toContain('user_id');
     }
   });
@@ -92,6 +94,7 @@ describe('AI runtime receipts schema contract', () => {
     const source = readFileSync(resolve(process.cwd(), 'scripts/setup_ai_runtime_receipts_schema.cjs'), 'utf8');
     expect(source).not.toContain('updateCollection');
     expect(source).not.toContain('deleteCollection');
+    expect(source).toContain('collection?.$permissions');
     expect(source).toContain('permissionsIsArray=');
     expect(source).toContain('permissionCount=');
     expect(source).toContain('documentSecurity=');
