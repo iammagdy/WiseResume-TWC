@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { classifyRequestFailure } from './phase1UiSemantics';
+import { classifyCompletionStatuses } from './completionHealth';
 import { formatCompletionStatus } from './completionHealthUi';
 
 const require = createRequire(import.meta.url);
@@ -52,12 +55,22 @@ describe('DevKit Phase 1 backend semantics', () => {
   });
 
   it('renders mixed UI completion health as Degraded / Mixed, not Healthy', () => {
-    const result = formatCompletionStatus('available', [
+    const results = [
       { status: 'success', latencyMs: 120 },
       { status: 'rate_limited' },
-    ]);
+    ];
+    const result = formatCompletionStatus('available', results);
     expect(result.label).toBe('Degraded / Mixed');
     expect(result.label).not.toBe('Healthy');
+    expect(classifyCompletionStatuses(results).status).toBe('mixed');
+  });
+
+  it('keeps the browser health classifier free of CommonJS Appwrite-hub runtime code', () => {
+    const formatterSource = readFileSync(resolve(process.cwd(), 'src/lib/devkit/completionHealthUi.ts'), 'utf8');
+    const classifierSource = readFileSync(resolve(process.cwd(), 'src/lib/devkit/completionHealth.ts'), 'utf8');
+    expect(formatterSource).not.toContain('appwrite-hubs');
+    expect(formatterSource).not.toContain('module.exports');
+    expect(classifierSource).not.toContain('module.exports');
   });
 
   it('separates completion health from transport reachability', () => {

@@ -1,4 +1,4 @@
-import * as completionHealth from '../../../appwrite-hubs/admin-devkit-data/src/completion-health.js';
+import { classifyCompletionStatuses } from './completionHealth';
 
 export interface CompletionStatusEntry {
   status?: string;
@@ -6,7 +6,7 @@ export interface CompletionStatusEntry {
 }
 
 export function formatCompletionStatus(healthStatus: string | undefined, results: CompletionStatusEntry[]) {
-  const summary = completionHealth.classifyCompletionStatuses(results);
+  const summary = classifyCompletionStatuses(results);
 
   if (summary.status === 'no_recorded_probe') {
     return { label: healthStatus === 'error' ? 'Unavailable' : 'No recorded probe', tone: 'text-white/35' };
