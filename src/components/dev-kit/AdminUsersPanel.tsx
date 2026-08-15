@@ -41,11 +41,16 @@ export interface AdminUser {
 }
 
 interface GlobalStats {
-  total: number;
-  premium: number;
-  pro: number;
-  suspended: number;
-  activeToday: number;
+  total: number | null;
+  premium: number | null;
+  pro: number | null;
+  suspended: number | null;
+  activeToday: number | null;
+  availability?: Record<string, 'available' | 'partial' | 'error'>;
+  sources?: {
+    premium?: { field: string; count: number | null; legacyPlanCount: number | null; status: string };
+    pro?: { field: string; count: number | null; legacyPlanCount: number | null; status: string };
+  };
 }
 
 type FilterTab = 'all' | 'premium' | 'pro' | 'free' | 'suspended';
@@ -97,6 +102,7 @@ export const AdminUsersPanel = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [globalStatsState, setGlobalStatsState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [usersView, setUsersView] = useState<'all' | 'signups'>('all');
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -141,14 +147,18 @@ export const AdminUsersPanel = () => {
       );
       const result = unwrapAdminResponse<GlobalStats>(tuple, 'admin-devkit-data');
       setGlobalStats({
-        total:      result.total      ?? 0,
-        premium:    result.premium    ?? 0,
-        pro:        result.pro        ?? 0,
-        suspended:  result.suspended  ?? 0,
-        activeToday: result.activeToday ?? 0,
+        total: result.total ?? null,
+        premium: result.premium ?? null,
+        pro: result.pro ?? null,
+        suspended: result.suspended ?? null,
+        activeToday: result.activeToday ?? null,
+        availability: result.availability,
+        sources: result.sources,
       });
+      setGlobalStatsState('ready');
     } catch {
-      // silently ignore — stats bar will show page-local fallback
+      setGlobalStats(null);
+      setGlobalStatsState('error');
     }
   }, []);
 
@@ -176,7 +186,7 @@ export const AdminUsersPanel = () => {
       const fetchedUsers = result.users ?? [];
       const newTotal = result.total ?? 0;
       setTotalCount(newTotal);
-      setGlobalStats(prev => ({ ...prev ?? { premium: 0, pro: 0, suspended: 0, activeToday: 0 }, total: newTotal }));
+      setGlobalStats(prev => prev ? { ...prev, total: newTotal } : prev);
       setFetchError(null);
       setUsers(fetchedUsers);
     } catch (err) {
@@ -480,11 +490,11 @@ export const AdminUsersPanel = () => {
   });
 
   const displayStats = {
-    total: globalStats?.total ?? totalCount,
-    premium: globalStats?.premium ?? users.filter(u => u.plan_name === 'premium').length,
-    pro: globalStats?.pro ?? users.filter(u => u.plan_name === 'pro').length,
-    suspended: globalStats?.suspended ?? users.filter(u => u.is_suspended).length,
-    activeToday: globalStats?.activeToday ?? 0,
+    total: globalStats?.total ?? null,
+    premium: globalStats?.premium ?? null,
+    pro: globalStats?.pro ?? null,
+    suspended: globalStats?.suspended ?? null,
+    activeToday: globalStats?.activeToday ?? null,
   };
 
   const allSelected = filtered.length > 0 && filtered.every(u => selected.has(u.user_id));
@@ -612,7 +622,7 @@ export const AdminUsersPanel = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-black tracking-tight text-white">God Mode</h2>
-          <p className="text-xs text-white/40 mt-0.5">Full platform control · {displayStats.total.toLocaleString()} users total</p>
+          <p className="text-xs text-white/40 mt-0.5">Full platform control · {displayStats.total == null ? 'user total unavailable' : `${displayStats.total.toLocaleString()} users total`}</p>
         </div>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
@@ -663,41 +673,41 @@ export const AdminUsersPanel = () => {
         <DevKitMetricCard
           icon={User}
           label="Total"
-          value={displayStats.total.toLocaleString()}
-          subtext="All users"
-          loading={globalStats === null}
+          value={displayStats.total ?? 'Unavailable'}
+          subtext={globalStatsState === 'error' ? 'Global stats unavailable' : 'All users'}
+          loading={globalStatsState === 'loading'}
         />
         <DevKitMetricCard
           icon={Crown}
           label="Premium"
-          value={displayStats.premium.toLocaleString()}
-          status="warning"
-          subtext="Premium plan"
-          loading={globalStats === null}
+          value={displayStats.premium ?? 'Unavailable'}
+          status={displayStats.premium == null ? 'error' : 'warning'}
+          subtext="effective_plan = premium"
+          loading={globalStatsState === 'loading'}
         />
         <DevKitMetricCard
           icon={Shield}
           label="Pro"
-          value={displayStats.pro.toLocaleString()}
-          status="info"
-          subtext="Pro plan"
-          loading={globalStats === null}
+          value={displayStats.pro ?? 'Unavailable'}
+          status={displayStats.pro == null ? 'error' : 'info'}
+          subtext="effective_plan = pro"
+          loading={globalStatsState === 'loading'}
         />
         <DevKitMetricCard
           icon={Ban}
           label="Suspended"
-          value={displayStats.suspended.toLocaleString()}
-          status={displayStats.suspended > 0 ? 'error' : 'success'}
+          value={displayStats.suspended ?? 'Unavailable'}
+          status={displayStats.suspended == null ? 'error' : displayStats.suspended > 0 ? 'error' : 'success'}
           subtext="Blocked users"
-          loading={globalStats === null}
+          loading={globalStatsState === 'loading'}
         />
         <DevKitMetricCard
           icon={Activity}
           label="Active Today"
-          value={displayStats.activeToday.toLocaleString()}
-          status="success"
+          value={displayStats.activeToday ?? 'Unavailable'}
+          status={displayStats.activeToday == null ? 'error' : 'success'}
           subtext="Profile updates today"
-          loading={globalStats === null}
+          loading={globalStatsState === 'loading'}
         />
       </div>
 

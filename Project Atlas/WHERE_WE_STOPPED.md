@@ -18,6 +18,20 @@
 
 ---
 
+## DevKit Phase 1 fix branch closeout (2026-08-14)
+
+* **Branch/commit:** `fix/devkit-phase1-live-data` at implementation commit `c1600bc0a176b6af4911aefa94cfd82364532ea6`, created from clean `main`.
+* **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. The scoped DevKit fixes are implemented locally and validated; no PR was opened and no merge or deployment occurred.
+* **Implementation:** Exact unverified Auth totals now accompany an explicitly labelled ten-user sample; backend failures use `null` plus availability/error semantics; legitimate Premium/Pro zeroes remain zero; AI transport reachability is separate from stored completion/key/model health; the usage card reports the actual returned sample and Unknown/Unattributed rows; App Overview and Onboarding have bounded terminal states.
+* **Validation:** Focused Phase 1 tests passed: 1 file / 4 tests. `npx tsc --noEmit`, changed-hub `node --check`, `git diff --check`, and `npm run build` passed. Existing Vite large-chunk warnings are non-blocking.
+* **Deployment drift:** Read-only production Functions inspection confirmed `ai-gateway` and `admin-devkit-data` `Needs Redeploy`. `ai-gateway` is pending PR #181 debt; `admin-devkit-data` has PR #181 drift plus this branch’s changes. `admin-onboarding-funnel` was live `In Sync` before this branch and now needs a targeted deploy for the new error propagation. Distinct `email-service` parity was not visible in the fresh loaded slice; visible `admin-email` was `In Sync`, so the PR #181 `email-service` target remains to be confirmed before deployment.
+* **Future targeted deploys:** `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and the confirmed PR #181 `email-service` target after exact-ID/status confirmation. Do not use `target=all`; obtain owner approval and run the required targeted workflow/preflight.
+* **Boundary:** No Appwrite, schema, permissions, secrets, environment variables, accounts, production data, or destructive DevKit action changed.
+* **Report:** [`reports/devkit/2026-08-14-phase1-fix.md`](./reports/devkit/2026-08-14-phase1-fix.md)
+* **Stop point:** Implementation, local validation, read-only drift inspection, and Atlas documentation are complete. Push this branch for review only; do not open a PR, merge, or deploy from this task.
+
+---
+
 ## Email/password login closeout (2026-08-14)
 
 ### Final production verification (2026-08-14)

@@ -119,8 +119,11 @@ async function fetchAll(databases, collectionId, queries = []) {
     let page;
     try {
       page = await databases.listDocuments(DB_ID, collectionId, q);
-    } catch {
-      break;
+    } catch (error) {
+      // Do not collapse a backend/query failure into an empty funnel. The
+      // dispatcher will return a safe error response and the DevKit panel will
+      // render its explicit error state.
+      throw new Error(`Could not read ${collectionId} onboarding events`, { cause: error });
     }
 
     const docs = page.documents || [];
