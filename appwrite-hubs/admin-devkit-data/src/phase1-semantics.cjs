@@ -13,6 +13,22 @@ function effectivePlanCount(effectiveResult) {
   return effectiveResult.total ?? 0;
 }
 
+function buildUnverifiedSummary(totalAuthUsers, unverifiedUsersTotal, sample, sampleLimit = 10) {
+  const exactCounts = deriveExactUserCounts(totalAuthUsers, unverifiedUsersTotal);
+  const boundedSample = Array.isArray(sample) ? sample.slice(0, sampleLimit) : [];
+  return {
+    ...exactCounts,
+    unverifiedUsersTotalExact: exactCounts.unverifiedUsersTotal != null,
+    unverifiedUsers: boundedSample,
+    unverifiedUsersSampleLimit: sampleLimit,
+    unverifiedUsersIsSample: true,
+  };
+}
+
+function metricValueOrUnavailable(value) {
+  return value == null ? 'Unavailable' : value;
+}
+
 function buildUsageStats(documents, { requestedLimit = 50, availableTotal = null, error = false } = {}) {
   const docs = Array.isArray(documents) ? documents : [];
   if (error) {
@@ -56,14 +72,20 @@ function summarizeCompletionHealth(results, provider) {
   const entries = Object.entries(results || {})
     .filter(([key]) => key.startsWith(`${provider}:`))
     .map(([, value]) => value || {});
-  if (entries.some(entry => entry.status === 'success')) return 'healthy';
   if (entries.length === 0) return 'no_recorded_probe';
+
+  const healthyCount = entries.filter(entry => String(entry.status || '').toLowerCase() === 'success').length;
+  if (healthyCount === entries.length) return 'healthy';
+  if (healthyCount > 0) return 'mixed';
+
   return String(entries[0].status || 'unknown').toLowerCase();
 }
 
 module.exports = {
   deriveExactUserCounts,
   effectivePlanCount,
+  buildUnverifiedSummary,
+  metricValueOrUnavailable,
   buildUsageStats,
   summarizeCompletionHealth,
 };

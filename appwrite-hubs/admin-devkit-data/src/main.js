@@ -806,9 +806,14 @@ async function handleOverviewStats(log) {
   const orphanedResumes = resumesAvailable && rawResumeDocuments != null && totalResumes != null
     ? Math.max(0, rawResumeDocuments - totalResumes)
     : null;
-  const exactCounts = deriveExactUserCounts(total, unverifiedExact.error ? null : (unverifiedExact.total ?? 0));
-  const unverifiedTotal = exactCounts.unverifiedUsersTotal;
-  const verifiedTotal = exactCounts.verifiedUsers;
+  const unverifiedSummary = buildUnverifiedSummary(
+    total,
+    unverifiedExact.error ? null : (unverifiedExact.total ?? 0),
+    users.filter(u => !u.emailVerification),
+    SAMPLE_LIMIT,
+  );
+  const unverifiedTotal = unverifiedSummary.unverifiedUsersTotal;
+  const verifiedTotal = unverifiedSummary.verifiedUsers;
   const availability = {
     overall: authAvailable && !unverifiedExact.error && resumesAvailable ? 'available' : (authAvailable || !resumeRes.error ? 'partial' : 'error'),
     authUsers: authAvailable ? 'available' : 'error',
@@ -821,13 +826,10 @@ async function handleOverviewStats(log) {
     totalAuthUsers: total,
     verifiedUsers: verifiedTotal,
     unverifiedUsersTotal: unverifiedTotal,
-    unverifiedUsersTotalExact: unverifiedTotal != null,
-    unverifiedUsers: users
-      .filter(u => !u.emailVerification)
-      .map(u => ({ user_id: u.$id, email: u.email || null, name: u.name || null, created_at: u.$createdAt }))
-      .slice(0, SAMPLE_LIMIT),
-    unverifiedUsersSampleLimit: SAMPLE_LIMIT,
-    unverifiedUsersIsSample: true,
+    unverifiedUsersTotalExact: unverifiedSummary.unverifiedUsersTotalExact,
+    unverifiedUsers: unverifiedSummary.unverifiedUsers.map(u => ({ user_id: u.$id, email: u.email || null, name: u.name || null, created_at: u.$createdAt })),
+    unverifiedUsersSampleLimit: unverifiedSummary.unverifiedUsersSampleLimit,
+    unverifiedUsersIsSample: unverifiedSummary.unverifiedUsersIsSample,
     totalResumes,
     rawResumeDocuments,
     orphanedResumes,

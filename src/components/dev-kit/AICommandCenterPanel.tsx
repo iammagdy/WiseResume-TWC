@@ -100,6 +100,7 @@ function completionStatusForProvider(health: CompletionHealth | undefined, provi
   const success = results.find(result => result.status === 'success');
   if (success) return { label: `Healthy${success.latencyMs ? ` (${success.latencyMs}ms)` : ''}`, tone: 'text-emerald-400' };
   const status = results[0].status.replaceAll('_', ' ');
+  if (status === 'mixed') return { label: 'Degraded / Mixed', tone: 'text-amber-400' };
   return { label: status.charAt(0).toUpperCase() + status.slice(1), tone: 'text-amber-400' };
 }
 

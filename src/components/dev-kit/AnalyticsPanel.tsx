@@ -28,6 +28,7 @@ import { EmptyState } from './analytics/EmptyState';
 import type { AnalyticsRange, PremiumAnalyticsData, NamedCount } from './analytics/types';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
+import { classifyRequestFailure } from '@/lib/devkit/phase1UiSemantics';
 import {
   normalizePageLabel, filterCleanPages, cleanReferrers,
   formatUnknown, isDevEnvironment,
@@ -169,7 +170,7 @@ export function AnalyticsPanel() {
     } catch (e) {
       if (!isMounted()) return;
       const message = e instanceof Error ? e.message : String(e);
-      setLoadState(message.includes('timed out') ? 'timeout' : 'error');
+      setLoadState(classifyRequestFailure(message, 'timed out'));
       setError(formatEdgeError(e, 'Failed to load analytics'));
     } finally {
       if (isMounted()) setLoading(false);
