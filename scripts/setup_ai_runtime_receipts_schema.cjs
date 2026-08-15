@@ -55,7 +55,9 @@ function indexCompatibilityError(index, spec) {
 }
 
 function assertServerOnlyCollection(collection) {
-  const permissions = collection?.permissions;
+  // Appwrite Collection responses expose collection permissions as `$permissions`.
+  // Do not fall back to an undocumented field: an absent/malformed response must fail closed.
+  const permissions = collection?.$permissions;
   const permissionsIsArray = Array.isArray(permissions);
   const permissionCount = permissionsIsArray ? permissions.length : 'unknown';
   const documentSecurity = collection?.documentSecurity;
