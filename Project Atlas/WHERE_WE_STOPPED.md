@@ -1,19 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-15
-**Status:** `AI_RUNTIME_RECEIPTS_CONTRACT_FIX_PR_OPEN_PENDING_CHECKS` — PR #187 is open from `fix/ai-runtime-receipts-schema-contract` to `main`; deployment status remains `NOT_DEPLOYED`; no Appwrite or manual Vercel deployment was performed
+**Status:** `AI_RUNTIME_RECEIPTS_CONTRACT_FIX_MERGED_VALIDATED_NOT_DEPLOYED` — PR #187 merged into `main` with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`; deployment status remains `NOT_DEPLOYED`; no Appwrite or manual Vercel deployment was performed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
 ## AI runtime receipts schema contract remediation (2026-08-15)
 
-* **Status:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Branch `fix/ai-runtime-receipts-schema-contract` updates the six required repository attributes and safe server-only assertion diagnostics, with focused tests. No Appwrite setup script or deployment occurred.
+* **Status:** `MERGED_VALIDATED_NOT_DEPLOYED`. PR #187 (`fix/ai-runtime-receipts-schema-contract` → `main`) matched implementation head `f99f250e85dfee468df2e3d99888333505114978`, received one docs-only follow-up, and merged with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`.
 * **Failed workflow:** Run `31871663976` failed at `scripts/setup_ai_runtime_receipts_schema.cjs`; no Appwrite function was deployed.
 * **Security:** The current live collection was observed with `permissions=[]` and `documentSecurity=false`; the reported security assertion failure is not reproducible now, and its historical operand/origin is `UNKNOWN`.
 * **Contract:** `request_id`, `hub`, `feature_id`, `status`, `completed_at`, and `expires_at` are now required in the repository contract. Other attributes and indexes remain unchanged.
-* **Validation:** Focused AI runtime schema tests passed (8 tests); relevant Node syntax checks, TypeScript, and diff checks passed.
-* **PR status:** `PR_OPEN_PENDING_CHECKS`. PR #187 is open from `fix/ai-runtime-receipts-schema-contract` to `main`. Deployment status remains `NOT_DEPLOYED`; do not run production setup or deployment, and do not merge.
+* **Validation:** Focused AI runtime schema tests passed (8 tests); relevant Node syntax checks, TypeScript, and diff checks passed. PR Validation, Security validation, Vercel, and Vercel Preview Comments passed. TestSprite failed only with the known non-applicable `No tests detected` warning.
+* **Deployment boundary:** `NOT_DEPLOYED`. No Appwrite setup or deployment, manual Vercel deployment, schema/permission mutation, secret/environment change, or production-data change occurred. The next action is a separate owner-authorized targeted deployment preflight after merge.
 
 ## DevKit production crash hotfix (2026-08-15)
 

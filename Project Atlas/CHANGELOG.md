@@ -1,13 +1,13 @@
 # Project Atlas Master Changelog
 
-## 2026-08-15 - AI Runtime Receipts Schema Contract Fix Prepared
+## 2026-08-15 - AI Runtime Receipts Schema Contract Fix Merged
 
-- **Status:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Branch `fix/ai-runtime-receipts-schema-contract` updates only the deterministic `ai_runtime_receipts` schema contract, focused regression coverage, and required Atlas closeout documentation. No Appwrite setup script was run and no deployment occurred.
-- **Blocker:** Official workflow run `31871663976` stopped at `scripts/setup_ai_runtime_receipts_schema.cjs`. The current live collection security assertion is not reproducibly incompatible: the observed collection has empty permissions and `documentSecurity=false`. The historical failing operand and drift origin remain `UNKNOWN`.
+- **Status:** `MERGED_VALIDATED_NOT_DEPLOYED`. PR #187 (`fix/ai-runtime-receipts-schema-contract` → `main`) matched implementation head `f99f250e85dfee468df2e3d99888333505114978`, received one docs-only follow-up, and merged with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`. Final `main` and `origin/main` are at the same SHA.
+- **Workflow blocker addressed:** Official workflow run `31871663976` stopped at `scripts/setup_ai_runtime_receipts_schema.cjs`; no Appwrite function deployed. The current live collection security assertion remains non-reproducible: observed permissions are empty and `documentSecurity=false`; the historical failing operand and drift origin remain `UNKNOWN`.
 - **Contract fix:** The six confirmed live-required attributes are now required in the repository contract: `request_id`, `hub`, `feature_id`, `status`, `completed_at`, and `expires_at`. All other attribute and index contracts remain unchanged.
 - **Safety:** The server-only requirement remains `permissions=[]` and `documentSecurity=false`. Assertion diagnostics report only `permissionsIsArray`, `permissionCount`, and `documentSecurity`; no permission strings, receipt contents, user IDs, or sensitive values are logged. Automatic production security repair was not added.
-- **Validation:** Focused AI runtime schema suite passed (`1` file / `8` tests); relevant `node --check` commands, `npx tsc --noEmit`, and `git diff --check` passed.
-- **Readiness:** `READY_FOR_PR` after the branch is pushed. Do not run production setup or deployment from this branch without separate authorization.
+- **Validation:** Focused AI runtime schema suite passed (`1` file / `8` tests); relevant `node --check` commands, `npx tsc --noEmit`, and `git diff --check` passed. PR Validation, Security validation, Vercel, and Vercel Preview Comments passed. TestSprite failed only with the known non-applicable `No tests detected` warning.
+- **Deployment boundary:** `NOT_DEPLOYED`. No Appwrite setup or deployment, manual Vercel deployment, schema/permission mutation, secret/environment change, or production-data change occurred. The next action is a separate owner-authorized targeted deployment preflight after merge.
 
 ## 2026-08-15 - DevKit Production Crash Hotfix; PR #185 Merged
 

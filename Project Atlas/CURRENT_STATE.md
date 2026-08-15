@@ -1,7 +1,7 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-15
-**Status:** Canonical Production Snapshot - AI runtime receipts schema contract remediation is open as PR #187 with checks pending; workflow `31871663976` failed before deployment; deployment status remains `NOT_DEPLOYED`; all Appwrite deployments remain blocked pending PR review; DevKit module-boundary crash hotfix PR #185 merged; DevKit Phase 1 PR #184 remains merged pending targeted deployment; DevKit Live Verification Completed With Confirmed Mismatches and Unverified/Code-Only Findings; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
+**Status:** Canonical Production Snapshot - AI runtime receipts schema contract remediation PR #187 is merged and validated; workflow `31871663976` failed before deployment; deployment status remains `NOT_DEPLOYED`; all Appwrite deployments remain blocked pending a separate owner-authorized targeted deployment task; DevKit module-boundary crash hotfix PR #185 merged; DevKit Phase 1 PR #184 remains merged pending targeted deployment; DevKit Live Verification Completed With Confirmed Mismatches and Unverified/Code-Only Findings; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
@@ -9,13 +9,13 @@
 
 ## AI runtime receipts schema contract remediation (2026-08-15)
 
-* **Status:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Branch `fix/ai-runtime-receipts-schema-contract` tightens the repository contract for six confirmed live-required fields and adds focused regression coverage. No Appwrite setup script or deployment was run.
+* **Status:** `MERGED_VALIDATED_NOT_DEPLOYED`. PR #187 (`fix/ai-runtime-receipts-schema-contract` → `main`) matched implementation head `f99f250e85dfee468df2e3d99888333505114978`, received one docs-only follow-up, and merged with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`. Final `main` and `origin/main` are at the same SHA.
 * **Failed workflow:** Run `31871663976` stopped at `scripts/setup_ai_runtime_receipts_schema.cjs`; no function deployment occurred.
 * **Security finding:** The current live `ai_runtime_receipts` collection was observed with `permissions=[]` and `documentSecurity=false`, so the reported server-only assertion failure is not reproducible from the present state. The exact historical failing operand and drift origin are `UNKNOWN`.
 * **Contract finding:** The deterministic repository mismatch was that `request_id`, `hub`, `feature_id`, `status`, `completed_at`, and `expires_at` were marked optional while the confirmed live schema requires them. Other attribute/index contracts are unchanged.
 * **Safety:** Server-only behavior remains enforced; diagnostics expose only permissions-array status, permission count, and document-security value. No automatic production security repair, permission broadening, or collection replacement was added.
-* **Validation:** Focused suite passed with 8 tests; relevant Node syntax checks, `npx tsc --noEmit`, and `git diff --check` passed.
-* **PR status:** `PR_OPEN_PENDING_CHECKS`. PR #187 is open from `fix/ai-runtime-receipts-schema-contract` to `main`; deployment status remains `NOT_DEPLOYED`. No Appwrite deployment or production mutation occurred.
+* **Validation:** Focused suite passed with 8 tests; relevant Node syntax checks, `npx tsc --noEmit`, and `git diff --check` passed. PR Validation, Security validation, Vercel, and Vercel Preview Comments passed. TestSprite failed only with the known non-applicable `No tests detected` warning.
+* **Deployment boundary:** `NOT_DEPLOYED`. No Appwrite setup or deployment, manual Vercel deployment, schema/permission mutation, secret/environment change, or production-data change occurred. The next action is a separate owner-authorized targeted deployment preflight after merge.
 
 ## DevKit production crash hotfix (2026-08-15)
 
