@@ -3,18 +3,39 @@
 **Audit date:** 2026-08-15  
 **Repository:** `iammagdy/WiseResume-TWC`  
 **Production:** [https://wiseresume.app](https://wiseresume.app)  
-**Scope:** PRs #183–#191, post-hotfix production regression audit, expanded 111-route completion pass, and final ai_runtime_receipts contract reconciliation
+**Scope:** PRs #183–#192, post-hotfix production regression audit, expanded 111-route completion pass, authorized exact-four-function Appwrite deployment, live DevKit verification, public-share verification, route smoke QA, and final ai_runtime_receipts contract reconciliation
 **Author:** Manus AI
 
 > **VERDICT: PASS_WITH_WARNINGS**
 >
-> The repository changes pass focused tests, TypeScript validation, diff checks, and the production build. The expanded desktop browser pass gives every source-discovered route a precise evidence-backed classification. One genuine product regression was found on the public share loading path and merged through PR #188 with a focused test. The Appwrite permissions model-shape blocker was corrected in PR #189, and the complete live runtime-receipts contract was reconciled in PR #191 after run `31879539590` exposed the stale six-required-attribute hypothesis. The legacy `/devkit` route has not reached a functional terminal state because no Appwrite functions have yet been deployed, several dynamic/protected routes lack safe fixtures or access, and real mobile viewport coverage was unavailable. Therefore this audit is not `VERIFIED_READY`.
+> The repository changes pass focused tests, TypeScript validation, diff checks, and the production build. The expanded desktop browser pass gives every source-discovered route a precise evidence-backed classification. The authorized workflow `31880840961` then deployed exactly the four approved Appwrite functions, all of which reached ready/In Sync state with source/deployed hash parity. The public-share fix reached terminal not-found behavior on both English and Arabic invalid-token routes, and `/devkit` reached a live terminal state with all 24 panels marked `LIVE`. Several aggregate sources, safe email configuration health, detailed analytics body content, mobile/full dark-theme coverage, and some dynamic/protected routes remain bounded or unverified. Therefore this audit remains `PASS_WITH_WARNINGS`, not `VERIFIED_READY`.
 
 ## 1. Executive summary
 
-PRs #183–#191 are present on main and repository validation is green. Production browser verification confirms that the PR #185 CommonJS crash is not reproduced on the current frontend. The expanded route pass also verified the remaining representative static and Arabic routes, including `/tailor`, `/ar/enterprise`, `/ar/enterprises`, and `/ar/p/magdy`. The `/share/:token` and `/ar/share/:token` path exposed a real blank-page regression: `SharePage` returned `null` during the `usePublicResume` loading/retry window. PR #188 merged the `ShareSkeleton` fix and focused regression test into main; no separate production verification of the merged fix is claimed in this report.
+PRs #183–#192 are present on main and repository validation is green. Production browser verification confirms that the PR #185 CommonJS crash is not reproduced on the current frontend. The expanded route pass also verified the remaining representative static and Arabic routes, including `/tailor`, `/ar/enterprise`, `/ar/enterprises`, and `/ar/p/magdy`. The `/share/:token` and `/ar/share/:token` path exposed a real blank-page regression, which PR #188 fixed with `ShareSkeleton`; post-deployment invalid-token checks reached explicit `Resume Not Found` states after the transient skeleton.
 
-The authorized targeted Appwrite deployment was not completed. Runs **31871663976** and **31875957559** stopped before deployment at `Ensure AI runtime receipts schema` with `permissionsIsArray=false, permissionCount=unknown, documentSecurity=false`; no function was deployed. After PR #189 corrected the response-shape assertion, run **31879539590** passed the `$permissions` gate and stopped at `request_id: required false (expected true)`. That failure proved the earlier six-required-attribute repository contract was stale relative to the live all-optional application schema. PR #191 reconciled those six flags to optional while preserving the rest of the contract and server-only security checks. No Appwrite Console state, production schema, permission, secret, environment variable, account, or production data was changed.
+The authorized targeted Appwrite deployment completed successfully in run `31880840961` after the three earlier pre-deployment failures. Runs **31871663976** and **31875957559** stopped at the repository/model-shape security assertion; after PR #189 corrected the response shape, run **31879539590** passed the `$permissions` gate and stopped at `request_id: required false (expected true)`. PR #191 reconciled the six stale required flags to the live all-optional application schema while preserving the rest of the contract and server-only security checks. No Appwrite Console state, production schema, permission, secret, environment variable, account, or production data was changed.
+
+## Post-deployment addendum (2026-08-15)
+
+### Exact Appwrite deployment scope and parity
+
+Authorized workflow run `31880840961` completed successfully from main `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b` with exact target input `ai-gateway,admin-devkit-data,admin-onboarding-funnel,email-service`. No `target=all` was used, and no other function was deployed.
+
+| Function | Deployment ID | Source/deployed SHA-256 | Readiness/parity |
+|---|---|---|---|
+| `ai-gateway` | `6a80467d45db108d5cab` | `158da0749573c9c2d7e173c256ee0d77f64c783536fcf920693ed1bb0715fafe` | enabled, ready, In Sync |
+| `admin-devkit-data` | `6a804687cfea6415139d` | `6d23504f47c53d72354ca2bb2a46e6bb695b2df0e5442d99d708b7f9075e8804` | enabled, ready, In Sync |
+| `admin-onboarding-funnel` | `6a8046923ac36d1cc638` | `efe2a22802e679c8d87e3089c8d284c26563b8c573f9b31b7db8440a0c57553c` | enabled, ready, In Sync |
+| `email-service` | `6a80469d1ee51e0246e0` | `744f82a1bd0f4dc9679a9cd30dc56b6195def4f0449f857df6e1bcf510a0548a` | enabled, ready, In Sync |
+
+### Live DevKit and route verification
+
+The production `/devkit` left session/loading verification and reached a terminal live state with all 24 panels marked `LIVE`. App Overview and Onboarding reached terminal states. Data Integrity and Users showed explicit unavailable/error states instead of fake zeroes. AI Health separated provider reachability from completion/key/model health; mixed success plus rate-limited slots displayed `Degraded / Mixed`; traffic reported a truthful actual 50-record sample with 44 attributed and 6 Unknown/Unattributed. Observability displayed a truthful empty state. English and Arabic invalid-token public-share routes showed `ShareSkeleton` transiently, then `Resume Not Found`, with no blank root or fatal console error. A read-only 22-route HTTP smoke check returned the expected application shell and no fatal markers for every tested route.
+
+### Bounded warnings
+
+The final evidence does not claim exact aggregate Data Integrity/Users values because those sources were unavailable during capture. Detailed App Analytics body content was empty in the captured state. The Email panel’s non-destructive configuration check did not reach a terminal result; no send or reset operation was invoked, so email-service health beyond deployment readiness is `UNVERIFIED`. Unknown-route server 404 semantics, full mobile/full dark-theme coverage, and certain dynamic/protected fixture paths remain unverified. These are bounded verification warnings, not deployment blockers; unrelated pre-existing Function drift was intentionally untouched.
 
 ## 2. Required totals
 
@@ -35,13 +56,13 @@ The required headline totals intentionally exclude the three additional allowed 
 
 ## 3. Repository and change baseline
 
-The final repository baseline is main commit `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b`, with PRs #183–#191 merged. PR #188 merged the public-share loading fix with merge commit `888ac4cdb13aea3728eb966db521918b1bf57db5`; PR #189 merged the Appwrite permissions-shape preflight fix with merge commit `fd88f91c13003764eac45955dbff8d92586b77bd`; PR #191 reconciled the complete live runtime-receipts contract. The change review covered the login error-classification fix, DevKit Phase 1 truthful metrics and terminal states, the browser/CommonJS module-boundary hotfix, source-hash manifest reconciliation, the superseded six-attribute required hypothesis, the final `$permissions` model-shape correction, and the all-optional live contract fix.
+The final repository baseline is main commit `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b`, with PRs #183–#192 merged. PR #188 merged the public-share loading fix with merge commit `888ac4cdb13aea3728eb966db521918b1bf57db5`; PR #189 merged the Appwrite permissions-shape preflight fix with merge commit `fd88f91c13003764eac45955dbff8d92586b77bd`; PR #191 reconciled the complete live runtime-receipts contract. The change review covered the login error-classification fix, DevKit Phase 1 truthful metrics and terminal states, the browser/CommonJS module-boundary hotfix, source-hash manifest reconciliation, the superseded six-attribute required hypothesis, the final `$permissions` model-shape correction, and the all-optional live contract fix.
 
 ## 4. Deployment blocker and production state
 
-The approved workflow `.github/workflows/deploy-appwrite-hubs.yml` was not bypassed. Runs `31871663976` and `31875957559` failed before any function deployment at the permissions-shape assertion. After PR #189, run `31879539590` passed the `$permissions` gate and stopped at the stale `request_id: required false (expected true)` contract comparison. PR #191 now requires all existing application attributes to remain optional, while retaining exact types, sizes, defaults, indexes, server-only `$permissions=[]`, and `documentSecurity === false`. The safe diagnostic reports only permitted shape/value fields and no sensitive receipt contents, user IDs, credentials, or permission strings. The four intended targets remain **NOT_DEPLOYED / not independently hash-verified**: `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and `email-service`. Vercel production was observed as READY; no manual Vercel deployment was performed.
+The approved workflow `.github/workflows/deploy-appwrite-hubs.yml` was not bypassed. Runs `31871663976`, `31875957559`, and `31879539590` failed before deployment during the repository-controlled preflight sequence; authorized run `31880840961` passed the corrected contract gates and deployed the exact four targets. PR #191 requires all existing application attributes to remain optional, while retaining exact types, sizes, defaults, indexes, server-only `$permissions=[]`, and `documentSecurity === false`. The safe diagnostic reports only permitted shape/value fields and no sensitive receipt contents, user IDs, credentials, or permission strings. Vercel production was observed as READY; no manual Vercel deployment was performed.
 
-Because `/devkit` depends on the still-undelivered backend functions, the legacy admin route is classified as `EXPECTED_UNDEPLOYED_BACKEND_BEHAVIOR`, not as an unexplained frontend failure. The `/devkit2` Command Home rendered successfully, while its other hubs explicitly identify themselves as Step 2 placeholders.
+After deployment, `/devkit` reached a live terminal state with all 24 panels marked `LIVE`; App Overview and Onboarding reached terminal states. `/devkit2` Command Home rendered successfully, while its other hubs explicitly identify themselves as Step 2 placeholders.
 
 ## 5. Complete 111-route matrix
 

@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-08-14
+**Last Verified:** 2026-08-15
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -51,6 +51,23 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **GitHub Actions Run:** `30101982337` - success in `5m15s` after corrective PR #158.
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
+
+### Authorized WiseResume DevKit Deployment — 2026-08-15
+
+* **GitHub Actions Run:** `31880840961`, successful.
+* **Source Commit:** `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b`.
+* **Exact Target Input:** `ai-gateway,admin-devkit-data,admin-onboarding-funnel,email-service`.
+* **Scope Safety:** No `target=all`, Appwrite Console deployment, direct production setup, manual Vercel deployment, or unrelated function deployment.
+
+| Function ID | Deployment ID | Source/deployed SHA-256 | State |
+|---|---|---|---|
+| `ai-gateway` | `6a80467d45db108d5cab` | `158da0749573c9c2d7e173c256ee0d77f64c783536fcf920693ed1bb0715fafe` | enabled, ready, In Sync |
+| `admin-devkit-data` | `6a804687cfea6415139d` | `6d23504f47c53d72354ca2bb2a46e6bb695b2df0e5442d99d708b7f9075e8804` | enabled, ready, In Sync |
+| `admin-onboarding-funnel` | `6a8046923ac36d1cc638` | `efe2a22802e679c8d87e3089c8d284c26563b8c573f9b31b7db8440a0c57553c` | enabled, ready, In Sync |
+| `email-service` | `6a80469d1ee51e0246e0` | `744f82a1bd0f4dc9679a9cd30dc56b6195def4f0449f857df6e1bcf510a0548a` | enabled, ready, In Sync |
+
+* **Post-deployment verification:** `/devkit` reached a live terminal state with all 24 panels marked `LIVE`; App Overview and Onboarding reached terminal states; mixed AI slots showed `Degraded / Mixed`; invalid English and Arabic public-share routes reached `Resume Not Found` after `ShareSkeleton`; a read-only 22-route smoke check found no fatal markers.
+* **Warnings:** Data Integrity and Users aggregate sources were unavailable during capture; detailed App Analytics content was empty; Email configuration health did not reach a terminal state and no send/reset action was invoked; mobile/full dark-theme and some fixture-dependent paths remain unverified. Final operational verdict: `PASS_WITH_WARNINGS`.
 
 ---
 
