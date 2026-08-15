@@ -16,10 +16,10 @@ const COLLECTION_ID = 'ai_runtime_receipts';
 
 const ATTRIBUTE_SPECS = [
   ...[
-    ['request_id', 64, true], ['execution_id', 64], ['hub', 64, true], ['feature_id', 64, true],
-    ['provider', 32], ['model', 128], ['status', 24, true], ['user_id', 64],
+    ['request_id', 64], ['execution_id', 64], ['hub', 64], ['feature_id', 64],
+    ['provider', 32], ['model', 128], ['status', 24], ['user_id', 64],
     ['idempotency_state', 24], ['error_class', 64], ['started_at', 32],
-    ['completed_at', 32, true], ['expires_at', 32, true],
+    ['completed_at', 32], ['expires_at', 32],
   ].map(([key, size, required = false]) => ({ key, type: 'string', size, required, array: false })),
   ...['http_status', 'latency_ms', 'credits_charged'].map(key => ({ key, type: 'integer', required: false, array: false, min: 0, max: 999999 })),
   ...['is_fallback', 'is_admin_test'].map(key => ({ key, type: 'boolean', required: false, array: false, default: false })),
