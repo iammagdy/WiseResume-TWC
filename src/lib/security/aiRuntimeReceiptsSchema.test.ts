@@ -15,35 +15,34 @@ const writerPaths = [
   'appwrite-hubs/job-import/src/runtime-receipts.cjs',
 ];
 
-const requiredKeys = [
+const liveApplicationKeys = [
   'request_id',
+  'execution_id',
   'hub',
   'feature_id',
+  'provider',
+  'model',
   'status',
+  'user_id',
+  'idempotency_state',
+  'error_class',
+  'started_at',
   'completed_at',
   'expires_at',
+  'http_status',
+  'latency_ms',
+  'credits_charged',
+  'is_fallback',
+  'is_admin_test',
 ];
 
 describe('AI runtime receipts schema contract', () => {
-  it('matches the confirmed live required-attribute contract', () => {
-    expect(schema.ATTRIBUTE_SPECS.filter((attribute) => attribute.required).map((attribute) => attribute.key)).toEqual(requiredKeys);
-    expect(schema.ATTRIBUTE_SPECS.filter((attribute) => !attribute.required).map((attribute) => attribute.key)).toEqual([
-      'execution_id',
-      'provider',
-      'model',
-      'user_id',
-      'idempotency_state',
-      'error_class',
-      'started_at',
-      'http_status',
-      'latency_ms',
-      'credits_charged',
-      'is_fallback',
-      'is_admin_test',
-    ]);
+  it('matches the confirmed live all-optional application-attribute contract', () => {
+    expect(schema.ATTRIBUTE_SPECS.map((attribute) => attribute.key)).toEqual(liveApplicationKeys);
+    expect(schema.ATTRIBUTE_SPECS.every((attribute) => attribute.required === false)).toBe(true);
   });
 
-  it.each(writerPaths)('materializes all required fields for %s', (writerPath) => {
+  it.each(writerPaths)('materializes the live-contract fields for %s', (writerPath) => {
     const writer = require(resolve(process.cwd(), writerPath)) as {
       buildReceipt: (input: Record<string, unknown>) => Record<string, unknown>;
     };
