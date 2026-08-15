@@ -57,7 +57,7 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **GitHub Actions Run:** `31880840961`, successful.
 * **Source Commit:** `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b`.
 * **Exact Target Input:** `ai-gateway,admin-devkit-data,admin-onboarding-funnel,email-service`.
-* **Scope Safety:** No `target=all`, Appwrite Console deployment, direct production setup, manual Vercel deployment, or unrelated function deployment.
+* **Scope Safety:** No `target=all`, Appwrite Console deployment, manual Vercel deployment, or unrelated function deployment occurred. The approved workflow did perform repository-controlled, idempotent production setup/configuration mutations recorded below.
 
 | Function ID | Deployment ID | Source/deployed SHA-256 | State |
 |---|---|---|---|
@@ -67,7 +67,15 @@ Appwrite Functions are deployed independently from the frontend application usin
 | `email-service` | `6a80469d1ee51e0246e0` | `744f82a1bd0f4dc9679a9cd30dc56b6195def4f0449f857df6e1bcf510a0548a` | enabled, ready, In Sync |
 
 * **Post-deployment verification:** `/devkit` reached a live terminal state with all 24 panels marked `LIVE`; App Overview and Onboarding reached terminal states; mixed AI slots showed `Degraded / Mixed`; invalid English and Arabic public-share routes reached `Resume Not Found` after `ShareSkeleton`; a read-only 22-route smoke check found no fatal markers.
-* **Warnings:** Data Integrity and Users aggregate sources were unavailable during capture; detailed App Analytics content was empty; Email configuration health did not reach a terminal state and no send/reset action was invoked; mobile/full dark-theme and some fixture-dependent paths remain unverified. Final operational verdict: `PASS_WITH_WARNINGS`.
+* **Warnings:** Data Integrity and Users aggregate sources were unavailable during capture; detailed App Analytics content was empty; Email configuration health did not reach a terminal state and no send/reset action was invoked; mobile/full dark-theme and some fixture-dependent paths remain unverified. Final operational verdict for the four-function deployment: `PASS_WITH_WARNINGS`.
+
+### Authorized repository-controlled production mutations
+
+The successful run `31880840961` is classified as `AUTHORIZED_REPOSITORY_CONTROLLED_PRODUCTION_MUTATION`, not as an absence of production mutation. Its log records creation of `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`; synchronization of selected function variables; synchronization of the password-recovery template; Appwrite auth-template configuration; and update of `fn_deployed_hashes` for the four exact targets. The workflow log distinguishes these from pre-existing resources that were reported as already existing, including the idempotent `password_reset_otps` setup. No manual Console mutation, `target=all`, unrelated function deployment, permission broadening, unauthorized data mutation, or secret-value disclosure occurred.
+
+### Narrow email-verification template correction
+
+PR #194 merged the repository fix for the proven blank Verification-template regression. The fix uses repository-managed functional Verification and recovery templates, validates the Appwrite `{{redirect}}` contract before PATCH, and prevents either deployment helper from blanking the Verification template. Authorized run `31882493172` targeted `email-service` only, created deployment `6a804f862b4138bc1b06`, reached ready status, synchronized the managed Verification and recovery templates, synchronized non-secret email-service variables, and updated `fn_deployed_hashes` for `email-service`. Appwrite Console post-deployment visual confirmation remained blocked by the Console loading spinner; the workflow log is the available evidence of successful PATCH completion. End-to-end inbox verification is `FIXTURE_BLOCKED` because no approved safe QA identity/inbox was available.
 
 ---
 

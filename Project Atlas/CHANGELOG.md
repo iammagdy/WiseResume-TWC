@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-08-15 - Email Verification Safety Audit, PR #194, and Narrow Correction
+
+- **Architecture proof:** `email-service` send-verification uses the authenticated Appwrite user JWT and exactly one `POST /account/verifications/email`; it does not call Resend directly. Appwrite owns the token/lifecycle and sends through the configured Custom SMTP transport and Verification template.
+- **Production regression:** The live Appwrite Verification template had blank subject/body fields and no saved `{{redirect}}` placeholder. The approved workflow’s previous helper behavior explicitly blanked that template. This was classified as `PRODUCT_REGRESSION / DEPLOYMENT CONFIG BUG`, not as a valid branded-email mechanism.
+- **Fix:** PR #194 (`fix/email-verification-template-sync`) merged the shared repository-managed functional Verification/recovery template contract, redirect-placeholder validation, and regression tests. Both deployment helpers now avoid blanking the required Verification template.
+- **Narrow correction:** Authorized workflow `31882493172` targeted `email-service` only, created deployment `6a804f862b4138bc1b06`, reached ready status, synchronized the managed Verification and recovery templates, synchronized non-secret email-service variables, and updated `fn_deployed_hashes`. No other function was deployed.
+- **Mutation reconciliation:** The earlier successful run `31880840961` is recorded as `AUTHORIZED_REPOSITORY_CONTROLLED_PRODUCTION_MUTATION`: it created `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`, synchronized selected variables and templates, and updated `fn_deployed_hashes`. These are distinct from `NO_MANUAL_CONSOLE_MUTATION`, `NO_TARGET_ALL`, `NO_UNRELATED_MUTATION`, `NO_PERMISSION_BROADENING`, and `NO_UNAUTHORIZED_DATA_MUTATION`.
+- **QA boundary:** No approved safe QA identity/inbox was available. The inbox receipt, usable link, confirmation, Appwrite verified state, and onboarding sequence are therefore `FIXTURE_BLOCKED`; no real-user credentials, tokens, links, or email actions were used.
+- **Email panel:** The non-destructive configuration check remained nonterminal with no browser-console output and no send/reset action. It is classified as `TEST/AUTOMATION ISSUE or EXPECTED LIMITATION`, not a proven backend or product failure.
+- **Atlas:** CURRENT_STATE, WHERE_WE_STOPPED, deployment/current-deployment, architecture/appwrite-functions, and the full regression report are updated by the docs-only closeout following this entry.
+
 ## 2026-08-15 - Authorized Four-Function Appwrite Deployment and Production Verification Complete
 
 - **Verdict:** `PASS_WITH_WARNINGS`. Authorized GitHub Actions run `31880840961` completed successfully from main `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b` with exact targets `ai-gateway,admin-devkit-data,admin-onboarding-funnel,email-service`; no `target=all`, Appwrite Console deployment, direct production setup, manual Vercel deployment, or unrelated function deployment occurred.
