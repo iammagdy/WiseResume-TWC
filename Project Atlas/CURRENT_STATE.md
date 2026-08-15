@@ -1,11 +1,20 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-15
-**Status:** Canonical Production Snapshot - DevKit Phase 1 PR #184 Merged Pending Targeted Deployment; DevKit Live Verification Completed With Confirmed Mismatches and Unverified/Code-Only Findings; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
+**Status:** Canonical Production Snapshot - DevKit module-boundary crash hotfix implemented and validated on review branch; all Appwrite deployments blocked pending targeted preflight; DevKit Phase 1 PR #184 remains merged pending targeted deployment; DevKit Live Verification Completed With Confirmed Mismatches and Unverified/Code-Only Findings; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## DevKit production crash hotfix (2026-08-15)
+
+* **Status:** `IMPLEMENTED_VALIDATED_PUSHED_NOT_DEPLOYED`. Branch `fix/devkit-module-boundary-hotfix` is based on current `main` and contains commit `9078b3f250f46bad9cc3da592f8acf45f19b2093`.
+* **Root cause:** Browser code imported the CommonJS Appwrite hub runtime `appwrite-hubs/admin-devkit-data/src/completion-health.js`, whose `module.exports` was evaluated in the browser and caused `ReferenceError: module is not defined` on `/devkit`.
+* **Fix:** Frontend code now uses browser-safe ESM `src/lib/devkit/completionHealth.ts`; the deployable backend CommonJS classifier remains unchanged, preserving identical slot-health semantics.
+* **Validation:** Focused DevKit suite passed with 1 file / 10 tests; `npx tsc --noEmit`, `git diff --check`, relevant backend `node --check` commands, and `npm run build` passed. Existing Vite large-chunk warnings remain non-blocking.
+* **Boundary:** No PR, merge, Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. All Appwrite deployments remain blocked pending a separate approved targeted-deployment task.
+* **Report:** [`reports/devkit/2026-08-15-module-boundary-hotfix.md`](./reports/devkit/2026-08-15-module-boundary-hotfix.md)
 
 ## DevKit Phase 1 PR #184 merge closeout (2026-08-15)
 

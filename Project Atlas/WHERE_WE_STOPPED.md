@@ -6,6 +6,16 @@
 
 ---
 
+## DevKit production crash hotfix (2026-08-15)
+
+* **Status:** `IMPLEMENTED_VALIDATED_PUSHED_NOT_DEPLOYED`. Branch `fix/devkit-module-boundary-hotfix` contains commit `9078b3f250f46bad9cc3da592f8acf45f19b2093`.
+* **Root cause:** `/devkit` browser code imported the CommonJS Appwrite hub runtime `appwrite-hubs/admin-devkit-data/src/completion-health.js`, causing `ReferenceError: module is not defined` in the browser bundle.
+* **Fix:** Frontend now uses browser-safe ESM `src/lib/devkit/completionHealth.ts`; backend CommonJS behavior remains unchanged and semantics remain identical.
+* **Validation:** Focused DevKit suite passed with 1 file / 10 tests; TypeScript, diff check, relevant backend syntax checks, and production build passed. Existing large-chunk warnings are non-blocking.
+* **Boundary:** No PR, merge, Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. All Appwrite deployments remain blocked pending separate targeted preflight approval.
+* **Report:** [`reports/devkit/2026-08-15-module-boundary-hotfix.md`](./reports/devkit/2026-08-15-module-boundary-hotfix.md)
+* **Stop point:** Hotfix is pushed for review. Do not open a PR, merge, deploy Appwrite, manually deploy Vercel, or modify production state from this task.
+
 ## DevKit Phase 1 PR #184 merge closeout (2026-08-15)
 
 * **PR verification:** PR #184 (`fix/devkit-phase1-live-data` → `main`) had the required head `04251b41f6661e1eb33f8f034cfa52b119e5a8bc`. PR Validation, Security Validation, Vercel, and Vercel Preview Comments passed. TestSprite Pre-Check failed only with the known non-applicable `No tests detected` warning.

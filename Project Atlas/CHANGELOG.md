@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-15 - DevKit Production Crash Hotfix; Validated and Not Deployed
+
+- **Verdict:** `IMPLEMENTED_VALIDATED_PUSHED_NOT_DEPLOYED`. Branch `fix/devkit-module-boundary-hotfix` contains commit `9078b3f250f46bad9cc3da592f8acf45f19b2093`.
+- **Root cause:** Browser code imported `appwrite-hubs/admin-devkit-data/src/completion-health.js`, a CommonJS Appwrite Function runtime using `module.exports`, causing production `/devkit` to fail with `ReferenceError: module is not defined`.
+- **Fix:** Added browser-safe ESM `src/lib/devkit/completionHealth.ts` and switched the frontend formatter to it. The backend CommonJS classifier remains unchanged, preserving identical AI completion-health semantics.
+- **Validation:** Focused DevKit suite passed (`1` file / `10` tests); `npx tsc --noEmit`, `git diff --check`, relevant backend `node --check` commands, and `npm run build` passed. Existing Vite large-chunk warnings remain non-blocking. Regression coverage proves the browser classifier has no Appwrite-hub or `module.exports` runtime dependency.
+- **Boundary:** No PR opened, merge performed, Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. All Appwrite deployments remain blocked pending a separate targeted-deployment task.
+- **Report:** [`reports/devkit/2026-08-15-module-boundary-hotfix.md`](./reports/devkit/2026-08-15-module-boundary-hotfix.md)
+
 ## 2026-08-15 - PR #184 Merged; DevKit Phase 1 Pending Targeted Deployment
 
 - **Merge result:** PR #184 (`fix/devkit-phase1-live-data` → `main`) matched the required head `04251b41f6661e1eb33f8f034cfa52b119e5a8bc` and merged with commit `9ff1f14a353cc2a82d95bee722e2e4f54f4f6580`. `origin/main` is at the same SHA.
