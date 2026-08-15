@@ -1,12 +1,12 @@
 # Project Atlas Master Changelog
 
-## 2026-08-15 - DevKit Production Crash Hotfix; Validated and Not Deployed
+## 2026-08-15 - DevKit Production Crash Hotfix; PR #185 Merged
 
-- **Verdict:** `IMPLEMENTED_VALIDATED_PUSHED_NOT_DEPLOYED`. Branch `fix/devkit-module-boundary-hotfix` contains commit `9078b3f250f46bad9cc3da592f8acf45f19b2093`.
+- **Verdict:** `MERGED_PENDING_VERCEL_PRODUCTION_STATUS_AND_TARGETED_APPWRITE_DEPLOYMENT`. PR #185 (`fix/devkit-module-boundary-hotfix` → `main`) matched the required head `46dc76f16a037d86a73d11b74f27a7e15ad744c6` and merged with commit `fe68327897ad95e924fb2941bcc5af44d156895e`.
 - **Root cause:** Browser code imported `appwrite-hubs/admin-devkit-data/src/completion-health.js`, a CommonJS Appwrite Function runtime using `module.exports`, causing production `/devkit` to fail with `ReferenceError: module is not defined`.
 - **Fix:** Added browser-safe ESM `src/lib/devkit/completionHealth.ts` and switched the frontend formatter to it. The backend CommonJS classifier remains unchanged, preserving identical AI completion-health semantics.
-- **Validation:** Focused DevKit suite passed (`1` file / `10` tests); `npx tsc --noEmit`, `git diff --check`, relevant backend `node --check` commands, and `npm run build` passed. Existing Vite large-chunk warnings remain non-blocking. Regression coverage proves the browser classifier has no Appwrite-hub or `module.exports` runtime dependency.
-- **Boundary:** No PR opened, merge performed, Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. All Appwrite deployments remain blocked pending a separate targeted-deployment task.
+- **Checks:** PR Validation passed; Vercel preview passed; Vercel Preview Comments passed. TestSprite Pre-Check failed only with the known non-applicable `No tests detected` warning.
+- **Deployment boundary:** No Appwrite deployment or manual Vercel deployment was performed. No schema/permission change, secret/environment change, account change, or production-data change occurred. All Appwrite deployments remain blocked pending a separate targeted-deployment task; only the normal Vercel production deployment status remains to be observed.
 - **Report:** [`reports/devkit/2026-08-15-module-boundary-hotfix.md`](./reports/devkit/2026-08-15-module-boundary-hotfix.md)
 
 ## 2026-08-15 - PR #184 Merged; DevKit Phase 1 Pending Targeted Deployment

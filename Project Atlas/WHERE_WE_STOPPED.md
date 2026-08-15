@@ -1,20 +1,21 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-15
-**Status:** `DEVKIT_PHASE1_PR184_MERGED_PENDING_TARGETED_DEPLOYMENT` — PR #184 is merged into `main`; no Appwrite or manual Vercel deployment was performed
+**Status:** `DEVKIT_HOTFIX_PR185_MERGED_AWAITING_VERCEL_STATUS` — PR #185 is merged into `main`; no Appwrite or manual Vercel deployment was performed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
 ## DevKit production crash hotfix (2026-08-15)
 
-* **Status:** `IMPLEMENTED_VALIDATED_PUSHED_NOT_DEPLOYED`. Branch `fix/devkit-module-boundary-hotfix` contains commit `9078b3f250f46bad9cc3da592f8acf45f19b2093`.
+* **Status:** `MERGED_PENDING_VERCEL_PRODUCTION_STATUS_AND_TARGETED_APPWRITE_DEPLOYMENT`. PR #185 (`fix/devkit-module-boundary-hotfix` → `main`) matched head `46dc76f16a037d86a73d11b74f27a7e15ad744c6` and merged with commit `fe68327897ad95e924fb2941bcc5af44d156895e`.
 * **Root cause:** `/devkit` browser code imported the CommonJS Appwrite hub runtime `appwrite-hubs/admin-devkit-data/src/completion-health.js`, causing `ReferenceError: module is not defined` in the browser bundle.
 * **Fix:** Frontend now uses browser-safe ESM `src/lib/devkit/completionHealth.ts`; backend CommonJS behavior remains unchanged and semantics remain identical.
 * **Validation:** Focused DevKit suite passed with 1 file / 10 tests; TypeScript, diff check, relevant backend syntax checks, and production build passed. Existing large-chunk warnings are non-blocking.
-* **Boundary:** No PR, merge, Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. All Appwrite deployments remain blocked pending separate targeted preflight approval.
+* **Checks:** PR Validation, Vercel preview, and Vercel Preview Comments passed. TestSprite Pre-Check failed only with the known non-applicable `No tests detected` warning.
+* **Boundary:** No Appwrite deployment or manual Vercel deployment occurred. No schema/permission change, secret/environment change, or production-data change occurred. All Appwrite deployments remain blocked pending separate targeted preflight approval; only normal Vercel production deployment status remains to be observed.
 * **Report:** [`reports/devkit/2026-08-15-module-boundary-hotfix.md`](./reports/devkit/2026-08-15-module-boundary-hotfix.md)
-* **Stop point:** Hotfix is pushed for review. Do not open a PR, merge, deploy Appwrite, manually deploy Vercel, or modify production state from this task.
+* **Stop point:** PR #185 merge and Atlas closeout are complete. Await only the normal Vercel production deployment status; any Appwrite deployment requires a separate approved targeted-deployment task.
 
 ## DevKit Phase 1 PR #184 merge closeout (2026-08-15)
 
