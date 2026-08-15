@@ -1,5 +1,13 @@
 # Project Atlas Master Changelog
 
+## 2026-08-15 - PR #184 Merged; DevKit Phase 1 Pending Targeted Deployment
+
+- **Merge result:** PR #184 (`fix/devkit-phase1-live-data` → `main`) matched the required head `04251b41f6661e1eb33f8f034cfa52b119e5a8bc` and merged with commit `9ff1f14a353cc2a82d95bee722e2e4f54f4f6580`. `origin/main` is at the same SHA.
+- **Checks:** PR Validation, Security Validation, Vercel, and Vercel Preview Comments passed. The only failure was the known non-applicable TestSprite Pre-Check warning, `No tests detected`.
+- **Deployment:** `MERGED_PENDING_TARGETED_DEPLOYMENT`. No Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. The automatic PR Vercel preview is not production deployment authorization.
+- **Next targeted Appwrite functions:** `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and the PR #181 `email-service` candidate after exact-ID/status confirmation. Do not use `target=all`.
+- **Report:** [`reports/devkit/2026-08-15-phase1-merge.md`](./reports/devkit/2026-08-15-phase1-merge.md)
+
 ## 2026-08-14 - DevKit Phase 1 Fix Branch (Implemented, Validated, Not Deployed)
 
 - **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Branch `fix/devkit-phase1-live-data` was created from clean `main`; implementation commit `c1600bc0a176b6af4911aefa94cfd82364532ea6` contains only the scoped DevKit application, backend, generated-hash, and regression-test changes.

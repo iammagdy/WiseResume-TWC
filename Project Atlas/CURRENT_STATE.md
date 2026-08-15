@@ -1,11 +1,19 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-08-14
-**Status:** Canonical Production Snapshot - DevKit Live Verification Completed With Confirmed Mismatches and Unverified/Code-Only Findings; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
+**Last Verified:** 2026-08-15
+**Status:** Canonical Production Snapshot - DevKit Phase 1 PR #184 Merged Pending Targeted Deployment; DevKit Live Verification Completed With Confirmed Mismatches and Unverified/Code-Only Findings; Login Error-Masking Fix Production Verified; Email Verification Production Verified; Broadcast Delivery Verified; Tailoring Verified Ready; Portfolio LCP Warning Retained
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## DevKit Phase 1 PR #184 merge closeout (2026-08-15)
+
+* **Verdict:** `MERGED_PENDING_TARGETED_DEPLOYMENT`. PR #184 head `04251b41f6661e1eb33f8f034cfa52b119e5a8bc` was merged into `main` with merge commit and final remote `main` SHA `9ff1f14a353cc2a82d95bee722e2e4f54f4f6580`.
+* **Checks:** PR Validation, Security Validation, Vercel, and Vercel Preview Comments passed. TestSprite Pre-Check failed only with the known non-applicable `No tests detected` warning.
+* **Deployment boundary:** No Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. The automatic PR Vercel preview is not production deployment authorization.
+* **Next targeted Appwrite candidates:** `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and the PR #181 `email-service` candidate after exact-ID/status confirmation. Do not use `target=all`.
+* **Report:** [`reports/devkit/2026-08-15-phase1-merge.md`](./reports/devkit/2026-08-15-phase1-merge.md)
 
 ## DevKit live verification closeout (2026-08-14)
 

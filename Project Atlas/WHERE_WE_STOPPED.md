@@ -1,10 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-14
-**Status:** `DEVKIT_LIVE_VERIFICATION_COMPLETED_WITH_CONFIRMED_MISMATCHES` — authenticated production DevKit was verified read-only; no application or Appwrite changes were made
+**Last Verified:** 2026-08-15
+**Status:** `DEVKIT_PHASE1_PR184_MERGED_PENDING_TARGETED_DEPLOYMENT` — PR #184 is merged into `main`; no Appwrite or manual Vercel deployment was performed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## DevKit Phase 1 PR #184 merge closeout (2026-08-15)
+
+* **PR verification:** PR #184 (`fix/devkit-phase1-live-data` → `main`) had the required head `04251b41f6661e1eb33f8f034cfa52b119e5a8bc`. PR Validation, Security Validation, Vercel, and Vercel Preview Comments passed. TestSprite Pre-Check failed only with the known non-applicable `No tests detected` warning.
+* **Merge:** PR #184 merged successfully at `2026-08-15T06:17:32Z` with merge commit `9ff1f14a353cc2a82d95bee722e2e4f54f4f6580`; `origin/main` is at the same SHA and contains the feature head.
+* **Deployment:** `MERGED_PENDING_TARGETED_DEPLOYMENT`. No Appwrite deployment, manual Vercel deployment, schema/permission change, secret/environment change, account change, or production-data change occurred. The automatic PR preview is not a production deployment.
+* **Next targeted Appwrite functions:** `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and the PR #181 `email-service` candidate after exact function-ID/status confirmation. Do not use `target=all`.
+* **Report:** [`reports/devkit/2026-08-15-phase1-merge.md`](./reports/devkit/2026-08-15-phase1-merge.md)
+* **Stop point:** Merge and documentation closeout are complete. Any deployment requires a separate approved targeted-deployment task and post-deployment verification.
 
 ## DevKit live verification closeout (2026-08-14)
 
