@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-15 - AI Runtime Receipts Schema Contract Fix Prepared
+
+- **Status:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Branch `fix/ai-runtime-receipts-schema-contract` updates only the deterministic `ai_runtime_receipts` schema contract, focused regression coverage, and required Atlas closeout documentation. No Appwrite setup script was run and no deployment occurred.
+- **Blocker:** Official workflow run `31871663976` stopped at `scripts/setup_ai_runtime_receipts_schema.cjs`. The current live collection security assertion is not reproducibly incompatible: the observed collection has empty permissions and `documentSecurity=false`. The historical failing operand and drift origin remain `UNKNOWN`.
+- **Contract fix:** The six confirmed live-required attributes are now required in the repository contract: `request_id`, `hub`, `feature_id`, `status`, `completed_at`, and `expires_at`. All other attribute and index contracts remain unchanged.
+- **Safety:** The server-only requirement remains `permissions=[]` and `documentSecurity=false`. Assertion diagnostics report only `permissionsIsArray`, `permissionCount`, and `documentSecurity`; no permission strings, receipt contents, user IDs, or sensitive values are logged. Automatic production security repair was not added.
+- **Validation:** Focused AI runtime schema suite passed (`1` file / `8` tests); relevant `node --check` commands, `npx tsc --noEmit`, and `git diff --check` passed.
+- **Readiness:** `READY_FOR_PR` after the branch is pushed. Do not run production setup or deployment from this branch without separate authorization.
+
 ## 2026-08-15 - DevKit Production Crash Hotfix; PR #185 Merged
 
 - **Verdict:** `MERGED_PENDING_VERCEL_PRODUCTION_STATUS_AND_TARGETED_APPWRITE_DEPLOYMENT`. PR #185 (`fix/devkit-module-boundary-hotfix` → `main`) matched the required head `46dc76f16a037d86a73d11b74f27a7e15ad744c6` and merged with commit `fe68327897ad95e924fb2941bcc5af44d156895e`.
