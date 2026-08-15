@@ -8,7 +8,7 @@
 - **Runtime:** The former `/devkit` `ReferenceError: module is not defined` was not reproduced. Legacy `/devkit` remained at admin-session verification; `/devkit2` Command Home loaded live data while its other hubs explicitly reported Step 2 placeholder status.
 - **Validation:** Focused public-share, DevKit, and schema tests passed; `npx tsc --noEmit`, `git diff --check`, and `npm run build` passed. Existing Vite large-chunk warnings remain non-blocking.
 - **Deployment boundary:** `NOT_DEPLOYED`. Workflow runs `31871663976` and `31875957559` both failed at the `ai_runtime_receipts` schema assertion with `permissionsIsArray=false, permissionCount=unknown, documentSecurity=false`; no Appwrite function deployed and no Appwrite/Vercel/manual production mutation occurred.
-- **PR:** #188 — [fix(share): render loading state for public share lookups](https://github.com/iammagdy/WiseResume-TWC/pull/188), head `49a2a9d33698f2dd143f747553fbe4005288898a`, is open and unmerged. PR Validation, Vercel, and Vercel Preview Comments passed; TestSprite remains the known non-applicable `No tests detected` warning.
+- **PR:** #188 — [fix(share): render loading state for public share lookups](https://github.com/iammagdy/WiseResume-TWC/pull/188), final PR head `89c5ea8cf3fb9d65b083f99c7c6707609bdff4a7`, is open and unmerged. The implementation commit was `49a2a9d33698f2dd143f747553fbe4005288898a`; the final head adds the documentation-only follow-up. PR Validation and Vercel Preview Comments passed; TestSprite remains the known non-applicable `No tests detected` warning.
 - **Report:** [`reports/2026-08-15-full-post-change-regression-audit.md`](./reports/2026-08-15-full-post-change-regression-audit.md)
 
 ## 2026-08-15 - AI Runtime Receipts Schema Contract Fix Merged
