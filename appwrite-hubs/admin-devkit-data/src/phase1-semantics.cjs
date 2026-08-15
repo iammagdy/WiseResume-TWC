@@ -68,17 +68,13 @@ function buildUsageStats(documents, { requestedLimit = 50, availableTotal = null
   return counts;
 }
 
+const { classifyCompletionStatuses } = require('./completion-health.js');
+
 function summarizeCompletionHealth(results, provider) {
   const entries = Object.entries(results || {})
     .filter(([key]) => key.startsWith(`${provider}:`))
     .map(([, value]) => value || {});
-  if (entries.length === 0) return 'no_recorded_probe';
-
-  const healthyCount = entries.filter(entry => String(entry.status || '').toLowerCase() === 'success').length;
-  if (healthyCount === entries.length) return 'healthy';
-  if (healthyCount > 0) return 'mixed';
-
-  return String(entries[0].status || 'unknown').toLowerCase();
+  return classifyCompletionStatuses(entries).status;
 }
 
 module.exports = {

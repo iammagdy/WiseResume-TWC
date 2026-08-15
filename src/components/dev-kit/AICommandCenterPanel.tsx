@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { AIKeysPanel } from './AIKeysPanel';
 import { AIRoutingSwitcher } from './AIRoutingSwitcher';
 import { DevKitTabBar } from './DevKitUI';
+import { formatCompletionStatus } from '@/lib/devkit/completionHealthUi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,12 +97,7 @@ function completionStatusForProvider(health: CompletionHealth | undefined, provi
   const results = health?.results
     ? Object.entries(health.results).filter(([key]) => key.startsWith(`${provider}:`)).map(([, value]) => value)
     : [];
-  if (results.length === 0) return { label: health?.status === 'error' ? 'Unavailable' : 'No recorded probe', tone: 'text-white/35' };
-  const success = results.find(result => result.status === 'success');
-  if (success) return { label: `Healthy${success.latencyMs ? ` (${success.latencyMs}ms)` : ''}`, tone: 'text-emerald-400' };
-  const status = results[0].status.replaceAll('_', ' ');
-  if (status === 'mixed') return { label: 'Degraded / Mixed', tone: 'text-amber-400' };
-  return { label: status.charAt(0).toUpperCase() + status.slice(1), tone: 'text-amber-400' };
+  return formatCompletionStatus(health?.status, results);
 }
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────

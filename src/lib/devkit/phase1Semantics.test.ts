@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { classifyRequestFailure } from './phase1UiSemantics';
+import { formatCompletionStatus } from './completionHealthUi';
 
 const require = createRequire(import.meta.url);
 const {
@@ -48,6 +49,15 @@ describe('DevKit Phase 1 backend semantics', () => {
       unattributed: 1,
     });
     expect(buildUsageStats([], { requestedLimit: 50, error: true }).total).toBeNull();
+  });
+
+  it('renders mixed UI completion health as Degraded / Mixed, not Healthy', () => {
+    const result = formatCompletionStatus('available', [
+      { status: 'success', latencyMs: 120 },
+      { status: 'rate_limited' },
+    ]);
+    expect(result.label).toBe('Degraded / Mixed');
+    expect(result.label).not.toBe('Healthy');
   });
 
   it('separates completion health from transport reachability', () => {
