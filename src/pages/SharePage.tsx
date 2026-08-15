@@ -16,6 +16,7 @@ import { ContactInfo, Experience, Education } from '@/types/resume';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ShareSkeleton } from '@/components/layout/PageSkeletons';
 
 const SECTIONS = ['summary', 'experience', 'education', 'skills', 'general'] as const;
 
@@ -44,8 +45,9 @@ export default function SharePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, data, viewCounted]);
 
-  // Suspense fallback already shows ShareSkeleton; avoid double skeleton
-  if (isLoading) return null;
+  // Keep the page visibly loading while the public share lookup is pending.
+  // Returning null here produced a blank page when the public lookup was slow.
+  if (isLoading) return <ShareSkeleton />;
 
   if (error || !data) {
     return (

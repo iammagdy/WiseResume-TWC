@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-15 - Full Post-Change Regression Audit Completed
+
+- **Verdict:** `PASS_WITH_WARNINGS`. The final matrix covers all 111 source-declared routes: 46 `PASS`, 14 `PASS_WITH_WARNING`, 1 `PRODUCT_BUG`, 26 `FIXTURE_BLOCKED`, 18 `ACCESS_BLOCKED`, 5 `EXPECTED_REDIRECT`, and 1 `EXPECTED_UNDEPLOYED_BACKEND_BEHAVIOR`. Fatal console errors: `0`; unexpected network failures: `0`.
+- **Key result:** A real blank-page regression was proven on `/share/:token` during slow/missing lookup because `SharePage.tsx` returned `null` while the public-share query was loading and retrying. The scoped branch `audit/full-regression-public-share-fix` renders `ShareSkeleton` and adds one focused regression test. The fix is not merged or deployed.
+- **Coverage:** The expanded desktop pass additionally verified `/tailor`, `/ar/enterprise`, `/ar/enterprises`, and `/ar/p/magdy`. Dynamic routes without safe IDs/tokens remain `FIXTURE_BLOCKED`; protected WiseHire routes and screenshot utilities remain `ACCESS_BLOCKED`. Real mobile viewport testing was unavailable, and full dark-theme correctness is not claimed.
+- **Runtime:** The former `/devkit` `ReferenceError: module is not defined` was not reproduced. Legacy `/devkit` remained at admin-session verification; `/devkit2` Command Home loaded live data while its other hubs explicitly reported Step 2 placeholder status.
+- **Validation:** Focused public-share, DevKit, and schema tests passed; `npx tsc --noEmit`, `git diff --check`, and `npm run build` passed. Existing Vite large-chunk warnings remain non-blocking.
+- **Deployment boundary:** `NOT_DEPLOYED`. Workflow runs `31871663976` and `31875957559` both failed at the `ai_runtime_receipts` schema assertion with `permissionsIsArray=false, permissionCount=unknown, documentSecurity=false`; no Appwrite function deployed and no Appwrite/Vercel/manual production mutation occurred.
+- **Report:** [`reports/2026-08-15-full-post-change-regression-audit.md`](./reports/2026-08-15-full-post-change-regression-audit.md)
+
 ## 2026-08-15 - AI Runtime Receipts Schema Contract Fix Merged
 
 - **Status:** `MERGED_VALIDATED_NOT_DEPLOYED`. PR #187 (`fix/ai-runtime-receipts-schema-contract` → `main`) matched implementation head `f99f250e85dfee468df2e3d99888333505114978`, received one docs-only follow-up, and merged with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`. Final `main` and `origin/main` are at the same SHA.

@@ -1,10 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-15
-**Status:** `AI_RUNTIME_RECEIPTS_CONTRACT_FIX_MERGED_VALIDATED_NOT_DEPLOYED` — PR #187 merged into `main` with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`; deployment status remains `NOT_DEPLOYED`; no Appwrite or manual Vercel deployment was performed
+**Status:** `FULL_POST_CHANGE_REGRESSION_AUDIT_PASS_WITH_WARNINGS` — PR #187 remains merged into `main` with commit `2f779f36041cbd49117f4b15e6e87c179b1bc5da`; deployment status remains `NOT_DEPLOYED`; no Appwrite or manual Vercel deployment was performed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## Full post-change regression audit (2026-08-15)
+
+* **Verdict:** `PASS_WITH_WARNINGS`. The complete matrix covers all 111 source-declared routes: 46 `PASS`, 14 `PASS_WITH_WARNING`, 1 `PRODUCT_BUG`, 26 `FIXTURE_BLOCKED`, 18 `ACCESS_BLOCKED`, 5 `EXPECTED_REDIRECT`, and 1 `EXPECTED_UNDEPLOYED_BACKEND_BEHAVIOR`. Fatal console errors: `0`. Unexpected network failures: `0`. The route-level `ENVIRONMENT_ISSUE` total is `0`; real mobile viewport and full dark-theme testing remain environment-limited and are not claimed as passes.
+* **Proven regression:** `/share/:token` blanked during slow/missing lookup because `SharePage.tsx` returned `null` while the retrying public-share query was loading. Branch `audit/full-regression-public-share-fix` replaces the blank with `ShareSkeleton` and adds one focused regression test. The fix is pending review and is not merged or deployed.
+* **Production:** Public, authenticated, Arabic/RTL, WiseHire public, DevKit v2, and representative protected routes rendered stable states. The former `/devkit` CommonJS crash was not reproduced; legacy `/devkit` remained at admin-session verification because its targeted backend was not deployed.
+* **Deployment:** `NOT_DEPLOYED`. Workflow runs `31871663976` and `31875957559` both failed at the `ai_runtime_receipts` schema assertion (`permissionsIsArray=false, permissionCount=unknown, documentSecurity=false`); no function was deployed. No Appwrite Console, schema, permissions, secrets, environment variables, data, or manual Vercel deployment were changed.
+* **Report:** [`reports/2026-08-15-full-post-change-regression-audit.md`](./reports/2026-08-15-full-post-change-regression-audit.md)
+* **Stop point:** Commit and push the scoped fix and Atlas/report files, open a PR to `main`, and leave merge/deployment decisions to the owner. After normal approved merge/deployment, reverify both public-share variants and the legacy DevKit panels.
 
 ## AI runtime receipts schema contract remediation (2026-08-15)
 
