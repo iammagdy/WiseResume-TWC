@@ -77,7 +77,7 @@ export const ScaledResumePage = memo(function ScaledResumePage({
       scale: baseScale,
       width,
     });
-  }, [onLayout]);
+  }, [compact, onLayout]);
 
   useEffect(() => {
     const container = containerRef.current;

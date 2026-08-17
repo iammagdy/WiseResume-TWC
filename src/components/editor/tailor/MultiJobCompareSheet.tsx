@@ -276,9 +276,9 @@
                  />
                </div>
  
-               {/* ATS Score */}
+               {/* Job-description keyword alignment */}
                <div className="space-y-2">
-                 <h4 className="font-semibold text-sm">ATS Optimization</h4>
+                 <h4 className="font-semibold text-sm">Keyword Alignment</h4>
                  <CompareScoreBars
                    jobs={jobs}
                    selectedJobId={selectedJobId}

@@ -6,6 +6,9 @@ import { showErrorToast } from '@/lib/errorToast';
 import { aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
+import { useRedactedResume } from './useRedactedResume';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import {
   resumeSectionAiFnName,
@@ -43,7 +46,7 @@ function normalizeWord(word: string): string {
 }
 
 function extractKeywords(text: string): Map<string, number> {
-  const words = text.split(/[\s,;:()\[\]{}"'\/\\|]+/);
+  const words = text.split(/[\s,;:()[\]{}"'/\\|]+/);
   const freq = new Map<string, number>();
 
   for (const raw of words) {
@@ -118,6 +121,8 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
   const [analyzingSections, setAnalyzingSections] = useState<Set<string>>(new Set());
   const cacheRef = useRef<Record<string, { suggestions: ATSSuggestion[]; result: DeepResult }>>({});
   const { checkCredits, incrementUsage } = useAICreditsMutations();
+  const redactedResume = useRedactedResume(resume);
+  const { requestDisclosure } = useAIPrivacyDisclosure();
   const navigate = useNavigate();
   // Client-side keyword analysis
   const suggestions = useMemo(() => {
@@ -250,7 +255,18 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       return;
     }
 
-    const cacheKey = `${section}-${hashString(jobDescription)}`;
+    let privacyAccepted = hasAcceptedAIPrivacy();
+    if (!privacyAccepted) {
+      privacyAccepted = await requestDisclosure();
+    }
+    if (!privacyAccepted || !resume || !redactedResume) return;
+
+    const currentContent = getSectionContent(resume, section);
+    const cacheKey = `${section}-${hashString(JSON.stringify({
+      resume: redactedResume,
+      jobDescription,
+      currentContent,
+    }))}`;
     if (cacheRef.current[cacheKey]) {
       const cached = cacheRef.current[cacheKey];
       setDeepSuggestions(prev => ({ ...prev, [section]: cached.suggestions }));
@@ -264,8 +280,6 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     setAnalyzingSections(prev => new Set(prev).add(section));
     const startTime = Date.now();
     try {
-      const currentContent = getSectionContent(resume, section);
-
       console.log(`[useATSSuggestions] Starting deep analysis for ${section}...`);
       const { data, error: invokeError } = await appwriteFunctions.invoke<Record<string, unknown>>(
         resumeSectionAiFnName('enhance-section'),
@@ -275,7 +289,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
             section,
             action: 'ats_optimize',
             currentContent,
-            context: { resume, jobDescription },
+            context: { resume: redactedResume, jobDescription },
           },
         },
       );
@@ -330,7 +344,15 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     } finally {
       setAnalyzingSections(prev => { const next = new Set(prev); next.delete(section); return next; });
     }
-  }, [resume, jobDescription, navigate]);
+  }, [
+    checkCredits,
+    incrementUsage,
+    jobDescription,
+    navigate,
+    redactedResume,
+    requestDisclosure,
+    resume,
+  ]);
 
   // Full-resume scan summary
   const scanSummary = useMemo(() => {

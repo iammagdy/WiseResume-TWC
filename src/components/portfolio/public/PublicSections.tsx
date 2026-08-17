@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { motion, useScroll, useTransform, useSpring, type Variants } from 'framer-motion';
 import { Briefcase, Layers, FolderOpen, Github, Wrench, Sparkles, Award, GraduationCap, Trophy, BookOpen, Heart, ExternalLink, Pin } from 'lucide-react';
 
 import type { PublicProfile, PublicResume, PortfolioSections } from '@/hooks/usePublicPortfolio';
@@ -40,7 +40,7 @@ const prefersReducedMotion = (): boolean => {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
 
-const getScrollEffectVariant = (effect: ScrollEffect, index: number): any => {
+const getScrollEffectVariant = (effect: ScrollEffect, index: number): Variants => {
   if (prefersReducedMotion()) return reducedMotionVariant;
 
   switch (effect) {
@@ -70,7 +70,7 @@ const getScrollEffectVariant = (effect: ScrollEffect, index: number): any => {
   }
 };
 
-const getThemeSectionVariant = (style: string, scrollEffect?: ScrollEffect, index?: number): any => {
+const getThemeSectionVariant = (style: string, scrollEffect?: ScrollEffect, index?: number): Variants => {
   if (scrollEffect && scrollEffect !== 'fade') {
     return getScrollEffectVariant(scrollEffect, index ?? 0);
   }
@@ -164,7 +164,7 @@ function SectionWrapper({
   );
 }
 
-const getThemeItemVariant = (style: string): any => {
+const getThemeItemVariant = (_style: string): Variants => {
   return {
     hidden: { opacity: 0, scale: 0.96 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.4 } }
@@ -192,7 +192,7 @@ export interface PublicSectionsProps {
   accentColor: string;
   isTwoCol: boolean;
   navSections: { id: string; label: string }[];
-  highlights: any[];
+  highlights: NonNullable<PublicProfile['highlights']>;
   allSkills: string[];
   portfolioSummary?: string | null;
   sectionOrder?: string[];

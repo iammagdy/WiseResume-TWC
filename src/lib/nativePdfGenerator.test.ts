@@ -42,6 +42,7 @@ describe('generateNativePDF', () => {
     await generateNativePDF(template, {
       pageFormat: 'letter',
       showPageNumbers: true,
+      pageNumberFormat: 'simple',
       showBranding: true,
       customBreakPositions: [1225, 700],
     });
@@ -51,6 +52,7 @@ describe('generateNativePDF', () => {
     expect(body).toMatchObject({
       pageFormat: 'letter',
       showPageNumbers: true,
+      pageNumberFormat: 'simple',
       showBranding: true,
       totalContentHeightPx: 1650,
       customBreakPositions: [1225, 700],
@@ -127,10 +129,17 @@ describe('generateNativePDF', () => {
       job_title: 'مدير المنتجات',
       company: 'شركة الحلول المتقدمة',
       content: 'السادة فريق التوظيف،\nيسعدني التقدم إلى الوظيفة.',
-    }, undefined, { locale: 'ar' });
+    }, undefined, {
+      locale: 'ar',
+      showPageNumbers: true,
+      pageNumberFormat: 'simple',
+      showBranding: false,
+    });
 
     const body = pdfNativeCallBody(fetchSpy);
     expect(body.locale).toBe('ar');
+    expect(body.pageNumberFormat).toBe('simple');
+    expect(body.showBranding).toBe(false);
     expect(body.html).toContain('dir="rtl"');
     expect(body.html).toContain('السادة فريق التوظيف');
   });

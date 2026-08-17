@@ -104,7 +104,7 @@ export const DashboardHero = memo(function DashboardHero({
           {t('app.dashboardHero.aiPowered', 'AI-powered resume studio')}
         </span>
         <h2 className="text-h1 text-foreground mb-3 leading-tight">
-          {t('app.dashboardHero.optimizeResumeTitle', 'Optimize your resume. Get more interviews.')}
+          {t('app.dashboardHero.optimizeResumeTitle', 'Strengthen your resume and applications.')}
         </h2>
         <p className="text-sm sm:text-base text-muted-foreground mb-8 max-w-md mx-auto sm:mx-0 leading-relaxed">
           {t('app.dashboardHero.optimizeResumeSubtitle', 'Start in under two minutes — match any job posting or build a polished CV from scratch.')}

@@ -39,6 +39,7 @@ import {
   educationDefaults,
 } from '@/lib/applyAIResult';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 interface AIEnhanceSheetProps {
   open: boolean;
@@ -50,7 +51,7 @@ interface AIEnhanceSheetProps {
 
 const MODES: { id: ActionType; label: string }[] = [
   { id: 'improve', label: 'Improve Writing' },
-  { id: 'add_metrics', label: 'Add Metrics' },
+  { id: 'add_metrics', label: 'Evidence & Metrics' },
   { id: 'generate_bullets', label: 'Power Bullets' },
   { id: 'shorten', label: 'Make Concise' },
   { id: 'expand', label: 'Expand Detail' },
@@ -85,6 +86,30 @@ interface SectionResult {
   retrying?: boolean;
 }
 
+interface EnhanceResponsePayload {
+  error?: unknown;
+  improved?: unknown;
+  changes?: unknown;
+  suggestions?: unknown;
+  variants?: unknown;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function recordText(record: Record<string, unknown>, key: string): string {
+  return typeof record[key] === 'string' ? record[key] : '';
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
 /** Narrows unknown[] to Experience[] — used to avoid `any` casts in diff rendering. */
 function isExperienceArray(val: unknown): val is Experience[] {
   return Array.isArray(val) && (val.length === 0 || (typeof val[0] === 'object' && val[0] !== null && 'id' in (val[0] as object)));
@@ -93,10 +118,12 @@ function isExperienceArray(val: unknown): val is Experience[] {
 // --- Section-aware formatting helpers ---
 
 function formatExperiencePreview(entries: unknown[]): string {
-  return entries.map((e: any) => {
-    const pos = e.position || e.title || 'Untitled Role';
-    const comp = e.company || e.account || '';
-    const desc = typeof e.description === 'string' ? e.description.slice(0, 80) : '';
+  return entries.map((entry) => {
+    const e = asRecord(entry);
+    const pos = recordText(e, 'position') || recordText(e, 'title') || 'Untitled Role';
+    const comp = recordText(e, 'company') || recordText(e, 'account');
+    const description = recordText(e, 'description');
+    const desc = description.slice(0, 80);
     const bullets = Array.isArray(e.achievements) ? e.achievements.length : 0;
     const resp = Array.isArray(e.responsibilities) ? e.responsibilities.length : 0;
     const bulletCount = bullets + resp;
@@ -108,17 +135,22 @@ function formatExperiencePreview(entries: unknown[]): string {
 }
 
 function formatEducationPreview(entries: unknown[]): string {
-  return entries.map((e: any) => {
-    const degree = e.degree || '';
-    const field = e.field || '';
-    const inst = e.institution || '';
+  return entries.map((entry) => {
+    const e = asRecord(entry);
+    const degree = recordText(e, 'degree');
+    const field = recordText(e, 'field');
+    const inst = recordText(e, 'institution');
     const parts = formatDegreeAndField(degree, field);
     return inst ? `${parts || 'Education entry'} at ${inst}` : parts || 'Education entry';
   }).join('\n\n');
 }
 
 function formatSkillsPreview(skills: unknown[]): string {
-  return skills.map((s: any) => typeof s === 'string' ? s : s?.name || String(s)).join(', ');
+  return skills.map((skill) => {
+    if (typeof skill === 'string') return skill;
+    const named = recordText(asRecord(skill), 'name');
+    return named || String(skill);
+  }).join(', ');
 }
 
 function formatSectionContent(sectionId: SectionType, content: unknown): string {
@@ -128,24 +160,24 @@ function formatSectionContent(sectionId: SectionType, content: unknown): string 
     case 'experience': return formatExperiencePreview(content);
     case 'education': return formatEducationPreview(content);
     case 'skills': return formatSkillsPreview(content);
-    case 'certifications': return content.map((c: any) => `${c.name || 'Cert'} — ${c.issuer || ''}`).join('\n');
-    case 'awards': return content.map((a: any) => `${a.title || 'Award'} — ${a.issuer || ''}`).join('\n');
-    case 'projects': return content.map((p: any) => `${p.name || 'Project'} — ${(p.description || '').slice(0, 60)}`).join('\n');
-    case 'publications': return content.map((p: any) => `${p.title || 'Publication'} — ${p.publisher || ''}`).join('\n');
-    case 'volunteering': return content.map((v: any) => `${v.role || 'Role'} at ${v.organization || ''}`).join('\n');
-    case 'languages': return content.map((l: any) => `${l.name || 'Language'} (${l.proficiency || ''})`).join(', ');
+    case 'certifications': return content.map((item) => { const c = asRecord(item); return `${recordText(c, 'name') || 'Cert'} — ${recordText(c, 'issuer')}`; }).join('\n');
+    case 'awards': return content.map((item) => { const a = asRecord(item); return `${recordText(a, 'title') || 'Award'} — ${recordText(a, 'issuer')}`; }).join('\n');
+    case 'projects': return content.map((item) => { const p = asRecord(item); return `${recordText(p, 'name') || 'Project'} — ${recordText(p, 'description').slice(0, 60)}`; }).join('\n');
+    case 'publications': return content.map((item) => { const p = asRecord(item); return `${recordText(p, 'title') || 'Publication'} — ${recordText(p, 'publisher')}`; }).join('\n');
+    case 'volunteering': return content.map((item) => { const v = asRecord(item); return `${recordText(v, 'role') || 'Role'} at ${recordText(v, 'organization')}`; }).join('\n');
+    case 'languages': return content.map((item) => { const l = asRecord(item); return `${recordText(l, 'name') || 'Language'} (${recordText(l, 'proficiency')})`; }).join(', ');
     default: return content.map(String).join(', ');
   }
 }
 
 // --- Structured diff cards for experience/education ---
 
-function ExperienceCard({ entry, variant }: { entry: any; variant: 'original' | 'enhanced' }) {
-  const pos = entry.position || entry.title || 'Untitled';
-  const comp = entry.company || entry.account || '';
-  const desc = typeof entry.description === 'string' ? entry.description : '';
-  const achievements = Array.isArray(entry.achievements) ? entry.achievements : [];
-  const responsibilities = Array.isArray(entry.responsibilities) ? entry.responsibilities : [];
+function ExperienceCard({ entry, variant }: { entry: Record<string, unknown>; variant: 'original' | 'enhanced' }) {
+  const pos = recordText(entry, 'position') || recordText(entry, 'title') || 'Untitled';
+  const comp = recordText(entry, 'company') || recordText(entry, 'account');
+  const desc = recordText(entry, 'description');
+  const achievements = stringList(entry.achievements);
+  const responsibilities = stringList(entry.responsibilities);
 
   return (
     <div className={cn(
@@ -174,10 +206,10 @@ function ExperienceCard({ entry, variant }: { entry: any; variant: 'original' | 
   );
 }
 
-function EducationCard({ entry, variant }: { entry: any; variant: 'original' | 'enhanced' }) {
-  const degree = entry.degree || '';
-  const field = entry.field || '';
-  const inst = entry.institution || '';
+function EducationCard({ entry, variant }: { entry: Record<string, unknown>; variant: 'original' | 'enhanced' }) {
+  const degree = recordText(entry, 'degree');
+  const field = recordText(entry, 'field');
+  const inst = recordText(entry, 'institution');
   return (
     <div className={cn(
       "p-2.5 rounded-lg text-xs space-y-0.5",
@@ -225,6 +257,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   const [expandedDiffText, setExpandedDiffText] = useState<Set<string>>(new Set());
   const scrollRef = useScrollFade<HTMLDivElement>();
   const currentResume = useResumeStore(s => s.currentResume);
+  const redactedResume = useRedactedResume(currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
   const { incrementUsage, checkCredits } = useAICreditsMutations();
   const { execute: executeAI } = useAIAction({ operation: 'enhance' });
@@ -262,7 +295,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     // classifier (no global "AI temporarily unavailable" toast for transient
     // section failures). Privacy gate + credit cache invalidation still run.
     return executeAI(async () => {
-      const { data: respData, error: invokeError } = await appwriteFunctions.invoke<Record<string, unknown>>(
+      const { data: respData, error: invokeError } = await appwriteFunctions.invoke<EnhanceResponsePayload>(
         resumeSectionAiFnName('enhance-section'),
         {
           body: {
@@ -270,7 +303,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
             section: sectionInfo.id,
             action: effectiveAction,
             currentContent: content,
-            context: { resume: currentResume },
+            context: { resume: redactedResume },
             ...(variantsMode && !atsMode ? { variants: true } : {}),
           },
         },
@@ -292,21 +325,34 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       incrementUsage.mutate();
       return respData;
     }, { silent: true });
-  }, [executeAI, effectiveAction, currentResume, variantsMode, atsMode, incrementUsage]);
+  }, [executeAI, effectiveAction, redactedResume, variantsMode, atsMode, incrementUsage]);
 
-  const buildResultFromData = useCallback((sectionInfo: { id: SectionType; label: string }, content: unknown, data: any): SectionResult => {
-    if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
-      const firstVariant = data.variants[0];
+  const buildResultFromData = useCallback((sectionInfo: { id: SectionType; label: string }, content: unknown, data: EnhanceResponsePayload): SectionResult => {
+    const variants = Array.isArray(data.variants)
+      ? data.variants
+          .map((variant, index) => {
+            const record = asRecord(variant);
+            return {
+              improved: record.improved,
+              label: recordText(record, 'label') || `Variant ${index + 1}`,
+            };
+          })
+          .filter(variant => variant.improved !== undefined)
+      : [];
+    const changes = stringList(data.changes);
+    const suggestions = stringList(data.suggestions);
+    if (variants.length > 0) {
+      const firstVariant = variants[0];
       return {
         section: sectionInfo.id,
         label: sectionInfo.label,
         original: content,
         improved: firstVariant.improved,
         rawImproved: firstVariant.improved,
-        changes: data.changes || [],
-        suggestions: data.suggestions,
+        changes,
+        suggestions,
         applied: false,
-        variants: data.variants,
+        variants,
         selectedVariantIndex: 0,
       };
     }
@@ -322,8 +368,8 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       original: content,
       improved: sanitizeAIContent(data.improved),
       rawImproved: data.improved,
-      changes: data.changes || [],
-      suggestions: data.suggestions,
+      changes,
+      suggestions,
       applied: false,
       warning,
     };
@@ -379,7 +425,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     sectionInfo: { id: SectionType; label: string },
     content: unknown,
     maxAttempts = 2
-  ): Promise<{ ok: true; data: any } | { ok: false; errMsg: string; classification: ReturnType<typeof classifyError> }> => {
+  ): Promise<{ ok: true; data: EnhanceResponsePayload } | { ok: false; errMsg: string; classification: ReturnType<typeof classifyError> }> => {
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -650,25 +696,27 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     id => availableSections.some(s => s.id === id)
   );
 
-  const sheetTitle = atsMode ? 'ATS Keyword Optimization' : 'AI Enhance';
+  const sheetTitle = atsMode ? 'Job Keyword Alignment' : 'AI Enhance';
 
   // Render structured before/after for experience/education, plain text for others
   const renderSectionPreview = (sectionId: SectionType, content: unknown, variant: 'original' | 'enhanced') => {
     if (sectionId === 'experience' && Array.isArray(content)) {
       return (
         <div className="space-y-2">
-          {content.map((entry: any, i: number) => (
-            <ExperienceCard key={entry?.id || i} entry={entry} variant={variant} />
-          ))}
+          {content.map((entry, i) => {
+            const record = asRecord(entry);
+            return <ExperienceCard key={recordText(record, 'id') || i} entry={record} variant={variant} />;
+          })}
         </div>
       );
     }
     if (sectionId === 'education' && Array.isArray(content)) {
       return (
         <div className="space-y-2">
-          {content.map((entry: any, i: number) => (
-            <EducationCard key={entry?.id || i} entry={entry} variant={variant} />
-          ))}
+          {content.map((entry, i) => {
+            const record = asRecord(entry);
+            return <EducationCard key={recordText(record, 'id') || i} entry={record} variant={variant} />;
+          })}
         </div>
       );
     }
@@ -792,7 +840,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           {atsMode && (
             <div className="px-1">
               <p className="text-xs text-muted-foreground">
-                Optimizing specifically for ATS scoring criteria: completeness, keywords, impact language, and formatting.
+                Aligning with the job description while preserving verified facts. Review every suggested keyword before applying it.
               </p>
             </div>
           )}
@@ -861,7 +909,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
             {isEnhancing ? (
               <>
                 <MiniSpinner size={16} className="mr-2" />
-                {variantsMode ? 'Generating 3 variants…' : atsMode ? 'Optimizing for ATS…' : 'Enhancing…'}
+                {variantsMode ? 'Generating 3 variants…' : atsMode ? 'Aligning job keywords…' : 'Enhancing…'}
               </>
             ) : (
               <>

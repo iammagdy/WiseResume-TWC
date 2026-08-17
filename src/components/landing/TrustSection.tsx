@@ -49,13 +49,13 @@ export function TrustSection() {
     },
     {
       icon: ShieldCheck,
-      headline: t('landing.trustItems.aiNoSpamTitle', "AI can't be spammed on your behalf"),
-      body: t('landing.trustItems.aiNoSpamBody', 'The AI chat on your portfolio page uses session tokens, so no one can run up costs using your public page.'),
+      headline: t('landing.trustItems.aiNoSpamTitle', 'Public AI access is session-scoped and rate-limited'),
+      body: t('landing.trustItems.aiNoSpamBody', 'Portfolio AI requests use short-lived sessions and abuse controls that reduce unauthorized usage. No online control can promise that abuse is impossible.'),
     },
     {
       icon: Database,
       headline: t('landing.trustItems.resumeDataYoursTitle', 'Your resume data is yours'),
-      body: t('landing.trustItems.resumeDataYoursBody', 'Stored securely, never shared with third parties, and never used to train AI models.'),
+      body: t('landing.trustItems.resumeDataYoursBody', 'Your resume is private by default. When you explicitly request AI help, the disclosed content is sent to the configured AI provider to generate that response; WiseResume does not use it to train its own models.'),
     },
   ];
 

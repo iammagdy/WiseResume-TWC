@@ -14,7 +14,10 @@ export type WisehireAccessAction =
   | 'waitlist-join'
   | 'validate-early-access'
   | 'validate-invite'
-  | 'complete-signup';
+  | 'complete-signup'
+  | 'public-brief'
+  | 'public-scorecard'
+  | 'talent-views-me';
 
 const LEGACY_FN_BY_ACTION: Record<WisehireAccessAction, string> = {
   'waitlist-check-email': 'wisehire-waitlist-check-email',
@@ -22,6 +25,9 @@ const LEGACY_FN_BY_ACTION: Record<WisehireAccessAction, string> = {
   'validate-early-access': 'wisehire-validate-early-access',
   'validate-invite':       'wisehire-validate-invite',
   'complete-signup':       'wisehire-complete-signup',
+  'public-brief':          'wisehire-public-brief',
+  'public-scorecard':      'wisehire-public-scorecard',
+  'talent-views-me':       'wisehire-access',
 };
 
 /** Invoke the wisehire-access router (or its legacy equivalent) and return

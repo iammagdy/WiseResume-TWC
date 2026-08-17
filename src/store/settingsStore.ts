@@ -193,7 +193,7 @@ export const useSettingsStore = create<SettingsState>()(
         // elevenlabsApiKey is in-memory only.
         // lpProduct and hasSeenSplash are session-only.
         // byok* state is hydrated from server on each load — never persisted.
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         const { elevenlabsApiKey, lpProduct: _lp, hasSeenSplash: _splash, byokEnabled: _be, byokProvider: _bp, byokKeyHints: _bkh, ...rest } = state;
         return rest;
       },

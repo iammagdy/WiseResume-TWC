@@ -203,6 +203,20 @@ describe('exportPagePlan', () => {
     ]);
   });
 
+  it('drops validation-only cuts beyond rendered content instead of creating a descending cut page', () => {
+    const segments = buildExportPageSegments({
+      totalContentHeightPx: 1_020,
+      pageHeightPx: 748,
+      customBreakPositions: [1_050],
+      breakValidationHeightPx: 1_100,
+    });
+
+    expect(segments).toEqual([
+      { index: 0, startPx: 0, heightPx: 748, isLast: false },
+      { index: 1, startPx: 748, heightPx: 272, isLast: true },
+    ]);
+  });
+
   it('does not corrupt a break placed at exactly (liveHeight - minGap)', () => {
     const liveH = 1000;
     const minGap = 40;

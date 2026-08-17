@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMe } from '@/hooks/useMe';
 import { toast } from 'sonner';
-import { parseResumePDF, parseResumePDFWithOCR, parseTextWithAI } from '@/lib/pdfParser';
+import { parseOnboardingCvFile } from '@/lib/onboardingCvFile';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { databases, DATABASE_ID, Query } from '@/lib/appwrite';
@@ -26,6 +26,8 @@ import { OnboardingProfileReviewSheet } from '@/components/onboarding/Onboarding
 import type { ProfileData } from '@/components/settings/ProfileImportSheet';
 import { logAudit } from '@/lib/auditLogger';
 import { cn } from '@/lib/utils';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
 
 type OnboardingMethod =
   | 'cv'
@@ -126,6 +128,11 @@ export default function OnboardingPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: meData } = useMe();
+  const { requestDisclosure } = useAIPrivacyDisclosure();
+  const ensureAIPrivacy = useCallback(async () => {
+    if (hasAcceptedAIPrivacy()) return true;
+    return requestDisclosure();
+  }, [requestDisclosure]);
 
   const [step, setStep] = useState<Step>('welcome');
   // Track which onboarding path the user is on, so completion / save-failed
@@ -273,33 +280,14 @@ export default function OnboardingPage() {
   // ─── CV path ────────────────────────────────────────────────────────────
   const handleCvFile = useCallback(async (file: File) => {
     setCvError(null);
+    if (!(await ensureAIPrivacy())) {
+      setCvError('CV import was cancelled before any resume content was sent for AI processing.');
+      if (cvInputRef.current) cvInputRef.current.value = '';
+      return;
+    }
     setCvProcessing(true);
     try {
-      let resumeData;
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        const result = await parseResumePDF(file);
-        resumeData = result.data;
-        if (result.needsOCR || !resumeData) {
-          const ocr = await parseResumePDFWithOCR(file);
-          resumeData = ocr.data;
-        }
-      } else if (
-        file.type === 'application/msword' ||
-        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-        /\.(docx?|txt)$/i.test(file.name)
-      ) {
-        // Word fallback: extract text via mammoth, then AI-parse
-        const mammoth = await import('mammoth/mammoth.browser');
-        const arrayBuffer = await file.arrayBuffer();
-        const { value } = await mammoth.extractRawText({ arrayBuffer });
-        resumeData = await parseTextWithAI(value);
-      } else if (file.type.startsWith('image/')) {
-        const { extractTextFromImage } = await import('@/lib/pdf/ocrExtractor');
-        const text = await extractTextFromImage(file);
-        resumeData = await parseTextWithAI(text);
-      } else {
-        throw new Error('Unsupported file type. Please upload a PDF, Word, or image file.');
-      }
+      const resumeData = await parseOnboardingCvFile(file);
       if (!resumeData) throw new Error('We couldn\'t read this file. Please try a different one.');
 
       const profile = fromResumeData(resumeData);
@@ -319,7 +307,7 @@ export default function OnboardingPage() {
       setCvProcessing(false);
       if (cvInputRef.current) cvInputRef.current.value = '';
     }
-  }, []);
+  }, [ensureAIPrivacy]);
 
   // ─── LinkedIn URL path ──────────────────────────────────────────────────
   const handleLinkedInUrlSubmit = useCallback(async () => {
@@ -341,6 +329,10 @@ export default function OnboardingPage() {
     const isLinkedIn = host === 'linkedin.com' || host.endsWith('.linkedin.com');
     if (!isLinkedIn || !/\/in\//i.test(parsed.pathname)) {
       setLinkedinUrlError('Please paste a valid LinkedIn profile URL like linkedin.com/in/yourname');
+      return;
+    }
+    if (!(await ensureAIPrivacy())) {
+      setLinkedinUrlError('LinkedIn import was cancelled before profile data was sent for processing.');
       return;
     }
     setLinkedinUrlError('');
@@ -415,7 +407,7 @@ export default function OnboardingPage() {
     } finally {
       setLinkedinUrlProcessing(false);
     }
-  }, [linkedinUrl]);
+  }, [ensureAIPrivacy, linkedinUrl, queryClient]);
 
   const handleProfileImportSheetImport = useCallback((data: Partial<ProfileData>) => {
     const extracted = fromProfileData(data);
@@ -472,7 +464,7 @@ export default function OnboardingPage() {
       localStorage.setItem(onboardingKey(user.id), 'true');
     }
     navigate('/dashboard', { replace: true });
-  }, [navigate, user, queryClient]);
+  }, [step, user.id, user.email, user.name, navigate, queryClient]);
 
   const handleBack = () => {
     if (step === 'choice') setStep('welcome');
@@ -823,7 +815,7 @@ function CvStep({
       <input
         ref={inputRef}
         type="file"
-        accept=".pdf,.doc,.docx,.txt,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        accept=".pdf,.docx,.txt,image/*,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={onChange}
         className="hidden"
         disabled={processing}
@@ -848,7 +840,7 @@ function CvStep({
                 <Upload className="w-7 h-7 text-foreground" />
               </div>
               <p className="font-semibold text-foreground">Click to upload your CV</p>
-              <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, or image • Up to 10 MB</p>
+              <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, TXT, or image • Up to 10 MB</p>
               <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-primary font-medium">
                 <MultiColorSparkle className="w-4 h-4" />
                 AI fills your profile in seconds

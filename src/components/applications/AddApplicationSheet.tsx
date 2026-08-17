@@ -101,7 +101,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
     } finally {
       setIsParsingUrl(false);
     }
-  }, [url, jobTitle, company]);
+  }, [url, queryClient, jobTitle, company]);
 
   const handleSubmit = async () => {
     if (!jobTitle.trim() || !company.trim()) return;

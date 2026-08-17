@@ -3,10 +3,10 @@ import { useReducedMotion } from 'framer-motion';
 import { Archive, Search, Star } from 'lucide-react';
 
 const POOL = [
-  { initials: 'LO', name: 'Lisa O.', role: 'Product Designer', tags: ['Figma', 'UX Research'], score: 93, starred: true },
-  { initials: 'DH', name: 'David H.', role: 'Backend Eng.', tags: ['Go', 'PostgreSQL'], score: 88, starred: false },
-  { initials: 'MR', name: 'Maya R.', role: 'Data Analyst', tags: ['Python', 'SQL'], score: 82, starred: true },
-  { initials: 'CN', name: 'Chris N.', role: 'FE Engineer', tags: ['React', 'TypeScript'], score: 79, starred: false },
+  { initials: 'LO', name: 'Lisa O.', role: 'Product Designer', tags: ['Figma', 'UX Research'], starred: true },
+  { initials: 'DH', name: 'David H.', role: 'Backend Eng.', tags: ['Go', 'PostgreSQL'], starred: false },
+  { initials: 'MR', name: 'Maya R.', role: 'Data Analyst', tags: ['Python', 'SQL'], starred: true },
+  { initials: 'CN', name: 'Chris N.', role: 'FE Engineer', tags: ['React', 'TypeScript'], starred: false },
 ];
 
 const SEARCH_TERMS = ['React', 'Go', 'Figma', ''];
@@ -166,9 +166,6 @@ export function TalentPoolDemo() {
                   {p.name}
                 </span>
                 {p.starred && <Star className="w-3 h-3" style={{ color: '#F59E0B', fill: '#F59E0B', flexShrink: 0 }} />}
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#60A5FA', background: 'rgba(96,165,250,0.12)', borderRadius: 4, padding: '1px 5px' }}>
-                  {p.score}
-                </span>
               </div>
               <p style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)', marginBottom: 4 }}>{p.role}</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>

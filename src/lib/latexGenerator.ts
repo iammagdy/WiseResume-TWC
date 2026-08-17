@@ -11,7 +11,7 @@ import { getSectionLabel } from '@/lib/sectionLabels';
  */
 function esc(text: string | null | undefined): string {
   if (!text) return '';
-  return text.replace(/[\\#$%&_{}\^~]/g, (c) => {
+  return text.replace(/[\\#$%&_{}^~]/g, (c) => {
     switch (c) {
       case '\\': return '\\textbackslash{}';
       case '^':  return '\\textasciicircum{}';

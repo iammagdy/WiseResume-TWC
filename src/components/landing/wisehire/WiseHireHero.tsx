@@ -176,10 +176,10 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
         }}
       >
         <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-          {t('landing.wisehire.hireSmarter', 'Hire Smarter.')}
+          {t('landing.wisehire.hireSmarter', 'Review Evidence.')}
         </span>
         <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
-          {t('landing.wisehire.screenFaster', 'Screen Faster.')}
+          {t('landing.wisehire.screenFaster', 'Organize Hiring.')}
         </span>
       </h1>
 
@@ -211,7 +211,7 @@ export function WiseHireHero({ isAuthenticated, onOpenWaitlist, mobileToggle }: 
           transition: 'color 0.35s ease',
         }}
       >
-        {t('landing.wisehire.subheading', 'AI that screens candidates, writes job descriptions, and surfaces your best hires — in minutes, not hours.')}
+        {t('landing.wisehire.subheading', 'Organize hiring workflows and request AI-assisted evidence summaries and job-description drafts, with recruiter review required.')}
       </p>
 
       {/* CTAs — primary now uses a token-driven glow + hover lift; secondary

@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
   Target,
-  ArrowUpRight,
   Zap,
   Globe,
   CheckCircle2,
@@ -11,7 +10,6 @@ import {
   Clock,
   Briefcase,
   GraduationCap,
-  BarChart3,
 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
@@ -72,10 +70,12 @@ function RoleCard({ role }: { role: NextRole }) {
           <h4 className="font-semibold text-sm">{role.title}</h4>
           <div className="flex items-center gap-2 mt-1">
             <Clock className="w-3 h-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{role.timeToReady}</span>
+            <span className="text-xs text-muted-foreground">Suggested horizon: {role.timeToReady}</span>
           </div>
         </div>
         <div
+          title="AI resume-relevance estimate, not hiring probability"
+          aria-label={`AI resume-relevance estimate ${role.matchScore} out of 100`}
           className={cn(
             'w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shrink-0',
             role.matchScore >= 70
@@ -161,13 +161,6 @@ function SkillGapCard({ gap }: { gap: SkillGap }) {
 }
 
 function IndustryCard({ alt }: { alt: IndustryAlternative }) {
-  const salaryIcon = {
-    higher: { icon: ArrowUpRight, color: 'text-success', label: 'Higher pay' },
-    similar: { icon: BarChart3, color: 'text-muted-foreground', label: 'Similar pay' },
-    lower: { icon: ArrowUpRight, color: 'text-destructive rotate-90', label: 'Lower pay' },
-  };
-  const salary = salaryIcon[alt.salaryComparison];
-
   return (
     <div className="p-4 rounded-xl bg-card border border-border">
       <div className="flex items-center justify-between mb-2">
@@ -175,10 +168,6 @@ function IndustryCard({ alt }: { alt: IndustryAlternative }) {
           <Globe className="w-4 h-4 text-primary" />
           <h4 className="font-semibold text-sm">{alt.industry}</h4>
         </div>
-        <span className={cn('text-[10px] flex items-center gap-0.5', salary.color)}>
-          <salary.icon className="w-3 h-3" />
-          {salary.label}
-        </span>
       </div>
       <p className="text-xs text-muted-foreground mb-2">Role: {alt.role}</p>
       <div className="flex flex-wrap gap-1">
@@ -278,7 +267,7 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
               </div>
               <h3 className="text-lg font-semibold mb-2">Where could your career go?</h3>
               <p className="text-sm text-muted-foreground mb-6 max-w-[300px]">
-                AI will analyze your resume and suggest realistic next career moves, skill gaps, and an action plan.
+                AI will draft career directions, skill ideas, and an action plan from your resume. Verify role requirements, timelines, and market conditions independently.
               </p>
 
               {error && (
@@ -306,6 +295,9 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
 
           {result && !isLoading && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div className="mb-4 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                Exploration only: relevance scores and preparation horizons are AI estimates, not hiring probabilities or labor-market research.
+              </div>
               <div className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border shadow-soft mb-4">
                 <GraduationCap className="w-6 h-6 text-primary" />
                 <div className="flex-1">

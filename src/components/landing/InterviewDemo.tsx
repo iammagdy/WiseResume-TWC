@@ -40,7 +40,7 @@ export function InterviewDemo() {
       });
     }, delays[phase]);
     return () => clearTimeout(t);
-  }, [phase, inView, prefersReducedMotion]);
+  }, [phase, inView, prefersReducedMotion, copy.qa.length]);
 
   const qa = copy.qa[qaIdx];
   const circumference = 2 * Math.PI * 14;

@@ -20,7 +20,7 @@ export interface CandidateBrief {
   share_token: string | null;
   share_token_active: boolean;
   created_at: string;
-  candidate?: { name: string; email: string } | null;
+  candidate?: { name: string; email?: string | null } | null;
   role?: { title: string } | null;
 }
 

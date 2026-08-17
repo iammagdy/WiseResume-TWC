@@ -16,6 +16,7 @@ import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
+import { restoreResumeContactPlaceholders } from '@/lib/piiRedact';
 
 interface PortfolioBioSheetProps {
   open: boolean;
@@ -93,10 +94,11 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
     try {
       const data = await execute(async () => {
         const resume = currentResume as unknown as ResumeData;
-        const name = resume.contactInfo?.fullName ?? 'Professional';
-        const summary = resume.summary ?? '';
-        const topSkills = getTopSkills(resume);
-        const experience = getRecentExperience(resume);
+        const providerResume = redactedResume ?? resume;
+        const name = providerResume.contactInfo?.fullName ?? 'Professional';
+        const summary = providerResume.summary ?? '';
+        const topSkills = getTopSkills(providerResume);
+        const experience = getRecentExperience(providerResume);
 
         const { data: responseData, error } = await appwriteFunctions.invoke('wise-ai-chat', {
           body: {
@@ -112,7 +114,10 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
         });
         if (error) throw new Error(error.message);
         const content = extractAIContent(responseData);
-        return parseAIJson(content, isBioResult);
+        return restoreResumeContactPlaceholders(
+          parseAIJson(content, isBioResult),
+          resume.contactInfo,
+        );
       });
       if (data) setResult(data);
     } catch {

@@ -22,6 +22,7 @@ import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useAIAction } from '@/hooks/useAIAction';
 
 const REASONS = [
   { value: 'new_opportunity', label: 'New Opportunity' },
@@ -67,6 +68,7 @@ export default function ResignationLetterNewPage() {
   const { data: resumes } = useResumes();
   const queryClient = useQueryClient();
   const goBack = useBackNavigation();
+  const { execute: executeAI } = useAIAction({ operation: 'resignation-letter' });
 
   const [step, setStep] = useState(0);
   const [generating, setGenerating] = useState(false);
@@ -114,26 +116,29 @@ export default function ResignationLetterNewPage() {
     setGenerating(true);
     haptics.light();
     try {
-      const { data, error } = await appwriteFunctions.invoke('generate-resignation-letter', {
-        body: {
-          recipientName,
-          company,
-          position,
-          lastWorkingDay: lastWorkingDay ? format(lastWorkingDay, 'MMMM d, yyyy') : undefined,
-          effectiveDate: lastWorkingDay ? format(lastWorkingDay, 'yyyy-MM-dd') : undefined,
-          noticePeriod,
-          reason,
-          tone: TONE_VALUES[toneIndex],
-          templateStyle,
-          additions: selectedAdditions.map(id => ADDITIONS.find(a => a.id === id)?.label || id),
-          additionIds: selectedAdditions,
-          title: `${company} Resignation`,
-          userName,
-        },
+      const data = await executeAI(async () => {
+        const { data: responseData, error } = await appwriteFunctions.invoke('generate-resignation-letter', {
+          body: {
+            recipientName,
+            company,
+            position,
+            lastWorkingDay: lastWorkingDay ? format(lastWorkingDay, 'MMMM d, yyyy') : undefined,
+            effectiveDate: lastWorkingDay ? format(lastWorkingDay, 'yyyy-MM-dd') : undefined,
+            noticePeriod,
+            reason,
+            tone: TONE_VALUES[toneIndex],
+            templateStyle,
+            additions: selectedAdditions.map(id => ADDITIONS.find(a => a.id === id)?.label || id),
+            additionIds: selectedAdditions,
+            title: `${company} Resignation`,
+            userName,
+          },
+        });
+        if (error) throw new Error(error.message || 'Failed to generate letter');
+        if (responseData?.error) throw new Error(responseData.error || 'AI service error');
+        return responseData;
       });
-
-      if (error) throw new Error(error.message || 'Failed to generate letter');
-      if (data?.error) throw new Error(data.error || 'AI service error');
+      if (!data) return;
       invalidateAiCreditQueries(queryClient);
       setResult(data.letter || data.content);
       setSavedId(data.id || null);

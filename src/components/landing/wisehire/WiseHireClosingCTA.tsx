@@ -52,13 +52,13 @@ export function WiseHireClosingCTA({ prefersReducedMotion, onOpenWaitlist }: Wis
               transition: 'color 0.35s ease',
             }}
           >
-            {t('wisehire.closingCta.heading', 'Join the waitlist.')}<br />{t('wisehire.closingCta.headingLine2', 'Hire smarter from day one.')}
+            {t('wisehire.closingCta.heading', 'Join the waitlist.')}<br />{t('wisehire.closingCta.headingLine2', 'Organize hiring reviews from day one.')}
           </h2>
           <p
             className="max-w-md mx-auto text-sm mb-8"
             style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
           >
-            {t('wisehire.closingCta.subtext', 'Invite-only early access. No credit card required. Cancel anytime.')}
+            {t('wisehire.closingCta.subtext', 'Invite-only early access. Joining the waitlist requires no credit card; access terms are confirmed before activation.')}
           </p>
           <motion.button
             type="button"

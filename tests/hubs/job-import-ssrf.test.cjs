@@ -46,6 +46,14 @@ const blockedIps = [
   '::ffff:127.0.0.1',
   '::ffff:192.168.0.1',
   '::ffff:10.0.0.1',
+  '0.12.34.56',
+  '224.0.0.1',
+  '239.255.255.255',
+  '240.0.0.1',
+  '255.255.255.255',
+  '64:ff9b::7f00:1',
+  '2002::1',
+  'ff02::1',
   'localhost'
 ];
 
@@ -73,6 +81,10 @@ const blockedUrls = [
   'http://169.254.169.254/latest/meta-data/',
   'http://[::ffff:127.0.0.1]/jobs',
   'http://[fe80::1]/jobs',
+  'https://metadata.google.internal/computeMetadata/v1/',
+  'https://service.internal/jobs',
+  'https://printer.local/jobs',
+  'https://router.home.arpa/jobs',
   'ftp://google.com/jobs', // only http/https allowed
   'gopher://example.com'
 ];
@@ -91,4 +103,48 @@ for (const url of allowedUrls) {
   assert.equal(t.isSafeUrl(url), true, `URL ${url} should be safe`);
 }
 
-console.log('[TEST] job-import SSRF defenses verified');
+(async () => {
+  const target = await t.resolveSafeTarget(
+    'https://jobs.example.com/role',
+    async () => [
+      { address: '93.184.216.34', family: 4 },
+      { address: '2606:2800:220:1:248:1893:25c8:1946', family: 6 },
+    ],
+  );
+  assert.equal(target.hostname, 'jobs.example.com');
+  assert.equal(target.addresses.length, 2);
+
+  await assert.rejects(
+    () => t.resolveSafeTarget(
+      'https://rebind.example/jobs',
+      async () => [
+        { address: '93.184.216.34', family: 4 },
+        { address: '127.0.0.1', family: 4 },
+      ],
+    ),
+    /blocked network/,
+    'a hostname with any private answer must be rejected',
+  );
+
+  const lookup = t.createPinnedLookup('jobs.example.com', [{ address: '93.184.216.34', family: 4 }]);
+  const pinned = await new Promise((resolve, reject) => {
+    lookup('jobs.example.com', { family: 4 }, (error, address, family) => {
+      if (error) reject(error);
+      else resolve({ address, family });
+    });
+  });
+  assert.deepEqual(pinned, { address: '93.184.216.34', family: 4 });
+
+  await assert.rejects(
+    () => new Promise((resolve, reject) => {
+      lookup('unexpected.example.com', {}, error => error ? reject(error) : resolve());
+    }),
+    /Unexpected DNS hostname/,
+    'the transport lookup must not resolve a different hostname',
+  );
+
+  console.log('[TEST] job-import SSRF defenses verified');
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

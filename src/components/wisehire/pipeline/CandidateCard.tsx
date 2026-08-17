@@ -14,13 +14,12 @@ interface CandidateCardProps {
 
 function ScoreBadge({ score }: { score: number | null | undefined }) {
   if (score == null) return null;
-  const cls =
-    score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-    : score >= 60 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
   return (
-    <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${cls}`}>
-      {score}%
+    <span
+      className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+      title="AI evidence alignment estimate — not a hiring recommendation"
+    >
+      {score}% evidence
     </span>
   );
 }
@@ -55,7 +54,7 @@ export function CandidateCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && handleClick(e as unknown as React.MouseEvent)}
-      aria-label={`Candidate: ${candidate.name}`}
+      aria-label={biasMode ? `Candidate identifier ending ${candidate.id.slice(-4).toUpperCase()}` : `Candidate: ${candidate.name}`}
       className={`bg-white dark:bg-slate-900 border rounded-xl px-3 py-2.5 select-none hover:shadow-sm transition-all group ${
         selected
           ? 'border-blue-500 dark:border-blue-400 ring-1 ring-blue-500 dark:ring-blue-400 cursor-pointer'
@@ -97,7 +96,7 @@ export function CandidateCard({
           )}
         </div>
       </div>
-      {candidate.notes && (
+      {!biasMode && candidate.notes && (
         <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 line-clamp-2 pl-7">
           {candidate.notes}
         </p>

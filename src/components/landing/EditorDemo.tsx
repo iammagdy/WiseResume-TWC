@@ -19,7 +19,7 @@ export function EditorDemo() {
   const prefersReducedMotion = useReducedMotion();
   const [phase, setPhase] = useState<Phase>('typing');
   const [typed, setTyped] = useState('');
-  const [score, setScore] = useState(45);
+  const [score, setScore] = useState(72);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const frameRef = useRef<number | null>(null);
   const { ref: containerRef, inView } = useInView({ threshold: 0.05, triggerOnce: false });
@@ -34,7 +34,7 @@ export function EditorDemo() {
     cleanup();
     setPhase('typing');
     setTyped('');
-    setScore(45);
+    setScore(72);
   }, [cleanup]);
 
   // Pause all animations when out of viewport
@@ -75,8 +75,8 @@ export function EditorDemo() {
   useEffect(() => {
     if (prefersReducedMotion || phase !== 'scoring' || !inView) return;
     const start = performance.now();
-    const from = 45;
-    const to = 92;
+    const from = 72;
+    const to = 72;
     const animate = (now: number) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / SCORE_DURATION, 1);
@@ -108,7 +108,7 @@ export function EditorDemo() {
     : showAfter
       ? copy.after
       : typed;
-  const displayScore = prefersReducedMotion ? 92 : score;
+  const displayScore = prefersReducedMotion ? 72 : score;
 
   const circumference = 2 * Math.PI * 18;
   const strokeDashoffset = circumference - (displayScore / 100) * circumference;
@@ -135,7 +135,7 @@ export function EditorDemo() {
           </div>
           <div className="flex items-center gap-1.5">
             {/* Score ring */}
-            <div className="relative w-10 h-10">
+            <div className="relative w-10 h-10" aria-label="Example resume readiness: 72%">
               <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
                 <circle cx="20" cy="20" r="18" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
                 <circle

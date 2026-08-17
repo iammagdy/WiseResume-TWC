@@ -76,7 +76,7 @@ function testExactIdMetadataPreservation() {
       startDate: undefined,
       endDate: null,
       current: false,
-      technologies: ['React', 'TypeScript', 'Accessibility'],
+      technologies: ['React', 'TypeScript'],
       description: 'Led delivery of an accessible operations console.',
     },
   ]);
@@ -89,7 +89,7 @@ function testExactIdMetadataPreservation() {
       startDate: '2024-02',
       endDate: '',
       current: true,
-      technologies: ['React', 'TypeScript', 'Accessibility'],
+      technologies: ['React', 'TypeScript'],
       description: 'Led delivery of an accessible operations console.',
       url: 'https://example.com/atlas',
       githubUrl: 'https://github.com/example/atlas',
@@ -104,7 +104,6 @@ function testExactIdMetadataPreservation() {
       technologies: ['Node.js'],
       description: 'Built a resilient event ingestion API for high-volume workloads.',
       url: 'https://example.com/signal',
-      githubUrl: undefined,
     },
   ]);
   assert.equal('backendOnlyFlag' in result.projects[0], false);
@@ -159,6 +158,10 @@ function testDeterministicFallbackAndNoAiOnlyProjects() {
   assert.deepEqual(result.projects.map((project) => project.description), [
     'Improved the web application experience.',
     'Scaled the API for production traffic.',
+  ]);
+  assert.deepEqual(result.projects.map((project) => project.technologies), [
+    ['React'],
+    ['Node.js'],
   ]);
   assert.deepEqual(result.projects.map((project) => [
     project.startDate,

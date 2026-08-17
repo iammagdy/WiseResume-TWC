@@ -25,19 +25,19 @@ const sectionActions: Record<SectionType, AIActionConfig[]> = {
     { id: 'generate', label: 'Generate', icon: <Wand2 className="w-4 h-4" />, description: 'Create a professional summary from scratch' },
     { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" />, description: 'Enhance clarity and impact' },
     { id: 'shorten', label: 'Shorten', icon: <Minimize2 className="w-4 h-4" />, description: 'Condense without losing key points' },
-    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-4 h-4" />, description: 'Align keywords with job requirements' },
+    { id: 'ats_optimize', label: 'Keyword Align', icon: <Target className="w-4 h-4" />, description: 'Align keywords with job requirements' },
     { id: 'tailor_to_job', label: 'Tailor to Job', icon: <Briefcase className="w-4 h-4" />, description: 'Rewrite using exact keywords from the job post', requiresJD: true },
   ],
   experience: [
     { id: 'improve', label: 'Improve Bullets', icon: <Wand2 className="w-4 h-4" />, description: 'Rewrite with stronger action verbs' },
-    { id: 'add_metrics', label: 'Add Metrics', icon: <BarChart3 className="w-4 h-4" />, description: 'Quantify achievements with numbers' },
-    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-4 h-4" />, description: 'Align keywords with job requirements' },
+    { id: 'add_metrics', label: 'Evidence & Metrics', icon: <BarChart3 className="w-4 h-4" />, description: 'Use verified outcomes; enter missing numbers when prompted' },
+    { id: 'ats_optimize', label: 'Keyword Align', icon: <Target className="w-4 h-4" />, description: 'Align keywords with job requirements' },
     { id: 'tailor_to_job', label: 'Tailor to Job', icon: <Briefcase className="w-4 h-4" />, description: 'Rewrite using exact keywords from the job post', requiresJD: true },
   ],
   skills: [
     { id: 'generate', label: 'Suggest Skills', icon: <Plus className="w-4 h-4" />, description: 'Recommend relevant skills for your role' },
     { id: 'improve', label: 'Improve & Reorder', icon: <Layers className="w-4 h-4" />, description: 'Prioritize and organize skills' },
-    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-4 h-4" />, description: 'Match skills to job descriptions' },
+    { id: 'ats_optimize', label: 'Keyword Align', icon: <Target className="w-4 h-4" />, description: 'Match skills to job descriptions' },
     { id: 'find_skill_gaps', label: 'Find Skill Gaps', icon: <Search className="w-4 h-4" />, description: 'Add missing skills required by the job post', requiresJD: true },
   ],
   education: [

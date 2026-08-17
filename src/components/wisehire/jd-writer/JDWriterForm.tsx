@@ -6,10 +6,11 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Sparkles, KeyRound, AlertCircle } from 'lucide-react';
+import { Sparkles, AlertCircle } from 'lucide-react';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import type { JDData } from './JDInlineEditor';
 import type { WiseHireRole } from '@/hooks/wisehire/useJDs';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface JDWriterFormProps {
   roles: WiseHireRole[];
@@ -21,7 +22,7 @@ export function JDWriterForm({ roles, onResult }: JDWriterFormProps) {
   const [selectedRoleId, setSelectedRoleId] = useState<string>('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [requiresKey, setRequiresKey] = useState(false);
+  const { execute: executeAI } = useAIAction({ operation: 'wisehire_jd_writer' });
 
   const charCount = input.trim().length;
   const canSubmit = charCount >= 10 && !loading;
@@ -31,22 +32,25 @@ export function JDWriterForm({ roles, onResult }: JDWriterFormProps) {
     if (!canSubmit) return;
     setLoading(true);
     setError('');
-    setRequiresKey(false);
 
     try {
-      const { data, error: fnErr } = await appwriteFunctions.invoke('wisehire-write-jd', {
-        body: {
-          input: input.trim(),
-          role_id: selectedRoleId !== 'none' ? selectedRoleId : undefined,
-        },
-      });
-
-      if (fnErr) {
-        // 402 with requiresApiKey means the user needs to add an AI key
-        if ((fnErr as { status?: number }).status === 402) { setRequiresKey(true); return; }
-        throw new Error(fnErr.message);
-      }
-      if (!data?.jd) throw new Error('No JD returned from AI. Please try again.');
+      const data = await executeAI(async () => {
+        const response = await appwriteFunctions.invoke<{ jd: JDData }>('wisehire-write-jd', {
+          body: {
+            input: input.trim(),
+            role_id: selectedRoleId !== 'none' ? selectedRoleId : undefined,
+          },
+        });
+        if (response.error) {
+          throw Object.assign(new Error(response.error.message), {
+            status: response.error.status ?? 500,
+            code: response.error.code,
+          });
+        }
+        return response.data;
+      }, { silent: true });
+      if (!data) return;
+      if (!data.jd) throw new Error('No JD returned from AI. Please try again.');
 
       onResult(data.jd as JDData, selectedRoleId !== 'none' ? selectedRoleId : null);
       setInput('');
@@ -62,7 +66,7 @@ export function JDWriterForm({ roles, onResult }: JDWriterFormProps) {
       <div>
         <h2 className="text-base font-semibold text-slate-900 dark:text-white mb-1">Write a Job Description</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Describe the role in a sentence or two and we'll generate a full JD.
+          Describe the role and AI will draft only from the facts you provide. Review the result before publishing.
         </p>
       </div>
 
@@ -72,13 +76,13 @@ export function JDWriterForm({ roles, onResult }: JDWriterFormProps) {
           id="jdInput"
           placeholder="e.g. Senior frontend engineer with React experience for a fintech startup in London…"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setInput(e.target.value.slice(0, 4000))}
           rows={4}
           className="resize-none"
           disabled={loading}
         />
         <p className={`text-xs ${charCount < 10 && charCount > 0 ? 'text-amber-500' : 'text-slate-400'}`}>
-          {charCount} characters {charCount < 10 ? `(${10 - charCount} more needed)` : ''}
+          {charCount} / 4000 characters {charCount < 10 ? `(${10 - charCount} more needed)` : ''}
         </p>
       </div>
 
@@ -96,20 +100,6 @@ export function JDWriterForm({ roles, onResult }: JDWriterFormProps) {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
-
-      {requiresKey && (
-        <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3 text-sm">
-          <KeyRound className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-amber-700 dark:text-amber-400 mb-0.5">AI key required</p>
-            <p className="text-amber-700/80 dark:text-amber-400/80">
-              Add an OpenAI or Anthropic key in{' '}
-              <a href="/wisehire/settings" className="underline font-medium">Settings</a>{' '}
-              to use AI on the Starter plan.
-            </p>
-          </div>
         </div>
       )}
 

@@ -66,10 +66,24 @@ function mockDb({ plan = 'free', dailyUsage = 0, dailyLimit = 5 }) {
       }
       return { documents: [] };
     },
+    async createTransaction() { return { $id: 'credit-tx' }; },
+    async getDocument() { return { ...creditDoc }; },
     async updateDocument(_db, _collection, id, patch) {
       updates.push({ id, patch });
-      return { $id: id, ...patch };
+      Object.assign(creditDoc, patch);
+      return { ...creditDoc };
     },
+    async incrementDocumentAttribute(_db, _collection, _id, attribute, amount, maximum) {
+      const next = Number(creditDoc[attribute] || 0) + amount;
+      if (maximum !== undefined && next > maximum) throw Object.assign(new Error('Maximum exceeded'), { code: 409 });
+      creditDoc[attribute] = next;
+      return { ...creditDoc };
+    },
+    async decrementDocumentAttribute(_db, _collection, _id, attribute, amount, minimum) {
+      creditDoc[attribute] = Math.max(minimum ?? -Infinity, Number(creditDoc[attribute] || 0) - amount);
+      return { ...creditDoc };
+    },
+    async updateTransaction() { return {}; },
     async createDocument(_db, _collection, _id, data) {
       return { $id: 'new', ...data };
     },
@@ -82,13 +96,16 @@ function mockDb({ plan = 'free', dailyUsage = 0, dailyLimit = 5 }) {
   const okState = await t.loadCreditState(okDb, 'u1', t.PARSE_JOB_CREDIT_COST);
   assert.equal(okState.blocked, false, 'under limit → not blocked');
   assert.equal(await t.recordAiUsage(okDb, okState), true, 'successful write reports a factual charge');
-  assert.equal(okDb.updates.length, 1, 'recordAiUsage writes once');
-  assert.equal(okDb.updates[0].patch.daily_usage, 1, 'charges exactly the cost (1)');
+  assert.equal(okDb.creditDoc.daily_usage, 1, 'charges exactly the cost (1)');
+  assert.equal(okDb.creditDoc.total_usage, 1, 'increments lifetime usage');
+  assert.equal(await t.refundAiUsage(okDb, okState), true, 'failed work can refund the reservation');
+  assert.equal(okDb.creditDoc.daily_usage, 0, 'refund restores daily usage');
+  assert.equal(okDb.creditDoc.total_usage, 0, 'refund restores lifetime usage');
 
   assert.equal(await t.recordAiUsage(okDb, { ...okState, cost: 0 }), false, 'no-charge paths report zero factual charge');
 
   const failingChargeDb = mockDb({ dailyUsage: 0, dailyLimit: 5 });
-  failingChargeDb.updateDocument = async () => { throw new Error('credit store unavailable'); };
+  failingChargeDb.incrementDocumentAttribute = async () => { throw new Error('credit store unavailable'); };
   await assert.rejects(() => t.recordAiUsage(failingChargeDb, okState), /credit store unavailable/);
 
   // At limit → blocked with 402, and the provider must never be called.

@@ -53,24 +53,24 @@ export default function WiseHireTermsPage() {
               WiseHire
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Effective Date: April 22, 2026 · Last Updated: April 22, 2026</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Effective Date: April 22, 2026 · Last Updated: August 17, 2026</p>
           <p className="text-base leading-relaxed text-muted-foreground">
             These Terms govern your use of WiseHire, the AI-powered hiring platform by The Wise Cloud. By creating an account or using WiseHire on behalf of your organization, you agree to these Terms. If you don't agree, please don't use WiseHire.
           </p>
 
           <NumberedSection n={1} title="Eligibility &amp; Organization Accounts">
             <p>You must be at least 18 years old and authorized to act on behalf of your organization to use WiseHire. By signing up, you confirm that you have the authority to bind your company or team to these Terms.</p>
-            <p className="mt-3">Each WiseHire account belongs to an organization. Individual seats are granted to members of that organization by the account administrator. You are responsible for all activity by members under your organization's account.</p>
+            <p className="mt-3">Each current early-access workspace is controlled by its authenticated account owner. Team seats or delegated administration apply only when separately enabled and documented for your organization.</p>
           </NumberedSection>
 
           <NumberedSection n={2} title="Recruiter &amp; Team Accounts">
-            <p>WiseHire supports multi-seat team access. The account owner (admin) may invite colleagues, assign roles, and revoke access at any time. Please keep your credentials secure. If you suspect unauthorized access to your organization's account, contact our <DeptLink dept="general">Support</DeptLink> team immediately.</p>
+            <p>The current self-service early-access workspace does not provide a general team-member invitation or role-management flow. Do not share credentials. If team access is included in a separate written agreement, the controls and responsibilities in that agreement apply. If you suspect unauthorized access, contact our <DeptLink dept="general">Support</DeptLink> team immediately.</p>
           </NumberedSection>
 
           <NumberedSection n={3} title="Candidate Data &amp; Ownership">
             <p>Candidate data you upload, import, or generate within WiseHire — including CVs, application records, screening notes, and pipeline information — remains yours. WiseHire does not claim ownership of candidate data.</p>
             <p className="mt-3">You are responsible for obtaining any necessary consents from candidates to process their data using WiseHire's features. WiseHire processes candidate data solely to deliver the services you have requested.</p>
-            <p className="mt-3">When you delete a candidate record or close your account, candidate data is removed from active systems within 30 days, subject to any legal retention obligations.</p>
+            <p className="mt-3">When you delete or archive a candidate record, it is removed from active workflows. Account-closure and retention requests are handled under the current Privacy Policy and applicable legal obligations.</p>
           </NumberedSection>
 
           <section className="space-y-3 rounded-xl p-4" style={{ background: WH_BLUE_BG, border: `1px solid ${WH_BLUE_BORDER}` }}>
@@ -79,7 +79,7 @@ export default function WiseHireTermsPage() {
             </h3>
             <ul className="list-disc pl-5 space-y-2 mt-2 text-muted-foreground">
               <li>AI scoring and candidate briefs are <strong className="text-foreground">decision-support tools</strong>, not final hiring decisions.</li>
-              <li>WiseHire's AI is designed to reduce bias, but no automated system is perfect. You are responsible for reviewing all AI outputs before acting on them.</li>
+              <li>WiseHire prompts instruct AI providers to focus on job-relevant evidence and exclude protected traits. This does not make outputs bias-free; you are responsible for reviewing them before acting.</li>
               <li>Hiring decisions remain entirely with your organization. WiseHire is not liable for hiring outcomes or employment decisions.</li>
               <li>Do not use WiseHire to discriminate on the basis of any protected characteristic.</li>
             </ul>
@@ -98,15 +98,15 @@ export default function WiseHireTermsPage() {
           </NumberedSection>
 
           <NumberedSection n={6} title="Job Description &amp; Brief Data">
-            <p>Job descriptions, role briefs, scorecards, and pipeline configurations you create in WiseHire belong to your organization. WiseHire may use anonymized, aggregated patterns across all customers to improve platform features — your specific job content is never shared with other customers.</p>
+            <p>Job descriptions, role briefs, scorecards, and pipeline configurations you create in WiseHire remain your organization&apos;s content. WiseHire processes that content to provide the service and may disclose it to contracted service providers or when required by law or policy. It is not intentionally made available to other customers.</p>
           </NumberedSection>
 
           <NumberedSection n={7} title="Payments &amp; Subscriptions">
-            <p>WiseHire is offered on subscription plans. For paid plans:</p>
+            <p>WiseHire is currently offered through invitation-based trials, early-access entitlements, or a separately signed agreement. The price, renewal, cancellation, seat, usage, and support terms confirmed in writing control your access.</p>
             <ul className="list-disc pl-5 space-y-1 mt-2 text-muted-foreground">
-              <li>Billing is recurring and charged at the start of each period.</li>
-              <li>You may cancel at any time; access continues until the end of the current billing period.</li>
-              <li>Seat changes (upgrades/downgrades) are prorated.</li>
+              <li>A trial does not create a recurring charge unless a future checkout flow clearly says otherwise.</li>
+              <li>Generic WiseResume coupon codes do not activate a WiseHire plan.</li>
+              <li>Enterprise service levels, integrations, and support commitments apply only when included in a signed agreement.</li>
               <li>For billing questions or refund requests, contact our <DeptLink dept="billing">Billing</DeptLink> team.</li>
             </ul>
           </NumberedSection>
@@ -114,9 +114,8 @@ export default function WiseHireTermsPage() {
           <NumberedSection n={8} title="Data Retention for HR Workflows">
             <p>WiseHire retains your active pipeline, talent pool, and analytics data for as long as your subscription is active. Following account closure:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2 text-muted-foreground">
-              <li>Active pipeline and candidate records are deleted within 30 days.</li>
-              <li>Anonymized aggregate analytics may be retained for up to 12 months.</li>
-              <li>You may request an export of your organization's data before closing your account.</li>
+              <li>Active records are handled according to the current retention policy and legal obligations.</li>
+              <li>Contact the Privacy Team to request an organization-data export or account closure.</li>
             </ul>
           </NumberedSection>
 

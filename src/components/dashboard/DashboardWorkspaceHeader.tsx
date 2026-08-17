@@ -79,7 +79,7 @@ export const DashboardWorkspaceHeader = memo(function DashboardWorkspaceHeader({
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
             {hasResumes
-              ? 'Your resumes and ATS signals — pick up where you left off.'
+              ? 'Your resumes and readiness checks — pick up where you left off.'
               : 'Upload or build a resume, then tailor it to each role you target.'}
           </p>
 

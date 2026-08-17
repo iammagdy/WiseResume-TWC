@@ -10,6 +10,12 @@ import {
 } from '@/lib/crashReportPayload';
 import { getCrashReporterContext } from '@/lib/crashReportContext';
 import { isStaleAssetError } from '@/lib/staleAssetRecovery';
+import {
+  buildSanitizedCrashDedupeKey,
+  getSanitizedCurrentClientRoute,
+  sanitizeErrorForClientLogging,
+  sanitizeSensitiveText,
+} from '@/lib/security/sensitiveUrlSanitizer';
 
 // Module-level auth user id store — populated by AuthContext on each auth
 // state change. Avoids hooks (impossible in a class component).
@@ -74,15 +80,14 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error, errorInfo: null };
+    return { hasError: true, error: sanitizeErrorForClientLogging(error), errorInfo: null };
   }
 
   private logError(error: Error, errorInfo: ErrorInfo) {
     // Log message + stack separately: Error instances serialise to {} in
     // JSON-based log collectors because their properties are non-enumerable.
-    const detail = error instanceof Error
-      ? `${error.name}: ${error.message}\n${error.stack ?? ''}`
-      : String(error);
+    const sanitizedError = sanitizeErrorForClientLogging(error);
+    const detail = `${sanitizedError.name}: ${sanitizedError.message}\n${sanitizedError.stack ?? ''}`;
     console.error('[ErrorBoundary] caught an error:', detail, errorInfo);
   }
 
@@ -116,16 +121,22 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     if (this.state.isRetrying) return;
 
-    this.logError(error, errorInfo);
+    const sanitizedError = sanitizeErrorForClientLogging(error);
+    const route = getSanitizedCurrentClientRoute();
+    this.logError(sanitizedError, errorInfo);
     this.setState({
+      error: sanitizedError,
       errorInfo,
       errorTimestamp: new Date().toISOString(),
-      errorRoute: window.location.pathname + window.location.search,
+      errorRoute: route,
     });
 
-    captureError(error, {
-      componentStack: errorInfo.componentStack ?? undefined,
+    captureError(sanitizedError, {
+      componentStack: errorInfo.componentStack
+        ? sanitizeSensitiveText(errorInfo.componentStack)
+        : undefined,
       source: 'ErrorBoundary.componentDidCatch',
+      route,
     });
 
     const isChunkError = isStaleAssetError(error);
@@ -189,15 +200,17 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleCopyError = async () => {
     const { error, errorInfo, errorTimestamp, errorRoute } = this.state;
     const parts = [
-      `Error: ${error?.name ?? 'Error'}: ${error?.message ?? ''}`,
+      `Error: ${error?.name ?? 'Error'}: ${sanitizeSensitiveText(error?.message ?? '')}`,
       `Timestamp: ${errorTimestamp ?? new Date().toISOString()}`,
-      `Route: ${errorRoute ?? window.location.pathname}`,
+      `Route: ${errorRoute ?? getSanitizedCurrentClientRoute()}`,
       '',
       '--- Stack ---',
-      error?.stack ?? '(no stack)',
+      error?.stack ? sanitizeSensitiveText(error.stack) : '(no stack)',
       '',
       '--- Component Stack ---',
-      errorInfo?.componentStack ?? '(no component stack)',
+      errorInfo?.componentStack
+        ? sanitizeSensitiveText(errorInfo.componentStack)
+        : '(no component stack)',
     ];
     const text = parts.join('\n');
     try {
@@ -228,8 +241,13 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private autoSendCrashReport = (error: Error, errorInfo: ErrorInfo) => {
-    const route = window.location.pathname + window.location.search;
-    const dedupeKey = `wr-crash-auto:${error.name}:${error.message.slice(0, 120)}:${route}`;
+    const sanitizedError = sanitizeErrorForClientLogging(error);
+    const route = getSanitizedCurrentClientRoute();
+    const dedupeKey = buildSanitizedCrashDedupeKey(
+      sanitizedError.name,
+      sanitizedError.message.slice(0, 120),
+      route,
+    );
     const dedupeTtlMs = 30 * 60 * 1000;
     try {
       const raw = localStorage.getItem(dedupeKey) || sessionStorage.getItem(dedupeKey);
@@ -244,7 +262,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     const sentryEventId = getLastSentryEventId();
     const metadata = buildCrashReportMetadata({
-      error,
+      error: sanitizedError,
       componentStack: errorInfo.componentStack,
       route,
       source: 'error_boundary_auto',
@@ -264,7 +282,7 @@ export class ErrorBoundary extends Component<Props, State> {
         metadata,
         tags: {
           source: 'error_boundary_auto',
-          error_name: error.name,
+          error_name: sanitizedError.name,
           priority: metadata.priority,
           screen: metadata.screen,
           plan: metadata.plan_tier ?? 'unknown',
@@ -328,7 +346,7 @@ export class ErrorBoundary extends Component<Props, State> {
     const metadata = buildCrashReportMetadata({
       error,
       componentStack: this.state.errorInfo?.componentStack,
-      route: this.state.errorRoute ?? window.location.pathname,
+      route: this.state.errorRoute ?? getSanitizedCurrentClientRoute(),
       userNote,
       source: 'error_boundary_manual',
       reportType: 'auto-crash-report',
@@ -342,7 +360,7 @@ export class ErrorBoundary extends Component<Props, State> {
         email: ctx.userEmail ?? 'anonymous@wiseresume.app',
         name: ctx.userName ?? undefined,
         subject: buildCrashReportSubject(metadata),
-        message: metadata.error_message + (userNote ? `\n\nUser note: ${userNote}` : ''),
+        message: metadata.error_message + (metadata.user_note ? `\n\nUser note: ${metadata.user_note}` : ''),
         associatedEventId: sentryEventId,
         metadata,
         tags: {

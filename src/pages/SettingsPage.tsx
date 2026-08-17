@@ -148,7 +148,7 @@ export default function SettingsPage() {
     signOut();
     navigate('/');
     toast.success(t('app.settingsPage.toasts.signedOut', 'تم تسجيل الخروج بنجاح'));
-  }, [signOut, navigate]);
+  }, [signOut, navigate, t]);
 
   const handleDataDeleted = useCallback(async () => {
     try {
@@ -156,7 +156,7 @@ export default function SettingsPage() {
     } catch { /* sign-out after delete is best-effort */ }
     toast.success(t('app.settingsPage.toasts.dataDeleted', 'تم حذف جميع البيانات'));
     window.location.replace('/');
-  }, [signOut]);
+  }, [signOut, t]);
 
   const handleShareApp = useCallback(async () => {
     const shareData = {
@@ -173,7 +173,7 @@ export default function SettingsPage() {
         toast.success(t('app.settingsPage.toasts.linkCopied', 'تم نسخ الرابط'));
       } catch { /* clipboard unavailable */ }
     }
-  }, []);
+  }, [t]);
 
   const handleRateApp = useCallback(() => {
     haptics.light();

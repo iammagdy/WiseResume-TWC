@@ -19,9 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 import { haptics } from '@/lib/haptics';
-import { storage } from '@/lib/appwrite';
-import { BUCKETS } from '@/lib/appwrite-collections';
-import { avatarFileIdForUser, uploadUserAvatar } from '@/lib/avatarStorage';
+import { deleteAvatarByUrl, uploadUserAvatar } from '@/lib/avatarStorage';
 import { toast } from 'sonner';
 import { 
   Profile,
@@ -162,7 +160,7 @@ export function EditProfileSheet({
   // LinkedIn username validation
   const validateLinkedInUsername = (username: string): boolean => {
     if (!username) return true;
-    const isValid = /^[a-zA-Z0-9\-]+$/.test(username);
+    const isValid = /^[a-zA-Z0-9-]+$/.test(username);
     setLinkedinError(isValid ? '' : 'Only letters, numbers, and hyphens allowed');
     return isValid;
   };
@@ -234,17 +232,23 @@ export function EditProfileSheet({
     if (!userId) return;
 
     setIsUploading(true);
+    const previousAvatarUrl = avatarUrl;
+    let newAvatarUrl: string | null = null;
     try {
-      const newAvatarUrl = await uploadUserAvatar(userId, blob);
-      // Cache-bust locally so the preview updates before profile refetch
-      setAvatarUrl(`${newAvatarUrl}${newAvatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}`);
-
-      // AUTO-SAVE: persist stable view URL (no cache-bust param) to profile doc
+      newAvatarUrl = await uploadUserAvatar(userId, blob);
+      // Persist the stable view URL before changing local state or deleting the old file.
       await onSave({ avatarUrl: newAvatarUrl });
-      
+      setAvatarUrl(`${newAvatarUrl}${newAvatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}`);
+      if (previousAvatarUrl) {
+        try { await deleteAvatarByUrl(previousAvatarUrl); } catch { /* best-effort stale-file cleanup */ }
+      }
+
       haptics.success();
       toast.success('Avatar updated');
     } catch (error) {
+      if (newAvatarUrl) {
+        try { await deleteAvatarByUrl(newAvatarUrl); } catch { /* best-effort rollback */ }
+      }
       const msg = error instanceof Error ? error.message : String(error);
       console.error('Avatar upload error:', error);
       haptics.error();
@@ -261,9 +265,8 @@ export function EditProfileSheet({
     
     setIsUploading(true);
     try {
-      // Delete avatar from Appwrite Storage (ignore errors if already gone)
-      const fileId = avatarFileIdForUser(userId);
-      try { await storage.deleteFile({ bucketId: BUCKETS.avatars, fileId }); } catch { /* already deleted */ }
+      // Require deletion of this app's stored file; external URLs simply return false.
+      await deleteAvatarByUrl(avatarUrl);
       
       // Clear local state
       setAvatarUrl('');
@@ -324,7 +327,7 @@ export function EditProfileSheet({
    // Extract LinkedIn username from URL
    const getLinkedInUsername = () => {
      if (!linkedinUrl) return undefined;
-     const match = linkedinUrl.match(/linkedin\.com\/in\/([^\/\?]+)/);
+      const match = linkedinUrl.match(/linkedin\.com\/in\/([^/?]+)/);
      return match?.[1];
    };
  
@@ -482,6 +485,10 @@ export function EditProfileSheet({
               </div>
               <p className="text-xs text-muted-foreground">
                 {avatarUrl ? 'Tap camera to change, X to remove' : 'Tap the camera to upload'}
+              </p>
+              <p className="max-w-sm text-center text-[11px] leading-relaxed text-muted-foreground">
+                Uploaded photos use a hard-to-guess public image link so they can appear in public portfolios and exports.
+                Anyone with that direct link can view the photo; removing it revokes the stored file.
               </p>
             </div>
 

@@ -24,13 +24,34 @@ export function ResumeDropzone({
 }: ResumeDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [rejectionMessage, setRejectionMessage] = useState('');
 
   const addFiles = useCallback(
     (incoming: FileList | File[]) => {
-      const arr = Array.from(incoming).filter(
-        (f) => f.type === 'application/pdf' || f.name.endsWith('.pdf')
-      );
-      const merged = [...files, ...arr].slice(0, maxFiles);
+      const candidates = Array.from(incoming);
+      const rejected: string[] = [];
+      const accepted = candidates.filter((file) => {
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        if (!isPdf) {
+          rejected.push(`${file.name}: PDF files only`);
+          return false;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          rejected.push(`${file.name}: exceeds 10 MB`);
+          return false;
+        }
+        return true;
+      });
+      const unique = [...files, ...accepted].filter((file, index, all) => (
+        all.findIndex((candidate) => (
+          candidate.name === file.name &&
+          candidate.size === file.size &&
+          candidate.lastModified === file.lastModified
+        )) === index
+      ));
+      if (unique.length > maxFiles) rejected.push(`Only the first ${maxFiles} PDFs were added`);
+      const merged = unique.slice(0, maxFiles);
+      setRejectionMessage(rejected.join('. '));
       onChange(merged);
     },
     [files, maxFiles, onChange]
@@ -87,6 +108,12 @@ export function ResumeDropzone({
           onChange={(e) => e.target.files && addFiles(e.target.files)}
         />
       </div>
+
+      {rejectionMessage && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {rejectionMessage}
+        </p>
+      )}
 
       {files.length > 0 && (
         <ul className="space-y-2">

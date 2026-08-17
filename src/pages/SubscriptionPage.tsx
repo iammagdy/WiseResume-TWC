@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Check, Crown, Gift, Sparkles, Gem, CalendarClock, FileText, Wand2, Target,
+  Check, Crown, Share2, Sparkles, Gem, CalendarClock, FileText, Wand2, Target,
   MessageSquare, Mail, LayoutList, HeadphonesIcon, Palette, BarChart2,
   Package, Zap, Infinity as InfinityIcon, Bot, Star, Clock,
 } from 'lucide-react';
@@ -29,7 +29,7 @@ const PLAN_FEATURES: Record<string, PlanFeature[]> = {
   free: [
     { label: '1 resume', icon: FileText },
     { label: 'Basic AI suggestions', icon: Bot },
-    { label: 'ATS score check', icon: Target },
+    { label: 'Resume readiness check', icon: Target },
     { label: 'PDF export', icon: Package },
     { label: 'Portfolio site', icon: Star },
   ],
@@ -370,16 +370,16 @@ export default function SubscriptionPage() {
           );
         })}
 
-        {/* Referral */}
+        {/* Share */}
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <Gift className="w-5 h-5 text-primary" />
+            <Share2 className="w-5 h-5 text-primary" />
             <div className="flex-1">
-              <p className="text-sm font-medium">Invite Friends, Earn Rewards</p>
-              <p className="text-xs text-muted-foreground">Get free Pro time for each referral</p>
+              <p className="text-sm font-medium">Share WiseResume</p>
+              <p className="text-xs text-muted-foreground">Send the app link to a friend</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate('/referral')}>
-              Invite
+              Share
             </Button>
           </CardContent>
         </Card>

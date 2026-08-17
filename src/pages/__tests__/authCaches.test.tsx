@@ -35,8 +35,8 @@ const mockCreate = vi.fn();
 
 vi.mock('@/lib/appwrite', () => ({
   account: {
-    createEmailPasswordSession: (...args: any[]) => mockCreateEmailPasswordSession(...args),
-    create: (...args: any[]) => mockCreate(...args),
+    createEmailPasswordSession: mockCreateEmailPasswordSession,
+    create: mockCreate,
     get: vi.fn().mockResolvedValue({ $id: 'user-abc' }),
   },
   ID: {

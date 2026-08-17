@@ -114,10 +114,12 @@ export function CareerRoadmap({ result, completedMilestones, onToggleMilestone }
                       <div key={i} className="bg-input border border-border rounded-xl p-3">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-medium">{role.title}</p>
-                          <Badge className="text-[10px]">{role.matchScore}% match</Badge>
+                          <Badge className="text-[10px]" title="AI resume-relevance estimate, not hiring probability">
+                            {role.matchScore}/100 relevance
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">{role.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Ready in: {role.timeToReady}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Suggested preparation horizon: {role.timeToReady}</p>
                       </div>
                     ))}
 

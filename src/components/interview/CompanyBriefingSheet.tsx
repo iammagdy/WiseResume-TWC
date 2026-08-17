@@ -64,12 +64,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   useEffect(() => {
     if (!open) return;
     if (briefing || isLoading) return;
-    if (hasProvidedJD) {
-      generate({ jobDescription, resumeData });
-    } else if (initialCompanyName && !initialBriefing) {
-      // Auto-generate when AI chat provides a company name with no cached data
-      generate({ companyName: initialCompanyName.trim(), resumeData });
-    }
+    if (hasProvidedJD) generate({ jobDescription, resumeData });
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify parent when a fresh briefing is generated (for cache write)
@@ -98,8 +93,8 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   const handleGenerate = () => {
     haptics.light();
     if (inputMode === 'company') {
-      if (!companyName.trim()) return;
-      generate({ companyName: companyName.trim(), resumeData });
+      if (!companyName.trim() || !localJD.trim()) return;
+      generate({ companyName: companyName.trim(), jobDescription: localJD.trim(), resumeData });
     } else {
       if (!localJD.trim()) return;
       generate({ jobDescription: localJD.trim(), resumeData });
@@ -136,7 +131,9 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
     }
   };
 
-  const canGenerate = inputMode === 'company' ? companyName.trim().length > 0 : localJD.trim().length > 0;
+  const canGenerate = inputMode === 'company'
+    ? companyName.trim().length > 0 && localJD.trim().length > 0
+    : localJD.trim().length > 0;
   const loadingTarget = inputMode === 'company' ? companyName.trim() : undefined;
 
   return (
@@ -207,6 +204,9 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
           {activeTab === 'generate' && (
             <>
               <AITrustBadge className="mb-3 mt-3" />
+              <p className="mb-3 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                This tool does not browse the web. Its draft uses only the company or role text you provide, so verify every fact before an interview.
+              </p>
 
               {/* Input Phase */}
               {!hasProvidedJD && !briefing && !isLoading && !error && (
@@ -215,7 +215,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
                     <TabsList className="w-full">
                       <TabsTrigger value="company" className="flex-1 gap-1.5">
                         <Search className="w-3.5 h-3.5" />
-                        Company Name
+                        Company Context
                       </TabsTrigger>
                       <TabsTrigger value="jd" className="flex-1 gap-1.5">
                         <FileText className="w-3.5 h-3.5" />
@@ -230,8 +230,15 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
                         onKeyDown={(e) => e.key === 'Enter' && canGenerate && handleGenerate()}
                         className="text-sm"
                       />
+                      <Textarea
+                        placeholder="Paste verified company notes, an About page excerpt, or role context…"
+                        value={localJD}
+                        onChange={(e) => setLocalJD(e.target.value)}
+                        rows={5}
+                        className="mt-2 text-sm resize-none"
+                      />
                       <p className="text-xs text-muted-foreground mt-1.5">
-                        Get a deep research report on any company
+                        Builds a source-grounded interview prep draft; it does not perform live company research.
                       </p>
                     </TabsContent>
                     <TabsContent value="jd">
@@ -246,7 +253,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
                   </Tabs>
                   <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full gap-2">
                     <Sparkles className="w-4 h-4" />
-                    Generate Briefing
+                    Draft Briefing
                   </Button>
                 </div>
               )}
@@ -256,8 +263,8 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
                 <div className="text-center py-8 text-muted-foreground">
                   <p className="text-sm">{error}</p>
                   <Button variant="outline" size="sm" className="mt-3" onClick={() => {
-                    if (inputMode === 'company' && companyName.trim()) {
-                      generate({ companyName: companyName.trim(), resumeData });
+                    if (inputMode === 'company' && companyName.trim() && localJD.trim()) {
+                      generate({ companyName: companyName.trim(), jobDescription: localJD.trim(), resumeData });
                     } else {
                       generate({ jobDescription: hasProvidedJD ? jobDescription : localJD.trim(), resumeData });
                     }
@@ -341,11 +348,11 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
 /* ─── Loading Progress ─── */
 const LOADING_STEPS = [
   'Connecting to AI…',
-  'Researching company…',
-  'Analyzing culture & values…',
-  'Gathering key insights…',
-  'Building your briefing…',
-  'Polishing report…',
+  'Reading your source text…',
+  'Identifying supported details…',
+  'Organizing interview prompts…',
+  'Building your draft…',
+  'Checking the response…',
 ];
 
 function BriefingLoadingProgress({ companyName }: { companyName?: string }) {
@@ -473,22 +480,25 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
         </div>
       ),
     },
-    {
+  ];
+
+  if (briefing.recentHighlights?.length) {
+    sections.push({
       icon: Newspaper,
-      title: 'Recent Highlights',
+      title: 'Source Highlights',
       accent: 'border-l-blue-500',
       content: (
         <ul className="space-y-2">
           {briefing.recentHighlights.map((h, i) => (
             <li key={i} className="text-sm">
-              <span className="font-medium text-foreground">{h.title}</span>
-              <p className="text-muted-foreground text-xs mt-0.5">{h.summary}</p>
+              {h.title && <span className="font-medium text-foreground">{h.title}</span>}
+              {h.summary && <p className="text-muted-foreground text-xs mt-0.5">{h.summary}</p>}
             </li>
           ))}
         </ul>
       ),
-    },
-  ];
+    });
+  }
 
   if (briefing.productsOrServices?.length) {
     sections.push({
@@ -535,21 +545,23 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     });
   }
 
-  sections.push({
-    icon: Heart,
-    title: 'Culture Signals',
-    accent: 'border-l-pink-500',
-    content: (
-      <ul className="space-y-2">
-        {briefing.cultureSignals.map((c, i) => (
-          <li key={i} className="text-sm">
-            <span className="font-medium text-foreground">{c.signal}</span>
-            <p className="text-muted-foreground text-xs mt-0.5">{c.detail}</p>
-          </li>
-        ))}
-      </ul>
-    ),
-  });
+  if (briefing.cultureSignals?.length) {
+    sections.push({
+      icon: Heart,
+      title: 'Source-Based Culture Signals',
+      accent: 'border-l-pink-500',
+      content: (
+        <ul className="space-y-2">
+          {briefing.cultureSignals.map((c, i) => (
+            <li key={i} className="text-sm">
+              {c.signal && <span className="font-medium text-foreground">{c.signal}</span>}
+              {c.detail && <p className="text-muted-foreground text-xs mt-0.5">{c.detail}</p>}
+            </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
 
   if (briefing.glassdoorInsights) {
     const gi = briefing.glassdoorInsights;
@@ -588,40 +600,44 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     });
   }
 
-  sections.push({
-    icon: Users,
-    title: 'Key People',
-    accent: 'border-l-cyan-500',
-    content: (
-      <ul className="space-y-2">
-        {briefing.keyPeople.map((p, i) => (
-          <li key={i} className="text-sm">
-            <span className="font-medium text-foreground">{p.role}</span>
-            <p className="text-muted-foreground text-xs mt-0.5">{p.context}</p>
-          </li>
-        ))}
-      </ul>
-    ),
-  });
+  if (briefing.keyPeople?.length) {
+    sections.push({
+      icon: Users,
+      title: 'People Mentioned in Your Source',
+      accent: 'border-l-cyan-500',
+      content: (
+        <ul className="space-y-2">
+          {briefing.keyPeople.map((p, i) => (
+            <li key={i} className="text-sm">
+              {p.role && <span className="font-medium text-foreground">{p.role}</span>}
+              {p.context && <p className="text-muted-foreground text-xs mt-0.5">{p.context}</p>}
+            </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
 
-  sections.push({
-    icon: MessageSquareQuote,
-    title: 'Talking Points',
-    highlight: true,
-    accent: 'border-l-primary',
-    content: (
-      <ul className="space-y-2">
-        {briefing.talkingPoints.map((t, i) => (
-          <li key={i} className="text-sm">
-            <span className="font-medium text-foreground">{t.point}</span>
-            <p className="text-muted-foreground text-xs mt-0.5">↳ {t.connection}</p>
-          </li>
-        ))}
-      </ul>
-    ),
-  });
+  if (briefing.talkingPoints?.length) {
+    sections.push({
+      icon: MessageSquareQuote,
+      title: 'Source-Supported Talking Points',
+      highlight: true,
+      accent: 'border-l-primary',
+      content: (
+        <ul className="space-y-2">
+          {briefing.talkingPoints.map((t, i) => (
+            <li key={i} className="text-sm">
+              {t.point && <span className="font-medium text-foreground">{t.point}</span>}
+              {t.connection && <p className="text-muted-foreground text-xs mt-0.5">↳ {t.connection}</p>}
+            </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
 
-  sections.push({
+  if (briefing.questionsToAsk?.length) sections.push({
     icon: HelpCircle,
     title: 'Questions to Ask',
     accent: 'border-l-rose-500',
@@ -720,7 +736,7 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
           Have a role at {snap.name}?
         </p>
         <p className="text-xs text-muted-foreground">
-          Tailor your resume to match this company's culture and requirements.
+          Open Tailor and add the role description. Do not rely on inferred company culture.
         </p>
         <Button
           size="sm"
@@ -740,6 +756,7 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
 
 /* ─── Helpers ─── */
 function InfoPair({ label, value, span }: { label: string; value: string; span?: boolean }) {
+  if (!value?.trim()) return null;
   return (
     <div className={span ? 'col-span-2' : ''}>
       <span className="text-xs text-muted-foreground">{label}</span>

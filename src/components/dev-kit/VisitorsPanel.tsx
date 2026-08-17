@@ -935,7 +935,7 @@ export function VisitorsPanel() {
           {dashboard?.returning && (dashboard.returning.newCount > 0 || dashboard.returning.returningCount > 0) && (
             <SectionCard
               title="New vs returning"
-              description="Visitor retention based on anonymous ID across sessions"
+              description="Visitor retention based on a pseudonymous ID across sessions"
               icon={Users}
             >
               <div className="flex items-center gap-6">

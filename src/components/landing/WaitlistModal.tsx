@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, CheckCircle2, Briefcase, Mail, Building2, Users, KeyRound, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
 import { useWaitlistEmailCheck } from '@/hooks/wisehire/useWaitlistEmailCheck';
-import { validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
+import { rememberWiseHireInvite, validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
 import { useLocale } from '@/i18n/LocaleProvider';
 
 interface WaitlistModalProps {
@@ -87,7 +87,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     if (
       finalCheck.status === 'error' &&
       finalCheck.reason !== null &&
-      finalCheck.reason !== 'service_error'
+      finalCheck.reason !== 'service_error' &&
+      finalCheck.reason !== 'existing_wiseresume_user'
     ) {
       // Known-bad result: surface it inline; the server will still reject
       // anyway, but no point sending a doomed request.
@@ -117,7 +118,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     e.preventDefault();
     setEaError('');
 
-    const trimCode = eaCode.trim().toUpperCase();
+    const trimCode = eaCode.trim();
     const trimEmail = eaEmail.trim();
 
     if (!trimCode) { setEaError(t('landing.waitlistModal.enterEaCode', 'Please enter your early access code.')); return; }
@@ -135,8 +136,14 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       return;
     }
 
+    if (result.recipient_email.trim().toLowerCase() !== trimEmail.toLowerCase()) {
+      setEaError('This code was issued to a different email address.');
+      return;
+    }
+
+    rememberWiseHireInvite(trimCode, result.expires_at);
     handleClose();
-    navigate(`/wisehire/signup-early-access/${encodeURIComponent(trimCode)}?email=${encodeURIComponent(trimEmail)}`);
+    navigate(`/wisehire/signup?email=${encodeURIComponent(trimEmail)}`);
   };
 
   const handleClose = () => {
@@ -179,7 +186,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const hasKnownBadEmail =
     hasEmailCheckError &&
     emailCheck.reason !== null &&
-    emailCheck.reason !== 'service_error';
+    emailCheck.reason !== 'service_error' &&
+    emailCheck.reason !== 'existing_wiseresume_user';
   const emailCheckMessage: { text: string; tone: 'error' | 'info' } | null = (() => {
     if (!emailMatchesChecked || emailCheck.status !== 'error') return null;
     switch (emailCheck.reason) {
@@ -188,7 +196,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       case 'consumer_domain':
         return { text: t('landing.waitlistModal.workEmailRequired', 'Please use a work email address.'), tone: 'error' };
       case 'existing_wiseresume_user':
-        return { text: t('landing.waitlistModal.emailUsedWiseResume', 'This email is already used in WiseResume.'), tone: 'info' };
+        return { text: t('landing.waitlistModal.emailUsedWiseResume', 'This WiseResume account can join the WiseHire waitlist; approval will be attached to the same account.'), tone: 'info' };
       case 'already_on_waitlist':
         return { text: t('landing.waitlistModal.alreadyOnWaitlist', "You're already on the waitlist — we'll be in touch when your invite is ready."), tone: 'info' };
       case 'service_error':
@@ -290,7 +298,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
             </h2>
             <p style={{ fontSize: '0.875rem', color: 'var(--lp-text-muted)', lineHeight: 1.6, marginBottom: 24 }}>
               {existingWiseResumeUser
-                ? t('landing.waitlistModal.alreadyRegisteredWiseResumeDesc', 'This email is already registered on WiseResume. Sign in instead — WiseHire access is managed from your account.')
+                ? t('landing.waitlistModal.alreadyRegisteredWiseResumeDesc', "Your existing WiseResume account is now on the WiseHire waitlist. We'll attach approval to this account.")
                 : alreadyRegistered
                 ? t('landing.waitlistModal.alreadyOnListSuccessDesc', "We already have your details. We'll reach out when your invite is ready.")
                 : t('landing.waitlistModal.onListSuccessDesc', "We'll be in touch when your invite is ready. Check your inbox for a confirmation.")}
@@ -391,7 +399,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                   type="text"
                   placeholder={t('landing.waitlistModal.eaCodePlaceholder', 'WISE-XXXX')}
                   value={eaCode}
-                  onChange={(e) => setEaCode(e.target.value.toUpperCase())}
+                    onChange={(e) => setEaCode(e.target.value)}
                   style={{ ...fieldStyle(), fontFamily: 'monospace', letterSpacing: '0.05em' }}
                   disabled={eaLoading}
                   autoComplete="off"
@@ -507,40 +515,11 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 {!errors.email && emailCheckMessage && (
                   <p style={{ fontSize: '0.7rem', color: emailCheckMessage.tone === 'error' ? '#ef4444' : 'var(--lp-text-muted)', marginTop: 3 }}>
                     {emailCheckMessage.text}
-                    {emailCheck.reason === 'existing_wiseresume_user' && (
-                      <>
-                        {' '}
-                        <a
-                          href="/sign-in?mode=login"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleClose();
-                            navigate('/sign-in?mode=login');
-                          }}
-                          style={{ color: '#1D4ED8', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
-                        >
-                          {t('landing.waitlistModal.signInInstead', 'Sign in instead')}
-                        </a>
-                        .
-                      </>
-                    )}
                   </p>
                 )}
                 {!errors.email && showAlsoExistingUserNote && (
                   <p style={{ fontSize: '0.7rem', color: '#3B82F6', marginTop: 2 }}>
-                    {t('landing.waitlistModal.existingUserNote', 'This email is already signed up on WiseResume.')}{' '}
-                    <a
-                      href="/sign-in?mode=login"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleClose();
-                        navigate('/sign-in?mode=login');
-                      }}
-                      style={{ color: '#1D4ED8', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
-                    >
-                      {t('landing.waitlistModal.signInInstead', 'Sign in instead')}
-                    </a>
-                    .
+                    {t('landing.waitlistModal.existingUserNote', 'Use a work email for WiseHire; your existing WiseResume login is unchanged.')}
                   </p>
                 )}
               </div>

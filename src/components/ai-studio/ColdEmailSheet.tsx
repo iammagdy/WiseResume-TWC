@@ -18,6 +18,7 @@ import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent } from '@/lib/ai/parseAIResponse';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
+import { restoreResumeContactPlaceholders } from '@/lib/piiRedact';
 
 interface ColdEmailSheetProps {
   open: boolean;
@@ -108,10 +109,11 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
     try {
       const data = await execute(async () => {
         const resume = currentResume as unknown as ResumeData | null;
-        const candidateName = resume?.contactInfo?.fullName ?? 'the candidate';
-        const summary = resume?.summary ?? 'Experienced professional';
-        const topSkills = getTopSkills(resume);
-        const recentExp = getRecentExperience(resume);
+        const providerResume = redactedResume ?? resume;
+        const candidateName = providerResume?.contactInfo?.fullName ?? 'the candidate';
+        const summary = providerResume?.summary ?? 'Experienced professional';
+        const topSkills = getTopSkills(providerResume);
+        const recentExp = getRecentExperience(providerResume);
 
         const { data: responseData, error } = await appwriteFunctions.invoke('wise-ai-chat', {
           body: {
@@ -132,10 +134,8 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
         const content = extractAIContent(responseData);
         if (!content) throw new Error('Empty response from AI');
         const parsed = parseEmailVariants(content);
-        if (!parsed) {
-          return { formal: content, conversational: content };
-        }
-        return parsed;
+        const variants = parsed ?? { formal: content, conversational: content };
+        return restoreResumeContactPlaceholders(variants, resume?.contactInfo);
       });
       if (data) {
         setVariants(data);

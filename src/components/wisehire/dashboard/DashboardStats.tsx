@@ -123,7 +123,7 @@ export function DashboardStats() {
         iconBg="bg-violet-50 dark:bg-violet-900/30"
       />
       <StatCard
-        label="Avg Match Score"
+        label="Avg Evidence Alignment"
         value={stats.avgMatchScore !== null ? `${stats.avgMatchScore}%` : '—'}
         description={stats.avgMatchScore !== null ? 'Across all briefs' : 'Generate briefs to see'}
         icon={TrendingUp}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, RotateCcw, Scissors, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -110,9 +110,9 @@ export function ExportPageBreakSetup({
   const sectionIds = useMemo(() => {
     if (!effectiveTemplate) return [];
     return getSectionsInDOMOrder(effectiveTemplate).filter((id) => SECTION_LABELS[id]);
-  }, [effectiveTemplate, totalHeight]);
+  }, [effectiveTemplate]);
 
-  const persistBreaks = (positions: number[]) => {
+  const persistBreaks = useCallback((positions: number[]) => {
     if (!resumeData || !effectiveTemplate) return;
     const liveHeight = getLiveTotalHeight(effectiveTemplate);
     const sections = collectSectionLayoutBounds(effectiveTemplate);
@@ -125,7 +125,7 @@ export function ExportPageBreakSetup({
     );
     const customization = resumeData.customization ?? getDefaultCustomization();
     updateResume({ customization: setPageCutsForLayout(templateId, customization, snapped) });
-  };
+  }, [effectiveTemplate, resumeData, templateId, updateResume]);
 
   useEffect(() => {
     if (!active || !effectiveTemplate || !resumeData) return;
@@ -186,16 +186,7 @@ export function ExportPageBreakSetup({
       if (fallback.length) persistBreaks(fallback);
     }
     defaultBreakAppliedRef.current = true;
-  }, [
-    active,
-    defaultBreakSection,
-    effectiveTemplate,
-    variant,
-    pageDims.pageHeight,
-    pageDims.pageWidth,
-    resumeData,
-    totalHeight,
-  ]);
+  }, [active, defaultBreakSection, effectiveTemplate, variant, pageDims.pageHeight, pageDims.pageWidth, resumeData, totalHeight, templateId, persistBreaks]);
 
   if (!active || !resumeData) return null;
 

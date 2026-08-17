@@ -79,4 +79,14 @@ describe('DevKit admin operations contracts', () => {
     expect(read('appwrite-hubs/admin-impersonate/src/main.js')).not.toContain('sessionErr.message');
     expect(read('appwrite-hubs/admin-impersonate/src/main.js')).not.toContain('revokeErr.message');
   });
+
+  it('turns waitlist approval into a real WiseHire signup authority', () => {
+    const backend = read('appwrite-hubs/admin-devkit-data/src/main.js');
+
+    expect(backend).toContain('await createWisehireInvite(databases, email)');
+    expect(backend).toContain("`${PRODUCTION_URL}/auth?mode=login&email=${encodeURIComponent(email)}&redirect=${redirect}`");
+    expect(backend).toContain('invite_url: inviteUrl || null');
+    expect(backend).not.toContain("`${PRODUCTION_URL}/auth/sign-in`");
+    expect(backend).not.toContain("`${PRODUCTION_URL}/auth/sign-up?email=");
+  });
 });

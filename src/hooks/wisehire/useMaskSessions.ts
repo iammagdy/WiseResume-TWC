@@ -11,6 +11,28 @@ export interface MaskSession {
   results: MaskResult[];
 }
 
+export function parseMaskResults(value: unknown): MaskResult[] {
+  let parsed = value;
+  if (typeof value === 'string') {
+    try { parsed = JSON.parse(value); } catch { return []; }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.flatMap((item): MaskResult[] => {
+    if (typeof item !== 'object' || item === null) return [];
+    const result = item as Partial<MaskResult>;
+    if (typeof result.label !== 'string' || typeof result.filename !== 'string' || typeof result.maskedText !== 'string') return [];
+    return [{
+      label: result.label,
+      filename: result.filename,
+      maskedText: result.maskedText,
+      redactedFields: Array.isArray(result.redactedFields)
+        ? result.redactedFields.filter((field): field is string => typeof field === 'string')
+        : [],
+      reviewRequired: true,
+    }];
+  });
+}
+
 export function useMaskSessions() {
   const { user } = useAuth();
   const userId = user?.id;
@@ -28,7 +50,7 @@ export function useMaskSessions() {
         id: doc.$id,
         owner_id: doc.owner_id as string,
         created_at: doc.created_at as string,
-        results: (doc.results ?? []) as MaskResult[],
+        results: parseMaskResults(doc.results),
       }));
     },
     enabled: !!userId,

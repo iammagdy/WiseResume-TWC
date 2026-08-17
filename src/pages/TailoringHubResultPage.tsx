@@ -52,75 +52,12 @@ import {
   saveLinkedCoverLetterForTailoredResume,
 } from '@/lib/tailorJobContext';
 import type { SuperTailorResult, TailorSectionId } from '@/types/resume';
-import type { ChangeSummary } from '@/lib/tailorMerge';
 import { tailoringMetadataFromResume } from '@/lib/tailoringResumeMetadata';
-import type { TailoringResumeMetadata } from '@/types/resume';
+import { resolveTailoringResultState, type TailoringResultState as ResultState } from '@/lib/tailoringResultState';
 import '@/components/job-match/job-match-workspace.css';
-
-interface ResultState {
-  jobTitle?: string;
-  company?: string;
-  jobUrl?: string | null;
-  scoreBeforeAfter?: { before: number; after: number };
-  appliedSections?: string[];
-  intensity?: string;
-  coverLetterId?: string;
-  changeSummary?: ChangeSummary;
-}
+import { useSettingsStore } from '@/store/settingsStore';
 
 type ResultExportKind = 'ats-pdf' | 'docx';
-
-export function resolveTailoringResultState(params: {
-  locationState?: ResultState | null;
-  tailorHistory: Array<{
-    tailoredResumeId?: string | null;
-    jobTitle: string;
-    company: string;
-    jobUrl?: string | null;
-    scoreBeforeAfter?: { before: number; after: number };
-    appliedSections?: string[];
-  }>;
-  resumeId?: string;
-  resumeMetadata?: TailoringResumeMetadata | null;
-}): ResultState {
-  const { locationState, tailorHistory, resumeId, resumeMetadata } = params;
-  if (
-    locationState &&
-    (
-      !!locationState.jobTitle ||
-      !!locationState.company ||
-      !!locationState.jobUrl ||
-      !!locationState.scoreBeforeAfter ||
-      (locationState.appliedSections?.length ?? 0) > 0
-    )
-  ) {
-    return locationState;
-  }
-
-  const entry = tailorHistory.find((item) => item.tailoredResumeId === resumeId);
-  if (entry) {
-    return {
-      jobTitle: entry.jobTitle,
-      company: entry.company,
-      jobUrl: entry.jobUrl,
-      scoreBeforeAfter: entry.scoreBeforeAfter,
-      appliedSections: entry.appliedSections,
-    };
-  }
-
-  if (resumeMetadata) {
-    return {
-      jobTitle: resumeMetadata.jobTitle,
-      company: resumeMetadata.company,
-      jobUrl: resumeMetadata.jobUrl,
-      scoreBeforeAfter: resumeMetadata.scoreBeforeAfter,
-      appliedSections: resumeMetadata.appliedSections,
-      intensity: resumeMetadata.intensity,
-    };
-  }
-
-  return {};
-}
 
 export default function JobMatchResultPage() {
   const { resumeId } = useParams<{ resumeId: string }>();
@@ -258,8 +195,8 @@ export default function JobMatchResultPage() {
       void refetchApp();
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });
       toast.success('Application marked as applied!');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update application');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update application');
     }
   };
 
@@ -309,7 +246,7 @@ export default function JobMatchResultPage() {
     }
   };
 
-  const handleDesignedPDF = () => {
+  const handleDesignedPDF = useCallback(() => {
     if (!resumeId) return;
     if (!resume) {
       toast.error('Resume is still loading, please try again in a moment.');
@@ -319,7 +256,7 @@ export default function JobMatchResultPage() {
     setCurrentResume(resume);
     setSelectedTemplateStore(selectedTemplate);
     setPdfExportOpen(true);
-  };
+  }, [resume, resumeId, selectedTemplate, setCurrentResume, setCurrentResumeId, setSelectedTemplateStore]);
 
   const handleAtsPDF = useCallback(async () => {
     if (resultExportBusyRef.current) return;
@@ -333,11 +270,13 @@ export default function JobMatchResultPage() {
       haptics.medium();
       const { exportResumePdfFromData } = await import('@/lib/exportResumePdf');
       const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
+      const { pdfDefaults } = useSettingsStore.getState();
 
       const pdfBlob = await exportResumePdfFromData(tailoredSnapshot, selectedTemplate, {
         atsMode: true,
         showPageNumbers: false,
-        showBranding: true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+        showBranding: pdfDefaults.showBranding ?? true,
         locale: getDocumentLocale(tailoredSnapshot),
         renderTimeoutMs: 8000,
       });
@@ -533,7 +472,7 @@ export default function JobMatchResultPage() {
     }
     handleDesignedPDF();
     toast.message('Download your tailored CV, then grab the cover letter PDF from the bundle panel.');
-  }, [handleDownloadCoverLetterPdf, linkedCoverLetter]);
+  }, [handleDesignedPDF, handleDownloadCoverLetterPdf, linkedCoverLetter]);
 
   return (
     <div className="jmw-result-page jmw-result-page--compare">

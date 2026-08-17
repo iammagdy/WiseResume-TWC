@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "main": "src/main.js",
   "dependencies": {
-    "node-appwrite": "^17.2.0"
+    "node-appwrite": "25.2.0"
   }
 }

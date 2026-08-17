@@ -33,7 +33,7 @@ export default function BriefGeneratorPage() {
             Candidate Brief Generator
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            AI evaluates candidates against a job description and generates a structured brief.
+            AI summarizes job-relevant evidence from the candidate record and role text for recruiter review.
           </p>
         </div>
 
@@ -112,12 +112,11 @@ export default function BriefGeneratorPage() {
                     </p>
                   </div>
                   {brief.match_score !== null && (
-                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 shrink-0 ${
-                      brief.match_score >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                      : brief.match_score >= 60 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      {brief.match_score}%
+                    <span
+                      className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                      title="AI evidence alignment estimate — not a hiring recommendation"
+                    >
+                      {brief.match_score}% evidence
                     </span>
                   )}
                 </Link>

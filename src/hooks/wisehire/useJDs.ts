@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { wisehireOwnerPermissions } from '@/lib/wisehire/documentPermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -74,6 +75,7 @@ export function useJDs() {
           status: 'draft',
           is_deleted: false,
         },
+        wisehireOwnerPermissions(userId),
       );
       return doc.$id;
     },

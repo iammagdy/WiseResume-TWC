@@ -8,9 +8,49 @@ interface WebSpeechFallbackOptions {
   onNoSpeech?: () => void;
 }
 
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
+  isFinal: boolean;
+  readonly length: number;
+  [index: number]: SpeechRecognitionAlternativeLike;
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionErrorEventLike {
+  error: string;
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  abort: () => void;
+  stop: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+type WindowWithSpeechRecognition = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
 const SpeechRecognitionAPI =
   typeof window !== 'undefined'
-    ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    ? (window as WindowWithSpeechRecognition).SpeechRecognition
+      || (window as WindowWithSpeechRecognition).webkitSpeechRecognition
     : null;
 
 export function isWebSpeechSupported(): boolean {
@@ -22,7 +62,7 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
   const [partialTranscript, setPartialTranscript] = useState('');
   const [audioLevel, setAudioLevel] = useState(0);
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const isListeningRef = useRef(false);
   const restartingRef = useRef(false);
   const optionsRef = useRef(options);
@@ -138,7 +178,9 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
-      } catch {}
+      } catch {
+        // Abort is best-effort; some implementations throw after already ending.
+      }
       recognitionRef.current = null;
     }
     setIsConnected(false);
@@ -184,7 +226,7 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
       startNoSpeechTimer();
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       clearNoSpeechTimer();
       startNoSpeechTimer();
 
@@ -212,7 +254,7 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
       }
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       console.error('[WebSpeech] Error:', event.error);
       clearNoSpeechTimer();
 
@@ -270,7 +312,7 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
     } finally {
       connectingRef.current = false;
     }
-  }, [cleanup, clearNoSpeechTimer, startNoSpeechTimer, startAudioAnalysis]);
+  }, [cleanup, startNoSpeechTimer, clearNoSpeechTimer, safeRestartRecognition, startAudioAnalysis]);
 
   const disconnect = useCallback(() => {
     cleanup();

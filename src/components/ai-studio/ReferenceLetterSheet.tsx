@@ -14,13 +14,22 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
-import { extractAIContent } from '@/lib/ai/parseAIResponse';
+import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
+import { restoreResumeContactPlaceholders } from '@/lib/piiRedact';
 
 interface ReferenceLetterSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface ReferenceLetterResult {
+  letter: string;
+}
+
+function isReferenceLetterResult(value: unknown): value is ReferenceLetterResult {
+  return typeof value === 'object' && value !== null && typeof (value as Record<string, unknown>).letter === 'string';
 }
 
 function getTopExperience(resume: ResumeData | null): string {
@@ -50,7 +59,6 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
   const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('reference-letter', resumeId);
 
   const resume = currentResume as unknown as ResumeData | null;
-  const candidateName = resume?.contactInfo?.fullName ?? 'the candidate';
 
   useEffect(() => {
     if (open && hasDraft && !letter) {
@@ -68,8 +76,10 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
     setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
-        const summary = resume?.summary ?? '';
-        const experience = getTopExperience(resume);
+        const providerResume = redactedResume ?? resume;
+        const candidateName = providerResume?.contactInfo?.fullName ?? 'the candidate';
+        const summary = providerResume?.summary ?? '';
+        const experience = getTopExperience(providerResume);
 
         const { data: responseData, error } = await appwriteFunctions.invoke('wise-ai-chat', {
           body: {
@@ -89,7 +99,8 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
         if (error) throw new Error(error.message);
         const content = extractAIContent(responseData);
         if (!content) throw new Error('Empty response from AI');
-        return content;
+        const parsed = parseAIJson(content, isReferenceLetterResult);
+        return restoreResumeContactPlaceholders(parsed.letter, resume?.contactInfo);
       });
       if (data) {
         setLetter(data);
@@ -153,6 +164,9 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4" aria-busy={isLoading}>
+          <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            This is a draft for the named referee to verify, edit, and approve. It must not be presented as their statement until they have reviewed it.
+          </p>
           <span role="status" aria-live="polite" className="sr-only">
             {isLoading ? 'Generating your reference letter, please wait…' : letter ? 'Reference letter ready.' : ''}
           </span>

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RemoteJobsPage from '../RemoteJobsPage';
 
 // Mock @/lib/aiTailor
-let resolveTailor: any = null;
+let resolveTailor: (() => void) | null = null;
 vi.mock('@/lib/aiTailor', () => ({
   tailorResumeWithProgress: vi.fn().mockImplementation(async (r, j, onProgress) => {
     onProgress({ progress: 50 });
@@ -36,7 +36,7 @@ vi.mock('@/lib/appwrite', () => ({
   DATABASE_ID: 'main',
   ID: { unique: () => 'unique_id' },
   Query: {
-    equal: (field: string, value: any) => `${field}==${value}`,
+    equal: (field: string, value: unknown) => `${field}==${String(value)}`,
     limit: (l: number) => `limit:${l}`,
   },
 }));
@@ -90,13 +90,19 @@ vi.mock('@/hooks/useResumes', () => ({
   useSetMasterCV: () => ({
     mutateAsync: vi.fn().mockResolvedValue({}),
   }),
-  dbToResumeData: (r: any) => r,
+  dbToResumeData: (r: Record<string, unknown>) => r,
 }));
 
 // Mock useAICreditsMutations
 vi.mock('@/hooks/useAICredits', () => ({
   useAICreditsMutations: () => ({
     checkCredits: vi.fn().mockResolvedValue(true),
+  }),
+}));
+
+vi.mock('@/components/ai/AIPrivacyDisclosureProvider', () => ({
+  useAIPrivacyDisclosure: () => ({
+    requestDisclosure: vi.fn().mockResolvedValue(true),
   }),
 }));
 
@@ -172,11 +178,13 @@ describe('RemoteJobsPage Component', () => {
     );
 
     const button = screen.getByText('Fast Tailor');
-    act(() => {
+    await act(async () => {
       button.click();
     });
 
-    expect(screen.getByText('Generating Tailoring Package')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Generating Tailoring Package')).toBeInTheDocument();
+    });
 
     // Resolve the promise to finalize the component state and cleanup
     await act(async () => {

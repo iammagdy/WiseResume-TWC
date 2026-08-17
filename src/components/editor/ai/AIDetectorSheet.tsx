@@ -275,7 +275,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
       setDetection(result.detection);
       setViewState('results');
     } catch (err) {
-      editorLogger.error('AI detection error:', err);
+      editorLogger.error('Writing-style analysis error:', err);
       toast.error('Failed to analyze text. Please try again.');
       setViewState('input');
     }
@@ -288,22 +288,26 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
     setIsHumanizing(true);
 
     try {
-      const { data, error } = await appwriteFunctions.invoke('detect-and-humanize', {
-        body: {
-          text: inputText,
-          action: 'humanize',
-          tone: selectedTone,
-        },
+      const result = await executeAI(async () => {
+        const { data, error } = await appwriteFunctions.invoke('detect-and-humanize', {
+          body: {
+            text: inputText,
+            action: 'humanize',
+            tone: selectedTone,
+          },
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Humanization failed');
+        return data;
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Humanization failed');
-
-      setHumanized(data.humanized);
-      toast.success('Text humanized successfully!');
+      if (!result) return;
+      setHumanized(result.humanized);
+      toast.success('Style rewrite ready for review');
     } catch (err) {
-      editorLogger.error('Humanization error:', err);
-      toast.error('Failed to humanize text. Please try again.');
+      editorLogger.error('Style rewrite error:', err);
+      toast.error('Failed to rewrite the text. Please try again.');
     } finally {
       setIsHumanizing(false);
     }
@@ -370,7 +374,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
-            AI Detector & Humanizer
+            Writing Style Review
           </SheetTitle>
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
@@ -389,10 +393,10 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                 <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
                   <p className="text-sm text-muted-foreground flex items-start gap-2">
                     <Info className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
-                    Many companies use AI detectors. This tool helps you identify AI-sounding text and rewrite it to sound more natural.
+                    AI authorship cannot be reliably determined from text alone. This heuristic flags formulaic writing patterns and can draft a clearer, more natural rewrite.
                   </p>
                   <p className="text-xs text-muted-foreground pl-6">
-                    Works best on your summary, bio, and cover letter text. Humanizing resume bullet points may reduce their ATS impact.
+                    The signal is not proof of who or what wrote the text. Review every rewrite because style changes can affect job-keyword alignment.
                   </p>
                 </div>
 
@@ -444,7 +448,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Humanization Tone (for rewriting)</Label>
+                  <Label>Rewrite Tone</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {TONE_OPTIONS.map((tone) => (
                       <button
@@ -484,7 +488,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                 <MiniSpinner size={32} className="mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Analyzing your text...</h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  Checking for AI patterns and common detection triggers
+                  Reviewing repetition, generic phrasing, and sentence rhythm
                 </p>
               </motion.div>
             )}
@@ -498,10 +502,10 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                 exit={{ opacity: 0 }}
                 className="p-4 space-y-6"
               >
-                {/* AI Score */}
+                {/* Formulaic-writing signal */}
                 <div className={cn('p-4 rounded-2xl border', getScoreBg(detection.aiScore))}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium">AI Detection Score</span>
+                    <span className="text-sm font-medium">Formulaic-writing signal</span>
                     <Badge variant="outline" className="capitalize">
                       {detection.confidence} confidence
                     </Badge>
@@ -517,9 +521,9 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                     <div className="flex-1">
                       <p className="text-sm mb-1">{detection.verdict}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="text-success">Human: {detection.humanScore}%</span>
+                        <span className="text-success">Natural variation: {detection.humanScore}%</span>
                         <span>•</span>
-                        <span className="text-destructive">AI: {detection.aiScore}%</span>
+                        <span className="text-destructive">Formulaic patterns: {detection.aiScore}%</span>
                       </div>
                     </div>
                   </div>
@@ -530,7 +534,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                   <div className="space-y-3">
                     <h4 className="font-semibold flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-warning" />
-                      AI Patterns Detected ({detection.flags.length})
+                      Writing Patterns to Review ({detection.flags.length})
                     </h4>
                     {detection.flags.map((flag, i) => (
                       <div 
@@ -554,7 +558,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                   <div className="space-y-3">
                     <h4 className="font-semibold flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-success" />
-                      Humanized Version
+                      Style Rewrite
                     </h4>
                     <div className="p-4 rounded-xl bg-success/10 border border-success/30">
                       <p className="text-sm whitespace-pre-wrap break-words">{humanized.humanized}</p>
@@ -585,7 +589,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
               disabled={!inputText.trim()}
             >
               <Shield className="w-4 h-4 mr-2" />
-              Analyze for AI Patterns
+              Review Writing Patterns
             </Button>
           )}
 
@@ -602,7 +606,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                   ) : (
                     <Wand2 className="w-4 h-4 mr-2" />
                   )}
-                  Humanize Text
+                  Rewrite for Natural Style
                 </Button>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
@@ -621,7 +625,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                 onClick={handleReset}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                Analyze Different Text
+                Review Different Text
               </Button>
             </>
           )}

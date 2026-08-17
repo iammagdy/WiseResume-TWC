@@ -82,7 +82,7 @@ export const AIEngineSection = memo(function AIEngineSection() {
               {t('app.settingsPage.aiEngine.title', 'WiseResume AI Pool')}
             </h3>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              {t('app.settingsPage.aiEngine.subtitle', 'All AI features run on our managed infrastructure — fast, secure, and always on.')}
+              {t('app.settingsPage.aiEngine.subtitle', 'AI requests use WiseResume-managed providers; availability and response time can vary.')}
             </p>
             <div className="inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
@@ -168,7 +168,7 @@ export const AIEngineSection = memo(function AIEngineSection() {
         <div className="flex items-start gap-2.5 px-3 py-3 rounded-xl bg-muted/40 border border-border/50">
           <Shield className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {t('app.settingsPage.aiEngine.privacyNote', 'We never store your resume data for model training. Requests are processed securely and only used to generate your output.')}
+            {t('app.settingsPage.aiEngine.privacyNote', 'After the privacy disclosure, your request is sent to the configured AI provider to generate the output. WiseResume does not use resume content to train its own models.')}
           </p>
         </div>
         <button

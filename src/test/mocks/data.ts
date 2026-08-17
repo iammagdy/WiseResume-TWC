@@ -1,4 +1,7 @@
-export const mockProfile = {
+import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
+
+export const mockProfile: PublicProfile & Record<string, unknown> = {
+  $id: "user-123",
   id: "user-123",
   fullName: "John Doe",
   username: "johndoe",
@@ -28,6 +31,8 @@ export const mockProfile = {
     volunteering: true,
     githubProjects: true,
   },
+  portfolioMetaTitle: null,
+  portfolioMetaDescription: null,
   metaTitle: "John Doe | Software Engineer",
   metaDescription: "Professional portfolio of John Doe",
   portfolioStyle: "minimal" as const,
@@ -35,8 +40,11 @@ export const mockProfile = {
   portfolioAccentColor: "#3b82f6",
   portfolioFont: "inter" as const,
   openToWork: true,
+  availabilityStatus: "actively-looking",
   availabilityHeadline: "Available for new projects",
   lastActiveAt: new Date().toISOString(),
+  seoNoindex: false,
+  portfolioTranslations: null,
   portfolioSummary: "Building scalable web applications with React and TypeScript.",
   portfolioSyncMode: "auto" as const,
   githubProjectsCache: [],
@@ -44,6 +52,16 @@ export const mockProfile = {
   caseStudies: [],
   services: [],
   highlights: [],
+  sectionOrder: null,
+  pinnedProject: null,
+  scrollEffect: null,
+  videoIntroUrl: null,
+  schedulingUrl: null,
+  abChallengerTheme: null,
+  portfolioCertifications: null,
+  portfolioPrimaryLanguage: null,
+  portfolioSecondaryLanguage: null,
+  contactFormEnabled: true,
 };
 
 export const mockPortfolioExtras = {
@@ -55,8 +73,9 @@ export const mockPortfolioExtras = {
   },
 };
 
-export const mockResumes = [
+export const mockResumes: PublicResume[] = [
   {
+    $id: "resume-1",
     id: "resume-1",
     title: "Main Resume",
     summary: "Experienced developer",

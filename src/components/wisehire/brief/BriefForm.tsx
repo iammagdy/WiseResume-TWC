@@ -6,11 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Sparkles, KeyRound, AlertCircle } from 'lucide-react';
+import { Sparkles, AlertCircle } from 'lucide-react';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import type { CandidateBrief } from '@/hooks/wisehire/useBriefs';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface Candidate {
   id: string;
@@ -31,9 +32,9 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
   const [jdText, setJdText] = useState(defaultJd ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [requiresKey, setRequiresKey] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { execute: executeAI } = useAIAction({ operation: 'wisehire_candidate_brief' });
   const userId = user?.id;
 
   const canSubmit = candidateId && jdText.trim().length >= 20 && !loading;
@@ -43,18 +44,22 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
     if (!canSubmit) return;
     setLoading(true);
     setError('');
-    setRequiresKey(false);
 
     try {
-      const { data, error: fnErr } = await appwriteFunctions.invoke('wisehire-generate-brief', {
-        body: { candidate_id: candidateId, jd_text: jdText.trim() },
-      });
-
-      if (fnErr) {
-        if ((fnErr as { status?: number }).status === 402) { setRequiresKey(true); return; }
-        throw new Error(fnErr.message);
-      }
-      if (!data?.brief) throw new Error('No brief returned. Please try again.');
+      const data = await executeAI(async () => {
+        const response = await appwriteFunctions.invoke<{ brief: CandidateBrief }>('wisehire-generate-brief', {
+          body: { candidate_id: candidateId, jd_text: jdText.trim() },
+        });
+        if (response.error) {
+          throw Object.assign(new Error(response.error.message), {
+            status: response.error.status ?? 500,
+            code: response.error.code,
+          });
+        }
+        return response.data;
+      }, { silent: true });
+      if (!data) return;
+      if (!data.brief) throw new Error('No brief returned. Please try again.');
 
       queryClient.invalidateQueries({ queryKey: ['wisehire-briefs', userId] });
       onResult(data.brief as CandidateBrief);
@@ -69,7 +74,7 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
     <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
       <div>
         <h2 className="text-base font-semibold text-slate-900 dark:text-white mb-0.5">Generate Candidate Brief</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">AI will score and analyse the candidate against the job description.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">AI will summarize explicit role-alignment evidence for human review.</p>
       </div>
 
       {/* Candidate select */}
@@ -103,27 +108,13 @@ export function BriefForm({ candidates, defaultCandidateId, defaultJd, onResult 
         <Textarea
           placeholder="Paste the full job description here…"
           value={jdText}
-          onChange={(e) => setJdText(e.target.value)}
+          onChange={(e) => setJdText(e.target.value.slice(0, 8000))}
           rows={6}
           className="resize-none text-sm"
           disabled={loading}
         />
-        <p className="text-xs text-slate-400">{jdText.trim().length} chars (min 20)</p>
+        <p className="text-xs text-slate-400">{jdText.trim().length} / 8000 chars (min 20)</p>
       </div>
-
-      {requiresKey && (
-        <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3 text-sm">
-          <KeyRound className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-amber-700 dark:text-amber-400 mb-0.5">AI key required</p>
-            <p className="text-amber-700/80 dark:text-amber-400/80">
-              Add an OpenAI or Anthropic key in{' '}
-              <a href="/wisehire/settings" className="underline font-medium">Settings</a>{' '}
-              to generate briefs on the Starter plan.
-            </p>
-          </div>
-        </div>
-      )}
 
       {error && (
         <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">

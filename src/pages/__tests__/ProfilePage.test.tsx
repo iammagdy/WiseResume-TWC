@@ -33,6 +33,10 @@ vi.mock('@/hooks/useJobApplications', () => ({
   useJobApplications: vi.fn(() => ({ data: [] })),
 }));
 
+vi.mock('@/components/dashboard/CareerMilestonesRow', () => ({
+  CareerMilestonesRow: () => null,
+}));
+
 vi.mock('@/store/resumeStore', () => ({
   useResumeStore: vi.fn(() => ({
     setCurrentResume: vi.fn(),
@@ -50,7 +54,7 @@ describe('ProfilePage Hints & Fallback Name', () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 'u1', name: 'Auth Fallback Name', email: 'auth@example.com' },
       authSettled: true,
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     vi.mocked(useProfile).mockReturnValue({
       profile: {
@@ -62,7 +66,7 @@ describe('ProfilePage Hints & Fallback Name', () => {
       },
       loading: false,
       updateProfile: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useProfile>);
 
     vi.mocked(getNextMissingField).mockReturnValue('jobTitle');
 

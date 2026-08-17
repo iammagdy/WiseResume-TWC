@@ -41,7 +41,7 @@ const FEATURE_TIPS = [
 },
 {
   title: 'Company Briefing',
-  description: 'Get a quick research brief on any company before your interview.',
+  description: 'Draft interview prep from company or role context you provide.',
   route: '/ai-studio/company-briefing'
 },
 {

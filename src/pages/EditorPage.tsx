@@ -27,6 +27,7 @@ import { getDocumentLocale } from '@/i18n/resumeLocale';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations, useResume } from '@/hooks/useResumes';
+import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { toast } from 'sonner';
 const ATSScanSheet = lazyWithRetry(() => import('@/components/editor/ATSScanSheet').then(m => ({ default: m.ATSScanSheet })));
 const ResumeSnapshotsSheet = lazyWithRetry(() => import('@/components/editor/ResumeSnapshotsSheet').then(m => ({ default: m.ResumeSnapshotsSheet })));
@@ -160,6 +161,13 @@ function EditorResumeFailureState({
   );
 }
 
+const TAILOR_FEATURES = [
+  'AI rewrites your resume for any job description',
+  'Review truthful keyword gaps from the job description',
+  'Section-by-section improvement suggestions',
+  'Preserve your voice while maximising relevance',
+] as const;
+
 export default function EditorPage() {
   const { t, locale } = useLocale();
   const navigate = useNavigate();
@@ -220,6 +228,7 @@ export default function EditorPage() {
     userId: user?.id,
   });
   const { updateResume, createResume } = useResumeMutations();
+  const { createShare: createResumeShare } = useResumeShareMutations();
 
   // Audit: track session duration
   const sessionStartRef = useRef<number | null>(null);
@@ -296,7 +305,7 @@ export default function EditorPage() {
     setChatInitialMessage(pendingPrompt);
     sheets.open('chat');
     clearPendingPrompt();
-  }, [pendingPrompt, clearPendingPrompt, sheets.open]);
+  }, [pendingPrompt, clearPendingPrompt, sheets.open, sheets]);
 
   const handleQuickDownload = useCallback(async () => {
     if (!currentResume) return;
@@ -308,10 +317,12 @@ export default function EditorPage() {
       const templateEl = document.querySelector('[data-resume-template]') as HTMLElement | null;
       if (!templateEl) throw new Error('Resume template not visible');
       const customBreakPositions = currentResume.customization?.customBreakPositions;
+      const { pdfDefaults } = useSettingsStore.getState();
       const pdfBlob = await generateNativePDF(templateEl, {
         pageFormat: (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4',
-        showPageNumbers: true,
-        showBranding: true,
+        showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+        showBranding: pdfDefaults.showBranding ?? true,
         locale: getDocumentLocale(currentResume),
         ...(customBreakPositions?.length ? { customBreakPositions } : {}),
       });
@@ -327,7 +338,7 @@ export default function EditorPage() {
     } finally {
       setIsQuickDownloading(false);
     }
-  }, [currentResume, selectedTemplate]);
+  }, [currentResume]);
 
   const { exportProgress, onProgress, reset: resetExportProgress } = useExportProgress();
   const [isExporting, setIsExporting] = useState(false);
@@ -346,7 +357,8 @@ export default function EditorPage() {
         const baseName = customFileName?.trim()
           ? sanitizeFileName(customFileName)
           : sanitizeFileName(currentResume.contactInfo?.fullName ?? '');
-        const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
+        const pageNumberFormat = useSettingsStore.getState().pdfDefaults.pageNumberFormat ?? 'full';
+        const pdfOptions = { showPageNumbers, pageNumberFormat, showBranding };
         const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
 
         if (type === 'docx') {
@@ -393,8 +405,11 @@ export default function EditorPage() {
         }
 
         if (type === 'share-link') {
-          const { shareAsLink } = await import('@/lib/shareUtils');
-          if (currentResume.id) { await shareAsLink(currentResume.id); }
+          const { shareResumeLink } = await import('@/lib/shareUtils');
+          if (currentResume.id) {
+            const share = await createResumeShare.mutateAsync({ resumeId: currentResume.id });
+            await shareResumeLink(share.token);
+          }
           else { toast.error('Save your resume first to generate a share link'); }
           setShowExport(false); return;
         }
@@ -434,7 +449,7 @@ export default function EditorPage() {
         };
 
         if (type === 'ats-pdf') {
-          pdfBlob = await exportResumePdf({ pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, locale: getDocumentLocale(currentResume), onProgress });
+          pdfBlob = await exportResumePdf({ pageFormat, atsMode: true, showPageNumbers: false, pageNumberFormat, showBranding, locale: getDocumentLocale(currentResume), onProgress });
           fileName = `${baseName}_Resume_ATS.pdf`;
         } else if (type === 'cover-letter') {
           const { generateCoverLetterNativePDF } = await import('@/lib/nativePdfGenerator');
@@ -446,19 +461,20 @@ export default function EditorPage() {
           const { generateCoverLetterNativePDF, mergePDFBlobs } = await import('@/lib/nativePdfGenerator');
 
           if (type === 'one-page') {
-            pdfBlob = await exportResumePdf({ pageFormat, onePage: true, showPageNumbers, showBranding, locale: getDocumentLocale(currentResume), onProgress });
+            pdfBlob = await exportResumePdf({ pageFormat, onePage: true, ...pdfOptions, locale: getDocumentLocale(currentResume), onProgress });
             fileName = `${baseName}_Resume_OnePage.pdf`;
           } else if (type === 'combined') {
             const { generatedCoverLetter } = useResumeStore.getState();
             if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
             onProgress('capturing', 20);
-            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, locale: getDocumentLocale(currentResume), showPageNumbers: false, showBranding: true });
+            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, locale: getDocumentLocale(currentResume), showPageNumbers: false, pageNumberFormat, showBranding });
             onProgress('capturing', 40);
             const customBreakPositions = currentResume.customization?.customBreakPositions;
             const resumeBlob = await exportResumePdf({
               pageFormat,
               showPageNumbers: false,
-              showBranding: true,
+              pageNumberFormat,
+              showBranding,
               locale: getDocumentLocale(currentResume),
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
@@ -471,6 +487,7 @@ export default function EditorPage() {
             pdfBlob = await exportResumePdf({
               pageFormat,
               showPageNumbers,
+              pageNumberFormat,
               showBranding,
               locale: getDocumentLocale(currentResume),
               onProgress,
@@ -485,7 +502,7 @@ export default function EditorPage() {
         const result = await downloadFile({ blob: pdfBlob, fileName });
         if (result.cancelled) { toast.info('Download cancelled. Tap download again to save your PDF.'); return; }
         if (result.success) {
-          const msgs: Record<string, string> = { 'resume': 'Resume download started.', 'cover-letter': 'Cover letter download started.', 'combined': 'Application package download started.', 'one-page': 'One-page resume download started.', 'ats-pdf': 'ATS-optimized PDF download started.' };
+          const msgs: Record<string, string> = { 'resume': 'Resume download started.', 'cover-letter': 'Cover letter download started.', 'combined': 'Application package download started.', 'one-page': 'One-page resume download started.', 'ats-pdf': 'ATS-focused PDF download started.' };
           toast.success(msgs[type] || 'Downloaded!');
           if (result.method === 'data-url' || result.method === 'open') toast.info('If the file did not save, use the share icon to "Save to Files"', { duration: 6000 });
         }
@@ -512,7 +529,7 @@ export default function EditorPage() {
 
     try { await tryExport(); }
     finally { setIsExporting(false); setTimeout(() => resetExportProgress(), 600); }
-  }, [currentResume, selectedTemplate, onProgress, resetExportProgress]);
+  }, [createResumeShare, currentResume, selectedTemplate, onProgress, resetExportProgress]);
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   // Desktop scrollspy: track which section is currently visible
@@ -558,14 +575,14 @@ export default function EditorPage() {
           description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
           features: [
             'AI rewrites your resume for any job description',
-            'Keyword match score to beat ATS filters',
+            'Review truthful keyword gaps from the job description',
             'Section-by-section improvement suggestions',
             'Preserve your voice while maximising relevance',
           ],
         });
       }
     }
-  }, [planLoading, isPro, triggerGate]);
+  }, [planLoading, isPro, triggerGate, sheets]);
 
   // Handle guided intake params: ?experienceLevel= reorders sections; ?intakeJobTitle= queues summary stub
   useEffect(() => {
@@ -694,7 +711,7 @@ export default function EditorPage() {
         hasAutoScrolled.current = true;
       }
     }
-  }, [currentResumeId, currentResume, freshLoad, sheets.open, activeTab]);
+  }, [currentResumeId, currentResume, freshLoad, sheets.open, activeTab, sheets]);
 
   // Persist activeTab / moreSubSection / open sheet whenever they change.
   useEffect(() => {
@@ -705,7 +722,7 @@ export default function EditorPage() {
       moreSubSection,
       openSheet: sheets.current,
     });
-  }, [currentResumeId, activeTab, moreSubSection, sheets.current]);
+  }, [currentResumeId, activeTab, moreSubSection, sheets]);
 
   // Throttled scroll listener — capture scrollTop per active tab/sub-section.
   useEffect(() => {
@@ -1035,7 +1052,7 @@ export default function EditorPage() {
 
     base.push({ id: 'more', label: t('editor.sections.more', 'More') });
     return base;
-  }, [educationFirst, currentResume, locale]);
+  }, [educationFirst, t, currentResume]);
 
   // availableMoreCount = how many optional sections have not yet been added (no data yet).
   // Used to show a badge/count on the "More" button in the sidebar.
@@ -1048,13 +1065,6 @@ export default function EditorPage() {
   // Hook 3: section scores, completion status, celebration toasts, and confetti
   const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
 
-  const TAILOR_FEATURES = [
-    'AI rewrites your resume for any job description',
-    'Keyword match score to beat ATS filters',
-    'Section-by-section improvement suggestions',
-    'Preserve your voice while maximising relevance',
-  ];
-
   const handleImproveSection = useCallback(
     () =>
       gate('pro', () => sheets.open('tailor'), {
@@ -1062,14 +1072,14 @@ export default function EditorPage() {
         description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
         features: TAILOR_FEATURES,
       })(),
-    [gate, sheets.open]
+    [gate, sheets]
   );
 
   const handleBack = useCallback(() => {
     unsavedGuard.interceptNavigate(getBackRoute('/editor'));
   }, [unsavedGuard]);
 
-  const handleChangeTemplate = useCallback(() => sheets.open('templates'), [sheets.open]);
+  const handleChangeTemplate = useCallback(() => sheets.open('templates'), [sheets]);
   const handleTailor = useCallback(
     () =>
       gate('pro', () => sheets.open('tailor'), {
@@ -1077,15 +1087,15 @@ export default function EditorPage() {
         description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
         features: TAILOR_FEATURES,
       })(),
-    [gate, sheets.open]
+    [gate, sheets]
   );
-  const handleAnalyze = useCallback(() => sheets.open('jobAnalysis'), [sheets.open]);
-  const handleRecruiterSim = useCallback(() => sheets.open('recruiterSim'), [sheets.open]);
-  const handleAIDetector = useCallback(() => sheets.open('aiDetector'), [sheets.open]);
-  const handleLinkedIn = useCallback(() => sheets.open('linkedIn'), [sheets.open]);
-  const handleOnePage = useCallback(() => sheets.open('onePage'), [sheets.open]);
-  const handleCareerPath = useCallback(() => sheets.open('careerPath'), [sheets.open]);
-  const handleGetIdeas = useCallback(() => sheets.open('contentLibrary'), [sheets.open]);
+  const handleAnalyze = useCallback(() => sheets.open('jobAnalysis'), [sheets]);
+  const handleRecruiterSim = useCallback(() => sheets.open('recruiterSim'), [sheets]);
+  const handleAIDetector = useCallback(() => sheets.open('aiDetector'), [sheets]);
+  const handleLinkedIn = useCallback(() => sheets.open('linkedIn'), [sheets]);
+  const handleOnePage = useCallback(() => sheets.open('onePage'), [sheets]);
+  const handleCareerPath = useCallback(() => sheets.open('careerPath'), [sheets]);
+  const handleGetIdeas = useCallback(() => sheets.open('contentLibrary'), [sheets]);
   const handleCustomize = useCallback(() => setShowStylePanel(true), []);
 
   const handleMoreSectionSelect = useCallback((sectionId: string) => {
@@ -1253,7 +1263,7 @@ export default function EditorPage() {
     }
     setCurrentResume({ ...currentResume, ...updates } as typeof currentResume);
     sheets.close();
-  }, [currentResume, sheets.close]);
+  }, [currentResume, sheets]);
 
   const handleContentInsert = useCallback((text: string) => {
     if (!currentResume) return;

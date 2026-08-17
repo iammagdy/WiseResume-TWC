@@ -685,7 +685,12 @@ async function ensureCouponsWiseHireVariables(fnIds) {
             await ensureVariable(fnId, key, value);
         }
         if (fnId === 'public-share') {
-            await ensureVariable(fnId, 'PUBLIC_SHARE_TOKEN_SECRET', process.env.PUBLIC_SHARE_TOKEN_SECRET);
+            const publicShareSecret = process.env.PUBLIC_SHARE_TOKEN_SECRET ||
+                await existingVariableValue(fnId, 'PUBLIC_SHARE_TOKEN_SECRET');
+            if (!publicShareSecret || publicShareSecret.length < 32 || publicShareSecret === process.env.APPWRITE_API_KEY) {
+                throw new Error('PUBLIC_SHARE_TOKEN_SECRET must contain at least 32 characters and be distinct from APPWRITE_API_KEY before deploying public-share');
+            }
+            await ensureVariable(fnId, 'PUBLIC_SHARE_TOKEN_SECRET', publicShareSecret);
         }
     }
 }
@@ -818,6 +823,10 @@ async function syncVariablesForHubs(hubIds) {
 
     const couponsTargets = ['coupons', 'wisehire-gateway', 'public-share'].filter(id => selected.has(id));
     if (couponsTargets.length) await ensureCouponsWiseHireVariables(couponsTargets);
+    if (hasAny(['coupons', 'admin-devkit-data'])) {
+        console.log('\nEnsuring coupon security schema...');
+        execSync('node scripts/setup_discount_codes_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
 
     if (selected.has('admin-deploy-hubs')) await ensureAdminDeployHubsVariables();
     if (selected.has('email-service')) {
@@ -856,6 +865,14 @@ async function syncVariablesForHubs(hubIds) {
     }
 
     if (selected.has('public-share')) {
+        // Public resume content/comments are brokered exclusively by the
+        // public-share function. Apply the collection privacy, hash-only token
+        // migration, persistent throttling schema, and owner permissions in the
+        // same targeted backend release. The matching frontend must be released
+        // in the same maintenance window because legacy clients read these
+        // collections directly and will correctly lose that access.
+        console.log('\nEnsuring resume-share security schema...');
+        execSync('node scripts/setup_resume_share_security_schema.cjs --apply-existing', { cwd: ROOT, stdio: 'inherit' });
         // Ensure the portfolio_interactions attributes the public "I'm Interested"
         // beacon (api/portfolio-interest.ts) writes (token / portfolio_username /
         // interaction_type / referrer_hostname + a token index). These were missing
@@ -889,6 +906,14 @@ function resolveRequestedHubs(requestedIds) {
 async function run() {
     const requestedIds = selectedHubIds();
     const hubsToDeploy = resolveRequestedHubs(requestedIds);
+
+    if (hubsToDeploy.some(hub => hub.id === 'public-share')) {
+        const publicShareSecret = process.env.PUBLIC_SHARE_TOKEN_SECRET ||
+            await existingVariableValue('public-share', 'PUBLIC_SHARE_TOKEN_SECRET');
+        if (!publicShareSecret || publicShareSecret.length < 32 || publicShareSecret === process.env.APPWRITE_API_KEY) {
+            throw new Error('PUBLIC_SHARE_TOKEN_SECRET must contain at least 32 characters and be distinct from APPWRITE_API_KEY before deploying public-share');
+        }
+    }
 
     console.log(`Deploying selected hubs only: ${hubsToDeploy.map(h => h.id).join(', ')}`);
 

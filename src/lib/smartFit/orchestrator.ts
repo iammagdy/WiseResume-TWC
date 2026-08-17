@@ -133,7 +133,7 @@ export async function runSmartFit(input: SmartFitInput): Promise<SmartFitPlan> {
   }
 
   // ── Stage 2: bullet pruning ─────────────────────────────────────────────
-  let drops = proposeBulletDrops(resume, scored, charsToRecover);
+  const drops = proposeBulletDrops(resume, scored, charsToRecover);
   if (drops.length > 0) {
     stagesRun.push('prune');
     const charsRecoveredFromDrops = drops.reduce((sum, d) => sum + d.text.length, 0);
@@ -141,7 +141,7 @@ export async function runSmartFit(input: SmartFitInput): Promise<SmartFitPlan> {
   }
 
   // ── Stage 3: section collapse ──────────────────────────────────────────
-  let collapses = proposeSectionCollapses(resume, charsToRecover);
+  const collapses = proposeSectionCollapses(resume, charsToRecover);
   if (collapses.length > 0) {
     stagesRun.push('collapse');
     const charsRecoveredFromCollapse = collapses.reduce(

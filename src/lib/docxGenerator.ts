@@ -6,6 +6,8 @@ import { getDocumentLocale } from '@/i18n/resumeLocale';
 import { getSectionLabel } from '@/lib/sectionLabels';
 import type { SupportedLocale } from '@/i18n/core';
 
+type DocxModule = typeof import('docx');
+
 export function getDocxLocaleOptions(resume: Pick<ResumeData, 'customization'>) {
   const locale = getDocumentLocale(resume as ResumeData);
   const bidirectional = locale === 'ar';
@@ -231,10 +233,13 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
   }
 
   // Hobbies
-  if (resume.hobbies?.length) {
+  const visibleHobbies = resume.hobbies
+    ?.filter(hobby => hobby.visible !== false)
+    .map(hobby => hobby.name) ?? [];
+  if (visibleHobbies.length) {
     sections.push(makeSectionHeading(locale === 'ar' ? getSectionLabel('hobbies', locale) : 'HOBBIES & INTERESTS', { Paragraph, TextRun, HeadingLevel, BorderStyle }, localeOptions));
     sections.push(new Paragraph({
-      children: [new TextRun({ text: resume.hobbies.join(' • '), size: 22 })],
+      children: [new TextRun({ text: visibleHobbies.join(' • '), size: 22 })],
       spacing: { after: 200 },
     }));
   }
@@ -284,11 +289,15 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
 
 function buildContactSection(
   contact: ResumeData['contactInfo'],
-  deps: { Paragraph: any; TextRun: any; AlignmentType: any },
+  deps: {
+    Paragraph: DocxModule['Paragraph'];
+    TextRun: DocxModule['TextRun'];
+    AlignmentType: DocxModule['AlignmentType'];
+  },
   localeOptions: ReturnType<typeof getDocxLocaleOptions>,
 ) {
   const { Paragraph, TextRun, AlignmentType } = deps;
-  const paras: any[] = [];
+  const paras: InstanceType<DocxModule['Paragraph']>[] = [];
 
   if (contact.fullName) {
     paras.push(new Paragraph({
@@ -323,7 +332,12 @@ function buildContactSection(
 
 function makeSectionHeading(
   title: string,
-  deps: { Paragraph: any; TextRun: any; HeadingLevel: any; BorderStyle: any },
+  deps: {
+    Paragraph: DocxModule['Paragraph'];
+    TextRun: DocxModule['TextRun'];
+    HeadingLevel: DocxModule['HeadingLevel'];
+    BorderStyle: DocxModule['BorderStyle'];
+  },
   localeOptions: ReturnType<typeof getDocxLocaleOptions>,
 ) {
   const { Paragraph, TextRun, HeadingLevel, BorderStyle } = deps;

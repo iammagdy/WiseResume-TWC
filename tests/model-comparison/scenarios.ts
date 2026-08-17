@@ -34,9 +34,12 @@ function jsonShape(keys: string[]) {
   return (content: string): { ok: boolean; reason?: string } => {
     if (/<think>|<\/think>/i.test(content)) return { ok: false, reason: 'leaked <think> tokens' };
     const cleaned = content.replace(/```json|```/g, '').trim();
-    let parsed: any;
+    let parsed: unknown;
     try { parsed = JSON.parse(cleaned); } catch (e) {
       return { ok: false, reason: `invalid JSON: ${String(e).slice(0, 80)}` };
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { ok: false, reason: 'JSON root must be an object' };
     }
     for (const k of keys) {
       if (!(k in parsed)) return { ok: false, reason: `missing key "${k}"` };

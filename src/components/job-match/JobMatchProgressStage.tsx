@@ -60,7 +60,7 @@ const TAILOR_PHASES: TailorPhase[] = [
   {
     id: 'optimize',
     label: 'Optimize',
-    detail: 'ATS keywords & interview talking points',
+    detail: 'Job-description keywords & interview talking points',
     icon: Gauge,
     steps: ['calculating_ats', 'generating_interview_prep', 'generating_recs'],
   },

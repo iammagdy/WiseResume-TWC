@@ -14,42 +14,42 @@ const FAQ_ITEMS = [
   // Getting Started
   { q: 'How do I create a resume?', a: 'Tap the + button on your Dashboard or go to Editor to start from scratch. You can also upload an existing PDF or Word document.' },
   { q: 'How do I edit my resume after creating it?', a: 'Tap on any resume card on your Dashboard to open it in the Editor. From there you can edit any section — contact info, experience, education, skills, and more.' },
-  { q: 'Can I create multiple resumes?', a: 'Yes! You can create as many resumes as you need. Each one can be tailored for a different job or industry. Manage them all from your Dashboard.' },
+  { q: 'Can I create multiple resumes?', a: 'Paid plans support multiple resumes for different roles. The current plan limit is shown before you create another resume, and all available resumes are managed from the Dashboard.' },
   { q: 'How do I upload an existing resume?', a: 'On the Dashboard, tap the + button and select "Upload Resume." We support PDF and Word (.docx) files. The content will be parsed and imported into the editor.' },
 
   // Export & Sharing
   { q: 'How do I export my resume as PDF?', a: 'Open your resume in the Editor, then tap Preview. From there, use the Download button to export a high-quality PDF.' },
   { q: 'Can I share my resume with a link?', a: 'Yes! In the Editor, tap Share to generate a unique link. You can optionally add a password or set an expiration date for extra privacy.' },
-  { q: 'What file formats can I export?', a: 'You can export your resume as PDF (recommended for job applications) or DOCX (Word format). Both are ATS-compatible.' },
+  { q: 'What file formats can I export?', a: 'You can export your resume as a text-selectable PDF or DOCX (Word format). Both are designed for common hiring-system parsers, but compatibility can vary by employer and system.' },
 
-  // ATS & Optimization
-  { q: 'What is an ATS score?', a: 'ATS (Applicant Tracking System) score measures how well your resume is optimized for automated screening tools used by employers. Aim for 80+.' },
-  { q: 'How can I improve my ATS score?', a: 'Use the AI tools to analyze your resume against a job description. Focus on matching keywords, using standard section headings, and keeping formatting clean.' },
+  // Readiness & job matching
+  { q: 'What does Resume readiness measure?', a: 'Resume readiness is WiseResume’s local section-completeness check. It highlights missing core content; it is not a score from an employer or a guarantee that every applicant-tracking system will parse the file identically.' },
+  { q: 'How can I improve readiness and job match?', a: 'Complete the core resume sections first. For a specific role, compare the resume with the job description and review truthful keyword gaps separately. Use standard headings and verify every suggested skill, fact, and metric before applying it.' },
 
   // AI Features
   { q: 'Can I tailor my resume for a specific job?', a: 'Yes! Use the AI Tailor tool in AI Studio. Paste the job description and our AI will suggest improvements to match the role.' },
   { q: 'How do cover letters work?', a: 'Go to AI Tools > Cover Letters to create a new cover letter. You can generate one from scratch or base it on an existing resume and job description.' },
-  { q: 'What AI features are available?', a: 'WiseResume offers AI-powered writing assistance, resume tailoring, cover letter generation, interview practice, and ATS optimization — all built into the app.' },
-  { q: 'Does AI use my data for training?', a: 'No. Your data is never used to train any AI model. Content is only processed when you explicitly request AI help, and nothing is retained afterward.' },
+  { q: 'What AI features are available?', a: 'WiseResume offers AI-powered writing assistance, resume tailoring, cover letter generation, interview practice, and job-description keyword alignment — all built into the app.' },
+  { q: 'Does AI use my data for training?', a: 'WiseResume does not use your resume content to train its own models. When you explicitly request AI help, the disclosed content is sent to the configured AI provider to generate the response; provider handling is governed by that service relationship and the Privacy Policy.' },
 
   // Portfolio
   { q: 'How do I share my portfolio?', a: 'Enable your portfolio in the Portfolio tab, customize your sections, and share your unique public link. Your portfolio is only visible when enabled.' },
   { q: 'Can I customize my portfolio appearance?', a: 'Yes! You can choose from multiple themes, layouts, accent colors, and fonts. You can also pick which sections to show or hide.' },
 
   // Account & Privacy
-  { q: 'Is my data secure?', a: 'Yes. All data is encrypted in transit (TLS 1.3) and at rest (AES-256). We never share your personal information with third parties.' },
+  { q: 'How is my data protected?', a: 'WiseResume uses account access controls, private-by-default documents, and encrypted network connections. Some features use service providers, including AI providers after disclosure. Review the Privacy Policy for the current processing and retention details.' },
   { q: 'How do I delete my account?', a: 'Go to Settings > Privacy > Delete All Data. This permanently removes all your resumes, cover letters, and account data within 30 days.' },
   { q: 'Can I export all my data?', a: 'Yes. Go to Settings > Data Export to download all your data in JSON or PDF format.' },
   { q: 'Can I use the app offline?', a: 'Yes! WiseResume works offline as a PWA. Changes sync automatically when you reconnect.' },
 
   // Templates
   { q: 'How do I change my resume template?', a: 'In the Editor, go to the Template section to browse and apply different designs. Your content stays the same — only the visual layout changes.' },
-  { q: 'Are the templates ATS-friendly?', a: 'Yes. All our templates are designed to be ATS-compatible with clean formatting, standard fonts, and proper heading structure.' },
+  { q: 'Are the templates ATS-friendly?', a: 'Templates use readable text and conventional section headings. For the simplest parser input, choose the ATS-focused PDF or DOCX; no format can guarantee identical results in every employer system.' },
 ];
 
 const VIDEO_TUTORIALS = [
   { title: 'Getting Started', description: 'Create your first resume in 5 minutes', duration: '5:00' },
-  { title: 'ATS Optimization', description: 'Score 90+ on any ATS system', duration: '8:30' },
+  { title: 'Resume Readiness', description: 'Complete core sections and review parser-friendly formatting', duration: '8:30' },
   { title: 'AI Tailor Guide', description: 'Customize resumes for each job', duration: '6:15' },
 ];
 

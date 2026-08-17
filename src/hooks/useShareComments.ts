@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { databases, DATABASE_ID, Query, ID } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -13,119 +12,95 @@ export interface ShareComment {
   created_at: string;
 }
 
-function docToComment(doc: Record<string, unknown>): ShareComment {
-  return {
-    id: doc.$id as string,
-    author_name: doc.author_name as string,
-    section: (doc.section as string | null) ?? null,
-    content: doc.content as string,
-    is_resolved: Boolean(doc.is_resolved),
-    created_at: doc.$createdAt as string,
-  };
+function resultOrThrow<T>(
+  result: { data: T | null; error: { message: string } | null },
+  fallback: string,
+): T {
+  if (result.error || result.data === null) throw new Error(result.error?.message || fallback);
+  return result.data;
 }
 
-/** Fetch comments for a share (owner, by share_id) */
+/** Fetch all comments for the authenticated share owner. */
 export function useShareComments(shareId: string | null) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ['share-comments', shareId],
-    queryFn: async () => {
-      if (!shareId) return [];
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.share_comments, [
-        Query.equal('share_id', shareId),
-        Query.orderDesc('$createdAt'),
-        Query.limit(200),
-      ]);
-      return res.documents.map(d => docToComment(d as unknown as Record<string, unknown>));
-    },
+    queryKey: ['share-comments', shareId, user?.id],
+    queryFn: async () => resultOrThrow(
+      await appwriteFunctions.invoke<ShareComment[]>('list-share-comments', {
+        body: { shareId },
+      }),
+      'Could not load feedback.',
+    ),
     enabled: !!user && !!shareId,
   });
 }
 
-/** Fetch comments for a public share page (by token) */
-export function usePublicShareComments(token: string | null) {
+/**
+ * Public feedback is available only after the content gate issued an access
+ * capability. Protected-share comments therefore cannot bypass the password.
+ */
+export function usePublicShareComments(token: string | null, accessToken: string | null) {
   return useQuery({
     queryKey: ['public-share-comments', token],
     queryFn: async () => {
-      if (!token) return [];
-      // Resolve the share document ID from the token.
-      // Query.select('$id') — only the document ID is needed; no sensitive
-      // fields (password, user_id, etc.) should be returned in this public call.
-      const shareRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resume_shares, [
-        Query.equal('token', token),
-        Query.select(['$id']),
-        Query.limit(1),
-      ]);
-      if (shareRes.documents.length === 0) return [];
-      const shareId = shareRes.documents[0].$id;
-
-      const commentsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.share_comments, [
-        Query.equal('share_id', shareId),
-        Query.orderDesc('$createdAt'),
-        Query.limit(200),
-      ]);
-      return commentsRes.documents.map(d => docToComment(d as unknown as Record<string, unknown>));
+      if (!token || !accessToken) return [];
+      return resultOrThrow(
+        await appwriteFunctions.invoke<ShareComment[]>('get-public-share-comments', {
+          body: { token, accessToken },
+        }),
+        'Could not load feedback.',
+      );
     },
-    enabled: !!token,
+    enabled: !!token && !!accessToken,
+    retry: false,
+    refetchOnWindowFocus: false,
+    gcTime: 0,
   });
 }
 
-/** Add a comment (public, no auth required — token is the access credential) */
 export function useAddShareComment() {
   const queryClient = useQueryClient();
   return useMutation({
+    gcTime: 0,
     mutationFn: async (input: {
       shareToken: string;
+      accessToken: string;
       authorName: string;
       content: string;
       section?: string;
-    }) => {
-      // Resolve share_id from token — select only $id; no sensitive fields exposed.
-      const shareRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.resume_shares, [
-        Query.equal('token', input.shareToken),
-        Query.select(['$id']),
-        Query.limit(1),
-      ]);
-      if (shareRes.documents.length === 0) throw new Error('Share not found');
-      const shareId = shareRes.documents[0].$id;
-
-      const doc = await databases.createDocument(
-        DATABASE_ID,
-        COLLECTIONS.share_comments,
-        ID.unique(),
-        {
-          share_id: shareId,
-          author_name: input.authorName,
+    }) => resultOrThrow(
+      await appwriteFunctions.invoke<ShareComment>('add-public-share-comment', {
+        body: {
+          token: input.shareToken,
+          accessToken: input.accessToken,
+          authorName: input.authorName,
           content: input.content,
-          section: input.section ?? null,
-          is_resolved: false,
+          section: input.section,
         },
-      );
-      return docToComment(doc as unknown as Record<string, unknown>);
-    },
+      }),
+      'Failed to submit feedback.',
+    ),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ['public-share-comments', variables.shareToken],
-      });
+      queryClient.invalidateQueries({ queryKey: ['public-share-comments', variables.shareToken] });
       toast.success('Feedback submitted!');
     },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Failed to submit feedback');
-    },
+    onError: (error: Error) => toast.error(error.message || 'Failed to submit feedback'),
   });
 }
 
-/** Resolve a comment (owner only) */
 export function useResolveComment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ commentId, resolved }: { commentId: string; resolved: boolean }) => {
-      await databases.updateDocument(DATABASE_ID, COLLECTIONS.share_comments, commentId, {
-        is_resolved: resolved,
-      });
-    },
+    gcTime: 0,
+    mutationFn: async ({ commentId, resolved }: { commentId: string; resolved: boolean }) => resultOrThrow(
+      await appwriteFunctions.invoke<ShareComment>('resolve-share-comment', {
+        body: { commentId, resolved },
+      }),
+      'Failed to update feedback.',
+    ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['share-comments'] });
     },
+    onError: (error: Error) => toast.error(error.message || 'Failed to update feedback'),
   });
 }

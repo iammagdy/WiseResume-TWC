@@ -61,8 +61,8 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
         const storageKey = 'wr.photoTemplateAtsHintShown';
         const seen = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) : '1';
         if (!seen) {
-          toast.warning('Photos may hurt ATS scoring in some regions', {
-            description: 'Workday, Greenhouse, and many US/UK employers penalize resumes with photos. Consider a photo-free template if you are applying to those markets.',
+          toast.warning('Photos may reduce parser reliability in some workflows', {
+            description: 'Consider a photo-free template when submitting through an automated hiring portal.',
             duration: 8000,
           });
           window.localStorage.setItem(storageKey, '1');
@@ -93,7 +93,7 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
           <div className="mb-4 p-4 rounded-xl bg-muted border border-border flex items-start gap-4">
             <Sparkles className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <p className="font-medium text-foreground mb-1">About ATS Layout Score</p>
+              <p className="font-medium text-foreground mb-1">About the ATS Layout badge</p>
               <p className="text-muted-foreground">
                 The ATS Layout badge shows how well a template's <strong>design</strong> can be
                 parsed by Applicant Tracking Systems — not your resume's keyword match or content
@@ -118,8 +118,8 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
             >
               <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <span>
-                Photos may hurt ATS scoring in some regions (Workday, Greenhouse, US/UK roles).
-                Consider a photo-free template if you're applying to those markets.
+                Photos may reduce parser reliability in some automated hiring workflows.
+                Consider a photo-free template when submitting through a hiring portal.
               </span>
             </div>
           )}

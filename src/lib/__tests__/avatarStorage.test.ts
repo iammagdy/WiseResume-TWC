@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avatarFileIdForUser, withAvatarCacheBust } from '@/lib/avatarStorage';
+import { avatarFileIdForUser, avatarFileIdFromUrl, withAvatarCacheBust } from '@/lib/avatarStorage';
 
 describe('avatarStorage', () => {
   it('normalizes user IDs into stable file IDs', () => {
@@ -16,5 +16,11 @@ describe('avatarStorage', () => {
       'https://example.com/view?v=v2',
     );
     expect(withAvatarCacheBust(null, 'v2')).toBeNull();
+  });
+
+  it('extracts IDs only from the configured avatar bucket', () => {
+    expect(avatarFileIdFromUrl('https://fra.cloud.appwrite.io/v1/storage/buckets/avatars/files/random-id/view?project=p')).toBe('random-id');
+    expect(avatarFileIdFromUrl('https://fra.cloud.appwrite.io/v1/storage/buckets/other/files/random-id/view')).toBeNull();
+    expect(avatarFileIdFromUrl('https://images.example.com/avatar.png')).toBeNull();
   });
 });

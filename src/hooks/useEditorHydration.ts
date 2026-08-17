@@ -1,20 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { dbToResumeData, getResumeDocumentUpdatedAt } from '@/hooks/useResumes';
+import { dbToResumeData, getResumeDocumentUpdatedAt, parseDbResume, type DatabaseResume } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { logAudit } from '@/lib/auditLogger';
 import type { AppUser } from '@/contexts/AuthContext';
 import { migrateTemplateId as migrateLegacyTemplateId } from '@/lib/templateMigration';
 
-interface DatabaseResumeLike {
-  id: string;
-  user_id: string;
+type DatabaseResumeLike = DatabaseResume & {
+  id?: string;
   updated_at?: string | null;
   template_id?: string | null;
-  title: string;
   parent_resume_id?: string | null;
-}
+};
 
 interface UseEditorHydrationOptions {
   resumeFromDb: DatabaseResumeLike | null | undefined;
@@ -62,7 +60,7 @@ export function useEditorHydration({
     }
 
     const localResume = useResumeStore.getState().currentResume;
-    const dbResume = dbToResumeData(resumeFromDb as any);
+    const dbResume = dbToResumeData(parseDbResume(resumeFromDb));
     const dbTemplateId =
       (resumeFromDb as { template_id?: string | null; template?: string | null }).template_id
       ?? (resumeFromDb as { template?: string | null }).template
@@ -96,12 +94,12 @@ export function useEditorHydration({
       const isClean = lastSavedResumeRef.current === JSON.stringify(localResume);
 
       if (isClean) {
-        useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb as any));
+        useResumeStore.getState().setCurrentResume(dbToResumeData(parseDbResume(resumeFromDb)));
         useResumeStore.getState().setSelectedTemplate(
           migrateLegacyTemplateId((resumeFromDb.template_id as string | null) ?? null)
         );
         localLoadedAtRef.current = serverUpdatedAt;
-        lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb as any));
+        lastSavedResumeRef.current = JSON.stringify(dbToResumeData(parseDbResume(resumeFromDb)));
         lastRefreshedServerTs.current = serverUpdatedAt;
         toast.info('Resume updated — refreshed to latest version.', { duration: 3000 });
       } else {

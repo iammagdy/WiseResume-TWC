@@ -4,6 +4,8 @@ import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import type { Models } from 'appwrite';
+import { invokeWisehireAccess } from '@/lib/wisehire/wisehireAccessClient';
+import { wisehireOwnerPermissions } from '@/lib/wisehire/documentPermissions';
 
 export interface Scorecard {
   id: string;
@@ -53,12 +55,20 @@ export function usePublicScorecard(shareToken: string | undefined) {
   return useQuery({
     queryKey: ['public-scorecard', shareToken],
     queryFn: async () => {
-      const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_scorecards, [
-        Query.equal('share_token', shareToken!),
-        Query.equal('share_token_active', true),
-        Query.limit(1),
-      ]);
-      return res.total > 0 ? docToScorecard(res.documents[0]) : null;
+      const { data, error } = await invokeWisehireAccess<{ scorecard: Partial<Scorecard> | null }>(
+        'public-scorecard',
+        { share_token: shareToken! },
+      );
+      if (error) throw new Error(error.message);
+      if (!data?.scorecard) return null;
+      return {
+        owner_id: '',
+        candidate_id: '',
+        brief_id: null,
+        share_token: '',
+        share_token_active: false,
+        ...data.scorecard,
+      } as Scorecard;
     },
     enabled: Boolean(shareToken),
     retry: false,
@@ -95,6 +105,7 @@ export function useCreateScorecard() {
           share_token: crypto.randomUUID(),
           share_token_active: true,
         },
+        wisehireOwnerPermissions(user.id),
       );
 
       return docToScorecard(doc);

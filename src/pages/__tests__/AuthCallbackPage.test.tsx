@@ -30,7 +30,7 @@ describe('AuthCallbackPage Page', () => {
     });
     vi.mocked(useAuth).mockReturnValue({
       refreshSession: mockRefreshSession,
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     renderWithProviders(<AuthCallbackPage />);
 
@@ -50,7 +50,7 @@ describe('AuthCallbackPage Page', () => {
     const mockRefreshSession = vi.fn().mockResolvedValue(null);
     vi.mocked(useAuth).mockReturnValue({
       refreshSession: mockRefreshSession,
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     renderWithProviders(<AuthCallbackPage />, { initialPath: '/auth/callback' });
 
@@ -65,7 +65,7 @@ describe('AuthCallbackPage Page', () => {
     const mockRefreshSession = vi.fn().mockResolvedValue(null);
     vi.mocked(useAuth).mockReturnValue({
       refreshSession: mockRefreshSession,
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     renderWithProviders(<AuthCallbackPage />, { initialPath: '/ar/auth/callback' });
 
@@ -81,7 +81,7 @@ describe('AuthCallbackPage Page', () => {
       refreshSession: vi.fn().mockResolvedValue({
         id: 'user-abc', email: 'user@example.com', name: 'John Doe',
       }),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
     vi.mocked(upsertProfileIdentity)
       .mockRejectedValueOnce(new Error('profiles unavailable'))
       .mockResolvedValueOnce('profile-123');

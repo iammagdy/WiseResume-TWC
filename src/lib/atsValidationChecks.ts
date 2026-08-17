@@ -79,11 +79,11 @@ const ACTION_VERBS = new Set([
 
 const FIRST_PERSON = /\b(I|me|my|mine|myself)\b/i;
 
-const SPECIAL_CHARS = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}★☆●○◆◇▪▫►◄♦♠♣♥♤♡✿❀✦✧⬤⬥§†‡※¶]/u;
+const SPECIAL_CHARS = /(?:\p{Extended_Pictographic}|\u200D|\u20E3|\uFE0E|\uFE0F|[★☆●○◆◇▪▫►◄♦♠♣♥♤♡✿❀✦✧⬤⬥§†‡※¶])/u;
 
 const QUANTIFIED = /\d+(\.\d+)?(%|\+|x|k|m|bn?|million|billion|thousand|hundred)?/i;
 
-const PHONE_REGEX = /(?:\+?\d[\d\s\-\(\)\.]{6,}\d|\(\d{3}\)\s*\d{3}[\s\-]\d{4}|\d{3}[\s\-\.]\d{3}[\s\-\.]\d{4})/;
+const PHONE_REGEX = /(?:\+?\d[\d\s().-]{6,}\d|\(\d{3}\)\s*\d{3}[\s-]\d{4}|\d{3}[\s.-]\d{3}[\s.-]\d{4})/;
 
 function detectDateFormat(dateStr: string): string | null {
   if (!dateStr || dateStr.toLowerCase() === 'present' || dateStr.toLowerCase() === 'current') return 'present';

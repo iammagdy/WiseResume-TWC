@@ -193,7 +193,7 @@ export function ActivityInsightsCard({ stats }: Props) {
           <Lightbulb className="w-4 h-4 text-primary" />
         </div>
         <p className="text-sm font-semibold">
-          {t('app.applicationsPageCopy.insights.title', 'AI Insights')}
+          {t('app.applicationsPageCopy.insights.title', 'Activity insights')}
         </p>
       </div>
       <div className="space-y-2">

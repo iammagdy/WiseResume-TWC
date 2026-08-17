@@ -600,7 +600,6 @@ export default function UploadPage() {
         <ATSValidationChecklist
           open={showValidationChecklist}
           parsedData={validationResumeData}
-          atsScore={importATSScore}
           onContinue={handleValidationContinue}
           onBack={handleValidationBack}
         />

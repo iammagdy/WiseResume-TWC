@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import { useJobMutations } from './useJobs';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { useAIAction } from './useAIAction';
 
 export interface ParsedJobImport {
   title: string;
@@ -23,6 +24,7 @@ export function useImportJob() {
   const { user } = useAuth();
   const { createJob } = useJobMutations();
   const queryClient = useQueryClient();
+  const { execute: executeAI } = useAIAction({ operation: 'parse-job' });
 
   return useMutation({
     mutationFn: async (url: string) => {
@@ -30,17 +32,23 @@ export function useImportJob() {
         throw new Error('Sign in to import job postings.');
       }
 
-      const result = await appwriteFunctions.invoke<{
-        ok: boolean;
-        jobId: string | null;
-        job: ParsedJobImport;
-        persisted?: boolean;
-        fallbackRequired?: boolean;
-        reason?: string | null;
-        error?: string;
-      }>('job-import', {
-        body: { url, userId: user.id },
-      });
+      const result = await executeAI(
+        () => appwriteFunctions.invoke<{
+          ok: boolean;
+          jobId: string | null;
+          job: ParsedJobImport;
+          persisted?: boolean;
+          fallbackRequired?: boolean;
+          reason?: string | null;
+          error?: string;
+        }>('job-import', {
+          // The authenticated server session owns user identity. Reader-proxy
+          // fallback is allowed only after useAIAction's disclosure is accepted.
+          body: { url, allowReaderProxy: true },
+        }),
+        { silent: true },
+      );
+      if (!result) throw new Error('Job import canceled before data was shared.');
 
       if (result.error || !result.data?.ok) {
         throw new Error(result.data?.error || result.error?.message || 'Import failed');

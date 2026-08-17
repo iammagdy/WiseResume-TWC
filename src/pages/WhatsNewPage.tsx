@@ -41,8 +41,8 @@ const changelog: ChangelogEntry[] = [
     description:
       "We've quietly upgraded the security layers across WiseResume. Your public portfolio page and your personal data are better protected than ever — and none of it changes anything about how you use the app.",
     highlights: [
-      'Your contact details on your portfolio are now shielded from unwanted bots and scrapers',
-      'New safeguards make it harder for automated tools to interact with your public page',
+      'Contact details on public portfolios use controls that reduce casual automated collection',
+      'Rate limits and validation reduce abusive automated interactions with public pages',
       'Continuous behind-the-scenes improvements to keep everything running safely and reliably',
     ],
   },
@@ -59,7 +59,7 @@ const changelog: ChangelogEntry[] = [
     highlights: [
       'When AI isn\'t set up yet, you\'ll see a clear message with a direct "Open Settings" button instead of a confusing error',
       'PDF exports no longer split sections awkwardly mid-page — your resume flows cleanly from one page to the next',
-      'AI features now automatically recover if your sign-in session refreshes in the background, so you\'re never interrupted mid-task',
+      'Eligible AI requests retry after a background sign-in refresh; network and provider failures can still require another attempt',
     ],
   },
   {
@@ -71,9 +71,9 @@ const changelog: ChangelogEntry[] = [
     icon: Gauge,
     title: 'The App Feels Faster',
     description:
-      'We made major speed improvements across the whole app. Pages load quicker, AI responds faster, and moving between tools feels instant — no waiting around.',
+      'We reduced avoidable loading and navigation work across the app. Actual response time still depends on the device, network, and AI provider.',
     highlights: [
-      'Everything loads noticeably faster than before',
+      'Reduced work on common page loads',
       'Smoother transitions when switching between pages',
       'Better performance on older devices and slower internet connections',
     ],
@@ -85,12 +85,12 @@ const changelog: ChangelogEntry[] = [
     tagText: 'text-violet-600 dark:text-violet-400',
     iconBg: 'bg-violet-500/15',
     icon: BookOpen,
-    title: 'Browse Real Resume Examples',
+    title: 'Browse Practical Resume Examples',
     description:
-      'Not sure how your resume should look? The new Examples Gallery shows real, anonymized resumes for different job types and industries — so you can see what works before you write.',
+      'Not sure how your resume should look? The Examples Gallery provides curated sample resumes for different job types and industries, so you can compare structures before you write.',
     highlights: [
       'Browse examples by job title or industry',
-      'See how others structure their work history and skills',
+      'Compare ways to structure work history and skills',
       'Use any example as inspiration when building your own resume',
     ],
   },
@@ -102,13 +102,13 @@ const changelog: ChangelogEntry[] = [
     tagText: 'text-rose-600 dark:text-rose-400',
     iconBg: 'bg-rose-500/15',
     icon: Target,
-    title: 'Your Resume is Read More Accurately',
+    title: 'Broader Resume Parsing Support',
     description:
-      'We improved how WiseResume reads and understands your resume. It now correctly handles more formats, different date styles, and a wider range of section headings — so nothing important gets missed.',
+      'We expanded the formats, date styles, and section headings the parser recognizes. You should still review imported content because no parser can recover every layout perfectly.',
     highlights: [
-      'Work history, projects, volunteer work, and awards are all picked up automatically',
+      'Recognizes more work-history, project, volunteer, and award sections when headings and text are identifiable',
       'See exactly which keywords your resume has — and which ones are missing for each job',
-      'A backup system keeps everything running even when AI services have downtime',
+      'A local fallback preserves basic parsing when an AI provider is unavailable',
     ],
   },
   {
@@ -134,12 +134,12 @@ const changelog: ChangelogEntry[] = [
     tagText: 'text-blue-600 dark:text-blue-400',
     iconBg: 'bg-blue-500/15',
     icon: Bot,
-    title: 'Faster, Smarter AI',
+    title: 'Updated AI Routing',
     description:
-      'We upgraded the AI powering WiseResume. Suggestions, rewrites, and feedback now arrive faster and with noticeably better quality across every feature.',
+      'We updated AI routing and response handling across suggestions, rewrites, and feedback. Availability and response quality can still vary by request and provider.',
     highlights: [
       'AI responses are quicker across the whole app',
-      'Better results for resume rewrites, cover letters, and interview coaching',
+      'More structured outputs for resume rewrites, cover letters, and interview coaching',
       'Option to connect your own account for more AI usage per day',
     ],
   },
@@ -156,7 +156,7 @@ const changelog: ChangelogEntry[] = [
     highlights: [
       'Animated sky effect that changes with light and dark mode',
       'Subtle depth as you move your mouse for a premium feel',
-      'Lightweight on mobile — no extra battery drain',
+      'Reduced or disabled heavier animation effects on smaller devices',
     ],
   },
   {
@@ -172,7 +172,7 @@ const changelog: ChangelogEntry[] = [
     highlights: [
       'Anyone who visits your portfolio can ask it questions about you',
       'See your total view count right from your portfolio dashboard',
-      'A great way to impress recruiters and stand out from other candidates',
+      'Lets visitors explore the public information you choose to publish',
     ],
   },
   {
@@ -182,12 +182,12 @@ const changelog: ChangelogEntry[] = [
     tagText: 'text-amber-600 dark:text-amber-400',
     iconBg: 'bg-amber-500/15',
     icon: BarChart3,
-    title: 'Research Any Company in Seconds',
+    title: 'Build a Source-Based Company Prep Brief',
     description:
-      'Walking into an interview unprepared is risky. The new Company Briefing tool gives you a complete overview of any company — their story, culture, what employees say, and more.',
+      'Turn company notes or a job posting into an organized interview-prep draft. The tool does not browse the web, so you stay in control of the source material.',
     highlights: [
-      'Search any company by name, or paste a job posting to get started',
-      'Get insights on company culture, products, and what to expect in the role',
+      'Add a company name plus verified notes, or paste a job posting',
+      'Organize only source-supported company details and reviewable interview prompts',
       'Export a clean PDF summary to review before your interview',
     ],
   },
@@ -198,9 +198,9 @@ const changelog: ChangelogEntry[] = [
     tagText: 'text-amber-600 dark:text-amber-400',
     iconBg: 'bg-amber-500/15',
     icon: Wand2,
-    title: 'Tailor Your Resume for Any Job in 30 Seconds',
+    title: 'Review Job-Aligned Resume Suggestions',
     description:
-      'Paste a job description and watch AI rewrite your resume to match it — instantly. A new AI hub brings all your career tools together in one convenient place.',
+      'Paste a job description to receive source-grounded rewrite suggestions you can review before applying. Generation time varies by provider and request size.',
     highlights: [
       'Paste any job posting to get a version of your resume tailored specifically for it',
       'See a side-by-side before-and-after so you can review every change',
@@ -319,7 +319,7 @@ const changelog: ChangelogEntry[] = [
     highlights: [
       'Multiple styles to suit different industries and career stages',
       'Switch templates any time without losing your content',
-      'Every template is designed to pass recruiter screening and look great as a PDF',
+      'Includes readable layouts and PDF export options; no template can guarantee employer-system acceptance',
     ],
   },
   // ── November 2025 ───────────────────────────────────────────
@@ -332,10 +332,10 @@ const changelog: ChangelogEntry[] = [
     icon: PenLine,
     title: 'Write a Cover Letter in Minutes',
     description:
-      'Getting a great cover letter used to take hours. Now AI writes a personalized one for you, matched to the job you\'re applying for — ready in under a minute.',
+      'Use your resume and a pasted job description to draft a personalized cover letter, then review and edit every claim before sending.',
     highlights: [
       'Tailored to the job description you paste in',
-      'Matches the tone and keywords recruiters are looking for',
+      'Uses relevant wording found in the job description without claiming to know a recruiter\'s preferences',
       'Edit it to your liking and download as a PDF',
     ],
   },
@@ -352,7 +352,7 @@ const changelog: ChangelogEntry[] = [
     highlights: [
       'Switch between light and dark mode with one tap',
       'Your theme choice carries across the entire app',
-      'Your preference is remembered automatically on every device',
+      'Your preference is remembered in supported app storage on the current browser or installed app',
     ],
   },
   // ── October 2025 ────────────────────────────────────────────
@@ -367,7 +367,7 @@ const changelog: ChangelogEntry[] = [
     description:
       'The first version of WiseResume goes live! Build and improve your resume with AI guidance, check how well it matches any job, and export a polished PDF — all in one place.',
     highlights: [
-      'Live score that shows how well your resume fits a job as you write',
+      'Local readiness checks plus job-description keyword comparison',
       'One click to improve any section with AI',
       'Professional PDF export in multiple styles',
     ],
@@ -515,9 +515,9 @@ export default function WhatsNewPage() {
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Rocket className="w-5 h-5 text-primary" />
           </div>
-          <h2 className="text-xl font-bold mb-2">We ship new features every week</h2>
+          <h2 className="text-xl font-bold mb-2">Follow product updates</h2>
           <p className="text-muted-foreground text-sm mb-6 max-w-xs mx-auto leading-relaxed">
-            Sign up free to use all of these features and be the first to try what's coming next.
+            Sign up to use features available on your plan and review new releases as they ship.
           </p>
           {isAuthenticated ? (
             <button

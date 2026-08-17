@@ -30,7 +30,7 @@ export const PLAN_FEATURE_LABELS: Record<PlanKey, string[]> = {
   free: [
     '1 resume',
     'Basic AI suggestions',
-    'ATS score check',
+    'Resume readiness check',
     'PDF export',
     'Portfolio site',
   ],

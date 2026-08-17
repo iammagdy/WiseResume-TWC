@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { Sparkles } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
@@ -136,24 +135,6 @@ export function AvatarCropSheet({ open, onOpenChange, imageFile, onComplete }: A
                   Drag to reposition • Resize corners to adjust
                 </p>
 
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    haptics.light();
-                    toast('AI Professional Headshot is coming soon!', {
-                      description:
-                        'A future update will let you transform your photo into a polished headshot with business attire.',
-                    });
-                  }}
-                  className="mt-2 gap-2"
-                  type="button"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  AI Professional Headshot
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                    Coming Soon
-                  </span>
-                </Button>
               </>
             ) : (
               <div className="flex items-center justify-center h-40">

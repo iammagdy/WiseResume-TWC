@@ -1,5 +1,6 @@
 import type { AITestProvider } from './aiTestSlotModels';
 
+export type BackendSlotTestStatus =
   | 'success'
   | 'key_missing'
   | 'missing_key'

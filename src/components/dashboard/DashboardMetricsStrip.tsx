@@ -147,15 +147,15 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
         aria-live="polite"
         aria-atomic="false"
       >
-        {/* ── ATS Score ── sparkline + crimson value + trend delta */}
+        {/* ── Resume readiness ── local rubric average and trend */}
         <button
           type="button"
           className="dashboard-metrics-strip__card dashboard-metrics-strip__card--clickable rounded-2xl px-3.5 py-3 min-w-0 text-left w-full transition-colors hover:border-border/80 hover:bg-card/90 active:scale-[0.99] touch-manipulation"
-          aria-label={t('app.dashboardPage.viewAtsScoresAria', 'View ATS scores for all resumes')}
+          aria-label={t('app.dashboardPage.viewAtsScoresAria', 'View readiness checks for all resumes')}
           onClick={() => openDialog('ats')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardStats.atsAverage', 'ATS Score (Avg.)')}</p>
+            <p className="text-xs font-medium text-muted-foreground leading-tight truncate">{t('app.dashboardStats.atsAverage', 'Resume readiness')}</p>
             <span className={cn('dashboard-metrics-strip__icon-box flex items-center justify-center w-8 h-8 rounded-lg border shrink-0', TONE_STYLES.ats.iconBg)}>
               <Activity className={cn('w-4 h-4', TONE_STYLES.ats.icon)} aria-hidden />
             </span>
@@ -172,7 +172,7 @@ export const DashboardMetricsStrip = memo(function DashboardMetricsStrip({
                 <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
                   {scoredResumeCount > 0
                     ? t('app.dashboardPage.acrossResumesCount', 'Across {{count}} resume{{suffix}}', { count: scoredResumeCount, suffix: scoredResumeCount !== 1 ? 's' : '' })
-                    : isScoring ? t('app.dashboardPage.scoringResumes', 'Scoring resumes…') : t('app.dashboardPage.runAtsOnResumes', 'Run ATS on your resumes')}
+                    : isScoring ? t('app.dashboardPage.scoringResumes', 'Checking resumes…') : t('app.dashboardPage.runAtsOnResumes', 'Check resume readiness')}
                 </p>
               )}
             </div>

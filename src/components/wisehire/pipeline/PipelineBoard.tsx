@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PipelineColumn } from './PipelineColumn';
 import { CandidateCard } from './CandidateCard';
 import { CandidateDetailPanel } from './CandidateDetailPanel';
@@ -22,15 +22,15 @@ interface PipelineBoardProps {
   biasMode?: boolean;
 }
 
-function exportPipelineCSV(candidates: PipelineCandidate[]) {
+function exportPipelineCSV(candidates: PipelineCandidate[], hideIdentifiers: boolean) {
   const STAGE_LABELS: Record<string, string> = {
     shortlisted: 'Shortlisted', contacted: 'Contacted', interviewing: 'Interviewing',
     offer_sent: 'Offer Sent', hired: 'Hired', rejected: 'Rejected',
   };
-  const headers = ['Name', 'Email', 'Stage', 'Role', 'Match Score (%)', 'Date Added'];
+  const headers = ['Name', 'Email', 'Stage', 'Role', 'Evidence Alignment (%)', 'Date Added'];
   const rows = candidates.map((c) => [
-    c.name,
-    c.email ?? '',
+    hideIdentifiers ? `Candidate #${c.id.slice(-4).toUpperCase()}` : c.name,
+    hideIdentifiers ? '' : (c.email ?? ''),
     STAGE_LABELS[c.pipeline_stage] ?? c.pipeline_stage,
     c.role?.title ?? '',
     c.brief?.match_score?.toString() ?? '',
@@ -43,7 +43,7 @@ function exportPipelineCSV(candidates: PipelineCandidate[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `pipeline_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `pipeline_${hideIdentifiers ? 'identifier-hidden_' : ''}export_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -51,6 +51,10 @@ function exportPipelineCSV(candidates: PipelineCandidate[]) {
 export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: PipelineBoardProps) {
   const { data: candidates = [], isLoading, updatePipelineStage, bulkUpdatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId, clientId);
   const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
+
+  useEffect(() => {
+    if (biasMode) setSelectedCandidate(null);
+  }, [biasMode]);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [defaultStage, setDefaultStage] = useState<PipelineStage | undefined>(undefined);
   const dragState = useRef<DragState>({ candidateId: null, fromStage: null });
@@ -250,11 +254,11 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
               {candidates.length > 0 && (
                 <Button
                   variant="outline"
-                  onClick={() => exportPipelineCSV(candidates)}
+                  onClick={() => exportPipelineCSV(candidates, biasMode)}
                   className="h-8 text-xs font-semibold gap-1.5"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Export CSV
+                  {biasMode ? 'Export Identifier-Hidden CSV' : 'Export CSV'}
                 </Button>
               )}
               <Button
@@ -326,7 +330,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
                             key={c.id}
                             candidate={c}
                             onClick={() => {
-                              if (selectionMode) return;
+                              if (selectionMode || biasMode) return;
                               setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
                             }}
                             onDragStart={dragHandlers.onDragStart(c.id, stage.id)}
@@ -364,7 +368,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
                 stage={stage}
                 candidates={stageMap[stage.id] ?? []}
                 onCandidateClick={(c) => {
-                  if (selectionMode) return;
+                  if (selectionMode || biasMode) return;
                   setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
                 }}
                 dragHandlers={dragHandlers}

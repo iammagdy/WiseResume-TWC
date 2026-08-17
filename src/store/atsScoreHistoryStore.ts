@@ -1,20 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { ResumeHealthScore } from '@/hooks/useResumeScore';
 
 const EMPTY_HISTORY: ScoreHistoryEntry[] = [];
 
 export interface ScoreHistoryEntry {
   score: number;
   timestamp: string;
-  categories: {
-    keywordOptimization: number;
-    contentQuality: number;
-    sectionStructure: number;
-    parsability: number;
-    contactCompleteness: number;
-    lengthDensity: number;
-    templateFriendliness: number;
-  };
+  basis: ResumeHealthScore['scoreBasis'];
+  categories: ResumeHealthScore['categories'];
 }
 
 interface ATSScoreHistoryState {
@@ -34,19 +28,18 @@ export const useATSScoreHistoryStore = create<ATSScoreHistoryState>()(
           const current = state.history[resumeId] || [];
           // Deduplicate: skip if latest entry has identical scores
           const last = current[current.length - 1];
-          if (last && last.score === overallScore &&
-              last.categories.keywordOptimization === categories.keywordOptimization &&
-              last.categories.contentQuality === categories.contentQuality &&
-              last.categories.sectionStructure === categories.sectionStructure &&
-              last.categories.parsability === categories.parsability &&
+          if (last && last.basis === 'resume-completeness-v1' && last.score === overallScore &&
               last.categories.contactCompleteness === categories.contactCompleteness &&
-              last.categories.lengthDensity === categories.lengthDensity &&
-              last.categories.templateFriendliness === categories.templateFriendliness) {
+              last.categories.summaryCompleteness === categories.summaryCompleteness &&
+              last.categories.experienceCompleteness === categories.experienceCompleteness &&
+              last.categories.educationCompleteness === categories.educationCompleteness &&
+              last.categories.skillsCompleteness === categories.skillsCompleteness) {
             return state; // No change, skip duplicate
           }
           const newEntry: ScoreHistoryEntry = {
             score: overallScore,
             timestamp: new Date().toISOString(),
+            basis: 'resume-completeness-v1',
             categories,
           };
           return {
@@ -67,6 +60,12 @@ export const useATSScoreHistoryStore = create<ATSScoreHistoryState>()(
         });
       },
     }),
-    { name: 'wr-ats-score-history' }
+    {
+      name: 'wr-ats-score-history',
+      version: 2,
+      // Version 1 stored heuristic fields under ATS labels. Do not carry those
+      // misleading trend points into the explicit readiness rubric.
+      migrate: () => ({ history: {} }),
+    }
   )
 );

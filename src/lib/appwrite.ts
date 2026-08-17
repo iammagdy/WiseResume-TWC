@@ -33,7 +33,12 @@ export const client = new Client()
 
 // 2b. Harden Realtime WebSocket creation against DOMException (SecurityError: The operation is insecure)
 // WebKit / Chrome Mobile iOS throws DOMException code 18 if WebSockets are restricted or insecure.
-const realtime = (client as any).realtime;
+interface AppwriteRealtimeTransport {
+  createSocket?: () => void;
+  connect?: () => void;
+}
+
+const realtime = (client as unknown as { realtime?: AppwriteRealtimeTransport }).realtime;
 if (realtime) {
   if (typeof realtime.createSocket === 'function') {
     const originalCreateSocket = realtime.createSocket.bind(realtime);

@@ -1109,11 +1109,9 @@ async function handleListSignups(body, log) {
   };
 }
 
-async function handleSendWisehireInvite(body, log) {
-  const { databases } = getClients();
-  const email = String(body.recipient_email || body.target_email || '').trim().toLowerCase();
-  if (!email) throw new Error('Missing recipient email');
-
+async function createWisehireInvite(databases, emailValue, targetUserId = null) {
+  const email = String(emailValue || '').trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('A valid recipient email is required');
   const token = crypto.randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
   const inviteUrl = `${PRODUCTION_URL}/wisehire/signup?invite=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
@@ -1124,14 +1122,36 @@ async function handleSendWisehireInvite(body, log) {
     status: 'pending',
     expires_at: expiresAt,
     created_at: isoNow(),
-    target_user_id: body.target_user_id || null,
-  }).catch(async () => {
-    await databases.createDocument(DB_ID, 'wisehire_invites', sdk.ID.unique(), {
-      email,
-      token,
-      expires_at: expiresAt,
-    });
+    target_user_id: targetUserId || null,
   });
+
+  return { email, token, expiresAt, inviteUrl };
+}
+
+function buildWisehireApprovalAction(email, existingUserId, inviteUrl = '') {
+  if (existingUserId) {
+    const redirect = encodeURIComponent('/wisehire/signup');
+    return {
+      actionUrl: `${PRODUCTION_URL}/auth?mode=login&email=${encodeURIComponent(email)}&redirect=${redirect}`,
+      actionLabel: 'Sign in to WiseHire',
+      bodyText: 'Great news — your WiseHire waitlist application has been approved. Sign in with the approved email to finish company setup and start your trial.',
+    };
+  }
+  if (!inviteUrl) throw new Error('A signup invitation URL is required for a new WiseHire user');
+  return {
+    actionUrl: inviteUrl,
+    actionLabel: 'Create your WiseHire account',
+    bodyText: 'Great news — your WiseHire waitlist application has been approved. Use this private invitation to create your account and finish company setup.',
+  };
+}
+
+async function handleSendWisehireInvite(body, log) {
+  const { databases } = getClients();
+  const { email, expiresAt, inviteUrl } = await createWisehireInvite(
+    databases,
+    body.recipient_email || body.target_email,
+    body.target_user_id || null,
+  );
 
   let emailSent = false;
   if (process.env.RESEND_API_KEY) {
@@ -1491,12 +1511,61 @@ async function handleListDiscountCodes(log) {
   return { codes: res.documents, total: res.total };
 }
 
+function normalizeDiscountCodeInput(body) {
+  const code = String(body.code || '').trim().toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9_-]{2,63}$/.test(code)) {
+    throw new Error('Coupon code must be 3-64 letters, numbers, underscores, or hyphens.');
+  }
+  const planOverride = String(body.plan_override || '').trim().toLowerCase();
+  if (!['pro', 'premium'].includes(planOverride)) {
+    throw new Error('Coupon plan must be Pro or Premium.');
+  }
+  const planDays = Number(body.plan_days);
+  if (!Number.isInteger(planDays) || planDays < 1 || planDays > 365) {
+    throw new Error('Coupon duration must be a whole number from 1 to 365 days.');
+  }
+  const maxUses = Number(body.max_uses ?? 0);
+  if (!Number.isInteger(maxUses) || maxUses < 0 || maxUses > 1_000_000) {
+    throw new Error('Maximum uses must be 0 (unlimited) or a whole number up to 1,000,000.');
+  }
+  const percentOff = Number(body.percent_off ?? 100);
+  if (!Number.isInteger(percentOff) || percentOff < 0 || percentOff > 100) {
+    throw new Error('Discount percentage must be a whole number from 0 to 100.');
+  }
+
+  let expiresAt;
+  if (body.expires_at) {
+    const expiryMs = new Date(body.expires_at).getTime();
+    if (!Number.isFinite(expiryMs) || expiryMs <= Date.now()) {
+      throw new Error('Coupon expiry must be a valid future date.');
+    }
+    expiresAt = new Date(expiryMs).toISOString();
+  }
+
+  return {
+    code,
+    active: body.active !== false,
+    percent_off: percentOff,
+    discount_type: 'percent',
+    discount_value: percentOff,
+    plan_override: planOverride,
+    plan_days: planDays,
+    max_uses: maxUses,
+    uses_count: 0,
+    ...(expiresAt ? { expires_at: expiresAt } : {}),
+  };
+}
+
 async function handleAddDiscountCode(body, log) {
   const { databases } = getClients();
-  const code = String(body.code || '').trim().toUpperCase();
-  if (!code) throw new Error('Missing or empty code');
-  const doc = await databases.createDocument(DB_ID, 'discount_codes', sdk.ID.unique(), { code, active: body.active !== false, percent_off: Number(body.percent_off) || 100 });
-  await auditLog(databases, 'add-discount-code', { code });
+  const payload = normalizeDiscountCodeInput(body);
+  const doc = await databases.createDocument(DB_ID, 'discount_codes', sdk.ID.unique(), payload);
+  await auditLog(databases, 'add-discount-code', {
+    code: payload.code,
+    plan_override: payload.plan_override,
+    plan_days: payload.plan_days,
+    max_uses: payload.max_uses,
+  });
   return { code: doc };
 }
 
@@ -1616,6 +1685,15 @@ async function sendPlanUpgradeEmail(userId, planLabel, durationLabel, log) {
   } catch (err) {
     log(`[warn] sendPlanUpgradeEmail failed (non-fatal): ${err.message}`);
   }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function buildBrandedEmail({
@@ -2470,7 +2548,9 @@ async function handleApproveWisehireWaitlist(body, log) {
 
   // Step 2: Provision WiseHire access for an existing user.
   // Errors here are fatal â€” the waitlist entry is preserved for admin retry.
-  let approvalOutcome = 'fresh_invite_sent';
+  let approvalOutcome = 'fresh_invite_created';
+  let inviteUrl = '';
+  let inviteExpiresAt = null;
   if (existingUserId) {
     const profile = await getProfileDoc(databases, existingUserId);
     if (profile) {
@@ -2500,6 +2580,11 @@ async function handleApproveWisehireWaitlist(body, log) {
     }
 
     approvalOutcome = 'existing_user_upgraded';
+  } else {
+    const invitation = await createWisehireInvite(databases, email);
+    inviteUrl = invitation.inviteUrl;
+    inviteExpiresAt = invitation.expiresAt;
+    log(`approve-wisehire-waitlist: created invitation for ${email}`);
   }
 
   // Step 3: Send approval email â€” sign-in link for existing users, sign-up link for new.
@@ -2509,19 +2594,7 @@ async function handleApproveWisehireWaitlist(body, log) {
     const fromName  = process.env.RESEND_FROM_NAME  || 'WiseHire';
     const fromAddr  = `${fromName} <${fromEmail}>`;
 
-    let actionUrl;
-    let actionLabel;
-    let bodyText;
-
-    if (existingUserId) {
-      actionUrl   = `${PRODUCTION_URL}/auth/sign-in`;
-      actionLabel = 'Sign in to WiseHire';
-      bodyText    = `Great news â€” your WiseHire waitlist application has been approved! Your existing account has been upgraded with recruiter access. Sign in now to start finding and screening top talent.`;
-    } else {
-      actionUrl   = `${PRODUCTION_URL}/auth/sign-up?email=${encodeURIComponent(email)}&product=wisehire`;
-      actionLabel = 'Create your WiseHire account';
-      bodyText    = `Great news â€” your WiseHire waitlist application has been approved! Click the link below to create your account and start using WiseHire to find and screen top talent.`;
-    }
+    const { actionUrl, actionLabel, bodyText } = buildWisehireApprovalAction(email, existingUserId, inviteUrl);
 
     await resendRequest('POST', '/emails', {
       from: fromAddr,
@@ -2530,7 +2603,7 @@ async function handleApproveWisehireWaitlist(body, log) {
       html: buildBrandedEmail({
         logoLabel: 'WiseHire',
         heading: "You're in! Welcome to WiseHire",
-        bodyHtml: `<p style="margin:0 0 16px;color:#374151;">Hi ${name},</p><p style="margin:0 0 16px;color:#374151;">${bodyText}</p><p style="margin:0;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p>`,
+        bodyHtml: `<p style="margin:0 0 16px;color:#374151;">Hi ${escapeHtml(name)},</p><p style="margin:0 0 16px;color:#374151;">${bodyText}</p><p style="margin:0;color:#6b7280;font-size:14px;">If you have any questions, reply to this email and we'll be happy to help.</p>`,
         ctaLabel: actionLabel,
         ctaUrl: actionUrl,
       }),
@@ -2556,9 +2629,18 @@ async function handleApproveWisehireWaitlist(body, log) {
     emailSent,
     outcome: approvalOutcome,
     existing_user_id: existingUserId,
+    invite_expires_at: inviteExpiresAt,
   });
   log(`approve-wisehire-waitlist: approved ${waitlist_id} (${email}) â†’ ${approvalOutcome}`);
-  return { approved: true, email, emailSent, outcome: approvalOutcome, existingUserId };
+  return {
+    approved: true,
+    email,
+    emailSent,
+    outcome: approvalOutcome,
+    existingUserId,
+    invite_url: inviteUrl || null,
+    invite_expires_at: inviteExpiresAt,
+  };
 }
 
 async function handleDismissWisehireWaitlist(body, log) {
@@ -3367,6 +3449,9 @@ module.exports = async ({ req, res, log, error }) => {
 };
 
 module.exports._test = {
+  buildWisehireApprovalAction,
+  createWisehireInvite,
+  escapeHtml,
   deriveExactUserCounts,
   buildUsageStats,
   summarizeCompletionHealth,
@@ -3376,4 +3461,5 @@ module.exports._test = {
   handleSendAdminPasswordResetLink,
   normalizeBroadcastInput,
   toAdminBroadcast,
+  normalizeDiscountCodeInput,
 };

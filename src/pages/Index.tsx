@@ -241,7 +241,9 @@ const Index = () => {
      ScrollStack's per-frame card-transform loop skips its write pass
      so the brand/theme ripple doesn't contend for main-thread time. */
   type WinWithFlag = Window & { __lpTransition?: boolean };
-  const setTransitionFlag = (on: boolean) => { (window as WinWithFlag).__lpTransition = on; };
+  const setTransitionFlag = useCallback((on: boolean) => {
+    (window as WinWithFlag).__lpTransition = on;
+  }, []);
 
   /* Clearable timer so rapid repeated toggles don't leave the flag
      set indefinitely when the no-VT fallback path is used. */
@@ -249,7 +251,7 @@ const Index = () => {
   useEffect(() => () => {
     if (transitionFlagTimerRef.current !== null) clearTimeout(transitionFlagTimerRef.current);
     setTransitionFlag(false);
-  }, []);
+  }, [setTransitionFlag]);
 
   const clearFlagAfter = (ms = 600) => {
     if (transitionFlagTimerRef.current !== null) clearTimeout(transitionFlagTimerRef.current);

@@ -7,18 +7,24 @@ interface NetworkQuality {
   isSlow: boolean;
 }
 
+interface NetworkInformation extends EventTarget {
+  effectiveType?: EffectiveType;
+}
+
+type NavigatorWithConnection = Navigator & { connection?: NetworkInformation };
+
 /**
  * Reads navigator.connection.effectiveType to detect slow mobile connections.
  * Returns isSlow=true for 2g / slow-2g.
  */
 export function useNetworkQuality(): NetworkQuality {
   const [effectiveType, setEffectiveType] = useState<EffectiveType>(() => {
-    const conn = (navigator as any).connection;
+    const conn = (navigator as NavigatorWithConnection).connection;
     return conn?.effectiveType;
   });
 
   useEffect(() => {
-    const conn = (navigator as any).connection;
+    const conn = (navigator as NavigatorWithConnection).connection;
     if (!conn) return;
 
     const update = () => setEffectiveType(conn.effectiveType);

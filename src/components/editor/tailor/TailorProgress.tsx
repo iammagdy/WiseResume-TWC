@@ -21,9 +21,9 @@ const STEPS: { id: TailorStep | EnhancedTailorStep; label: string }[] = [
   { id: 'matching', label: 'Matching your experience' },
   { id: 'matching_experience', label: 'Matching experience' },
   { id: 'rewriting_summary', label: 'Crafting powerful summary' },
-  { id: 'optimizing_skills', label: 'Optimizing skills for ATS' },
+  { id: 'optimizing_skills', label: 'Aligning verified skills' },
   { id: 'transforming_bullets', label: 'Transforming achievements' },
-  { id: 'enhancing_experience', label: 'Enhancing with metrics' },
+  { id: 'enhancing_experience', label: 'Reviewing source-supported outcomes' },
   { id: 'calculating_ats', label: 'Calculating keyword match score' },
   { id: 'generating_interview_prep', label: 'Preparing interview tips' },
   { id: 'generating_recs', label: 'Generating recommendations' },
@@ -31,14 +31,14 @@ const STEPS: { id: TailorStep | EnhancedTailorStep; label: string }[] = [
 ];
 
 const FUN_FACTS = [
-  "💡 Tailored resumes are 3x more likely to get interviews",
-  "📊 75% of resumes never pass ATS screening",
-  "🎯 Hiring managers spend 7 seconds on initial resume review",
-  "✨ Action verbs increase resume effectiveness by 140%",
-  "🔑 Including metrics makes achievements 40% more compelling",
-  "🏆 Top resumes use 11-14 unique skills on average",
-  "📈 Quantified achievements get 40% more callbacks",
-  "🚀 Mirroring keywords from a job description boosts your keyword match score by 60%",
+  'AI suggestions remain a reviewable draft until you choose to apply them.',
+  'Tailoring preserves source IDs, dates, employers, titles, and links.',
+  'Missing skills remain recommendations, not claims about your experience.',
+  'Numbers must already exist in your source evidence or be provided by you.',
+  'Keyword overlap is not an employer ATS score or a selection guarantee.',
+  'Review every company name, date, skill, and outcome before applying changes.',
+  'You can accept or reject suggested changes before saving a tailored copy.',
+  'Your source resume remains the authority for every factual claim.',
 ];
 
 const getVisibleSteps = (currentStep: TailorStep | EnhancedTailorStep) => {
@@ -289,7 +289,7 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
                 <div className="flex items-center gap-2 text-sm">
                   <TrendingUp className="w-4 h-4 text-success" />
                   <span>
-                    Projected score: <strong>{projectedScore.before}%</strong> → <strong className="text-success">{projectedScore.after}%</strong>
+                    Keyword overlap estimate: <strong>{projectedScore.before}%</strong> → <strong className="text-success">{projectedScore.after}%</strong>
                     <span className="text-xs text-success ml-1">(+{projectedScore.after - projectedScore.before}%)</span>
                   </span>
                 </div>

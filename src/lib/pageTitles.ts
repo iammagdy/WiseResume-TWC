@@ -30,7 +30,7 @@ const PAGE_TITLES: [string, string][] = [
   ['/help', 'Help'],
   ['/analytics', 'Analytics'],
   ['/subscription', 'Subscription'],
-  ['/referral', 'Invite Friends'],
+  ['/referral', 'Share WiseResume'],
   ['/achievements', 'Achievements'],
   ['/dashboard', 'Dashboard'],
 ];

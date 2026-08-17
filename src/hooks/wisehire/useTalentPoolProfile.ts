@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { useAuth } from '@/hooks/useAuth';
+import { invokeWisehireAccess } from '@/lib/wisehire/wisehireAccessClient';
+import { wisehireOwnerPermissions } from '@/lib/wisehire/documentPermissions';
 import { toast } from 'sonner';
 import type { Models } from 'appwrite';
 
@@ -61,19 +63,12 @@ export function useMyTalentViews() {
     queryKey: ['talent-pool-views-me', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const profileRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_profiles, [
-        Query.equal('user_id', userId),
-        Query.limit(1),
-        Query.select(['$id']),
-      ]);
-      if (profileRes.total === 0) return [];
-      const profileId = profileRes.documents[0].$id;
-      const viewsRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.talent_pool_views, [
-        Query.equal('profile_id', profileId),
-        Query.orderDesc('viewed_at'),
-        Query.limit(50),
-      ]);
-      return viewsRes.documents.map((d) => ({ id: d.$id, viewed_at: d.viewed_at as string }));
+      const { data, error } = await invokeWisehireAccess<{ views: Array<{ id: string; viewed_at: string }> }>(
+        'talent-views-me',
+        {},
+      );
+      if (error) throw new Error(error.message);
+      return data?.views ?? [];
     },
     enabled: isAuthenticated && !!userId,
     staleTime: 30_000,
@@ -92,6 +87,10 @@ export function useUpsertTalentProfile() {
         ...updates,
         updated_at: new Date().toISOString(),
       };
+
+      if (!updates.full_name && user.name) {
+        payload.full_name = user.name.trim().slice(0, 256);
+      }
 
       if (updates.opted_in === true) {
         payload.opted_in_at = new Date().toISOString();
@@ -118,6 +117,7 @@ export function useUpsertTalentProfile() {
           COLLECTIONS.talent_pool_profiles,
           ID.unique(),
           { user_id: userId, ...payload },
+          wisehireOwnerPermissions(userId),
         );
         return docToProfile(doc);
       }

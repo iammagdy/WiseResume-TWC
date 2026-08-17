@@ -56,7 +56,7 @@ const SCREEN_MAP: { prefix: string; label: string }[] = [
   { prefix: '/subscription', label: 'Subscription' },
   { prefix: '/analytics', label: 'Analytics' },
   { prefix: '/achievements', label: 'Achievements' },
-  { prefix: '/referral', label: 'Referral' },
+  { prefix: '/referral', label: 'Share WiseResume' },
   { prefix: '/onboarding', label: 'Onboarding' },
 ];
 

@@ -1,12 +1,16 @@
-import { storage, Permission, Role } from '@/lib/appwrite';
+import { storage, ID, Permission, Role } from '@/lib/appwrite';
 import { BUCKETS } from '@/lib/appwrite-collections';
 
-/** Stable Appwrite file ID for a user's profile avatar (max 36 chars). */
+/** Legacy stable ID used only to find avatar files created by older releases. */
 export function avatarFileIdForUser(userId: string): string {
   return userId.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 36);
 }
 
-/** Permissions so avatar images load in `<img>` tags and on public portfolio pages. */
+/**
+ * Avatar images must load without an authenticated browser session on public
+ * portfolio pages and in exported documents. New file IDs are random and the
+ * upload UI discloses that anyone holding the direct URL can view the image.
+ */
 export function avatarFilePermissions(userId: string): string[] {
   return [
     Permission.read(Role.any()),
@@ -17,11 +21,32 @@ export function avatarFilePermissions(userId: string): string[] {
 
 /** Public view URL for an avatar file — usable in `<img>` without a session JWT. */
 export function getAvatarViewUrl(fileId: string): string {
-  // SDK v25: getFileView() returns a plain string URL (not a URL object).
   return storage.getFileView({ bucketId: BUCKETS.avatars, fileId });
 }
 
-/** Append a version token so browsers refresh after re-uploading the same file ID. */
+/** Extract an Appwrite avatar file ID only from this app's avatar bucket URL. */
+export function avatarFileIdFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url, typeof window === 'undefined' ? 'https://local.invalid' : window.location.origin);
+    const marker = `/storage/buckets/${encodeURIComponent(BUCKETS.avatars)}/files/`;
+    const markerIndex = parsed.pathname.indexOf(marker);
+    if (markerIndex < 0) return null;
+    const encodedId = parsed.pathname.slice(markerIndex + marker.length).split('/')[0];
+    return encodedId ? decodeURIComponent(encodedId) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteAvatarByUrl(url: string | null | undefined): Promise<boolean> {
+  const fileId = avatarFileIdFromUrl(url);
+  if (!fileId) return false;
+  await storage.deleteFile({ bucketId: BUCKETS.avatars, fileId });
+  return true;
+}
+
+/** Append a version token so browsers refresh after a profile update. */
 export function withAvatarCacheBust(url: string | null | undefined, version?: string | null): string | null {
   if (!url) return null;
   if (!version) return url;
@@ -30,52 +55,19 @@ export function withAvatarCacheBust(url: string | null | undefined, version?: st
 }
 
 /**
- * Upload (or replace) the user's profile avatar.
- * Files are world-readable so PlanAvatar, public portfolio, and PDF export can load them.
- *
- * Strategy: attempt createFile directly (fast path for first upload). If Appwrite
- * rejects with "already exists" it means a previous file occupies that ID and the
- * earlier deleteFile was blocked (e.g. File Security not enabled on the bucket, or
- * the old file was created without per-user delete permission). In that case we
- * force-delete the blocking file and retry once. This avoids the race window of
- * the old delete+create approach and works regardless of bucket security settings.
+ * Upload or replace the user's profile avatar. A random Appwrite ID keeps the
+ * public image URL from being derivable from the account ID. Callers persist the
+ * new URL before deleting any previous file so a failed profile save is recoverable.
  */
-export async function uploadUserAvatar(userId: string, blob: Blob): Promise<string> {
-  const fileId = avatarFileIdForUser(userId);
+export async function uploadUserAvatar(
+  userId: string,
+  blob: Blob,
+): Promise<string> {
+  const fileId = ID.unique();
   const file = new File([blob], 'avatar.png', { type: 'image/png' });
   const perms = avatarFilePermissions(userId);
 
-  const tryCreate = () =>
-    storage.createFile({ bucketId: BUCKETS.avatars, fileId, file, permissions: perms });
-
-  try {
-    await tryCreate();
-  } catch (firstErr) {
-    const alreadyExists =
-      firstErr instanceof Error &&
-      firstErr.message.toLowerCase().includes('already exists');
-
-    if (!alreadyExists) throw firstErr;
-
-    // Old file is blocking the upload — delete it then retry.
-    try {
-      await storage.deleteFile({ bucketId: BUCKETS.avatars, fileId });
-    } catch {
-      // If delete is also rejected (e.g. no File Security on bucket), fall back to
-      // a unique timestamp-based ID so the upload always succeeds.
-      const fallbackId = `${fileId.slice(0, 29)}_${Date.now().toString(36)}`.slice(0, 36);
-      await storage.createFile({
-        bucketId: BUCKETS.avatars,
-        fileId: fallbackId,
-        file,
-        permissions: perms,
-      });
-      return getAvatarViewUrl(fallbackId);
-    }
-
-    // Retry with the stable ID now that the old file is gone.
-    await tryCreate();
-  }
+  await storage.createFile({ bucketId: BUCKETS.avatars, fileId, file, permissions: perms });
 
   return getAvatarViewUrl(fileId);
 }

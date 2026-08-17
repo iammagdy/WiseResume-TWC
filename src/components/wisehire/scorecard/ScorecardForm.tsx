@@ -70,7 +70,7 @@ export function ScorecardForm({ scorecard, onSave, isSaving }: ScorecardFormProp
     setNotes(
       scorecard.notes?.length ? scorecard.notes : new Array(scorecard.questions.length).fill('')
     );
-  }, [scorecard.id]);
+  }, [scorecard.id, scorecard.notes, scorecard.questions.length, scorecard.ratings]);
 
   const isSubmitted = Boolean(scorecard.submitted_at);
   const filledCount = ratings.filter((r) => r !== null && r > 0).length;

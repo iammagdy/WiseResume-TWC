@@ -140,7 +140,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
       remaining: Math.max(0, safeLimit - used),
       footer: t('app.sidebar.resetsAtMidnight', 'Resets at midnight'),
     };
-  }, [credits, creditsLoading, isPremium, isActiveTrial, trialPlan, meData]);
+  }, [creditsLoading, isPremium, isActiveTrial, trialPlan, credits, meData?.subscription?.effective_plan, t]);
 
   const creditPct =
     creditDisplay && !creditDisplay.unlimited

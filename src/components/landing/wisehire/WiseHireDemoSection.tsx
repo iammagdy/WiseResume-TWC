@@ -1,7 +1,7 @@
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2, type LucideIcon } from 'lucide-react';
+import { Brain, Kanban, FileText, Upload, Archive, type LucideIcon } from 'lucide-react';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
 import { useLocale } from '@/i18n/LocaleProvider';
 
@@ -12,10 +12,9 @@ const PipelineDemo = lazyWithRetry(() => import('./PipelineDemo').then((m) => ({
 const JDDemo = lazyWithRetry(() => import('./JDDemo').then((m) => ({ default: m.JDDemo })));
 const BulkScreeningDemo = lazyWithRetry(() => import('./BulkScreeningDemo').then((m) => ({ default: m.BulkScreeningDemo })));
 const TalentPoolDemo = lazyWithRetry(() => import('./TalentPoolDemo').then((m) => ({ default: m.TalentPoolDemo })));
-const OfferTrackerDemo = lazyWithRetry(() => import('./OfferTrackerDemo').then((m) => ({ default: m.OfferTrackerDemo })));
 
 /* Phase 6: every demo slot is pinned to this exact height so the inner
-   demo's animations (typing text, score counter, ranked-results reveal,
+   demo's animations (typing text, evidence counter, review-results reveal,
    bulk-screening upload→results switch, etc.) cannot resize the card.
    ScrollStack measurements stay rock-stable, so the page never silently
    drifts while a user is reading another section. Sized to fit the
@@ -63,11 +62,10 @@ function LazyOnVisible({ children }: { children: React.ReactNode }) {
 }
 
 const DEMOS: { key: string; label: string; icon: LucideIcon; desc: string; Demo: ComponentType }[] = [
-  { key: 'brief', label: 'Brief Generator', icon: Brain, desc: 'AI reads a CV and produces a structured candidate brief with match score, strengths, red flags, and interview questions — in under 10 seconds.', Demo: BriefDemo },
-  { key: 'jd', label: 'JD Writer', icon: FileText, desc: 'Type a job title, click generate. AI writes a complete, bias-aware job description tailored to the role and your company voice.', Demo: JDDemo },
-  { key: 'bulk', label: 'Bulk Screening', icon: Upload, desc: 'Upload multiple CVs at once. AI scores and ranks every applicant against your role criteria — no manual reading required.', Demo: BulkScreeningDemo },
-  { key: 'pool', label: 'Talent Pool', icon: Archive, desc: 'Never lose a great candidate. Build a searchable pool of past applicants you can re-engage for future roles instantly.', Demo: TalentPoolDemo },
-  { key: 'offers', label: 'Offer Tracker', icon: CheckCircle2, desc: 'Track every offer from sent to signed. See salary, status, and next steps for each candidate in one live view.', Demo: OfferTrackerDemo },
+  { key: 'brief', label: 'Brief Generator', icon: Brain, desc: 'AI drafts a structured candidate brief from the CV and role evidence for recruiter review.', Demo: BriefDemo },
+  { key: 'jd', label: 'JD Writer', icon: FileText, desc: 'AI drafts a job description from supplied facts for a recruiter to verify before publishing.', Demo: JDDemo },
+  { key: 'bulk', label: 'Bulk Resume Review', icon: Upload, desc: 'Upload multiple CVs and review source-ordered evidence summaries. AI does not make the hiring decision.', Demo: BulkScreeningDemo },
+  { key: 'pool', label: 'Talent Pool', icon: Archive, desc: 'Search candidates your organization is authorized to retain and consider for future roles.', Demo: TalentPoolDemo },
   { key: 'pipeline', label: 'Pipeline Board', icon: Kanban, desc: 'Visualise your full hiring funnel with drag-and-drop kanban. Every candidate, every stage, every status — at a glance.', Demo: PipelineDemo },
 ];
 
@@ -117,7 +115,7 @@ export function WiseHireDemoSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            {t('landing.wisehire.watchAiHandle', 'Watch AI handle')} <span style={{ color: 'var(--lp-eyebrow)' }}>{t('landing.wisehire.theHeavyLifting', 'the heavy lifting')}</span>
+            {t('landing.wisehire.watchAiHandle', 'See the workflows')} <span style={{ color: 'var(--lp-eyebrow)' }}>{t('landing.wisehire.theHeavyLifting', 'with human review')}</span>
           </h2>
         </motion.div>
         <div
@@ -202,7 +200,7 @@ export function WiseHireDemoSection() {
               </div>
               {/* Phase 6 (Task #10 step 3): every demo slot is pinned to a
                   fixed height so the inner demo's animations (typing,
-                  score counter, upload→results swap, kanban move, etc.)
+                  evidence counter, upload→results swap, kanban move, etc.)
                   cannot change the card's measured height. ScrollStack
                   measurements stay stable and the page no longer drifts
                   while a demo's animation cycles. */}

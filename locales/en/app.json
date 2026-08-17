@@ -41,8 +41,8 @@
     "checklist": {
       "createResume": "Create your first resume",
       "createResumeDesc": "Build a professional resume to get started.",
-      "atsCheck": "Run an ATS check",
-      "atsCheckDesc": "See how well your resume scores with recruiters.",
+      "atsCheck": "Check resume readiness",
+      "atsCheckDesc": "See which core resume section to complete next.",
       "export": "Export your resume",
       "exportDesc": "Download your resume as PDF or PNG.",
       "targetJob": "Set a target job",
@@ -52,10 +52,10 @@
     },
     "searchPlaceholderCommand": "Search resumes, keywords, tools...",
     "toolbarSubtitle": "Here's what to improve next across your resumes and applications.",
-    "viewAtsScoresAria": "View ATS scores for all resumes",
+    "viewAtsScoresAria": "View readiness checks for all resumes",
     "acrossResumesCount": "Across {{count}} resume{{suffix}}",
-    "scoringResumes": "Scoring resumes…",
-    "runAtsOnResumes": "Run ATS on your resumes",
+    "scoringResumes": "Checking resumes…",
+    "runAtsOnResumes": "Check resume readiness",
     "vsLast7Days": "vs last 7 days",
     "viewTailoredResumesAria": "View tailored resumes",
     "thisWeek": "This week",
@@ -68,39 +68,37 @@
     "importPosting": "Import a posting",
     "aiWorkspace": "AI Workspace",
     "aiWorkspaceAria": "AI workspace",
-    "loadingScores": "Loading scores…",
+    "loadingScores": "Loading readiness checks…",
     "focus": "Focus:",
     "highestImpact": "Highest impact for your focus resume",
     "otherTools": "Other tools",
     "otherToolsDesc": "Different from your recommended step above",
     "recentActivity": "Recent Activity",
-    "footerEncrypted": "Your career data is encrypted, private, and never shared.",
+    "footerEncrypted": "Your career data is private by default; AI sharing happens only after disclosure.",
     "footerCompleteProfile": "Complete your profile for the best experience.",
     "activeResumePlaceholder": "your active resume",
-    "notScanned": "Not scanned",
-    "runFirstScan": "Run your first ATS scan",
-    "notScannedDesc": "“{{title}}” hasn't been scored yet. Scan once to unlock keyword gaps, weak bullets, and a ranked fix list.",
-    "scanPortfolio": "Scan portfolio",
-    "atsScore": "ATS {{score}}%",
+    "notScanned": "Not checked",
+    "runFirstScan": "Check resume readiness",
+    "notScannedDesc": "“{{title}}” has not been checked yet. Run the local check to see which core section to complete next.",
+    "scanPortfolio": "Check resume",
+    "atsScore": "Ready {{score}}%",
     "keywordGapsCount": "{{count}} keyword gaps",
-    "keywordGapsDesc": "“{{title}}” is at {{score}}% ATS. Prioritize: {{preview}}{{ellipsis}} for the fastest lift.",
+    "keywordGapsDesc": "“{{title}}” has {{count}} role terms to review: {{preview}}{{ellipsis}}.",
     "reviewGaps": "Review gaps",
-    "portfolioStrong": "Portfolio is in strong shape",
-    "portfolioStrongDesc": "“{{title}}” scores {{score}}% ({{topStrength}}). Tailor a copy for your next application to stay ahead.",
+    "portfolioStrong": "Resume is in strong shape",
+    "portfolioStrongDesc": "“{{title}}” is {{score}}% ready based on section completion ({{topStrength}}). Tailor a copy for your next application to stay ahead.",
     "tailorToJob": "Tailor to job",
-    "weakBulletsCount": "{{count}} bullets need metrics",
-    "weakBulletsDesc": "“{{title}}” has experience lines without strong action verbs or numbers. Fix these first for a faster ATS lift.",
-    "fixBullets": "Fix bullets now",
+    "weakBulletsCount": "{{count}} bullets need stronger evidence",
+    "weakBulletsDesc": "“{{title}}” has experience lines without strong action verbs or verified outcomes. Review these before applying.",
+    "fixBullets": "Review bullets",
     "improveCategoryDesc": "Improve {{category}} on “{{title}}”.",
     "viewFixPlan": "View fix plan",
     "categories": {
-      "keywordOptimization": "Keyword match",
-      "contentQuality": "Work experience impact",
-      "sectionStructure": "Section structure",
-      "parsability": "ATS parsability",
       "contactCompleteness": "Contact completeness",
-      "lengthDensity": "Resume length",
-      "templateFriendliness": "Template compatibility"
+      "summaryCompleteness": "Summary completeness",
+      "experienceCompleteness": "Experience completeness",
+      "educationCompleteness": "Education completeness",
+      "skillsCompleteness": "Skills completeness"
     },
     "quickActions": {
       "tailorLabel": "Import job posting",
@@ -109,13 +107,13 @@
       "keywordsLabelCount": "Keyword gaps ({{count}})",
       "keywordsDesc": "Scan for missing role keywords",
       "keywordsDescCount": "Terms missing across your resumes",
-      "atsLabel": "Portfolio ATS",
-      "atsLabelCount": "ATS scan ({{count}} pending)",
-      "atsDesc": "Scores and weakest areas per resume",
+      "atsLabel": "Resume readiness",
+      "atsLabelCount": "Readiness check ({{count}} pending)",
+      "atsDesc": "Completion and weakest core section per resume",
       "atsDescCount": "Avg {{score}}% · {{count}} resumes",
-      "improveLabel": "Experience fix plan",
-      "improveLabelCount": "Fix {{count}} weak bullets",
-      "improveDesc": "Category scores and bullet improvements",
+      "improveLabel": "Experience review plan",
+      "improveLabelCount": "Review {{count}} weak bullets",
+      "improveDesc": "Category readiness and evidence-based bullet improvements",
       "wiseAiLabel": "Ask Wise AI",
       "wiseAiDesc": "Rewrite bullets or match a job description"
     },
@@ -123,10 +121,10 @@
       "exploreAria": "Explore",
       "exploreTitle": "Explore",
       "exploreSubtitle": "Resources to strengthen your resumes and applications",
-      "templatesDesc": "ATS-ready resume layouts",
+      "templatesDesc": "Parser-friendly resume layouts",
       "examplesDesc": "Proven resume samples",
       "guidesDesc": "Job search playbooks",
-      "referralDesc": "Invite friends, earn credits"
+      "referralDesc": "Send someone the WiseResume link"
     },
     "activity": {
       "resumeCreated": "Resume created",
@@ -134,8 +132,8 @@
       "resumeDuplicated": "Resume duplicated",
       "tailoredCopySaved": "Tailored copy saved",
       "resumeRenamed": "Resume renamed",
-      "atsScoredWithVal": "ATS scored {{score}}%",
-      "atsScanned": "ATS scan completed",
+      "atsScoredWithVal": "Readiness updated {{score}}%",
+      "atsScanned": "Readiness check completed",
       "jobImported": "Job posting imported",
       "applicationTracked": "Application tracked",
       "coverLetterCreated": "Cover letter created",
@@ -220,7 +218,7 @@
     "buildResume": "Build a Resume",
     "continueEditing": "Continue editing",
     "aiPowered": "AI-powered resume studio",
-    "optimizeResumeTitle": "Optimize your resume. Get more interviews.",
+    "optimizeResumeTitle": "Strengthen your resume and applications.",
     "optimizeResumeSubtitle": "Start in under two minutes — match any job posting or build a polished CV from scratch.",
     "matchKeywords": "Match keywords and bullets to a specific role",
     "professionalTemplates": "Professional templates with guided sections"
@@ -234,7 +232,7 @@
     "step2Label": "AI Enhances It",
     "step2Desc": "Tailor content for any job posting",
     "step3Label": "Download PDF",
-    "step3Desc": "Export an ATS-ready resume instantly",
+    "step3Desc": "Export a parser-friendly resume",
     "popular": "Popular",
     "createFirstResume": "Create Your First Resume",
     "importProfile": "Import Profile",
@@ -251,7 +249,7 @@
     "resumeWorkspace": "Resume workspace",
     "resumesPrioritized": "Your resumes, prioritized",
     "applicationStronger": "Make your next application stronger.",
-    "trackResumesDescription": "Track your resumes, improve ATS score, and continue from the highest-impact action first.",
+    "trackResumesDescription": "Track your resumes, improve their readiness, and continue from the highest-impact action first.",
     "optimizeResume": "Optimize Resume",
     "getStarted": "Get Started",
     "ariaLabel": "Dashboard overview"
@@ -354,9 +352,9 @@
         "primaryAction": "Start Interview Prep"
       },
       "company-briefing": {
-        "title": "Research Company",
-        "description": "Get deep briefing guides on company goals, tech stacks, and team culture before you apply.",
-        "primaryAction": "Create Briefing"
+        "title": "Prepare Company Context",
+        "description": "Organize verified company or role text into a reviewable interview-prep draft.",
+        "primaryAction": "Draft Briefing"
       },
       "linkedin-brand": {
         "title": "LinkedIn & Brand",
@@ -365,7 +363,7 @@
       },
       "cover-letter": {
         "title": "Cover Letter Writer",
-        "description": "Generate dynamic, ATS-friendly cover letters tailored to your target job descriptions.",
+        "description": "Draft recruiter-readable cover letters grounded in your resume and target job description.",
         "primaryAction": "Write Cover Letter"
       }
     }
@@ -374,7 +372,7 @@
     "goodMorning": "Good morning",
     "goodAfternoon": "Good afternoon",
     "goodEvening": "Good evening",
-    "atsAverage": "ATS average",
+    "atsAverage": "Resume readiness",
     "tailoredResumes": "Tailored resumes",
     "missingKeywords": "Missing keywords",
     "savedResumes": "Saved resumes",
@@ -391,9 +389,9 @@
     "tip2": "A strong summary section helps recruiters grasp your value at a glance.",
     "tip3": "Keep your resume to one page if you have under 10 years of experience.",
     "tip4": "Use action verbs like \"led\", \"built\", and \"improved\" to stand out.",
-    "tip5": "Adding relevant keywords from the job posting helps you pass ATS filters.",
+    "tip5": "Mirror relevant job-posting terms only when they truthfully describe your experience.",
     "tip6": "Proofread your resume twice — typos are one of the fastest ways to get screened out.",
-    "tip7": "Quantify achievements: \"Increased revenue by 25%\" reads stronger than vague claims.",
+    "tip7": "When verified, a specific outcome such as \"Increased revenue by 25%\" reads stronger than a vague claim.",
     "tip8": "Update your resume every few months, even if you're not job hunting."
   },
   "resumeCard": {
@@ -405,7 +403,7 @@
     "edited": "Edited",
     "topSuggestion": "Top suggestion:",
     "moreOptions": "More options",
-    "atsPercentage": "ATS {{score}}%",
+    "atsPercentage": "Ready {{score}}%",
     "verifiedScore": "{{score}}% Verified",
     "setTargetJob": "Set Target Job",
     "editedTime": "Edited {{time}}",
@@ -499,8 +497,8 @@
         "description": "Polish and optimize your resume content"
       },
       "humanizer": {
-        "label": "AI Detector / Humanize",
-        "description": "Bypass AI detection and sound natural"
+        "label": "Writing Style Review",
+        "description": "Review formulaic phrasing and draft a more natural rewrite"
       },
       "linkedin": {
         "label": "LinkedIn Optimizer",
@@ -692,8 +690,8 @@
       "upgrade": "Upgrade",
       "subscriptionLabel": "Subscription",
       "subscriptionDescription": "Manage your plan and usage",
-      "inviteLabel": "Invite Friends",
-      "inviteDescription": "Earn rewards by sharing WiseResume",
+      "inviteLabel": "Share WiseResume",
+      "inviteDescription": "Send the app link to a friend",
       "managePasswordLabel": "Manage Sign-in & Password",
       "providerPassword": "Update your password through your {{provider}} account",
       "providerPasswordSettings": "Update your password in your {{provider}} account settings.",
@@ -717,7 +715,7 @@
     "aiEngine": {
       "eyebrow": "AI Engine",
       "title": "WiseResume AI Pool",
-      "subtitle": "All AI features run on our managed infrastructure — fast, secure, and always on.",
+      "subtitle": "AI requests use WiseResume-managed providers; availability and response time can vary.",
       "poolActive": "Pool active",
       "usageTitle": "Today's AI usage",
       "planBadge": "{{plan}} plan",
@@ -727,7 +725,7 @@
       "dailyLimit": "{{count}} daily limit",
       "usageAria": "Daily AI usage",
       "upgradeLimits": "Upgrade for higher limits →",
-      "privacyNote": "We never store your resume data for model training. Requests are processed securely and only used to generate your output.",
+      "privacyNote": "After the privacy disclosure, your request is sent to the configured AI provider to generate the output. WiseResume does not use resume content to train its own models.",
       "openStudioTitle": "Open AI Studio",
       "openStudioDescription": "Tailor, enhance, and more"
     },
@@ -744,8 +742,8 @@
       "oneMinute": "1 minute",
       "fiveMinutes": "5 minutes",
       "analyticsLabel": "Usage Analytics",
-      "analyticsDescription": "Help improve WiseResume with anonymous usage data",
-      "footer": "Your resumes are stored securely and never sold to third parties."
+      "analyticsDescription": "Help improve WiseResume with pseudonymous usage data",
+      "footer": "Your resumes are private by default. Review the Privacy Policy for storage, service-provider, and sharing details."
     },
     "exports": {
       "pdfTitle": "PDF Export Settings",
@@ -847,7 +845,7 @@
     },
     {
       "title": "Company Briefing",
-      "description": "Get a quick research brief on any company before your interview."
+      "description": "Draft interview prep from company or role context you provide; no live web research."
     },
     {
       "title": "Portfolio Website",
@@ -1008,7 +1006,7 @@
   "consentBanner": {
     "ariaLabel": "Cookie consent",
     "title": "We use analytics cookies",
-    "description": "We track anonymous usage data to improve the product — page views, feature usage, and navigation patterns. No personal data is sold. You can opt out at any time.",
+    "description": "With consent, we track pseudonymous usage data to improve the product — page views, feature usage, and navigation patterns. Signed-in events may be linked to your account. No personal data is sold, and you can opt out at any time.",
     "privacyPolicy": "Privacy policy",
     "accept": "Accept",
     "decline": "Decline"
@@ -1140,7 +1138,7 @@
       "footer": "Ready to track real applications? Use the buttons above to add jobs."
     },
     "insights": {
-      "title": "AI Insights",
+      "title": "Activity insights",
       "staleApplications": "{{count}} application{{suffix}} had no movement in 14+ days — consider sending a follow-up or refreshing your approach.",
       "noApplicationsThisWeek": "You haven't applied to anything this week — even one application keeps the momentum going.",
       "lowResponseRate": "Your response rate is {{score}}% — keep applying and tailor each resume to push it higher.",

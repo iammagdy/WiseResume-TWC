@@ -321,7 +321,12 @@ export function buildExportPageSegments({
     ? Math.round(breakValidationHeightPx)
     : total;
 
-  const customBreaks = normalizeBreakPositions(customBreakPositions, validationTotal, minGapPx);
+  // Validation may intentionally use a taller live-layout bound, but segment
+  // endpoints must always remain inside the actual rendered content range.
+  // Filtering here prevents a descending final segment (break > total) from
+  // creating a one-pixel/cut page.
+  const customBreaks = normalizeBreakPositions(customBreakPositions, validationTotal, minGapPx)
+    .filter((position) => position > 0 && position < total);
   const breaks = customBreaks.length > 0
     ? customBreaks
     : Array.from(

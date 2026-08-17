@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Sparkles, Check, X, AlertTriangle } from 'lucide-react';
 import { ExperienceDiffCard } from '@/components/editor/ai/ExperienceDiffCard';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -22,7 +22,8 @@ interface BoostAllExperienceSheetProps {
 }
 
 export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperienceSheetProps) {
-  const experience = useResumeStore(s => s.currentResume?.experience) ?? [];
+  const storedExperience = useResumeStore(s => s.currentResume?.experience);
+  const experience = useMemo(() => storedExperience ?? [], [storedExperience]);
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
 
@@ -96,7 +97,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
   const commitApply = useCallback((next: Experience[]) => {
     if (!currentResume) return;
     updateResume({ experience: next });
-    toast.success('All experience entries optimized for ATS!');
+    toast.success('Experience entries improved for clarity and job-keyword alignment.');
     void rescoreAfterApply({ ...currentResume, experience: next });
     onOpenChange(false);
   }, [currentResume, updateResume, rescoreAfterApply, onOpenChange]);
@@ -172,7 +173,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
                 ? `${totalImprovements} improvement${totalImprovements !== 1 ? 's' : ''} across ${improved.length} role${improved.length !== 1 ? 's' : ''}`
                 : error
                   ? 'Something went wrong. Please try again.'
-                  : 'Optimize all entries for ATS compatibility.'}
+                  : 'Improve all entries while preserving verified facts.'}
           </SheetDescription>
         </SheetHeader>
 

@@ -21,7 +21,7 @@ interface CreditUsageSheetProps {
 const CATEGORY_LABELS: Record<string, string> = {
   enhance: 'Enhance',
   tailor: 'Tailor',
-  score: 'ATS Score',
+  score: 'Resume analysis',
   'cover-letter': 'Cover Letter',
   interview: 'Interview',
   'career-assessment': 'Career',

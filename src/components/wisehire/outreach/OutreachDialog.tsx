@@ -45,7 +45,7 @@ export function OutreachDialog({
 
   function handleAIDraft() {
     aiDraft.mutate(
-      { candidate_id: candidateId, candidate_name: candidateName, role_title: roleTitle },
+      { candidate_id: candidateId, role_title: roleTitle },
       { onSuccess: (data) => setBody(data.draft) },
     );
   }
@@ -75,12 +75,13 @@ export function OutreachDialog({
 
         <div className="space-y-4 pt-1">
           <div className="space-y-1.5">
-            <Label className="text-xs">To</Label>
+            <Label className="text-xs">To (candidate record)</Label>
             <Input
               value={toEmail}
               onChange={(e) => setToEmail(e.target.value)}
               placeholder="candidate@email.com"
               type="email"
+              readOnly
               disabled={isBusy}
               className="h-8 text-sm"
             />
@@ -125,7 +126,7 @@ export function OutreachDialog({
 
           <div className="flex items-center justify-between pt-1">
             <p className="text-[11px] text-slate-400">
-              Sent via Resend · logged to candidate record
+              Delivered through Resend when configured; otherwise saved and marked not delivered.
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isBusy}>
@@ -140,7 +141,7 @@ export function OutreachDialog({
                 {sendEmail.isPending
                   ? <MiniSpinner size={14} />
                   : <Send className="h-3.5 w-3.5" />}
-                Send
+                Send / Save
               </Button>
             </div>
           </div>

@@ -4,7 +4,7 @@ import { CheckCircle2, Mail, Building2, Users, Briefcase, ArrowLeft, ChevronDown
 import { Link, useNavigate } from 'react-router-dom';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
 import { useWaitlistEmailCheck } from '@/hooks/wisehire/useWaitlistEmailCheck';
-import { validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
+import { rememberWiseHireInvite, validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
 
 const COMPANY_SIZES = [
   '1–10',
@@ -68,7 +68,8 @@ export default function WaitlistPage() {
     if (
       finalCheck.status === 'error' &&
       finalCheck.reason !== null &&
-      finalCheck.reason !== 'service_error'
+      finalCheck.reason !== 'service_error' &&
+      finalCheck.reason !== 'existing_wiseresume_user'
     ) {
       return;
     }
@@ -93,7 +94,7 @@ export default function WaitlistPage() {
     e.preventDefault();
     setEaError('');
 
-    const trimCode = eaCode.trim().toUpperCase();
+    const trimCode = eaCode.trim();
     const trimEmail = eaEmail.trim();
 
     if (!trimCode) { setEaError('Please enter your early access code.'); return; }
@@ -111,7 +112,13 @@ export default function WaitlistPage() {
       return;
     }
 
-    navigate(`/wisehire/signup-early-access/${encodeURIComponent(trimCode)}?email=${encodeURIComponent(trimEmail)}`);
+    if (result.recipient_email.trim().toLowerCase() !== trimEmail.toLowerCase()) {
+      setEaError('This code was issued to a different email address.');
+      return;
+    }
+
+    rememberWiseHireInvite(trimCode, result.expires_at);
+    navigate(`/wisehire/signup?email=${encodeURIComponent(trimEmail)}`);
   };
 
   const emailMatchesChecked =
@@ -121,7 +128,8 @@ export default function WaitlistPage() {
   const hasKnownBadEmail =
     hasEmailCheckError &&
     emailCheck.reason !== null &&
-    emailCheck.reason !== 'service_error';
+    emailCheck.reason !== 'service_error' &&
+    emailCheck.reason !== 'existing_wiseresume_user';
   const emailCheckMessage: { text: string; tone: 'error' | 'info' } | null = (() => {
     if (!emailMatchesChecked || emailCheck.status !== 'error') return null;
     switch (emailCheck.reason) {
@@ -130,7 +138,7 @@ export default function WaitlistPage() {
       case 'consumer_domain':
         return { text: 'Please use a work email address.', tone: 'error' };
       case 'existing_wiseresume_user':
-        return { text: 'This email is already used in WiseResume.', tone: 'info' };
+        return { text: 'This WiseResume account can join the WiseHire waitlist; approval will be attached to the same account.', tone: 'info' };
       case 'already_on_waitlist':
         return { text: "You're already on the waitlist — we'll be in touch when your invite is ready.", tone: 'info' };
       case 'service_error':
@@ -199,7 +207,7 @@ export default function WaitlistPage() {
               </h1>
               <p style={{ fontSize: '0.95rem', color: '#64748b', lineHeight: 1.65, marginBottom: 32 }}>
                 {existingWiseResumeUser
-                  ? 'This email is already registered on WiseResume. Sign in instead — WiseHire access is managed from your account.'
+                  ? "Your existing WiseResume account is now on the WiseHire waitlist. We'll attach approval to this account."
                   : alreadyRegistered
                   ? "We already have your details. We'll reach out when your invite is ready."
                   : "Thanks for joining. We'll be in touch with your invite — check your inbox for a confirmation email."}
@@ -289,7 +297,7 @@ export default function WaitlistPage() {
                     type="text"
                     placeholder="WISE-XXXX"
                     value={eaCode}
-                    onChange={(e) => setEaCode(e.target.value.toUpperCase())}
+                    onChange={(e) => setEaCode(e.target.value)}
                     style={{ ...inputStyle(), fontFamily: 'monospace', letterSpacing: '0.05em' }}
                     disabled={eaLoading}
                     autoComplete="off"
@@ -395,38 +403,11 @@ export default function WaitlistPage() {
                   {!errors.email && emailCheckMessage && (
                     <p style={{ fontSize: '0.72rem', color: emailCheckMessage.tone === 'error' ? '#ef4444' : '#64748b', marginTop: 4 }}>
                       {emailCheckMessage.text}
-                      {emailCheck.reason === 'existing_wiseresume_user' && (
-                        <>
-                          {' '}
-                          <a
-                            href="/sign-in?mode=login"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              navigate('/sign-in?mode=login');
-                            }}
-                            style={{ color: '#1D4ED8', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
-                          >
-                            Sign in instead
-                          </a>
-                          .
-                        </>
-                      )}
                     </p>
                   )}
                   {!errors.email && showAlsoExistingUserNote && (
                     <p style={{ fontSize: '0.72rem', color: '#3B82F6', marginTop: 2 }}>
-                      This email is already signed up on WiseResume.{' '}
-                      <a
-                        href="/sign-in?mode=login"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigate('/sign-in?mode=login');
-                        }}
-                        style={{ color: '#1D4ED8', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
-                      >
-                        Sign in instead
-                      </a>
-                      .
+                      Use a work email for WiseHire; your existing WiseResume login is unchanged.
                     </p>
                   )}
                 </div>

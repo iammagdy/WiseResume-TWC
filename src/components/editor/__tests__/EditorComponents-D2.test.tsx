@@ -209,4 +209,18 @@ describe("ExperienceSection (D2)", () => {
     const { container } = renderWithProviders(<ExperienceSection />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("keeps a stable hook order when the resume becomes available", () => {
+    const ExperienceSectionImpl = (
+      ExperienceSection as unknown as { type: React.ComponentType }
+    ).type;
+    const readyResume = mockResumeStore.currentResume;
+    mockResumeStore.currentResume = null as unknown as ResumeData;
+    const { container, rerender } = renderWithProviders(<ExperienceSectionImpl />);
+    expect(container.firstChild).toBeNull();
+
+    mockResumeStore.currentResume = readyResume;
+    expect(() => rerender(<ExperienceSectionImpl />)).not.toThrow();
+    expect(screen.getByText("Tech Corp")).toBeInTheDocument();
+  });
 });

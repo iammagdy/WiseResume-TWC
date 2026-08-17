@@ -7,6 +7,7 @@ import {
   normalizeText,
   hasMeaningfulChanges,
   buildMergedResume,
+  applyFixesOnTop,
   type ChangeSummary,
 } from '@/lib/tailorMerge';
 import type { ResumeData, SuperTailorResult, TailorSectionId } from '@/types/resume';
@@ -255,12 +256,12 @@ describe('hasMeaningfulChanges', () => {
   });
 
   it('handles missing optional fields', () => {
-    const minimalResume: ResumeData = {
+    const minimalResume = {
       ...mockResume,
-      certifications: undefined as any,
-      projects: undefined as any,
-      awards: undefined as any,
-    };
+      certifications: undefined,
+      projects: undefined,
+      awards: undefined,
+    } as unknown as ResumeData;
     const result = hasMeaningfulChanges(minimalResume, minimalResume, allSections);
     expect(result.hasChanges).toBe(false);
   });
@@ -306,17 +307,17 @@ describe('hasMeaningfulChanges', () => {
 describe('buildMergedResume', () => {
   const mockTailorResult: SuperTailorResult = {
     summary: 'Tailored summary for product manager role.',
-    skills: ['Product Management', 'Agile', 'JIRA'],
+    skills: ['React', 'Product Management', 'TypeScript'],
     experience: [
       {
         id: 'exp-1',
-        company: 'Tech Corp',
+        company: 'Invented Corp',
         position: 'Product Manager',
-        startDate: '2020-01',
-        endDate: '',
-        current: true,
+        startDate: '2025-01',
+        endDate: '2026-01',
+        current: false,
         description: 'Leading product development.',
-        achievements: ['Launched 3 products', 'Increased revenue by 25%'],
+        achievements: ['Delivered a React application for users', 'Improved application performance by 50%'],
       },
     ],
     education: [],
@@ -341,22 +342,25 @@ describe('buildMergedResume', () => {
     expect(result.summary).toBe(mockResume.summary);
   });
 
-  it('merges skills when enabled', () => {
+  it('reorders source skills but rejects unsupported AI-only skills', () => {
     const result = buildMergedResume(mockResume, mockTailorResult, ['skills']);
-    expect(result.skills).toEqual([
-      ...mockTailorResult.skills,
-      'JavaScript',
-      'React',
-      'TypeScript',
-    ]);
+    expect(result.skills).toEqual(['React', 'TypeScript', 'JavaScript']);
   });
 
-  it('merges experience when enabled', () => {
+  it('rewrites experience narrative while preserving protected source facts', () => {
     const result = buildMergedResume(mockResume, mockTailorResult, ['experience']);
-    expect(result.experience[0].position).toBe('Product Manager');
+    expect(result.experience[0]).toMatchObject({
+      id: 'exp-1',
+      company: 'Tech Corp',
+      position: 'Senior Developer',
+      startDate: '2020-01',
+      endDate: '',
+      current: true,
+      description: 'Leading product development.',
+    });
     expect(result.experience[0].achievements).toEqual([
-      'Launched 3 products',
-      'Increased revenue by 25%',
+      'Delivered a React application for users',
+      'Improved application performance by 50%',
     ]);
   });
 
@@ -445,10 +449,9 @@ describe('buildMergedResume', () => {
     );
 
     expect(result.projects).toEqual([
-      {
-        ...resumeWithProjects.projects![0],
-        technologies: ['React', 'TypeScript', 'Accessibility'],
-        description: 'Led delivery of an accessible operations console.',
+        {
+          ...resumeWithProjects.projects![0],
+          description: 'Led delivery of an accessible operations console.',
       },
       {
         ...resumeWithProjects.projects![1],
@@ -598,5 +601,249 @@ describe('buildMergedResume', () => {
     );
 
     expect(result.projects).toEqual([]);
+  });
+
+  it('preserves protected facts and source order while dropping AI-only records', () => {
+    const source: ResumeData = {
+      ...mockResume,
+      education: [{
+        ...mockResume.education[0],
+        description: 'Completed a capstone with a 4-person team.',
+      }],
+      certifications: [{
+        id: 'cert-1',
+        name: 'Cloud Practitioner',
+        issuer: 'Source Institute',
+        date: '2023-06',
+        expiryDate: '2026-06',
+        credentialId: 'SOURCE-123',
+      }],
+      awards: [{
+        id: 'award-1',
+        title: 'Engineering Award',
+        issuer: 'Tech Corp',
+        date: '2024-01',
+        description: 'Recognized for 2 successful launches.',
+      }],
+      projects: [{
+        id: 'project-1',
+        name: 'Source Project',
+        role: 'Lead Developer',
+        startDate: '2023-01',
+        endDate: '2023-12',
+        current: false,
+        technologies: ['React', 'TypeScript'],
+        description: 'Built a customer portal.',
+        url: 'https://example.com/source',
+      }],
+    };
+    const adversarial = {
+      ...mockTailorResult,
+      summary: 'ATS-focused engineering leader.',
+      skills: ['Kubernetes', 'React'],
+      experience: [
+        {
+          id: 'ai-only-experience',
+          company: 'Invented Company',
+          position: 'Chief Architect',
+          startDate: '2025-01',
+          endDate: '',
+          current: true,
+          description: 'Invented role.',
+          achievements: ['Invented achievement.'],
+        },
+        {
+          id: 'exp-1',
+          company: 'Changed Company',
+          position: 'Changed Title',
+          startDate: '1999-01',
+          endDate: '2099-01',
+          current: false,
+          description: 'Led ATS-aligned frontend delivery.',
+          achievements: ['Claimed an unsupported 99% gain.', 'Accelerated application performance by 50%.'],
+        },
+      ],
+      education: [{
+        id: 'edu-1',
+        institution: 'Invented University',
+        degree: 'PhD',
+        field: 'Astrophysics',
+        startDate: '2025-01',
+        endDate: '2026-01',
+        gpa: '4.0',
+        description: 'Delivered a capstone with a 4-person team.',
+      }],
+      certifications: [
+        {
+          id: 'cert-1',
+          name: 'Invented Certification',
+          issuer: 'Invented Issuer',
+          date: '2099-01',
+          expiryDate: '2100-01',
+          credentialId: 'INVENTED',
+        },
+        {
+          id: 'ai-cert',
+          name: 'AI-only Certification',
+          issuer: 'AI',
+          date: '2026-01',
+        },
+      ],
+      awards: [{
+        id: 'award-1',
+        title: 'Invented Award',
+        issuer: 'Invented Issuer',
+        date: '2099-01',
+        description: 'Honored for 2 successful launches.',
+      }],
+      projects: [
+        {
+          id: 'project-1',
+          name: 'Renamed Project',
+          role: 'Invented Owner',
+          startDate: '2099-01',
+          endDate: '',
+          current: true,
+          technologies: ['React', 'Kubernetes'],
+          description: 'Delivered a job-relevant customer portal.',
+          url: 'https://attacker.example',
+        },
+        {
+          id: 'ai-project',
+          name: 'AI-only Project',
+          role: 'Owner',
+          startDate: '2026-01',
+          endDate: '',
+          current: true,
+          technologies: ['Kubernetes'],
+          description: 'Invented project.',
+        },
+      ],
+    } as SuperTailorResult;
+
+    const result = buildMergedResume(source, adversarial, [
+      'summary',
+      'skills',
+      'experience',
+      'education',
+      'projects',
+      'certifications',
+      'awards',
+    ]);
+
+    expect(result.skills).toEqual(['React', 'JavaScript', 'TypeScript']);
+    expect(result.experience).toHaveLength(1);
+    expect(result.experience[0]).toMatchObject({
+      id: 'exp-1',
+      company: 'Tech Corp',
+      position: 'Senior Developer',
+      startDate: '2020-01',
+      endDate: '',
+      current: true,
+      description: 'Led ATS-aligned frontend delivery.',
+      achievements: ['Built React app', 'Accelerated application performance by 50%.'],
+    });
+    expect(result.education[0]).toMatchObject({
+      id: 'edu-1',
+      institution: 'State University',
+      degree: 'BS',
+      field: 'Computer Science',
+      startDate: '2015-09',
+      endDate: '2019-05',
+      description: 'Delivered a capstone with a 4-person team.',
+    });
+    expect(result.certifications).toEqual(source.certifications);
+    expect(result.awards).toEqual([{
+      ...source.awards![0],
+      description: 'Honored for 2 successful launches.',
+    }]);
+    expect(result.projects).toEqual([{
+      ...source.projects![0],
+      description: 'Delivered a job-relevant customer portal.',
+    }]);
+  });
+
+  it('blocks unsupported summary metrics and ignores raw bullet transformation overrides', () => {
+    const result = buildMergedResume(
+      mockResume,
+      {
+        ...mockTailorResult,
+        summary: 'Engineering leader with 99 years of experience.',
+        experience: [{
+          ...mockTailorResult.experience[0],
+          achievements: ['Delivered a React application for users', 'Reduced latency by 50%'],
+        }],
+        bulletTransformations: [{
+          experienceId: 'exp-1',
+          bulletIndex: 1,
+          originalBullet: 'Attacker-controlled original',
+          enhancedBullet: 'Invented a 999% improvement',
+          improvement: 'Fabricated metric',
+          metricsAdded: true,
+        }],
+      },
+      ['summary', 'experience'],
+    );
+
+    expect(result.summary).toBe(mockResume.summary);
+    expect(result.experience[0].achievements[1]).toBe('Reduced latency by 50%');
+  });
+
+  it('does not use same-length index fallback for unmatched no-ID records', () => {
+    const unmatched = [{
+      ...mockTailorResult.experience[0],
+      id: '',
+      company: 'Different Company',
+      position: 'Different Role',
+      description: 'This must not cross-merge.',
+      achievements: ['This must not cross-merge.'],
+    }];
+
+    const result = buildMergedResume(
+      mockResume,
+      { ...mockTailorResult, experience: unmatched },
+      ['experience'],
+    );
+
+    expect(result.experience).toEqual(mockResume.experience);
+  });
+
+  it('keeps AI follow-up fixes inside the same fact and metric boundary', () => {
+    const result = applyFixesOnTop(
+      mockResume,
+      [
+        {
+          type: 'add_skill',
+          section: 'skills',
+          after: 'Kubernetes',
+          reason: 'Requested by the job description',
+        },
+        {
+          type: 'enhance_summary',
+          section: 'summary',
+          after: 'Engineering leader with 99 years of experience.',
+          reason: 'Stronger summary',
+        },
+        {
+          type: 'improve_bullet',
+          section: 'experience',
+          target_id: 'exp-1-1',
+          after: 'Improved performance by 999%',
+          reason: 'More impact',
+        },
+        {
+          type: 'improve_bullet',
+          section: 'experience',
+          target_id: 'exp-1-0',
+          after: 'Doubled customer adoption through the React launch',
+          reason: 'Stronger outcome',
+        },
+      ],
+      ['skills', 'summary', 'experience'],
+    );
+
+    expect(result.skills).toEqual(mockResume.skills);
+    expect(result.summary).toBe(mockResume.summary);
+    expect(result.experience[0].achievements).toEqual(mockResume.experience[0].achievements);
   });
 });

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { InterviewSetup } from '../InterviewSetup';
+import type { HTMLAttributes, ReactNode } from 'react';
 
 // Mock framer-motion to render children without animation
 vi.mock('framer-motion', () => {
-  const Passthrough = ({ children, ...props }: any) => {
-    const filteredProps: Record<string, any> = {};
+  const Passthrough = ({ children, ...props }: HTMLAttributes<HTMLDivElement> & { children?: ReactNode }) => {
+    const filteredProps: HTMLAttributes<HTMLDivElement> = {};
     for (const key of Object.keys(props)) {
       if (['className', 'style', 'onClick', 'disabled'].includes(key)) {
         filteredProps[key] = props[key];
@@ -15,7 +16,7 @@ vi.mock('framer-motion', () => {
   };
   return {
     motion: new Proxy({}, { get: () => Passthrough }),
-    AnimatePresence: ({ children }: any) => <>{children}</>,
+    AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
   };
 });
 

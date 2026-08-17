@@ -1,4 +1,4 @@
-import { ResumeData, Experience, Education, Certification } from '@/types/resume';
+import { ResumeData, Experience, Education, Certification, Award, Project, Volunteering, Language } from '@/types/resume';
 import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -219,7 +219,7 @@ function extractContactInfo(text: string): ResumeData['contactInfo'] {
       line.length < 60
     ) {
       // Check if it looks like a name (various scripts, 1-5 words)
-      if (/^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\s.\-']+$/.test(line) && line.split(/\s+/).length <= 5) {
+      if (/^[\p{L}\p{M}\s.'-]+$/u.test(line) && line.split(/\s+/).length <= 5) {
         fullName = line;
         break;
       }
@@ -441,7 +441,7 @@ function parseCertificationsSection(lines: string[]): Certification[] {
 /**
  * Parse awards section into structured entries.
  */
-function parseAwardsSection(lines: string[]): any[] {
+function parseAwardsSection(lines: string[]): Award[] {
   if (lines.length === 0) return [];
   return lines.slice(0, 8).map(line => ({
     id: uuidv4(),
@@ -454,7 +454,7 @@ function parseAwardsSection(lines: string[]): any[] {
 /**
  * Parse projects section into structured entries.
  */
-function parseProjectsSection(lines: string[]): any[] {
+function parseProjectsSection(lines: string[]): Project[] {
   if (lines.length === 0) return [];
   const blocks = splitIntoBlocks(lines);
   return blocks.slice(0, 5).map(block => ({
@@ -471,7 +471,7 @@ function parseProjectsSection(lines: string[]): any[] {
 /**
  * Parse volunteering section into structured entries.
  */
-function parseVolunteeringSection(lines: string[]): any[] {
+function parseVolunteeringSection(lines: string[]): Volunteering[] {
   if (lines.length === 0) return [];
   const blocks = splitIntoBlocks(lines);
   return blocks.slice(0, 5).map(block => ({
@@ -487,7 +487,7 @@ function parseVolunteeringSection(lines: string[]): any[] {
 /**
  * Parse languages section into structured entries.
  */
-function parseLanguagesSection(lines: string[]): any[] {
+function parseLanguagesSection(lines: string[]): Language[] {
   // Strip any leaked contact-hints or email/phone lines before parsing
   const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
   const PHONE_RE = /\+?\d[\d\s\-().]{6,}/;

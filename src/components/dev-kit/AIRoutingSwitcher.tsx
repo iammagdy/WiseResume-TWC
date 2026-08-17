@@ -156,22 +156,26 @@ function stringifyDevKitError(value: unknown): string {
     if (typeof obj.message === 'string') return obj.message;
     if (typeof obj.error === 'string') return obj.error;
     if (typeof obj.status === 'number') return `Request failed with status ${obj.status}`;
-    try { return JSON.stringify(obj).slice(0, 500); } catch {}
+    try { return JSON.stringify(obj).slice(0, 500); } catch {
+      // Fall through to the generic string representation for cyclic objects.
+    }
   }
   return String(value);
 }
 
-function getDevKitErrorDetails(errorObj: any): string | undefined {
+function getDevKitErrorDetails(errorObj: unknown): string | undefined {
   if (!errorObj || typeof errorObj !== 'object') return undefined;
+  const details = errorObj as Record<string, unknown>;
   const parts: string[] = [];
-  if (errorObj.status) parts.push(`HTTP ${errorObj.status}`);
-  if (errorObj.code) parts.push(`Code: ${errorObj.code}`);
+  if (details.status) parts.push(`HTTP ${String(details.status)}`);
+  if (details.code) parts.push(`Code: ${String(details.code)}`);
 
-  const raw = errorObj.raw;
+  const raw = details.raw;
   if (raw && typeof raw === 'object') {
-    if (raw.message) parts.push(`Msg: ${raw.message}`);
-    else if (raw.error) parts.push(`Err: ${raw.error}`);
-    else if (raw.responseBody) parts.push(`Body: ${String(raw.responseBody).slice(0, 200)}`);
+    const rawDetails = raw as Record<string, unknown>;
+    if (rawDetails.message) parts.push(`Msg: ${String(rawDetails.message)}`);
+    else if (rawDetails.error) parts.push(`Err: ${String(rawDetails.error)}`);
+    else if (rawDetails.responseBody) parts.push(`Body: ${String(rawDetails.responseBody).slice(0, 200)}`);
   }
   return parts.length > 0 ? parts.join(' | ') : undefined;
 }
@@ -191,6 +195,24 @@ interface LiveRouteEntry {
   creditCost: number;
 }
 
+interface FallbackAttempt {
+  provider?: string;
+  model?: string;
+  slot?: number;
+  error?: string;
+  code?: string;
+}
+
+interface RouteTestResult {
+  status: 'running' | 'ok' | 'error';
+  provider?: string;
+  model?: string;
+  preview?: string;
+  error?: string;
+  errorDetails?: string;
+  fallbackAttempts?: FallbackAttempt[];
+}
+
 export const AIRoutingSwitcher = () => {
   const [routes, setRoutes] = useState<Record<string, RouteState>>({});
   // Tracks $ids of ai_routing_config documents that have been reset locally
@@ -204,7 +226,7 @@ export const AIRoutingSwitcher = () => {
   const [pinging, setPinging] = useState(false);
   const [liveRoutes, setLiveRoutes] = useState<Record<string, LiveRouteEntry> | null>(null);
   const [probingRoutes, setProbingRoutes] = useState(false);
-  const [routeTestResults, setRouteTestResults] = useState<Record<string, { status: 'running' | 'ok' | 'error'; provider?: string; model?: string; preview?: string; error?: string; errorDetails?: string; fallbackAttempts?: any[] }>>({});
+  const [routeTestResults, setRouteTestResults] = useState<Record<string, RouteTestResult>>({});
 
   const initialRoutesRef = useRef<Record<string, RouteState>>({});
 
@@ -965,7 +987,7 @@ export const AIRoutingSwitcher = () => {
                                   {testResult.fallbackAttempts && testResult.fallbackAttempts.length > 0 && (
                                     <div className="border-t border-red-500/15 pt-1 mt-1 space-y-0.5">
                                       <p className="text-[8px] text-red-400/80 font-black uppercase tracking-wider font-mono">Attempt history:</p>
-                                      {testResult.fallbackAttempts.map((att: any, idx: number) => (
+                                      {testResult.fallbackAttempts.map((att, idx) => (
                                         <p key={idx} className="text-[7.5px] font-mono text-red-400/70 leading-normal break-words">
                                           {idx + 1}. [{att.provider}] {att.model} (Slot {att.slot}): {att.error || att.code || 'Failed'}
                                         </p>
@@ -1015,7 +1037,7 @@ export const AIRoutingSwitcher = () => {
                                       {testResult.fallbackAttempts && testResult.fallbackAttempts.length > 0 && (
                                         <div className="border-t border-amber-500/15 pt-1 mt-1 space-y-0.5">
                                           <p className="text-[8px] text-amber-400/80 font-black uppercase tracking-wider font-mono">Attempt history:</p>
-                                          {testResult.fallbackAttempts.map((att: any, idx: number) => (
+                                          {testResult.fallbackAttempts.map((att, idx) => (
                                             <p key={idx} className="text-[7.5px] font-mono text-amber-400/70 leading-normal break-words">
                                               {idx + 1}. [{att.provider}] {att.model} (Slot {att.slot}): {att.error || att.code || 'Failed'}
                                             </p>

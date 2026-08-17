@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Brain, Target, TrendingUp } from 'lucide-react';
+import { ArrowRight, BarChart3, Target, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -8,13 +8,11 @@ import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { useLocale } from '@/i18n/LocaleProvider';
 
 const CATEGORY_LABELS: Record<keyof ResumeHealthScore['categories'], string> = {
-  keywordOptimization: 'Keyword alignment',
-  contentQuality: 'Content quality',
-  sectionStructure: 'Section structure',
-  parsability: 'ATS parsability',
   contactCompleteness: 'Contact completeness',
-  lengthDensity: 'Length & density',
-  templateFriendliness: 'Template compatibility',
+  summaryCompleteness: 'Summary completeness',
+  experienceCompleteness: 'Experience completeness',
+  educationCompleteness: 'Education completeness',
+  skillsCompleteness: 'Skills completeness',
 };
 
 type InsightAction = 'editor' | 'tailor';
@@ -33,9 +31,9 @@ interface InsightContent {
 function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
   if (!healthScore) {
     return {
-      eyebrow: 'AI workspace',
-      title: 'Personalized guidance unlocks after scoring',
-      why: 'Open your active resume in the editor. ATS scoring surfaces keyword gaps, weak sections, and the next step to improve match rate.',
+      eyebrow: 'Resume guidance',
+      title: 'Guidance unlocks after a readiness check',
+      why: 'Open your active resume in the editor. The local readiness check shows which core section to complete next.',
       impactLabel: null,
       weakestLabel: null,
       weakestScore: null,
@@ -73,7 +71,7 @@ function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
     return {
       eyebrow: 'Highest impact',
       title: topImprovement,
-      why: `${weakestLabel} scores ${weakestScore}% — your lowest ATS signal. Improving this area lifts overall match more than polishing strong sections.`,
+      why: `${weakestLabel} is ${weakestScore}% complete — your lowest readiness section. Finish this area before polishing sections that are already complete.`,
       impactLabel: headroom > 0 ? `~${headroom} pts headroom` : null,
       weakestLabel,
       weakestScore,
@@ -92,7 +90,7 @@ function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
     return {
       eyebrow: 'Weakest bullets',
       title: 'Add outcome-driven phrasing',
-      why: `AI flagged bullets missing ${reason}. Quantified wins outperform duty lists in recruiter scans.`,
+      why: `The content review flagged bullets missing ${reason}. Quantified wins are easier for recruiters to scan.`,
       impactLabel: overallScore < 80 ? 'Content quality boost' : null,
       weakestLabel,
       weakestScore,
@@ -107,7 +105,7 @@ function buildInsight(healthScore?: ResumeHealthScore | null): InsightContent {
     why: topStrength
       ? `Strongest signal: ${topStrength}. Address the improvement below before your next application.`
       : 'Focus on the top improvement below to strengthen your next application.',
-    impactLabel: overallScore >= 80 ? 'Strong ATS base' : `ATS ${overallScore}%`,
+    impactLabel: overallScore >= 80 ? 'Strong readiness base' : `Readiness ${overallScore}%`,
     weakestLabel,
     weakestScore,
     cta: gapCount > 0 ? 'Tailor to Job' : 'Apply in Editor',
@@ -146,7 +144,7 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
       initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28 }}
-      aria-label="AI workspace insight"
+      aria-label="Resume readiness guidance"
       className={cn(
         'rounded-2xl p-3.5 dashboard-ai-insight-panel shadow-soft-sm',
         className,
@@ -154,17 +152,17 @@ export const DashboardNextActionCard = memo(function DashboardNextActionCard({
     >
       <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-border/60">
         <span className="dashboard-ai-insight-panel__brand flex items-center justify-center w-7 h-7 rounded-lg bg-primary/8 border border-primary/12">
-          <Brain className="w-3.5 h-3.5 text-primary" aria-hidden />
+          <BarChart3 className="w-3.5 h-3.5 text-primary" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            AI workspace
+            Resume guidance
           </p>
           <p className="text-xs font-medium text-foreground truncate">{insight.eyebrow}</p>
         </div>
         {healthScore && (
           <span className="tabular-nums text-[10px] font-medium text-muted-foreground shrink-0">
-            ATS {healthScore.overallScore}%
+            Ready {healthScore.overallScore}%
           </span>
         )}
       </div>

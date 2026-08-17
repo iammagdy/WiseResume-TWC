@@ -28,7 +28,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_MESSAGE_LENGTH = 4;
 
 export function PortfolioContactForm({ username, accentColor, ownerName }: PortfolioContactFormProps) {
-  const TURNSTILE_SITE_KEY = (import.meta.env as any)['VITE_TURNSTILE_SITE_KEY'] as string | undefined;
+  const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -61,7 +61,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       return 'Checking security…';
     }
     return null;
-  }, [status, name, email, message, turnstileToken, turnstileStatus]);
+  }, [status, name, email, message, TURNSTILE_SITE_KEY, turnstileToken, turnstileStatus]);
 
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return;
@@ -115,7 +115,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
         turnstileWidgetIdRef.current = null;
       }
     };
-  }, [isDebug]);
+  }, [TURNSTILE_SITE_KEY, isDebug]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,7 +188,7 @@ export function PortfolioContactForm({ username, accentColor, ownerName }: Portf
       setStatus('error');
       toast.error(netMsg);
     }
-  }, [isValid, isTurnstileReady, status, email, name, message, username, website, turnstileToken, isDebug]);
+  }, [isValid, isTurnstileReady, status, isDebug, name, email, message, turnstileToken, website, username, TURNSTILE_SITE_KEY]);
 
   if (status === 'success') {
     return (

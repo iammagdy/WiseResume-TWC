@@ -154,7 +154,7 @@ export function BriefDemo() {
                 /100
               </text>
             </svg>
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginTop: -4 }}>Match score</span>
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginTop: -4 }}>Evidence alignment</span>
           </div>
         </div>
 
@@ -163,7 +163,7 @@ export function BriefDemo() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
             <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22c55e', flexShrink: 0 }} />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              Strengths
+              Supported evidence
             </span>
           </div>
           <ul style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -181,7 +181,7 @@ export function BriefDemo() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
             <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#f59e0b', flexShrink: 0 }} />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              Considerations
+              Questions to verify
             </span>
           </div>
           {CONCERNS.map((c) => (
@@ -204,7 +204,7 @@ export function BriefDemo() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
             <MessageSquare className="w-3 h-3" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-eyebrow)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              Top interview Q
+              Interview prompt
             </span>
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--lp-text)', lineHeight: 1.5 }}>{INTERVIEW_Q}</p>

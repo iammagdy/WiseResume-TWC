@@ -19,6 +19,8 @@ export const AI_COST_MAP: Record<string, number> = {
   'interview-turn': 1,
   'ats-deep': 1,
   'salary-negotiation': 2,
+  // A/B compare runs one job analysis for each selected resume.
+  'ab-compare': 4,
   'job-rejection': 1,
   'reference-letter': 2,
   'personal-branding': 1,

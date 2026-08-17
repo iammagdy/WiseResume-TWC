@@ -47,7 +47,8 @@ export function ScorecardShareModal({
         <DialogHeader>
           <DialogTitle>Share Scorecard</DialogTitle>
           <DialogDescription>
-            Anyone with this link can view the read-only scorecard.
+            Anyone with this link can view the submitted questions, ratings, and recruiter notes
+            in this read-only scorecard.
           </DialogDescription>
         </DialogHeader>
 

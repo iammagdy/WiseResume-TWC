@@ -1,8 +1,8 @@
 # WiseResume Full Post-Change Regression Audit
 
-**Audit date:** 2026-08-15  
-**Repository:** `iammagdy/WiseResume-TWC`  
-**Production:** [https://wiseresume.app](https://wiseresume.app)  
+**Audit date:** 2026-08-15
+**Repository:** `iammagdy/WiseResume-TWC`
+**Production:** [https://wiseresume.app](https://wiseresume.app)
 **Scope:** PRs #183–#194, post-hotfix production regression audit, expanded 111-route completion pass, authorized exact-four-function Appwrite deployment, live DevKit verification, public-share verification, route smoke QA, final ai_runtime_receipts contract reconciliation, and email-verification template safety audit
 **Author:** Manus AI
 
@@ -245,15 +245,15 @@ The highest remaining risk is unverified production behavior behind the failed A
 
 ## References
 
-[1]: ../CURRENT_STATE.md "Project Atlas canonical production snapshot"  
-[2]: ../WHERE_WE_STOPPED.md "Project Atlas active handover"  
-[3]: ../../src/App.tsx "Top-level route shell"  
-[4]: ../../src/AppInterior.tsx "Current route table"  
-[5]: ../../../wiseresume-route-inventory.txt "Saved source-derived route inventory"  
-[6]: ../../../wiseresume-browser-qa.txt "First-pass production browser evidence"  
-[7]: ../../../wiseresume-browser-qa-v2.txt "Expanded production browser evidence"  
-[8]: ../../../wiseresume-public-share-fix-validation.txt "Scoped public-share fix validation"  
-[9]: ../../../wiseresume-deployment-failure-31875957559.txt "Second deployment failure evidence"  
-[10]: ../../src/pages/SharePage.tsx "Scoped public-share loading fix"  
-[11]: ../../src/hooks/useResumeShares.ts "Public share data hook"  
-[12]: ../../.github/workflows/deploy-appwrite-hubs.yml "Approved targeted deployment workflow"  
+[1]: ../CURRENT_STATE.md "Project Atlas canonical production snapshot"
+[2]: ../WHERE_WE_STOPPED.md "Project Atlas active handover"
+[3]: ../../src/App.tsx "Top-level route shell"
+[4]: ../../src/AppInterior.tsx "Current route table"
+[5]: ../../../wiseresume-route-inventory.txt "Saved source-derived route inventory"
+[6]: ../../../wiseresume-browser-qa.txt "First-pass production browser evidence"
+[7]: ../../../wiseresume-browser-qa-v2.txt "Expanded production browser evidence"
+[8]: ../../../wiseresume-public-share-fix-validation.txt "Scoped public-share fix validation"
+[9]: ../../../wiseresume-deployment-failure-31875957559.txt "Second deployment failure evidence"
+[10]: ../../src/pages/SharePage.tsx "Scoped public-share loading fix"
+[11]: ../../src/hooks/useResumeShares.ts "Public share data hook"
+[12]: ../../.github/workflows/deploy-appwrite-hubs.yml "Approved targeted deployment workflow"

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { databases, Query, ID } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { wisehireOwnerPermissions } from '@/lib/wisehire/documentPermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, ChevronRight, ChevronLeft, Zap, CheckCircle2, KeyRound, Briefcase } from 'lucide-react';
+import { Building2, ChevronRight, ChevronLeft, Zap, CheckCircle2, Briefcase } from 'lucide-react';
 
 const DRAFT_KEY = 'wisehire_onboarding_draft';
 const TOTAL_STEPS = 5;
@@ -168,7 +169,13 @@ export default function WiseHireOnboardingPage() {
       if (existing.total > 0) {
         await databases.updateDocument(DATABASE_ID, COLLECTIONS.wisehire_companies, existing.documents[0].$id, companyData);
       } else {
-        await databases.createDocument(DATABASE_ID, COLLECTIONS.wisehire_companies, ID.unique(), companyData);
+        await databases.createDocument(
+          DATABASE_ID,
+          COLLECTIONS.wisehire_companies,
+          ID.unique(),
+          companyData,
+          wisehireOwnerPermissions(userId!),
+        );
       }
 
       // Mark profile onboarding complete
@@ -192,8 +199,6 @@ export default function WiseHireOnboardingPage() {
       setSubmitting(false);
     }
   }
-
-  const isOnStarter = account?.currentPlan === 'wisehire_starter';
 
   return (
     <div className="min-h-[100dvh] bg-[#f0f5ff] dark:bg-[#00061a] flex flex-col items-center justify-start pt-12 pb-16 px-4">
@@ -226,7 +231,7 @@ export default function WiseHireOnboardingPage() {
         {step === 1 && <StepWelcome onNext={goNext} onSkip={handleSkip} draft={draft} />}
         {step === 2 && <StepCompanyIdentity draft={draft} update={update} onNext={goNext} onBack={goBack} onSkip={handleSkip} />}
         {step === 3 && <StepHiringContext draft={draft} update={update} onNext={goNext} onBack={goBack} onSkip={handleSkip} />}
-        {step === 4 && <StepAISetup isStarter={isOnStarter} onNext={goNext} onBack={goBack} onSkip={handleSkip} />}
+        {step === 4 && <StepAISetup onNext={goNext} onBack={goBack} onSkip={handleSkip} />}
         {step === 5 && (
           <StepReady
             draft={draft}
@@ -429,8 +434,8 @@ function StepHiringContext({
 // ── Step 4: AI Setup ─────────────────────────────────────────────
 
 function StepAISetup({
-  isStarter, onNext, onBack, onSkip,
-}: { isStarter: boolean; onNext: () => void; onBack: () => void; onSkip: () => void }) {
+  onNext, onBack, onSkip,
+}: { onNext: () => void; onBack: () => void; onSkip: () => void }) {
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -438,43 +443,24 @@ function StepAISetup({
           AI setup
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          WiseHire uses AI to generate candidate briefs, write JDs, and score applicants.
+          WiseHire can draft candidate briefs and job descriptions, and summarize role-alignment
+          evidence for human review.
         </p>
       </div>
 
-      {isStarter ? (
-        <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
-            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold text-sm mb-1">
-              <KeyRound className="h-4 w-4" />
-              Bring Your Own AI Key
-            </div>
-            <p className="text-xs text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
-              Your Starter plan uses your own OpenAI or Anthropic API key. Add your key in Settings
-              to unlock AI features.
-            </p>
-          </div>
-          <Link to="/wisehire/settings">
-            <Button variant="outline" size="sm" className="w-full">
-              <KeyRound className="h-4 w-4 mr-2" />
-              Add AI key in Settings
-            </Button>
-          </Link>
+      <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 flex items-start gap-3">
+        <CheckCircle2 className="h-5 w-5 text-blue-700 dark:text-blue-400 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-0.5">
+            No personal API key required
+          </p>
+          <p className="text-xs text-blue-700/80 dark:text-blue-300/80 leading-relaxed">
+            WiseHire uses a server-configured AI provider when that service is available. Before
+            your first AI action, you will see what candidate or job data is sent and can choose
+            whether to continue. Always verify AI output before using it in a hiring decision.
+          </p>
         </div>
-      ) : (
-        <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 flex items-start gap-3">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-0.5">
-              AI is ready to go
-            </p>
-            <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed">
-              Your Professional trial includes WiseHire's AI — no key required. Generate briefs,
-              write JDs, and screen candidates right away.
-            </p>
-          </div>
-        </div>
-      )}
+      </div>
 
       <StepNav onBack={onBack} onNext={onNext} onSkip={onSkip} nextLabel="Continue" />
     </div>

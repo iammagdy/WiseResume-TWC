@@ -413,7 +413,7 @@ export function AnalyticsPanel() {
             />
             <KpiCard
               label="Unique visitors today" value={visitorData?.kpis?.uniqueVisitorsToday?.toLocaleString() ?? ''}
-              unavailable={!visitorData} sub="anonymous browsers · visitor_events" icon={Users} accent="green" hideDelta onClick={() => setSelectedMetric('visitors')}
+              unavailable={!visitorData} sub="pseudonymous browsers · visitor_events" icon={Users} accent="green" hideDelta onClick={() => setSelectedMetric('visitors')}
             />
             <KpiCard
               label="New signups" value={data?.rangeKpis?.signups?.current?.toLocaleString() ?? ''}

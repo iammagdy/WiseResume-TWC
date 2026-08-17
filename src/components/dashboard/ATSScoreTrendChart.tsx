@@ -13,7 +13,7 @@ interface ATSScoreTrendChartProps {
 
 const chartConfig: ChartConfig = {
   score: {
-    label: 'ATS Score',
+    label: 'Resume readiness',
     color: 'hsl(var(--primary))',
   },
 };
@@ -70,7 +70,7 @@ export function ATSScoreTrendChart({ history, mode }: ATSScoreTrendChartProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Score Trend</p>
+        <p className="text-sm font-semibold text-foreground">Readiness trend</p>
         {delta !== null && <DeltaBadge delta={delta} />}
       </div>
       <ChartContainer config={chartConfig} className="h-[200px] w-full">

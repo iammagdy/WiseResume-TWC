@@ -3,7 +3,7 @@ import { migrateTemplateId } from '@/lib/templateMigration';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import editorLogger from '@/lib/editorLogger';
 import { formatDegreeAndField } from '@/lib/educationFormat';
-import { Wand2, CheckCircle, ArrowRight, Undo2, GitCompare, History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3, Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, Settings, ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download, Eye } from 'lucide-react';
+import { Wand2, CheckCircle, ArrowRight, Undo2, GitCompare, History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3, Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, ExternalLink, Copy, Check, ChevronDown, ChevronUp, Briefcase, Download, Eye } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +19,6 @@ import { generateCustomizationCSS } from '@/lib/templateCustomization';
 import { buildMergedResume } from '@/lib/tailorMerge';
 import { TailorProgressComponent } from './tailor/TailorProgress';
 import { SectionChangeCard } from './tailor/SectionChangeCard';
-import { SkillSuggestionList } from './tailor/SkillSuggestionList';
-import { ScoreComparison } from './tailor/ScoreComparison';
 import { TailorHistorySheet } from './tailor/TailorHistorySheet';
 import { CoverLetterGenerator } from './tailor/CoverLetterGenerator';
 import { AICostBadge } from '@/components/ai/AICostBadge';
@@ -44,7 +42,7 @@ import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { useSettingsStore } from '@/store/settingsStore';
 import { databases, DATABASE_ID, ID } from '@/lib/appwrite';
 import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
@@ -58,6 +56,7 @@ import {
 } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { useShallow } from 'zustand/react/shallow';
+import { calculateTailorKeywordScores } from '@/lib/tailorKeywordScore';
 
 interface TailorSheetProps {
   open: boolean;
@@ -193,16 +192,6 @@ function buildPlainTextFromResume(resume: ResumeData, tailorResult: SuperTailorR
   return lines.join('\n').trim();
 }
 
-const SECTION_ATS_WEIGHTS: Record<TailorSectionId, number> = {
-  experience: 0.35,
-  skills: 0.25,
-  summary: 0.20,
-  education: 0.10,
-  projects: 0.05,
-  certifications: 0.03,
-  awards: 0.02,
-};
-
 export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -280,7 +269,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const [copiedText, setCopiedText] = useState(false);
   const [appliedResumeId, setAppliedResumeId] = useState<string | null>(null);
   const [showAppliedCTA, setShowAppliedCTA] = useState(false);
-  const [isRetryingScore, setIsRetryingScore] = useState(false);
   const [appliedJobInfo, setAppliedJobInfo] = useState<{ title: string; company: string } | null>(null);
   const [appliedMergedResume, setAppliedMergedResume] = useState<ResumeData | null>(null);
   const [appliedResumeTitle, setAppliedResumeTitle] = useState<string | null>(null);
@@ -453,7 +441,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       setIsTailoring(false);
       setProgress(null);
     }
-  }, [jobDescription, currentResume, intensity, customInstructions, executeAI, setPendingTailor, currentResumeId, jobUrl, onOpenChange, navigate]);
+  }, [jobDescription, currentResume, executeAI, setPendingTailor, enabledSections, intensity, jobUrl, currentResumeId, redactedResume, customInstructions]);
 
   // Auto-tailor when a URL is parsed
   // T009: Reset autoTailorTriggered when a new, different parsedJobInfo is received
@@ -641,7 +629,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         jobDescription,
         tailoredResumeId: newDoc.$id,
         tailorResult,
-        scoreBeforeAfter: tailorResult.overallScore ?? { before: 0, after: 0 },
+        scoreBeforeAfter: calculateTailorKeywordScores(currentResume, mergedResume, jobDescription) ?? { before: 0, after: 0 },
         appliedSections: enabledSections,
       }, currentResumeId || undefined);
 
@@ -662,7 +650,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     } finally {
       setIsApplying(false);
     }
-  }, [tailorResult, currentResume, user, enabledSections, rejectedBullets, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, onOpenChange, clearPendingTailor, jobUrl, navigate]);
+  }, [tailorResult, currentResume, user, enabledSections, rejectedBullets, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, clearPendingTailor]);
 
   const handleCopyPlainText = useCallback(async () => {
     if (!currentResume || !tailorResult) return;
@@ -687,7 +675,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     if (appliedResumeId) params.set('resumeId', appliedResumeId);
     onOpenChange(false);
     navigate(`/applications?${params.toString()}`);
-  }, [navigate, parsedJobInfo, tailorResult, appliedResumeId, onOpenChange]);
+  }, [appliedJobInfo?.title, appliedJobInfo?.company, parsedJobInfo?.title, parsedJobInfo?.company, tailorResult?.jobParsed?.title, tailorResult?.jobParsed?.company, appliedResumeId, onOpenChange, navigate]);
 
   // Hidden offscreen render of the tailored resume so the PDF generator can
   // find a real DOM node to capture. Without this, generatePDF would query
@@ -704,7 +692,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
       if (!tailoredTemplateRef.current) throw new Error('Template not ready');
       const pageFormat = (appliedMergedResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-      const blob = await generateNativePDF(tailoredTemplateRef.current, { pageFormat });
+      const { pdfDefaults } = useSettingsStore.getState();
+      const blob = await generateNativePDF(tailoredTemplateRef.current, {
+        pageFormat,
+        showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+        showBranding: pdfDefaults.showBranding ?? true,
+      });
       await validatePdfBlob(blob);
       const name = appliedMergedResume.contactInfo?.fullName || 'Resume';
       const jobSuffix = appliedJobInfo?.title ? `_${appliedJobInfo.title}` : '';
@@ -769,6 +763,21 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     setParsedJobInfo(null);
   };
 
+  const handleViewJobDetails = (jobId: string) => {
+    const job = currentComparison?.jobs.find((entry) => entry.id === jobId);
+    if (!job) {
+      toast.error('That comparison entry is no longer available');
+      return;
+    }
+
+    setTailorResult(job.tailorResult);
+    setJobDescription(job.jobDescription);
+    setParsedJobInfo({ title: job.jobTitle, company: job.company });
+    setActiveTab('changes');
+    setIsAddingToComparison(false);
+    setShowMultiCompare(false);
+  };
+
   const handleRevert = () => {
     if (originalResume) {
       updateResume(originalResume);
@@ -780,56 +789,29 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     clearCache(currentResumeId);
   };
 
-  const handleRetryScore = useCallback(async () => {
-    if (!tailorResult || !originalResume || isRetryingScore) return;
+  const handleRetryScore = useCallback(() => {
+    if (!tailorResult || !originalResume) return;
 
-    setIsRetryingScore(true);
-    try {
-      const tailoredResume: ResumeData = {
-        ...originalResume,
-        summary: tailorResult.summary,
-        skills: tailorResult.skills,
-        experience: tailorResult.experience,
-        education: tailorResult.education,
-        ...(tailorResult.projects ? { projects: tailorResult.projects } : {}),
-        ...(tailorResult.certifications ? { certifications: tailorResult.certifications } : {}),
-        ...(tailorResult.awards ? { awards: tailorResult.awards } : {}),
-      };
+    const tailoredResume = buildMergedResume(
+      originalResume,
+      tailorResult,
+      enabledSections,
+      rejectedBullets,
+    );
+    const comparison = calculateTailorKeywordScores(
+      originalResume,
+      tailoredResume,
+      jobDescription,
+    );
 
-      const [beforeResult, afterResult] = await Promise.all([
-        appwriteFunctions.invoke<{ overallScore?: number }>('score-resume', {
-          body: { resume: originalResume, source: 'background' },
-        }),
-        appwriteFunctions.invoke<{ overallScore?: number }>('score-resume', {
-          body: { resume: tailoredResume, source: 'background' },
-        }),
-      ]);
-
-      const beforeScore = beforeResult.data?.overallScore;
-      const afterScore = afterResult.data?.overallScore;
-
-      if (typeof beforeScore === 'number' && typeof afterScore === 'number') {
-        handleUpdateTailorResult({ overallScore: { before: beforeScore, after: afterScore } });
-        toast.success('Keyword match score calculated.');
-      } else {
-        toast.error('Could not retrieve score — try re-tailoring.');
-      }
-    } catch {
-      toast.error('Score calculation failed — try re-tailoring.');
-    } finally {
-      setIsRetryingScore(false);
+    if (!comparison) {
+      toast.error('Add a job description to calculate keyword overlap.');
+      return;
     }
-  }, [tailorResult, originalResume, isRetryingScore, handleUpdateTailorResult]);
 
-  const handleAddSkill = (skill: string) => {
-    if (!currentResume) return;
-    if (tailorResult) {
-      handleUpdateTailorResult({ skills: [...(tailorResult.skills ?? []), skill] });
-    } else {
-      updateResume({ skills: [...currentResume.skills, skill] });
-    }
-    toast.success(`Added "${skill}" to your skills`);
-  };
+    handleUpdateTailorResult({ overallScore: comparison, sectionScores: null });
+    toast.success('Local keyword overlap calculated.');
+  }, [tailorResult, originalResume, enabledSections, rejectedBullets, jobDescription, handleUpdateTailorResult]);
 
   const handleBoostSkill = (skill: string) => {
     if (!currentResume) return;
@@ -843,44 +825,23 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
     toast.success(`Moved "${skill}" to the top`);
   };
 
-  const handleAddAllSkills = () => {
-    if (!tailorResult || !currentResume) return;
-    const newSkills = [
-      ...(tailorResult.missingSkills ?? []).map(s => s.skill),
-      ...(tailorResult.skills ?? []),
-    ];
-    handleUpdateTailorResult({ skills: newSkills });
-    toast.success(`Added ${tailorResult.missingSkills.length} skills`);
-  };
-
   const handleRestoreVersion = (id: string) => {
     restoreTailorVersion(id);
     toast.success('Restored previous version');
   };
 
-  const effectiveScore = useMemo(() => {
-    if (!tailorResult || !tailorResult.overallScore) return null;
-    const before = tailorResult.overallScore.before;
-    const maxImprovement = tailorResult.overallScore.after - before;
+  const keywordScoreComparison = useMemo(() => {
+    if (!tailorResult || !originalResume) return null;
+    const tailoredResume = buildMergedResume(
+      originalResume,
+      tailorResult,
+      enabledSections,
+      rejectedBullets,
+    );
+    return calculateTailorKeywordScores(originalResume, tailoredResume, jobDescription);
+  }, [tailorResult, originalResume, enabledSections, rejectedBullets, jobDescription]);
 
-    const presentSections: TailorSectionId[] = [
-      'summary',
-      'skills',
-      'experience',
-      ...(tailorResult.education?.length ? ['education' as TailorSectionId] : []),
-      ...(tailorResult.projects?.length ? ['projects' as TailorSectionId] : []),
-      ...(tailorResult.certifications?.length ? ['certifications' as TailorSectionId] : []),
-      ...(tailorResult.awards?.length ? ['awards' as TailorSectionId] : []),
-    ];
-
-    const maxWeight = presentSections.reduce((sum, s) => sum + SECTION_ATS_WEIGHTS[s], 0);
-    const appliedWeight = enabledSections
-      .filter(s => presentSections.includes(s))
-      .reduce((sum, s) => sum + SECTION_ATS_WEIGHTS[s], 0);
-    const sectionWeight = maxWeight > 0 ? appliedWeight / maxWeight : 1;
-
-    return Math.round(before + (maxImprovement * sectionWeight));
-  }, [tailorResult, enabledSections]);
+  const effectiveScore = keywordScoreComparison?.after ?? null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -911,14 +872,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 Full view
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {}}
-                className="text-muted-foreground"
-              >
-                <Settings className="w-4 h-4" />
               </Button>
               {tailorHistory.length > 0 && (
                 <Button
@@ -1192,29 +1145,39 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               {/* Tab Content */}
               {activeTab === 'changes' && (
                 <div className="space-y-4">
-                  {/* Score Comparison */}
-                  {tailorResult.overallScore && tailorResult.sectionScores ? (
-                    <ScoreComparison
-                      beforeScore={tailorResult.overallScore.before}
-                      afterScore={tailorResult.overallScore.after}
-                      sectionScores={tailorResult.sectionScores}
-                      selectedSections={enabledSections}
-                    />
+                  {/* Deterministic keyword-overlap comparison */}
+                  {keywordScoreComparison ? (
+                    <div className="p-4 rounded-xl bg-card border border-border space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">Keyword overlap</p>
+                          <p className="text-xs text-muted-foreground">Calculated locally from this job description</p>
+                        </div>
+                        <div className="flex items-center gap-2 tabular-nums text-sm font-semibold">
+                          <span className="text-muted-foreground">{keywordScoreComparison.before}%</span>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground" aria-hidden />
+                          <span className="text-primary">{keywordScoreComparison.after}%</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        This is literal keyword overlap, not an employer ATS score or a guarantee of selection.
+                      </p>
+                    </div>
                   ) : (
                     <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3">
                       <div className="flex items-start gap-3">
                         <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Score couldn't be calculated</p>
+                          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Keyword overlap is unavailable</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            The keyword match score couldn't be calculated this time. Your tailored content is 100% valid — estimate the score from keyword analysis (free), or re-tailor fully for an AI-computed score.
+                            Add or restore the job description to run the local comparison. The tailored text remains available for review.
                           </p>
                         </div>
                       </div>
                       <div className="flex gap-2 flex-wrap">
-                        <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleRetryScore} disabled={isRetryingScore}>
-                          {isRetryingScore ? <MiniSpinner size={12} className="mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-                          {isRetryingScore ? 'Calculating...' : 'Calculate Score (free)'}
+                        <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleRetryScore}>
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Recalculate locally
                         </Button>
                         <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
                           <RefreshCw className="w-3 h-3 mr-1" />
@@ -1444,9 +1407,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                   <SmartSkillSuggestions
                     missingSkills={tailorResult.missingSkills || []}
                     boostableSkills={tailorResult.boostableSkills || []}
-                    onAddSkill={handleAddSkill}
                     onBoostSkill={handleBoostSkill}
-                    onAddAllCritical={handleAddAllSkills}
                   />
                 </div>
               )}
@@ -1458,8 +1419,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                   ) : (
                     <div className="p-8 text-center text-muted-foreground">
                       <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                      <p className="font-medium">Interview prep coming soon</p>
-                      <p className="text-sm">Tailored interview questions will appear here</p>
+                      <p className="font-medium">No interview talking points returned</p>
+                      <p className="text-sm">Try tailoring again with a more complete job description.</p>
                     </div>
                   )}
                 </div>
@@ -1627,7 +1588,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
                 <p className="text-[11px] text-muted-foreground">
                   {intensity === 'light' && 'Minimal keyword tweaks, preserves your voice'}
                   {intensity === 'moderate' && 'Balanced rewrite with keyword optimization'}
-                  {intensity === 'aggressive' && 'Maximum ATS compatibility, extensive rewrite'}
+                  {intensity === 'aggressive' && 'Maximum keyword emphasis, extensive rewrite'}
                 </p>
               </div>
 
@@ -1735,15 +1696,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
               </p>
             ) : effectiveScore ? (
               <p className="text-xs text-center text-muted-foreground mt-1.5 [@media(max-height:700px)]:hidden">
-                Applying {enabledSections.length} sections → Score: {effectiveScore}% • New tailored copy will be created
+                Applying {enabledSections.length} sections → Keyword overlap: {effectiveScore}% • New tailored copy will be created
               </p>
             ) : null}
           </div>
         )}
         </AISheetErrorBoundary>
       </SheetContent>
-
-      {/* AI Settings Sheet */}
 
       {/* Compare Sheet */}
       <CompareSheet
@@ -1794,9 +1753,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         open={showMultiCompare}
         onOpenChange={setShowMultiCompare}
         onAddJob={handleAddJobFromCompare}
-        onViewJobDetails={(jobId) => {
-          toast.info('Full details view coming soon');
-        }}
+        onViewJobDetails={handleViewJobDetails}
       />
     </Sheet>
   );

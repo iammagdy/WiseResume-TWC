@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -22,6 +21,7 @@ import {
   type ScreenResult,
 } from '@/hooks/wisehire/useBulkScreen';
 import { useBiasMode } from '@/hooks/wisehire/useBiasMode';
+import type { PipelineStage } from '@/hooks/wisehire/usePipeline';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -30,7 +30,6 @@ export default function BulkScreenPage() {
   const [jdText, setJdText] = useState('');
   const [roleId, setRoleId] = useState<string>('');
   const [results, setResults] = useState<ScreenResult[] | null>(null);
-  const [byokNeeded, setByokNeeded] = useState(false);
   const [addedRanks, setAddedRanks] = useState<Set<number>>(new Set());
   const [addingRank, setAddingRank] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -45,26 +44,24 @@ export default function BulkScreenPage() {
   const canSubmit = files.length > 0 && jdText.trim().length >= 20 && !runScreen.isPending;
 
   const handleScreen = async () => {
-    setByokNeeded(false);
     setResults(null);
     try {
       const data = await runScreen.mutateAsync({ files, jdText, roleId: roleId || undefined });
       setResults(data.results);
       setAddedRanks(new Set());
-    } catch (err: unknown) {
-      if ((err as Error & { code?: string }).code === 'requires_api_key') {
-        setByokNeeded(true);
-      }
+    } catch {
+      // The mutation owns user-visible errors and privacy-cancellation state.
     }
   };
 
-  const handleAddToPipeline = async (result: ScreenResult, stage: string) => {
+  const handleAddToPipeline = async (result: ScreenResult, stage: PipelineStage) => {
     setAddingRank(String(result.rank));
     try {
       await addToP.mutateAsync({
         name: result.filename_name,
         roleId: roleId || undefined,
-        resumeSummary: `Match score: ${result.match_score}%\n\nStrengths:\n${result.strengths.join('\n')}\n\nConcerns:\n${result.concerns.join('\n')}\n\nSummary: ${result.summary}`,
+        stage,
+        resumeSummary: `Evidence alignment estimate: ${result.match_score ?? 'not rated'}${result.match_score === null ? '' : '%'}\n\nSupported evidence:\n${result.strengths.join('\n')}\n\nQuestions to verify:\n${result.concerns.join('\n')}\n\nAI summary for human review: ${result.summary}`,
       });
       setAddedRanks((prev) => new Set([...prev, result.rank]));
     } finally {
@@ -79,10 +76,10 @@ export default function BulkScreenPage() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <FileSearch className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              Bulk Resume Screening
+              Bulk Resume Review
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Upload up to 10 PDFs — AI ranks and scores every candidate against your JD.
+              Create AI evidence summaries for up to 10 resumes against one role. Results require human review.
             </p>
           </div>
           <BiasToggle biasMode={biasMode} onToggle={toggleBiasMode} />
@@ -135,16 +132,9 @@ export default function BulkScreenPage() {
             />
           </div>
 
-          {byokNeeded && (
-            <Alert variant="destructive">
-              <AlertDescription className="text-sm">
-                Your plan requires an OpenAI or Anthropic API key to use Bulk Screening.{' '}
-                <a href="/wisehire/settings" className="underline font-medium">
-                  Add your key in Settings.
-                </a>
-              </AlertDescription>
-            </Alert>
-          )}
+          <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
+            After you accept the AI privacy disclosure, readable PDF text and the job description are sent to WiseHire&apos;s configured AI provider. The estimates are decision-support only; verify the source resumes and make every hiring decision through human review.
+          </p>
 
           <Button
             onClick={handleScreen}
@@ -154,12 +144,12 @@ export default function BulkScreenPage() {
             {runScreen.isPending ? (
               <>
                 <MiniSpinner size={16} />
-                Screening {files.length} resume{files.length !== 1 ? 's' : ''}…
+                Reviewing {files.length} resume{files.length !== 1 ? 's' : ''}…
               </>
             ) : (
               <>
                 <FileSearch className="h-4 w-4" />
-                Screen All ({files.length})
+                Review All ({files.length})
               </>
             )}
           </Button>

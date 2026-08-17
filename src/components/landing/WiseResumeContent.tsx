@@ -66,7 +66,7 @@ export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentPro
                 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', color: 'var(--lp-text)', letterSpacing: '-0.025em' }}
               >
                 {t('landing.fifteenTools', '15+ AI tools. One platform.')}<br />
-                <span style={{ color: 'var(--lp-eyebrow)' }}>{t('landing.unfairAdvantage', 'Your unfair advantage in the job market.')}</span>
+                <span style={{ color: 'var(--lp-eyebrow)' }}>{t('landing.unfairAdvantage', 'One workspace for your job search.')}</span>
               </h2>
             </div>
             <div

@@ -48,7 +48,7 @@ export function Footer({ lpMode, product }: FooterProps) {
                 : undefined
             }
           />
-          <span>{t('landing.footerSecureNotice', 'Your data is encrypted and secure')}</span>
+          <span>{t('landing.footerSecureNotice', 'Protected by account access controls and encrypted connections')}</span>
         </div>
 
         <div className="flex items-center gap-1 text-xs">

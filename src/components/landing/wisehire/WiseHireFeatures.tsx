@@ -45,13 +45,13 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
     {
       icon: Brain,
       title: t('wisehire.features.briefGenerator.title', 'AI Brief Generator'),
-      desc: t('wisehire.features.briefGenerator.desc', 'Instantly generate a structured candidate brief — match score, key strengths, red flags, and top interview questions — from any CV.'),
+      desc: t('wisehire.features.briefGenerator.desc', 'Draft a reviewable candidate brief from CV and role evidence. The evidence-alignment estimate is not a fit score or hiring recommendation.'),
       badge: '01',
     },
     {
       icon: FileText,
       title: t('wisehire.features.jdWriter.title', 'JD Writer'),
-      desc: t('wisehire.features.jdWriter.desc', 'Write bias-free, compelling job descriptions in seconds. AI tailors the tone and requirements to attract the right candidates.'),
+      desc: t('wisehire.features.jdWriter.desc', 'Draft a job description from the facts you provide. Verify requirements, employment terms, and inclusive language before publishing.'),
       badge: '02',
     },
     {
@@ -62,14 +62,14 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
     },
     {
       icon: Users,
-      title: t('wisehire.features.bulkScreening.title', 'Bulk Screening'),
-      desc: t('wisehire.features.bulkScreening.desc', 'Upload multiple CVs at once. AI scores and ranks every applicant against your role criteria — no manual reading required.'),
+      title: t('wisehire.features.bulkScreening.title', 'Bulk Resume Review'),
+      desc: t('wisehire.features.bulkScreening.desc', 'Upload multiple CVs and review source-ordered evidence summaries against selected role criteria. A recruiter must verify every output.'),
       badge: '04',
     },
     {
       icon: Archive,
       title: t('wisehire.features.talentPool.title', 'Talent Pool'),
-      desc: t('wisehire.features.talentPool.desc', 'Never lose a great candidate. Build a searchable pool of past applicants you can re-engage for future roles instantly.'),
+      desc: t('wisehire.features.talentPool.desc', 'Build a searchable pool of candidates you are authorized to retain and review for future roles.'),
       badge: '05',
     },
   ];
@@ -109,13 +109,13 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
               transition: 'color 0.35s ease',
             }}
           >
-            {t('wisehire.features.heading', 'Five tools. One hiring OS.')}
+            {t('wisehire.features.heading', 'Five review workflows. One hiring workspace.')}
           </h2>
           <p
             className="max-w-md mx-auto text-sm"
             style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
           >
-            {t('wisehire.features.subheading', 'Everything your hiring team needs in one place — from writing the JD to making the offer.')}
+            {t('wisehire.features.subheading', 'Organize role and candidate evidence in one place while keeping hiring decisions with your team.')}
           </p>
         </motion.div>
 

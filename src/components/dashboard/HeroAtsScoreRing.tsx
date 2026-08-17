@@ -8,7 +8,7 @@ interface HeroAtsScoreRingProps {
   className?: string;
 }
 
-/** ATS score ring with stacked score + "ATS" label (dashboard hero, dialogs). */
+/** Resume-readiness ring used by dashboard hero and portfolio dialogs. */
 export const HeroAtsScoreRing = memo(function HeroAtsScoreRing({
   score,
   size = 88,
@@ -21,6 +21,8 @@ export const HeroAtsScoreRing = memo(function HeroAtsScoreRing({
       size={size}
       isLoading={isLoading}
       variant="labeled"
+      label="Resume readiness"
+      caption="Ready"
       className={className}
     />
   );

@@ -89,7 +89,7 @@ export function DashboardUploadWidget({
       setShowReview(true);
       triggerATSScoring(parsedData);
     }
-  }, [parsedData, isProcessing]);
+  }, [parsedData, isProcessing, triggerATSScoring]);
 
   const triggerATSScoring = useCallback((resumeData: ResumeData) => {
     const tempId = crypto.randomUUID();

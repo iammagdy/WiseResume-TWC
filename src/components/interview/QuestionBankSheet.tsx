@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface Question {
   question: string;
@@ -24,6 +25,27 @@ interface QuestionCategory {
   id: 'company' | 'technical' | 'behavioral' | 'curveball';
   label: string;
   questions: Question[];
+}
+
+function isQuestionBankResult(value: unknown): value is { categories: QuestionCategory[] } {
+  if (typeof value !== 'object' || value === null) return false;
+  const categories = (value as { categories?: unknown }).categories;
+  if (!Array.isArray(categories) || categories.length > 8) return false;
+  return categories.every(category => {
+    if (typeof category !== 'object' || category === null) return false;
+    const item = category as Record<string, unknown>;
+    return (
+      ['company', 'technical', 'behavioral', 'curveball'].includes(String(item.id)) &&
+      typeof item.label === 'string' &&
+      Array.isArray(item.questions) &&
+      item.questions.length <= 30 &&
+      item.questions.every(question => {
+        if (typeof question !== 'object' || question === null) return false;
+        const q = question as Record<string, unknown>;
+        return typeof q.question === 'string' && typeof q.context === 'string' && typeof q.answerTip === 'string';
+      })
+    );
+  });
 }
 
 interface QuestionBankSheetProps {
@@ -52,6 +74,7 @@ export function QuestionBankSheet({
   const [activeTab, setActiveTab] = useState<string>('company');
   const [expandedQ, setExpandedQ] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { execute: executeAI } = useAIAction({ operation: 'question-bank' });
 
   const handleGenerate = async () => {
     if (!jobTitle) {
@@ -62,15 +85,20 @@ export function QuestionBankSheet({
     setLoading(true);
     haptics.light();
     try {
-      const { data: result, error } = await appwriteFunctions.invoke<{ categories: QuestionCategory[] }>('generate-question-bank', {
-        body: {
-          jobTitle,
-          company: company || '',
-          jobDescription: jobDescription || '',
-          resumeSummary: resumeSummary || '',
-        },
+      const result = await executeAI(async () => {
+        const { data, error } = await appwriteFunctions.invoke<unknown>('generate-question-bank', {
+          body: {
+            jobTitle,
+            company: company || '',
+            jobDescription: jobDescription || '',
+            resumeSummary: resumeSummary || '',
+          },
+        });
+        if (error) throw new Error(error.message || 'Failed to generate questions');
+        if (!isQuestionBankResult(data)) throw new Error('AI returned an invalid question bank');
+        return data;
       });
-      if (error) throw new Error(error.message || 'Failed to generate questions');
+      if (!result) return;
       invalidateAiCreditQueries(queryClient);
       setCategories(result?.categories || []);
       if (result?.categories && result.categories.length > 0) {

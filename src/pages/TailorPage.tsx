@@ -360,7 +360,7 @@ export default function TailorPage() {
     setParsedJobInfo(null);
     toast.dismiss();
     toast.success('Resume switched — ready to tailor');
-  }, [allResumes, currentResumeId]);
+  }, [allResumes, currentResumeId, setCurrentResumeId]);
 
   const toggleSection = (sectionId: TailorSectionId) => {
     setEnabledSections(prev =>
@@ -526,7 +526,7 @@ export default function TailorPage() {
       setIsTailoring(false);
       setProgress(null);
     }
-  }, [jobDescription, currentResume, currentResumeId, intensity, customInstructions, executeAI, setPendingTailor, jobUrl, redactedResume, enabledSections]);
+  }, [jobDescription, currentResume, currentResumeId, executeAI, setPendingTailor, enabledSections, intensity, jobUrl, redactedResume, customInstructions, queryClient]);
 
   const handleDismissIssue = useCallback((index: number) => {
     setDismissedIssueIndices(prev => new Set([...prev, index]));
@@ -702,7 +702,7 @@ export default function TailorPage() {
     } finally {
       setIsApplying(false);
     }
-  }, [tailorResult, currentResume, user, enabledSections, rejectedBullets, appliedFixes, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, clearPendingTailor, jobUrl, navigate]);
+  }, [tailorResult, currentResume, user, currentResumeId, enabledSections, rejectedBullets, appliedFixes, parsedJobInfo?.title, parsedJobInfo?.company, addTailorHistory, jobDescription, jobUrl, clearPendingTailor, queryClient]);
 
   const handleCopyPlainText = useCallback(async () => {
     if (!currentResume || !tailorResult) return;
@@ -1043,7 +1043,7 @@ export default function TailorPage() {
                   </ToggleGroup>
                   <p className="text-xs text-muted-foreground leading-relaxed px-0.5">
                     {intensity === 'light' && 'Light touch — keyword alignment with minimal rewrites.'}
-                    {intensity === 'moderate' && 'Balanced — stronger phrasing and ATS keyword coverage.'}
+                    {intensity === 'moderate' && 'Balanced — stronger phrasing and truthful job-keyword alignment.'}
                     {intensity === 'aggressive' && 'Maximum match — bold rewrites for competitive roles.'}
                   </p>
                   <div className="space-y-2 pt-2">
@@ -1626,7 +1626,7 @@ function ResultsPanel({
           <div className="flex flex-col gap-1.5 px-1">
             {[
               { icon: <Check className="w-3.5 h-3.5 text-success shrink-0" />, label: 'Keywords matched from job description' },
-              { icon: <Shield className="w-3.5 h-3.5 text-primary shrink-0" />, label: 'ATS-friendly improvements applied' },
+              { icon: <Shield className="w-3.5 h-3.5 text-primary shrink-0" />, label: 'Source-grounded improvements applied' },
               { icon: <TrendingUp className="w-3.5 h-3.5 text-warning shrink-0" />, label: 'Bullet points optimized for impact' },
             ].map(({ icon, label }) => (
               <div key={label} className="flex items-center gap-2 text-xs text-muted-foreground">

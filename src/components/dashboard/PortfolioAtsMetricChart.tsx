@@ -13,7 +13,7 @@ interface PortfolioAtsMetricChartProps {
   className?: string;
 }
 
-/** Fixed 0–100 scale mini bar chart — portfolio ATS snapshots (real scores, not normalized). */
+/** Fixed 0–100 scale mini bar chart for deterministic readiness snapshots. */
 export const PortfolioAtsMetricChart = memo(function PortfolioAtsMetricChart({
   points,
   currentAvg,
@@ -54,7 +54,7 @@ export const PortfolioAtsMetricChart = memo(function PortfolioAtsMetricChart({
     <div
       className={cn('portfolio-ats-metric-chart shrink-0', className)}
       role="img"
-      aria-label={`ATS portfolio trend, latest ${data[data.length - 1].score}%`}
+      aria-label={`Resume readiness trend, latest ${data[data.length - 1].score}%`}
     >
       <div className="w-[92px] h-[46px]">
         <ResponsiveContainer width="100%" height="100%">

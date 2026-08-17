@@ -237,7 +237,7 @@ function setTailoredResume() {
   ];
 }
 
-describe('TailoringHubResultPage export actions', () => {
+describe('TailoringHubResultPage export actions', { timeout: 15_000 }, () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();

@@ -42,6 +42,11 @@ import {
 } from "./lib/captureErrorShim";
 import { activityTracker } from "./lib/activityTracker";
 import { clearStaleAssetRecoveryGuard } from "./lib/staleAssetRecovery";
+import {
+  getSanitizedCurrentClientRoute,
+  sanitizeSensitiveText,
+  sanitizeUnknownForClientLogging,
+} from "./lib/security/sensitiveUrlSanitizer";
 
 // Appwrite is configured to allow localhost during local development, but
 // not the numeric loopback host. Redirecting early avoids opaque browser
@@ -62,12 +67,15 @@ if (import.meta.env.DEV && window.location.hostname === "127.0.0.1") {
   // Log message + stack explicitly: Error instances serialize to {} in JSON-based
   // log collectors because their properties (message, stack) are non-enumerable.
   window.addEventListener('error', (event) => {
-    const err = event.error;
+    const err = sanitizeUnknownForClientLogging(event.error ?? event.message);
     const detail = err instanceof Error
       ? `${err.name}: ${err.message}\n${err.stack ?? ''}`
-      : String(err ?? event.message ?? 'Unknown error');
+      : sanitizeSensitiveText(String(err ?? 'Unknown error'));
     console.error('Global Error:', detail);
-    captureError(err ?? event.message, { source: 'window.onerror' });
+    captureError(err, {
+      source: 'window.onerror',
+      route: getSanitizedCurrentClientRoute(),
+    });
     if (err instanceof Error) {
       activityTracker.pushRecentError(err.message, err.stack);
     } else {
@@ -77,12 +85,15 @@ if (import.meta.env.DEV && window.location.hostname === "127.0.0.1") {
   });
 
   window.addEventListener('unhandledrejection', (event) => {
-    const reason = event.reason;
+    const reason = sanitizeUnknownForClientLogging(event.reason);
     const detail = reason instanceof Error
       ? `${reason.name}: ${reason.message}\n${reason.stack ?? ''}`
-      : String(reason);
+      : sanitizeSensitiveText(String(reason));
     console.error('Unhandled Promise Rejection:', detail);
-    captureError(reason, { source: 'unhandledrejection' });
+    captureError(reason, {
+      source: 'unhandledrejection',
+      route: getSanitizedCurrentClientRoute(),
+    });
     if (reason instanceof Error) {
       activityTracker.pushRecentError(reason.message, reason.stack);
     } else if (typeof reason === 'string') {

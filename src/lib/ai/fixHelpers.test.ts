@@ -52,7 +52,7 @@ describe('findTargetContent', () => {
       quote: 'Experienced software engineer',
       fix: 'Rewrite it',
       fixType: 'summary',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toEqual({
@@ -68,7 +68,7 @@ describe('findTargetContent', () => {
       quote: 'N/A',
       fix: 'Add Python',
       fixType: 'skills',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toEqual({
@@ -84,7 +84,7 @@ describe('findTargetContent', () => {
       quote: 'scalable web apps',
       fix: 'Add metrics',
       fixType: 'experience',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toEqual({
@@ -101,7 +101,7 @@ describe('findTargetContent', () => {
       quote: 'Mentored juniors',
       fix: 'How many?',
       fixType: 'experience',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toEqual({
@@ -118,7 +118,7 @@ describe('findTargetContent', () => {
       quote: 'maintained legacy', // Lowercase
       fix: 'Fix typo',
       fixType: 'experience',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toEqual({
@@ -135,7 +135,7 @@ describe('findTargetContent', () => {
       quote: 'Non-existent text',
       fix: 'Fix it',
       fixType: 'experience',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toBeNull();
@@ -148,7 +148,7 @@ describe('findTargetContent', () => {
       quote: 'N/A',
       fix: 'Fix it',
       fixType: 'experience',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toBeNull();
@@ -161,7 +161,7 @@ describe('findTargetContent', () => {
       quote: 'University of Tech',
       fix: 'Fix format',
       fixType: 'education',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toEqual({
@@ -178,7 +178,7 @@ describe('findTargetContent', () => {
       quote: 'N/A',
       fix: 'Add phone',
       fixType: 'contact',
-    } as any;
+    } satisfies RedFlag;
 
     const result = findTargetContent(mockResume, redFlag);
     expect(result).toBeNull();

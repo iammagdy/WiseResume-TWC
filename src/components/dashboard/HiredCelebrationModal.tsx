@@ -76,7 +76,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
       }
     }
     if (!open) setDidFireHaptics(false);
-  }, [open]);
+  }, [didFireHaptics, open, updateProfile, user?.id]);
 
   const handleTurnOffOpenToWork = async () => {
     if (isTogglingOpenToWork) return;

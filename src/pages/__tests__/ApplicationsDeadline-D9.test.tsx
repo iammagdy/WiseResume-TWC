@@ -68,8 +68,6 @@ vi.mock("@/lib/activityTracker", () => ({
 
 vi.mock("@/lib/jobMatchScorer", () => ({
   scoreJobMatch: vi.fn(() => null),
-  scoreJobMatchAI: vi.fn(() => Promise.resolve(null)),
-  getCachedAIScore: vi.fn(() => null),
 }));
 
 vi.mock("@/hooks/useResumes", () => ({

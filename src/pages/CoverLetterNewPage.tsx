@@ -36,6 +36,8 @@ import {
   type DatabaseResume,
 } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAIAction } from '@/hooks/useAIAction';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 import { cn } from '@/lib/utils';
 
@@ -54,7 +56,10 @@ export default function CoverLetterNewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const prefill = (location.state ?? {}) as CoverLetterNewLocationState;
+  const prefill = useMemo(
+    () => (location.state ?? {}) as CoverLetterNewLocationState,
+    [location.state],
+  );
   const resumeIdFromUrl = searchParams.get('resumeId') ?? prefill.resumeId ?? '';
   const fromTailorResult =
     prefill.fromTailorResult === true || searchParams.get('source') === 'tailor-result';
@@ -88,6 +93,7 @@ export default function CoverLetterNewPage() {
   const [showResultAnyway, setShowResultAnyway] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { saveCoverLetter } = useCoverLetterMutations();
+  const { execute: executeAI } = useAIAction({ operation: 'cover-letter' });
 
   const { data: tailorContext } = useQuery({
     queryKey: ['tailor-job-context', resumeIdFromUrl],
@@ -162,6 +168,11 @@ export default function CoverLetterNewPage() {
     }
     return null;
   }, [currentResume, linkedResumeDoc, resumeFromList, selectedResumeId]);
+  const selectedResumeData = useMemo(
+    () => selectedResume ? dbToResumeData(selectedResume) : null,
+    [selectedResume],
+  );
+  const redactedResume = useRedactedResume(selectedResumeData);
 
   const linkedResumeTitle = selectedResume?.title ?? 'Tailored CV';
   const resumeReady = !!selectedResume;
@@ -184,7 +195,7 @@ export default function CoverLetterNewPage() {
               'AI-generated cover letters in seconds',
               'Tailored to any job description & your resume',
               'Unlimited cover letter saves & exports',
-              'ATS-friendly formatting built in',
+              'Simple, recruiter-readable formatting',
             ]}
           />
         </div>
@@ -218,21 +229,24 @@ export default function CoverLetterNewPage() {
     setGenerating(true);
     haptics.light();
     try {
-      const resumeData = dbToResumeData(selectedResume);
-      const { data, error } = await appwriteFunctions.invoke('generate-cover-letter', {
-        body: {
-          resume: resumeData,
-          jobDescription,
-          tone,
-          jobTitle: jobTitle || undefined,
-          company: company || undefined,
-          templateStyle,
-          resumeId: selectedResumeId || undefined,
-          title: jobTitle ? `${jobTitle}${company ? ` - ${company}` : ''}` : undefined,
-        },
+      const data = await executeAI(async () => {
+        const { data: response, error } = await appwriteFunctions.invoke('generate-cover-letter', {
+          body: {
+            resume: redactedResume,
+            jobDescription,
+            tone,
+            jobTitle: jobTitle || undefined,
+            company: company || undefined,
+            templateStyle,
+            resumeId: selectedResumeId || undefined,
+            title: jobTitle ? `${jobTitle}${company ? ` - ${company}` : ''}` : undefined,
+          },
+        });
+        if (error) throw new Error(error.message || 'Failed to generate cover letter');
+        if (!response) throw new Error('AI returned an empty response.');
+        return response;
       });
-      if (error) throw new Error(error.message || 'Failed to generate cover letter');
-      if (!data) throw new Error('AI returned an empty response.');
+      if (!data) return;
       if (data?.error) throw new Error(data.message || data.error);
       const letter: string = data.coverLetter || data.content;
       if (!letter || !letter.trim()) {

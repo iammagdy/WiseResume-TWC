@@ -28,6 +28,11 @@ interface CallOpts {
   jsonMode?: boolean;
 }
 
+interface ChatCompletionResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+  usage?: ProviderResult['usage'];
+}
+
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 /**
@@ -42,7 +47,7 @@ async function postJSON(
   body: unknown,
   headers: Record<string, string> = {},
   { retries = 2, baseDelayMs = 8000 } = {},
-): Promise<{ status: number; body: any }> {
+): Promise<{ status: number; body: ChatCompletionResponse | null }> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const res = await fetch(url, {
       method: 'POST',
@@ -53,8 +58,8 @@ async function postJSON(
       },
       body: JSON.stringify(body),
     });
-    let parsed: any = null;
-    try { parsed = await res.json(); } catch { /* ignore */ }
+    let parsed: ChatCompletionResponse | null = null;
+    try { parsed = await res.json() as ChatCompletionResponse; } catch { /* non-JSON errors stay null */ }
     if (res.status !== 429 || attempt === retries) {
       return { status: res.status, body: parsed };
     }

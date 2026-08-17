@@ -66,7 +66,7 @@ export function AICreditsIndicator() {
             AI Credits
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Credits power AI features like Resume Tailor, Cover Letter, ATS Scoring,
+            Credits power AI features like Resume Tailor, Cover Letter, and writing suggestions,
             and more. Each AI action costs 1–3 credits.
           </p>
           <div className="rounded-lg bg-muted px-3 py-2 text-xs space-y-1">

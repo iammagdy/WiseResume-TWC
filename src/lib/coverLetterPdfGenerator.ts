@@ -8,6 +8,21 @@ export type TemplateStyle =
   | 'compact'
   | 'creative';
 
+export interface CoverLetterPdfOptions {
+  pageFormat?: 'letter' | 'a4';
+  showPageNumbers?: boolean;
+  pageNumberFormat?: 'simple' | 'full';
+  showBranding?: boolean;
+}
+
+interface ResolvedCoverLetterPdfOptions {
+  pageWidth: number;
+  pageHeight: number;
+  showPageNumbers: boolean;
+  pageNumberFormat: 'simple' | 'full';
+  showBranding: boolean;
+}
+
 interface CoverLetterRecord {
   job_title: string;
   company?: string | null;
@@ -19,9 +34,6 @@ interface CoverLetterRecord {
   /** Optional hex accent color from user's resume customization (e.g. "#1e40af") */
   accentHex?: string | null;
 }
-
-const PAGE_W = 612;
-const PAGE_H = 792;
 
 // Default brand accent — matches the "modern/default" template palette (#1e40af)
 const DEFAULT_ACCENT = rgb(30 / 255, 64 / 255, 175 / 255);
@@ -120,8 +132,10 @@ function drawBrandedHeader(
   fontRegular: import('pdf-lib').PDFFont,
   accent: ReturnType<typeof rgb>,
   logo: import('pdf-lib').PDFImage | null,
-  margin: number
+  margin: number,
+  options: ResolvedCoverLetterPdfOptions,
 ): number {
+  const { pageWidth: PAGE_W, pageHeight: PAGE_H, showBranding } = options;
   const hasCompany = Boolean(companyText);
   const headerH = buildHeaderHeight(hasCompany);
 
@@ -144,14 +158,14 @@ function drawBrandedHeader(
   const LOGO_SIZE = 20;
   const LOGO_X = PAGE_W - margin - LOGO_SIZE;
   const LOGO_Y = PAGE_H - HEADER_TOP_BAR_H - LOGO_SIZE - 6;
-  if (logo) {
+  if (showBranding && logo) {
     page.drawImage(logo, {
       x: LOGO_X,
       y: LOGO_Y,
       width: LOGO_SIZE,
       height: LOGO_SIZE * (128 / 128),
     });
-  } else {
+  } else if (showBranding) {
     const brandLabel = 'WiseResume';
     const brandW = fontBold.widthOfTextAtSize(brandLabel, BRAND_SIZE);
     page.drawText(brandLabel, {
@@ -220,8 +234,12 @@ function drawBrandedFooter(
   fontRegular: import('pdf-lib').PDFFont,
   pageNum: number,
   totalPages: number,
-  margin: number
+  margin: number,
+  options: ResolvedCoverLetterPdfOptions,
 ): void {
+  const { pageWidth: PAGE_W } = options;
+  if (!options.showPageNumbers && !options.showBranding) return;
+
   page.drawLine({
     start: { x: margin, y: margin - 10 },
     end: { x: PAGE_W - margin, y: margin - 10 },
@@ -229,8 +247,10 @@ function drawBrandedFooter(
     color: ACCENT_LIGHT,
   });
 
-  if (totalPages > 1) {
-    const pageText = `Page ${pageNum} of ${totalPages}`;
+  if (options.showPageNumbers) {
+    const pageText = options.pageNumberFormat === 'simple'
+      ? String(pageNum)
+      : `Page ${pageNum} of ${totalPages}`;
     const pw = fontRegular.widthOfTextAtSize(pageText, FOOTER_SIZE);
     page.drawText(pageText, {
       x: (PAGE_W - pw) / 2,
@@ -241,23 +261,27 @@ function drawBrandedFooter(
     });
   }
 
-  const badge = '• Created with WiseResume · part of The Wise Cloud';
-  const bw = fontRegular.widthOfTextAtSize(badge, FOOTER_SIZE - 1);
-  page.drawText(badge, {
-    x: (PAGE_W - bw) / 2,
-    y: margin - 10 - FOOTER_SIZE - 4 - (FOOTER_SIZE - 1) - 4,
-    size: FOOTER_SIZE - 1,
-    font: fontRegular,
-    color: rgb(0.65, 0.65, 0.70),
-  });
+  if (options.showBranding) {
+    const badge = '• Created with WiseResume · part of The Wise Cloud';
+    const bw = fontRegular.widthOfTextAtSize(badge, FOOTER_SIZE - 1);
+    page.drawText(badge, {
+      x: (PAGE_W - bw) / 2,
+      y: margin - 10 - FOOTER_SIZE - 4 - (FOOTER_SIZE - 1) - 4,
+      size: FOOTER_SIZE - 1,
+      font: fontRegular,
+      color: rgb(0.65, 0.65, 0.70),
+    });
+  }
 }
 
 /** Professional template — branded header with accent bar, clean body, branded footer. */
 async function renderProfessional(
   pdfDoc: PDFDocument,
   letter: CoverLetterRecord,
-  logo: import('pdf-lib').PDFImage | null
+  logo: import('pdf-lib').PDFImage | null,
+  options: ResolvedCoverLetterPdfOptions,
 ): Promise<void> {
+  const { pageWidth: PAGE_W, pageHeight: PAGE_H } = options;
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -276,7 +300,7 @@ async function renderProfessional(
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   pages.push(page);
 
-  let y = drawBrandedHeader(page, titleText, companyText, dateStr, fontBold, fontRegular, accent, logo, MARGIN);
+  let y = drawBrandedHeader(page, titleText, companyText, dateStr, fontBold, fontRegular, accent, logo, MARGIN, options);
   const bodyTop = y;
 
   for (const line of allLines) {
@@ -302,7 +326,7 @@ async function renderProfessional(
 
   const totalPages = pages.length;
   for (let i = 0; i < totalPages; i++) {
-    drawBrandedFooter(pages[i], fontRegular, i + 1, totalPages, MARGIN);
+    drawBrandedFooter(pages[i], fontRegular, i + 1, totalPages, MARGIN, options);
   }
 }
 
@@ -310,8 +334,10 @@ async function renderProfessional(
 async function renderModern(
   pdfDoc: PDFDocument,
   letter: CoverLetterRecord,
-  logo: import('pdf-lib').PDFImage | null
+  logo: import('pdf-lib').PDFImage | null,
+  options: ResolvedCoverLetterPdfOptions,
 ): Promise<void> {
+  const { pageWidth: PAGE_W, pageHeight: PAGE_H } = options;
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -343,14 +369,14 @@ async function renderModern(
 
   // Logo or brand mark in sidebar
   const LOGO_SIZE = 24;
-  if (logo) {
+  if (options.showBranding && logo) {
     page.drawImage(logo, {
       x: MARGIN,
       y: PAGE_H - MARGIN - LOGO_SIZE,
       width: LOGO_SIZE,
       height: LOGO_SIZE,
     });
-  } else {
+  } else if (options.showBranding) {
     page.drawText('WiseResume', {
       x: MARGIN,
       y: PAGE_H - MARGIN - 10,
@@ -393,13 +419,19 @@ async function renderModern(
   const totalPages = pages.length;
   for (let i = 0; i < totalPages; i++) {
     const p = pages[i];
-    const footerText = `Page ${i + 1} of ${totalPages}`;
-    const fw = fontRegular.widthOfTextAtSize(footerText, FOOTER_SIZE_M);
-    p.drawText(footerText, { x: (PAGE_W - fw) / 2, y: MARGIN - FOOTER_SIZE_M - 4, size: FOOTER_SIZE_M, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    if (options.showPageNumbers) {
+      const footerText = options.pageNumberFormat === 'simple'
+        ? String(i + 1)
+        : `Page ${i + 1} of ${totalPages}`;
+      const fw = fontRegular.widthOfTextAtSize(footerText, FOOTER_SIZE_M);
+      p.drawText(footerText, { x: (PAGE_W - fw) / 2, y: MARGIN - FOOTER_SIZE_M - 4, size: FOOTER_SIZE_M, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    }
 
-    const badge = '• WiseResume · part of The Wise Cloud';
-    const bw = fontRegular.widthOfTextAtSize(badge, 7);
-    p.drawText(badge, { x: (PAGE_W - bw) / 2, y: MARGIN - FOOTER_SIZE_M - 18, size: 7, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    if (options.showBranding) {
+      const badge = '• WiseResume · part of The Wise Cloud';
+      const bw = fontRegular.widthOfTextAtSize(badge, 7);
+      p.drawText(badge, { x: (PAGE_W - bw) / 2, y: MARGIN - FOOTER_SIZE_M - 18, size: 7, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    }
   }
 }
 
@@ -407,8 +439,10 @@ async function renderModern(
 async function renderMinimal(
   pdfDoc: PDFDocument,
   letter: CoverLetterRecord,
-  logo: import('pdf-lib').PDFImage | null
+  logo: import('pdf-lib').PDFImage | null,
+  options: ResolvedCoverLetterPdfOptions,
 ): Promise<void> {
+  const { pageWidth: PAGE_W, pageHeight: PAGE_H } = options;
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -437,14 +471,14 @@ async function renderMinimal(
 
   // Logo or brand mark top-right
   const LOGO_SIZE = 18;
-  if (logo) {
+  if (options.showBranding && logo) {
     page.drawImage(logo, {
       x: PAGE_W - MARGIN - LOGO_SIZE,
       y: PAGE_H - MARGIN - LOGO_SIZE + 10,
       width: LOGO_SIZE,
       height: LOGO_SIZE,
     });
-  } else {
+  } else if (options.showBranding) {
     const bw = fontBold.widthOfTextAtSize('WiseResume', 7);
     page.drawText('WiseResume', {
       x: PAGE_W - MARGIN - bw,
@@ -490,13 +524,19 @@ async function renderMinimal(
   const totalPages = pages.length;
   for (let i = 0; i < totalPages; i++) {
     const p = pages[i];
-    const footerText = `Page ${i + 1} of ${totalPages}`;
-    const fw = fontRegular.widthOfTextAtSize(footerText, FOOTER_SIZE_N);
-    p.drawText(footerText, { x: (PAGE_W - fw) / 2, y: MARGIN - FOOTER_SIZE_N - 4, size: FOOTER_SIZE_N, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    if (options.showPageNumbers) {
+      const footerText = options.pageNumberFormat === 'simple'
+        ? String(i + 1)
+        : `Page ${i + 1} of ${totalPages}`;
+      const fw = fontRegular.widthOfTextAtSize(footerText, FOOTER_SIZE_N);
+      p.drawText(footerText, { x: (PAGE_W - fw) / 2, y: MARGIN - FOOTER_SIZE_N - 4, size: FOOTER_SIZE_N, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    }
 
-    const badge = '• WiseResume · part of The Wise Cloud';
-    const bw2 = fontRegular.widthOfTextAtSize(badge, 7);
-    p.drawText(badge, { x: (PAGE_W - bw2) / 2, y: MARGIN - FOOTER_SIZE_N - 16, size: 7, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    if (options.showBranding) {
+      const badge = '• WiseResume · part of The Wise Cloud';
+      const bw2 = fontRegular.widthOfTextAtSize(badge, 7);
+      p.drawText(badge, { x: (PAGE_W - bw2) / 2, y: MARGIN - FOOTER_SIZE_N - 16, size: 7, font: fontRegular, color: rgb(0.7, 0.7, 0.7) });
+    }
   }
 }
 
@@ -504,8 +544,10 @@ async function renderMinimal(
 async function renderCompact(
   pdfDoc: PDFDocument,
   letter: CoverLetterRecord,
-  logo: import('pdf-lib').PDFImage | null
+  logo: import('pdf-lib').PDFImage | null,
+  options: ResolvedCoverLetterPdfOptions,
 ): Promise<void> {
+  const { pageWidth: PAGE_W, pageHeight: PAGE_H } = options;
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -533,7 +575,7 @@ async function renderCompact(
   page.drawRectangle({ x: 0, y: PAGE_H - 1.5, width: PAGE_W, height: 1.5, color: ACCENT_COLOR });
 
   // Brand mark top-right (compact uses text only — no logo to keep it tight)
-  if (logo) {
+  if (options.showBranding && logo) {
     page.drawImage(logo, {
       x: PAGE_W - MARGIN - 14,
       y: PAGE_H - MARGIN - 14 + 6,
@@ -576,14 +618,18 @@ async function renderCompact(
   const totalPages = pages.length;
   for (let i = 0; i < totalPages; i++) {
     const p = pages[i];
-    if (totalPages > 1) {
-      const footerText = `${i + 1} / ${totalPages}`;
+    if (options.showPageNumbers) {
+      const footerText = options.pageNumberFormat === 'simple'
+        ? String(i + 1)
+        : `${i + 1} / ${totalPages}`;
       const fw = fontRegular.widthOfTextAtSize(footerText, FOOTER_SIZE_C);
       p.drawText(footerText, { x: (PAGE_W - fw) / 2, y: MARGIN - FOOTER_SIZE_C - 4, size: FOOTER_SIZE_C, font: fontRegular, color: rgb(0.65, 0.65, 0.7) });
     }
-    const badge = '• WiseResume';
-    const bw = fontRegular.widthOfTextAtSize(badge, 6.5);
-    p.drawText(badge, { x: (PAGE_W - bw) / 2, y: MARGIN - FOOTER_SIZE_C - 14, size: 6.5, font: fontRegular, color: rgb(0.7, 0.7, 0.75) });
+    if (options.showBranding) {
+      const badge = '• WiseResume';
+      const bw = fontRegular.widthOfTextAtSize(badge, 6.5);
+      p.drawText(badge, { x: (PAGE_W - bw) / 2, y: MARGIN - FOOTER_SIZE_C - 14, size: 6.5, font: fontRegular, color: rgb(0.7, 0.7, 0.75) });
+    }
   }
 }
 
@@ -591,8 +637,10 @@ async function renderCompact(
 async function renderCreative(
   pdfDoc: PDFDocument,
   letter: CoverLetterRecord,
-  logo: import('pdf-lib').PDFImage | null
+  logo: import('pdf-lib').PDFImage | null,
+  options: ResolvedCoverLetterPdfOptions,
 ): Promise<void> {
+  const { pageWidth: PAGE_W, pageHeight: PAGE_H } = options;
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -644,9 +692,9 @@ async function renderCreative(
   page.drawText(metaParts.join('  •  '), { x: MARGIN, y: headerY, size: META_SIZE_R, font: fontRegular, color: rgb(1, 1, 1) });
 
   // Brand top-right
-  if (logo) {
+  if (options.showBranding && logo) {
     page.drawImage(logo, { x: PAGE_W - MARGIN - 22, y: PAGE_H - MARGIN - 6, width: 22, height: 22 });
-  } else {
+  } else if (options.showBranding) {
     const brand = 'WiseResume';
     const bw = fontBold.widthOfTextAtSize(brand, 9);
     page.drawText(brand, { x: PAGE_W - MARGIN - bw, y: PAGE_H - 26, size: 9, font: fontBold, color: rgb(1, 1, 1) });
@@ -673,38 +721,54 @@ async function renderCreative(
   const totalPages = pages.length;
   for (let i = 0; i < totalPages; i++) {
     const p = pages[i];
-    if (totalPages > 1) {
-      const footerText = `Page ${i + 1} of ${totalPages}`;
+    if (options.showPageNumbers) {
+      const footerText = options.pageNumberFormat === 'simple'
+        ? String(i + 1)
+        : `Page ${i + 1} of ${totalPages}`;
       const fw = fontRegular.widthOfTextAtSize(footerText, FOOTER_SIZE_R);
       p.drawText(footerText, { x: (PAGE_W - fw) / 2, y: MARGIN - FOOTER_SIZE_R - 4, size: FOOTER_SIZE_R, font: fontRegular, color: rgb(0.6, 0.6, 0.65) });
     }
-    const badge = '• Created with WiseResume · part of The Wise Cloud';
-    const bw = fontRegular.widthOfTextAtSize(badge, 7);
-    p.drawText(badge, { x: (PAGE_W - bw) / 2, y: MARGIN - FOOTER_SIZE_R - 16, size: 7, font: fontRegular, color: rgb(0.65, 0.65, 0.7) });
+    if (options.showBranding) {
+      const badge = '• Created with WiseResume · part of The Wise Cloud';
+      const bw = fontRegular.widthOfTextAtSize(badge, 7);
+      p.drawText(badge, { x: (PAGE_W - bw) / 2, y: MARGIN - FOOTER_SIZE_R - 16, size: 7, font: fontRegular, color: rgb(0.65, 0.65, 0.7) });
+    }
   }
 }
 
-export async function generateCoverLetterPDF(letter: CoverLetterRecord): Promise<Uint8Array> {
+export async function generateCoverLetterPDF(
+  letter: CoverLetterRecord,
+  options: CoverLetterPdfOptions = {},
+): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const style = (letter.template_style as TemplateStyle) || 'professional';
-  const logo = await tryLoadLogo(pdfDoc);
+  const pageDimensions = options.pageFormat === 'a4'
+    ? { pageWidth: 595, pageHeight: 842 }
+    : { pageWidth: 612, pageHeight: 792 };
+  const resolvedOptions: ResolvedCoverLetterPdfOptions = {
+    ...pageDimensions,
+    showPageNumbers: options.showPageNumbers ?? true,
+    pageNumberFormat: options.pageNumberFormat ?? 'full',
+    showBranding: options.showBranding ?? true,
+  };
+  const logo = resolvedOptions.showBranding ? await tryLoadLogo(pdfDoc) : null;
 
   switch (style) {
     case 'modern':
-      await renderModern(pdfDoc, letter, logo);
+      await renderModern(pdfDoc, letter, logo, resolvedOptions);
       break;
     case 'minimal':
-      await renderMinimal(pdfDoc, letter, logo);
+      await renderMinimal(pdfDoc, letter, logo, resolvedOptions);
       break;
     case 'compact':
-      await renderCompact(pdfDoc, letter, logo);
+      await renderCompact(pdfDoc, letter, logo, resolvedOptions);
       break;
     case 'creative':
-      await renderCreative(pdfDoc, letter, logo);
+      await renderCreative(pdfDoc, letter, logo, resolvedOptions);
       break;
     case 'professional':
     default:
-      await renderProfessional(pdfDoc, letter, logo);
+      await renderProfessional(pdfDoc, letter, logo, resolvedOptions);
       break;
   }
 

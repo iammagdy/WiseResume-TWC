@@ -86,7 +86,9 @@ async function clearPasswordFailures(db: Databases, username: string, ip: string
       count: 0,
       reset_at: new Date(Date.now() + PASSWORD_ATTEMPT_WINDOW_MS).toISOString(),
     });
-  } catch { }
+  } catch {
+    // Best-effort cleanup; an unavailable limiter store must not hide the response.
+  }
 }
 
 async function recordPasswordFailure(db: Databases, username: string, ip: string): Promise<void> {
@@ -176,7 +178,9 @@ async function verifyAndMaybeUpgradePassword(
   try {
     const upgraded = await bcrypt.hash(submittedPassword, 12);
     await db.updateDocument(DATABASE_ID, PORTFOLIO_SETTINGS_COLLECTION, settingsDocId, { password_hash: upgraded });
-  } catch { }
+  } catch {
+    // Legacy hash upgrade is best-effort; the verified password remains valid.
+  }
   return true;
 }
 

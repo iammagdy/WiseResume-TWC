@@ -22,6 +22,7 @@ import { checkAIRateLimit } from '@/lib/rateLimiter';
 import { CareerPathResult } from '@/lib/careerPath';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 export default function CareerPage() {
   const navigate = useNavigate();
@@ -35,6 +36,11 @@ export default function CareerPage() {
   const { execute: executeAI } = useAIAction({ operation: 'career-assessment' });
 
   const primaryResume = resumes?.find(r => r.is_primary) || resumes?.[0];
+  const primaryResumeData = useMemo(
+    () => primaryResume ? dbToResumeData(primaryResume) : null,
+    [primaryResume],
+  );
+  const redactedResume = useRedactedResume(primaryResumeData);
 
   // Compute skill completion progress
   const skillProgress = useMemo(() => {
@@ -58,11 +64,9 @@ export default function CareerPage() {
 
     setIsAnalyzing(true);
     try {
-      const resumeData = dbToResumeData(primaryResume);
-
       const result = await executeAI(async () => {
         const { data, error } = await appwriteFunctions.invoke('career-assessment', {
-          body: { resume: resumeData, quizAnswers: answers, ...(quickCheck ? { questionLimit: 3 } : {}) },
+          body: { resume: redactedResume, quizAnswers: answers, ...(quickCheck ? { questionLimit: 3 } : {}) },
         });
 
         if (error) throw new Error(error.message || 'Analysis failed');
@@ -157,7 +161,7 @@ export default function CareerPage() {
                 <Sparkles className="w-10 h-10 mb-3" />
                 <h2 className="text-xl font-bold mb-1">Discover Your Career Path</h2>
                 <p className="text-sm opacity-90">
-                  AI will deeply analyze your resume to create a personalized career roadmap with real course recommendations.
+                  AI can draft career directions from your resume. Treat roles, readiness estimates, and timelines as ideas to verify—not labor-market facts.
                 </p>
               </div>
               <CardContent className="p-4">
@@ -168,7 +172,7 @@ export default function CareerPage() {
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Briefcase className="w-4 h-4 text-primary shrink-0" />
-                    <span>Real YouTube courses for skill gaps</span>
+                    <span>Curated course links and search suggestions</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Clock className="w-4 h-4 text-primary shrink-0" />
@@ -206,6 +210,9 @@ export default function CareerPage() {
             </Card>
           ) : r && (
             <>
+              <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                These are AI-generated exploration ideas based on your resume, not job offers, salary research, or guaranteed readiness timelines. Verify requirements and market data independently.
+              </div>
               {/* Summary Card */}
               <Card>
                 <CardContent className="p-4 space-y-3">
@@ -318,17 +325,19 @@ export default function CareerPage() {
                 <TabsContent value="roles" className="space-y-4 mt-0">
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Recommended Next Roles</CardTitle>
+                      <CardTitle className="text-base">Roles to Explore</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {r.nextRoles.map((role, i) => (
                         <div key={i} className="bg-input border border-border rounded-xl p-3">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-sm font-semibold">{role.title}</p>
-                            <Badge className="text-[10px]">{role.matchScore}%</Badge>
+                            <Badge className="text-[10px]" title="AI resume-relevance estimate, not hiring probability">
+                              {role.matchScore}/100 relevance estimate
+                            </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">{role.description}</p>
-                          <p className="text-[11px] text-muted-foreground/70 mt-1">Ready in: {role.timeToReady}</p>
+                          <p className="text-[11px] text-muted-foreground/70 mt-1">Suggested preparation horizon: {role.timeToReady}</p>
                           <div className="flex flex-wrap gap-1 mt-2">
                             {role.requiredSkills.slice(0, 4).map((s, j) => (
                               <Badge key={j} variant="secondary" className="text-[10px]">{s}</Badge>
@@ -349,12 +358,6 @@ export default function CareerPage() {
                           <div key={i} className="bg-input border border-border rounded-xl p-3">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-sm font-semibold">{alt.role}</p>
-                              <Badge
-                                variant={alt.salaryComparison === 'higher' ? 'default' : 'secondary'}
-                                className="text-[10px]"
-                              >
-                                {alt.salaryComparison} pay
-                              </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">{alt.industry}</p>
                             <div className="flex flex-wrap gap-1 mt-2">

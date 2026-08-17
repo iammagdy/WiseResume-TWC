@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ResumeData, TemplateId } from '@/types/resume';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export interface OnePageMeasurement {
   /** Real rendered page count (>=1) at the active page format. */
@@ -44,6 +45,7 @@ type PdfGenModule = typeof import('@/lib/pdfGenerator');
 export function useOnePageExport({ resume, templateId, enabled }: UseOnePageExportArgs): OnePageExportApi {
   const elementRef = useRef<HTMLElement | null>(null);
   const pdfModRef = useRef<PdfGenModule | null>(null);
+  const readinessTokenRef = useRef<symbol | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   // Reset readiness when toggled off or when the source identity changes
@@ -68,16 +70,18 @@ export function useOnePageExport({ resume, templateId, enabled }: UseOnePageExpo
   const setRef = useCallback((node: HTMLElement | null) => {
     elementRef.current = node;
     if (!node) {
+      readinessTokenRef.current = null;
       setIsReady(false);
       return;
     }
-    let cancelled = false;
+    const readinessToken = Symbol('one-page-export-render');
+    readinessTokenRef.current = readinessToken;
     (async () => {
       try { await document.fonts.ready; } catch { /* ignore */ }
       // Wait for the lazy <Suspense> template to actually paint content into the wrapper.
       // Poll briefly until either real content is in the DOM or we time out.
       const deadline = performance.now() + 2500;
-      while (!cancelled && performance.now() < deadline) {
+      while (readinessTokenRef.current === readinessToken && performance.now() < deadline) {
         await new Promise<void>(r => requestAnimationFrame(() => r()));
         if (node.scrollHeight > 100 && node.children.length > 0) break;
       }
@@ -86,7 +90,7 @@ export function useOnePageExport({ resume, templateId, enabled }: UseOnePageExpo
       if (!pdfModRef.current) {
         try { pdfModRef.current = await import('@/lib/pdfGenerator'); } catch { /* ignore */ }
       }
-      if (cancelled) return;
+      if (readinessTokenRef.current !== readinessToken) return;
       setIsReady(true);
     })();
   }, []);
@@ -115,7 +119,14 @@ export function useOnePageExport({ resume, templateId, enabled }: UseOnePageExpo
     if (!el) throw new Error('Offscreen template not ready');
     const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
     const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-    return generateNativePDF(el, { pageFormat, onProgress });
+    const { pdfDefaults } = useSettingsStore.getState();
+    return generateNativePDF(el, {
+      pageFormat,
+      showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+      pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+      showBranding: pdfDefaults.showBranding ?? true,
+      onProgress,
+    });
   }, [resume]);
 
   const exportOnePagePdf = useCallback(async ({ onProgress }: { onProgress?: OnProgressCallback } = {}) => {
@@ -124,7 +135,15 @@ export function useOnePageExport({ resume, templateId, enabled }: UseOnePageExpo
     if (!el) throw new Error('Offscreen template not ready');
     const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
     const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
-    return generateNativePDF(el, { pageFormat, onePage: true, onProgress });
+    const { pdfDefaults } = useSettingsStore.getState();
+    return generateNativePDF(el, {
+      pageFormat,
+      onePage: true,
+      showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+      pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+      showBranding: pdfDefaults.showBranding ?? true,
+      onProgress,
+    });
   }, [resume]);
 
   // Stable identity so consumers can include the api in effect deps without looping

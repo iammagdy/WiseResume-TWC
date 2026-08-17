@@ -18,6 +18,9 @@ import {
   resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
 import { aiErrorToastMessage } from '@/lib/aiErrorParser';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import { SECTION_LABELS } from './LivePreviewPanel';
 import type { ResumeData } from '@/types/resume';
 
@@ -81,6 +84,8 @@ function getExperienceEntries(resume: ResumeData | null): ExperienceEntry[] {
 export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIPopoverProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
+  const redactedResume = useRedactedResume(currentResume);
+  const { requestDisclosure } = useAIPrivacyDisclosure();
 
   const isExperience = sectionName === 'experience';
   const experienceEntries = getExperienceEntries(currentResume);
@@ -117,6 +122,10 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
     if (!currentResume) return;
     if (!instruction.trim() && !quickAction) return;
 
+    let privacyAccepted = hasAcceptedAIPrivacy();
+    if (!privacyAccepted) privacyAccepted = await requestDisclosure();
+    if (!privacyAccepted) return;
+
     let snapshot: unknown;
     let action = 'custom';
     let fixInstruction: string | undefined = instruction.trim() || undefined;
@@ -150,7 +159,7 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
             action,
             ...(fixInstruction ? { fixInstruction } : {}),
             currentContent: snapshot,
-            context: { resume: currentResume },
+            context: { resume: redactedResume },
           },
         },
       );
@@ -189,7 +198,14 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
       );
       setPhase('error');
     }
-  }, [currentResume, sectionName, selectedEntry, isExperience]);
+  }, [
+    currentResume,
+    isExperience,
+    redactedResume,
+    requestDisclosure,
+    sectionName,
+    selectedEntry,
+  ]);
 
   const handleApply = useCallback(() => {
     if (!currentResume || proposed === null || proposed === undefined) return;
@@ -367,7 +383,7 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
                   className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium text-slate-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-colors"
                 >
                   <BarChart2 className="w-3 h-3" />
-                  Add metrics
+                  Evidence & metrics
                 </button>
                 <button
                   type="button"
@@ -375,7 +391,7 @@ export function SectionAIPopover({ open, onOpenChange, sectionName }: SectionAIP
                   className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium text-slate-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-colors"
                 >
                   <Zap className="w-3 h-3" />
-                  ATS optimize
+                  Keyword align
                 </button>
               </div>
             )}

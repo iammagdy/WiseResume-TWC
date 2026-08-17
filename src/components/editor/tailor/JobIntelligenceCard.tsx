@@ -98,13 +98,13 @@ const experienceLevelLabels = {
          </div>
        </div>
  
-       {/* ATS Score */}
+       {/* Literal keyword overlap */}
        {atsAnalysis && (
          <div className="mb-4 p-3 rounded-lg bg-card border border-border">
            <div className="flex items-center justify-between mb-2">
              <div className="flex items-center gap-2">
                <Zap className="w-4 h-4 text-warning" />
-               <span className="text-sm font-medium">ATS Keyword Match</span>
+               <span className="text-sm font-medium">Keyword Overlap</span>
              </div>
              <div className="text-right">
                <span className="text-sm text-muted-foreground">{atsAnalysis.originalKeywordDensity}%</span>

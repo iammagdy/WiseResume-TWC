@@ -370,8 +370,8 @@ export function AuthBold({
   const [showPw, setShowPw] = useState(false);
   const [typed, setTyped] = useState('');
   const [caret, setCaret] = useState(true);
-  const [stat1, setStat1] = useState('0.0×');
-  const [stat2, setStat2] = useState('0');
+  const stat1 = t('auth.verifiedValue');
+  const stat2 = t('auth.localValue');
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scoutRef = useRef<HTMLDivElement | null>(null);
@@ -442,8 +442,6 @@ export function AuthBold({
     if (reduced) {
       setTyped(typedWord);
       setCaret(false);
-      setStat1('3.2×');
-      setStat2('92');
       return;
     }
 
@@ -460,26 +458,8 @@ export function AuthBold({
     };
     const twStart = window.setTimeout(tick, 780);
 
-    const runCount = (set: (v: string) => void, to: number, dec: number, suf: string) => {
-      const dur = 1400;
-      const start = performance.now();
-      const ease = (t: number) => 1 - Math.pow(1 - t, 3);
-      const step = (now: number) => {
-        const t = Math.min((now - start) / dur, 1);
-        set((ease(t) * to).toFixed(dec) + suf);
-        if (t < 1) requestAnimationFrame(step);
-        else set(to.toFixed(dec) + suf);
-      };
-      requestAnimationFrame(step);
-    };
-    const cuStart = window.setTimeout(() => {
-      runCount(setStat1, 3.2, 1, '×');
-      runCount(setStat2, 92, 0, '');
-    }, 360);
-
     return () => {
       window.clearTimeout(twStart);
-      window.clearTimeout(cuStart);
       if (tw) window.clearTimeout(tw);
     };
   }, [reduced, typedWord]);

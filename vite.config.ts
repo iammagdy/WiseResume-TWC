@@ -5,6 +5,7 @@ import path from "path";
 import { createHash } from "crypto";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
+import packageJson from "./package.json";
 import {
   getManualChunkName,
   PREFETCH_CHUNKS,
@@ -131,7 +132,7 @@ function fontPreloadPlugin(): Plugin {
 
 // App version sourced from package.json — bump there to update the
 // internal build label shown in the landing footer.
-const APP_VERSION = require('./package.json').version as string;
+const APP_VERSION = packageJson.version;
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({

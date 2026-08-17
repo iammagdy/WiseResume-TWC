@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockProfile, mockResumes } from "../../test/mocks/data";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -51,6 +51,16 @@ vi.mock("@/hooks/useResumes", () => {
   const value = { data: mockResumes, isLoading: false, resumes: mockResumes };
   return {
     useResumes: () => value,
+    dbToResumeData: (doc: Record<string, unknown>) => ({
+      ...doc,
+      id: doc.$id ?? doc.id,
+      contactInfo: doc.contactInfo ?? { fullName: '', email: '', phone: '', location: '' },
+      experience: Array.isArray(doc.experience) ? doc.experience : [],
+      education: Array.isArray(doc.education) ? doc.education : [],
+      skills: Array.isArray(doc.skills) ? doc.skills : [],
+      certifications: Array.isArray(doc.certifications) ? doc.certifications : [],
+      templateId: doc.templateId ?? 'wiseresume-classic',
+    }),
     getResumeDocumentId: (doc: { $id?: string; id?: string } | null | undefined) =>
       doc?.$id ?? doc?.id,
     // deriveResumeCompletion (via portfolioCompletion.ts) imports parseDbJson from
@@ -122,14 +132,16 @@ describe("PortfolioEditorPage", () => {
     queryClient.clear();
   });
 
-  it("renders the portfolio editor without crashing", () => {
+  it("renders the portfolio editor without crashing", async () => {
     render(<PortfolioEditorPage />, { wrapper });
+    await act(async () => { await Promise.resolve(); });
     // The page should mount without throwing
     expect(document.body).toBeDefined();
   });
 
   it("shows Portfolio heading or tab", async () => {
     render(<PortfolioEditorPage />, { wrapper });
+    await act(async () => { await Promise.resolve(); });
     // The fully-mounted page renders "portfolio" in several places (header, tabs,
     // preview), so assert at least one match rather than a single unique node.
     const matches = screen.queryAllByText(/portfolio/i);

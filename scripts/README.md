@@ -17,6 +17,7 @@ Supabase Edge Functions are decommissioned for the active app. Any script whose 
 | `setup_ai_logs_schema.cjs` | Creates the `ai_request_logs` schema used by the AI gateway request log writer. | Appwrite credentials |
 | `setup_ai_runtime_receipts_schema.cjs` | Idempotently creates the server-only, metadata-only `ai_runtime_receipts` schema used for QA correlation; it is not run automatically. | Appwrite credentials |
 | `setup_owner_collections_schema.cjs` | Idempotently repairs owner-scoped `user_preferences`, `jobs`, and `job_applications` schema, collection create permission, and document security. | Appwrite credentials |
+| `setup_resume_share_security_schema.cjs` | Reconciles server-only resume-share/feedback/throttle collections, owner-only resume permissions, and (with `--apply-existing`) hash-only legacy credentials/document permissions. Run only as part of the coordinated public-share frontend/backend release. | Appwrite credentials |
 | `migrate_owner_document_permissions.cjs` | Dry-run-first backfill that derives owner document permissions from each document's `user_id` and reports counts only. | Appwrite credentials |
 | `ensure-puppeteer-chrome.mjs` | Ensure local Chromium dependency exists for screenshot/browser checks. | None |
 | `capture-wallpaper.mjs`, `phase6-screenshots.mjs` | Visual capture helpers. | Local browser/runtime only |
@@ -45,6 +46,17 @@ node scripts/migrate_owner_document_permissions.cjs --apply --collections=user_p
 ```
 
 The migration derives ownership only from `user_id`, preserves document data, and prints aggregate counts without document contents or user IDs.
+
+## Resume-share privacy migration
+
+The public-share release removes all browser access to `resume_shares` and `share_comments`, and removes collection/document public reads from `resumes`. Preview the additive schema without touching existing documents by omitting the flag; the canonical targeted hub deploy applies the existing-document migration:
+
+```bash
+node scripts/setup_resume_share_security_schema.cjs
+node scripts/setup_resume_share_security_schema.cjs --apply-existing
+```
+
+Publish the matching frontend in the same maintenance window. Stop and repair any `OWNER_ACTION_REQUIRED` resume with a missing or invalid `user_id`; do not restore public collection permissions as a workaround.
 
 New backend functions must be added to:
 

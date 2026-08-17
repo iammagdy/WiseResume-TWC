@@ -65,7 +65,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
       setProgressStep(prev => Math.min(prev + 1, PROGRESS_STEPS.length - 1));
     }, 2500);
     return () => clearInterval(interval);
-  }, [isAnalyzing]);
+  }, [PROGRESS_STEPS.length, isAnalyzing]);
 
   const handleDismiss = useCallback((id: string) => {
     haptics.light();

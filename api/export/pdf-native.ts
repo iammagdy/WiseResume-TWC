@@ -14,6 +14,17 @@ import { createHash } from 'node:crypto';
 import { Client, Databases, Query } from 'node-appwrite';
 import chromium from '@sparticuz/chromium';
 import { isPuppeteerRequestUrlAllowed } from '../../src/lib/security/ssrfGuards.js';
+import {
+  PDF_EXPORT_MAX_CONTENT_HEIGHT_PX,
+  PDF_EXPORT_MAX_DOM_NODES,
+  PDF_EXPORT_MAX_OUTPUT_BYTES,
+  PDF_EXPORT_MAX_PAGE_BYTES,
+  PDF_EXPORT_MAX_PAGES,
+  calculateOnePageScale,
+  canRemovePdfBranding,
+  formatPdfPageNumber,
+  validatePdfExportRequestBody,
+} from '../../src/lib/security/pdfExportPolicy.js';
 import { createAppwriteDocumentId } from '../_lib/appwriteDocumentId';
 // The static Chromium import is intentional: Vercel's file tracer must see the
 // dependency so it ships the package and its compressed browser binaries.
@@ -43,6 +54,7 @@ const PDF_FORMATS = {
 
 const EXPORT_FOOTER_HEIGHT_PX = 44;
 const EXPORT_BRAND_URL = 'https://wiseresume.app';
+const CSS_PX_TO_PDF_POINT_SCALE = 96 / 72;
 const DEFAULT_MIN_GAP_PX = 40;
 const SECTION_HEADING_GUARD_PX = 80;
 const PDF_RATE_LIMIT_COLLECTION = 'pdf_export_rate_limits';
@@ -68,6 +80,12 @@ const APPWRITE_PROJECT_ID =
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 const APPWRITE_DATABASE_ID = 'main';
 const NEAR_SECTION_TOP_PX = 24;
+const PDF_EXPORT_RATE_LIMIT = 6;
+const PDF_EXPORT_RATE_WINDOW_MS = 60_000;
+const PDF_EXPORT_MAX_CONCURRENT = 2;
+
+const pdfExportRateLimits = new Map<string, { count: number; resetAt: number }>();
+let activePdfExports = 0;
 
 interface ExportPageSegment {
   index: number;
@@ -495,7 +513,8 @@ function buildExportPageSegments(args: {
   const validationTotal = (breakValidationHeightPx && breakValidationHeightPx > total)
     ? Math.round(breakValidationHeightPx)
     : total;
-  const customBreaks = normalizeBreakPositions(customBreakPositions, validationTotal, minGapPx);
+  const customBreaks = normalizeBreakPositions(customBreakPositions, validationTotal, minGapPx)
+    .filter((position) => position > 0 && position < total);
   const breaks = customBreaks.length > 0
     ? customBreaks
     : Array.from(
@@ -545,7 +564,7 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function buildSegmentHtml(args: {
+export function buildSegmentHtml(args: {
   sourceHtml: string;
   pageWidthPx: number;
   contentStartPx: number;
@@ -553,18 +572,21 @@ function buildSegmentHtml(args: {
   footerHeightPx: number;
   pageNumber?: string;
   showBranding: boolean;
+  sourceScale?: number;
   locale: 'en' | 'ar';
 }): string {
   const { head, body } = extractHtmlParts(args.sourceHtml);
   const pageHeightPx = args.contentHeightPx + args.footerHeightPx;
   const pageNumber = args.pageNumber ? escapeHtml(args.pageNumber) : '';
+  const sourceScale = Math.min(1, Math.max(0.01, args.sourceScale ?? 1));
+  const sourceLeftPx = Math.max(0, (args.pageWidthPx - (args.pageWidthPx * sourceScale)) / 2);
 
   return `<!DOCTYPE html>
 <html lang="${args.locale}" dir="${args.locale === 'ar' ? 'rtl' : 'ltr'}">
 <head>
 ${head}
 <style>
-  @page { size: ${args.pageWidthPx}px ${pageHeightPx}px; margin: 0; }
+  @page { size: ${args.pageWidthPx}pt ${pageHeightPx}pt; margin: 0; }
   html, body {
     width: ${args.pageWidthPx}px !important;
     height: ${pageHeightPx}px !important;
@@ -582,9 +604,11 @@ ${head}
   }
   .wr-export-page-source {
     position: absolute;
-    left: 0;
+    left: ${sourceLeftPx}px;
     top: -${args.contentStartPx}px;
     width: ${args.pageWidthPx}px;
+    transform: scale(${sourceScale});
+    transform-origin: top left;
   }
   .wr-export-page-footer {
     width: ${args.pageWidthPx}px;
@@ -649,6 +673,7 @@ function buildFooterTemplate(args: {
 
 interface ExportLayoutMetrics {
   measuredHeight: number;
+  nodeCount: number;
   sections: ExportSectionBounds[];
   avoidBlocks: ExportAvoidBounds[];
 }
@@ -675,6 +700,10 @@ async function measureExportLayout(
 ): Promise<ExportLayoutMetrics> {
   const page = await browser.newPage();
   try {
+    // The request body is untrusted HTML. Layout inspection is performed via
+    // DevTools evaluation, while document scripts and inline event handlers
+    // remain disabled for the entire renderer page.
+    await page.setJavaScriptEnabled(false);
     await installPuppeteerRequestGuard(page);
     await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
@@ -683,6 +712,7 @@ async function measureExportLayout(
     return await page.evaluate(`(() => {
       const template = document.querySelector('[data-resume-template]');
       const root = template ?? document.body;
+      const nodeCount = root.querySelectorAll('*').length;
 
       const relTop = (el) => {
         let top = 0;
@@ -701,7 +731,9 @@ async function measureExportLayout(
         1,
       );
 
-      const sections = Array.from(root.querySelectorAll('[data-section]')).map((sec) => {
+      const sections = nodeCount > ${PDF_EXPORT_MAX_DOM_NODES}
+        ? []
+        : Array.from(root.querySelectorAll('[data-section]')).map((sec) => {
         const sectionEl = sec;
         const top = relTop(sectionEl);
         const directHeading = sectionEl.querySelector(':scope > h2, :scope > h3');
@@ -714,7 +746,9 @@ async function measureExportLayout(
         };
       });
 
-      const avoidBlocks = Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
+      const avoidBlocks = nodeCount > ${PDF_EXPORT_MAX_DOM_NODES}
+        ? []
+        : Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
         const el = node;
         const top = relTop(el);
         return {
@@ -735,7 +769,7 @@ async function measureExportLayout(
         }
       }
 
-      return { measuredHeight, sections, avoidBlocks };
+      return { measuredHeight, nodeCount, sections, avoidBlocks };
     })()`) as Promise<ExportLayoutMetrics>;
   } finally {
     await page.close();
@@ -751,6 +785,7 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
+    await page.setJavaScriptEnabled(false);
     await installPuppeteerRequestGuard(page);
 
     await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 1 });
@@ -759,8 +794,13 @@ async function renderHtmlToPdfBuffer(
     await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
     try { await page.evaluateHandle('document.fonts.ready'); } catch { /* ignore */ }
     const pdf = await page.pdf({
-      width: `${widthPx}px`,
-      height: `${heightPx}px`,
+      width: `${widthPx / 72}in`,
+      height: `${heightPx / 72}in`,
+      // Resume layout coordinates intentionally use PDF-point dimensions
+      // (612x792 Letter, 595x842 A4) as CSS pixels. Chromium maps one CSS px
+      // to 0.75pt, so 4/3 print scaling preserves both the physical paper size
+      // and the preview/export layout coordinates.
+      scale: CSS_PX_TO_PDF_POINT_SCALE,
       printBackground: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' },
     });
@@ -784,28 +824,56 @@ async function mergePdfBuffers(buffers: Buffer[]): Promise<Uint8Array> {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-// ── SSRF guard ────────────────────────────────────────────────────────────────
-function isPuppeteerUrlAllowed(rawUrl: string): boolean {
-  if (rawUrl.startsWith('data:')) return true;
-  let parsed: URL;
-  try { parsed = new URL(rawUrl); } catch { return false; }
-  if (parsed.protocol !== 'https:') return false;
-  const h = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (h === 'localhost' || h === '0.0.0.0' || h.endsWith('.local')) return false;
-  if (h === '::1' || h === '::' || /^(fc|fd)[0-9a-f]{0,2}:/i.test(h)) return false;
-  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const [a, b] = [parseInt(m[1], 10), parseInt(m[2], 10)];
-    if (a === 0 || a === 10 || a === 127 || a === 255) return false;
-    if (a === 100 && b >= 64 && b <= 127) return false;
-    if (a === 169 && b === 254) return false;
-    if (a === 172 && b >= 16 && b <= 31) return false;
-    if (a === 192 && b === 168) return false;
+function checkPdfExportRateLimit(userId: string): boolean {
+  const now = Date.now();
+  if (pdfExportRateLimits.size > 1_000) {
+    for (const [key, value] of pdfExportRateLimits) {
+      if (value.resetAt <= now) pdfExportRateLimits.delete(key);
+    }
   }
+  const current = pdfExportRateLimits.get(userId);
+  if (!current || current.resetAt <= now) {
+    pdfExportRateLimits.set(userId, { count: 1, resetAt: now + PDF_EXPORT_RATE_WINDOW_MS });
+    return true;
+  }
+  if (current.count >= PDF_EXPORT_RATE_LIMIT) return false;
+  current.count += 1;
   return true;
 }
 
+async function loadBrandingRemovalEntitlement(args: {
+  endpoint: string;
+  projectId: string;
+  jwt: string;
+  userId: string;
+}): Promise<boolean | null> {
+  const params = new URLSearchParams();
+  params.append('queries[]', JSON.stringify({ method: 'equal', attribute: 'user_id', values: [args.userId] }));
+  params.append('queries[]', JSON.stringify({ method: 'limit', values: [1] }));
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+  const headers: Record<string, string> = {
+    'X-Appwrite-Project': args.projectId,
+  };
+  if (apiKey) headers['X-Appwrite-Key'] = apiKey;
+  else headers['X-Appwrite-JWT'] = args.jwt;
+
+  try {
+    const response = await fetch(
+      `${args.endpoint}/databases/main/collections/subscriptions/documents?${params.toString()}`,
+      { headers },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json() as { documents?: unknown[] };
+    return canRemovePdfBranding(payload.documents?.[0] ?? null);
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let browser: any;
   let pdfDb: Databases | null = null;
   let userLeaseId: string | null = null;
@@ -849,35 +917,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'unauthorized', message: 'Authentication check failed' });
   }
 
+  const validation = validatePdfExportRequestBody(req.body);
+  if (!validation.ok) {
+    return res.status(validation.status).json({ error: validation.error, message: validation.message });
+  }
   const {
     html,
-    pageFormat = 'letter',
-    onePage = false,
-    showPageNumbers = true,
-    showBranding = true,
-    customBreakPositions = [],
+    pageFormat,
+    onePage,
+    showPageNumbers,
+    pageNumberFormat,
+    showBranding: requestedShowBranding,
+    customBreakPositions,
     totalContentHeightPx,
     layoutContentHeightPx,
-    locale: requestedLocale = 'en',
-  } = req.body as {
-    html?: string;
-    pageFormat?: string;
-    onePage?: boolean;
-    showPageNumbers?: boolean;
-    showBranding?: boolean;
-    customBreakPositions?: number[];
-    totalContentHeightPx?: number;
-    /** Live (untrimmed) layout height sent by the client for safe custom-break
-     *  validation — may be larger than totalContentHeightPx when trailing
-     *  whitespace has been trimmed for final-page cropping. */
-    layoutContentHeightPx?: number;
-    locale?: string;
-  };
-  const locale: 'en' | 'ar' = requestedLocale === 'ar' ? 'ar' : 'en';
+    locale,
+  } = validation.value;
 
-  if (!html || typeof html !== 'string') {
-    return res.status(400).json({ error: 'bad_request', message: 'Missing html body' });
+  if (!checkPdfExportRateLimit(ownerUserId)) {
+    res.setHeader('Retry-After', '60');
+    return res.status(429).json({
+      error: 'rate_limited',
+      message: 'Too many PDF exports. Please wait a minute and try again.',
+    });
   }
+  let showBranding = requestedShowBranding;
+  if (!requestedShowBranding) {
+    const canRemoveBranding = await loadBrandingRemovalEntitlement({
+      endpoint: appwriteEndpoint,
+      projectId: appwriteProjectId,
+      jwt: jwtToken,
+      userId: ownerUserId,
+    });
+    if (canRemoveBranding === null) {
+      return res.status(503).json({
+        error: 'entitlement_unavailable',
+        message: 'Could not verify the branding setting. Please retry the export.',
+      });
+    }
+    showBranding = !canRemoveBranding;
+  }
+
   if (Buffer.byteLength(html, 'utf8') > PDF_MAX_HTML_BYTES) {
     return res.status(413).json({ error: 'payload_too_large', message: 'PDF HTML exceeds the allowed size.' });
   }
@@ -893,6 +973,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[pdf] durable limiter configuration is incomplete');
     return res.status(503).json({ error: 'limiter_unavailable', message: 'PDF export is temporarily unavailable.' });
   }
+
+  if (activePdfExports >= PDF_EXPORT_MAX_CONCURRENT) {
+    res.setHeader('Retry-After', '5');
+    return res.status(429).json({
+      error: 'renderer_busy',
+      message: 'The PDF renderer is busy. Please retry in a few seconds.',
+    });
+  }
+  activePdfExports += 1;
+
   try {
     pdfDb = getPdfDb();
     const rateSlotId = await claimPdfRateSlot(pdfDb, ownerUserId);
@@ -965,6 +1055,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // might accidentally slice through it or leave it stranded on the first page.
     const layout = await measureExportLayout(browser, html, dims.widthPx);
     const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
+    if (layout.nodeCount > PDF_EXPORT_MAX_DOM_NODES) {
+      return res.status(413).json({
+        error: 'export_too_large',
+        message: 'This document contains too many elements to export safely.',
+      });
+    }
+    if (measuredHeight > PDF_EXPORT_MAX_CONTENT_HEIGHT_PX) {
+      return res.status(413).json({
+        error: 'export_too_large',
+        message: `This document is too long to export safely. The maximum supported length is ${PDF_EXPORT_MAX_PAGES} pages.`,
+      });
+    }
     // layoutContentHeightPx can include a template's full-page min-height
     // sentinel. Keep it for custom-break validation below, but never let it
     // inflate the rendered content height and create a footer-only page.
@@ -998,9 +1100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'minGap=', DEFAULT_MIN_GAP_PX);
     }
 
-    // Clamp custom breaks against the safe validation height.
-    let pageBreaks = clampBreakPositions(exactCustomBreaks, validationHeight);
-    if (exactCustomBreaks.length > 0) {
+    // A one-page export intentionally ignores saved multi-page cuts and scales
+    // the entire source into one standard Letter/A4 page. Multi-page exports
+    // continue to honor and validate the user's saved cuts.
+    let pageBreaks = onePage ? [] : clampBreakPositions(exactCustomBreaks, validationHeight);
+    if (!onePage && exactCustomBreaks.length > 0) {
       // 1. Scale coordinates proportionally if there is a massive difference
       //    between the client's live DOM height and the server's layout height.
       if (layoutContentHeightPx && layoutContentHeightPx > 0) {
@@ -1031,7 +1135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[pdf] snapped custom breaks:', pageBreaks);
     }
 
-    if (exactCustomBreaks.length === 0) {
+    if (!onePage && exactCustomBreaks.length === 0) {
       pageBreaks = buildAutomaticBreakPositions({
         totalContentHeightPx: contentHeight,
         pageHeightPx: contentPageHeight,
@@ -1040,7 +1144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       console.log('[pdf] automatic breaks:', pageBreaks,
         'sections:', layout.sections.length, 'avoidBlocks:', layout.avoidBlocks.length);
-    } else if (pageBreaks.length === 0 && contentHeight > contentPageHeight) {
+    } else if (!onePage && pageBreaks.length === 0 && contentHeight > contentPageHeight) {
       console.error('[pdf] all custom breaks were rejected:',
         'exactCustomBreaks=', exactCustomBreaks,
         'validationHeight=', validationHeight,
@@ -1053,12 +1157,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     // Build segments using contentHeight (trimmed) for last-page cropping +
     // validationHeight for break normalization so near-bottom breaks survive.
-    const segments = buildExportPageSegments({
-      totalContentHeightPx: contentHeight,
-      pageHeightPx: contentPageHeight,
-      customBreakPositions: pageBreaks,
-      breakValidationHeightPx: validationHeight,
-    });
+    const onePageScale = onePage
+      ? calculateOnePageScale(contentHeight, contentPageHeight)
+      : 1;
+    const segments = onePage
+      ? [{ index: 0, startPx: 0, heightPx: contentPageHeight, isLast: true }]
+      : buildExportPageSegments({
+          totalContentHeightPx: contentHeight,
+          pageHeightPx: contentPageHeight,
+          customBreakPositions: pageBreaks,
+          breakValidationHeightPx: validationHeight,
+        });
+    if (segments.length > PDF_EXPORT_MAX_PAGES) {
+      return res.status(413).json({
+        error: 'export_too_large',
+        message: `A PDF export can contain at most ${PDF_EXPORT_MAX_PAGES} pages.`,
+      });
+    }
     console.log('[pdf] segments:', segments.length, 'footer:', footerHeight, 'px',
       'contentHeight:', contentHeight);
     if (segments.length === 0 || segments.length > PDF_MAX_SEGMENTS) {
@@ -1074,9 +1189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[pdf] rendering segment', segment.index + 1, '/',
         segments.length, 'start:', segment.startPx, 'h:', segment.heightPx);
       const pageLabel = showPageNumbers
-        ? locale === 'ar'
-          ? `الصفحة ${segment.index + 1} من ${segments.length}`
-          : `Page ${segment.index + 1} of ${segments.length}`
+        ? formatPdfPageNumber(segment.index + 1, segments.length, pageNumberFormat, locale)
         : undefined;
       const segHtml = buildSegmentHtml({
         sourceHtml: html,
@@ -1086,6 +1199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         footerHeightPx: footerHeight,
         pageNumber: pageLabel,
         showBranding,
+        sourceScale: onePageScale,
         locale,
       });
       const buf = await withPdfTimeout(renderHtmlToPdfBuffer(
@@ -1094,16 +1208,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         dims.widthPx,
         segment.heightPx + footerHeight,
       ), Math.max(1, Math.min(PDF_RENDER_TIMEOUT_MS, renderDeadline - Date.now())));
+      const accumulatedBytes = pdfBuffers.reduce((total, current) => total + current.length, 0);
+      if (buf.length > PDF_EXPORT_MAX_PAGE_BYTES || accumulatedBytes + buf.length > PDF_EXPORT_MAX_OUTPUT_BYTES) {
+        return res.status(413).json({
+          error: 'export_too_large',
+          message: 'The generated PDF is too large. Remove large images and try again.',
+        });
+      }
       pdfBuffers.push(buf);
       console.log('[pdf] segment', segment.index + 1, 'done:', buf.length, 'bytes');
     }
 
-    // 6. onePage: keep only the first segment if requested.
-    const buffersToMerge = onePage ? pdfBuffers.slice(0, 1) : pdfBuffers;
+    const buffersToMerge = pdfBuffers;
     console.log('[pdf] merging', buffersToMerge.length, 'buffer(s)');
 
     // 7. Merge segment PDFs into the final file.
-    const pdfBuffer = await withPdfTimeout(mergePdfBuffers(buffersToMerge), Math.max(1, Math.min(PDF_RENDER_TIMEOUT_MS, renderDeadline - Date.now())));
+    const pdfBuffer = await withPdfTimeout(
+      mergePdfBuffers(buffersToMerge),
+      Math.max(1, Math.min(PDF_RENDER_TIMEOUT_MS, renderDeadline - Date.now())),
+    );
+    if (pdfBuffer.length > PDF_EXPORT_MAX_OUTPUT_BYTES) {
+      return res.status(413).json({
+        error: 'export_too_large',
+        message: 'The generated PDF is too large. Remove large images and try again.',
+      });
+    }
     console.log('[pdf] done, total size:', pdfBuffer.length, 'bytes');
     if (pdfBuffer.length > PDF_MAX_OUTPUT_BYTES) {
       return res.status(413).json({ error: 'output_too_large', message: 'Generated PDF exceeds the allowed size.' });
@@ -1125,5 +1254,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await releasePdfLease(pdfDb, globalLeaseId);
     }
     await browser?.close();
+    activePdfExports = Math.max(0, activePdfExports - 1);
   }
 }

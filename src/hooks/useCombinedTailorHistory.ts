@@ -7,7 +7,8 @@ import { historyFromTailoredResumeOrFallback } from '@/lib/tailoringResumeMetada
 
 export function useCombinedTailorHistory(limit = 20) {
   const { authReady } = useAuth();
-  const localHistory = useResumeStore((s) => s.tailorHistory) || [];
+  const storedLocalHistory = useResumeStore((s) => s.tailorHistory);
+  const localHistory = useMemo(() => storedLocalHistory || [], [storedLocalHistory]);
   const { data: resumes = [], isLoading: resumesLoading } = useResumes();
 
   const history = useMemo(() => {

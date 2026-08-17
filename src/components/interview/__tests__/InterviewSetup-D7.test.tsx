@@ -109,7 +109,11 @@ describe("InterviewSetup (D7)", () => {
 // Speech API stubs (registered globally in setup.ts)
 describe("Interview speech API stubs (D7)", () => {
   it("SpeechRecognition is stubbed in jsdom", () => {
-    expect(typeof (global as any).SpeechRecognition !== "undefined" ||
-           typeof (global as any).webkitSpeechRecognition !== "undefined").toBe(true);
+    const speechGlobal = globalThis as typeof globalThis & {
+      SpeechRecognition?: unknown;
+      webkitSpeechRecognition?: unknown;
+    };
+    expect(typeof speechGlobal.SpeechRecognition !== "undefined" ||
+           typeof speechGlobal.webkitSpeechRecognition !== "undefined").toBe(true);
   });
 });

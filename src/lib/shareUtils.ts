@@ -2,9 +2,6 @@ import { downloadFile } from '@/lib/downloadUtils';
 import { formatDegreeAndField } from '@/lib/educationFormat';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
-import { databases, DATABASE_ID, account } from '@/lib/appwrite';
-import { COLLECTIONS } from '@/lib/appwrite-collections';
-import { CANONICAL_PORTFOLIO_ORIGIN } from '@/lib/portfolioUrl';
 
 export async function shareAsPDF(blob: Blob, fileName: string): Promise<boolean> {
   const file = new File([blob], fileName, { type: 'application/pdf' });
@@ -23,65 +20,12 @@ export async function shareAsPDF(blob: Blob, fileName: string): Promise<boolean>
   return result.success;
 }
 
-export function generateShareableUrl(resumeId: string): string {
-  return `${window.location.origin}/preview?shared=${resumeId}`;
+export function buildResumeShareUrl(token: string): string {
+  return `${window.location.origin}/share/${encodeURIComponent(token)}`;
 }
 
-/** Generate a random 5-char alphanumeric slug */
-function generateSlug(length = 5): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return result;
-}
-
-/** Create a universal short URL for any app path */
-export async function createShortUrl(targetPath: string, label?: string): Promise<string | null> {
-  try {
-    let userId: string | null = null;
-    try {
-      const user = await account.get();
-      userId = user.$id;
-    } catch {
-      return null;
-    }
-    if (!userId) return null;
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const slug = generateSlug(5);
-      try {
-        await databases.createDocument(DATABASE_ID, COLLECTIONS.short_links, slug, {
-          owner_user_id: userId,
-          target_url: targetPath,
-          label: label ?? 'Shared Link',
-          click_count: 0,
-          portfolio_id: null,
-        });
-        return `${CANONICAL_PORTFOLIO_ORIGIN}/l/${slug}`;
-      } catch (err: unknown) {
-        // Appwrite throws 409 on duplicate document ID — retry with new slug
-        const isConflict =
-          err instanceof Error && (err.message.includes('409') || err.message.includes('already exists'));
-        if (!isConflict) {
-          console.error('Short link creation error:', err);
-          return null;
-        }
-        // else: retry
-      }
-    }
-    return null;
-  } catch (err) {
-    console.error('createShortUrl error:', err);
-    return null;
-  }
-}
-
-export async function shareAsLink(resumeId: string): Promise<void> {
-  const targetPath = `/preview?shared=${resumeId}`;
-  const shortUrl = await createShortUrl(targetPath, 'Resume Share');
-  const url = shortUrl || generateShareableUrl(resumeId); // fallback to long URL
+export async function shareResumeLink(token: string): Promise<void> {
+  const url = buildResumeShareUrl(token);
 
   if (navigator.share) {
     try {
@@ -220,10 +164,13 @@ export function generatePlainText(resume: ResumeData): string {
   }
 
   // Hobbies
-  if (resume.hobbies?.length) {
+  const visibleHobbies = resume.hobbies
+    ?.filter(hobby => hobby.visible !== false)
+    .map(hobby => hobby.name) ?? [];
+  if (visibleHobbies.length) {
     lines.push('HOBBIES & INTERESTS');
     lines.push('-'.repeat(40));
-    lines.push(resume.hobbies.join(', '));
+    lines.push(visibleHobbies.join(', '));
     lines.push('');
   }
 

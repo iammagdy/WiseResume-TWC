@@ -22,7 +22,7 @@ export const DashboardDiscoverySection = memo(function DashboardDiscoverySection
     {
       icon: LayoutTemplate,
       label: t('app.templates', 'Templates'),
-      description: t('app.dashboardPage.explore.templatesDesc', 'ATS-ready resume layouts'),
+      description: t('app.dashboardPage.explore.templatesDesc', 'Parser-friendly resume layouts'),
       path: '/templates',
     },
     {
@@ -39,8 +39,8 @@ export const DashboardDiscoverySection = memo(function DashboardDiscoverySection
     },
     {
       icon: Users,
-      label: t('app.referral', 'Referral'),
-      description: t('app.dashboardPage.explore.referralDesc', 'Invite friends, earn credits'),
+      label: t('app.referral', 'Share'),
+      description: t('app.dashboardPage.explore.referralDesc', 'Send someone the WiseResume link'),
       path: '/referral',
     },
   ], [t]);

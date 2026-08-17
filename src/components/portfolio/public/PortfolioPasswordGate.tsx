@@ -11,7 +11,7 @@ function rgba([r, g, b]: [number, number, number], a: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 function rotateHue([r, g, b]: [number, number, number], deg: number): [number, number, number] {
-  let [h, s, l] = (() => {
+  const [h, s, l] = (() => {
     const rr = r / 255, gg = g / 255, bb = b / 255;
     const max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb);
     let hue = 0; const light = (max + min) / 2;
@@ -25,16 +25,16 @@ function rotateHue([r, g, b]: [number, number, number], deg: number): [number, n
     }
     return [hue, sat, light];
   })();
-  h = (h + deg + 360) % 360;
+  const rotatedHue = (h + deg + 360) % 360;
   const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const x = c * (1 - Math.abs(((rotatedHue / 60) % 2) - 1));
   const mm = l - c / 2;
   let [rr, gg, bb] = [0, 0, 0];
-  if (h < 60) [rr, gg, bb] = [c, x, 0];
-  else if (h < 120) [rr, gg, bb] = [x, c, 0];
-  else if (h < 180) [rr, gg, bb] = [0, c, x];
-  else if (h < 240) [rr, gg, bb] = [0, x, c];
-  else if (h < 300) [rr, gg, bb] = [x, 0, c];
+  if (rotatedHue < 60) [rr, gg, bb] = [c, x, 0];
+  else if (rotatedHue < 120) [rr, gg, bb] = [x, c, 0];
+  else if (rotatedHue < 180) [rr, gg, bb] = [0, c, x];
+  else if (rotatedHue < 240) [rr, gg, bb] = [0, x, c];
+  else if (rotatedHue < 300) [rr, gg, bb] = [x, 0, c];
   else [rr, gg, bb] = [c, 0, x];
   return [Math.round((rr + mm) * 255), Math.round((gg + mm) * 255), Math.round((bb + mm) * 255)];
 }

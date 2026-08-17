@@ -20,7 +20,7 @@ interface BriefShareModalProps {
 export function BriefShareModal({ brief, open, onClose, onRenew, isRenewing }: BriefShareModalProps) {
   const [copied, setCopied] = useState(false);
 
-  const publicUrl = brief.share_token
+  const publicUrl = brief.share_token && brief.share_token_active
     ? `${window.location.origin}/share/brief/${brief.share_token}`
     : null;
 
@@ -38,7 +38,8 @@ export function BriefShareModal({ brief, open, onClose, onRenew, isRenewing }: B
         <DialogHeader>
           <DialogTitle>Share Candidate Brief</DialogTitle>
           <DialogDescription>
-            Anyone with this link can view the brief (read-only, no login required).
+            Anyone with this link can view the candidate name, role, evidence summary, interview
+            prompts, and employment notes in this brief. No login is required.
           </DialogDescription>
         </DialogHeader>
 
@@ -81,7 +82,7 @@ export function BriefShareModal({ brief, open, onClose, onRenew, isRenewing }: B
           </div>
         ) : (
           <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            Share link is not available for this brief.
+            Share link is unavailable or has been revoked for this brief.
           </div>
         )}
 

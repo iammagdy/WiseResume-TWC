@@ -523,7 +523,7 @@ export function estimateOnePageScale(
   templateElement.style.maxWidth = `${pw}px`;
   templateElement.style.transform = 'none';
   // force reflow
-  templateElement.offsetHeight;
+  void templateElement.offsetHeight;
 
   try {
     const sourceWidth = Math.max(templateElement.offsetWidth || pw, pw / 2);

@@ -30,6 +30,7 @@ import { useAIDraft } from '@/hooks/useAIDraft';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import { resumeSectionAiBodyProps, resumeSectionAiFnName } from '@/lib/resumeSectionAiFlag';
 
 
@@ -47,6 +48,7 @@ interface RecruiterDraft {
 
 export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps) {
   const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
+  const redactedResume = useRedactedResume(currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
   const { rescoreAfterApply } = useAIApplyEffects(resumeId);
   const scrollRef = useScrollFade<HTMLDivElement>();
@@ -81,7 +83,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       const result = await executeAI(async () => {
         const { data, error } = await appwriteFunctions.invoke('recruiter-simulation', {
           body: {
-            resume: currentResume,
+            resume: redactedResume,
             persona: persona.id,
           },
         });
@@ -132,7 +134,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
       if (!target) {
         // Could not find any target — show fallback with clipboard copy
-        try { await navigator.clipboard.writeText(redFlag.fix); } catch {}
+        try { await navigator.clipboard.writeText(redFlag.fix); } catch { /* Clipboard may be unavailable. */ }
         toast.warning("We couldn't locate this text in your resume — the suggestion has been copied to your clipboard.", {
           description: 'Paste it manually in the relevant section.',
           duration: 6000,
@@ -143,7 +145,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
       // If fuzzy confidence is too low, offer clipboard fallback instead of auto-applying
       const confidence = target.fuzzyConfidence ?? 1.0;
       if (confidence < 0.4 && target.section !== 'summary' && target.section !== 'skills') {
-        try { await navigator.clipboard.writeText(redFlag.fix); } catch {}
+        try { await navigator.clipboard.writeText(redFlag.fix); } catch { /* Clipboard may be unavailable. */ }
         toast.warning("We couldn't precisely locate this text in your resume — here's the suggestion to paste manually.", {
           description: 'The suggestion has been copied to your clipboard.',
           duration: 6000,
@@ -162,7 +164,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
             currentContent: target.content,
             fixInstruction: redFlag.fix,
             context: {
-              resume: currentResume,
+              resume: redactedResume,
             },
           },
         });
@@ -241,9 +243,9 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
   const getVerdictLabel = (verdict: string) => {
     switch (verdict) {
-      case 'would_call': return "I'd Call You";
-      case 'maybe_call': return 'Maybe...';
-      case 'pass': return "I'd Pass";
+      case 'would_call': return 'Strong on-page evidence';
+      case 'maybe_call': return 'Mixed on-page evidence';
+      case 'pass': return 'Needs revision';
       default: return verdict;
     }
   };
@@ -305,10 +307,14 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                   </div>
                 )}
 
+                <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  This is an AI writing review, not a real recruiter decision or prediction of interview outcomes. Verify every suggestion before applying it.
+                </div>
+
                 <div className="text-center mb-6">
-                  <h3 className="text-lg font-semibold mb-1">Choose Your Recruiter</h3>
+                  <h3 className="text-lg font-semibold mb-1">Choose a Review Lens</h3>
                   <p className="text-sm text-muted-foreground">
-                    Each persona has different priorities and will give you unique insights
+                    Each simulated lens emphasizes different resume content priorities
                   </p>
                 </div>
 
@@ -354,7 +360,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                   {selectedPersona.name} is reviewing your resume...
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  Thinking like a real recruiter with {selectedPersona.title.toLowerCase()} priorities
+                  Applying the {selectedPersona.title.toLowerCase()} review lens
                 </p>
               </motion.div>
             )}
@@ -379,7 +385,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                   </div>
                 </div>
 
-                {/* Hireability Score */}
+                {/* Resume review signal */}
                 <div className={cn(
                   'p-4 rounded-2xl border',
                   analysis.hireabilityScore >= 70 && 'bg-success/10 border-success/30',
@@ -387,7 +393,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                   analysis.hireabilityScore < 40 && 'bg-destructive/10 border-destructive/30',
                 )}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium">Hireability Score</span>
+                    <span className="text-sm font-medium">Resume review signal</span>
                     <div className="flex items-center gap-2">
                       {getVerdictIcon(analysis.overallVerdict)}
                       <span className={cn('font-semibold', getVerdictColor(analysis.overallVerdict))}>
@@ -421,7 +427,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-destructive" />
-                    Red Flags I'd Notice
+                    Content Risks to Review
                   </h4>
                   {(!analysis.redFlags || analysis.redFlags.length === 0) && (
                     <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-center">
@@ -503,11 +509,11 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                   ))}
                 </div>
 
-                {/* What Makes Me Want to Call */}
+                {/* Supported strengths */}
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
                     <Star className="w-4 h-4 text-success" />
-                    What Makes Me Want to Call You
+                    Supported Strengths on the Page
                   </h4>
                   {analysis.callMeFactors?.map((factor, i) => (
                     <div key={i} className="p-4 rounded-xl bg-success/10 border border-success/30">

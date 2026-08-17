@@ -52,6 +52,18 @@ vi.mock("@/lib/accountBackup", () => ({
   downloadAccountBackup: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/hooks/usePlan", () => ({
+  usePlan: () => ({
+    plan: "free",
+    isPro: false,
+    isPremium: false,
+    isLoading: false,
+    subscriptionVerified: true,
+    trialPlan: null,
+    trialExpiresAt: null,
+  }),
+}));
+
 import { EditorExportSection } from "@/components/settings/sections/EditorExportSection";
 
 describe("SettingsExport (D10) — export trigger", () => {

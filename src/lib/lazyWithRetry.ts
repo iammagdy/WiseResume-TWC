@@ -56,6 +56,6 @@ function retryImport<T>(factory: () => Promise<T>, retries = 3, delay = 1000): P
   });
 }
 
-export function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+export function lazyWithRetry<TProps extends object>(factory: () => Promise<{ default: ComponentType<TProps> }>) {
   return lazy(() => retryImport(factory));
 }

@@ -1,4 +1,4 @@
-import { test, expect, type Page, chromium } from '@playwright/test';
+import { test, expect, type Locator, type Page, chromium } from '@playwright/test';
 import { existsSync, writeFileSync } from 'node:fs';
 
 const PROD_BASE = 'https://wiseresume.app';
@@ -12,8 +12,8 @@ test.use({
 });
 
 // Helper to bypass any layout/pointer overlays by triggering native click
-async function clickDirectly(page: Page, selector: string | any) {
-  let locator = typeof selector === 'string' ? page.locator(selector) : selector;
+async function clickDirectly(page: Page, selector: string | Locator) {
+  const locator = typeof selector === 'string' ? page.locator(selector) : selector;
   await locator.first().evaluate((el: HTMLElement) => el.click());
 }
 
@@ -36,25 +36,30 @@ async function disableCardHeaderToggle(page: Page, sectionId: string) {
     const header = document.querySelector(`[data-section-id="${sid}"] [data-section-header]`);
     if (!header) return;
 
-    const wrapProps = (val: any) => {
-      if (val && val.onClick && !val.onClick._isIntercepted) {
-        const originalOnClick = val.onClick;
-        val.onClick = (e: any) => {
-          if (e.target.closest('.shrink-0') || e.target.closest('button')) {
+    type InterceptedClick = ((event: MouseEvent) => void) & { _isIntercepted?: boolean };
+    const wrapProps = (value: unknown): unknown => {
+      if (!value || typeof value !== 'object') return value;
+      const props = value as Record<string, unknown>;
+      if (typeof props.onClick === 'function' && !(props.onClick as InterceptedClick)._isIntercepted) {
+        const originalOnClick = props.onClick as InterceptedClick;
+        const interceptedClick: InterceptedClick = (event: MouseEvent) => {
+          const target = event.target;
+          if (target instanceof Element && (target.closest('.shrink-0') || target.closest('button'))) {
             console.log(`React click intercepted on header for ${sid}, preventing collapse/toggle`);
-            e.stopPropagation();
+            event.stopPropagation();
           } else {
-            originalOnClick(e);
+            originalOnClick(event);
           }
         };
-        val.onClick._isIntercepted = true;
+        interceptedClick._isIntercepted = true;
+        props.onClick = interceptedClick;
       }
-      return val;
+      return props;
     };
 
     const reactKeys = Object.keys(header).filter(key => key.startsWith('__reactProps') || key.startsWith('__reactFiber'));
     for (const reactKey of reactKeys) {
-      let currentVal = (header as any)[reactKey];
+      let currentVal = Reflect.get(header, reactKey) as unknown;
       currentVal = wrapProps(currentVal);
       try {
         Object.defineProperty(header, reactKey, {

@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { PublicHero } from "../PublicHero";
 import { mockProfile, mockResumes } from "../../../../test/mocks/data";
 import React from "react";
+import type { HTMLAttributes, ImgHTMLAttributes, ReactNode } from "react";
 
 
 // Mock TypewriterText
@@ -12,15 +13,15 @@ vi.mock("../TypewriterText", () => ({
 }));
 
 vi.mock("@/components/ui/avatar", () => ({
-  Avatar: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-  AvatarFallback: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-  AvatarImage: (props: any) => <img {...props} />,
+  Avatar: ({ children, ...props }: HTMLAttributes<HTMLSpanElement> & { children?: ReactNode }) => <span {...props}>{children}</span>,
+  AvatarFallback: ({ children, ...props }: HTMLAttributes<HTMLSpanElement> & { children?: ReactNode }) => <span {...props}>{children}</span>,
+  AvatarImage: (props: ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
 }));
 
 describe("PublicHero", () => {
   const defaultProps = {
-    profile: mockProfile as any,
-    resume: mockResumes[0] as any,
+    profile: mockProfile,
+    resume: mockResumes[0],
     pStyle: "minimal",
     accentColor: "#3b82f6",
     initials: "JD",
@@ -39,7 +40,10 @@ describe("PublicHero", () => {
   });
 
   it("renders 'Open to Work' badge when enabled", () => {
-    const props = { ...defaultProps, profile: { ...mockProfile, openToWork: true } as any };
+    const props = {
+      ...defaultProps,
+      profile: { ...mockProfile, availabilityStatus: null, openToWork: true },
+    };
     render(<PublicHero {...props} />);
     expect(screen.getByText("Open to Work")).toBeDefined();
   });
@@ -51,7 +55,7 @@ describe("PublicHero", () => {
         ...mockProfile, 
         linkedinUrl: "https://linkedin.com/in/johndoe",
         githubUrl: "https://github.com/johndoe"
-      } as any
+      }
     };
     render(<PublicHero {...props} />);
     expect(screen.getByTitle("LinkedIn")).toBeDefined();
@@ -64,7 +68,7 @@ describe("PublicHero", () => {
       profile: {
         ...mockProfile,
         avatarUrl: "https://fra.cloud.appwrite.io/v1/storage/buckets/avatars/files/avatar-1/view?project=project-1",
-      } as any,
+      },
     };
     render(<PublicHero {...props} />);
 
@@ -85,7 +89,7 @@ describe("PublicHero", () => {
       profile: {
         ...mockProfile,
         avatarUrl: "https://images.example.com/missing-avatar.png",
-      } as any,
+      },
     };
     render(<PublicHero {...props} />);
 
