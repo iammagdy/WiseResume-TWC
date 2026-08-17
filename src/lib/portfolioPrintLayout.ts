@@ -293,7 +293,7 @@ export function generatePortfolioPrintHTML(
     window.onload = function() {
       setTimeout(function() { window.print(); }, 600);
     };
-  <\/script>
+  </script>
 </body>
 </html>`;
 }

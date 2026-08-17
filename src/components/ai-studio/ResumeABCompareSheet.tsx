@@ -15,18 +15,17 @@ import { cn } from '@/lib/utils';
 import { Trophy, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useSettingsStore } from '@/store/settingsStore';
+import { redactResumeForAI } from '@/lib/piiRedact';
+import { buildLocalResumeScore, type ResumeHealthScore } from '@/hooks/useResumeScore';
+import { AICostBadge } from '@/components/ai/AICostBadge';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface ATSResult {
-  overallScore: number;
-  categories: Record<string, number>;
-  topStrength: string;
-  topImprovement: string;
-}
+type ReadinessResult = ResumeHealthScore;
 
 interface AIMatchResult {
   score: { overall: number; skills: number; experience: number; keywords: number };
@@ -35,18 +34,18 @@ interface AIMatchResult {
 type Step = 'input' | 'loading' | 'results';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  keywordOptimization: 'Keywords',
-  contentQuality: 'Content Quality',
-  sectionStructure: 'Sections',
-  parsability: 'Parsability',
-  contactCompleteness: 'Contact Info',
-  lengthDensity: 'Length & Density',
+  contactCompleteness: 'Contact information',
+  summaryCompleteness: 'Professional summary',
+  experienceCompleteness: 'Work experience',
+  educationCompleteness: 'Education',
+  skillsCompleteness: 'Skills',
 };
 
 export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { data: resumes } = useResumes();
   const { execute } = useAIAction({ operation: 'ab-compare' });
+  const redactPiiBeforeAI = useSettingsStore(state => state.redactPiiBeforeAI);
 
   useEffect(() => {
     if (open) { activityTracker.setActiveFeature('A/B Compare'); }
@@ -58,12 +57,15 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
   const [jobDescription, setJobDescription] = useState('');
   const [step, setStep] = useState<Step>('input');
 
-  const [atsA, setAtsA] = useState<ATSResult | null>(null);
-  const [atsB, setAtsB] = useState<ATSResult | null>(null);
+  const [readinessA, setReadinessA] = useState<ReadinessResult | null>(null);
+  const [readinessB, setReadinessB] = useState<ReadinessResult | null>(null);
   const [matchA, setMatchA] = useState<AIMatchResult | null>(null);
   const [matchB, setMatchB] = useState<AIMatchResult | null>(null);
 
-  const resumeList = (resumes || []) as unknown as DatabaseResume[];
+  const resumeList = useMemo(
+    () => (resumes || []) as unknown as DatabaseResume[],
+    [resumes],
+  );
 
   const resumeATitle = resumeList.find(r => getResumeDocumentId(r) === resumeAId)?.title || 'Resume A';
   const resumeBTitle = resumeList.find(r => getResumeDocumentId(r) === resumeBId)?.title || 'Resume B';
@@ -72,8 +74,8 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
 
   const resetState = useCallback(() => {
     setStep('input');
-    setAtsA(null);
-    setAtsB(null);
+    setReadinessA(null);
+    setReadinessB(null);
     setMatchA(null);
     setMatchB(null);
   }, []);
@@ -87,27 +89,29 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
     const dbB = resumeList.find(r => getResumeDocumentId(r) === resumeBId);
     if (!dbA || !dbB) { toast.error('Could not find selected resumes'); setStep('input'); return; }
 
-    const dataA = dbToResumeData(dbA);
-    const dataB = dbToResumeData(dbB);
+    const sourceA = dbToResumeData(dbA);
+    const sourceB = dbToResumeData(dbB);
+    const dataA = redactResumeForAI(sourceA, redactPiiBeforeAI);
+    const dataB = redactResumeForAI(sourceB, redactPiiBeforeAI);
+    const localReadinessA = buildLocalResumeScore(sourceA);
+    const localReadinessB = buildLocalResumeScore(sourceB);
 
     try {
       const compared = await execute(async () => {
-        const [atsResA, atsResB, matchResA, matchResB] = await Promise.all([
-          appwriteFunctions.invoke('score-resume', { body: { resume: dataA } }),
-          appwriteFunctions.invoke('score-resume', { body: { resume: dataB } }),
+        const [matchResA, matchResB] = await Promise.all([
           appwriteFunctions.invoke('analyze-resume', { body: { resume: dataA, jobDescription } }),
           appwriteFunctions.invoke('analyze-resume', { body: { resume: dataB, jobDescription } }),
         ]);
 
-        for (const res of [atsResA, atsResB, matchResA, matchResB]) {
+        for (const res of [matchResA, matchResB]) {
           if (res.error) {
             throw new Error(res.error.message || 'Scoring failed');
           }
         }
 
         return {
-          atsA: atsResA.data as ATSResult,
-          atsB: atsResB.data as ATSResult,
+          readinessA: localReadinessA,
+          readinessB: localReadinessB,
           matchA: matchResA.data as AIMatchResult,
           matchB: matchResB.data as AIMatchResult,
         };
@@ -115,8 +119,8 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
 
       if (!compared) { setStep('input'); return; }
 
-      setAtsA(compared.atsA);
-      setAtsB(compared.atsB);
+      setReadinessA(compared.readinessA);
+      setReadinessB(compared.readinessB);
       setMatchA(compared.matchA);
       setMatchB(compared.matchB);
       setStep('results');
@@ -126,21 +130,21 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
       toast.error('Comparison failed. Please try again.');
       setStep('input');
     }
-  }, [canCompare, user, resumeAId, resumeBId, resumeList, jobDescription, execute]);
+  }, [canCompare, user, resumeAId, resumeBId, resumeList, jobDescription, execute, redactPiiBeforeAI]);
 
   const winner = useMemo(() => {
-    if (!atsA || !atsB) return null;
-    const scoreA = (atsA.overallScore + (matchA?.score?.overall || 0)) / 2;
-    const scoreB = (atsB.overallScore + (matchB?.score?.overall || 0)) / 2;
+    if (!readinessA || !readinessB) return null;
+    const scoreA = matchA?.score?.overall ?? readinessA.overallScore;
+    const scoreB = matchB?.score?.overall ?? readinessB.overallScore;
     if (scoreA === scoreB) return 'tie';
     return scoreA > scoreB ? 'a' : 'b';
-  }, [atsA, atsB, matchA, matchB]);
+  }, [readinessA, readinessB, matchA, matchB]);
 
   const insights = useMemo(() => {
-    if (!atsA?.categories || !atsB?.categories) return [];
+    if (!readinessA?.categories || !readinessB?.categories) return [];
     const result: string[] = [];
     for (const [key, label] of Object.entries(CATEGORY_LABELS)) {
-      const diff = (atsA.categories[key] || 0) - (atsB.categories[key] || 0);
+      const diff = (readinessA.categories[key as keyof ReadinessResult['categories']] || 0) - (readinessB.categories[key as keyof ReadinessResult['categories']] || 0);
       if (Math.abs(diff) >= 5) {
         const better = diff > 0 ? resumeATitle : resumeBTitle;
         result.push(`${better} has ${Math.abs(diff)}% better ${label.toLowerCase()}`);
@@ -153,7 +157,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
       }
     }
     return result.slice(0, 4);
-  }, [atsA, atsB, matchA, matchB, resumeATitle, resumeBTitle]);
+  }, [readinessA, readinessB, matchA, matchB, resumeATitle, resumeBTitle]);
 
   return (
     <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetState(); }}>
@@ -229,6 +233,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Compare Resumes
+                <AICostBadge operation="ab-compare" className="ml-2" />
               </Button>
             </div>
           )}
@@ -236,7 +241,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
           {/* LOADING STEP */}
           {step === 'loading' && (
             <div className="space-y-6 pt-4">
-              <p className="text-sm text-muted-foreground text-center animate-pulse">Scoring both resumes...</p>
+              <p className="text-sm text-muted-foreground text-center animate-pulse">Analyzing both resumes against this job...</p>
               <div className="grid grid-cols-2 gap-4">
                 {[0, 1].map(i => (
                   <div key={i} className="space-y-3 p-3 rounded-xl bg-card border border-border min-h-[160px]">
@@ -259,8 +264,11 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
           )}
 
           {/* RESULTS STEP */}
-          {step === 'results' && atsA && atsB && (
+          {step === 'results' && readinessA && readinessB && (
             <div className="space-y-5 pt-2">
+              <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                Resume readiness is a local completeness check. When a job description is included, the job-alignment values are AI estimates—not employer ATS scores or hiring predictions.
+              </p>
               {/* Winner Banner */}
               {winner && winner !== 'tie' && (
                 <motion.div
@@ -270,23 +278,23 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                 >
                   <Trophy className="w-5 h-5 text-primary shrink-0" />
                   <p className="text-sm font-medium">
-                    <span className="text-primary">{winner === 'a' ? resumeATitle : resumeBTitle}</span> performs better for this role
+                    <span className="text-primary">{winner === 'a' ? resumeATitle : resumeBTitle}</span> scores higher in this comparison
                   </p>
                 </motion.div>
               )}
               {winner === 'tie' && (
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-muted border border-border">
                   <Trophy className="w-5 h-5 text-muted-foreground shrink-0" />
-                  <p className="text-sm font-medium text-muted-foreground">Both resumes scored equally!</p>
+                  <p className="text-sm font-medium text-muted-foreground">Both resumes have the same comparison score.</p>
                 </div>
               )}
 
-              {/* ATS Score Rings */}
+              {/* Local readiness plus job-specific AI match */}
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: resumeATitle, ats: atsA, match: matchA, side: 'a' as const },
-                  { label: resumeBTitle, ats: atsB, match: matchB, side: 'b' as const },
-                ].map(({ label, ats, match, side }) => (
+                  { label: resumeATitle, readiness: readinessA, match: matchA, side: 'a' as const },
+                  { label: resumeBTitle, readiness: readinessB, match: matchB, side: 'b' as const },
+                ].map(({ label, readiness, match, side }) => (
                   <motion.div
                     key={side}
                     initial={{ opacity: 0, y: 10 }}
@@ -299,12 +307,12 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                   >
                     <p className="text-xs font-medium truncate mb-2 text-muted-foreground">{label}</p>
                     <div className="flex justify-center mb-3">
-                      <ScoreRing score={ats.overallScore} size={56} strokeWidth={4} />
+                      <ScoreRing score={readiness.overallScore} size={56} strokeWidth={4} label="Resume readiness" />
                     </div>
-                    <p className="text-[10px] text-center text-muted-foreground mb-1">ATS Score</p>
+                    <p className="text-[10px] text-center text-muted-foreground mb-1">Resume readiness</p>
                     {match?.score && (
                       <div className="mt-2 pt-2 border-t border-border space-y-1">
-                        <p className="text-[10px] font-medium text-muted-foreground">Job Match</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">AI job-alignment estimate</p>
                         <div className="text-lg font-bold text-center">{match.score.overall}%</div>
                       </div>
                     )}
@@ -316,8 +324,9 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-muted-foreground">Category Breakdown</h3>
                 {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
-                  const valA = atsA.categories[key] || 0;
-                  const valB = atsB.categories[key] || 0;
+                  const categoryKey = key as keyof ReadinessResult['categories'];
+                  const valA = readinessA.categories[categoryKey] || 0;
+                  const valB = readinessB.categories[categoryKey] || 0;
                   return (
                     <div key={key} className="space-y-1">
                       <div className="flex justify-between text-xs text-muted-foreground">
@@ -346,7 +355,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               {/* AI Match Breakdown */}
               {matchA?.score && matchB?.score && (
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-muted-foreground">AI Job Match</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground">AI job-alignment estimates</h3>
                   {(['skills', 'experience', 'keywords'] as const).map(dim => (
                     <div key={dim} className="flex items-center justify-between text-xs">
                       <span className="capitalize text-muted-foreground">{dim}</span>
@@ -382,13 +391,13 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               {/* Strengths */}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: resumeATitle, ats: atsA },
-                  { label: resumeBTitle, ats: atsB },
-                ].map(({ label, ats }) => (
+                  { label: resumeATitle, readiness: readinessA },
+                  { label: resumeBTitle, readiness: readinessB },
+                ].map(({ label, readiness }) => (
                   <div key={label} className="p-2 rounded-lg bg-muted/20 space-y-1">
                     <p className="text-[10px] font-medium truncate text-muted-foreground">{label}</p>
-                    <p className="text-xs text-primary">✓ {ats.topStrength}</p>
-                    <p className="text-xs text-muted-foreground">↑ {ats.topImprovement}</p>
+                    <p className="text-xs text-primary">✓ {readiness.topStrength}</p>
+                    <p className="text-xs text-muted-foreground">↑ {readiness.topImprovement}</p>
                   </div>
                 ))}
               </div>

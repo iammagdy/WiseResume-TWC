@@ -8,14 +8,14 @@ const COLUMNS = [
   { label: 'Offer', color: '#34D399', bg: 'rgba(52,211,153,0.08)' },
 ];
 
-const INITIAL_CARDS: { id: number; name: string; initials: string; role: string; score: number; col: number }[] = [
-  { id: 1, name: 'Alex Kim', initials: 'AK', role: 'FE Eng', score: 91, col: 0 },
-  { id: 2, name: 'Priya M.', initials: 'PM', role: 'FE Eng', score: 87, col: 0 },
-  { id: 3, name: 'Tom B.', initials: 'TB', role: 'FE Eng', score: 74, col: 0 },
-  { id: 4, name: 'Sarah C.', initials: 'SC', role: 'FE Eng', score: 87, col: 1 },
-  { id: 5, name: 'James W.', initials: 'JW', role: 'FE Eng', score: 80, col: 1 },
-  { id: 6, name: 'Lisa O.', initials: 'LO', role: 'FE Eng', score: 93, col: 2 },
-  { id: 7, name: 'David H.', initials: 'DH', role: 'FE Eng', score: 78, col: 3 },
+const INITIAL_CARDS: { id: number; name: string; initials: string; role: string; evidence: number; col: number }[] = [
+  { id: 1, name: 'Alex Kim', initials: 'AK', role: 'FE Eng', evidence: 91, col: 0 },
+  { id: 2, name: 'Priya M.', initials: 'PM', role: 'FE Eng', evidence: 87, col: 0 },
+  { id: 3, name: 'Tom B.', initials: 'TB', role: 'FE Eng', evidence: 74, col: 0 },
+  { id: 4, name: 'Sarah C.', initials: 'SC', role: 'FE Eng', evidence: 87, col: 1 },
+  { id: 5, name: 'James W.', initials: 'JW', role: 'FE Eng', evidence: 80, col: 1 },
+  { id: 6, name: 'Lisa O.', initials: 'LO', role: 'FE Eng', evidence: 93, col: 2 },
+  { id: 7, name: 'David H.', initials: 'DH', role: 'FE Eng', evidence: 78, col: 3 },
 ];
 
 function scoreColor(s: number) {
@@ -176,13 +176,13 @@ export function PipelineDemo() {
                       style={{
                         fontSize: '0.68rem',
                         fontWeight: 700,
-                        color: scoreColor(card.score),
-                        background: `${scoreColor(card.score)}18`,
+                        color: scoreColor(card.evidence),
+                        background: `${scoreColor(card.evidence)}18`,
                         borderRadius: 4,
                         padding: '1px 4px',
                       }}
                     >
-                      {card.score}
+                      E {card.evidence}
                     </span>
                   </div>
                 </div>

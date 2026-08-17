@@ -78,7 +78,7 @@ export const DashboardSpotlightHero = memo(function DashboardSpotlightHero({
 
       : healthScore?.topImprovement ??
 
-        'Tailor for your next role to boost ATS alignment.';
+        'Tailor for your next role to improve keyword alignment.';
 
 
 

@@ -18,15 +18,14 @@ describe("DashboardSpotlightHero", () => {
       <DashboardSpotlightHero
         resume={mockResume}
         healthScore={{
+          scoreBasis: "resume-completeness-v1",
           overallScore: 82,
           categories: {
-            keywordOptimization: 80,
-            contentQuality: 80,
-            sectionStructure: 80,
-            parsability: 80,
             contactCompleteness: 80,
-            lengthDensity: 80,
-            templateFriendliness: 80,
+            summaryCompleteness: 80,
+            experienceCompleteness: 80,
+            educationCompleteness: 80,
+            skillsCompleteness: 80,
           },
           topStrength: "Strong summary",
           topImprovement: "Add metrics to bullets",

@@ -10,7 +10,7 @@ interface AuthStatus { signedIn: boolean; blockerReason: string | null }
  * or-explicitly-skipped instead of producing a flood of cascade failures.
  */
 export const test = base.extend<{ authStatus: AuthStatus }>({
-  authStatus: async ({}, use, testInfo) => {
+  authStatus: async (_fixtures, applyFixture, testInfo) => {
     const path = 'tests/e2e/.auth/auth-status.json';
     const status: AuthStatus = existsSync(path)
       ? JSON.parse(readFileSync(path, 'utf8'))
@@ -18,7 +18,7 @@ export const test = base.extend<{ authStatus: AuthStatus }>({
     if (!status.signedIn) {
       testInfo.skip(true, `Auth not established: ${status.blockerReason}`);
     }
-    await use(status);
+    await applyFixture(status);
   },
 });
 

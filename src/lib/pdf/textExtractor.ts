@@ -24,14 +24,16 @@ interface TextItem {
 
 type AnyTextItem = { str: string; transform?: unknown; hasEOL?: boolean };
 
-function hasStr(item: any): item is AnyTextItem {
-  return typeof item?.str === 'string';
+function hasStr(item: unknown): item is AnyTextItem {
+  return typeof item === 'object' && item !== null && typeof (item as { str?: unknown }).str === 'string';
 }
 
-function isTextItem(item: any): item is TextItem {
-  const t = item?.transform;
+function isTextItem(item: unknown): item is TextItem {
+  if (typeof item !== 'object' || item === null) return false;
+  const candidate = item as { str?: unknown; transform?: unknown };
+  const t = candidate.transform as ArrayLike<unknown> | undefined;
   return (
-    typeof item?.str === 'string' &&
+    typeof candidate.str === 'string' &&
     t &&
     typeof t.length === 'number' &&
     t.length >= 6 &&
@@ -84,7 +86,7 @@ export function isIOSWebKit(): boolean {
   const ua = navigator.userAgent || '';
   if (/iPhone|iPod|iPad/i.test(ua)) return true;
   const isMacLike = /Macintosh/i.test(ua);
-  const hasTouch = (navigator as any).maxTouchPoints > 1;
+  const hasTouch = navigator.maxTouchPoints > 1;
   return isMacLike && hasTouch;
 }
 
@@ -175,9 +177,10 @@ async function extractOnce(file: File, forceSystemFonts: boolean): Promise<Extra
     try {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent({ includeMarkedContent: false } as Parameters<typeof page.getTextContent>[0]);
-      const itemsArr: any[] = Array.isArray((textContent as any)?.items) ? (textContent as any).items : [];
+      const contentItems = (textContent as { items?: unknown }).items;
+      const itemsArr: unknown[] = Array.isArray(contentItems) ? contentItems : [];
       const rawItems = itemsArr.length;
-      const nonEmptyItems = itemsArr.reduce((n, it) => n + (typeof it?.str === 'string' && it.str.trim() ? 1 : 0), 0);
+      const nonEmptyItems = itemsArr.reduce((n, item) => n + (hasStr(item) && item.str.trim() ? 1 : 0), 0);
       const pageText = reconstructPageText(itemsArr);
       debugPages.push({ page: i, rawItems, nonEmptyItems, extractedChars: pageText.length });
       pageTexts.push(pageText);
@@ -249,7 +252,7 @@ async function extractOnce(file: File, forceSystemFonts: boolean): Promise<Extra
   };
 }
 
-function reconstructPageText(items: any[]): string {
+function reconstructPageText(items: unknown[]): string {
   const textItems = items.filter(isTextItem);
   if (textItems.length === 0) {
     const fallback = items.filter(hasStr).map((it) => it.str.trim()).filter(Boolean);

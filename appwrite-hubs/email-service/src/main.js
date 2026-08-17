@@ -33,9 +33,8 @@
  *     Sends:    branded welcome email (triggered after email verification)
  *
  *   send-password-changed
- *     Requires: active user session (in-app change) OR a userId (post-reset)
- *     Body:     { action: 'send-password-changed' }            // uses the session
- *           or  { action: 'send-password-changed', userId }    // looks up via admin key
+ *     Requires: active user session (in-app change)
+ *     Body:     { action: 'send-password-changed' }
  *     Sends:    branded "your password was changed" security notice
  *     Note:     best-effort; always returns success, never reveals account existence
  *
@@ -619,7 +618,7 @@ function welcomeEmail(name, dashboardUrl, rawLocale = 'en') {
     ctaLabel: isArabic ? 'فتح لوحة التحكم' : 'Open dashboard',
     ctaUrl: targetUrl,
     noteTitle: isArabic ? 'الخطوة الأولى المقترحة' : 'Recommended first step',
-    noteBody: isArabic ? 'ارفع أحدث نسخة من سيرتك الذاتية أولاً حتى يتمكن WiseResume من تحليل درجة ATS واقتراح أفضل خطوة تالية.' : 'Upload your latest resume first so WiseResume can analyze your current ATS score and suggest the next best action.',
+    noteBody: isArabic ? 'ارفع أحدث نسخة من سيرتك الذاتية أولاً حتى يتمكن WiseResume من فحص جاهزية السيرة واقتراح أفضل خطوة تالية.' : 'Upload your latest resume first so WiseResume can check its section readiness and suggest the next best action.',
     statusLabel: isArabic ? 'جاهز' : 'Ready',
     showCta: true,
     showBackupLink: false,
@@ -765,23 +764,11 @@ async function handleSendPasswordChanged({ req, res, log, error, body }) {
     let email = '';
     let displayName = '';
 
-    if (userJwt) {
-      const userClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setJWT(userJwt);
-      const user = await new sdk.Account(userClient).get();
-      email = user.email || '';
-      displayName = (user.name || '').trim();
-    } else {
-      const userId = (body?.userId || body?.user_id || '').trim();
-      if (!userId) return json(res, { success: true });
-      if (!appwriteApiKey()) {
-        error('send-password-changed: APPWRITE_API_KEY not configured — cannot look up user by id');
-        return json(res, { success: true });
-      }
-      const adminClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(appwriteApiKey());
-      const user = await new sdk.Users(adminClient).get(userId);
-      email = user.email || '';
-      displayName = (user.name || '').trim();
-    }
+    if (!userJwt) return json(res, { error: 'Authentication required' }, 401);
+    const userClient = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setJWT(userJwt);
+    const user = await new sdk.Account(userClient).get();
+    email = user.email || '';
+    displayName = (user.name || '').trim();
 
     if (!email) return json(res, { success: true });
 
@@ -1051,7 +1038,7 @@ async function handleSendPasswordResetOtp({ req, res, log, error, body, adminAud
     }
 
     // 4. Generate 6-digit OTP code
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHmac('sha256', secret).update(otpCode).digest('hex');
 
     // 5. Store OTP document (with clientIp and sanitized userAgent)
@@ -1321,22 +1308,25 @@ async function handleVerifyPasswordResetOtp({ req, res, log, error, body }) {
 
     const doc = otps.documents[0];
 
-    let attempts = doc.attempts;
-    if (attempts >= doc.max_attempts) {
+    // Reserve one attempt atomically before comparing. The prior read/modify/
+    // write sequence let concurrent guesses all observe the same counter.
+    let reserved;
+    try {
+      reserved = await db.incrementDocumentAttribute(
+        DB_ID,
+        'password_reset_otps',
+        doc.$id,
+        'attempts',
+        1,
+        Number(doc.max_attempts) || 5,
+      );
+    } catch {
       await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
         revoked_at: new Date().toISOString(),
       });
       return json(res, { error: 'Too many failed attempts. Please request a new code.' }, 400);
     }
-
-    attempts += 1;
-    await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, { attempts });
-
-    if (attempts >= doc.max_attempts) {
-      await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
-        revoked_at: new Date().toISOString(),
-      });
-    }
+    const attempts = Number(reserved.attempts);
 
     // Timing-safe check
     const inputHash = crypto.createHmac('sha256', secret).update(otp).digest('hex');
@@ -1345,6 +1335,11 @@ async function handleVerifyPasswordResetOtp({ req, res, log, error, body }) {
     const isMatch = inputBuffer.length === storedBuffer.length && crypto.timingSafeEqual(inputBuffer, storedBuffer);
 
     if (!isMatch) {
+      if (attempts >= Number(doc.max_attempts || 5)) {
+        await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+          revoked_at: new Date().toISOString(),
+        });
+      }
       return json(res, { error: 'Invalid code.' }, 400);
     }
 
@@ -1402,27 +1397,50 @@ async function handleCompletePasswordReset({ res, log, error, body }) {
     const now = new Date().toISOString();
     const challengeTokenHash = crypto.createHmac('sha256', secret).update(challengeToken).digest('hex');
 
-    const otps = await db.listDocuments(DB_ID, 'password_reset_otps', [
-      sdk.Query.equal('email', email),
-      sdk.Query.equal('challenge_token_hash', challengeTokenHash),
-      sdk.Query.equal('used', false),
-      sdk.Query.isNull('revoked_at'),
-      sdk.Query.greaterThan('challenge_expires_at', now),
-    ]);
+    // Consume the one-time challenge in an Appwrite transaction before changing
+    // the password. Concurrent transactions touching the same OTP document
+    // conflict at commit, so only one request can reserve the challenge.
+    const transaction = await db.createTransaction(30);
+    let transactionCommitted = false;
+    try {
+      const otps = await db.listDocuments(DB_ID, 'password_reset_otps', [
+        sdk.Query.equal('email', email),
+        sdk.Query.equal('challenge_token_hash', challengeTokenHash),
+        sdk.Query.equal('used', false),
+        sdk.Query.isNull('revoked_at'),
+        sdk.Query.greaterThan('challenge_expires_at', now),
+      ], transaction.$id);
 
-    if (otps.total === 0) {
-      return json(res, { error: 'Invalid or expired reset challenge. Please request a new code.' }, 400);
-    }
+      if (otps.total === 0) {
+        await db.updateTransaction(transaction.$id, false, true);
+        return json(res, { error: 'Invalid or expired reset challenge. Please request a new code.' }, 400);
+      }
 
-    const doc = otps.documents[0];
+      const doc = otps.documents[0];
+      const challengeBuffer = Buffer.from(challengeTokenHash);
+      const storedChallengeBuffer = Buffer.from(doc.challenge_token_hash);
+      const isChallengeMatch = challengeBuffer.length === storedChallengeBuffer.length && crypto.timingSafeEqual(challengeBuffer, storedChallengeBuffer);
 
-    // timing-safe challenge comparison
-    const challengeBuffer = Buffer.from(challengeTokenHash);
-    const storedChallengeBuffer = Buffer.from(doc.challenge_token_hash);
-    const isChallengeMatch = challengeBuffer.length === storedChallengeBuffer.length && crypto.timingSafeEqual(challengeBuffer, storedChallengeBuffer);
+      if (!isChallengeMatch) {
+        await db.updateTransaction(transaction.$id, false, true);
+        return json(res, { error: 'Security verification failed.' }, 400);
+      }
 
-    if (!isChallengeMatch) {
-      return json(res, { error: 'Security verification failed.' }, 400);
+      await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
+        used: true,
+        used_at: new Date().toISOString(),
+        challenge_token_hash: '',
+      }, undefined, transaction.$id);
+      await db.updateTransaction(transaction.$id, true, false);
+      transactionCommitted = true;
+    } catch (consumeErr) {
+      if (!transactionCommitted) {
+        try { await db.updateTransaction(transaction.$id, false, true); } catch (_) {}
+      }
+      if (consumeErr?.code === 409 || /conflict/i.test(consumeErr?.message || '')) {
+        return json(res, { error: 'This reset challenge has already been used.' }, 400);
+      }
+      throw consumeErr;
     }
 
     // Look up user ID and update password
@@ -1433,13 +1451,6 @@ async function handleCompletePasswordReset({ res, log, error, body }) {
 
     const appwriteUser = userList.users[0];
     await users.updatePassword(appwriteUser.$id, password);
-
-    // Consume challenge & mark used
-    await db.updateDocument(DB_ID, 'password_reset_otps', doc.$id, {
-      used: true,
-      used_at: new Date().toISOString(),
-      challenge_token_hash: '', // clear challenge hash to prevent reuse
-    });
 
     // Send email alert
     try {
@@ -1518,7 +1529,7 @@ module.exports = async ({ req, res, log, error }) => {
       return handleCompleteEmailVerification({ res, log, error, body });
 
     case 'get-verification-status':
-      return handleGetVerificationStatus({ res, log, error, body });
+      return handleGetVerificationStatus({ req, res, log, error, body });
 
     default:
       error(`Unknown action: ${action}`);

@@ -5,6 +5,7 @@ import { COLLECTIONS } from '@/lib/appwrite-collections';
 import { useSettingsStore } from '@/store/settingsStore';
 import { TailorHistory } from '@/types/resume';
 import { downloadFile } from '@/lib/downloadUtils';
+import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 interface ExportData {
   exportVersion: string;
@@ -240,16 +241,11 @@ async function deleteByIds(collectionId: string, ids: string[]): Promise<void> {
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
-  // share_comments have no user_id — cascade via share_id
+  // Resume shares and feedback are server-only. The function resolves the
+  // authenticated account from its JWT and never trusts this caller's userId.
   try {
-    const shareIds = await listAllIds(COLLECTIONS.resume_shares, 'user_id', userId);
-    if (shareIds.length > 0) {
-      for (const shareId of shareIds) {
-        const commentIds = await listAllIds(COLLECTIONS.share_comments, 'share_id', shareId);
-        await deleteByIds(COLLECTIONS.share_comments, commentIds);
-      }
-      await deleteByIds(COLLECTIONS.resume_shares, shareIds);
-    }
+    const { error } = await appwriteFunctions.invoke('delete-all-resume-share-data');
+    if (error) throw new Error(error.message);
   } catch (e) {
     console.error('Failed to delete resume_shares / share_comments:', e);
   }

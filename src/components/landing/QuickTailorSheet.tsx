@@ -19,6 +19,9 @@ import triggerHaptic from '@/lib/haptics';
 import type { ResumeData, TailorProgress as TailorProgressType, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
 
 interface QuickTailorSheetProps {
   open: boolean;
@@ -55,9 +58,11 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
   const { data: resumes, isLoading: resumesLoading } = useResumes();
   const { createResume, deleteResume } = useResumeMutations();
   const { execute } = useAIAction({ operation: 'tailor' });
+  const { requestDisclosure } = useAIPrivacyDisclosure();
 
   const [step, setStep] = useState<Step>('select-resume');
   const [selectedResume, setSelectedResume] = useState<ResumeData | null>(null);
+  const redactedResume = useRedactedResume(selectedResume);
   const [jobDescription, setJobDescription] = useState('');
   const [jobMeta, setJobMeta] = useState<{ title: string; company: string } | null>(null);
   const [tailorProgress, setTailorProgress] = useState<TailorProgressType | EnhancedTailorProgress | null>(null);
@@ -109,6 +114,13 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
     const file = e.target.files?.[0];
     if (!file) return;
 
+    let privacyAccepted = hasAcceptedAIPrivacy();
+    if (!privacyAccepted) privacyAccepted = await requestDisclosure();
+    if (!privacyAccepted) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setIsUploading(true);
     try {
       const mime = file.type.toLowerCase();
@@ -138,7 +150,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
             .replace(/<p[^>]*>/gi, '\n')
             .replace(/<br\s*\/?>/gi, '\n')
             .replace(/<[^>]+>/g, '')
-            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '\"').replace(/&#39;/g, "'")
+            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
             .trim();
         } catch {
           const rawResult = await mammoth.default.extractRawText({ arrayBuffer });
@@ -154,14 +166,14 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
       setSelectedResume(withIds);
       setStep('job-input');
       toast.success('Resume parsed successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Upload error:', err);
-      toast.error(err?.message || 'Failed to parse resume');
+      toast.error(err instanceof Error ? err.message : 'Failed to parse resume');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, []);
+  }, [requestDisclosure]);
 
   // === Step 2: Start tailoring ===
   const handleTailor = useCallback(async () => {
@@ -174,7 +186,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
 
     const result = await execute(async () => {
       return await tailorResumeWithProgress(
-        selectedResume,
+        redactedResume ?? selectedResume,
         jobDescription,
         (p) => setTailorProgress(p),
         'moderate' as TailorIntensity,
@@ -190,7 +202,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
       // credits issue or cancelled
       setStep('job-input');
     }
-  }, [selectedResume, jobDescription, execute]);
+  }, [selectedResume, redactedResume, jobDescription, execute]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();

@@ -7,35 +7,60 @@ import { createRequire } from 'module';
 
 // Declare mocks first so they can be referenced inside the mockSdk
 const mockUpdateDocument = vi.fn();
+const mockIncrementDocumentAttribute = vi.fn();
+const mockCreateTransaction = vi.fn();
+const mockUpdateTransaction = vi.fn();
 const mockCreateDocument = vi.fn();
 const mockListDocuments = vi.fn();
 const mockListUsers = vi.fn();
 const mockUpdatePassword = vi.fn();
 
+type MutableMockInstance = Record<string, unknown>;
+type TestHandler = (context: {
+  req: {
+    method: string;
+    body: Record<string, unknown>;
+    headers?: Record<string, string>;
+  };
+  res: unknown;
+  log: unknown;
+  error: unknown;
+}) => Promise<{
+  status: number;
+  data: {
+    error: string;
+    success: boolean;
+    challengeToken?: string;
+  };
+}>;
+
 const mockSdk = {
-  Client: vi.fn().mockImplementation(function (this: any) {
+  Client: vi.fn().mockImplementation(function (this: MutableMockInstance) {
     this.setEndpoint = vi.fn().mockReturnThis();
     this.setProject = vi.fn().mockReturnThis();
     this.setKey = vi.fn().mockReturnThis();
   }),
-  Databases: vi.fn().mockImplementation(function (this: any) {
+  Databases: vi.fn().mockImplementation(function (this: MutableMockInstance) {
     this.listDocuments = mockListDocuments;
     this.createDocument = mockCreateDocument;
     this.updateDocument = mockUpdateDocument;
+    this.incrementDocumentAttribute = mockIncrementDocumentAttribute;
+    this.createTransaction = mockCreateTransaction;
+    this.updateTransaction = mockUpdateTransaction;
   }),
-  Users: vi.fn().mockImplementation(function (this: any) {
+  Users: vi.fn().mockImplementation(function (this: MutableMockInstance) {
     this.list = mockListUsers;
     this.updatePassword = mockUpdatePassword;
   }),
-  Functions: vi.fn().mockImplementation(function (this: any) {
+  Functions: vi.fn().mockImplementation(function (this: MutableMockInstance) {
     this.createExecution = vi.fn().mockResolvedValue({
       status: 'completed',
       responseBody: JSON.stringify({ success: true }),
     });
   }),
   Query: {
-    equal: (field: string, val: any) => `equal:${field}:${val}`,
-    greaterThan: (field: string, val: any) => `greater:${field}:${val}`,
+    equal: (field: string, val: unknown) => `equal:${field}:${String(val)}`,
+    greaterThan: (field: string, val: unknown) => `greater:${field}:${String(val)}`,
     orderDesc: (field: string) => `orderDesc:${field}`,
     limit: (n: number) => `limit:${n}`,
     isNull: (field: string) => `isNull:${field}`,
@@ -46,7 +71,11 @@ const mockSdk = {
 };
 
 // Set in globalThis so the eval'd code can access it
-(globalThis as any).mockSdk = mockSdk;
+const sharedGlobal = globalThis as typeof globalThis & {
+  mockSdk: typeof mockSdk;
+  tempHandler?: TestHandler;
+};
+sharedGlobal.mockSdk = mockSdk;
 
 // Read and eval the main.js file
 const __filename = fileURLToPath(import.meta.url);
@@ -69,7 +98,8 @@ const wrappedCode = `
 `;
 new Function('require', wrappedCode)(cjsRequire);
 
-const handler = (globalThis as any).tempHandler;
+const handler = sharedGlobal.tempHandler;
+if (!handler) throw new Error('Failed to load email-service handler');
 
 // Mock global fetch for Resend email sending
 const mockFetch = vi.fn().mockResolvedValue({
@@ -105,6 +135,9 @@ describe('OTP Password Reset Backend Actions', () => {
       text: async () => 'OK',
       status: 200,
     });
+    mockIncrementDocumentAttribute.mockResolvedValue({ attempts: 1 });
+    mockCreateTransaction.mockResolvedValue({ $id: 'tx-1' });
+    mockUpdateTransaction.mockResolvedValue({ $id: 'tx-1', status: 'committed' });
   });
 
   afterEach(() => {
@@ -122,7 +155,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.status).toBe(500);
     expect(res.data.error).toContain('Internal server configuration error');
     expect(mockError).toHaveBeenCalledWith(expect.stringContaining('PASSWORD_RESET_OTP_SECRET is not configured'));
@@ -142,7 +175,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.status).not.toBe(500);
     expect(res.status).not.toBe(400);
     expect(res.data.success).toBe(true);
@@ -162,7 +195,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.status).toBe(429);
     expect(res.data.error).toContain('Please wait 60 seconds');
   });
@@ -183,7 +216,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.data.success).toBe(true);
     
     // Check that OTP document was created
@@ -219,15 +252,17 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.status).toBe(400);
     expect(res.data.error).toBe('Invalid code.');
     // Check attempts incremented
-    expect(mockUpdateDocument).toHaveBeenCalledWith(
+    expect(mockIncrementDocumentAttribute).toHaveBeenCalledWith(
       'main',
       'password_reset_otps',
       'doc-123',
-      expect.objectContaining({ attempts: 1 }),
+      'attempts',
+      1,
+      5,
     );
   });
 
@@ -245,6 +280,7 @@ describe('OTP Password Reset Backend Actions', () => {
         },
       ],
     });
+    mockIncrementDocumentAttribute.mockResolvedValueOnce({ attempts: 5 });
 
     const req = {
       method: 'POST',
@@ -255,9 +291,53 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.status).toBe(400);
     expect(mockUpdateDocument).toHaveBeenCalledWith(
+      'main',
+      'password_reset_otps',
+      'doc-123',
+      expect.objectContaining({ revoked_at: expect.any(String) }),
+    );
+  });
+
+  it('accepts a correct fifth attempt without revoking the challenge', async () => {
+    const storedHash = crypto.createHmac('sha256', 'super-secret-key').update('123456').digest('hex');
+    mockListDocuments.mockResolvedValueOnce({
+      total: 1,
+      documents: [{
+        $id: 'doc-123',
+        email: 'user@example.com',
+        otp_hash: storedHash,
+        attempts: 4,
+        max_attempts: 5,
+      }],
+    });
+    mockIncrementDocumentAttribute.mockResolvedValueOnce({ attempts: 5 });
+
+    const res = await handler({
+      req: {
+        method: 'POST',
+        body: {
+          action: 'verify-password-reset-otp',
+          email: 'user@example.com',
+          otp: '123456',
+        },
+      },
+      res: mockRes,
+      log: mockLog,
+      error: mockError,
+    });
+
+    expect(res.data.success).toBe(true);
+    expect(res.data.challengeToken).toEqual(expect.any(String));
+    expect(mockUpdateDocument).toHaveBeenCalledWith(
+      'main',
+      'password_reset_otps',
+      'doc-123',
+      expect.objectContaining({ challenge_token_hash: expect.any(String) }),
+    );
+    expect(mockUpdateDocument).not.toHaveBeenCalledWith(
       'main',
       'password_reset_otps',
       'doc-123',
@@ -296,7 +376,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.data.success).toBe(true);
     
     // Appwrite password update should have been called
@@ -311,7 +391,45 @@ describe('OTP Password Reset Backend Actions', () => {
         used: true,
         challenge_token_hash: '',
       }),
+      undefined,
+      'tx-1',
     );
+    expect(mockUpdateTransaction).toHaveBeenCalledWith('tx-1', true, false);
+  });
+
+  it('does not change the password when challenge consumption conflicts', async () => {
+    const rawChallenge = 'raw-challenge-123-abc';
+    const challengeHash = crypto.createHmac('sha256', 'super-secret-key').update(rawChallenge).digest('hex');
+    mockListDocuments.mockResolvedValueOnce({
+      total: 1,
+      documents: [{
+        $id: 'doc-123',
+        email: 'user@example.com',
+        challenge_token_hash: challengeHash,
+        used: false,
+      }],
+    });
+    const conflict = Object.assign(new Error('transaction conflict'), { code: 409 });
+    mockUpdateTransaction.mockRejectedValueOnce(conflict);
+
+    const res = await handler({
+      req: {
+        method: 'POST',
+        body: {
+          action: 'reset-password-with-otp',
+          email: 'user@example.com',
+          challengeToken: rawChallenge,
+          password: 'new-secure-password-123',
+        },
+      },
+      res: mockRes,
+      log: mockLog,
+      error: mockError,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.data.error).toContain('already been used');
+    expect(mockUpdatePassword).not.toHaveBeenCalled();
   });
 
   it('rejects old link password reset actions', async () => {
@@ -323,7 +441,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.status).toBe(400);
     expect(res.data.error).toContain('Link-based password reset is disabled');
   });
@@ -342,7 +460,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.data.success).toBe(true);
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -374,7 +492,7 @@ describe('OTP Password Reset Backend Actions', () => {
       },
     };
 
-    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError } as any);
+    const res = await handler({ req, res: mockRes, log: mockLog, error: mockError });
     expect(res.data.success).toBe(true);
 
     const callArgs = mockFetch.mock.calls[0][1];

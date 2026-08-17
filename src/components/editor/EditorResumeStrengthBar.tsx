@@ -13,10 +13,10 @@ interface EditorResumeStrengthBarProps {
 
 const SECTION_ROWS: Array<{ key: keyof ResumeHealthScore['categories']; label: string }> = [
   { key: 'contactCompleteness', label: 'Contact Info' },
-  { key: 'contentQuality',      label: 'Content Quality' },
-  { key: 'keywordOptimization', label: 'Keywords' },
-  { key: 'sectionStructure',    label: 'Structure' },
-  { key: 'lengthDensity',       label: 'Length & Density' },
+  { key: 'summaryCompleteness', label: 'Summary' },
+  { key: 'experienceCompleteness', label: 'Experience' },
+  { key: 'educationCompleteness', label: 'Education' },
+  { key: 'skillsCompleteness', label: 'Skills' },
 ];
 
 function SectionIcon({ score }: { score: number }) {

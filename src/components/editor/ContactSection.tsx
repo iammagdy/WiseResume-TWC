@@ -12,8 +12,8 @@ import { useLocale } from '@/i18n/LocaleProvider';
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email');
 const phoneSchema = z.string().regex(/^[\d\s\-+()]*$/, 'Invalid phone format').optional().or(z.literal(''));
-const linkedinUsernameSchema = z.string().regex(/^[a-zA-Z0-9\-]{3,100}$/, 'Username must be 3+ characters (letters, numbers, hyphens)');
-const githubUsernameSchema = z.string().regex(/^[a-zA-Z0-9\-]{1,39}$/, 'Username must be 1-39 characters (letters, numbers, hyphens)');
+const linkedinUsernameSchema = z.string().regex(/^[a-zA-Z0-9-]{3,100}$/, 'Username must be 3+ characters (letters, numbers, hyphens)');
+const githubUsernameSchema = z.string().regex(/^[a-zA-Z0-9-]{1,39}$/, 'Username must be 1-39 characters (letters, numbers, hyphens)');
 
 const LINKEDIN_PREFIX = 'linkedin.com/in/';
 const LINKEDIN_URL_BASE = 'https://linkedin.com/in/';
@@ -254,7 +254,7 @@ export const ContactSection = memo(function ContactSection() {
           prefix={LINKEDIN_PREFIX}
           value={extractLinkedInUsername(contactInfo.linkedin || '')}
           onChange={(value) => {
-            const username = value.replace(/[^a-zA-Z0-9\-]/g, '');
+            const username = value.replace(/[^a-zA-Z0-9-]/g, '');
             handleChange('linkedin', username ? `${LINKEDIN_URL_BASE}${username}` : '');
           }}
           onBlur={() => handleBlur('linkedin')}
@@ -270,7 +270,7 @@ export const ContactSection = memo(function ContactSection() {
           prefix={GITHUB_PREFIX}
           value={extractGitHubUsername(contactInfo.github || '')}
           onChange={(value) => {
-            const username = value.replace(/[^a-zA-Z0-9\-]/g, '');
+            const username = value.replace(/[^a-zA-Z0-9-]/g, '');
             handleChange('github', username ? `${GITHUB_URL_BASE}${username}` : '');
           }}
           onBlur={() => handleBlur('github')}

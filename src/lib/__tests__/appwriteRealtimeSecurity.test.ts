@@ -1,9 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { client } from '../appwrite';
 
+interface TestRealtimeTransport {
+  subscriptions: Map<string, {
+    channels: string[];
+    queries: string[];
+    callback: () => void;
+  }>;
+  url: string;
+  createSocket: () => void;
+}
+
 describe('Appwrite Realtime Security Hardening', () => {
   it('handles WebSocket SecurityError gracefully during createSocket without crashing', () => {
-    const realtime = (client as any).realtime;
+    const realtime = (client as unknown as { realtime: TestRealtimeTransport }).realtime;
     expect(realtime).toBeDefined();
 
     // Mock WebSocket to throw SecurityError DOMException
@@ -21,9 +31,8 @@ describe('Appwrite Realtime Security Hardening', () => {
 
       globalThis.WebSocket = vi.fn().mockImplementation(() => {
         const err = new DOMException('The operation is insecure.', 'SecurityError');
-        (err as any).code = 18;
         throw err;
-      }) as any;
+      }) as unknown as typeof WebSocket;
 
       // Invoking createSocket directly should be caught cleanly by the wrapper
       expect(() => {

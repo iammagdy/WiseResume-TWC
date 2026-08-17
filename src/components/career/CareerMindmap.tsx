@@ -25,10 +25,10 @@ const BRANCH_COLORS = [
 function getReadinessLabel(timeframe: string) {
   const lower = timeframe.toLowerCase();
   if (lower.includes('now') || lower.includes('ready') || lower.includes('1-3 month'))
-    return { label: 'Ready', color: 'bg-emerald-500', textColor: 'text-emerald-400' };
+    return { label: 'Explore now', color: 'bg-emerald-500', textColor: 'text-emerald-400' };
   if (lower.includes('3') || lower.includes('6') || lower.includes('month'))
-    return { label: '3-6 mo', color: 'bg-amber-500', textColor: 'text-amber-400' };
-  return { label: '1+ yr', color: 'bg-rose-500', textColor: 'text-rose-400' };
+    return { label: 'Suggested 3-6 mo', color: 'bg-amber-500', textColor: 'text-amber-400' };
+  return { label: 'Longer-term idea', color: 'bg-rose-500', textColor: 'text-rose-400' };
 }
 
 function GradientScoreRing({ score, size = 48, colors }: { score: number; size?: number; colors: string[] }) {
@@ -40,7 +40,12 @@ function GradientScoreRing({ score, size = 48, colors }: { score: number; size?:
   const gradientId = `grad-${colors[0].replace('#', '')}-${score}`;
 
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+      title="AI resume-relevance estimate, not hiring probability"
+      aria-label={`AI resume-relevance estimate ${score} out of 100`}
+    >
       <svg className="w-full h-full -rotate-90" viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -63,24 +68,6 @@ function GradientScoreRing({ score, size = 48, colors }: { score: number; size?:
   );
 }
 
-function SkillProgressBar({ existing, total, color }: { existing: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.round((existing / total) * 100) : 0;
-  return (
-    <div className="flex items-center gap-2 mt-1.5">
-      <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
-          className="h-full rounded-full"
-          style={{ background: `linear-gradient(90deg, ${color}, ${color}90)` }}
-        />
-      </div>
-      <span className="text-[9px] text-white/40 shrink-0">{existing}/{total}</span>
-    </div>
-  );
-}
-
 function RoleNode({
   role,
   branchColor,
@@ -99,8 +86,6 @@ function RoleNode({
   onToggle: (id: string) => void;
 }) {
   const readiness = getReadinessLabel(role.timeframe);
-  // Simulate existing skills as ~60% of required (since we don't have that data on CareerMapRole)
-  const existingCount = Math.round(role.requiredSkills.length * 0.6);
 
   return (
     <motion.div
@@ -137,9 +122,6 @@ function RoleNode({
             <span className="text-[10px] text-white/30">•</span>
             <span className="text-[10px] text-white/40">{role.timeframe}</span>
           </div>
-          {!isExpanded && role.requiredSkills.length > 0 && (
-            <SkillProgressBar existing={existingCount} total={role.requiredSkills.length} color={branchColor.line} />
-          )}
         </div>
         <div className="pt-1">
           {isExpanded ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
@@ -166,7 +148,6 @@ function RoleNode({
                   ))}
                 </div>
               </div>
-              <SkillProgressBar existing={existingCount} total={role.requiredSkills.length} color={branchColor.line} />
             </div>
           </motion.div>
         )}
@@ -300,7 +281,7 @@ export function CareerMindmap({ careerMap }: Props) {
               <div className="w-px h-3 bg-white/10" />
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[10px] text-white/50">Best: {stats.bestMatch}%</span>
+                <span className="text-[10px] text-white/50">Highest AI relevance: {stats.bestMatch}/100</span>
               </div>
             </motion.div>
           )}
@@ -358,10 +339,10 @@ export function CareerMindmap({ careerMap }: Props) {
 
           {/* Legend */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-5 pt-3 border-t border-white/10">
-            <p className="text-[10px] text-white/40">Readiness:</p>
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[10px] text-white/50">Ready now</span></div>
+            <p className="text-[10px] text-white/40">Suggested horizon:</p>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[10px] text-white/50">Explore now</span></div>
             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[10px] text-white/50">3-6 months</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500" /><span className="text-[10px] text-white/50">1+ year</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500" /><span className="text-[10px] text-white/50">Longer term</span></div>
           </div>
 
           {/* Branded Footer */}

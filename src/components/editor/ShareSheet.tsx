@@ -4,11 +4,14 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { haptics } from '@/lib/haptics';
-import { shareAsPDF, shareAsLink, shareAsText } from '@/lib/shareUtils';
+import { shareAsPDF, shareResumeLink, shareAsText } from '@/lib/shareUtils';
 import type { ResumeData, TemplateId } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { useShareComments } from '@/hooks/useShareComments';
+import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { ShareFeedbackSheet } from './ShareFeedbackSheet';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
 
 interface ShareSheetProps {
   open: boolean;
@@ -32,6 +35,7 @@ export function ShareSheet({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const { data: comments = [] } = useShareComments(shareId || null);
+  const { createShare: createResumeShare } = useResumeShareMutations();
   const unresolvedCount = comments.filter(c => !c.is_resolved).length;
 
   const handleSharePDF = async () => {
@@ -43,10 +47,13 @@ export function ShareSheet({
       if (!templateEl) throw new Error('Resume template not found');
       const pageFormat = (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
       const customBreakPositions = resume.customization?.customBreakPositions;
+      const { pdfDefaults } = useSettingsStore.getState();
       const pdfBlob = await generateNativePDF(templateEl, {
         pageFormat,
-        showPageNumbers: true,
-        showBranding: true,
+        showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+        showBranding: pdfDefaults.showBranding ?? true,
+        locale: getDocumentLocale(resume),
         ...(customBreakPositions?.length ? { customBreakPositions } : {}),
       });
       const fileName = `${resume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
@@ -65,7 +72,8 @@ export function ShareSheet({
   const handleShareLink = async () => {
     haptics.medium();
     if (resume.id) {
-      await shareAsLink(resume.id);
+      const share = await createResumeShare.mutateAsync({ resumeId: resume.id });
+      await shareResumeLink(share.token);
       haptics.success();
       onOpenChange(false);
     }

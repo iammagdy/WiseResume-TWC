@@ -50,8 +50,8 @@ describe("PublicPortfolioPage", () => {
     expect(headings.length).toBeGreaterThan(0);
   });
 
-  it("shows the 'Open to Work' badge if enabled", async () => {
+  it("shows the configured availability badge", async () => {
     render(<PublicPortfolioPage />, { wrapper });
-    expect(await screen.findByText("Open to Work")).toBeDefined();
+    expect(await screen.findByText("Actively Looking")).toBeDefined();
   });
 });

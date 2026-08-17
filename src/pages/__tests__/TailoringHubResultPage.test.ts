@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveTailoringResultState } from '@/pages/TailoringHubResultPage';
+import { resolveTailoringResultState } from '@/lib/tailoringResultState';
 
 describe('resolveTailoringResultState', () => {
   it('returns an empty state when persisted metadata is missing or delayed', () => {

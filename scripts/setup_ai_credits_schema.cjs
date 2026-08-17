@@ -93,18 +93,28 @@ async function main() {
   console.log(`Setting up ai_credits schema on project=${PROJECT_ID} db=${DB_ID}`);
 
   if (!(await collectionExists(COLLECTION_ID))) {
-    await databases.createCollection(DB_ID, COLLECTION_ID, 'AI Credits', [
-      sdk.Permission.create(sdk.Role.any()),  // functions create docs per-user
-      sdk.Permission.read(sdk.Role.any()),    // functions read on behalf of users
-      sdk.Permission.update(sdk.Role.any()),  // functions update usage counters
-      sdk.Permission.delete(sdk.Role.any()),  // functions may delete stale docs
-    ]);
+    // Server functions use an API key and do not need collection permissions.
+    // User-facing reads are granted per document by the credit functions.
+    await databases.createCollection(DB_ID, COLLECTION_ID, 'AI Credits', [], true);
     console.log(`✓ created collection "${COLLECTION_ID}"`);
     // Wait for collection to be ready before adding attributes
     await sleep(1500);
   } else {
     console.log(`✓ collection "${COLLECTION_ID}" already exists`);
   }
+
+  // Reconcile existing environments as well as fresh installs. This removes
+  // the historical Role.any write permissions that allowed quota tampering.
+  const collection = await databases.getCollection(DB_ID, COLLECTION_ID);
+  await databases.updateCollection(
+    DB_ID,
+    COLLECTION_ID,
+    collection.name || 'AI Credits',
+    [],
+    true,
+    collection.enabled !== false,
+  );
+  console.log('✓ enforced server-only collection access with per-document user reads');
 
   await ensureStringAttr(COLLECTION_ID, 'user_id',     36,  true,  null);
   await sleep(500);

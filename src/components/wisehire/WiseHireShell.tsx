@@ -26,7 +26,6 @@ import { useTheme } from '@/hooks/use-theme';
 import { TrialCountdownBadge } from '@/components/wisehire/TrialCountdownBadge';
 import { Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { useLocale } from '@/i18n/LocaleProvider';
 
 interface NavItem {
@@ -34,7 +33,6 @@ interface NavItem {
   path: string;
   icon: React.ElementType;
   matchPaths?: string[];
-  comingSoon?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -77,11 +75,6 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
   };
 
   function handleNavClick(item: NavItem) {
-    if (item.comingSoon) {
-      toast.info(t('wisehire.shell.comingSoonToast', '{{label}} is coming in the next release.', { label: item.label }));
-      setMobileOpen(false);
-      return;
-    }
     navigate(item.path);
     setMobileOpen(false);
   }
@@ -153,11 +146,6 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
                 )}
               />
               <span className="flex-1 truncate">{item.label}</span>
-              {item.comingSoon && (
-                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
-                  {t('wisehire.shell.soon', 'Soon')}
-                </span>
-              )}
               {active && <ChevronRight className="h-3 w-3 text-blue-500 shrink-0" />}
             </button>
           );

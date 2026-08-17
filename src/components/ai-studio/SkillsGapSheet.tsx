@@ -192,6 +192,9 @@ export function SkillsGapSheet({ open, onOpenChange }: SkillsGapSheetProps) {
           <span role="status" aria-live="polite" className="sr-only">
             {isLoading ? 'Analyzing your skills gap, please wait…' : result ? 'Skills gap report ready.' : ''}
           </span>
+          <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            Matched skills must exist in your resume; missing skills must appear in the pasted posting. Importance and learning timing are AI suggestions to verify.
+          </p>
           {showDraftBanner && draft && !result && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>

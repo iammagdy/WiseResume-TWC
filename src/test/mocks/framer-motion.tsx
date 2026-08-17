@@ -1,18 +1,22 @@
 import { vi } from "vitest";
 import React from "react";
 
-const mockComponent = (tag: string) => React.forwardRef(({ children, ...props }: any, ref) => {
-  // Filter out framer-motion specific props
-  const { 
-    whileInView, initial, animate, transition, variants, viewport,
-    exit, layout, layoutId, whileHover, whileTap, onAnimationStart, onAnimationComplete,
-    onUpdate, onPan, onPanStart, onPanEnd, onPanSessionStart,
-    onTap, onTapStart, onTapCancel, onHoverStart, onHoverEnd,
-    drag, dragControls, dragListener, dragMomentum, dragElastic,
-    dragDirectionLock, dragPropagation, dragConstraints, dragTransition,
-    onDragStart, onDragEnd, onDrag, onDirectionLock,
-    ...cleanProps 
-  } = props;
+const MOTION_ONLY_PROPS = new Set([
+  "whileInView", "initial", "animate", "transition", "variants", "viewport",
+  "exit", "layout", "layoutId", "whileHover", "whileTap", "onAnimationStart",
+  "onAnimationComplete", "onUpdate", "onPan", "onPanStart", "onPanEnd",
+  "onPanSessionStart", "onTap", "onTapStart", "onTapCancel", "onHoverStart",
+  "onHoverEnd", "drag", "dragControls", "dragListener", "dragMomentum",
+  "dragElastic", "dragDirectionLock", "dragPropagation", "dragConstraints",
+  "dragTransition", "onDragStart", "onDragEnd", "onDrag", "onDirectionLock",
+]);
+
+type MotionMockProps = React.PropsWithChildren<Record<string, unknown>>;
+
+const mockComponent = (tag: string) => React.forwardRef<HTMLElement, MotionMockProps>(({ children, ...props }, ref) => {
+  const cleanProps = Object.fromEntries(
+    Object.entries(props).filter(([key]) => !MOTION_ONLY_PROPS.has(key)),
+  );
   return React.createElement(tag, { ...cleanProps, ref }, children);
 });
 
@@ -48,7 +52,7 @@ export const motion = {
   rect: mockComponent("rect"),
 };
 
-export const AnimatePresence = ({ children }: any) => children;
+export const AnimatePresence = ({ children }: React.PropsWithChildren) => children;
 export const useScroll = () => ({ scrollYProgress: { onChange: vi.fn(), get: () => 0 } });
 export const useTransform = () => ({ get: () => 0 });
 export const useSpring = () => ({ get: () => 0 });
@@ -59,8 +63,8 @@ export const useAnimation = () => ({
   set: vi.fn(),
 });
 export const useInView = () => [vi.fn(), true];
-export const LayoutGroup = ({ children }: any) => children;
-export const LazyMotion = ({ children }: any) => children;
+export const LayoutGroup = ({ children }: React.PropsWithChildren) => children;
+export const LazyMotion = ({ children }: React.PropsWithChildren) => children;
 export const domAnimation = {};
 export const domMax = {};
 export const useMotionValue = vi.fn(() => ({ get: () => 0, set: vi.fn(), onChange: vi.fn() }));

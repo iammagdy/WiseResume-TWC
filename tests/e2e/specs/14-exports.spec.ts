@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/auth-required';
 import { attachObservers } from '../fixtures/observers';
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /**
@@ -23,7 +23,7 @@ const EXPORTS: ExportCase[] = [
     label: /pdf|download.*pdf|export.*pdf/i,
     expectedExt: /\.pdf$/i,
     validate: filePath => {
-      const buf = require('node:fs').readFileSync(filePath).slice(0, 5).toString('utf8');
+      const buf = readFileSync(filePath).subarray(0, 5).toString('utf8');
       return buf.startsWith('%PDF') ? null : `not a PDF file (header: ${buf})`;
     },
   },
@@ -31,7 +31,7 @@ const EXPORTS: ExportCase[] = [
     label: /docx|word/i,
     expectedExt: /\.docx$/i,
     validate: filePath => {
-      const buf = require('node:fs').readFileSync(filePath).slice(0, 4);
+      const buf = readFileSync(filePath).subarray(0, 4);
       // DOCX is a ZIP; ZIP magic = 'PK\x03\x04'
       return buf[0] === 0x50 && buf[1] === 0x4b ? null : `not a ZIP/DOCX (bytes: ${buf.toString('hex')})`;
     },
@@ -41,7 +41,7 @@ const EXPORTS: ExportCase[] = [
     expectedExt: /\.json$/i,
     validate: filePath => {
       try {
-        JSON.parse(require('node:fs').readFileSync(filePath, 'utf8'));
+        JSON.parse(readFileSync(filePath, 'utf8'));
         return null;
       } catch (e) {
         return `not parseable JSON: ${(e as Error).message}`;
@@ -52,7 +52,7 @@ const EXPORTS: ExportCase[] = [
     label: /plain.?text|\.txt|^txt/i,
     expectedExt: /\.txt$/i,
     validate: filePath => {
-      const text = require('node:fs').readFileSync(filePath, 'utf8');
+      const text = readFileSync(filePath, 'utf8');
       return text.trim().length > 0 ? null : 'plain-text file is empty';
     },
   },

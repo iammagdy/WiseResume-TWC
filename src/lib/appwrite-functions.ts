@@ -169,7 +169,30 @@ const WISEHIRE_FUNCTIONS = new Set([
   'wisehire-access',
 ]);
 const PUBLIC_SHARE_FUNCTIONS = new Set([
+  'get-resume-share',
   'verify-share-password',
+  'get-public-share-comments',
+  'add-public-share-comment',
+  'create-resume-share',
+  'list-resume-shares',
+  'update-resume-share',
+  'delete-resume-share',
+  'list-share-comments',
+  'resolve-share-comment',
+  'delete-all-resume-share-data',
+  'create-portfolio-chat-session',
+  'ask-portfolio',
+  'portfolio-interest',
+]);
+
+// These actions intentionally accept anonymous callers. Owner-management
+// actions are routed to the same hub but still receive and validate the user's
+// Appwrite JWT.
+const ANONYMOUS_PUBLIC_SHARE_FUNCTIONS = new Set([
+  'get-resume-share',
+  'verify-share-password',
+  'get-public-share-comments',
+  'add-public-share-comment',
   'create-portfolio-chat-session',
   'ask-portfolio',
   'portfolio-interest',
@@ -327,7 +350,7 @@ export const appwriteFunctions = {
     try {
       const bodyPayload = await buildBodyPayload(options?.body);
       const headers = { ...(options?.headers || {}) };
-      if (!headers.Authorization && !isPublicShareFunction(fnName)) {
+      if (!headers.Authorization && !ANONYMOUS_PUBLIC_SHARE_FUNCTIONS.has(fnName)) {
         const jwt = await getAppwriteJWT();
         if (jwt) headers['X-Appwrite-JWT'] = jwt;
       }

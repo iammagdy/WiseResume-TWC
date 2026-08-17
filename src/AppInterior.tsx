@@ -373,6 +373,7 @@ function AppRoutes() {
           <Route path="/ar/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense></RouteEB>} />
 
           <Route path="/wisehire/signup" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense></RouteEB>} />
+          <Route path="/wisehire/signup-early-access" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/signup-early-access/:code" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/terms-of-service" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHireTermsPage /></Suspense></RouteEB>} />
           <Route path="/wisehire/privacy-policy" element={<RouteEB><Suspense fallback={<PageLoadingSpinner />}><WiseHirePrivacyPage /></Suspense></RouteEB>} />

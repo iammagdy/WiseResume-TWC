@@ -17,6 +17,9 @@ export interface JobApplication {
   $createdAt: string;
 }
 
+type CreateJobApplicationInput = Record<string, unknown> & { status?: ApplicationStatus };
+type JobApplicationUpdates = Record<string, unknown> & { status?: ApplicationStatus };
+
 export function useJobApplications(statusFilter?: ApplicationStatus) {
   const { user, authReady } = useAuth();
   return useQuery({
@@ -54,7 +57,7 @@ export function useJobApplicationMutations() {
   const queryClient = useQueryClient();
 
   const createApplication = useMutation({
-    mutationFn: async (input: any) => {
+    mutationFn: async (input: CreateJobApplicationInput) => {
       if (!user) throw new Error('Not authenticated');
       return await databases.createDocument(DATABASE_ID, COLLECTIONS.job_applications, ID.unique(), {
         user_id: user.id,
@@ -69,7 +72,7 @@ export function useJobApplicationMutations() {
   });
 
   const updateApplication = useMutation({
-    mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
+    mutationFn: async ({ id, updates }: { id: string, updates: JobApplicationUpdates }) => {
       return await databases.updateDocument(DATABASE_ID, COLLECTIONS.job_applications, id, updates);
     },
     onSuccess: () => {

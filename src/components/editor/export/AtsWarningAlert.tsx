@@ -29,7 +29,7 @@ export function AtsWarningAlert({ templateAtsScore, onSwitchToAts }: AtsWarningA
           className="h-auto p-0 ml-1 text-sm font-semibold underline"
           onClick={onSwitchToAts}
         >
-          Switch to ATS-Optimized
+          Switch to ATS-focused PDF
         </Button>
       </AlertDescription>
     </Alert>

@@ -5,6 +5,7 @@ import React from 'react';
 
 const mockInvoke = vi.fn();
 const mockCreateJob = vi.fn();
+const mockExecuteAI = vi.fn(async (action: () => Promise<unknown>) => action());
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-123', email: 'test@example.com' } }),
@@ -20,6 +21,10 @@ vi.mock('@/hooks/useJobs', () => ({
   useJobMutations: () => ({
     createJob: { mutateAsync: mockCreateJob },
   }),
+}));
+
+vi.mock('@/hooks/useAIAction', () => ({
+  useAIAction: () => ({ execute: mockExecuteAI }),
 }));
 
 import { useImportJob } from '@/hooks/useImportJob';
@@ -53,14 +58,15 @@ describe('useImportJob', () => {
     });
   });
 
-  it('passes user.id (not $id) to job-import', async () => {
+  it('lets the authenticated server own identity and enables disclosed reader fallback', async () => {
     const { result } = renderHook(() => useImportJob(), { wrapper });
 
     await result.current.mutateAsync('https://example.com/jobs/1');
 
     expect(mockInvoke).toHaveBeenCalledWith('job-import', {
-      body: { url: 'https://example.com/jobs/1', userId: 'user-123' },
+      body: { url: 'https://example.com/jobs/1', allowReaderProxy: true },
     });
+    expect(mockExecuteAI).toHaveBeenCalledTimes(1);
   });
 
   it('returns saved job id from function response', async () => {

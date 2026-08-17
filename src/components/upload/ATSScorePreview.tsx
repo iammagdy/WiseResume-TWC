@@ -8,12 +8,11 @@ import type { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  keywordOptimization: 'Keywords',
-  contentQuality: 'Content Quality',
-  sectionStructure: 'Structure',
-  parsability: 'Parsability',
   contactCompleteness: 'Contact Info',
-  lengthDensity: 'Length & Density',
+  summaryCompleteness: 'Summary',
+  experienceCompleteness: 'Work experience',
+  educationCompleteness: 'Education',
+  skillsCompleteness: 'Skills',
 };
 
 function getBarColor(score: number): string {
@@ -23,9 +22,9 @@ function getBarColor(score: number): string {
 }
 
 function getScoreTip(score: number): { icon: typeof TrendingUp; text: string; color: string } {
-  if (score >= 80) return { icon: TrendingUp, text: 'Your resume is well-optimized for ATS systems', color: 'text-success' };
-  if (score >= 50) return { icon: Lightbulb, text: 'Consider improving weak areas before applying', color: 'text-warning' };
-  return { icon: Shield, text: 'Significant improvements recommended', color: 'text-destructive' };
+  if (score >= 80) return { icon: TrendingUp, text: 'Your five core resume sections are well filled out', color: 'text-success' };
+  if (score >= 50) return { icon: Lightbulb, text: 'Complete the weaker core sections before applying', color: 'text-warning' };
+  return { icon: Shield, text: 'Several core sections still need information', color: 'text-destructive' };
 }
 
 interface ATSScorePreviewProps {
@@ -43,7 +42,7 @@ export const ATSScorePreview = memo(function ATSScorePreview({ atsScore, isScori
         className="rounded-2xl border border-border bg-card p-4 space-y-3"
       >
         <div className="flex items-center gap-3">
-          <ScoreRing score={0} size={56} isLoading />
+          <ScoreRing score={0} size={56} isLoading label="Resume readiness" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-3 w-48" />
@@ -58,7 +57,7 @@ export const ATSScorePreview = memo(function ATSScorePreview({ atsScore, isScori
           ))}
         </div>
         <p className="text-xs text-muted-foreground text-center animate-pulse">
-          Analyzing ATS compatibility...
+          Checking resume readiness locally...
         </p>
       </motion.div>
     );
@@ -77,9 +76,9 @@ export const ATSScorePreview = memo(function ATSScorePreview({ atsScore, isScori
     >
       {/* Score header */}
       <div className="flex items-center gap-3">
-        <ScoreRing score={atsScore.overallScore} size={56} strokeWidth={4} />
+        <ScoreRing score={atsScore.overallScore} size={56} strokeWidth={4} label="Resume readiness" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">ATS Health Score</p>
+          <p className="text-sm font-semibold">Resume readiness</p>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             {atsScore.topStrength && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0">

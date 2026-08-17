@@ -18,13 +18,11 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  keywordOptimization: 'Keywords',
-  contentQuality: 'Content',
-  sectionStructure: 'Structure',
-  parsability: 'Parsability',
   contactCompleteness: 'Contact',
-  lengthDensity: 'Length',
-  templateFriendliness: 'Template',
+  summaryCompleteness: 'Summary',
+  experienceCompleteness: 'Experience',
+  educationCompleteness: 'Education',
+  skillsCompleteness: 'Skills',
 };
 
 function weakestCategory(categories: ResumeHealthScore['categories']) {
@@ -80,11 +78,11 @@ export const DashboardAtsPortfolioDialog = memo(function DashboardAtsPortfolioDi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl max-h-[min(90vh,640px)] flex flex-col p-0 gap-0" fullScreenOnMobile>
         <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 shrink-0 text-left">
-          <DialogTitle>ATS scores across your resumes</DialogTitle>
+          <DialogTitle>Resume readiness across your resumes</DialogTitle>
           <DialogDescription>
             {atsAverage != null
               ? `Portfolio average ${atsAverage}% · ${scored.length} scored`
-              : 'Open a resume in the editor to run your first ATS check.'}
+              : 'Open a resume in the editor to run your first readiness check.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -166,10 +164,10 @@ export const DashboardAtsPortfolioDialog = memo(function DashboardAtsPortfolioDi
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {scoringId === resume.$id ? (
                       <span className="inline-flex items-center gap-1.5">
-                        <MiniSpinner size={12} /> Scoring…
+                        <MiniSpinner size={12} /> Checking…
                       </span>
                     ) : (
-                      'Not scored yet — open in editor to analyze'
+                      'Not checked yet — open in editor to review'
                     )}
                   </p>
                 </div>
@@ -180,7 +178,7 @@ export const DashboardAtsPortfolioDialog = memo(function DashboardAtsPortfolioDi
                   onClick={() => handleAction(() => onEditResume(resume.$id))}
                 >
                   <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                  Run ATS
+                  Check readiness
                 </Button>
               </article>
             ))}

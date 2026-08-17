@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Mail, RotateCcw, AlertCircle } from 'lucide-react';
@@ -15,10 +15,17 @@ import { account } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { removeSensitiveParamsFromCurrentAddressBar } from '@/lib/security/sensitiveUrlSanitizer';
+import { getRememberedWiseHireSignupRedirect } from '@/lib/wisehire/inviteTokenClient';
 
 const HERO_GRADIENT = 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0d0d1e 100%)';
 
 type PageMode = 'pending' | 'ready-to-confirm' | 'confirming' | 'confirmed' | 'error';
+
+interface VerificationLinkCredentials {
+  userId: string | null;
+  secret: string | null;
+}
 
 /**
  * AuthVerifyEmailPage — dual-mode email verification page.
@@ -37,13 +44,30 @@ export default function AuthVerifyEmailPage() {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { data: meData, refetch: refetchMe } = useMe();
   const queryClient = useQueryClient();
+  const postVerificationRedirectRef = useRef(getRememberedWiseHireSignupRedirect('/dashboard'));
+  const postVerificationRedirect = postVerificationRedirectRef.current;
 
-  const callbackQuery = searchParams.toString();
-  const { userId, secret } = getAuthEmailCallbackParams(
-    callbackQuery ? `?${callbackQuery}` : '',
-    typeof window !== 'undefined' ? window.location.hash : '',
-  );
+  const credentialsRef = useRef<VerificationLinkCredentials | null>(null);
+  if (credentialsRef.current === null) {
+    const callbackQuery = typeof window !== 'undefined'
+      ? window.location.search
+      : searchParams.toString();
+    credentialsRef.current = getAuthEmailCallbackParams(
+      callbackQuery,
+      typeof window !== 'undefined' ? window.location.hash : '',
+    );
+  }
+  const { userId, secret } = credentialsRef.current;
   const hasCallbackParams = Boolean(userId && secret);
+
+  // Preserve the parsed values only in this mounted component and scrub the
+  // browser history entry before paint. The user can still confirm normally,
+  // while copied URLs, referrers, and later crash reports contain no credential.
+  useLayoutEffect(() => {
+    if (!hasCallbackParams) return;
+    removeSensitiveParamsFromCurrentAddressBar(['userId', 'userid']);
+  }, [hasCallbackParams]);
+
   const [mode, setMode] = useState<PageMode>(hasCallbackParams ? 'ready-to-confirm' : 'pending');
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(() => {
@@ -86,9 +110,9 @@ export default function AuthVerifyEmailPage() {
     });
     setTimeout(() => {
       try { sessionStorage.removeItem('wr_auth_user'); } catch { /* ignore */ }
-      window.location.replace('/dashboard');
+      window.location.replace(postVerificationRedirect);
     }, 2200);
-  }, [persistVerifiedSession, queryClient, refetchMe]);
+  }, [locale, persistVerifiedSession, postVerificationRedirect, queryClient, refetchMe]);
 
   // If the email link included userId, check Appwrite (no secret needed) so we can
   // redirect when the token was already consumed by a scanner or an old auto-verify page.
@@ -110,7 +134,7 @@ export default function AuthVerifyEmailPage() {
         // Non-fatal — user can still click Verify my email
       }
     })();
-  }, [userId, authLoading, finishConfirmed]);
+  }, [userId, authLoading, finishConfirmed, locale]);
 
   // Redirect already-verified users (Appwrite account is source of truth).
   useEffect(() => {
@@ -133,7 +157,7 @@ export default function AuthVerifyEmailPage() {
           } catch {
             // ignore
           }
-          navigate('/dashboard', { replace: true });
+          navigate(postVerificationRedirect, { replace: true });
           return;
         }
       } catch {
@@ -143,10 +167,10 @@ export default function AuthVerifyEmailPage() {
       if (!isAuthenticated || !meData?.profile) return;
       const profile = meData.profile as Record<string, unknown>;
       if (profile.email_verified === true || user?.emailVerification === true) {
-        navigate('/dashboard', { replace: true });
+        navigate(postVerificationRedirect, { replace: true });
       }
     })();
-  }, [authLoading, isAuthenticated, meData, navigate, user?.emailVerification]);
+  }, [authLoading, isAuthenticated, meData, navigate, postVerificationRedirect, user?.emailVerification]);
 
   const handleConfirmLink = useCallback(async () => {
     if (!userId || !secret || mode === 'confirming') return;
@@ -193,7 +217,7 @@ export default function AuthVerifyEmailPage() {
       toast.error(msg);
       setMode('error');
     }
-  }, [userId, secret, mode, finishConfirmed, persistVerifiedSession]);
+  }, [userId, secret, mode, locale, finishConfirmed, persistVerifiedSession]);
 
   const startCooldown = useCallback((seconds: number) => {
     setResendCooldown(seconds);
@@ -230,7 +254,7 @@ export default function AuthVerifyEmailPage() {
       if (data?.error) throw new Error(data.error);
       if (data?.alreadyVerified) {
         toast.info(data.message || 'Your email is already verified. Redirecting…');
-        navigate('/dashboard', { replace: true });
+        navigate(postVerificationRedirect, { replace: true });
         return;
       }
       if (data?.success !== true || data.delivery !== 'appwrite' || data.providerAccepted !== true) {
@@ -250,7 +274,7 @@ export default function AuthVerifyEmailPage() {
     } finally {
       setResending(false);
     }
-  }, [resending, resendCooldown, startCooldown, navigate]);
+  }, [resending, resendCooldown, locale, startCooldown, navigate, postVerificationRedirect]);
 
   if (authLoading) return null;
 
@@ -432,11 +456,11 @@ export default function AuthVerifyEmailPage() {
               <div className="space-y-2">
                 <h1 className="text-xl font-semibold text-white">Email verified!</h1>
                 <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Your account is active. Taking you to your dashboard…
+                  Your account is active. Taking you to the next step…
                 </p>
               </div>
-              <Button className="w-full" onClick={() => navigate('/dashboard', { replace: true })}>
-                Go to Dashboard
+              <Button className="w-full" onClick={() => navigate(postVerificationRedirect, { replace: true })}>
+                Continue
               </Button>
             </motion.div>
           )}

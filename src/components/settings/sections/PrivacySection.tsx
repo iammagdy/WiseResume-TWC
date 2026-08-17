@@ -90,7 +90,7 @@ export const PrivacySection = memo(function PrivacySection({
                 <SettingsRow
                     type="toggle"
                     label={t('app.settingsPage.privacy.analyticsLabel', 'Usage Analytics')}
-                    description={t('app.settingsPage.privacy.analyticsDescription', 'Help improve WiseResume with anonymous usage data')}
+                    description={t('app.settingsPage.privacy.analyticsDescription', 'Help improve WiseResume with pseudonymous usage data')}
                     icon={<Activity className="w-4 h-4" />}
                     checked={analyticsEnabled}
                     onCheckedChange={setAnalyticsEnabled}
@@ -98,7 +98,7 @@ export const PrivacySection = memo(function PrivacySection({
             </div>
 
             <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
-                {t('app.settingsPage.privacy.footer', 'Your resumes are stored securely and never sold to third parties.')}
+                {t('app.settingsPage.privacy.footer', 'Your resumes are private by default. Review the Privacy Policy for storage, service-provider, and sharing details.')}
             </p>
         </>
     );

@@ -9,7 +9,13 @@ interface InterviewStatsCardProps {
   onViewHistory: () => void;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface InterviewChartPoint {
+  session: number;
+  score: number;
+  date: string;
+}
+
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: InterviewChartPoint }> }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (

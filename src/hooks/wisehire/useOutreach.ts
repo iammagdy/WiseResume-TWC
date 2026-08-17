@@ -3,6 +3,7 @@ import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
+import { useAIAction } from '@/hooks/useAIAction';
 import { toast } from 'sonner';
 import type { Models } from 'appwrite';
 
@@ -54,22 +55,23 @@ export function useOutreachHistory(candidateId: string | undefined) {
 }
 
 export function useAIDraftOutreach() {
+  const { execute: executeAI } = useAIAction({ operation: 'wisehire_outreach_draft' });
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       candidate_id,
-      candidate_name,
       role_title,
     }: {
       candidate_id: string;
-      candidate_name?: string;
       role_title?: string;
-    }) =>
-      callEdge<{ draft: string }>('wisehire-send-outreach', {
+    }) => {
+      const result = await executeAI(() => callEdge<{ draft: string }>('wisehire-send-outreach', {
         candidate_id,
-        candidate_name,
         role_title,
         ai_draft: true,
-      }),
+      }));
+      if (!result) throw Object.assign(new Error('AI draft was not started.'), { code: 'cancelled' });
+      return result;
+    },
   });
 }
 
@@ -87,7 +89,7 @@ export function useSendOutreach() {
       subject: string;
       body: string;
     }) =>
-      callEdge<{ ok: boolean; status: string; id: string; remaining: number }>('wisehire-send-outreach', {
+      callEdge<{ ok: boolean; status: string; id: string; remaining: number | null }>('wisehire-send-outreach', {
         candidate_id,
         to_email,
         subject,
@@ -111,6 +113,9 @@ export function useSendOutreach() {
       } else {
         toast.error('Failed to send email. Please try again.');
       }
+    },
+    onSettled: (_data, _error, vars) => {
+      qc.invalidateQueries({ queryKey: ['outreach-history', vars.candidate_id] });
     },
   });
 }

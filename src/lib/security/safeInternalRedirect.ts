@@ -1,4 +1,9 @@
-const CONTROL_OR_BACKSLASH = /[\u0000-\u001f\u007f\\]/;
+function containsControlOrBackslash(value: string): boolean {
+  return Array.from(value).some(character => {
+    const code = character.charCodeAt(0);
+    return character === '\\' || code <= 0x1f || code === 0x7f;
+  });
+}
 
 export function safeInternalRedirect(value: string | null | undefined, fallback = '/dashboard'): string {
   if (!value || value !== value.trim() || !value.startsWith('/') || value.startsWith('//')) {
@@ -8,7 +13,7 @@ export function safeInternalRedirect(value: string | null | undefined, fallback 
   let candidate = value;
   for (let pass = 0; pass < 3; pass += 1) {
     if (
-      CONTROL_OR_BACKSLASH.test(candidate)
+      containsControlOrBackslash(candidate)
       || !candidate.startsWith('/')
       || candidate.startsWith('//')
     ) {
@@ -24,7 +29,7 @@ export function safeInternalRedirect(value: string | null | undefined, fallback 
   }
 
   if (
-    CONTROL_OR_BACKSLASH.test(candidate)
+    containsControlOrBackslash(candidate)
     || !candidate.startsWith('/')
     || candidate.startsWith('//')
   ) {

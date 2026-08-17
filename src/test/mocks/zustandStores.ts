@@ -60,6 +60,12 @@ const mockSettingsStore = {
   aiTipFrequency: "on-demand" as const,
   selectedTemplate: "wiseresume-classic" as const,
   defaultTemplate: "wiseresume-classic" as const,
+  pdfDefaults: {
+    showPageNumbers: true,
+    pageNumberFormat: "full" as const,
+    showBranding: true,
+  },
+  lastExportType: null as string | null,
   byokGeminiKey: null,
   byokOllamaUrl: null,
   aiProvider: "wiseresume" as const,
@@ -67,6 +73,8 @@ const mockSettingsStore = {
   setBiometricLockEnabled: vi.fn(),
   setAITipFrequency: vi.fn(),
   setSelectedTemplate: vi.fn(),
+  setPdfDefaults: vi.fn(),
+  setLastExportType: vi.fn(),
   setByokGeminiKey: vi.fn(),
   setByokOllamaUrl: vi.fn(),
   setAIProvider: vi.fn(),
@@ -84,9 +92,11 @@ const mockOfflineSyncStore = {
 const useResumeStoreFn = vi.fn((selector?: (s: typeof mockResumeStore) => unknown) =>
   selector ? selector(mockResumeStore) : mockResumeStore
 );
-(useResumeStoreFn as any).getState = () => mockResumeStore;
-(useResumeStoreFn as any).setState = vi.fn();
-(useResumeStoreFn as any).subscribe = vi.fn(() => () => {});
+Object.assign(useResumeStoreFn, {
+  getState: () => mockResumeStore,
+  setState: vi.fn(),
+  subscribe: vi.fn(() => () => {}),
+});
 
 vi.mock("@/store/resumeStore", () => ({
   useResumeStore: useResumeStoreFn,
@@ -98,9 +108,11 @@ vi.mock("@/store/resumeStore", () => ({
 const useSettingsStoreFn = vi.fn((selector?: (s: typeof mockSettingsStore) => unknown) =>
   selector ? selector(mockSettingsStore) : mockSettingsStore
 );
-(useSettingsStoreFn as any).getState = () => mockSettingsStore;
-(useSettingsStoreFn as any).setState = vi.fn();
-(useSettingsStoreFn as any).subscribe = vi.fn(() => () => {});
+Object.assign(useSettingsStoreFn, {
+  getState: () => mockSettingsStore,
+  setState: vi.fn(),
+  subscribe: vi.fn(() => () => {}),
+});
 
 vi.mock("@/store/settingsStore", () => ({
   useSettingsStore: useSettingsStoreFn,
@@ -109,9 +121,11 @@ vi.mock("@/store/settingsStore", () => ({
 const useOfflineSyncStoreFn = vi.fn((selector?: (s: typeof mockOfflineSyncStore) => unknown) =>
   selector ? selector(mockOfflineSyncStore) : mockOfflineSyncStore
 );
-(useOfflineSyncStoreFn as any).getState = () => mockOfflineSyncStore;
-(useOfflineSyncStoreFn as any).setState = vi.fn();
-(useOfflineSyncStoreFn as any).subscribe = vi.fn(() => () => {});
+Object.assign(useOfflineSyncStoreFn, {
+  getState: () => mockOfflineSyncStore,
+  setState: vi.fn(),
+  subscribe: vi.fn(() => () => {}),
+});
 
 vi.mock("@/store/offlineSyncStore", () => ({
   useOfflineSyncStore: useOfflineSyncStoreFn,

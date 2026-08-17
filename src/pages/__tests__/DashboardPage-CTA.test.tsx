@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 /**
  * Focused test for Dashboard "New Resume" CTA
@@ -53,10 +55,8 @@ describe('Dashboard New Resume CTA', () => {
 describe('DashboardPage implementation', () => {
   it('DashboardPage source contains New Resume button implementation', () => {
     // Read the source file to verify implementation
-    const fs = require('fs');
-    const path = require('path');
-    const sourcePath = path.join(__dirname, '../DashboardPage.tsx');
-    const source = fs.readFileSync(sourcePath, 'utf-8');
+    const sourcePath = resolve(__dirname, '../DashboardPage.tsx');
+    const source = readFileSync(sourcePath, 'utf-8');
     
     // Verify the CTA exists with expected attributes
     expect(source).toContain("t('app.dashboardPage.newResume', 'Create new resume')");

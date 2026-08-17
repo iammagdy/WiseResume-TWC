@@ -55,7 +55,7 @@ export default function ApplicationTrackerPage() {
         localStorage.setItem(key, '1');
       }
     }
-  }, [app?.status, app?.id]);
+  }, [app.status, app.id, app]);
 
   // Auth guard handled by ProtectedRoute
   // Suspense fallback already shows DetailSkeleton; avoid double skeleton

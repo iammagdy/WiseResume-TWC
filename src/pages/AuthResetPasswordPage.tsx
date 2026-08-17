@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
@@ -9,25 +9,55 @@ import { getAuthEmailCallbackParams } from '@/lib/authEmailCallbackParams';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AuthBold } from '@/components/auth/AuthBold';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { removeSensitiveParamsFromCurrentAddressBar } from '@/lib/security/sensitiveUrlSanitizer';
+
+interface ResetLinkCredentials {
+  userId: string;
+  secret: string;
+  email: string;
+  challengeToken: string;
+}
 
 export default function AuthResetPasswordPage() {
   const { locale } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { userId: callbackUserId, secret: callbackSecret } = getAuthEmailCallbackParams(
-    typeof window !== 'undefined' ? window.location.search : searchParams.toString(),
-    typeof window !== 'undefined' ? window.location.hash : '',
-  );
-  const userId = callbackUserId ?? '';
-  const secret = callbackSecret ?? '';
+  const credentialsRef = useRef<ResetLinkCredentials | null>(null);
+  if (credentialsRef.current === null) {
+    const rawSearch = typeof window !== 'undefined' ? window.location.search : searchParams.toString();
+    const rawHash = typeof window !== 'undefined' ? window.location.hash : '';
+    const { userId: callbackUserId, secret: callbackSecret } = getAuthEmailCallbackParams(
+      rawSearch,
+      rawHash,
+    );
+    const resetParams = new URLSearchParams(rawSearch);
+    credentialsRef.current = {
+      userId: callbackUserId ?? '',
+      secret: callbackSecret ?? '',
+      email: (resetParams.get('email') || '').trim(),
+      challengeToken: (resetParams.get('challengeToken') || '').trim(),
+    };
+  }
 
-  const emailParam = (searchParams.get('email') || '').trim();
-  const challengeTokenParam = (searchParams.get('challengeToken') || '').trim();
+  const {
+    userId,
+    secret,
+    email: emailParam,
+    challengeToken: challengeTokenParam,
+  } = credentialsRef.current;
 
   const isModeA = Boolean(userId && secret);
   const isModeB = Boolean(emailParam && challengeTokenParam);
   const isValidLink = isModeA || isModeB;
+
+  // Keep credentials in memory for this mounted page, but remove them from the
+  // visible URL/history entry before paint so logs, copied URLs, and referrers
+  // cannot retain a usable recovery link.
+  useLayoutEffect(() => {
+    if (!isValidLink) return;
+    removeSensitiveParamsFromCurrentAddressBar(['userId', 'userid', 'email']);
+  }, [isValidLink]);
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -49,13 +79,6 @@ export default function AuthResetPasswordPage() {
     try {
       if (isModeA) {
         await appwriteAccount.updateRecovery(userId, secret, password);
-        try {
-          await appwriteFunctions.invoke('email-service', {
-            body: { action: 'send-password-changed', userId, locale },
-          });
-        } catch {
-          /* notification is non-critical */
-        }
       } else if (isModeB) {
         const res = await appwriteFunctions.invoke<{ success?: boolean; error?: string }>('email-service', {
           body: {

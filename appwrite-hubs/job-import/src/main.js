@@ -2,6 +2,9 @@
 
 const axios = require('axios');
 const dns = require('dns');
+const http = require('http');
+const https = require('https');
+const net = require('net');
 const crypto = require('crypto');
 const { URL } = require('url');
 const sdk = require('node-appwrite');
@@ -29,6 +32,35 @@ const BLOCKED_RANGES = [
   /^fe[89a-f][0-9a-f]:/i, // fe80::/9 (Link-Local & Deprecated Site-Local)
   /^localhost$/i,
 ];
+
+const blockedNetworks = new net.BlockList();
+for (const [address, prefix] of [
+  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8],
+  ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24],
+  ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24],
+  ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4],
+]) blockedNetworks.addSubnet(address, prefix, 'ipv4');
+for (const [address, prefix] of [
+  ['::', 128], ['::1', 128], ['64:ff9b::', 96], ['100::', 64], ['2001::', 23],
+  ['2002::', 16], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
+]) blockedNetworks.addSubnet(address, prefix, 'ipv6');
+
+const BLOCKED_HOSTNAME_SUFFIXES = [
+  'localhost',
+  'localhost.localdomain',
+  'metadata.google.internal',
+  'metadata.aws.internal',
+];
+
+function isBlockedHostname(hostname) {
+  const normalized = String(hostname || '').replace(/\.$/, '').toLowerCase();
+  return !normalized ||
+    BLOCKED_HOSTNAME_SUFFIXES.includes(normalized) ||
+    normalized.endsWith('.localhost') ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.internal') ||
+    normalized.endsWith('.home.arpa');
+}
 
 function isBlockedIp(ip) {
   if (typeof ip !== 'string') return true;
@@ -59,7 +91,10 @@ function isBlockedIp(ip) {
     }
   }
 
-  return BLOCKED_RANGES.some(re => re.test(cleanIp));
+  const family = net.isIP(cleanIp);
+  if (family === 4 && blockedNetworks.check(cleanIp, 'ipv4')) return true;
+  if (family === 6 && blockedNetworks.check(cleanIp.split('%')[0], 'ipv6')) return true;
+  return family === 0 || BLOCKED_RANGES.some(re => re.test(cleanIp));
 }
 
 function isSafeUrl(rawUrl) {
@@ -67,21 +102,66 @@ function isSafeUrl(rawUrl) {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
     const host = parsed.hostname.replace(/^\[|\]$/g, '');
-    return !isBlockedIp(host);
+    if (isBlockedHostname(host)) return false;
+    return net.isIP(host) === 0 || !isBlockedIp(host);
   } catch {
     return false;
   }
 }
 
+async function resolveSafeTarget(rawUrl, lookup = dns.promises.lookup.bind(dns.promises)) {
+  if (!isSafeUrl(rawUrl)) throw new Error('URL is not allowed');
+  const parsed = new URL(rawUrl);
+  const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  const literalFamily = net.isIP(hostname);
+  const resolved = literalFamily
+    ? [{ address: hostname, family: literalFamily }]
+    : await lookup(hostname, { all: true, verbatim: true });
+  const addresses = (Array.isArray(resolved) ? resolved : [resolved])
+    .map(record => ({
+      address: String(record?.address || '').split('%')[0],
+      family: Number(record?.family) || net.isIP(String(record?.address || '').split('%')[0]),
+    }))
+    .filter(record => record.address && (record.family === 4 || record.family === 6));
+  if (addresses.length === 0 || addresses.some(record => isBlockedIp(record.address))) {
+    throw new Error('URL resolves to a blocked network');
+  }
+  return { parsed, hostname, addresses };
+}
+
 async function isSafeUrlDnsResolved(rawUrl) {
-  if (!isSafeUrl(rawUrl)) return false;
   try {
-    const { hostname } = new URL(rawUrl);
-    const { address } = await dns.promises.lookup(hostname, { family: 4 });
-    return !isBlockedIp(address);
+    await resolveSafeTarget(rawUrl);
+    return true;
   } catch {
     return false;
   }
+}
+
+function createPinnedLookup(hostname, addresses) {
+  let cursor = 0;
+  return (requestedHostname, options, callback) => {
+    const requested = String(requestedHostname || '').replace(/\.$/, '').toLowerCase();
+    if (requested !== hostname) {
+      callback(Object.assign(new Error('Unexpected DNS hostname'), { code: 'EAI_FAIL' }));
+      return;
+    }
+    const requestedFamily = typeof options === 'number' ? options : Number(options?.family || 0);
+    const candidates = requestedFamily
+      ? addresses.filter(record => record.family === requestedFamily)
+      : addresses;
+    if (candidates.length === 0) {
+      callback(Object.assign(new Error('No vetted address for requested family'), { code: 'EAI_FAIL' }));
+      return;
+    }
+    if (typeof options === 'object' && options?.all) {
+      callback(null, candidates.map(record => ({ ...record })));
+      return;
+    }
+    const selected = candidates[cursor % candidates.length];
+    cursor += 1;
+    callback(null, selected.address, selected.family);
+  };
 }
 
 async function authenticateRequest(body, req) {
@@ -173,6 +253,25 @@ function userCreditPermissions(userId) {
   return [sdk.Permission.read(sdk.Role.user(userId))];
 }
 
+function creditDocumentId(userId) {
+  return `credit_${crypto.createHash('sha256').update(String(userId)).digest('hex').slice(0, 29)}`;
+}
+
+async function createOrLoadCreditDocument(db, userId, today) {
+  const documentId = creditDocumentId(userId);
+  try {
+    return await db.createDocument(DB_ID, AI_CREDITS_COLLECTION_ID, documentId, {
+      user_id: userId,
+      daily_usage: 0,
+      total_usage: 0,
+      usage_date: today,
+    }, userCreditPermissions(userId));
+  } catch (err) {
+    if (err?.code !== 409 && !/already exists|duplicate|conflict/i.test(err?.message || '')) throw err;
+    return db.getDocument(DB_ID, AI_CREDITS_COLLECTION_ID, documentId);
+  }
+}
+
 async function loadCreditState(db, userId, cost) {
   const today = new Date().toISOString().slice(0, 10);
   const plan = await getEffectivePlan(db, userId);
@@ -190,17 +289,12 @@ async function loadCreditState(db, userId, cost) {
 
   let doc = res.documents?.[0];
   if (!doc) {
-    doc = await db.createDocument(DB_ID, AI_CREDITS_COLLECTION_ID, sdk.ID.unique(), {
-      user_id: userId,
-      daily_usage: 0,
-      daily_limit: planLimit,
-      total_usage: 0,
-      usage_date: today,
-    }, userCreditPermissions(userId));
+    doc = await createOrLoadCreditDocument(db, userId, today);
   }
 
-  const dailyLimit = Number(doc.daily_limit ?? planLimit);
-  const effectiveLimit = Number.isFinite(dailyLimit) ? dailyLimit : planLimit;
+  // Subscription state is the only entitlement source. Never trust the
+  // operational ai_credits document to raise a user's limit.
+  const effectiveLimit = planLimit;
   const currentUsage = doc.usage_date === today ? Number(doc.daily_usage || 0) : 0;
 
   if (effectiveLimit !== -1 && currentUsage + cost > effectiveLimit) {
@@ -211,13 +305,110 @@ async function loadCreditState(db, userId, cost) {
 
 async function recordAiUsage(db, creditState) {
   if (!creditState || creditState.blocked || creditState.cost <= 0 || !creditState.doc) return false;
-  await db.updateDocument(DB_ID, AI_CREDITS_COLLECTION_ID, creditState.doc.$id, {
-    daily_usage: creditState.currentUsage + creditState.cost,
-    daily_limit: creditState.dailyLimit,
-    total_usage: Number(creditState.doc.total_usage || 0) + creditState.cost,
-    usage_date: creditState.today,
-  });
-  return true;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const transaction = await db.createTransaction(20);
+    let committed = false;
+    try {
+      const current = await db.getDocument(
+        DB_ID,
+        AI_CREDITS_COLLECTION_ID,
+        creditState.doc.$id,
+        [],
+        transaction.$id,
+      );
+      const currentUsage = current.usage_date === creditState.today
+        ? Number(current.daily_usage || 0)
+        : 0;
+      if (creditState.dailyLimit !== -1 && currentUsage + creditState.cost > creditState.dailyLimit) {
+        const exhausted = new Error('Daily AI credit limit reached.');
+        exhausted.code = 'ai_credits_exhausted';
+        exhausted.httpStatus = 402;
+        throw exhausted;
+      }
+      if (current.usage_date !== creditState.today) {
+        await db.updateDocument(
+          DB_ID,
+          AI_CREDITS_COLLECTION_ID,
+          current.$id,
+          { daily_usage: 0, usage_date: creditState.today },
+          undefined,
+          transaction.$id,
+        );
+      }
+      await db.incrementDocumentAttribute(
+        DB_ID,
+        AI_CREDITS_COLLECTION_ID,
+        current.$id,
+        'daily_usage',
+        creditState.cost,
+        creditState.dailyLimit === -1 ? undefined : creditState.dailyLimit,
+        transaction.$id,
+      );
+      await db.incrementDocumentAttribute(
+        DB_ID,
+        AI_CREDITS_COLLECTION_ID,
+        current.$id,
+        'total_usage',
+        creditState.cost,
+        undefined,
+        transaction.$id,
+      );
+      await db.updateTransaction(transaction.$id, true, false);
+      committed = true;
+      return true;
+    } catch (err) {
+      if (!committed) {
+        try { await db.updateTransaction(transaction.$id, false, true); } catch (_) {}
+      }
+      if (err?.httpStatus) throw err;
+      const conflict = err?.code === 409 || /conflict/i.test(err?.message || '');
+      if (!conflict || attempt === 2) throw err;
+    }
+  }
+  return false;
+}
+
+async function refundAiUsage(db, creditState) {
+  if (!creditState || creditState.cost <= 0 || !creditState.doc) return false;
+  const transaction = await db.createTransaction(20);
+  let committed = false;
+  try {
+    const current = await db.getDocument(
+      DB_ID,
+      AI_CREDITS_COLLECTION_ID,
+      creditState.doc.$id,
+      [],
+      transaction.$id,
+    );
+    if (current.usage_date === creditState.today) {
+      await db.decrementDocumentAttribute(
+        DB_ID,
+        AI_CREDITS_COLLECTION_ID,
+        current.$id,
+        'daily_usage',
+        creditState.cost,
+        0,
+        transaction.$id,
+      );
+    }
+    await db.decrementDocumentAttribute(
+      DB_ID,
+      AI_CREDITS_COLLECTION_ID,
+      current.$id,
+      'total_usage',
+      creditState.cost,
+      0,
+      transaction.$id,
+    );
+    await db.updateTransaction(transaction.$id, true, false);
+    committed = true;
+    return true;
+  } catch (err) {
+    if (!committed) {
+      try { await db.updateTransaction(transaction.$id, false, true); } catch (_) {}
+    }
+    throw err;
+  }
 }
 
 function computeJobImportKey(userId, url) {
@@ -239,6 +430,9 @@ async function checkIdempotencyCache(db, key) {
     if (doc.status === 'success' && doc.has_result && doc.cached_result) {
       return { hit: true, status: 'success', result: JSON.parse(doc.cached_result), docId: doc.$id };
     }
+    if (doc.status === 'pending') {
+      return { hit: true, status: 'pending', docId: doc.$id };
+    }
     return { hit: false, docId: doc.$id, status: doc.status };
   } catch (err) {
     if (!_idempotencyCollectionMissing) {
@@ -252,7 +446,7 @@ async function checkIdempotencyCache(db, key) {
 async function createIdempotencyPending(db, key, userId) {
   const docId = `ji_${key.slice(0, 32)}`;
   try {
-    await db.createDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
+    const doc = await db.createDocument(DB_ID, IDEMPOTENCY_CACHE_COLLECTION_ID, docId, {
       key,
       user_id: userId,
       status: 'pending',
@@ -260,10 +454,12 @@ async function createIdempotencyPending(db, key, userId) {
       has_result: false,
       cached_result: null,
     });
-    return docId;
-  } catch {
-    // Conflict (concurrent duplicate) or collection unavailable — best-effort.
-    return docId;
+    return { docId: doc.$id, conflict: false };
+  } catch (err) {
+    if (err?.code === 409 || /already exists|duplicate|conflict/i.test(err?.message || '')) {
+      return { docId, conflict: true };
+    }
+    return { docId: null, conflict: false };
   }
 }
 
@@ -429,8 +625,8 @@ async function fetchWithSafeRedirects(rawUrl, log, maxRedirects = 5) {
   let current = rawUrl;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
-    const safe = await isSafeUrlDnsResolved(current);
-    if (!safe) throw new Error('Redirect target blocked');
+    const target = await resolveSafeTarget(current);
+    const pinnedLookup = createPinnedLookup(target.hostname, target.addresses);
 
     const response = await axios.get(current, {
       timeout: 12000,
@@ -438,7 +634,11 @@ async function fetchWithSafeRedirects(rawUrl, log, maxRedirects = 5) {
       validateStatus: (status) => (status >= 200 && status < 300) || (status >= 300 && status < 400),
       headers: buildFetchHeaders(current),
       maxContentLength: 2 * 1024 * 1024,
+      maxBodyLength: 2 * 1024 * 1024,
       responseType: 'text',
+      proxy: false,
+      httpAgent: new http.Agent({ lookup: pinnedLookup }),
+      httpsAgent: new https.Agent({ lookup: pinnedLookup }),
     });
 
     if (response.status >= 300 && response.status < 400) {
@@ -472,8 +672,10 @@ async function fetchViaReaderProxy(rawUrl, log) {
   const response = await axios.get(readerUrl, {
     timeout: 18000,
     maxContentLength: 3 * 1024 * 1024,
+    maxBodyLength: 3 * 1024 * 1024,
     headers,
     responseType: 'text',
+    proxy: false,
   });
 
   const body = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
@@ -483,10 +685,11 @@ async function fetchViaReaderProxy(rawUrl, log) {
   return body;
 }
 
-async function fetchJobPageHtml(rawUrl, log) {
+async function fetchJobPageHtml(rawUrl, log, allowReaderProxy = false) {
   try {
     return await fetchWithSafeRedirects(rawUrl, log);
   } catch (directErr) {
+    if (!allowReaderProxy) throw directErr;
     log(`Direct fetch failed (${directErr.message}) — attempting reader proxy`);
     try {
       return await fetchViaReaderProxy(rawUrl, log);
@@ -602,24 +805,84 @@ module.exports = async ({ req, res, log, error }) => {
     }, log);
     return res.json({ ...cached.result, cached: true, runtime: { requestId: runtimeRequestId } });
   }
+  if (cached.hit && cached.status === 'pending') {
+    return res.json({
+      ok: false,
+      code: 'concurrent_request',
+      error: 'An identical job import is already being processed. Please wait a moment and retry.',
+    }, 409);
+  }
 
-  // ── Credit check BEFORE the expensive fetch/LLM. Charged only on success. ────
+  const pending = await createIdempotencyPending(db, idemKey, userId);
+  if (pending.conflict) {
+    const raced = await checkIdempotencyCache(db, idemKey);
+    if (raced.hit && raced.status === 'success') {
+      return res.json({ ...raced.result, cached: true, runtime: { requestId: runtimeRequestId } });
+    }
+    return res.json({
+      ok: false,
+      code: 'concurrent_request',
+      error: 'An identical job import is already being processed. Please wait a moment and retry.',
+    }, 409);
+  }
+  const idemDocId = pending.docId;
+  if (!idemDocId) {
+    return res.json({
+      ok: false,
+      code: 'idempotency_unavailable',
+      error: 'Job import is temporarily unavailable. Please try again shortly.',
+    }, 503);
+  }
+
+  // ── Reserve credit before the expensive fetch/LLM; every failure path refunds it. ──
   const creditState = await loadCreditState(db, userId, PARSE_JOB_CREDIT_COST);
   if (creditState.blocked) {
+    await deleteIdempotencyDoc(db, idemDocId);
     return res.json({ ok: false, code: creditState.code, error: creditState.message }, creditState.status || 402);
   }
-  const idemDocId = await createIdempotencyPending(db, idemKey, userId);
+  let creditsReserved = false;
+  try {
+    creditsReserved = await recordAiUsage(db, creditState);
+  } catch (chargeError) {
+    await deleteIdempotencyDoc(db, idemDocId);
+    const status = chargeError?.httpStatus || 503;
+    const code = chargeError?.code || 'ai_credit_reservation_failed';
+    const message = status === 402
+      ? 'Daily AI credit limit reached.'
+      : 'AI credit tracking is temporarily unavailable.';
+    return res.json({ ok: false, code, error: message }, status);
+  }
+  if (!creditsReserved) {
+    await deleteIdempotencyDoc(db, idemDocId);
+    return res.json({
+      ok: false,
+      code: 'ai_credit_reservation_failed',
+      error: 'AI credit tracking is temporarily unavailable.',
+    }, 503);
+  }
 
+  const refundReservation = async () => {
+    if (!creditsReserved) return true;
+    try {
+      await refundAiUsage(db, creditState);
+      creditsReserved = false;
+      return true;
+    } catch (refundError) {
+      error(`Credit refund failed: ${refundError.message}`);
+      return false;
+    }
+  };
   // Fetch raw HTML (browser-like headers, redirects, reader proxy fallback)
   let html;
   try {
-    html = await fetchJobPageHtml(url, log);
+    html = await fetchJobPageHtml(url, log, body.allowReaderProxy === true);
   } catch (err) {
     error(`Fetch failed for ${url}: ${err.message}`);
+    const refunded = await refundReservation();
     await runtimeReceipts.writeReceipt(db, {
       ...runtime,
       status: 'failed', httpStatus: 422, latencyMs: Date.now() - runtimeStartedAt.getTime(),
-      credits: 0, idempotencyState: 'miss', errorClass: 'source_fetch_failed',
+      credits: refunded ? 0 : creditState.cost, idempotencyState: 'miss', errorClass: 'source_fetch_failed',
     }, log);
     await deleteIdempotencyDoc(db, idemDocId); // fetch failed → do not charge
     return res.json({
@@ -675,10 +938,11 @@ ${context}`,
     ], pool, meta => { providerMeta = meta; });
   } catch (err) {
     error(`LLM call failed: ${err.message}`);
+    const refunded = await refundReservation();
     await runtimeReceipts.writeReceipt(db, {
       ...runtime, provider: providerMeta?.provider, model: providerMeta?.model,
       status: 'failed', httpStatus: 500, latencyMs: Date.now() - runtimeStartedAt.getTime(),
-      fallback: providerMeta?.fallback, credits: 0, idempotencyState: 'miss',
+      fallback: providerMeta?.fallback, credits: refunded ? 0 : creditState.cost, idempotencyState: 'miss',
       errorClass: runtimeReceipts.classifyError(err),
     }, log);
     await deleteIdempotencyDoc(db, idemDocId); // provider failure → do not charge
@@ -695,10 +959,11 @@ ${context}`,
   }
 
   if (!parsed || !parsed.title) {
+    const refunded = await refundReservation();
     await runtimeReceipts.writeReceipt(db, {
       ...runtime, provider: providerMeta?.provider, model: providerMeta?.model,
       status: 'failed', httpStatus: 422, latencyMs: Date.now() - runtimeStartedAt.getTime(),
-      fallback: providerMeta?.fallback, credits: 0, idempotencyState: 'miss', errorClass: 'invalid_provider_output',
+      fallback: providerMeta?.fallback, credits: refunded ? 0 : creditState.cost, idempotencyState: 'miss', errorClass: 'invalid_provider_output',
     }, log);
     await deleteIdempotencyDoc(db, idemDocId); // no usable result → do not charge
     return res.json({ ok: false, error: 'Could not extract job details from this page.' }, 422);
@@ -746,12 +1011,7 @@ ${context}`,
     reason: reason,
     runtime: { requestId: runtimeRequestId },
   };
-  let creditsCharged = 0;
-  try {
-    if (await recordAiUsage(db, creditState)) creditsCharged = creditState.cost;
-  } catch (err) {
-    error(`Credit charge failed: ${err.message}`);
-  }
+  const creditsCharged = creditsReserved ? creditState.cost : 0;
   await updateIdempotencySuccess(db, idemDocId, responsePayload);
   await runtimeReceipts.writeReceipt(db, {
     ...runtime, provider: providerMeta?.provider, model: providerMeta?.model,
@@ -768,8 +1028,16 @@ module.exports.__test = {
   computeJobImportKey,
   loadCreditState,
   recordAiUsage,
+  refundAiUsage,
   PARSE_JOB_CREDIT_COST,
   SERVER_RATE_LIMIT_MAX_REQUESTS,
   isBlockedIp,
+  isBlockedHostname,
   isSafeUrl,
+  resolveSafeTarget,
+  createPinnedLookup,
+  creditDocumentId,
+  createOrLoadCreditDocument,
+  checkIdempotencyCache,
+  createIdempotencyPending,
 };

@@ -51,7 +51,7 @@ describe('Dashboard Page Onboarding Gating', () => {
       authReady: true,
       authSettled: true,
       signOut: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof useAuth>);
 
     vi.mocked(useResumes).mockReturnValue({
       data: [],
@@ -61,7 +61,7 @@ describe('Dashboard Page Onboarding Gating', () => {
       refetch: vi.fn(),
       isLoading: true,
       isFetching: true,
-    } as any);
+    } as unknown as ReturnType<typeof useResumes>);
 
     renderWithProviders(<DashboardPage />);
     expect(screen.getByText(/Loading your resumes/i)).toBeInTheDocument();

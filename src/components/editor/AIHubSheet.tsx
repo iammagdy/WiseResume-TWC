@@ -141,7 +141,7 @@ export function AIHubSheet({
                 {matchScore.overallScore}
               </div>
               <div className="flex-1">
-                <p className="font-semibold">Match Score</p>
+                <p className="font-semibold">AI job match</p>
                 <p className="text-sm text-muted-foreground">
                   {matchScore.overallScore >= 70
                     ? 'Great match for this job!'
@@ -169,7 +169,7 @@ export function AIHubSheet({
             <AIActionTile
               icon={<Target className="w-5 h-5 text-primary" />}
               title="Job Match"
-              subtitle={<AICostBadge operation="score" />}
+              subtitle={<AICostBadge operation="analyze" />}
               onClick={() => {
                 onOpenChange(false);
                 onAnalyze();

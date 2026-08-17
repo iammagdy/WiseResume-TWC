@@ -29,7 +29,7 @@ const STOP_WORDS = new Set([
 
 function extractKeywords(text: string): string[] {
   // Extract meaningful multi-word and single-word terms
-  const words = text.toLowerCase().replace(/[^a-z0-9\s\-\/\+\#\.]/g, ' ').split(/\s+/);
+  const words = text.toLowerCase().replace(/[^a-z0-9\s/+.#-]/g, ' ').split(/\s+/);
   
   const keywords = new Set<string>();
   

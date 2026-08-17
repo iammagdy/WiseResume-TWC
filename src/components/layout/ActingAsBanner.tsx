@@ -59,7 +59,7 @@ export function ActingAsBanner() {
     const handleUnload = () => broadcastSessionEnd(email, userId);
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
-  }, [state.newTab, state.active, state.email, state.userId]);
+  }, [state.newTab, state.active, state.email, state.userId, state]);
 
   // Auto-exit when JWT expires
   useEffect(() => {
@@ -82,7 +82,7 @@ export function ActingAsBanner() {
       if (state.newTab) window.close();
     }, msLeft);
     return () => clearTimeout(timer);
-  }, [state.active, state.expiresAt, state.userId, state.newTab]);
+  }, [state.active, state.expiresAt, state.userId, state.newTab, state.email]);
 
   const handleExit = useCallback(async () => {
     setExiting(true);

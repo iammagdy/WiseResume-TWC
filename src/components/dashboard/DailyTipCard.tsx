@@ -8,10 +8,10 @@ const tips = [
   'A strong summary section can boost your interview chances by 30%.',
   'Keep your resume to one page if you have less than 10 years of experience.',
   'Use action verbs like "led", "built", and "improved" to stand out.',
-  'Adding relevant keywords from the job posting helps beat ATS filters.',
+  'Mirror relevant job-posting terms only when they truthfully describe your experience.',
   'Review your resume twice — 77% of hiring managers reject resumes with typos.',
   'Include a LinkedIn URL — profiles with photos get 21× more views.',
-  'Quantify achievements: "Increased revenue by 25%" beats "Helped grow revenue".',
+  'When verified, a specific outcome such as “Increased revenue by 25%” is stronger than a vague claim.',
   'Update your resume every 3 months, even if you\'re not job hunting.',
 ];
 
@@ -40,7 +40,7 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
   // Notify parent on mount
   useEffect(() => {
     onVisibilityChange?.(visible);
-  }, []);
+  }, [onVisibilityChange, visible]);
 
   const handleDismiss = () => {
     setManualDismiss(true);
@@ -66,7 +66,7 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
     onVisibilityChange?.(true);
   };
 
-  const handleDragEnd = (_: any, info: PanInfo) => {
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (Math.abs(info.offset.x) > 80 || Math.abs(info.velocity.x) > 300) {
       handleSwipeDismiss();
     }

@@ -5,10 +5,10 @@ import { Upload, CheckCircle2 } from 'lucide-react';
 
 const CANDIDATES = [
   { initials: 'AK', name: 'Alex Kim', score: 91, status: 'done' as const },
-  { initials: 'PM', name: 'Priya M.', score: 87, status: 'done' as const },
-  { initials: 'SC', name: 'Sarah C.', score: 83, status: 'done' as const },
-  { initials: 'TB', name: 'Tom B.', score: 74, status: 'done' as const },
-  { initials: 'JW', name: 'James W.', score: 66, status: 'done' as const },
+  { initials: 'PM', name: 'Priya M.', score: 74, status: 'done' as const },
+  { initials: 'SC', name: 'Sarah C.', score: 87, status: 'done' as const },
+  { initials: 'TB', name: 'Tom B.', score: 66, status: 'done' as const },
+  { initials: 'JW', name: 'James W.', score: 83, status: 'done' as const },
 ];
 
 function scoreColor(s: number) {
@@ -99,14 +99,14 @@ export function BulkScreeningDemo() {
         }}
       >
         <Upload className="w-3.5 h-3.5" style={{ color: 'var(--lp-eyebrow)', flexShrink: 0 }} />
-        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Bulk Screening</span>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text)' }}>Bulk Resume Review</span>
         {uploading ? (
           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: 'var(--lp-eyebrow)', fontWeight: 600 }}>
             <MiniSpinner size={12} /> Uploading CVs…
           </span>
         ) : (
           <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--lp-text-muted)', fontWeight: 500 }}>
-            5 CVs · ranked by AI
+            5 CVs · upload order
           </span>
         )}
       </div>
@@ -127,7 +127,7 @@ export function BulkScreeningDemo() {
             <Upload className="w-6 h-6" style={{ color: 'var(--lp-eyebrow)' }} />
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--lp-text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
-            Uploading 5 CVs and<br />scoring against role criteria…
+            Extracting evidence from 5 CVs<br />for recruiter review…
           </p>
           <div style={{ width: '80%', height: 4, borderRadius: 99, background: 'rgba(29,78,216,0.10)', overflow: 'hidden' }}>
             <div
@@ -149,7 +149,7 @@ export function BulkScreeningDemo() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#34D399' }} />
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--lp-text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              Ranked results
+              Review queue · illustrative
             </span>
           </div>
           {CANDIDATES.map((c, i) => (
@@ -193,7 +193,13 @@ export function BulkScreeningDemo() {
                 <div style={{ width: 52, height: 4, borderRadius: 99, background: 'rgba(29,78,216,0.10)', overflow: 'hidden' }}>
                   <div style={{ width: `${c.score}%`, height: '100%', borderRadius: 99, background: scoreColor(c.score), transition: 'width 0.5s ease' }} />
                 </div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: scoreColor(c.score), minWidth: 22, textAlign: 'right' }}>{c.score}</span>
+                <span
+                  title="Illustrative evidence-alignment estimate; verify against the source"
+                  aria-label={`Illustrative evidence alignment ${c.score} out of 100`}
+                  style={{ fontSize: '0.72rem', fontWeight: 700, color: scoreColor(c.score), minWidth: 22, textAlign: 'right' }}
+                >
+                  {c.score}
+                </span>
               </div>
             </div>
           ))}

@@ -109,7 +109,7 @@ export default function CoverLettersPage() {
             'AI-generated cover letters in seconds',
             'Tailored to any job description & your resume',
             'Unlimited cover letter saves & exports',
-            'ATS-friendly formatting built in',
+            'Simple, recruiter-readable formatting',
           ]}
         />
       </div>

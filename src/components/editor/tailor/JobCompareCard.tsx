@@ -166,7 +166,7 @@
                   change={sectionScores.summary.after - sectionScores.summary.before}
                 />
                 <ScoreItem 
-                  label="ATS" 
+                  label="Keywords"
                   value={job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0}
                   change={
                     (job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0) - 

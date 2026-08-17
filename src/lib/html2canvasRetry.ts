@@ -144,7 +144,7 @@ export async function captureWithRetry(
 
     try {
       const canvas = await Promise.race([
-        html2canvasFn(element, opts as any),
+        html2canvasFn(element, opts as NonNullable<Parameters<typeof html2canvasFn>[1]>),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Canvas capture timed out')), timeouts[attempt]),
         ),

@@ -21,7 +21,7 @@ const STOP_WORDS = new Set([
 ]);
 
 function extractMeaningfulWords(text: string): string[] {
-  const words = text.toLowerCase().replace(/[^a-z0-9\s\-\/\+\#\.]/g, ' ').split(/\s+/);
+  const words = text.toLowerCase().replace(/[^a-z0-9\s/+.#-]/g, ' ').split(/\s+/);
   const keywords = new Set<string>();
   for (const word of words) {
     if (word.length >= 4 && !STOP_WORDS.has(word)) {

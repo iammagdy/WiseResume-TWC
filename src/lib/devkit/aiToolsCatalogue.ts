@@ -93,7 +93,7 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     creditCost: TOOL_CREDIT_COSTS['generate-fix-suggestions'],
     gatewayDefault: TOOL_GATEWAY_DEFAULTS['generate-fix-suggestions'],
     label: 'ATS Fix Suggestions',
-    description: 'Generates targeted improvement tips after an ATS score run highlights red-zone sections',
+    description: 'Generates targeted improvement tips after a readiness check highlights incomplete sections',
   },
   {
     id: 'suggest-template',
@@ -151,7 +151,7 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     creditCost: TOOL_CREDIT_COSTS['score-resume'],
     gatewayDefault: null,
     label: 'Resume Scoring',
-    description: 'Scores a resume against a job description for ATS compatibility — uses provider pool, no dedicated route',
+    description: 'Estimates source-grounded resume/job alignment; not an employer ATS score — uses the provider pool',
   },
 
   // ─── Chat & Analysis ────────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     creditCost: TOOL_CREDIT_COSTS['analyze-resume'],
     gatewayDefault: TOOL_GATEWAY_DEFAULTS['analyze-resume'],
     label: 'Resume Analysis',
-    description: 'Deep resume analysis: scores sections, identifies gaps, and produces a full ATS compatibility report',
+    description: 'Drafts a structured resume-quality and keyword-alignment review for human verification',
   },
   {
     id: 'company-briefing',
@@ -186,7 +186,7 @@ export const AI_TOOLS_CATALOGUE: AiToolDef[] = [
     creditCost: TOOL_CREDIT_COSTS['company-briefing'],
     gatewayDefault: TOOL_GATEWAY_DEFAULTS['company-briefing'],
     label: 'Company Briefing',
-    description: 'Generates a pre-interview briefing on the target company — culture, product, recent news',
+    description: 'Drafts interview prep from company or role context supplied by the user; no live web research',
   },
 
   // ─── Document Generation ────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useLocale } from '@/i18n/LocaleProvider';
@@ -14,11 +14,11 @@ export default function AccountStatsCard({ resumes, coverLetters, applications, 
     const countRefs = useRef<(HTMLSpanElement | null)[]>([]);
     const hasAnimated = useRef(false);
 
-    const stats = [
+    const stats = useMemo(() => [
         { value: resumes, label: t('app.settingsPage.accountStats.resumes', 'Resumes') },
         { value: coverLetters, label: t('app.settingsPage.accountStats.coverLetters', 'Cover Letters') },
         { value: applications, label: t('app.settingsPage.accountStats.applications', 'Applications') },
-    ];
+    ], [applications, coverLetters, resumes, t]);
 
     // Membership tier
     const membershipTier = (() => {
@@ -59,7 +59,7 @@ export default function AccountStatsCard({ resumes, coverLetters, applications, 
         }, { threshold: 0.5 });
         obs.observe(el);
         return () => obs.disconnect();
-    }, [resumes, coverLetters, applications]);
+    }, [resumes, coverLetters, applications, stats]);
 
     return (
         <div

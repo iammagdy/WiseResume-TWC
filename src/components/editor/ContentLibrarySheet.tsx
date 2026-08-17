@@ -36,7 +36,7 @@ export const ContentLibrarySheet = memo(function ContentLibrarySheet({
       setSelectedCategory('all');
       setTab('browse');
     }
-  }, [open, getContentPhrases, setAllPhrases]);
+  }, [open, setAllPhrases]);
 
   const filteredPhrases = useMemo(() => {
     let results = allPhrases;

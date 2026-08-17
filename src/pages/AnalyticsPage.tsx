@@ -17,6 +17,8 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { safeFormatDistanceToNow } from '@/lib/dateUtils';
+import { buildAnalyticsReportCsv } from '@/lib/analyticsReportExport';
+import { downloadFile } from '@/lib/downloadUtils';
 
 export default function AnalyticsPage() {
   const { isPremium, isLoading: planLoading } = usePlan();
@@ -62,7 +64,7 @@ export default function AnalyticsPage() {
     };
   }, [resumes, applications, getCachedScore, profile]);
 
-  // Application funnel with percentages
+  // Current application statuses with percentages. These are not historical conversions.
   const funnel = useMemo(() => {
     const total = applications.length;
     const applied = applications.filter(a => a.status === 'applied').length;
@@ -70,7 +72,8 @@ export default function AnalyticsPage() {
     const offer = applications.filter(a => a.status === 'offer').length;
     const rejected = applications.filter(a => a.status === 'rejected').length;
     return [
-      { stage: 'Applied', count: applied || total, pct: total > 0 ? Math.round(((applied || total) / total) * 100) : 0 },
+      { stage: 'Tracked', count: total, pct: total > 0 ? 100 : 0 },
+      { stage: 'Applied', count: applied, pct: total > 0 ? Math.round((applied / total) * 100) : 0 },
       { stage: 'Interview', count: interviewing, pct: total > 0 ? Math.round((interviewing / total) * 100) : 0 },
       { stage: 'Offer', count: offer, pct: total > 0 ? Math.round((offer / total) * 100) : 0 },
       { stage: 'Rejected', count: rejected, pct: total > 0 ? Math.round((rejected / total) * 100) : 0 },
@@ -84,12 +87,45 @@ export default function AnalyticsPage() {
     return allEntries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }, [resumes]);
 
-  // Conversion rate
-  const conversionRate = useMemo(() => {
+  // Share of applications that are currently in an interview or offer status.
+  const activeInterviewOfferShare = useMemo(() => {
     if (applications.length === 0) return null;
     const interviews = applications.filter(a => a.status === 'interviewing' || a.status === 'offer').length;
     return Math.round((interviews / applications.length) * 100);
   }, [applications]);
+
+  const handleExportReport = async () => {
+    haptics.light();
+    const generatedAt = new Date();
+    const csv = buildAnalyticsReportCsv({
+      generatedAt: generatedAt.toISOString(),
+      summary: {
+        totalResumes: stats.totalResumes,
+        averageReadiness: stats.avgScore,
+        averageCompleteness: stats.avgCompletion,
+        totalApplications: stats.totalApps,
+        dayStreak: stats.streak,
+        activeInterviewOfferShare,
+        highestReadinessTitle: stats.bestResume?.title,
+        highestReadiness: stats.bestResume?.score,
+        lowestReadinessTitle: stats.worstResume?.title,
+        lowestReadiness: stats.worstResume?.score,
+      },
+      funnel,
+      resumes: resumes.map((resume) => ({
+        title: resume.title,
+        readiness: getCachedScore(resume.id, resume.updated_at)?.overallScore ?? null,
+      })),
+    });
+
+    const result = await downloadFile({
+      blob: new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+      fileName: `wiseresume-analytics-${generatedAt.toISOString().slice(0, 10)}.csv`,
+      mimeType: 'text/csv;charset=utf-8',
+    });
+    if (result.success) toast.success('Analytics report downloaded');
+    else if (!result.cancelled) toast.error('Could not export the analytics report');
+  };
 
   if (planLoading) {
     return (
@@ -126,7 +162,7 @@ export default function AnalyticsPage() {
             featureName="Analytics Dashboard"
             description="Get deep insights into your resume performance, application funnel, and career progress with Premium."
             features={[
-              'ATS score trends across all resumes',
+              'Resume readiness trends across all resumes',
               'Application funnel & interview rate',
               'Resume completion & improvement nudges',
               'Activity streak and career momentum',
@@ -148,7 +184,7 @@ export default function AnalyticsPage() {
             variant="ghost"
             size="icon"
             className="w-9 h-9"
-            onClick={() => { haptics.light(); toast('Report export coming soon!', { icon: '📊' }); }}
+            onClick={() => { void handleExportReport(); }}
             aria-label="Export report"
           >
             <Download className="w-4 h-4" />
@@ -162,7 +198,7 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: 'Resumes', value: stats.totalResumes, icon: FileText, color: 'text-primary' },
-              { label: 'Avg ATS', value: `${stats.avgScore}%`, icon: Target, color: 'text-accent-foreground' },
+              { label: 'Avg Readiness', value: `${stats.avgScore}%`, icon: Target, color: 'text-accent-foreground' },
               { label: 'Applications', value: stats.totalApps, icon: Briefcase, color: 'text-secondary-foreground' },
               { label: 'Day Streak', value: stats.streak, icon: Flame, color: 'text-destructive' },
             ].map((stat) => (
@@ -188,7 +224,7 @@ export default function AnalyticsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <TrendingUp className="w-4 h-4 text-green-500" />
-                    <span className="text-xs font-medium text-muted-foreground">Best ATS Score</span>
+                    <span className="text-xs font-medium text-muted-foreground">Highest Readiness</span>
                   </div>
                   <p className="text-lg font-bold">{stats.bestResume.score}%</p>
                   <p className="text-xs text-muted-foreground truncate">{stats.bestResume.title}</p>
@@ -209,15 +245,15 @@ export default function AnalyticsPage() {
             </Card>
 
             {/* Conversion Rate or Last Activity */}
-            {conversionRate !== null ? (
+            {activeInterviewOfferShare !== null ? (
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <Target className="w-4 h-4 text-accent-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">Interview Rate</span>
+                    <span className="text-xs font-medium text-muted-foreground">Active Interview / Offer Share</span>
                   </div>
-                  <p className="text-lg font-bold">{conversionRate}%</p>
-                  <p className="text-xs text-muted-foreground">Applications → interviews</p>
+                  <p className="text-lg font-bold">{activeInterviewOfferShare}%</p>
+                  <p className="text-xs text-muted-foreground">Based on current tracked statuses</p>
                 </CardContent>
               </Card>
             ) : stats.lastUpdated ? (
@@ -240,7 +276,7 @@ export default function AnalyticsPage() {
             {scoreHistory.length >= 2 && (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">ATS Score Trend</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Resume Readiness Trend</CardTitle>
                 </CardHeader>
                 <CardContent className="h-48">
                   <ATSScoreTrendChart history={scoreHistory} mode="full" />
@@ -251,7 +287,7 @@ export default function AnalyticsPage() {
             {/* Application Funnel */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Application Funnel</CardTitle>
+                <CardTitle className="text-sm font-semibold">Current Application Statuses</CardTitle>
               </CardHeader>
               <CardContent className="h-48">
                 <ChartContainer config={{ count: { label: 'Count', color: 'hsl(var(--primary))' } }}>
@@ -277,7 +313,7 @@ export default function AnalyticsPage() {
                   <TrendingDown className="w-5 h-5 text-amber-500 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium">Needs improvement: <span className="text-muted-foreground">{stats.worstResume.title}</span></p>
-                    <p className="text-xs text-muted-foreground">ATS score {stats.worstResume.score}% — try Smart Tailor or Enhance to boost it.</p>
+                    <p className="text-xs text-muted-foreground">Readiness {stats.worstResume.score}% — complete the weakest core section before tailoring.</p>
                   </div>
                 </div>
               </CardContent>

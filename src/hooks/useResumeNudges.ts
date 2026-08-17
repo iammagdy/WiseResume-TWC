@@ -119,8 +119,8 @@ export function useResumeNudges({ resume, jobDescription, hasMissingSkills }: Us
       if (hasNoMetrics && !hasEmptyDescription) {
         active.push({
           section: 'experience', trigger: 'no_metrics',
-          message: 'AI can help add quantifiable metrics',
-          actionLabel: 'Add Metrics', action: 'add_metrics', priority: 'medium',
+          message: 'Strengthen outcomes with verified evidence.',
+          actionLabel: 'Review Evidence', action: 'add_metrics', priority: 'medium',
         });
       }
     }
@@ -206,7 +206,7 @@ export function useResumeNudges({ resume, jobDescription, hasMissingSkills }: Us
     if (!hasMetrics(exp.description) && !dismissedNudges.has(noMetricsKey)) {
       entryNudges.push({
         section: 'experience', trigger: 'no_metrics', entryId: expId,
-        message: 'AI can add metrics', actionLabel: 'Fix', action: 'add_metrics', priority: 'medium',
+        message: 'Add a verified outcome or metric', actionLabel: 'Review', action: 'add_metrics', priority: 'medium',
       });
     }
 

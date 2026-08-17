@@ -152,7 +152,7 @@ export function useAIAction({ operation }: UseAIActionOptions) {
 
       return result;
     },
-    [queryClient, user, operation, requestDisclosure, navigate],
+    [queryClient, user, requestDisclosure, navigate],
   );
 
   return { execute };

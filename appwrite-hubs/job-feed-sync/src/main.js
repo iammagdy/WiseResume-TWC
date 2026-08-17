@@ -1,7 +1,7 @@
 'use strict';
 
 const sdk = require('node-appwrite');
-const { Client, Databases, Query, ID, Permission, Role } = sdk;
+const { Client, Databases, Query, ID } = sdk;
 const companySources = require('./remote_company_sources.json');
 
 const DB_ID = 'main';
@@ -1246,7 +1246,7 @@ module.exports = async ({ req, res, log, error }) => {
           JOBS_COLLECTION_ID,
           ID.unique(),
           jobPayload,
-          [Permission.read(Role.any())]
+          []
         );
         insertedCount++;
       } else {

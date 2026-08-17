@@ -1,4 +1,4 @@
-import extracted from './extracted_prompts.json' assert { type: 'json' };
+import extracted from './extracted_prompts.json';
 
 export function getPrompt(featureName, context = {}) {
     const entry = extracted[featureName];

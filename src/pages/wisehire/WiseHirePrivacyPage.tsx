@@ -53,37 +53,36 @@ export default function WiseHirePrivacyPage() {
               WiseHire
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Effective Date: April 22, 2026 · Last Updated: April 22, 2026</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Effective Date: April 22, 2026 · Last Updated: August 17, 2026</p>
           <p className="text-base leading-relaxed text-muted-foreground">
             Your privacy — and your candidates' privacy — matters to us. This policy explains what data WiseHire collects, how it is used, and how it is kept safe. By using WiseHire on behalf of your organization, you agree to these practices.
           </p>
 
           <NumberedSection n={1} title="What We Collect">
-            <p><strong className="text-foreground">Recruiter Account Info:</strong> Your email, full name, job title, and company name. If you sign in via SSO, we receive your name and email from your identity provider — never your password.</p>
+            <p><strong className="text-foreground">Recruiter Account Info:</strong> Your email, name, job title, and company details that you provide during account setup or later updates.</p>
             <p className="mt-3"><strong className="text-foreground">Organization Data:</strong> Company name, size, and hiring team structure (members, roles, permissions).</p>
-            <p className="mt-3"><strong className="text-foreground">Candidate Data:</strong> CVs, cover letters, application records, screening scores, interview notes, and pipeline status — uploaded or created by your team on behalf of candidates you are actively evaluating.</p>
+            <p className="mt-3"><strong className="text-foreground">Candidate Data:</strong> CV text, application records, AI evidence-alignment estimates, interview notes, scorecards, and pipeline status — uploaded or created by your team for recruiting workflows.</p>
             <p className="mt-3"><strong className="text-foreground">Job Data:</strong> Job descriptions, role briefs, scorecard templates, and pipeline configurations created by your team.</p>
-            <p className="mt-3"><strong className="text-foreground">Usage Data:</strong> Anonymized, aggregated analytics on feature usage and session activity — used to improve WiseHire.</p>
-            <p className="mt-3"><strong className="text-foreground">Device Info:</strong> Device type, OS, and browser — used for compatibility and debugging.</p>
+            <p className="mt-3"><strong className="text-foreground">Usage &amp; Operational Data:</strong> Feature events, request metadata, and error logs used to operate, secure, and improve WiseHire. These records may contain pseudonymous account, session, network, or device identifiers.</p>
           </NumberedSection>
 
           <NumberedSection n={2} title="How We Use It">
             <p>We use your data to:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>Deliver WiseHire's core features: candidate screening, brief generation, pipeline management, scorecards, talent pool, and analytics.</li>
-              <li>Keep your organization's account and candidate data secure.</li>
+              <li>Apply access controls and operational safeguards to organization and candidate data.</li>
               <li>Send essential notifications — role updates, invite confirmations, and security alerts.</li>
-              <li>Improve the platform using anonymized, aggregated insights (never individual candidate or recruiter data).</li>
+              <li>Operate and improve the platform using access-controlled service data as described in this policy.</li>
             </ul>
           </NumberedSection>
 
           <NumberedSection n={3} title="Candidate Data Handling">
             <p>WiseHire processes candidate data only at your direction — to run screening, generate briefs, or populate your pipeline. Candidate data is:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li><strong className="text-foreground">Never shared</strong> with other WiseHire customers.</li>
+              <li>Not intentionally made available to other WiseHire customers.</li>
               <li><strong className="text-foreground">Never sold</strong> or traded to third parties.</li>
-              <li><strong className="text-foreground">Deleted within 30 days</strong> of you removing a candidate record or closing your account.</li>
-              <li>Processed by AI models only when your team explicitly triggers a screening or analysis action — the model does not retain the data after responding.</li>
+              <li>Removed from active workflows when your team deletes or archives the record, subject to configured retention and legal obligations.</li>
+              <li>Sent to the configured AI service provider only when your team explicitly triggers a screening or analysis action.</li>
             </ul>
             <p className="mt-3">You are responsible for obtaining the necessary consents from candidates to use WiseHire to process their application data, in accordance with applicable laws (GDPR, CCPA, and others).</p>
           </NumberedSection>
@@ -94,9 +93,9 @@ export default function WiseHirePrivacyPage() {
               AI &amp; Your Data
             </h3>
             <ul className="list-disc pl-5 space-y-2 mt-2 text-muted-foreground">
-              <li><strong className="text-foreground">On-demand only:</strong> Candidate data is sent to AI models only when your team requests a screening action or brief. Nothing is retained by the model after the response is returned.</li>
-              <li><strong className="text-foreground">No training:</strong> Your candidate data, job descriptions, and screening results are never used to train or fine-tune any AI model — ours or anyone else's.</li>
-              <li><strong className="text-foreground">No selling:</strong> We do not share any data with AI companies, data brokers, or third parties for commercial purposes.</li>
+              <li><strong className="text-foreground">On-demand only:</strong> Candidate data is sent to the configured AI provider when your team requests a screening action or brief.</li>
+              <li><strong className="text-foreground">WiseHire training:</strong> WiseHire does not use candidate content to train its own models. Provider processing and retention follow the applicable service terms and data-processing agreement.</li>
+              <li><strong className="text-foreground">No selling:</strong> We do not sell candidate data. Service providers process only the data needed to operate requested features.</li>
               <li><strong className="text-foreground">Bias mitigation:</strong> Our AI prompts are designed to focus on job-relevant factors and omit protected characteristics. You should review all AI outputs before making hiring decisions.</li>
             </ul>
           </section>
@@ -106,18 +105,17 @@ export default function WiseHirePrivacyPage() {
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li><strong className="text-foreground">Active pipeline &amp; candidate records:</strong> Retained as long as your organization's account is active.</li>
               <li><strong className="text-foreground">Talent pool:</strong> Retained until you remove a candidate or close your account.</li>
-              <li><strong className="text-foreground">Analytics &amp; aggregated reports:</strong> Retained for up to 12 months after account closure in anonymized form.</li>
+              <li><strong className="text-foreground">Operational and aggregated records:</strong> May be retained after account closure when needed for security, accounting, legal compliance, or service measurement, with access limited for those purposes.</li>
             </ul>
-            <p className="mt-3">You may export your organization's data at any time from WiseHire settings before closing your account.</p>
+            <p className="mt-3">Contact the Privacy Team to request an organization-data export or account closure. The product currently provides PDF export for individual candidate briefs.</p>
           </NumberedSection>
 
           <NumberedSection n={6} title="Security">
             <p>We take security seriously:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li><strong className="text-foreground">Encrypted at rest:</strong> All data is encrypted with AES-256.</li>
-              <li><strong className="text-foreground">Encrypted in transit:</strong> All connections use TLS 1.3.</li>
-              <li><strong className="text-foreground">Access control:</strong> Role-based permissions limit data access to authorized team members only.</li>
-              <li><strong className="text-foreground">Infrastructure:</strong> Hosted on SOC 2 Type II compliant cloud providers.</li>
+              <li><strong className="text-foreground">Encrypted connections:</strong> Supported clients use HTTPS to communicate with WiseHire and its service providers.</li>
+              <li><strong className="text-foreground">Access control:</strong> Server-side account checks and owner-scoped document permissions limit access to WiseHire operational records.</li>
+              <li><strong className="text-foreground">Operational controls:</strong> Server-side authorization, bounded inputs, and audit records protect sensitive actions.</li>
             </ul>
           </NumberedSection>
 
@@ -126,17 +124,17 @@ export default function WiseHirePrivacyPage() {
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>You control which candidates and pipeline stages are shared with each client.</li>
               <li>WiseHire provides the sharing mechanics; your organization is responsible for the appropriateness of each share.</li>
-              <li>We do not expose your candidate data to other WiseHire customers under any circumstance.</li>
+              <li>Candidate data is not intentionally exposed to other customers; contracted service providers and legally required disclosures are governed by this policy.</li>
             </ul>
           </NumberedSection>
 
           <NumberedSection n={8} title="Your Rights">
             <p>Recruiter account holders and their organizations can:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li><strong className="text-foreground">Access</strong> all data held by WiseHire for your organization.</li>
+              <li><strong className="text-foreground">Request access</strong> to data held by WiseHire for your organization.</li>
               <li><strong className="text-foreground">Correct</strong> your account and organization info.</li>
-              <li><strong className="text-foreground">Delete</strong> candidate records or your entire account.</li>
-              <li><strong className="text-foreground">Export</strong> your pipeline, candidate records, and analytics in JSON or CSV.</li>
+              <li><strong className="text-foreground">Delete or archive</strong> candidate records in supported workflows and request organization-account closure through the Privacy Team.</li>
+              <li><strong className="text-foreground">Request an export</strong> of organization data through the Privacy Team; brief-level PDF export is available in the product.</li>
               <li><strong className="text-foreground">Restrict processing</strong> by contacting our <DeptLink dept="privacy">Privacy Team</DeptLink>.</li>
             </ul>
             <p className="mt-3">Candidates whose data has been processed through WiseHire may also exercise data rights — direct them to our <DeptLink dept="privacy">Privacy Team</DeptLink>, and we will assist within statutory timelines.</p>

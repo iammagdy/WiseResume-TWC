@@ -17,8 +17,8 @@ describe('DevKit admin operations contracts', () => {
     expect(schema).toContain('if (index.required) throw error;');
     expect(schema).not.toContain('nonce_unique');
     expect(workflow).toContain('node scripts/setup_impersonation_sessions_schema.cjs');
-    expect(workflow).toContain("contains(github.event.inputs.target, 'admin-devkit-data')");
-    expect(workflow).toContain("contains(github.event.inputs.target, 'admin-impersonate')");
+    expect(workflow).toContain("contains(fromJSON(steps.targets.outputs.targets_json), 'admin-devkit-data')");
+    expect(workflow).toContain("contains(fromJSON(steps.targets.outputs.targets_json), 'admin-impersonate')");
   });
 
   it('keeps identity collision behavior suspension-only and guarded', () => {
@@ -62,5 +62,15 @@ describe('DevKit admin operations contracts', () => {
     expect(read('appwrite-hubs/admin-impersonate/src/main.js')).toContain(expected);
     expect(read('appwrite-hubs/admin-impersonate/src/main.js')).not.toContain('sessionErr.message');
     expect(read('appwrite-hubs/admin-impersonate/src/main.js')).not.toContain('revokeErr.message');
+  });
+
+  it('turns waitlist approval into a real WiseHire signup authority', () => {
+    const backend = read('appwrite-hubs/admin-devkit-data/src/main.js');
+
+    expect(backend).toContain('await createWisehireInvite(databases, email)');
+    expect(backend).toContain("`${PRODUCTION_URL}/auth?mode=login&email=${encodeURIComponent(email)}&redirect=${redirect}`");
+    expect(backend).toContain('invite_url: inviteUrl || null');
+    expect(backend).not.toContain("`${PRODUCTION_URL}/auth/sign-in`");
+    expect(backend).not.toContain("`${PRODUCTION_URL}/auth/sign-up?email=");
   });
 });

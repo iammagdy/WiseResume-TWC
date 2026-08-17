@@ -54,7 +54,7 @@ const WORKSPACE_ITEMS: WorkspaceSearchItem[] = [
   { id: 'ab-compare', label: 'A/B Compare', keywords: ['compare', 'versions', 'ab'], path: '/ai-studio/ab-compare', icon: GitCompareArrows, group: 'ai' },
   { id: 'tailoring-hub', label: 'Tailoring Hub', keywords: ['tailoring', 'hub', 'job match'], path: '/tailoring-hub', icon: Target, group: 'ai' },
   { id: 'enhance', label: 'AI Enhance', keywords: ['enhance', 'improve', 'rewrite'], path: '/ai-studio/enhance', icon: Sparkles, group: 'ai' },
-  { id: 'humanizer', label: 'AI Detector / Humanize', keywords: ['humanize', 'detector', 'ai score'], path: '/ai-studio/humanizer', icon: Shield, group: 'ai' },
+  { id: 'humanizer', label: 'Writing Style Review', keywords: ['rewrite', 'style', 'formulaic', 'natural'], path: '/ai-studio/humanizer', icon: Shield, group: 'ai' },
   { id: 'linkedin', label: 'LinkedIn Optimizer', keywords: ['linkedin', 'profile', 'headline'], path: '/ai-studio/linkedin', icon: Linkedin, group: 'ai' },
   { id: 'onepage', label: 'One-Page Wizard', keywords: ['one page', 'condense', 'fit'], path: '/ai-studio/onepage', icon: FileText, group: 'ai' },
   { id: 'recruiter', label: 'Recruiter Simulation', keywords: ['recruiter', 'review', 'simulation'], path: '/ai-studio/recruiter', icon: UserCheck, group: 'ai' },

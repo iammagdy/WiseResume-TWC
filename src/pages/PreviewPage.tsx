@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 import { migrateTemplateId } from '@/lib/templateMigration';
 import { dbToResumeData, useResume, useResumeMutations } from '@/hooks/useResumes';
+import { useResumeShareMutations } from '@/hooks/useResumeShares';
 
 import { templateComponentMap } from '@/lib/templateComponentMap';
 
@@ -100,6 +101,7 @@ export default function PreviewPage() {
   const resumeIdFromUrl = searchParams.get('id') || resumeIdFromParams;
   const bootstrappedResumeIdRef = useRef<string | null>(null);
   const { updateResume: persistResume } = useResumeMutations();
+  const { createShare: createResumeShare } = useResumeShareMutations();
 
   const needsResumeBootstrap =
     !!resumeIdFromUrl && bootstrappedResumeIdRef.current !== resumeIdFromUrl;
@@ -198,7 +200,7 @@ export default function PreviewPage() {
         setShowPhotoSheet(true);
       }
     }
-  }, [selectedTemplate, currentResume?.id]);
+  }, [selectedTemplate, currentResume]);
 
   // Guest preview hint toast
   useEffect(() => {
@@ -247,8 +249,7 @@ export default function PreviewPage() {
       setAutoExportFallback(action);
     }, 800);
     // No cleanup returned — timer lives in autoExportTimerRef and is cancelled on unmount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPreviewReady, isBootstrapPending, currentResume, setSearchParams]);
+  }, [isPreviewReady, isBootstrapPending, setSearchParams]);
   // handleExport excluded: recreated each render but correctly captured in the timer closure
   // at the moment it fires. searchParams excluded: action is read once via initialAutoExportAction.
 
@@ -344,7 +345,8 @@ export default function PreviewPage() {
           ? customFileName.replace(/[/\\:*?"<>|]/g, '').trim().slice(0, 100)
           : '';
         const baseName = (sanitized.length >= 3 ? sanitized : null) || currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
-        const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
+        const pageNumberFormat = useSettingsStore.getState().pdfDefaults.pageNumberFormat ?? 'full';
+        const pdfOptions = { showPageNumbers, pageNumberFormat, showBranding };
 
         // DOCX export path
         if (type === 'docx') {
@@ -433,9 +435,10 @@ export default function PreviewPage() {
         }
 
         if (type === 'share-link') {
-          const { shareAsLink } = await import('@/lib/shareUtils');
+          const { shareResumeLink } = await import('@/lib/shareUtils');
           if (currentResume.id) {
-            await shareAsLink(currentResume.id);
+            const share = await createResumeShare.mutateAsync({ resumeId: currentResume.id });
+            await shareResumeLink(share.token);
           } else {
             toast.error('Save your resume first to generate a share link');
           }
@@ -460,7 +463,7 @@ export default function PreviewPage() {
             const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
-            pdfBlob = await nativePdf(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, showBranding: true, locale: getDocumentLocale(currentResume), onProgress });
+            pdfBlob = await nativePdf(templateEl, { pageFormat, atsMode: true, showPageNumbers: false, pageNumberFormat, showBranding, locale: getDocumentLocale(currentResume), onProgress });
             fileName = `${baseName}_Resume_ATS.pdf`;
             break;
           }
@@ -471,13 +474,14 @@ export default function PreviewPage() {
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
             onProgress('capturing', 20);
-            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, locale: getDocumentLocale(currentResume), showPageNumbers: false, showBranding: true });
+            const coverBlob = await generateCoverLetterNativePDF(generatedCoverLetter, currentResume.contactInfo, { pageFormat, locale: getDocumentLocale(currentResume), showPageNumbers: false, pageNumberFormat, showBranding });
             onProgress('capturing', 40);
             const customBreakPositions = currentResume.customization?.customBreakPositions;
             const resumeBlob = await nativePdf(templateEl, {
               pageFormat,
               showPageNumbers: false,
-              showBranding: true,
+              pageNumberFormat,
+              showBranding,
               locale: getDocumentLocale(currentResume),
               onProgress,
               ...(customBreakPositions?.length ? { customBreakPositions } : {}),
@@ -492,7 +496,7 @@ export default function PreviewPage() {
             const { generateNativePDF: nativePdf } = await import('@/lib/nativePdfGenerator');
             const templateEl = resumeRef.current ?? (document.querySelector('[data-resume-template]') as HTMLElement | null);
             if (!templateEl) { toast.error('Resume preview not visible'); return; }
-            pdfBlob = await nativePdf(templateEl, { pageFormat, onePage: true, showPageNumbers, showBranding, locale: getDocumentLocale(currentResume), onProgress });
+            pdfBlob = await nativePdf(templateEl, { pageFormat, onePage: true, ...pdfOptions, locale: getDocumentLocale(currentResume), onProgress });
             fileName = `${baseName}_Resume_OnePage.pdf`;
             break;
           }
@@ -506,6 +510,7 @@ export default function PreviewPage() {
             pdfBlob = await nativePdf(templateEl, {
               pageFormat,
               showPageNumbers,
+              pageNumberFormat,
               showBranding,
               locale: getDocumentLocale(currentResume),
               onProgress,
@@ -532,7 +537,7 @@ export default function PreviewPage() {
             'combined': 'Application package downloaded!',
             'one-page': 'One-page resume downloaded!',
             'docx': 'Word document downloaded!',
-            'ats-pdf': 'ATS-optimized PDF download started.',
+            'ats-pdf': 'ATS-focused PDF download started.',
             'linkedin': 'LinkedIn format copied!',
             'plain-text': 'Plain text downloaded!',
             'share-link': 'Share link generated!',
@@ -619,10 +624,12 @@ export default function PreviewPage() {
       if (!templateEl) { toast.error('Resume preview not visible'); return; }
       const pageFormat = (currentResume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4';
       const customBreakPositions = currentResume.customization?.customBreakPositions;
+      const { pdfDefaults } = useSettingsStore.getState();
       const pdfBlob = await generateNativePDF(templateEl, {
         pageFormat,
-        showPageNumbers: true,
-        showBranding: true,
+        showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+        showBranding: pdfDefaults.showBranding ?? true,
         ...(customBreakPositions?.length ? { customBreakPositions } : {}),
       });
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
@@ -716,7 +723,7 @@ export default function PreviewPage() {
             <PageCutHint anchorRef={pageCountBadgeRef} />
             <div className="flex items-center gap-1.5 text-xs">
               <Check className="w-3.5 h-3.5 text-success" />
-              <span className="text-success font-medium">ATS-Ready</span>
+              <span className="text-success font-medium">Readable layout</span>
             </div>
           </div>
         </div>

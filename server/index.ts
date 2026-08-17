@@ -20,7 +20,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
-import puppeteer from 'puppeteer';
+import puppeteer, { type HTTPRequest, type Page } from 'puppeteer';
 import { PDFDocument } from 'pdf-lib';
 import {
   buildAutomaticBreakPositions,
@@ -33,6 +33,17 @@ import {
   type ExportSectionBounds,
 } from '../src/lib/exportPagePlan';
 import { isPuppeteerRequestUrlAllowed } from '../src/lib/security/ssrfGuards';
+import {
+  PDF_EXPORT_MAX_CONTENT_HEIGHT_PX,
+  PDF_EXPORT_MAX_DOM_NODES,
+  PDF_EXPORT_MAX_OUTPUT_BYTES,
+  PDF_EXPORT_MAX_PAGE_BYTES,
+  PDF_EXPORT_MAX_PAGES,
+  calculateOnePageScale,
+  canRemovePdfBranding,
+  formatPdfPageNumber,
+  validatePdfExportRequestBody,
+} from '../src/lib/security/pdfExportPolicy';
 import { fetchAppSettingsFromDb } from './appSettingsFetch';
 import fetchUrlHandler from '../api/fetch-url';
 
@@ -56,10 +67,10 @@ app.use((_req, res, next) => {
   next();
 });
 
-// PDF export receives self-contained HTML with embedded base64 assets that
-// can legitimately exceed 10 MB. Register the larger limit before global JSON.
-app.use('/api/export/pdf-native', express.json({ limit: '50mb' }));
-app.use('/api/export/pdf-native', express.urlencoded({ extended: true, limit: '50mb' }));
+// Keep the local renderer aligned with the Vercel request boundary. The policy
+// below applies a stricter six-megabyte HTML limit after JSON parsing.
+app.use('/api/export/pdf-native', express.json({ limit: '8mb' }));
+app.use('/api/export/pdf-native', express.urlencoded({ extended: true, limit: '8mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -123,6 +134,13 @@ const PDF_FORMATS = {
 
 const EXPORT_FOOTER_HEIGHT_PX = 44;
 const EXPORT_BRAND_URL = 'https://wiseresume.app';
+const CSS_PX_TO_PDF_POINT_SCALE = 96 / 72;
+const PDF_EXPORT_RATE_LIMIT = 6;
+const PDF_EXPORT_RATE_WINDOW_MS = 60_000;
+const PDF_EXPORT_MAX_CONCURRENT = 2;
+
+const pdfExportRateLimits = new Map<string, { count: number; resetAt: number }>();
+let activePdfExports = 0;
 
 function extractHtmlParts(html: string): { head: string; body: string } {
   const head = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? '';
@@ -146,18 +164,21 @@ function buildSegmentHtml(args: {
   footerHeightPx: number;
   pageNumber?: string;
   showBranding: boolean;
+  sourceScale?: number;
   locale: 'en' | 'ar';
 }): string {
   const { head, body } = extractHtmlParts(args.sourceHtml);
   const pageHeightPx = args.contentHeightPx + args.footerHeightPx;
   const pageNumber = args.pageNumber ? escapeHtml(args.pageNumber) : '';
+  const sourceScale = Math.min(1, Math.max(0.01, args.sourceScale ?? 1));
+  const sourceLeftPx = Math.max(0, (args.pageWidthPx - (args.pageWidthPx * sourceScale)) / 2);
 
   return `<!DOCTYPE html>
 <html lang="${args.locale}" dir="${args.locale === 'ar' ? 'rtl' : 'ltr'}">
 <head>
 ${head}
 <style>
-  @page { size: ${args.pageWidthPx}px ${pageHeightPx}px; margin: 0; }
+  @page { size: ${args.pageWidthPx}pt ${pageHeightPx}pt; margin: 0; }
   html, body {
     width: ${args.pageWidthPx}px !important;
     height: ${pageHeightPx}px !important;
@@ -175,9 +196,11 @@ ${head}
   }
   .wr-export-page-source {
     position: absolute;
-    left: 0;
+    left: ${sourceLeftPx}px;
     top: -${args.contentStartPx}px;
     width: ${args.pageWidthPx}px;
+    transform: scale(${sourceScale});
+    transform-origin: top left;
   }
   .wr-export-page-footer {
     width: ${args.pageWidthPx}px;
@@ -217,14 +240,14 @@ ${head}
 
 interface ExportLayoutMetrics {
   measuredHeight: number;
+  nodeCount: number;
   sections: ExportSectionBounds[];
   avoidBlocks: ExportAvoidBounds[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function installPuppeteerRequestGuard(page: any): Promise<void> {
+async function installPuppeteerRequestGuard(page: Page): Promise<void> {
   await page.setRequestInterception(true);
-  page.on('request', (req: any) => {
+  page.on('request', (req: HTTPRequest) => {
     const url = String(req.url?.() || '');
     if (!isPuppeteerRequestUrlAllowed(url)) {
       req.abort().catch(() => undefined);
@@ -241,12 +264,14 @@ async function measureExportLayout(
 ): Promise<ExportLayoutMetrics> {
   const page = await browser.newPage();
   try {
+    await page.setJavaScriptEnabled(false);
     await installPuppeteerRequestGuard(page);
     await page.setViewport({ width: widthPx, height: 1200, deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
     return await page.evaluate(`(() => {
       const template = document.querySelector('[data-resume-template]');
       const root = template ?? document.body;
+      const nodeCount = root.querySelectorAll('*').length;
 
       const relTop = (el) => {
         let top = 0;
@@ -265,7 +290,9 @@ async function measureExportLayout(
         1
       );
 
-      const sections = Array.from(root.querySelectorAll('[data-section]')).map((sec) => {
+      const sections = nodeCount > ${PDF_EXPORT_MAX_DOM_NODES}
+        ? []
+        : Array.from(root.querySelectorAll('[data-section]')).map((sec) => {
         const sectionEl = sec;
         const top = relTop(sectionEl);
         const directHeading = sectionEl.querySelector(':scope > h2, :scope > h3');
@@ -278,7 +305,9 @@ async function measureExportLayout(
         };
       });
 
-      const avoidBlocks = Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
+      const avoidBlocks = nodeCount > ${PDF_EXPORT_MAX_DOM_NODES}
+        ? []
+        : Array.from(root.querySelectorAll('[data-break-avoid]')).map((node) => {
         const el = node;
         return {
           top: relTop(el),
@@ -298,7 +327,7 @@ async function measureExportLayout(
         }
       }
 
-      return { measuredHeight, sections, avoidBlocks };
+      return { measuredHeight, nodeCount, sections, avoidBlocks };
     })()`) as Promise<ExportLayoutMetrics>;
   } finally {
     await page.close();
@@ -314,12 +343,14 @@ async function renderHtmlToPdfBuffer(
 ): Promise<Buffer> {
   const page = await browser.newPage();
   try {
+    await page.setJavaScriptEnabled(false);
     await installPuppeteerRequestGuard(page);
     await page.setViewport({ width: widthPx, height: Math.max(1, heightPx), deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
     const pdf = await page.pdf({
-      width: `${widthPx}px`,
-      height: `${heightPx}px`,
+      width: `${widthPx / 72}in`,
+      height: `${heightPx / 72}in`,
+      scale: CSS_PX_TO_PDF_POINT_SCALE,
       printBackground: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' },
     });
@@ -354,17 +385,22 @@ function resolveAppwriteServerConfig(): { endpoint: string; projectId: string } 
   return { endpoint, projectId };
 }
 
-async function requireAppwriteJWT(req: Request, res: Response): Promise<boolean> {
+interface AuthenticatedAppwriteRequest {
+  jwt: string;
+  userId: string;
+}
+
+async function requireAppwriteJWT(req: Request, res: Response): Promise<AuthenticatedAppwriteRequest | null> {
   const jwtToken = req.headers['x-appwrite-jwt'];
   if (!jwtToken || typeof jwtToken !== 'string') {
     res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
-    return false;
+    return null;
   }
   const { endpoint, projectId } = resolveAppwriteServerConfig();
   if (!projectId) {
     console.error('[server] APPWRITE_PROJECT_ID not configured');
     res.status(500).json({ error: 'config_error', message: 'Server configuration error' });
-    return false;
+    return null;
   }
   try {
     const authRes = await fetch(`${endpoint}/account`, {
@@ -372,13 +408,62 @@ async function requireAppwriteJWT(req: Request, res: Response): Promise<boolean>
     });
     if (!authRes.ok) {
       res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session' });
-      return false;
+      return null;
     }
+    const account = await authRes.json() as { $id?: unknown };
+    if (typeof account.$id !== 'string' || !account.$id) {
+      res.status(401).json({ error: 'unauthorized', message: 'Invalid account response' });
+      return null;
+    }
+    return { jwt: jwtToken, userId: account.$id };
   } catch {
     res.status(401).json({ error: 'unauthorized', message: 'Authentication check failed' });
-    return false;
+    return null;
   }
+}
+
+function checkPdfExportRateLimit(userId: string): boolean {
+  const now = Date.now();
+  if (pdfExportRateLimits.size > 1_000) {
+    for (const [key, value] of pdfExportRateLimits) {
+      if (value.resetAt <= now) pdfExportRateLimits.delete(key);
+    }
+  }
+  const current = pdfExportRateLimits.get(userId);
+  if (!current || current.resetAt <= now) {
+    pdfExportRateLimits.set(userId, { count: 1, resetAt: now + PDF_EXPORT_RATE_WINDOW_MS });
+    return true;
+  }
+  if (current.count >= PDF_EXPORT_RATE_LIMIT) return false;
+  current.count += 1;
   return true;
+}
+
+async function loadBrandingRemovalEntitlement(args: {
+  endpoint: string;
+  projectId: string;
+  jwt: string;
+  userId: string;
+}): Promise<boolean | null> {
+  const params = new URLSearchParams();
+  params.append('queries[]', JSON.stringify({ method: 'equal', attribute: 'user_id', values: [args.userId] }));
+  params.append('queries[]', JSON.stringify({ method: 'limit', values: [1] }));
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
+  const headers: Record<string, string> = { 'X-Appwrite-Project': args.projectId };
+  if (apiKey) headers['X-Appwrite-Key'] = apiKey;
+  else headers['X-Appwrite-JWT'] = args.jwt;
+
+  try {
+    const response = await fetch(
+      `${args.endpoint}/databases/main/collections/subscriptions/documents?${params.toString()}`,
+      { headers },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json() as { documents?: unknown[] };
+    return canRemovePdfBranding(payload.documents?.[0] ?? null);
+  } catch {
+    return null;
+  }
 }
 
 // ── Trusted IP extraction (M-4) ──────────────────────────────────────────────
@@ -413,38 +498,70 @@ function checkOgRateLimit(ip: string): boolean {
 }
 
 app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
-  if (!await requireAppwriteJWT(req, res)) return;
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  const auth = await requireAppwriteJWT(req, res);
+  if (!auth) return;
+
+  const validation = validatePdfExportRequestBody(req.body);
+  if (!validation.ok) {
+    res.status(validation.status).json({ error: validation.error, message: validation.message });
+    return;
+  }
   const {
     html,
-    pageFormat = 'letter',
-    onePage = false,
-    showPageNumbers = true,
-    showBranding = true,
-    customBreakPositions = [],
+    pageFormat,
+    onePage,
+    showPageNumbers,
+    pageNumberFormat,
+    showBranding: requestedShowBranding,
+    customBreakPositions,
     totalContentHeightPx,
     layoutContentHeightPx,
-    locale: requestedLocale = 'en',
-  } = req.body as {
-    html?: string;
-    pageFormat?: string;
-    onePage?: boolean;
-    showPageNumbers?: boolean;
-    showBranding?: boolean;
-    customBreakPositions?: number[];
-    totalContentHeightPx?: number;
-    layoutContentHeightPx?: number;
-    locale?: string;
-  };
-  const locale: 'en' | 'ar' = requestedLocale === 'ar' ? 'ar' : 'en';
+    locale,
+  } = validation.value;
 
-  if (!html || typeof html !== 'string') {
-    res.status(400).json({ error: 'bad_request', message: 'Missing html body' });
+  if (!checkPdfExportRateLimit(auth.userId)) {
+    res.setHeader('Retry-After', '60');
+    res.status(429).json({
+      error: 'rate_limited',
+      message: 'Too many PDF exports. Please wait a minute and try again.',
+    });
     return;
   }
 
+  let showBranding = requestedShowBranding;
+  if (!requestedShowBranding) {
+    const { endpoint, projectId } = resolveAppwriteServerConfig();
+    const canRemoveBranding = await loadBrandingRemovalEntitlement({
+      endpoint,
+      projectId,
+      jwt: auth.jwt,
+      userId: auth.userId,
+    });
+    if (canRemoveBranding === null) {
+      res.status(503).json({
+        error: 'entitlement_unavailable',
+        message: 'Could not verify the branding setting. Please retry the export.',
+      });
+      return;
+    }
+    showBranding = !canRemoveBranding;
+  }
+
+  if (activePdfExports >= PDF_EXPORT_MAX_CONCURRENT) {
+    res.setHeader('Retry-After', '5');
+    res.status(429).json({
+      error: 'renderer_busy',
+      message: 'The PDF renderer is busy. Please retry in a few seconds.',
+    });
+    return;
+  }
+  activePdfExports += 1;
+
   // --no-sandbox is required in containerised/serverless environments where
   // the host kernel does not support the Chromium sandbox. The SSRF guard
-  // (isPuppeteerUrlAllowed) and auth check above are the primary mitigations.
+  // request interception and the auth check above are the primary mitigations.
   // This is accepted practice for cloud-native Puppeteer deployments (L-3).
   let browser;
   try {
@@ -465,110 +582,131 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     const isA4 = pageFormat === 'a4';
     const dims = isA4 ? PDF_FORMATS.a4 : PDF_FORMATS.letter;
 
-    let pdfBuffer: Uint8Array;
-    if (onePage) {
-      const page = await browser.newPage();
-      try {
-        await installPuppeteerRequestGuard(page);
-        await page.setViewport({ width: dims.widthPx, height: dims.heightPx, deviceScaleFactor: 2 });
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
-        const onePageBuffer = await page.pdf({
-          format: isA4 ? 'A4' : 'Letter',
-          printBackground: true,
-          margin: { top: '0', right: '0', bottom: '0', left: '0' },
-          pageRanges: '1',
-        });
-        pdfBuffer = new Uint8Array(onePageBuffer);
-      } finally {
-        await page.close();
+    const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
+    const printableHeight = dims.heightPx - footerHeight;
+    const clientHeight = totalContentHeightPx ?? dims.heightPx;
+    const exactCustomBreaks = customBreakPositions.filter(Number.isFinite).map(Math.round);
+
+    const layout = await measureExportLayout(browser, html, dims.widthPx);
+    const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
+    if (layout.nodeCount > PDF_EXPORT_MAX_DOM_NODES) {
+      res.status(413).json({
+        error: 'export_too_large',
+        message: 'This document contains too many elements to export safely.',
+      });
+      return;
+    }
+    if (measuredHeight > PDF_EXPORT_MAX_CONTENT_HEIGHT_PX) {
+      res.status(413).json({
+        error: 'export_too_large',
+        message: `This document is too long to export safely. The maximum supported length is ${PDF_EXPORT_MAX_PAGES} pages.`,
+      });
+      return;
+    }
+
+    const contentHeight = Math.max(clientHeight, measuredHeight, printableHeight);
+    const lastCustomBreakPx = exactCustomBreaks.length ? Math.max(...exactCustomBreaks) : 0;
+    const validationHeight = exactCustomBreaks.length
+      ? Math.max(contentHeight, layoutContentHeightPx ?? 0, lastCustomBreakPx + 40)
+      : contentHeight;
+
+    let pageBreaks = onePage ? [] : clampBreakPositions(exactCustomBreaks, validationHeight);
+    if (!onePage && exactCustomBreaks.length > 0) {
+      if (layoutContentHeightPx) {
+        pageBreaks = scaleBreakPositionsToMeasuredHeight(
+          pageBreaks,
+          layoutContentHeightPx,
+          layout.measuredHeight,
+        );
+        pageBreaks = snapBreakPositionsToSectionHeadings(
+          pageBreaks,
+          layout.sections,
+          layout.measuredHeight,
+          40,
+          layoutContentHeightPx,
+        );
+        pageBreaks = snapBreakPositionsToAvoidBlocks(
+          pageBreaks,
+          layout.avoidBlocks,
+          printableHeight,
+          layout.measuredHeight,
+          40,
+          layout.sections,
+        );
       }
-    } else {
-      const footerHeight = showPageNumbers || showBranding ? EXPORT_FOOTER_HEIGHT_PX : 0;
-      const printableHeight = dims.heightPx - footerHeight;
-      const clientHeight =
-        Number.isFinite(totalContentHeightPx) && (totalContentHeightPx as number) > 0
-          ? Math.round(totalContentHeightPx as number)
-          : dims.heightPx;
-      const exactCustomBreaks = (customBreakPositions ?? [])
-        .filter(Number.isFinite)
-        .map(Math.round);
+    } else if (!onePage) {
+      pageBreaks = buildAutomaticBreakPositions({
+        totalContentHeightPx: contentHeight,
+        pageHeightPx: printableHeight,
+        sections: layout.sections,
+        avoidBlocks: layout.avoidBlocks,
+      });
+    }
 
-      let contentHeight = clientHeight;
+    if (!onePage && pageBreaks.length === 0 && contentHeight > printableHeight && exactCustomBreaks.length > 0) {
+      res.status(400).json({
+        error: 'invalid_custom_breaks',
+        message: 'Saved page cuts are outside the exportable content range.',
+      });
+      return;
+    }
 
-      // ALWAYS measure layout to fix Chromium-Linux vs Client-OS font drift.
-      const layout = await measureExportLayout(browser, html, dims.widthPx);
-      const measuredHeight = Number.isFinite(layout.measuredHeight) ? Math.round(layout.measuredHeight) : 0;
-      // layoutContentHeightPx can include a template's full-page min-height
-      // sentinel. It is only a safe bound for custom-break validation below.
-      contentHeight = Math.max(clientHeight, measuredHeight, printableHeight);
-
-      const lastCustomBreakPx = exactCustomBreaks.length ? Math.max(...exactCustomBreaks) : 0;
-      const validationHeight = exactCustomBreaks.length
-        ? Math.max(
-            contentHeight,
-            (layoutContentHeightPx && layoutContentHeightPx > 0) ? Math.round(layoutContentHeightPx) : 0,
-            lastCustomBreakPx + 40,
-          )
-        : contentHeight;
-
-      let pageBreaks = clampBreakPositions(exactCustomBreaks, validationHeight);
-
-      if (exactCustomBreaks.length > 0) {
-        if (layoutContentHeightPx && layoutContentHeightPx > 0) {
-          pageBreaks = scaleBreakPositionsToMeasuredHeight(
-            pageBreaks,
-            layoutContentHeightPx,
-            layout.measuredHeight
-          );
-          pageBreaks = snapBreakPositionsToSectionHeadings(pageBreaks, layout.sections, layout.measuredHeight, 40, layoutContentHeightPx);
-          pageBreaks = snapBreakPositionsToAvoidBlocks(pageBreaks, layout.avoidBlocks, printableHeight, layout.measuredHeight, 40, layout.sections);
-        }
-      } else {
-        pageBreaks = buildAutomaticBreakPositions({
+    const onePageScale = onePage ? calculateOnePageScale(contentHeight, printableHeight) : 1;
+    const segments = onePage
+      ? [{ index: 0, startPx: 0, heightPx: printableHeight, isLast: true }]
+      : buildExportPageSegments({
           totalContentHeightPx: contentHeight,
           pageHeightPx: printableHeight,
-          sections: layout.sections,
-          avoidBlocks: layout.avoidBlocks,
+          customBreakPositions: pageBreaks,
+          breakValidationHeightPx: validationHeight,
         });
-      }
+    if (segments.length > PDF_EXPORT_MAX_PAGES) {
+      res.status(413).json({
+        error: 'export_too_large',
+        message: `A PDF export can contain at most ${PDF_EXPORT_MAX_PAGES} pages.`,
+      });
+      return;
+    }
 
-      if (pageBreaks.length === 0 && contentHeight > printableHeight && exactCustomBreaks.length > 0) {
-        res.status(400).json({
-          error: 'invalid_custom_breaks',
-          message: 'Saved page cuts are outside the exportable content range.',
+    const buffers: Buffer[] = [];
+    let accumulatedBytes = 0;
+    for (const segment of segments) {
+      const segmentHtml = buildSegmentHtml({
+        sourceHtml: html,
+        pageWidthPx: dims.widthPx,
+        contentStartPx: segment.startPx,
+        contentHeightPx: segment.heightPx,
+        footerHeightPx: footerHeight,
+        pageNumber: showPageNumbers
+          ? formatPdfPageNumber(segment.index + 1, segments.length, pageNumberFormat, locale)
+          : undefined,
+        showBranding,
+        sourceScale: onePageScale,
+        locale,
+      });
+      const buffer = await renderHtmlToPdfBuffer(
+        browser,
+        segmentHtml,
+        dims.widthPx,
+        segment.heightPx + footerHeight,
+      );
+      accumulatedBytes += buffer.length;
+      if (buffer.length > PDF_EXPORT_MAX_PAGE_BYTES || accumulatedBytes > PDF_EXPORT_MAX_OUTPUT_BYTES) {
+        res.status(413).json({
+          error: 'export_too_large',
+          message: 'The generated PDF is too large. Remove large images and try again.',
         });
         return;
       }
-
-      const segments = buildExportPageSegments({
-        totalContentHeightPx: contentHeight,
-        pageHeightPx: printableHeight,
-        customBreakPositions: pageBreaks,
+      buffers.push(buffer);
+    }
+    const pdfBuffer = await mergePdfBuffers(buffers);
+    if (pdfBuffer.length > PDF_EXPORT_MAX_OUTPUT_BYTES) {
+      res.status(413).json({
+        error: 'export_too_large',
+        message: 'The generated PDF is too large. Remove large images and try again.',
       });
-      const buffers: Buffer[] = [];
-      for (const segment of segments) {
-        const segmentHtml = buildSegmentHtml({
-          sourceHtml: html,
-          pageWidthPx: dims.widthPx,
-          contentStartPx: segment.startPx,
-          contentHeightPx: segment.heightPx,
-          footerHeightPx: footerHeight,
-          pageNumber: showPageNumbers
-            ? locale === 'ar'
-              ? `الصفحة ${segment.index + 1} من ${segments.length}`
-              : `Page ${segment.index + 1} of ${segments.length}`
-            : undefined,
-          showBranding,
-          locale,
-        });
-        buffers.push(await renderHtmlToPdfBuffer(
-          browser,
-          segmentHtml,
-          dims.widthPx,
-          segment.heightPx + footerHeight,
-        ));
-      }
-      pdfBuffer = await mergePdfBuffers(buffers);
+      return;
     }
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -579,6 +717,7 @@ app.post('/api/export/pdf-native', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'pdf_failed', message: 'PDF generation failed. Please try again.' });
   } finally {
     await browser?.close();
+    activePdfExports = Math.max(0, activePdfExports - 1);
   }
 });
 

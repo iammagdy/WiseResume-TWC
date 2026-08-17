@@ -16,6 +16,7 @@ import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
+import { restoreResumeContactPlaceholders } from '@/lib/piiRedact';
 
 interface SalaryNegotiationSheetProps {
   open: boolean;
@@ -90,8 +91,10 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
     setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
-        const candidateName = currentResume?.contactInfo?.fullName ?? 'Candidate';
-        const summary = currentResume?.summary ?? '';
+        const resume = currentResume as ResumeData | null;
+        const providerResume = redactedResume ?? resume;
+        const candidateName = providerResume?.contactInfo?.fullName ?? 'Candidate';
+        const summary = providerResume?.summary ?? '';
         const { data: responseData, error } = await appwriteFunctions.invoke('wise-ai-chat', {
           body: {
             type: 'salary_negotiation',
@@ -108,7 +111,10 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
         });
         if (error) throw new Error(error.message);
         const content = extractAIContent(responseData);
-        return parseAIJson(content, isNegotiationResult);
+        return restoreResumeContactPlaceholders(
+          parseAIJson(content, isNegotiationResult),
+          resume?.contactInfo,
+        );
       });
       if (data) {
         setResult(data);
@@ -159,6 +165,9 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
           <span role="status" aria-live="polite" className="sr-only">
             {isLoading ? 'Generating your negotiation script, please wait…' : result ? 'Negotiation script ready.' : ''}
           </span>
+          <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            This drafts wording from the offer and target you enter. It does not provide live salary benchmarks, tax or legal advice, or predict the employer's response.
+          </p>
           {showDraftBanner && draft && !result && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>

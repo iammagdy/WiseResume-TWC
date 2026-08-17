@@ -19,6 +19,9 @@ import { CoverLetterHistorySheet } from './CoverLetterHistorySheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIDraft } from '@/hooks/useAIDraft';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
+import { useSettingsStore } from '@/store/settingsStore';
+import { usePlan } from '@/hooks/usePlan';
 
 interface CoverLetterGeneratorProps {
   open: boolean;
@@ -80,6 +83,7 @@ export function CoverLetterGenerator({
   jobCompany,
 }: CoverLetterGeneratorProps) {
   const resumeId = (resume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(resume);
   const [tone, setTone] = useState<Tone>('professional');
   const [isGenerating, setIsGenerating] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
@@ -97,6 +101,7 @@ export function CoverLetterGenerator({
   const editSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'cover-letter' });
   const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('cover-letter', resumeId);
+  const { isPremium, subscriptionVerified } = usePlan();
 
   useEffect(() => {
     if (open && hasDraft && !coverLetter) {
@@ -129,7 +134,7 @@ export function CoverLetterGenerator({
       clearInterval(stepInterval);
       clearInterval(elapsedInterval);
     };
-  }, [isGenerating]);
+  }, [GENERATION_STEPS.length, isGenerating]);
   
   const { 
     setGeneratedCoverLetter, 
@@ -165,7 +170,7 @@ export function CoverLetterGenerator({
     abortRef.current = new AbortController();
     try {
       const letter = await executeAI(async () => {
-        let result = await generateCoverLetter(resume, jobDescription, tone, abortRef.current!.signal);
+        let result = await generateCoverLetter(redactedResume ?? resume, jobDescription, tone, abortRef.current!.signal);
         result = injectContactInfo(result, resume.contactInfo);
         return result;
       });
@@ -208,7 +213,21 @@ export function CoverLetterGenerator({
     if (!coverLetter || !resume) return;
     setIsDownloading(true);
     try {
-      const pdfBlob = await generateCoverLetterNativePDF(coverLetter, resume.contactInfo, { locale: getDocumentLocale(resume) });
+      const { pdfDefaults } = useSettingsStore.getState();
+      const pdfBlob = await generateCoverLetterNativePDF({
+        job_title: jobTitle || 'Cover Letter',
+        company: jobCompany || null,
+        content: coverLetter,
+        template_style: 'professional',
+      }, resume.contactInfo, {
+        locale: getDocumentLocale(resume),
+        pageFormat: (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4',
+        showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+        showBranding: isPremium && subscriptionVerified
+          ? (pdfDefaults.showBranding ?? true)
+          : true,
+      });
       await downloadFile({
         blob: pdfBlob,
         fileName: `Cover_Letter_${(jobCompany || 'Company').replace(/\s+/g, '_')}.pdf`,

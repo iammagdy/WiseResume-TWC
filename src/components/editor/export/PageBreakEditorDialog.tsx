@@ -65,7 +65,7 @@ export function PageBreakEditorDialog({
       const customization = resumeData.customization ?? getDefaultCustomization();
       updateResume({ customization: setPageCutsForLayout(templateId, customization, normalized) });
     },
-    [resumeData, totalHeight, updateResume],
+    [resumeData, templateId, totalHeight, updateResume],
   );
 
   // Clone the live template into the dialog on open

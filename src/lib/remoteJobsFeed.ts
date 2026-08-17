@@ -393,8 +393,8 @@ export function parseSalaryInfo(
   source: 'api' | 'structured_source' | 'rss_parsed' | 'text_heuristics' | 'unknown';
   quality: 'trusted' | 'estimated' | 'untrusted';
 } {
-  let min = typeof minSalaryInput === 'number' && minSalaryInput > 0 ? minSalaryInput : null;
-  let max = typeof maxSalaryInput === 'number' && maxSalaryInput > 0 ? maxSalaryInput : null;
+  const min = typeof minSalaryInput === 'number' && minSalaryInput > 0 ? minSalaryInput : null;
+  const max = typeof maxSalaryInput === 'number' && maxSalaryInput > 0 ? maxSalaryInput : null;
   let currency = currencyInput ? String(currencyInput).toUpperCase().slice(0, 4) : null;
 
   if (min !== null || max !== null) {
@@ -447,7 +447,7 @@ export function parseSalaryInfo(
   }
 
   // Explicit patterns: Symbol/Code + Value + optional range + Period word together
-  const regex = /(?:[\$€£]|USD|EUR|GBP)\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:[kK])?\s*(?:-\s*(?:[\$€£]|USD|EUR|GBP)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:[kK])?)?\s*(?:\/\s*|per\s+)?(hr|hour|hourly|mo|month|monthly|yr|year|yearly|annually|annual)\b/i;
+  const regex = /(?:[$€£]|USD|EUR|GBP)\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:[kK])?\s*(?:-\s*(?:[$€£]|USD|EUR|GBP)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:[kK])?)?\s*(?:\/\s*|per\s+)?(hr|hour|hourly|mo|month|monthly|yr|year|yearly|annually|annual)\b/i;
   
   const match = text.match(regex);
   if (match) {
@@ -684,7 +684,7 @@ export function classifyRegionFit(
 /**
  * Remotive API Normalizer
  */
-export function parseRemotiveJob(raw: any): NormalizedRemoteJob | null {
+export function parseRemotiveJob(raw: Record<string, unknown>): NormalizedRemoteJob | null {
   if (!raw || typeof raw !== 'object') return null;
   const sourceJobId = String(raw.id || '').trim();
   const title = String(raw.title || '').trim();
@@ -744,7 +744,7 @@ export function parseRemotiveJob(raw: any): NormalizedRemoteJob | null {
 /**
  * Jobicy API Normalizer
  */
-export function parseJobicyJob(raw: any): NormalizedRemoteJob | null {
+export function parseJobicyJob(raw: Record<string, unknown>): NormalizedRemoteJob | null {
   if (!raw || typeof raw !== 'object') return null;
   const sourceJobId = String(raw.id || '').trim();
   const title = String(raw.jobTitle || '').trim();
@@ -807,7 +807,7 @@ export function parseJobicyJob(raw: any): NormalizedRemoteJob | null {
 /**
  * We Work Remotely RSS Normalizer
  */
-export function parseWwrRssItem(itemXmlOrObj: any): NormalizedRemoteJob | null {
+export function parseWwrRssItem(itemXmlOrObj: Record<string, unknown>): NormalizedRemoteJob | null {
   if (!itemXmlOrObj || typeof itemXmlOrObj !== 'object') return null;
   const guid = String(itemXmlOrObj.guid || itemXmlOrObj.link || '').trim();
   const rawTitle = String(itemXmlOrObj.title || '').trim();
@@ -875,7 +875,7 @@ export function parseWwrRssItem(itemXmlOrObj: any): NormalizedRemoteJob | null {
 /**
  * RemoteOK API Normalizer
  */
-export function parseRemoteOkJob(raw: any): NormalizedRemoteJob | null {
+export function parseRemoteOkJob(raw: Record<string, unknown>): NormalizedRemoteJob | null {
   if (!raw || typeof raw !== 'object') return null;
   if (raw.legal || raw.slug === 'legal' || !raw.position) return null;
 
@@ -940,7 +940,7 @@ export function parseRemoteOkJob(raw: any): NormalizedRemoteJob | null {
 /**
  * Arbeitnow API Normalizer
  */
-export function parseArbeitnowJob(raw: any): NormalizedRemoteJob | null {
+export function parseArbeitnowJob(raw: Record<string, unknown>): NormalizedRemoteJob | null {
   if (!raw || typeof raw !== 'object') return null;
   if (raw.remote !== true) return null;
 
@@ -999,7 +999,7 @@ export function parseArbeitnowJob(raw: any): NormalizedRemoteJob | null {
 /**
  * Himalayas RSS Normalizer
  */
-export function parseHimalayasRssItem(itemXmlOrObj: any): NormalizedRemoteJob | null {
+export function parseHimalayasRssItem(itemXmlOrObj: Record<string, unknown>): NormalizedRemoteJob | null {
   if (!itemXmlOrObj || typeof itemXmlOrObj !== 'object') return null;
   const guid = String(itemXmlOrObj.guid || itemXmlOrObj.link || '').trim();
   const rawTitle = String(itemXmlOrObj.title || '').trim();
@@ -1067,7 +1067,7 @@ export function parseHimalayasRssItem(itemXmlOrObj: any): NormalizedRemoteJob | 
  * Greenhouse API Normalizer
  */
 export function parseGreenhouseJob(
-  raw: any,
+  raw: Record<string, unknown>,
   companyName: string,
   regionPolicy: string = 'worldwide',
   customTags: string[] = []
@@ -1133,7 +1133,7 @@ export function parseGreenhouseJob(
  * Lever API Normalizer
  */
 export function parseLeverJob(
-  raw: any,
+  raw: Record<string, unknown>,
   companyName: string,
   regionPolicy: string = 'worldwide',
   customTags: string[] = []
@@ -1152,7 +1152,10 @@ export function parseLeverJob(
   const description = [
     raw.description,
     raw.requirements,
-    Array.isArray(raw.lists) ? raw.lists.map((l: any) => `${l.text}\n${l.content}`).join('\n') : ''
+    Array.isArray(raw.lists) ? raw.lists.map((item) => {
+      const listItem = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      return `${String(listItem.text || '')}\n${String(listItem.content || '')}`;
+    }).join('\n') : ''
   ].filter(Boolean).join('\n\n');
   const descriptionExcerpt = createExcerpt(description);
 

@@ -137,7 +137,7 @@ export function useAgenticChat(contextFilter?: string) {
     sessionIdRef.current = null;
     setSessionId(null);
     sessionLoadedRef.current = false;
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Track the last-saved snapshot of section data so we can detect unsaved edits
   const savedSnapshotRef = useRef<Partial<Record<SectionKey, string>>>({});
@@ -810,7 +810,7 @@ export function useAgenticChat(contextFilter?: string) {
         setIsThinking(false);
       }
     },
-    [isThinking, messages, currentResume, executeFunctionCall, allResumes, contextFilter, checkCredits, incrementUsage, user, createSession, persistMessage]
+    [isThinking, checkCredits, user, createSession, persistMessage, allResumes, messages, location.pathname, currentResume, contextFilter, incrementUsage, executeFunctionCall]
   );
 
   // Resend the last user message after an error. Determines the target

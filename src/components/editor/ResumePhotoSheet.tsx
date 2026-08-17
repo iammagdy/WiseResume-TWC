@@ -81,7 +81,7 @@ export function ResumePhotoSheet({
               Add Photo to Resume
             </SheetTitle>
             <SheetDescription>
-              This template supports a profile photo to make your resume stand out!
+              This template can include a photo. Photos may reduce parser reliability in some hiring workflows.
             </SheetDescription>
           </SheetHeader>
 
@@ -131,6 +131,11 @@ export function ResumePhotoSheet({
                 <span className="text-sm font-medium text-center">Keep Initials</span>
               </button>
             </div>
+
+            <p className="pb-4 text-[11px] leading-relaxed text-muted-foreground">
+              A newly uploaded photo uses a hard-to-guess public image link so exported and shared resumes can display it.
+              Anyone with the direct link can view the image.
+            </p>
 
             {/* Don't ask again checkbox */}
             <div className="flex items-center gap-3 py-4 border-t border-border">

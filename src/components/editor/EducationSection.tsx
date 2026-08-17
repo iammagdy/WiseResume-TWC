@@ -67,7 +67,7 @@ export const EducationSection = memo(function EducationSection() {
     const degreeIn = educationExample.degree.toLowerCase().indexOf(' in ');
     const degreeName = degreeIn >= 0 ? educationExample.degree.substring(0, degreeIn) : educationExample.degree;
     const fieldName = degreeIn >= 0 ? educationExample.degree.substring(degreeIn + 4) : '';
-    const rangeParts = educationExample.dateRange.split(/[\s–\-]+/);
+    const rangeParts = educationExample.dateRange.split(/[\s–-]+/);
     const exampleEdu: Education = {
       id: uuidv4(),
       institution: educationExample.institution,

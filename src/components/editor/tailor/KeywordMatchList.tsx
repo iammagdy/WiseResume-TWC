@@ -103,7 +103,7 @@ export function KeywordMatchList({
   return (
     <div className={cn('p-4 rounded-2xl bg-card border border-border shadow-soft-sm space-y-3', className)}>
       <div className="flex items-center justify-between gap-2">
-        <h4 className="font-semibold text-sm">ATS Keywords</h4>
+        <h4 className="font-semibold text-sm">Job-description Keywords</h4>
         <span
           className={cn(
             'text-sm font-bold tabular-nums',

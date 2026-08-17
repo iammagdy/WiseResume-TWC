@@ -2,7 +2,7 @@ import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { memo, Suspense, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Crown, Gift, KeyRound } from 'lucide-react';
+import { Crown, Share2, KeyRound } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { ChangePasswordDialog } from '@/components/settings/sections/ChangePasswordDialog';
 import { Separator } from '@/components/ui/separator';
@@ -126,7 +126,7 @@ export const AccountSection = memo(function AccountSection({
 
         // Email/password account → open the in-app change-password form.
         setChangePwOpen(true);
-    }, []);
+    }, [t]);
 
     return (
         <div>
@@ -178,12 +178,12 @@ export const AccountSection = memo(function AccountSection({
                     onClick={() => { haptics.light(); navigate('/subscription'); }}
                 />
                 <Separator className="ml-[52px] bg-border/30" />
-                {/* Referral */}
+                {/* Share */}
                 <SettingsRow
                     type="navigation"
-                    label={t('app.settingsPage.account.inviteLabel', 'Invite Friends')}
-                    description={t('app.settingsPage.account.inviteDescription', 'Earn rewards by sharing WiseResume')}
-                    icon={<Gift className="w-4 h-4" />}
+                    label={t('app.settingsPage.account.inviteLabel', 'Share WiseResume')}
+                    description={t('app.settingsPage.account.inviteDescription', 'Send the app link to a friend')}
+                    icon={<Share2 className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/referral'); }}
                 />
                 <Separator className="ml-[52px] bg-border/30" />

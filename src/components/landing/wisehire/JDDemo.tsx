@@ -54,7 +54,7 @@ export function JDDemo() {
       clearTimeout(t);
       clearTimeout(inner);
     };
-  }, [done]);
+  }, [done, prefersReduced]);
 
   useEffect(() => {
     if (!generating || done) return;

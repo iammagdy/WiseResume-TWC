@@ -14,12 +14,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
 import { runATSValidation, type ATSCheckResult } from '@/lib/atsValidationChecks';
 import type { ResumeData } from '@/types/resume';
-import type { ResumeHealthScore } from '@/hooks/useResumeScore';
 
 interface ATSValidationChecklistProps {
   open: boolean;
   parsedData: ResumeData;
-  atsScore: ResumeHealthScore | null;
   onContinue: () => void;
   onBack: () => void;
 }
@@ -64,7 +62,6 @@ function CheckItem({ item, index }: { item: ATSCheckResult; index: number }) {
 export function ATSValidationChecklist({
   open,
   parsedData,
-  atsScore,
   onContinue,
   onBack,
 }: ATSValidationChecklistProps) {
@@ -87,7 +84,7 @@ export function ATSValidationChecklist({
               <Shield className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="min-w-0">
-              <SheetTitle className="text-lg leading-tight">ATS Compatibility</SheetTitle>
+              <SheetTitle className="text-lg leading-tight">Parser-readability checklist</SheetTitle>
               <SheetDescription className="text-sm text-muted-foreground">
                 {passCount} of {totalCount} checks passed
               </SheetDescription>
@@ -97,15 +94,15 @@ export function ATSValidationChecklist({
 
         {/* Score summary */}
         <div className="flex items-center gap-4 px-1 pb-3 shrink-0">
-          <ScoreRing score={atsScore?.overallScore ?? ringScore} size={56} strokeWidth={4} />
+          <ScoreRing score={ringScore} size={56} strokeWidth={4} label="Parser-readability checklist" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">
               {failCount === 0 ? 'Looking great!' : `${failCount} issue${failCount > 1 ? 's' : ''} to review`}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {failCount === 0
-                ? 'Your resume passes all critical ATS checks'
-                : 'Fix issues to improve ATS pass rate'}
+                ? 'Your resume passes all local parser-readability checks'
+                : 'Review issues to improve parser readability'}
             </p>
           </div>
         </div>

@@ -5,6 +5,8 @@ import { Label } from '@/components/ui/label';
 import { PDFOptions } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
+import { Lock, Sparkles } from 'lucide-react';
+import { usePlan } from '@/hooks/usePlan';
 
 interface PDFDefaultsSheetProps {
   open: boolean;
@@ -19,6 +21,10 @@ export function PDFDefaultsSheet({
   pdfDefaults,
   onUpdate,
 }: PDFDefaultsSheetProps) {
+  const { isPremium, subscriptionVerified } = usePlan();
+  const canRemoveBranding = isPremium && subscriptionVerified;
+  const effectiveBranding = canRemoveBranding ? (pdfDefaults.showBranding ?? true) : true;
+
   const handleFormatChange = (format: 'simple' | 'full') => {
     haptics.light();
     onUpdate({ pageNumberFormat: format });
@@ -61,6 +67,7 @@ export function PDFDefaultsSheet({
               <Label className="font-medium">Page Number Format</Label>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => handleFormatChange('simple')}
                   className={cn(
                     'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all',
@@ -73,6 +80,7 @@ export function PDFDefaultsSheet({
                   Simple (1)
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleFormatChange('full')}
                   className={cn(
                     'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all',
@@ -92,20 +100,26 @@ export function PDFDefaultsSheet({
           <div className="flex items-center justify-between p-4 rounded-xl bg-muted">
             <div className="space-y-0.5">
               <Label htmlFor="default-branding" className="font-medium flex items-center gap-1.5">
-                <span className="text-primary">✦</span>
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
                 WiseResume Badge
+                {!canRemoveBranding && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                    <Lock className="h-3 w-3" aria-hidden /> Premium
+                  </span>
+                )}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Professional prestige stamp on exports
+                {canRemoveBranding ? 'Small footer credit on exports' : 'Required on Free and Pro exports'}
               </p>
             </div>
             <Switch
               id="default-branding"
-              checked={pdfDefaults.showBranding ?? true}
-              onCheckedChange={(checked) => {
+              checked={effectiveBranding}
+              disabled={!canRemoveBranding}
+              onCheckedChange={canRemoveBranding ? (checked) => {
                 haptics.light();
                 onUpdate({ showBranding: checked });
-              }}
+              } : undefined}
             />
           </div>
 

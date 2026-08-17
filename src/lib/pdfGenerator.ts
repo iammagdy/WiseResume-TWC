@@ -42,7 +42,7 @@ export function prepareForMeasure(
   sourceElement.style.width = `${pageWidth}px`;
   sourceElement.style.maxWidth = `${pageWidth}px`;
   sourceElement.style.transform = 'none';
-  sourceElement.offsetHeight;
+  void sourceElement.offsetHeight;
   return () => {
     sourceElement.style.width = originalStyles.width;
     sourceElement.style.maxWidth = originalStyles.maxWidth;

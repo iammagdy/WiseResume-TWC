@@ -53,6 +53,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
+import { useSettingsStore } from '@/store/settingsStore';
+import { redactResumeForAI } from '@/lib/piiRedact';
 
 const STOP_WORDS = new Set([
   'and','the','our','you','your','we','are','for','with','this','that','from','will','have','has',
@@ -113,6 +117,8 @@ export default function RemoteJobsPage() {
   const [tailorProgress, setTailorProgress] = useState<string>('');
   const isTailoringRef = useRef(false);
   const { checkCredits } = useAICreditsMutations();
+  const { requestDisclosure } = useAIPrivacyDisclosure();
+  const redactPiiBeforeAI = useSettingsStore(state => state.redactPiiBeforeAI);
 
   // Resumes and mutations
   const { data: resumes = [] } = useResumes();
@@ -174,7 +180,7 @@ export default function RemoteJobsPage() {
     navigate(targetUrl);
   };
 
-  const handleFastTailor = useCallback((job: NormalizedRemoteJob) => {
+  const handleFastTailor = (job: NormalizedRemoteJob) => {
     if (isTailoringRef.current) return;
     if (!isAuthenticated) {
       toast.error('Authentication required to tailor resumes.');
@@ -199,7 +205,7 @@ export default function RemoteJobsPage() {
       setSelectedResumeId(resumes[0].$id);
       setShowResumePickerDialog(true);
     }
-  }, [isAuthenticated, resumes, navigate]);
+  };
 
   const executeFastTailorFlow = async (selectedDbResume: DatabaseResume, job: NormalizedRemoteJob) => {
     if (!user?.id) {
@@ -207,6 +213,9 @@ export default function RemoteJobsPage() {
       return;
     }
     if (isTailoringRef.current) return;
+    let privacyAccepted = hasAcceptedAIPrivacy();
+    if (!privacyAccepted) privacyAccepted = await requestDisclosure();
+    if (!privacyAccepted) return;
     isTailoringRef.current = true;
     setIsTailoring(true);
     setTailorProgress('Initializing tailoring...');
@@ -229,12 +238,13 @@ export default function RemoteJobsPage() {
       }
 
       const originalResume = dbToResumeData(selectedDbResume);
+      const aiResume = redactResumeForAI(originalResume, redactPiiBeforeAI);
       const jobDescription = job.description_html || job.description_excerpt || `${job.title} at ${job.company}`;
 
       // Step 1: Tailor Resume
       setTailorProgress('Analyzing job and tailoring CV...');
       const tailorResult = await tailorResumeWithProgress(
-        originalResume,
+        aiResume,
         jobDescription,
         (p) => {
           setTailorProgress(`Tailoring CV... ${Math.round(p.progress)}%`);
@@ -246,7 +256,7 @@ export default function RemoteJobsPage() {
       setTailorProgress('Generating personalized cover letter...');
       let coverLetterText = '';
       try {
-        coverLetterText = await generateCoverLetter(originalResume, jobDescription, 'professional');
+        coverLetterText = await generateCoverLetter(aiResume, jobDescription, 'professional');
       } catch (clErr) {
         console.error('Failed to generate cover letter:', clErr);
         toast.warning('Cover letter generation failed, but tailoring resume succeeded.');
@@ -266,10 +276,9 @@ export default function RemoteJobsPage() {
         ...originalResume.skills,
       ].filter(Boolean).join(' ');
 
-      const aiReturnedScore = tailorResult.overallScore;
       const computedScoreBefore = computeMatchScore(jobDescription, resumeTextBefore);
-      const scoreBefore = aiReturnedScore?.before ?? computedScoreBefore;
-      const scoreAfter = aiReturnedScore?.after ?? computeMatchScore(jobDescription, [
+      const scoreBefore = computedScoreBefore;
+      const scoreAfter = computeMatchScore(jobDescription, [
         merged.summary,
         ...merged.experience.map(
           (e) => `${e.position} ${e.company} ${e.description} ${e.achievements.join(' ')}`,
@@ -407,10 +416,10 @@ export default function RemoteJobsPage() {
       toast.success('Fast Tailor complete!');
       // Navigate to results page
       navigate(`/tailoring-hub/result/${tailoredResumeId}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       haptics.error();
-      toast.error(err.message || 'Fast Tailor failed.');
+      toast.error(err instanceof Error ? err.message : 'Fast Tailor failed.');
     } finally {
       isTailoringRef.current = false;
       setIsTailoring(false);

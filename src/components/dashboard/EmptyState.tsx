@@ -40,7 +40,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
   const steps = [
     { icon: Upload, label: t('app.emptyState.step1Label', 'Create or Upload'), description: t('app.emptyState.step1Desc', 'Start from scratch or import a PDF') },
     { icon: Sparkles, label: t('app.emptyState.step2Label', 'AI Enhances It'), description: t('app.emptyState.step2Desc', 'Tailor content for any job posting') },
-    { icon: Download, label: t('app.emptyState.step3Label', 'Download PDF'), description: t('app.emptyState.step3Desc', 'Export an ATS-ready resume instantly') },
+    { icon: Download, label: t('app.emptyState.step3Label', 'Download PDF'), description: t('app.emptyState.step3Desc', 'Export a parser-friendly resume') },
   ];
 
   const carouselTips = [
@@ -58,7 +58,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, 
       setActiveTipIndex(prev => (prev + 1) % carouselTips.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [tipPaused, shouldReduceMotion]);
+  }, [tipPaused, shouldReduceMotion, carouselTips.length]);
 
   return (
     <motion.div

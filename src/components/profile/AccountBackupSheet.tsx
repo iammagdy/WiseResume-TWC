@@ -33,8 +33,8 @@ export function AccountBackupSheet({ open, onOpenChange, userId, userEmail, full
       await exportFullAccount(userId, userEmail, fullName, setExportProgress);
       toast.success('Full account backup downloaded!');
       haptics.light();
-    } catch (e: any) {
-      toast.error(e.message || 'Export failed');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Export failed');
     } finally {
       setIsExporting(false);
     }
@@ -55,8 +55,8 @@ export function AccountBackupSheet({ open, onOpenChange, userId, userEmail, full
         toast.warning(`${result.success} imported, ${result.failed} had errors`);
       }
       haptics.light();
-    } catch (e: any) {
-      toast.error(e.message || 'Import failed');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Import failed');
     } finally {
       setIsImporting(false);
       if (fileRef.current) fileRef.current.value = '';

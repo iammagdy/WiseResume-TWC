@@ -16,8 +16,8 @@ vi.mock("@/hooks/useResumes", () => ({
     deleteResume: vi.fn(),
   })),
   useResumes: vi.fn(() => ({ data: [], isLoading: false, isError: false })),
-  resumeDataToDb: vi.fn((r: any) => r),
-  dbToResumeData: vi.fn((d: any) => d),
+  resumeDataToDb: vi.fn((resume: unknown) => resume),
+  dbToResumeData: vi.fn((document: unknown) => document),
 }));
 
 vi.mock("@/lib/activityTracker", () => ({
@@ -89,7 +89,7 @@ describe("TailorSheet (D6)", () => {
       skills: ["React"],
       certifications: [],
       templateId: "modern",
-    } as any;
+    };
   });
 
   it("renders the sheet content when open", () => {

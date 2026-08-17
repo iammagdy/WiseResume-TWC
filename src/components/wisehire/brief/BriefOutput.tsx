@@ -7,12 +7,13 @@ import { formatDistanceToNow } from 'date-fns';
 interface BriefOutputProps {
   brief: CandidateBrief;
   candidateName?: string;
+  publicView?: boolean;
 }
 
 function ScoreRing({ score }: { score: number | null }) {
   const displayScore = score ?? 0;
   const color = displayScore >= 80 ? '#059669' : displayScore >= 60 ? '#d97706' : '#dc2626';
-  const label = score === null ? 'No score' : displayScore >= 80 ? 'Strong match' : displayScore >= 60 ? 'Moderate match' : 'Weak match';
+  const label = score === null ? 'Not estimated' : displayScore >= 80 ? 'Higher evidence alignment' : displayScore >= 60 ? 'Moderate evidence alignment' : 'Lower evidence alignment';
   const circumference = 2 * Math.PI * 28;
   const strokeDash = (displayScore / 100) * circumference;
 
@@ -37,7 +38,7 @@ function ScoreRing({ score }: { score: number | null }) {
         </div>
       </div>
       <div>
-        <p className="text-lg font-extrabold text-slate-900 dark:text-white">Match Score</p>
+        <p className="text-lg font-extrabold text-slate-900 dark:text-white">Evidence alignment estimate</p>
         <p className="text-sm" style={{ color }}>{label}</p>
       </div>
     </div>
@@ -63,7 +64,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function BriefOutput({ brief, candidateName }: BriefOutputProps) {
+export function BriefOutput({ brief, candidateName, publicView = false }: BriefOutputProps) {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
       {/* Header */}
@@ -85,6 +86,9 @@ export function BriefOutput({ brief, candidateName }: BriefOutputProps) {
 
       {/* Score */}
       <ScoreRing score={brief.match_score} />
+      <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+        AI-generated estimate based on the available candidate record and role text. A recruiter must verify the evidence and make the hiring decision.
+      </p>
 
       {/* Strengths */}
       {(brief.strengths?.length ?? 0) > 0 && (
@@ -126,7 +130,7 @@ export function BriefOutput({ brief, candidateName }: BriefOutputProps) {
       {/* Employment Notes */}
       {brief.employment_notes && (
         <div>
-          <SectionHeader>Hiring Notes</SectionHeader>
+          <SectionHeader>Review Notes</SectionHeader>
           <div className="bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed border border-blue-500/30">
             {brief.employment_notes}
           </div>
@@ -138,7 +142,7 @@ export function BriefOutput({ brief, candidateName }: BriefOutputProps) {
       )}
 
       {/* Scorecard CTA */}
-      {brief.candidate_id && (
+      {!publicView && brief.candidate_id && (
         <div className="border-t pt-4">
           <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto" asChild>
             <Link to={`/wisehire/scorecards/${brief.candidate_id}?briefId=${brief.id}`}>

@@ -40,8 +40,8 @@ const FUNCTION_EXECUTION_POLICIES = Object.freeze({
   }),
   'public-share': Object.freeze({
     classification: 'anonymous-public',
-    caller: 'Public share password, portfolio chat, and interest flows',
-    handlerAuth: 'Action-specific public tokens, password/session checks, validation, and rate limits',
+    caller: 'Public resume content/feedback, owner share management, portfolio chat, and interest flows',
+    handlerAuth: 'Action-specific hashed bearer tokens, signed capabilities, owner JWTs, validation, and persistent rate limits',
     execute: Object.freeze(['any']),
   }),
   'ai-health': Object.freeze({

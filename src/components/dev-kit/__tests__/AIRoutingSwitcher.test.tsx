@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
 // Directly assign the property on import.meta.env
-(import.meta.env as any).VITE_TURNSTILE_SITE_KEY = 'mock-site-key';
+vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'mock-site-key');
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';

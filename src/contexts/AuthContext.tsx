@@ -14,6 +14,9 @@ import {
   getImpersonationState,
   subscribe as subscribeImpersonation,
 } from '@/lib/impersonationStore';
+import type { Models } from 'appwrite';
+
+type AppwriteUser = Models.User<Models.Preferences>;
 
 export interface AppUser {
   id: string;
@@ -31,7 +34,7 @@ export interface AuthContextType {
   refreshSession: () => Promise<AppUser | null>;
   isAuthenticated: boolean;
   isImpersonating: boolean;
-  appwriteUser: any | null;
+  appwriteUser: AppwriteUser | null;
   authAvailable: boolean;
   /** True after the first Appwrite account.get() (or failure) this page load. */
   sessionValidated: boolean;
@@ -45,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const lastSeenUserIdRef = useRef<string | null>(null);
 
-  const [appwriteUser, setAppwriteUser] = useState<any>(null);
+  const [appwriteUser, setAppwriteUser] = useState<AppwriteUser | null>(null);
   const [appwriteLoading, setAppwriteLoading] = useState(isAppwriteEnabled);
   const [sessionValidated, setSessionValidated] = useState(!isAppwriteEnabled);
 
@@ -177,7 +180,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       await appwriteAccount.deleteSession('current');
-    } catch (e) {}
+    } catch {
+      // The local session is cleared even when the remote session already expired.
+    }
     window.location.replace(redirectPath || '/');
   }, [queryClient, persistSessionUser]);
 

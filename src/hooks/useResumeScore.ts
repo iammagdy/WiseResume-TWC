@@ -17,15 +17,15 @@ export interface WeakBullet {
 }
 
 export interface ResumeHealthScore {
+  /** Identifies the deterministic rubric so stale/legacy score caches are rejected. */
+  scoreBasis: 'resume-completeness-v1';
   overallScore: number;
   categories: {
-    keywordOptimization: number;
-    contentQuality: number;
-    sectionStructure: number;
-    parsability: number;
     contactCompleteness: number;
-    lengthDensity: number;
-    templateFriendliness: number;
+    summaryCompleteness: number;
+    experienceCompleteness: number;
+    educationCompleteness: number;
+    skillsCompleteness: number;
   };
   topStrength: string;
   topImprovement: string;
@@ -58,7 +58,7 @@ function hydrateScoreCacheFromStorage(): Map<string, ResumeHealthScore> {
     if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.entries)) return map;
     const now = Date.now();
     for (const entry of parsed.entries) {
-      if (!entry?.k || !entry?.v) continue;
+      if (!entry?.k || !entry?.v || entry.v.scoreBasis !== 'resume-completeness-v1') continue;
       if (now - (entry.t ?? 0) > SCORE_CACHE_TTL_MS) continue;
       map.set(entry.k, entry.v);
     }
@@ -218,17 +218,21 @@ export function clearAllCachedScores() {
  * function call that was (a) routed through ai-gateway producing wrong
  * response shapes, and (b) unnecessary since all signals are local.
  */
-function buildLocalResumeScore(resume: ResumeData): ResumeHealthScore {
+export function buildLocalResumeScore(resume: ResumeData): ResumeHealthScore {
   // Defensive guard: if resume is null/undefined (e.g. race condition or
   // corrupt dbToResumeData output), return a zero score rather than throwing.
   // This prevents runBackgroundScore from accumulating backgroundFailureStreak
   // and showing the "score may be out of date" toast for a non-AI failure.
   if (!resume) {
     return {
+      scoreBasis: 'resume-completeness-v1',
       overallScore: 0,
       categories: {
-        contactCompleteness: 0, contentQuality: 0, sectionStructure: 0,
-        parsability: 0, keywordOptimization: 0, lengthDensity: 0, templateFriendliness: 85,
+        contactCompleteness: 0,
+        summaryCompleteness: 0,
+        experienceCompleteness: 0,
+        educationCompleteness: 0,
+        skillsCompleteness: 0,
       },
       topStrength: 'No resume data available',
       topImprovement: 'Add your contact information and a professional summary',
@@ -260,13 +264,11 @@ function buildLocalResumeScore(resume: ResumeData): ResumeHealthScore {
   );
 
   const categories = {
-    contactCompleteness:  contactScore,
-    contentQuality:       Math.round((summaryScore + experienceScore) / 2),
-    sectionStructure:     Math.round((educationScore + skillsScore) / 2),
-    parsability:          Math.min(100, overall + 5),
-    keywordOptimization:  skillsScore,
-    lengthDensity:        summaryScore,
-    templateFriendliness: 85,
+    contactCompleteness:    contactScore,
+    summaryCompleteness:    summaryScore,
+    experienceCompleteness: experienceScore,
+    educationCompleteness:  educationScore,
+    skillsCompleteness:     skillsScore,
   };
 
   const sectionScores: Record<string, number> = {
@@ -287,12 +289,13 @@ function buildLocalResumeScore(resume: ResumeData): ResumeHealthScore {
   const IMPROVEMENTS: Record<string, string> = {
     contact:    'Add missing contact details (phone, LinkedIn, location)',
     summary:    'Write a compelling professional summary (2–4 sentences)',
-    experience: 'Add more work experience with bullet points and metrics',
+    experience: 'Add work experience with evidence-based outcome bullets',
     education:  'Complete your education section with degree and graduation date',
     skills:     'Add at least 5–10 relevant skills',
   };
 
   return {
+    scoreBasis:      'resume-completeness-v1',
     overallScore:   overall,
     categories,
     topStrength:    STRENGTHS[bestKey]     ?? 'Well-structured resume',
@@ -422,7 +425,7 @@ async function runBackgroundScore(resumeId: string, resume: ResumeData, updatedA
     const due = now - lastBackgroundFailureToastAt > BACKGROUND_FAILURE_TOAST_COOLDOWN_MS;
     if (backgroundFailureStreak >= BACKGROUND_FAILURE_TOAST_THRESHOLD && due) {
       lastBackgroundFailureToastAt = now;
-      toast.error('Resume score may be out of date — auto-scoring is failing in the background. Tap Re-score to retry.', {
+        toast.error('Resume readiness may be out of date. Tap Re-check to retry.', {
         id: 'background-scoring-degraded',
         duration: 8000,
       });
@@ -475,12 +478,13 @@ export function useResumeScore() {
 
     setScoringId(resumeId);
     try {
-      let result: { data: any; latencyMs: number };
+      let result: { data: ResumeHealthScore; latencyMs: number };
       try {
         result = await invokeScoreResume(resume);
-      } catch (firstErr: any) {
-        if (firstErr.isAuth || firstErr.isRateLimit) throw firstErr;
-        console.warn('[ScoreResume] First attempt failed, retrying in 2s…', firstErr.message);
+      } catch (firstErr: unknown) {
+        const firstError = firstErr as Error & { isAuth?: boolean; isRateLimit?: boolean };
+        if (firstError.isAuth || firstError.isRateLimit) throw firstError;
+        console.warn('[ScoreResume] First readiness check failed, retrying in 2s…', firstError.message);
         await new Promise<void>(resolve => { scoreRetryTimerRef.current = setTimeout(resolve, 2000); });
         scoreRetryTimerRef.current = null;
         result = await invokeScoreResume(resume);
@@ -508,21 +512,22 @@ export function useResumeScore() {
         });
       }
       return score;
-    } catch (err: any) {
-      if (err.isSkip) {
+    } catch (err: unknown) {
+      const scoreError = err as Error & { isAuth?: boolean; isRateLimit?: boolean; isSkip?: boolean };
+      if (scoreError.isSkip) {
         console.warn('[ScoreResume] Skipped: bridge token not available');
         return null;
       }
       // NOTE: do NOT recordFailure on AI health for the same reason —
       // a deterministic scoring outage shouldn't make the AI badge red.
-      console.error('[ScoreResume] Final failure:', err);
+      console.error('[ScoreResume] Final failure:', scoreError);
 
-      if (err.isAuth) {
+      if (scoreError.isAuth) {
         toast.error('Session expired. Please sign in again.');
-      } else if (err.isRateLimit) {
+      } else if (scoreError.isRateLimit) {
         toast.error('Rate limit reached. Try again shortly.');
       } else {
-        toast.error('Scoring failed. Tap Re-score to try again.');
+        toast.error('Readiness check failed. Tap Re-check to try again.');
       }
       return null;
     } finally {

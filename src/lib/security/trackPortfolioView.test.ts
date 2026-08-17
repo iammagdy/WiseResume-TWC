@@ -7,20 +7,24 @@ const mockCreateDocument = vi.fn();
 const mockListDocuments = vi.fn();
 
 vi.mock('node-appwrite', () => {
+  class MockClient {
+    setEndpoint() { return this; }
+    setProject() { return this; }
+    setKey() { return this; }
+  }
+
+  class MockDatabases {
+    getDocument = mockGetDocument;
+    updateDocument = mockUpdateDocument;
+    createDocument = mockCreateDocument;
+    listDocuments = mockListDocuments;
+  }
+
   return {
-    Client: vi.fn().mockImplementation(function (this: any) {
-      this.setEndpoint = vi.fn().mockReturnThis();
-      this.setProject = vi.fn().mockReturnThis();
-      this.setKey = vi.fn().mockReturnThis();
-    }),
-    Databases: vi.fn().mockImplementation(function (this: any) {
-      this.getDocument = mockGetDocument;
-      this.updateDocument = mockUpdateDocument;
-      this.createDocument = mockCreateDocument;
-      this.listDocuments = mockListDocuments;
-    }),
+    Client: MockClient,
+    Databases: MockDatabases,
     Query: {
-      equal: (field: string, val: any) => `equal:${field}:${val}`,
+      equal: (field: string, val: unknown) => `equal:${field}:${String(val)}`,
       limit: (n: number) => `limit:${n}`,
     },
     ID: {
@@ -37,7 +41,8 @@ vi.mock('node-appwrite', () => {
   };
 });
 
-let handler: any;
+type TrackPortfolioViewHandler = typeof import('../../../api/track-portfolio-view').default;
+let handler: TrackPortfolioViewHandler;
 
 beforeAll(async () => {
   process.env.APPWRITE_PROJECT_ID = 'test-proj';
@@ -46,7 +51,7 @@ beforeAll(async () => {
   handler = mod.default;
 });
 
-function mockRequest(body: any): VercelRequest {
+function mockRequest(body: unknown): VercelRequest {
   return {
     method: 'POST',
     body,

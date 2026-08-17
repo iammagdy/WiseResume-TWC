@@ -109,7 +109,7 @@ export default function ScorecardPage() {
 
     if (isFallback) setUsedFallback(true);
     createScorecard.mutate({ candidateId, briefId, questions });
-  }, [resolving, isLoading, scorecard, candidateId, briefId, briefQuestions]);
+  }, [resolving, isLoading, scorecard, candidateId, briefId, briefQuestions, createScorecard]);
 
   async function handleApplyTemplate(templateId: string) {
     if (!scorecard) return;

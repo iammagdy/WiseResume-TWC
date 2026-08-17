@@ -62,7 +62,7 @@ function extractAllResumeKeywords(resume: ResumeData): Set<string> {
   return new Set(
     allText
       .toLowerCase()
-      .split(/[\s,.|•·;:()\[\]'"\/\\+\-]+/)
+      .split(/[\s,.|•·;:()[\]'"/\\+-]+/)
       .filter(w => w.length >= 3 && !STOP_WORDS.has(w))
   );
 }
@@ -73,7 +73,7 @@ function extractJDKeywords(jd: string): string[] {
     ...new Set(
       jd
         .toLowerCase()
-        .split(/[\s,.|•·;:()\[\]'"\/\\+\-]+/)
+        .split(/[\s,.|•·;:()[\]'"/\\+-]+/)
         .filter((w: string) => w.length >= 3 && !STOP_WORDS.has(w))
     ),
   ];
@@ -109,7 +109,7 @@ export function simulateATSParsing(
   if (ci?.phone) contactLines.push(`Phone: ${ci.phone}`);
   if (ci?.location) contactLines.push(`Location: ${ci.location}`);
   if (ci?.linkedin) contactLines.push(`LinkedIn: ${ci.linkedin}`);
-  if ((ci as any)?.website) contactLines.push(`Website: ${(ci as any).website}`);
+  if (ci?.portfolio) contactLines.push(`Website: ${ci.portfolio}`);
 
   const contactIssues: string[] = [];
   if (!ci?.email) contactIssues.push('Missing email address');
@@ -208,19 +208,18 @@ export function simulateATSParsing(
   });
 
   // ── Optional sections ──
-  const optionalSections: { id: string; name: string; items: any[] | undefined; format: (item: any) => string }[] = [
-    { id: 'certifications', name: 'CERTIFICATIONS', items: resume.certifications, format: (c) => `${c.name || 'Untitled'} | ${c.organization || ''} | ${c.date || ''}` },
-    { id: 'awards', name: 'AWARDS', items: resume.awards, format: (a) => `${a.title || 'Untitled'} | ${a.issuer || ''} | ${a.date || ''}` },
-    { id: 'projects', name: 'PROJECTS', items: resume.projects, format: (p) => `${p.name || 'Untitled'}${p.description ? ' — ' + p.description : ''}` },
-    { id: 'publications', name: 'PUBLICATIONS', items: resume.publications, format: (p) => `${p.title || 'Untitled'} | ${p.publisher || ''} | ${p.date || ''}` },
-    { id: 'volunteering', name: 'VOLUNTEERING', items: resume.volunteering, format: (v) => `${v.role || 'Untitled'} | ${v.organization || ''}` },
-    { id: 'languages', name: 'LANGUAGES', items: resume.languages, format: (l) => `${l.language || 'Untitled'} — ${l.proficiency || 'N/A'}` },
-    { id: 'hobbies', name: 'HOBBIES & INTERESTS', items: resume.hobbies, format: (h) => typeof h === 'string' ? h : h.name || 'Untitled' },
+  const optionalSections: { id: string; name: string; lines: string[] | undefined }[] = [
+    { id: 'certifications', name: 'CERTIFICATIONS', lines: resume.certifications?.map(c => `${c.name || 'Untitled'} | ${c.issuer || ''} | ${c.date || ''}`) },
+    { id: 'awards', name: 'AWARDS', lines: resume.awards?.map(a => `${a.title || 'Untitled'} | ${a.issuer || ''} | ${a.date || ''}`) },
+    { id: 'projects', name: 'PROJECTS', lines: resume.projects?.map(p => `${p.name || 'Untitled'}${p.description ? ' — ' + p.description : ''}`) },
+    { id: 'publications', name: 'PUBLICATIONS', lines: resume.publications?.map(p => `${p.title || 'Untitled'} | ${p.publisher || ''} | ${p.date || ''}`) },
+    { id: 'volunteering', name: 'VOLUNTEERING', lines: resume.volunteering?.map(v => `${v.role || 'Untitled'} | ${v.organization || ''}`) },
+    { id: 'languages', name: 'LANGUAGES', lines: resume.languages?.map(l => `${l.name || 'Untitled'} — ${l.proficiency || 'N/A'}`) },
+    { id: 'hobbies', name: 'HOBBIES & INTERESTS', lines: resume.hobbies?.map(h => typeof h === 'string' ? h : h.name || 'Untitled') },
   ];
 
-  optionalSections.forEach(({ id, name, items, format }) => {
-    if (!items || items.length === 0) return;
-    const lines = items.map(format);
+  optionalSections.forEach(({ id, name, lines }) => {
+    if (!lines || lines.length === 0) return;
     sections.push({
       id,
       name,

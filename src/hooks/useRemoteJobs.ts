@@ -190,7 +190,7 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
           // Ignore action load errors
         }
       }
-    } catch (err: any) {
+    } catch {
       // In DEV mode, if Appwrite collections do not exist yet, allow local dev fallback
       if (import.meta.env.DEV) {
         try {
@@ -355,10 +355,10 @@ export function useRemoteJobs(options: JobFilterOptions = {}) {
         }
 
         return { ok: true };
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Rollback optimistic update on failure
         void fetchJobsFromAppwrite();
-        return { ok: false, error: err.message || 'Failed to record job action' };
+        return { ok: false, error: err instanceof Error ? err.message : 'Failed to record job action' };
       }
     },
     [user?.id, fetchJobsFromAppwrite],

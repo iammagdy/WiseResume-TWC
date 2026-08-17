@@ -141,7 +141,7 @@ export function WiseResumeHero({
               maxWidth: 500,
             }}
           >
-            {t('landing.heroSubheading', 'AI that builds, tailors, and lands your next job.')}
+            {t('landing.heroSubheading', 'AI that helps you build, tailor, and prepare for your next application.')}
           </motion.p>
 
           {/* CTA */}

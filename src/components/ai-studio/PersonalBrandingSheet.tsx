@@ -17,6 +17,7 @@ import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
+import { restoreResumeContactPlaceholders } from '@/lib/piiRedact';
 
 interface PersonalBrandingSheetProps {
   open: boolean;
@@ -95,10 +96,11 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
     setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
-        const name = currentResume.contactInfo?.fullName ?? 'Professional';
-        const summary = currentResume.summary ?? '';
-        const topSkills = getTopSkills(currentResume as unknown as ResumeData);
-        const experience = getExperienceSummary(currentResume as unknown as ResumeData);
+        const providerResume = redactedResume ?? (currentResume as ResumeData);
+        const name = providerResume.contactInfo?.fullName ?? 'Professional';
+        const summary = providerResume.summary ?? '';
+        const topSkills = getTopSkills(providerResume);
+        const experience = getExperienceSummary(providerResume);
 
         const { data: responseData, error } = await appwriteFunctions.invoke('wise-ai-chat', {
           body: {
@@ -115,7 +117,10 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
         });
         if (error) throw new Error(error.message);
         const content = extractAIContent(responseData);
-        return parseAIJson(content, isBrandingResult);
+        return restoreResumeContactPlaceholders(
+          parseAIJson(content, isBrandingResult),
+          currentResume.contactInfo,
+        );
       });
       if (data) {
         setResult(data);

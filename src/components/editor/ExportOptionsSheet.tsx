@@ -40,7 +40,8 @@ export function ExportOptionsSheet({
 }: ExportOptionsSheetProps) {
   const { pdfDefaults, lastExportType, setLastExportType } = useSettingsStore();
   const { isOnline } = useNetworkStatus();
-  const { isPremium } = usePlan();
+  const { isPremium, subscriptionVerified } = usePlan();
+  const canRemoveBranding = isPremium && subscriptionVerified;
 
   const defaultType = (lastExportType as ExportType) || 'resume';
   const [selectedType, setSelectedType] = useState<ExportType>(defaultType);
@@ -59,10 +60,10 @@ export function ExportOptionsSheet({
     if (open) {
       setSelectedType((lastExportType as ExportType) || 'resume');
       setShowPageNumbers(pdfDefaults.showPageNumbers ?? true);
-      setShowBranding(pdfDefaults.showBranding ?? true);
+      setShowBranding(canRemoveBranding ? (pdfDefaults.showBranding ?? true) : true);
       setCustomFileName(resumeName?.replace(/\s+/g, '_') || 'Resume');
     }
-  }, [open, pdfDefaults, resumeName, lastExportType]);
+  }, [open, pdfDefaults, resumeName, lastExportType, canRemoveBranding]);
 
   const exportCompletedRef = useRef(false);
   useEffect(() => {
@@ -73,20 +74,20 @@ export function ExportOptionsSheet({
     if (!exportProgress || exportProgress.stage === 'idle') {
       exportCompletedRef.current = false;
     }
-  }, [exportProgress?.stage]);
+  }, [exportProgress]);
 
   // Primary formats — one-page removed (handled by Page Cut Setup in the editor)
   const primaryOptions: ExportOptionDef[] = [
     { id: 'resume',   label: 'PDF (Design-Enhanced)',  description: 'Full design with colors, icons & visual hierarchy',        icon: FileText, available: true },
-    { id: 'ats-pdf',  label: 'PDF (ATS-Optimized)',    description: 'Black & white, simple fonts, machine-readable',            icon: Shield,   available: true, badge: 'ATS-Safe' },
-    { id: 'docx',     label: 'Word Document',           description: 'ATS-friendly text-selectable DOCX',                       icon: FileType,  available: true, badge: 'ATS-Friendly' },
+    { id: 'ats-pdf',  label: 'PDF (ATS-Focused)',      description: 'Simplified, text-selectable layout for easier parser reading', icon: Shield,   available: true, badge: 'Parser-Friendly' },
+    { id: 'docx',     label: 'Word Document',           description: 'Text-selectable DOCX designed for common hiring systems',   icon: FileType,  available: true, badge: 'Parser-Friendly' },
     { id: 'image',    label: '4K Image',                description: 'High-resolution single image of your CV',                 icon: Image,     available: true },
   ];
 
   // Secondary formats (shown in the same pill row, no collapsible)
   const secondaryOptions: ExportOptionDef[] = [
     { id: 'linkedin',     label: 'LinkedIn Format',     description: 'Copy-paste ready sections for LinkedIn',                                                                                              icon: Linkedin,  available: true },
-    { id: 'plain-text',   label: 'Plain Text (.txt)',   description: 'Pure text, email-friendly, ATS-safe',                                                                                                icon: AlignLeft, available: true },
+    { id: 'plain-text',   label: 'Plain Text (.txt)',   description: 'Pure text for email and straightforward parser input',                                                                                icon: AlignLeft, available: true },
     { id: 'share-link',   label: 'Shareable Web Link',  description: 'Generate a public link to your resume',                                                                                              icon: Link2,     available: true },
     { id: 'cover-letter', label: 'Cover Letter Only',   description: !isOnline ? 'Requires an internet connection' : hasCoverLetter ? `For ${coverLetterContext?.title || 'position'} at ${coverLetterContext?.company || 'company'}` : 'Generate a cover letter first', icon: FileText, available: hasCoverLetter && isOnline },
     { id: 'combined',     label: 'Application Package', description: !isOnline ? 'Requires an internet connection' : hasCoverLetter ? 'Cover letter + Resume in one PDF' : 'Generate a cover letter first', icon: Package,   available: hasCoverLetter && isOnline },
@@ -97,7 +98,12 @@ export function ExportOptionsSheet({
   const handleExport = () => {
     haptics.medium();
     setLastExportType(selectedType);
-    onExport(selectedType, showPageNumbers, showBranding, customFileName || undefined);
+    onExport(
+      selectedType,
+      showPageNumbers,
+      canRemoveBranding ? showBranding : true,
+      customFileName || undefined,
+    );
   };
 
   const handleSwitchToAts = () => {
@@ -205,12 +211,13 @@ export function ExportOptionsSheet({
           )}
 
           <PdfOptionsFooter
-            visible={isPdfType && !isTextType && selectedType !== 'ats-pdf'}
+            visible={isPdfType && !isTextType}
+            showPageNumberControl={selectedType !== 'ats-pdf' && selectedType !== 'combined'}
             showPageNumbers={showPageNumbers}
             showBranding={showBranding}
             onPageNumbersChange={setShowPageNumbers}
             onBrandingChange={setShowBranding}
-            isPremium={isPremium}
+            isPremium={canRemoveBranding}
           />
         </div>
 

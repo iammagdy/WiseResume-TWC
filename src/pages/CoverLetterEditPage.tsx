@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Copy, Download, Trash2, Save, Sparkles } from 'lucide-react';
@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { CoverLetterPreview } from '@/components/cover-letter/CoverLetterPreview';
 import { COVER_LETTER_TEMPLATE_OPTIONS } from '@/components/cover-letter/templates/registry';
 import { cn } from '@/lib/utils';
+import { useAIAction } from '@/hooks/useAIAction';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 
 import {
@@ -43,6 +45,13 @@ export default function CoverLetterEditPage() {
   const { data: letter, isLoading } = useCoverLetter(id || null);
   const { updateCoverLetter, deleteCoverLetter } = useCoverLetterMutations();
   const { data: resumes } = useResumes();
+  const { execute: executeAI } = useAIAction({ operation: 'cover-letter' });
+  const linkedResumeData = useMemo(() => {
+    if (!letter?.resume_id) return null;
+    const linked = resumes?.find((resume) => getResumeDocumentId(resume) === letter.resume_id);
+    return linked ? dbToResumeData(linked) : null;
+  }, [letter?.resume_id, resumes]);
+  const redactedResume = useRedactedResume(linkedResumeData);
 
   const [content, setContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -102,15 +111,18 @@ export default function CoverLetterEditPage() {
       toast.error('Enter a job description. Make sure this letter has a linked resume.');
       return;
     }
-    const resume = resumes?.find((r) => getResumeDocumentId(r) === letter.resume_id);
-    if (!resume) {
+    if (!linkedResumeData || !redactedResume) {
       toast.error('Linked resume not found');
       return;
     }
     setTailoring(true);
     try {
-      const resumeData = dbToResumeData(resume);
-      const newLetter = await generateCoverLetter(resumeData, tailorJobDesc, (letter.tone as 'professional' | 'enthusiastic' | 'conversational') || 'professional');
+      const newLetter = await executeAI(() => generateCoverLetter(
+        redactedResume,
+        tailorJobDesc,
+        (letter.tone as 'professional' | 'enthusiastic' | 'conversational') || 'professional',
+      ));
+      if (!newLetter) return;
       setContent(newLetter);
       setHasUnsavedChanges(true);
       setShowTailorSheet(false);
@@ -122,7 +134,7 @@ export default function CoverLetterEditPage() {
     } finally {
       setTailoring(false);
     }
-  }, [tailorJobDesc, letter, resumes]);
+  }, [executeAI, letter, linkedResumeData, redactedResume, tailorJobDesc]);
 
   const handleDelete = useCallback(() => {
     if (!id) return;

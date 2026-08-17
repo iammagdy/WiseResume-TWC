@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect, useRef } from 'react';
+import { memo, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Rocket, Calendar, Link, Github, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,8 @@ import { useAIApplyEffects } from '@/hooks/useAIApplyEffects';
 import { useLocale } from '@/i18n/LocaleProvider';
 
 export const ProjectsSection = memo(function ProjectsSection() {
-  const projects = useResumeStore(state => state.currentResume?.projects) || [];
+  const storedProjects = useResumeStore(state => state.currentResume?.projects);
+  const projects = useMemo(() => storedProjects || [], [storedProjects]);
   const currentResume = useResumeStore(state => state.currentResume);
   const updateResume = useResumeStore(state => state.updateResume);
   const { t } = useLocale();
@@ -119,7 +120,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
       updateResume({ projects: next });
       triggerRescore(next);
     }
-  }, [enhancingProjectId, projects, updateResume, triggerRescore]);
+  }, [enhancingProjectId, projects, updateResume, triggerRescore, t]);
 
   const { enhance, isEnhancing, result, apply, discard, reset } = useAIEnhance({
     section: 'projects',
@@ -218,7 +219,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
     // For suggest_technologies the popup opens via `result`; the
     // dialog's Approve handler dedupes against existing technologies
     // and writes the appended list back to the resume.
-  }, [currentResume, enhance, projects]);
+  }, [currentResume, enhance]);
 
   const handleQuestionsSubmit = useCallback(async (answers: Record<string, string>) => {
     if (!questionsProjectId) return;
@@ -403,7 +404,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
     }
     apply(editedText);
     setCurrentActionId(null);
-  }, [currentActionId, projects, enhancingProjectId, updateResume, triggerRescore, apply, reset]);
+  }, [currentActionId, apply, projects, reset, enhancingProjectId, updateResume, t, triggerRescore]);
 
   const handleDialogDiscard = useCallback(() => {
     discard();

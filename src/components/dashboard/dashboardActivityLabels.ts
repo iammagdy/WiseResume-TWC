@@ -37,7 +37,7 @@ export function formatWorkspaceActivity(event: WorkspaceActivityEvent): Pick<Act
       };
     case 'ats_scored':
       return {
-        label: event.score != null ? `ATS scored ${event.score}%` : 'ATS scan completed',
+        label: event.score != null ? `Readiness updated ${event.score}%` : 'Readiness check completed',
         detail: title,
       };
     case 'job_imported':

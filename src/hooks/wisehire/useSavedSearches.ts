@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { wisehireOwnerPermissions } from '@/lib/wisehire/documentPermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import type { TalentSearchFilters } from './useTalentPool';
@@ -50,6 +51,7 @@ export function useSavedSearches() {
         COLLECTIONS.wisehire_saved_searches,
         ID.unique(),
         { owner_id: userId, name, filters },
+        wisehireOwnerPermissions(userId),
       );
     },
     onSuccess: () => {

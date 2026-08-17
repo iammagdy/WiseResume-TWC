@@ -202,19 +202,6 @@ export default function Aurora(props: AuroraProps) {
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     (gl.canvas as HTMLCanvasElement).style.backgroundColor = 'transparent';
 
-    let program: Program;
-
-    const resize = () => {
-      if (!ctn) return;
-      const width = ctn.offsetWidth;
-      const height = ctn.offsetHeight;
-      renderer.setSize(width, height);
-      if (program) {
-        (program.uniforms as Record<string, { value: unknown }>).uResolution.value = [width, height];
-      }
-    };
-    window.addEventListener('resize', resize);
-
     const geometry = new Triangle(gl);
     if ((geometry.attributes as Record<string, unknown>).uv) {
       delete (geometry.attributes as Record<string, unknown>).uv;
@@ -222,7 +209,7 @@ export default function Aurora(props: AuroraProps) {
 
     const colorStopsArray = colorStops.map(hexToRgb);
 
-    program = new Program(gl, {
+    const program = new Program(gl, {
       vertex: VERT,
       fragment: FRAG,
       uniforms: {
@@ -233,6 +220,15 @@ export default function Aurora(props: AuroraProps) {
         uBlend: { value: blend },
       },
     });
+
+    const resize = () => {
+      if (!ctn) return;
+      const width = ctn.offsetWidth;
+      const height = ctn.offsetHeight;
+      renderer.setSize(width, height);
+      (program.uniforms as Record<string, { value: unknown }>).uResolution.value = [width, height];
+    };
+    window.addEventListener('resize', resize);
 
     const mesh = new Mesh(gl, { geometry, program });
     ctn.appendChild(gl.canvas);
@@ -262,6 +258,7 @@ export default function Aurora(props: AuroraProps) {
       try {
         gl.getExtension('WEBGL_lose_context')?.loseContext();
       } catch {
+        // Context release is best-effort and unsupported by some browsers.
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

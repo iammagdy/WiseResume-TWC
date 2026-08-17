@@ -257,8 +257,8 @@ export function InterviewResultsCardSheet({
       const file = new File([blob], 'interview-results.png', { type: 'image/png' });
       await navigator.share({ files: [file] });
       toast.success('Shared!');
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') {
+    } catch (e: unknown) {
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
         console.error(e);
         toast.error('Share failed');
       }

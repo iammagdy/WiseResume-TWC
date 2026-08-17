@@ -18,7 +18,7 @@ interface VersionHistorySheetProps {
   onCompare?: (versionSnapshot: unknown) => void;
 }
 
-function formatVersionDate(dateStr: string, t: any): string {
+function formatVersionDate(dateStr: string, t: ReturnType<typeof useLocale>['t']): string {
   const date = new Date(dateStr);
   if (isToday(date)) return t('versionHistory.todayAt', 'Today, {{time}}', { time: format(date, 'h:mm a') });
   if (isYesterday(date)) return t('versionHistory.yesterdayAt', 'Yesterday, {{time}}', { time: format(date, 'h:mm a') });

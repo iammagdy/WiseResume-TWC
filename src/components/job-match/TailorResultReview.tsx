@@ -299,7 +299,7 @@ export function TailorResultReview({
       {matchedKeywords.length > 0 && (
         <div className="jmw-review__keywords">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            ATS keywords boosted
+            Job-keyword alignment reviewed
           </p>
           <div className="flex flex-wrap gap-1.5">
             {matchedKeywords.map((kw) => (

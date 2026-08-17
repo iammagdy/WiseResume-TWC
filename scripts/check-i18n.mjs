@@ -3,7 +3,19 @@ import { resolve } from 'node:path';
 
 const root = resolve(process.cwd(), 'locales');
 const namespaces = (await readdir(resolve(root, 'en'))).filter((file) => file.endsWith('.json')).sort();
-const allowedIdentical = new Set(['WiseResume', 'WiseHire', 'ATS', 'LinkedIn', 'GitHub', 'A4']);
+// Product, provider, and source names are proper nouns rather than translatable
+// prose. Keep the allowlist exact so normal English sentences still fail.
+const allowedIdentical = new Set([
+  'WiseResume',
+  'WiseHire',
+  'ATS',
+  'LinkedIn',
+  'GitHub',
+  'A4',
+  'Remotive',
+  'We Work Remotely',
+  'Jobicy',
+]);
 
 function flatten(value, prefix = '', output = new Map()) {
   if (Array.isArray(value)) {

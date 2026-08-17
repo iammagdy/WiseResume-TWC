@@ -181,16 +181,7 @@ export function PageBreakDialogPreview({
       observer.disconnect();
       mount.replaceChildren();
     };
-  }, [
-    templateElement,
-    containerWidth,
-    breakYs.join(','),
-    pageWidthPx,
-    pageHeightPx,
-    footerHeightPx,
-    maxPreviewHeight,
-    layout,
-  ]);
+  }, [templateElement, containerWidth, pageWidthPx, pageHeightPx, footerHeightPx, maxPreviewHeight, layout, breakYs]);
 
   if (!templateElement) {
     return (

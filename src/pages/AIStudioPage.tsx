@@ -119,7 +119,7 @@ export default function AIStudioPage() {
       stop();
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, []);
+  }, [placeholderExamples.length]);
 
   const [recentPaths, setRecentPaths] = useState(getRecentToolPaths);
   const recentTools = useMemo(
@@ -265,7 +265,7 @@ export default function AIStudioPage() {
     }
     setChatInitialMessage(message);
     setShowChat(true);
-  }, [currentResumeId, user]);
+  }, [currentResumeId, t, user]);
 
   const requireResume = useCallback((action: () => void) => {
     if (!currentResumeId) {
@@ -282,7 +282,7 @@ export default function AIStudioPage() {
 
     haptics.medium();
     action();
-  }, [allResumes, currentResumeId, navigate]);
+  }, [allResumes, currentResumeId, navigate, t]);
 
   const handleToolAction = useCallback((tool: AiStudioToolEntry) => {
     saveRecentToolPath(tool);

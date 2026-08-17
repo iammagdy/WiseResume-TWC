@@ -54,7 +54,12 @@ export function stripNonPrintable(text: string): string {
     // Remove zero-width characters
     .replace(/[\u200B-\u200F\u2028-\u202F\uFEFF]/g, '')
     // Remove control characters except newline/tab
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .split('')
+    .filter(char => {
+      const code = char.charCodeAt(0);
+      return code !== 0x7f && !(code <= 0x1f && code !== 0x09 && code !== 0x0a && code !== 0x0d);
+    })
+    .join('')
     // Fix common encoding artifacts
     .replace(/â€™/g, "'")
     .replace(/â€"/g, "—")
@@ -229,7 +234,7 @@ function endsMidSentence(line: string): boolean {
   // Starts with a bullet → likely an in-progress list item
   if (/^[-•*]/.test(t)) return true;
   // Lowercase start or ends in a connective → mid-sentence
-  if (/[,\-]$/.test(t)) return true;
+  if (/[,-]$/.test(t)) return true;
   // All caps short line is usually a header, not mid-sentence
   if (t.length < 40 && t === t.toUpperCase() && /[A-Z]/.test(t)) return false;
   // Default: treat long lines without terminal punctuation as mid-sentence
@@ -380,7 +385,7 @@ export function computeTextConfidence(text: string): { confidence: number; issue
   }
 
   // Check for garbage ratio (non-printable or unusual characters)
-  const printableRatio = cleanedText.replace(/[^\x20-\x7E\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF]/g, '').length / Math.max(cleanedText.length, 1);
+  const printableRatio = cleanedText.replace(/[^\p{L}\p{M}\p{N}\p{P}\p{Zs}]/gu, '').length / Math.max(cleanedText.length, 1);
   if (printableRatio < 0.7) {
     score -= 0.3;
     issues.push('high garbage character ratio');

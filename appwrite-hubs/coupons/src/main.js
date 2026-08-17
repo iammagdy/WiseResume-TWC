@@ -1,10 +1,13 @@
 'use strict';
 
 const sdk = require('node-appwrite');
+const crypto = require('crypto');
 
 const DB_ID = 'main';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = process.env.APPWRITE_FUNCTION_PROJECT_ID || process.env.APPWRITE_PROJECT_ID;
+const REDEEMABLE_PLANS = new Set(['pro', 'premium']);
+const MAX_COUPON_DAYS = 365;
 
 function getClients(jwt) {
   const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
@@ -38,11 +41,11 @@ async function getCurrentUser(account) {
   }
 }
 
-async function findCoupon(databases, code) {
+async function findCoupon(databases, code, transactionId) {
   const exact = await databases.listDocuments(DB_ID, 'discount_codes', [
     sdk.Query.equal('code', code),
     sdk.Query.limit(1),
-  ]);
+  ], transactionId);
   return exact.documents[0] || null;
 }
 
@@ -69,16 +72,25 @@ function normalizeCoupon(coupon) {
   };
 }
 
-async function findSubscription(databases, userId) {
+function resolveCouponEntitlement(coupon) {
+  const normalized = normalizeCoupon(coupon);
+  const plan = String(normalized.plan_override || '').trim().toLowerCase();
+  const days = normalized.plan_days;
+  if (!REDEEMABLE_PLANS.has(plan)) return null;
+  if (typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_COUPON_DAYS) return null;
+  return { plan, days };
+}
+
+async function findSubscription(databases, userId, transactionId) {
   const existing = await databases.listDocuments(DB_ID, 'subscriptions', [
     sdk.Query.equal('user_id', userId),
     sdk.Query.limit(1),
-  ]);
+  ], transactionId);
   return existing.documents[0] || null;
 }
 
-async function writeSubscription(databases, userId, patch) {
-  const existing = await findSubscription(databases, userId);
+async function writeSubscription(databases, userId, patch, transactionId) {
+  const existing = await findSubscription(databases, userId, transactionId);
   const payloads = [
     patch,
     Object.fromEntries(Object.entries(patch).filter(([key]) => key !== 'coupon_code')),
@@ -94,12 +106,12 @@ async function writeSubscription(databases, userId, patch) {
   for (const payload of payloads) {
     try {
       if (existing) {
-        return await databases.updateDocument(DB_ID, 'subscriptions', existing.$id, payload, perms);
+        return await databases.updateDocument(DB_ID, 'subscriptions', existing.$id, payload, perms, transactionId);
       }
       return await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), {
         user_id: userId,
         ...payload,
-      }, perms);
+      }, perms, transactionId);
     } catch (err) {
       lastError = err;
     }
@@ -107,30 +119,142 @@ async function writeSubscription(databases, userId, patch) {
   throw lastError;
 }
 
-async function recordRedemption(databases, userId, coupon, status) {
+function redemptionDocumentId(userId, couponId) {
+  return `cr_${crypto.createHash('sha256').update(`${userId}:${couponId}`).digest('hex').slice(0, 29)}`;
+}
+
+async function findRedemption(databases, userId, coupon, transactionId) {
+  const deterministicId = redemptionDocumentId(userId, coupon.$id);
   try {
-    await databases.createDocument(DB_ID, 'coupon_redemptions', sdk.ID.unique(), {
+    return await databases.getDocument(
+      DB_ID,
+      'coupon_redemptions',
+      deterministicId,
+      [],
+      transactionId,
+    );
+  } catch (err) {
+    if (err?.code !== 404) throw err;
+  }
+
+  // Backward compatibility for redemptions created before deterministic IDs.
+  const existing = await databases.listDocuments(
+    DB_ID,
+    'coupon_redemptions',
+    [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.equal('discount_code_id', coupon.$id),
+      sdk.Query.equal('status', 'redeemed'),
+      sdk.Query.limit(1),
+    ],
+    transactionId,
+  );
+  return existing.documents?.[0] || null;
+}
+
+async function recordRedemption(databases, userId, coupon, redeemedAt, transactionId) {
+  return databases.createDocument(
+    DB_ID,
+    'coupon_redemptions',
+    redemptionDocumentId(userId, coupon.$id),
+    {
       user_id: userId,
       coupon_code: coupon.code,
       discount_code_id: coupon.$id,
-      status,
-      redeemed_at: new Date().toISOString(),
-    });
-  } catch (_) {
-    // Non-critical. The subscription update is the source of truth.
-  }
+      status: 'redeemed',
+      redeemed_at: redeemedAt,
+    },
+    undefined,
+    transactionId,
+  );
 }
 
-async function bumpUses(databases, coupon) {
-  const usesCount = Number(coupon.uses_count ?? coupon.usesCount ?? 0);
-  for (const key of ['uses_count', 'usesCount']) {
-    if (Object.prototype.hasOwnProperty.call(coupon, key)) {
-      try {
-        await databases.updateDocument(DB_ID, 'discount_codes', coupon.$id, { [key]: usesCount + 1 });
-      } catch (_) {}
-      return;
+async function incrementCouponUses(databases, coupon, transactionId) {
+  const maxUses = Number(coupon.max_uses ?? coupon.maxUses ?? 0);
+  const key = Object.prototype.hasOwnProperty.call(coupon, 'usesCount') &&
+    !Object.prototype.hasOwnProperty.call(coupon, 'uses_count')
+    ? 'usesCount'
+    : 'uses_count';
+  await databases.incrementDocumentAttribute(
+    DB_ID,
+    'discount_codes',
+    coupon.$id,
+    key,
+    1,
+    maxUses > 0 ? maxUses : undefined,
+    transactionId,
+  );
+}
+
+function isConflict(error) {
+  return error?.code === 409 || /conflict/i.test(error?.message || '');
+}
+
+async function redeemCouponAtomically(databases, userId, code, now = () => Date.now()) {
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const transaction = await databases.createTransaction(20);
+    let committed = false;
+    try {
+      const coupon = await findCoupon(databases, code, transaction.$id);
+      if (!coupon) {
+        await databases.updateTransaction(transaction.$id, false, true);
+        return { outcome: 'invalid' };
+      }
+
+      const previousRedemption = await findRedemption(databases, userId, coupon, transaction.$id);
+      if (previousRedemption) {
+        const subscription = await findSubscription(databases, userId, transaction.$id);
+        await databases.updateTransaction(transaction.$id, false, true);
+        if (!subscription || subscription.coupon_code !== code) {
+          return { outcome: 'inconsistent' };
+        }
+        return {
+          outcome: 'already_redeemed',
+          plan: subscription.effective_plan || subscription.trial_plan || subscription.plan || 'free',
+          trialExpiresAt: subscription.trial_expires_at || null,
+        };
+      }
+
+      if (!couponActive(coupon)) {
+        await databases.updateTransaction(transaction.$id, false, true);
+        return { outcome: 'invalid' };
+      }
+      const entitlement = resolveCouponEntitlement(coupon);
+      if (!entitlement) {
+        await databases.updateTransaction(transaction.$id, false, true);
+        return { outcome: 'misconfigured' };
+      }
+
+      const nowMs = now();
+      const redeemedAt = new Date(nowMs).toISOString();
+      const trialExpiresAt = new Date(nowMs + entitlement.days * 86400000).toISOString();
+      await writeSubscription(databases, userId, {
+        plan: entitlement.plan,
+        effective_plan: entitlement.plan,
+        status: 'active',
+        trial_plan: entitlement.plan,
+        trial_expires_at: trialExpiresAt,
+        coupon_code: code,
+      }, transaction.$id);
+      await recordRedemption(databases, userId, coupon, redeemedAt, transaction.$id);
+      await incrementCouponUses(databases, coupon, transaction.$id);
+      await databases.updateTransaction(transaction.$id, true, false);
+      committed = true;
+      return {
+        outcome: 'redeemed',
+        plan: entitlement.plan,
+        trialExpiresAt,
+      };
+    } catch (err) {
+      if (!committed) {
+        try { await databases.updateTransaction(transaction.$id, false, true); } catch (_) {}
+      }
+      if (isConflict(err) && attempt < maxAttempts - 1) continue;
+      throw err;
     }
   }
+  throw new Error('Coupon redemption conflict retry exhausted.');
 }
 
 async function validateCoupon(body, res) {
@@ -197,33 +321,39 @@ async function redeemCoupon(body, res) {
     return json(res, { status: 'success', data: { ok: false, success: false, error: 'Enter a coupon code.' } });
   }
 
-  const coupon = await findCoupon(databases, code);
-  if (!coupon || !couponActive(coupon)) {
+  const result = await redeemCouponAtomically(databases, user.$id, code);
+  if (result.outcome === 'invalid') {
     return json(res, { status: 'success', data: { ok: false, success: false, error: 'Invalid or expired coupon code.' } });
   }
+  if (result.outcome === 'misconfigured') {
+    return json(res, {
+      status: 'success',
+      data: {
+        ok: false,
+        success: false,
+        error: 'This coupon is not configured for subscription access.',
+      },
+    }, 422);
+  }
+  if (result.outcome === 'inconsistent') {
+    return json(res, {
+      status: 'error',
+      message: 'This coupon redemption needs support review before it can be retried.',
+    }, 409);
+  }
 
-  const normalized = normalizeCoupon(coupon);
-  const plan = normalized.plan_override || body.product_plan || 'premium';
-  const days = Number(normalized.plan_days || body.plan_days || 30);
-  const trialExpiresAt = new Date(Date.now() + Math.max(1, days) * 86400000).toISOString();
-
-  await writeSubscription(databases, user.$id, {
-    plan,
-    effective_plan: plan,
-    status: 'active',
-    trial_plan: plan,
-    trial_expires_at: trialExpiresAt,
-    coupon_code: code,
-  });
-  await recordRedemption(databases, user.$id, coupon, 'redeemed');
-  await bumpUses(databases, coupon);
+  const { plan, trialExpiresAt } = result;
+  const alreadyRedeemed = result.outcome === 'already_redeemed';
 
   return json(res, {
     status: 'success',
     data: {
       ok: true,
       success: true,
-      message: `Coupon applied. ${plan} is active until ${trialExpiresAt.slice(0, 10)}.`,
+      already_redeemed: alreadyRedeemed,
+      message: alreadyRedeemed
+        ? `This coupon was already applied to your account${trialExpiresAt ? ` until ${trialExpiresAt.slice(0, 10)}` : ''}.`
+        : `Coupon applied. ${plan} is active until ${trialExpiresAt.slice(0, 10)}.`,
       plan,
       trial_ends_at: trialExpiresAt,
       coupon_code: code,
@@ -244,4 +374,12 @@ module.exports = async ({ req, res, error }) => {
     error(`Coupons error: ${err.message}`);
     return json(res, { status: 'error', message: 'Coupons function failed.' }, 500);
   }
+};
+
+module.exports.__test = {
+  MAX_COUPON_DAYS,
+  REDEEMABLE_PLANS,
+  resolveCouponEntitlement,
+  redemptionDocumentId,
+  redeemCouponAtomically,
 };

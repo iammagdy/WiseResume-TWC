@@ -32,6 +32,7 @@ import { buildDiffHighlight, type HighlightSegment } from '@/lib/smartFit/diffHi
 import type { SmartFitPlan, SmartFitSelection, LayoutFitProposal, RewriteFailureInfo } from '@/lib/smartFit/types';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import editorLogger from '@/lib/editorLogger';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 interface SmartFitWizardSheetProps {
   open: boolean;
@@ -106,6 +107,7 @@ export function SmartFitWizardSheet({
   const [targetPages, setTargetPages] = useState<1 | 2 | 3>(
     targetPagesProp ?? currentResume?.customization?.targetPageCount ?? 1,
   );
+  const redactedResume = useRedactedResume(currentResume);
   const [view, setView] = useState<ViewState>('intro');
   const [analyzeStage, setAnalyzeStage] = useState<AnalyzeStage>('measuring');
   const [convergeProgress, setConvergeProgress] = useState<ConvergeProgress | null>(null);
@@ -270,7 +272,7 @@ export function SmartFitWizardSheet({
       setAnalyzeStage('asking-ai');
       const result = await executeAI(async () => {
         return runSmartFit({
-          resume: currentResume,
+          resume: redactedResume ?? currentResume,
           jobDescription,
           targetPages,
           currentPages,
@@ -334,7 +336,7 @@ export function SmartFitWizardSheet({
       toast.error(err instanceof Error ? err.message : 'Failed to analyze. Please try again.');
       setView('intro');
     }
-  }, [currentResume, exportApi, executeAI, jobDescription, measureScratch, targetPages]);
+  }, [currentResume, exportApi, executeAI, jobDescription, measureScratch, redactedResume, targetPages]);
 
   const { rescoreAfterApply } = useAIApplyEffects(currentResumeId ?? undefined);
 
@@ -407,7 +409,7 @@ export function SmartFitWizardSheet({
     } finally {
       setIsApplying(false);
     }
-  }, [currentResume, currentResumeId, handleUndo, measureScratch, onOpenChange, plan, rescoreAfterApply, saveVersion, selection, targetPages, updateResume]);
+  }, [currentResume, currentResumeId, handleUndo, measureScratch, onExportOnePage, onOpenChange, plan, rescoreAfterApply, saveVersion, selection, targetPages, updateResume]);
 
   const toggleSel = useCallback(<K extends 'rewrites' | 'drops' | 'collapses'>(key: K, id: string) => {
     setSelection(prev => {
@@ -426,7 +428,7 @@ export function SmartFitWizardSheet({
     setIsRetryingRewrites(true);
     try {
       const { rewrites, rewriteFailure } = await retrySmartFitRewrites(
-        currentResume,
+        redactedResume ?? currentResume,
         jobDescription,
         targetPages,
         plan.pagesAfterLayout,
@@ -446,7 +448,7 @@ export function SmartFitWizardSheet({
     } finally {
       setIsRetryingRewrites(false);
     }
-  }, [currentResume, isRetryingRewrites, jobDescription, plan, targetPages]);
+  }, [currentResume, isRetryingRewrites, jobDescription, plan, redactedResume, targetPages]);
 
   const acceptAll = useCallback(() => {
     if (!plan) return;

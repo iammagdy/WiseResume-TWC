@@ -83,7 +83,7 @@ export default function ResumeDetailPage() {
     setCurrentResumeId(dbResume.$id);
     setSelectedTemplate(dbResume.template_id as TemplateId);
     navigate(`/preview?id=${encodeURIComponent(dbResume.$id)}&action=download`, { replace: true });
-  }, [dbResume, isLoading]);
+  }, [dbResume, isLoading, navigate, searchParams, setCurrentResume, setCurrentResumeId, setSearchParams, setSelectedTemplate]);
 
   if (isLoading) {
     return (
@@ -275,8 +275,8 @@ export default function ResumeDetailPage() {
                 <div className="flex flex-col items-center gap-1">
                   {healthScore ? (
                     <>
-                      <ScoreRing score={healthScore.overallScore} size={56} strokeWidth={4} />
-                      <span className="text-[10px] font-semibold text-muted-foreground">ATS</span>
+                      <ScoreRing score={healthScore.overallScore} size={56} strokeWidth={4} label="Resume readiness" />
+                      <span className="text-[10px] font-semibold text-muted-foreground">Ready</span>
                     </>
                   ) : (
                     <button
@@ -285,12 +285,12 @@ export default function ResumeDetailPage() {
                     }}
                       disabled={scoringId === dbResume.id}
                       className="flex flex-col items-center gap-1"
-                      aria-label="Score resume"
+                      aria-label="Check resume readiness"
                     >
                       <div className="w-14 h-14 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
                         {scoringId === dbResume.id ? <MiniSpinner size={20} /> : <BarChart3 className="w-5 h-5 text-muted-foreground/50" />}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">Score</span>
+                      <span className="text-[10px] text-muted-foreground">Check</span>
                     </button>
                   )}
                 </div>
@@ -320,7 +320,7 @@ export default function ResumeDetailPage() {
                     }}
                   >
                     {scoringId === dbResume.id ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
-                    Re-score
+                    Re-check
                   </Button>
                   <Button
                     size="sm"
@@ -367,7 +367,7 @@ export default function ResumeDetailPage() {
           <Collapsible>
             <Card>
               <CollapsibleTrigger className="w-full flex items-center justify-between p-4">
-                <span className="text-sm font-semibold text-foreground">Score History</span>
+                <span className="text-sm font-semibold text-foreground">Readiness history</span>
                 <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>svg&]:rotate-180" />
               </CollapsibleTrigger>
               <CollapsibleContent>

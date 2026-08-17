@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 interface SetTargetJobSheetProps {
   open: boolean;
@@ -64,6 +65,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
   const [isSavingMatch, setIsSavingMatch] = useState(false);
 
   const resumeData = useMemo(() => dbToResumeData(resume), [resume]);
+  const redactedResume = useRedactedResume(resumeData);
 
   const handleAnalyze = async () => {
     if (!jobDescription.trim()) {
@@ -76,7 +78,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
     try {
       const result = await executeAI(async () => {
         return await tailorResumeWithProgress(
-          resumeData,
+          redactedResume ?? resumeData,
           jobDescription,
           (p) => setProgress(p as EnhancedTailorProgress),
           'moderate'

@@ -28,6 +28,7 @@ import {
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
+import { useSettingsStore } from '@/store/settingsStore';
 
 type FilterType = 'originals' | 'tailored';
 
@@ -69,10 +70,15 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
       const { exportResumePdfFromData } = await import('@/lib/exportResumePdf');
       const { downloadFile, validatePdfBlob } = await import('@/lib/downloadUtils');
       const resumeData = dbToResumeData(resume);
+      const { pdfDefaults } = useSettingsStore.getState();
       const blob = await exportResumePdfFromData(
         resumeData,
         migrateTemplateId(resume.template_id),
-        { showPageNumbers: true, showBranding: true },
+        {
+          showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+          pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+          showBranding: pdfDefaults.showBranding ?? true,
+        },
       );
       await validatePdfBlob(blob);
       const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
@@ -175,7 +181,10 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); resumeId && handleTap(resumeId); }}>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        if (resumeId) handleTap(resumeId);
+                      }}>
                         <Eye className="w-4 h-4 mr-2" />Preview
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => {

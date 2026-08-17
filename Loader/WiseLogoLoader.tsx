@@ -24,6 +24,8 @@ type Part = {
   img?: string;
 };
 
+type LoaderPartStyle = React.CSSProperties & { '--rot': string };
+
 // layout is authored on a 200×200 grid, then scaled by `size`
 const PARTS: Part[] = [
   { k: "bg",    x: 0,   y: 0,   w: 200, h: 200,  z: 1 },
@@ -61,7 +63,7 @@ export default function WiseLogoLoader({
       <style>{css}</style>
       {PARTS.map((p, i) => {
         const sgn = i % 2 ? 1 : -1;
-        const base: React.CSSProperties = {
+        const base: LoaderPartStyle = {
           position: "absolute",
           left: p.x * u,
           top: p.y * u,
@@ -71,7 +73,7 @@ export default function WiseLogoLoader({
           transformOrigin: "center",
           willChange: "transform, opacity",
           // custom props consumed by the @keyframes below
-          ["--rot" as any]: `${sgn * 9}deg`,
+          '--rot': `${sgn * 9}deg`,
           animation: `wiseAsm ${durationMs}ms cubic-bezier(.34,1.56,.64,1) ${(-i * 0.11 * (durationMs / 3800)).toFixed(3)}s infinite`,
         };
 

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { wisehireOwnerPermissions } from '@/lib/wisehire/documentPermissions';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -103,6 +104,7 @@ export function useAddTalentToPool() {
           source: 'talent_pool',
           is_deleted: false,
         },
+        wisehireOwnerPermissions(userId),
       );
 
       return { id: doc.$id, userId };

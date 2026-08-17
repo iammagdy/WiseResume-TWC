@@ -6,6 +6,7 @@ import { calcOverallScore, calcContactScore, calcSummaryScore, calcExperienceSco
 import { ProgressRing } from '@/components/home/ProgressRing';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
+import type { ResumeData } from '@/types/resume';
 
 const SECTIONS = [
   { key: 'contact', label: 'Contact' },
@@ -15,7 +16,7 @@ const SECTIONS = [
   { key: 'skills', label: 'Skills' },
 ] as const;
 
-const scoreFns: Record<string, (r: any) => number> = {
+const scoreFns: Record<string, (r: ResumeData) => number> = {
   contact: r => calcContactScore(r.contactInfo),
   summary: r => calcSummaryScore(r.summary),
   experience: r => calcExperienceScore(r.experience),

@@ -49,7 +49,7 @@ describe('useRemoteJobs Hook', () => {
       user: { id: 'user_123', email: 'test@example.com' },
       isAuthenticated: true,
       authReady: true,
-    } as any);
+    } as ReturnType<typeof useAuthHook.useAuth>);
 
     // Mock createJWT and function execution to reject so it falls back to direct query
     vi.mocked(account.createJWT).mockRejectedValue(new Error('no jwt'));
@@ -68,7 +68,7 @@ describe('useRemoteJobs Hook', () => {
         },
       ],
       total: 1,
-    } as any);
+    } as Awaited<ReturnType<typeof databases.listDocuments>>);
 
     // Render hook
     const { result } = renderHook(() => useRemoteJobs({}), { wrapper });
@@ -85,12 +85,10 @@ describe('useRemoteJobs Hook', () => {
     expect(secondCall).toBeDefined();
     if (secondCall) {
       expect(secondCall[0]).toBe('main');
-      const queries = secondCall[2] as any[];
-      const userQuery = queries.find(q => q.attribute === 'user_id' || (typeof q === 'string' && q.includes('user_id')));
+      const queries = secondCall[2] ?? [];
+      const userQuery = queries.find(q => q.includes('user_id'));
       expect(userQuery).toBeDefined();
-      if (typeof userQuery === 'object') {
-        expect(userQuery.values[0]).toBe('user_123');
-      } else {
+      if (userQuery) {
         expect(userQuery).toContain('user_123');
       }
     }
@@ -101,11 +99,11 @@ describe('useRemoteJobs Hook', () => {
     vi.mocked(databases.listDocuments).mockResolvedValueOnce({
       documents: [],
       total: 0,
-    } as any);
+    } as Awaited<ReturnType<typeof databases.listDocuments>>);
 
     vi.mocked(databases.createDocument).mockResolvedValue({
       $id: 'new_action_id',
-    } as any);
+    } as Awaited<ReturnType<typeof databases.createDocument>>);
 
     let trackRes;
     await act(async () => {

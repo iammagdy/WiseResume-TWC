@@ -4,7 +4,7 @@ import { isTailoredResume } from '@/lib/resumeLineage';
 
 const SEVEN_DAYS_MS = 7 * 86_400_000;
 
-/** Mean ATS % across resumes that have a scored result (> 0). */
+/** Mean readiness % across resumes that have a checked result (> 0). */
 export function computeCurrentAtsAverage(
   healthScores: Record<string, ResumeHealthScore>,
   activeResumeIds: string[],
@@ -47,7 +47,7 @@ export interface PortfolioAtsChartPoint {
 }
 
 /**
- * Portfolio ATS average after each scoring event (active resumes only).
+ * Portfolio readiness average after each check event (active resumes only).
  * Fixed-scale bar chart data — not min/max normalized.
  */
 export function buildPortfolioAtsChartSeries(
@@ -96,7 +96,7 @@ export function buildPortfolioAtsChartSeries(
 }
 
 /**
- * Change in portfolio ATS average vs 7 days ago (percentage points).
+ * Change in portfolio readiness average vs 7 days ago (percentage points).
  * Requires historical portfolio average at that date.
  */
 export function computePortfolioAtsDelta(
@@ -126,7 +126,7 @@ export function countTailoredResumesThisWeek(
   }).length;
 }
 
-/** Total missing keywords summed across scored resumes (live ATS keywordGaps). */
+/** Total role-keyword gaps, when a separate job-specific analysis supplied them. */
 export function computeTotalMissingKeywords(
   healthScores: Record<string, ResumeHealthScore>,
   activeResumeIds: string[],

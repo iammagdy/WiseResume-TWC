@@ -26,12 +26,18 @@ vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({
   default: 'mock-worker.js',
 }));
 
-const { invokeMock } = vi.hoisted(() => ({
+const { invokeMock, settingsState } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
+  settingsState: { redactPiiBeforeAI: true },
 }));
 vi.mock('@/lib/appwrite-functions', () => ({
   appwriteFunctions: {
     invoke: invokeMock,
+  },
+}));
+vi.mock('@/store/settingsStore', () => ({
+  useSettingsStore: {
+    getState: () => settingsState,
   },
 }));
 
@@ -194,6 +200,7 @@ describe('PDFParseError (D1)', () => {
 describe('parseTextWithAI (D1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    settingsState.redactPiiBeforeAI = true;
   });
 
   afterEach(() => {
@@ -218,6 +225,70 @@ describe('parseTextWithAI (D1)', () => {
     expect(result.summary).toBe('AI-parsed summary');
     expect(result.contactInfo.fullName).toBe('Jane Doe');
     expect(result.templateId).toBe('wiseresume-classic');
+  });
+
+  it('redacts contact details before AI parsing and restores locally parsed contact data', async () => {
+    invokeMock.mockResolvedValueOnce({
+      data: {
+        contactInfo: {
+          fullName: '[Name]',
+          email: '[email@example.com]',
+          phone: '[Phone]',
+          location: '[Location]',
+        },
+        summary: 'AI-parsed summary',
+        experience: [],
+        education: [],
+        skills: ['React'],
+        certifications: [],
+        templateId: 'modern',
+      },
+      error: null,
+    });
+
+    const source = [
+      'Jane Doe',
+      'jane.private@example.com | +1 415-555-0199 | San Francisco, CA',
+      'https://linkedin.com/in/jane-private',
+      '',
+      'SUMMARY',
+      'React engineer.',
+    ].join('\n');
+
+    const result = await parseTextWithAI(source);
+    const invocation = invokeMock.mock.calls[0]?.[1] as { body: { text: string } };
+
+    expect(invocation.body.text).not.toContain('Jane Doe');
+    expect(invocation.body.text).not.toContain('jane.private@example.com');
+    expect(invocation.body.text).not.toContain('415-555-0199');
+    expect(invocation.body.text).not.toContain('jane-private');
+    expect(invocation.body.text).toContain('[email@example.com]');
+    expect(result.contactInfo.fullName).toContain('Jane');
+    expect(result.contactInfo.email).toBe('jane.private@example.com');
+    expect(result.contactInfo.phone).toContain('415-555-0199');
+  });
+
+  it('preserves the original text when privacy redaction is disabled', async () => {
+    settingsState.redactPiiBeforeAI = false;
+    invokeMock.mockResolvedValueOnce({
+      data: {
+        contactInfo: { fullName: 'Jane Doe', email: 'jane@example.com', phone: '', location: '' },
+        summary: 'AI-parsed summary',
+        experience: [],
+        education: [],
+        skills: ['React'],
+        certifications: [],
+        templateId: 'modern',
+      },
+      error: null,
+    });
+
+    const source = 'Jane Doe\njane@example.com\n\nSUMMARY\nReact engineer.';
+    await parseTextWithAI(source);
+
+    expect(invokeMock).toHaveBeenCalledWith('parse-resume', {
+      body: { text: source, fileType: 'text/plain' },
+    });
   });
 
   it('falls back to local parser when the AI payload is malformed', async () => {

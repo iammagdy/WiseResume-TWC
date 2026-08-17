@@ -284,11 +284,11 @@ export const DashboardStats = memo(function DashboardStats({
 
     t('app.dashboardStats.tip4', 'Use action verbs like "led", "built", and "improved" to stand out.'),
 
-    t('app.dashboardStats.tip5', 'Adding relevant keywords from the job posting helps you pass ATS filters.'),
+    t('app.dashboardStats.tip5', 'Mirror relevant job-posting terms only when they truthfully describe your experience.'),
 
     t('app.dashboardStats.tip6', 'Proofread your resume twice — typos are one of the fastest ways to get screened out.'),
 
-    t('app.dashboardStats.tip7', 'Quantify achievements: "Increased revenue by 25%" reads stronger than vague claims.'),
+    t('app.dashboardStats.tip7', 'When verified, a specific outcome such as "Increased revenue by 25%" reads stronger than a vague claim.'),
 
     t('app.dashboardStats.tip8', 'Update your resume every few months, even if you\'re not job hunting.'),
 
@@ -366,7 +366,7 @@ export const DashboardStats = memo(function DashboardStats({
 
         value: avgScore > 0 ? `${avgScore}%` : isScoring ? '…' : '—',
 
-        label: t('app.dashboardStats.atsAverage', 'ATS average'),
+        label: t('app.dashboardStats.atsAverage', 'Resume readiness'),
 
         accent: avgScore >= 80 ? 'text-success' : avgScore >= 50 ? 'text-warning' : 'text-muted-foreground',
 

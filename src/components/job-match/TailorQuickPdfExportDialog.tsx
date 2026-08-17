@@ -122,7 +122,8 @@ export function TailorQuickPdfExportDialog({
 
   const { pdfDefaults } = useSettingsStore();
 
-  const { isPremium } = usePlan();
+  const { isPremium, subscriptionVerified } = usePlan();
+  const canRemoveBranding = isPremium && subscriptionVerified;
 
   const isMobile = useIsMobile(768);
 
@@ -172,7 +173,7 @@ export function TailorQuickPdfExportDialog({
 
     setShowPageNumbers(pdfDefaults.showPageNumbers ?? true);
 
-    setShowBranding(pdfDefaults.showBranding ?? true);
+    setShowBranding(canRemoveBranding ? (pdfDefaults.showBranding ?? true) : true);
 
     resetProgress();
 
@@ -188,7 +189,7 @@ export function TailorQuickPdfExportDialog({
 
     }));
 
-  }, [open, jobTitle, company, resume, pdfDefaults.showBranding, pdfDefaults.showPageNumbers, resetProgress]);
+  }, [open, jobTitle, company, resume, pdfDefaults.showBranding, pdfDefaults.showPageNumbers, canRemoveBranding, resetProgress]);
 
 
 
@@ -356,7 +357,9 @@ export function TailorQuickPdfExportDialog({
 
         showPageNumbers,
 
-        showBranding: isPremium ? showBranding : true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+
+        showBranding: canRemoveBranding ? showBranding : true,
 
         onProgress,
 
@@ -440,7 +443,7 @@ export function TailorQuickPdfExportDialog({
 
   }, [
 
-    isPremium,
+    canRemoveBranding,
 
     onOpenChange,
 
@@ -457,6 +460,8 @@ export function TailorQuickPdfExportDialog({
     showBranding,
 
     showPageNumbers,
+
+    pdfDefaults.pageNumberFormat,
 
     pageBreakTemplateEl,
 
@@ -624,7 +629,7 @@ export function TailorQuickPdfExportDialog({
 
               </div>
 
-              {isPremium && (
+              {canRemoveBranding && (
 
                 <div className="jmw-pdf-export-dialog__option">
 

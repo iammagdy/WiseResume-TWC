@@ -39,14 +39,14 @@ export interface TailorResult {
 }
 
 const FUN_FACTS = [
-  "💡 Tailored resumes are significantly more likely to pass initial screening (Jobscan, 2023)",
-  "📊 Studies suggest most resumes are filtered out before a recruiter sees them — keywords matter",
-  "🎯 Research shows hiring managers spend roughly 6–10 seconds on an initial resume scan (The Ladders)",
-  "✨ Starting bullets with strong action verbs makes achievements clearer and more impactful",
-  "🔑 Including measurable results helps recruiters quickly gauge the scope of your contributions",
-  "🏆 LinkedIn data shows profiles with diverse skill sets receive more recruiter outreach",
-  "📈 Quantified achievements give hiring managers concrete evidence of your impact",
-  "🚀 Matching keywords from the job description improves ATS compatibility (Jobscan research)",
+  'AI suggestions remain a reviewable draft until you choose to apply them.',
+  'Tailoring preserves source IDs, dates, employers, titles, and links.',
+  'Missing skills remain recommendations, not claims about your experience.',
+  'Starting bullets with clear action verbs can make responsibilities easier to scan.',
+  'Numbers must already exist in your source evidence or be provided by you.',
+  'Review every company name, date, skill, and outcome before applying changes.',
+  'Keyword overlap is not an employer ATS score or a selection guarantee.',
+  'Your source resume remains the authority for every factual claim.',
 ];
 
 const ENHANCED_STEPS: { step: EnhancedTailorStep; message: string; funFact: string }[] = [
@@ -54,9 +54,9 @@ const ENHANCED_STEPS: { step: EnhancedTailorStep; message: string; funFact: stri
   { step: 'detecting_industry', message: 'Detecting industry patterns...', funFact: FUN_FACTS[1] },
   { step: 'matching_experience', message: 'Matching your experience to requirements...', funFact: FUN_FACTS[2] },
   { step: 'rewriting_summary', message: 'Crafting a powerful summary...', funFact: FUN_FACTS[3] },
-  { step: 'optimizing_skills', message: 'Optimizing skills for ATS...', funFact: FUN_FACTS[4] },
-  { step: 'transforming_bullets', message: 'Transforming achievements with metrics...', funFact: FUN_FACTS[5] },
-  { step: 'calculating_ats', message: 'Calculating ATS keyword match...', funFact: FUN_FACTS[6] },
+  { step: 'optimizing_skills', message: 'Aligning verified skills...', funFact: FUN_FACTS[4] },
+  { step: 'transforming_bullets', message: 'Strengthening source-supported achievements...', funFact: FUN_FACTS[5] },
+  { step: 'calculating_ats', message: 'Calculating literal keyword overlap...', funFact: FUN_FACTS[6] },
   { step: 'generating_interview_prep', message: 'Generating interview talking points...', funFact: FUN_FACTS[7] },
   { step: 'finalizing', message: 'Finalizing your supercharged resume...', funFact: FUN_FACTS[0] },
 ];
@@ -217,10 +217,10 @@ export async function generateCoverLetter(
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional',
   signal?: AbortSignal
 ): Promise<string> {
-  const { data, error } = await appwriteFunctions.invoke('generate-cover-letter', {
+  const { data, error } = await appwriteFunctions.invoke<{ coverLetter: string; error?: string; message?: string }>('generate-cover-letter', {
     body: { resume, jobDescription, tone },
-    ...(signal ? { options: { signal } } : {}),
-  } as any);
+    ...(signal ? { signal } : {}),
+  });
 
   if (error) {
     console.error('Cover letter error:', error);
@@ -230,6 +230,7 @@ export async function generateCoverLetter(
     throw new Error(data.message || data.error);
   }
 
+  if (!data?.coverLetter) throw new Error('Cover letter service returned no content');
   return data.coverLetter;
 }
 

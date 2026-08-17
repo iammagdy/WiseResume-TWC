@@ -5,7 +5,7 @@ import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
-import { useResumes, type DatabaseResume } from '@/hooks/useResumes';
+import { dbToResumeData, useResumes, type DatabaseResume } from '@/hooks/useResumes';
 import { deriveResumeCompletion, PORTFOLIO_SKILL_THRESHOLD } from '@/lib/portfolioCompletion';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
@@ -57,6 +57,9 @@ import { PortfolioTabStrip, type PortfolioEditorTab } from '@/components/portfol
 import { PortfolioQuickActions } from '@/components/portfolio/editor/PortfolioQuickActions';
 import { PortfolioPreviewPanel } from '@/components/portfolio/editor/PortfolioPreviewPanel';
 import { useLocale } from '@/i18n/LocaleProvider';
+import { useAIAction } from '@/hooks/useAIAction';
+import { useSettingsStore } from '@/store/settingsStore';
+import { redactResumeForAI, restoreResumeContactPlaceholders } from '@/lib/piiRedact';
 import '@/components/portfolio/editor/portfolio-editor-workspace.css';
 
 
@@ -73,6 +76,13 @@ const PORTFOLIO_PASSWORD_MIN_LENGTH = 8;
 // writes to portfolio_draft on every keystroke (and then ambush the user
 // at publish time, far from where the bloat was introduced).
 const PORTFOLIO_EXTRAS_MAX_BYTES = 200_000;
+const PORTFOLIO_TAB_INDEX: Record<PortfolioEditorTab, number> = {
+  setup: 0,
+  content: 1,
+  design: 2,
+  more: 3,
+  visitors: 4,
+};
 
 export default function PortfolioEditorPage() {
   const { t } = useLocale();
@@ -83,15 +93,24 @@ export default function PortfolioEditorPage() {
   const { data: resumeDocuments = [] } = useResumes();
   const resumes = useMemo(
     () =>
-      resumeDocuments.map((doc: DatabaseResume) => ({
-        ...doc,
-        id: doc.$id,
-      })),
+      resumeDocuments.map((doc: DatabaseResume) => {
+        const normalized = dbToResumeData(doc);
+        const documentId = doc.$id || normalized.id || '';
+        return {
+          ...normalized,
+          id: documentId,
+          $id: documentId,
+          is_primary: doc.is_primary,
+          updated_at: doc.$updatedAt,
+        };
+      }),
     [resumeDocuments],
   );
   const usernameRules = usePortfolioUsernameRules(user?.id);
   const { saveSnapshot } = usePortfolioHistory(user?.id);
   const queryClient = useQueryClient();
+  const redactPiiBeforeAI = useSettingsStore(state => state.redactPiiBeforeAI);
+  const { execute: executePortfolioAI } = useAIAction({ operation: 'portfolio-bio' });
 
   // Collapsible sections state - all collapsed by default
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
@@ -217,13 +236,12 @@ export default function PortfolioEditorPage() {
     passwordEnabled, passwordHash, customDomain, contactFormEnabled,
   ]);
 
-  const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3, visitors: 4 } as const;
   const directionRef = useRef(0);
   const prevTabRef = useRef(activeTab);
   const reducedMotion = useMemo(() => getSafeMatchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
   const handleTabChange = useCallback((tab: PortfolioEditorTab) => {
-    directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
+    directionRef.current = PORTFOLIO_TAB_INDEX[tab] > PORTFOLIO_TAB_INDEX[prevTabRef.current] ? 1 : -1;
     prevTabRef.current = tab;
     haptics.light();
     setActiveTab(tab);
@@ -231,7 +249,7 @@ export default function PortfolioEditorPage() {
       const tabEl = document.getElementById(`portfolio-tab-${tab}`);
       tabEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
-  }, [tabIndexMap]);
+  }, []);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -365,7 +383,7 @@ export default function PortfolioEditorPage() {
         user_id: user?.id ?? null,
       })
       .catch(() => { /* fire-and-forget - ignore errors */ });
-  }, [premiumHandles]);
+  }, [premiumHandles, user?.id]);
 
   // Capture snapshot after profile syncs to local state
   useEffect(() => {
@@ -490,7 +508,7 @@ export default function PortfolioEditorPage() {
   // Init selectedResumeId
   useEffect(() => {
     if (resumes.length > 0 && !selectedResumeId) {
-      const hasData = (r: typeof resumes[0]) => !!(r.summary || r.experience && (r.experience as unknown[]).length > 0);
+      const hasData = (r: typeof resumes[0]) => Boolean(r.summary || r.experience.length > 0);
       if (profile?.portfolioResumeId && resumes.some((r) => r.id === profile.portfolioResumeId)) {
         setSelectedResumeId(profile.portfolioResumeId);
       } else {
@@ -536,7 +554,7 @@ export default function PortfolioEditorPage() {
       }
     }, 500);
     return () => {if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);};
-  }, [username, usernameError, user, profile?.username]);
+  }, [username, usernameError, user, profile?.username, usernameRules.min_length]);
 
 
 
@@ -585,22 +603,30 @@ export default function PortfolioEditorPage() {
       throw new Error("Resume data not available yet. Please wait a moment.");
     }
 
-    const { data, error } = await appwriteFunctions.invoke('generate-portfolio-bio', {
-      body: {
-        action,
-        summary: selectedResume?.summary || '',
-        fullName: profile?.fullName || '',
-        jobTitle: profile?.jobTitle || '',
-        experience: selectedResume?.experience || [],
-        skills: selectedResume?.skills || [],
-        careerLevel: profile?.careerLevel || 'mid',
-        ...extraBody
-      },
+    const providerResume = redactResumeForAI(selectedResume, redactPiiBeforeAI);
+    const data = await executePortfolioAI(async () => {
+      const { data: responseData, error } = await appwriteFunctions.invoke('generate-portfolio-bio', {
+        body: {
+          action,
+          summary: providerResume.summary || '',
+          fullName: providerResume.contactInfo.fullName || '',
+          jobTitle: profile?.jobTitle || '',
+          experience: providerResume.experience || [],
+          skills: providerResume.skills || [],
+          careerLevel: profile?.careerLevel || 'mid',
+          ...extraBody,
+        },
+      });
+      if (error) throw new Error(error.message || 'AI request failed');
+      if (responseData?.error) throw new Error(responseData.error || 'AI request failed');
+      return responseData;
     });
-    if (error) throw new Error(error.message || 'AI request failed');
-    if (data?.error) throw new Error(data.error || 'AI request failed');
+    if (!data) return null;
     invalidateAiCreditQueries(queryClient);
-    return data;
+    return restoreResumeContactPlaceholders(data, {
+      ...selectedResume.contactInfo,
+      fullName: profile?.fullName || selectedResume.contactInfo.fullName,
+    });
   };
 
   const handleGenerateBio = async () => {
@@ -626,7 +652,9 @@ export default function PortfolioEditorPage() {
     setGeneratingBio(true);
     haptics.light();
     try {
-      const { bio: generatedBio } = await callPortfolioAI('bio', currentResumeId);
+      const response = await callPortfolioAI('bio', currentResumeId);
+      if (!response) return;
+      const { bio: generatedBio } = response;
       setBio(generatedBio);
       toast.success('Bio generated!');
     } catch (err) {
@@ -643,7 +671,9 @@ export default function PortfolioEditorPage() {
     setGeneratingSEO(true);
     haptics.light();
     try {
-      const { metaTitle: t, metaDescription: d } = await callPortfolioAI('seo');
+      const response = await callPortfolioAI('seo');
+      if (!response) return;
+      const { metaTitle: t, metaDescription: d } = response;
       if (t) setMetaTitle(t);
       if (d) setMetaDescription(d);
       toast.success('SEO meta generated!');
@@ -661,22 +691,26 @@ export default function PortfolioEditorPage() {
     if (!targetLanguage) return null;
     if (!silent) setTranslating(true);
     try {
-      const { data, error } = await appwriteFunctions.invoke('generate-portfolio-bio', {
-        body: {
-          action: 'translate',
-          targetLanguage,
-          bio,
-          portfolioSummary,
-          highlights: highlights.length > 0 ? highlights : undefined,
-          services: services.length > 0 ? services.map((s: { id: string; title: string; description?: string }) => ({ id: s.id, title: s.title, description: s.description })) : undefined,
-          testimonials: testimonials.length > 0 ? testimonials.map((t: { id: string; quote: string }) => ({ id: t.id, quote: t.quote })) : undefined,
-          pinnedProjectDescription: pinnedProject?.description || undefined,
-          caseStudies: caseStudies.length > 0 ? caseStudies.map((cs: { id: string; title: string; challenge: string; outcome: string }) => ({ id: cs.id, title: cs.title, challenge: cs.challenge, outcome: cs.outcome })) : undefined,
-          portfolioCertifications: portfolioCertifications.length > 0 ? portfolioCertifications.map((c: { id: string; name: string; issuer: string }) => ({ id: c.id, name: c.name, issuer: c.issuer })) : undefined,
-        },
+      const data = await executePortfolioAI(async () => {
+        const { data: responseData, error } = await appwriteFunctions.invoke('generate-portfolio-bio', {
+          body: {
+            action: 'translate',
+            targetLanguage,
+            bio,
+            portfolioSummary,
+            highlights: highlights.length > 0 ? highlights : undefined,
+            services: services.length > 0 ? services.map((s: { id: string; title: string; description?: string }) => ({ id: s.id, title: s.title, description: s.description })) : undefined,
+            testimonials: testimonials.length > 0 ? testimonials.map((t: { id: string; quote: string }) => ({ id: t.id, quote: t.quote })) : undefined,
+            pinnedProjectDescription: pinnedProject?.description || undefined,
+            caseStudies: caseStudies.length > 0 ? caseStudies.map((cs: { id: string; title: string; challenge: string; outcome: string }) => ({ id: cs.id, title: cs.title, challenge: cs.challenge, outcome: cs.outcome })) : undefined,
+            portfolioCertifications: portfolioCertifications.length > 0 ? portfolioCertifications.map((c: { id: string; name: string; issuer: string }) => ({ id: c.id, name: c.name, issuer: c.issuer })) : undefined,
+          },
+        });
+        if (error) throw new Error(error.message || 'Translation failed');
+        if (responseData?.error) throw new Error(responseData.error || 'Translation failed');
+        return responseData;
       });
-      if (error) throw new Error(error.message || 'Translation failed');
-      if (data?.error) throw new Error(data.error || 'Translation failed');
+      if (!data) return null;
       invalidateAiCreditQueries(queryClient);
       const translations = data?.translations;
       if (translations) {
@@ -702,7 +736,9 @@ export default function PortfolioEditorPage() {
     setGeneratingAvailability(true);
     haptics.light();
     try {
-      const { headline } = await callPortfolioAI('availability');
+      const response = await callPortfolioAI('availability');
+      if (!response) return;
+      const { headline } = response;
       if (headline) setAvailabilityHeadline(headline);
       toast.success('Availability headline generated!');
     } catch (err) {
@@ -726,18 +762,33 @@ export default function PortfolioEditorPage() {
     let completed = 0;
     const toastId = toast.loading('Generating portfolio content (1/3)...');
     try {
-      const { bio: generatedBio } = await callPortfolioAI('bio', selectedResumeId);
+      const response = await callPortfolioAI('bio', selectedResumeId);
+      if (!response) {
+        toast.dismiss(toastId);
+        return;
+      }
+      const { bio: generatedBio } = response;
       if (generatedBio) setBio(generatedBio);
       completed++;
       toast.loading(`Generating portfolio content (${completed + 1}/3)...`, { id: toastId });
 
-      const { metaTitle: t, metaDescription: d } = await callPortfolioAI('seo');
+      const seoResponse = await callPortfolioAI('seo');
+      if (!seoResponse) {
+        toast.dismiss(toastId);
+        return;
+      }
+      const { metaTitle: t, metaDescription: d } = seoResponse;
       if (t) setMetaTitle(t);
       if (d) setMetaDescription(d);
       completed++;
       toast.loading(`Generating portfolio content (${completed + 1}/3)...`, { id: toastId });
 
-      const { headline } = await callPortfolioAI('availability');
+      const availabilityResponse = await callPortfolioAI('availability');
+      if (!availabilityResponse) {
+        toast.dismiss(toastId);
+        return;
+      }
+      const { headline } = availabilityResponse;
       if (headline) setAvailabilityHeadline(headline);
 
       toast.success('Portfolio content generated! Review and publish when ready.', { id: toastId });
@@ -1215,11 +1266,8 @@ export default function PortfolioEditorPage() {
 
   // -- Portfolio Strength ----------------------------------------------------
   const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
-  // Resume `skills`/`experience` arrive from Appwrite as JSON-encoded strings
-  // (resumeDataToDb stores them via JSON.stringify), so deriveResumeCompletion
-  // parses them before counting. Doing Array.isArray on the raw string is
-  // always false, which previously made "Skills" and "Work experience" read as
-  // missing on the completion bar even when the resume was fully populated.
+  // Documents are normalized above; deriveResumeCompletion also tolerates
+  // legacy JSON-encoded values that can remain in an older persisted cache.
   const { hasExperience, hasSkills, skillsCount } = deriveResumeCompletion(selectedResume);
   // Live skill count drives the tip text so the strength card can show
   // "1 more skill needed" immediately as the user edits, not only after save.

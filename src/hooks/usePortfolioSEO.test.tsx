@@ -1,8 +1,9 @@
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { usePortfolioSEO } from "./usePortfolioSEO";
+import type { PublicProfile } from "./usePublicPortfolio";
 
-function TestSEO({ profile }: { profile: any }) {
+function TestSEO({ profile }: { profile: PublicProfile }) {
   usePortfolioSEO(profile);
   return null;
 }

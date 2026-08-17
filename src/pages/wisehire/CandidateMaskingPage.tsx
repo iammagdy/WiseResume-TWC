@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { ShieldCheck, Upload, Download, Trash2, AlertCircle, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShieldCheck, Upload, Download, Trash2, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MaskedCVCard } from '@/components/wisehire/MaskedCVCard';
 import { useMaskCVs, type MaskResult } from '@/hooks/wisehire/useMaskCVs';
-import { useMaskSessions, useInvalidateMaskSessions } from '@/hooks/wisehire/useMaskSessions';
+import { parseMaskResults, useMaskSessions, useInvalidateMaskSessions } from '@/hooks/wisehire/useMaskSessions';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
 import { format } from 'date-fns';
@@ -16,17 +15,25 @@ const MAX_FILE_SIZE_MB = 5;
 
 const SESSION_KEY = 'wisehire_mask_results';
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default function CandidateMaskingPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [results, setResults] = useState<MaskResult[] | null>(() => {
     try {
       const stored = sessionStorage.getItem(SESSION_KEY);
-      return stored ? (JSON.parse(stored) as MaskResult[]) : null;
+      return stored ? parseMaskResults(stored) : null;
     } catch {
       return null;
     }
   });
-  const [byokNeeded, setByokNeeded] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -73,17 +80,14 @@ export default function CandidateMaskingPage() {
   }
 
   async function handleProcess() {
-    setByokNeeded(false);
     setResults(null);
     try {
       const data = await maskCVs.mutateAsync(files);
       setResults(data);
       try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* quota */ }
       invalidateSessions();
-    } catch (err: unknown) {
-      if ((err as Error & { code?: string }).code === 'requires_api_key') {
-        setByokNeeded(true);
-      }
+    } catch {
+      // The mutation owns user-visible errors and privacy-cancellation state.
     }
   }
 
@@ -92,16 +96,16 @@ export default function CandidateMaskingPage() {
     if (!toDownload) return;
     const zip = new JSZip();
     toDownload.forEach((r) => {
-      const highlighted = r.maskedText.replace(/\[([^\]]+)\]/g, (_: string, label: string) =>
-        `<mark style="background:#fef08a;color:#713f12;border-radius:3px;padding:0 3px;font-family:monospace;font-size:.82em;font-weight:700;border:1px solid #fde047">[${label}]</mark>`
+      const highlighted = escapeHtml(r.maskedText).replace(/\[([^\]]+)\]/g, (_: string, label: string) =>
+        `<mark style="background:#fef08a;color:#713f12;border-radius:3px;padding:0 3px;font-family:monospace;font-size:.82em;font-weight:700;border:1px solid #fde047">[${escapeHtml(label)}]</mark>`
       );
-      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${r.label} – Anonymised CV</title>` +
+      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${escapeHtml(r.label)} – De-identification review draft</title>` +
         `<style>body{font-family:Georgia,serif;max-width:750px;margin:40px auto;padding:0 24px;color:#1a202c;line-height:1.75;background:#fff}` +
         `h1{color:#1e40af;font-size:1.25rem}hr{border:none;border-top:1px solid #e2e8f0;margin:20px 0}` +
         `.cv-body{font-size:.9rem;line-height:1.8;color:#374151}.footer{margin-top:40px;font-size:.72rem;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>` +
-        `<body><h1>${r.label}</h1><p style="font-size:.8rem;color:#64748b">Source: ${r.filename} · WiseHire CV Masking</p><hr>` +
+        `<body><h1>${escapeHtml(r.label)}</h1><p style="font-size:.8rem;color:#64748b">File: ${escapeHtml(r.filename)} · WiseHire assisted masking</p><hr>` +
         `<div class="cv-body">${highlighted.replace(/\n/g, '<br>')}</div>` +
-        `<div class="footer">Anonymised for bias-free candidate review.</div></body></html>`;
+        `<div class="footer">Automated de-identification draft. Review the entire document for missed or incorrect redactions before sharing or making a hiring decision.</div></body></html>`;
       zip.file(`${r.label.replace(' ', '_')}_masked.html`, html);
     });
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -116,7 +120,6 @@ export default function CandidateMaskingPage() {
   function handleReset() {
     setFiles([]);
     setResults(null);
-    setByokNeeded(false);
     try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
   }
 
@@ -124,7 +127,6 @@ export default function CandidateMaskingPage() {
     setResults(sessionResults);
     try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionResults)); } catch { /* quota */ }
     setFiles([]);
-    setByokNeeded(false);
   }
 
   const canProcess = files.length > 0 && !maskCVs.isPending;
@@ -136,10 +138,10 @@ export default function CandidateMaskingPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            CV Masking
+            Assisted CV De-identification
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Upload up to {MAX_FILES} PDF CVs — AI strips all personal information so you can share them bias-free.
+            Create review drafts that mask detected direct identifiers in up to {MAX_FILES} text-based PDF CVs.
           </p>
         </div>
 
@@ -213,17 +215,9 @@ export default function CandidateMaskingPage() {
               </p>
             )}
 
-            {byokNeeded && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  Your plan requires an OpenAI or Anthropic API key to use CV Masking.{' '}
-                  <a href="/wisehire/settings" className="underline font-medium">
-                    Add your key in Settings.
-                  </a>
-                </AlertDescription>
-              </Alert>
-            )}
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+              After privacy consent, extracted resume text is sent to WiseHire&apos;s configured AI provider to identify exact redaction candidates. Automated masking can miss or over-redact information; review every line before sharing.
+            </p>
 
             <Button
               onClick={handleProcess}
@@ -233,12 +227,12 @@ export default function CandidateMaskingPage() {
               {maskCVs.isPending ? (
                 <>
                   <MiniSpinner size={16} />
-                  Masking {files.length} CV{files.length !== 1 ? 's' : ''}…
+                Preparing {files.length} draft{files.length !== 1 ? 's' : ''}…
                 </>
               ) : (
                 <>
                   <ShieldCheck className="h-4 w-4" />
-                  Mask All ({files.length})
+                  Prepare Review Drafts ({files.length})
                 </>
               )}
             </Button>
@@ -269,7 +263,7 @@ export default function CandidateMaskingPage() {
           <>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <p className="text-sm font-medium text-muted-foreground">
-                {results.length} CV{results.length !== 1 ? 's' : ''} anonymised
+                {results.length} de-identification draft{results.length !== 1 ? 's' : ''} ready for manual review
               </p>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="outline" onClick={() => handleDownloadAll()} className="gap-1.5">
@@ -319,7 +313,7 @@ export default function CandidateMaskingPage() {
                   >
                     <div>
                       <p className="text-sm font-medium">
-                        {session.results.length} CV{session.results.length !== 1 ? 's' : ''} anonymised
+                        {session.results.length} de-identification draft{session.results.length !== 1 ? 's' : ''}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(session.created_at), 'MMM d, yyyy · h:mm a')}

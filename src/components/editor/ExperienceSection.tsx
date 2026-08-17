@@ -30,10 +30,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 const BoostAllExperienceSheet = lazyWithRetry(() => import('./BoostAllExperienceSheet').then(m => ({ default: m.BoostAllExperienceSheet })));
 const LinkedInOptimizerSheet = lazyWithRetry(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
+const EMPTY_EXPERIENCE: Experience[] = [];
 
 export const ExperienceSection = memo(function ExperienceSection() {
   const { t } = useLocale();
-  const experience = useResumeStore(state => state.currentResume?.experience);
+  const experience = useResumeStore(state => state.currentResume?.experience) ?? EMPTY_EXPERIENCE;
   const summary = useResumeStore(state => state.currentResume?.summary);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
@@ -119,8 +120,6 @@ export const ExperienceSection = memo(function ExperienceSection() {
   } | null>(null);
   const [expQuestionsLoading, setExpQuestionsLoading] = useState(false);
 
-  if (!currentResume || !experience) return null;
-
   const nudge = getNudgeForSection('experience');
 
   const addExperience = () => {
@@ -141,7 +140,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
   };
 
   const useExampleEntry = () => {
-    const rangeParts = experienceExample.dateRange.split(/[\s–\-]+/);
+    const rangeParts = experienceExample.dateRange.split(/[\s–-]+/);
     const exampleExp: Experience = {
       id: uuidv4(),
       company: experienceExample.company,
@@ -186,9 +185,10 @@ export const ExperienceSection = memo(function ExperienceSection() {
 
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedId((prevId) => (prevId === id ? null : id));
-  }, []);
+  }, [setExpandedId]);
 
   const handleAIAction = useCallback(async (actionId: string, exp: Experience) => {
+    if (!currentResume) return;
     // Snapshot the original description for the dialog *now*, but only
     // commit `enhancingExpId` and `originalDescription` to React state once
     // the AI call resolves. Setting these before awaiting `enhance()`
@@ -241,13 +241,13 @@ export const ExperienceSection = memo(function ExperienceSection() {
     setOriginalDescription(targetOriginal);
     setImprovedEntry(entry as typeof improvedEntry);
     setShowDialog(true);
-  }, [enhance, currentResume]);
+  }, [enhance, currentResume, jobDescription]);
 
   const handleRerun = useCallback(async (
     action: 'shorten' | 'improve' | 'generate',
     currentText: string,
   ) => {
-    if (!enhancingExpId) return;
+    if (!enhancingExpId || !currentResume) return;
     const exp = experience.find(e => e.id === enhancingExpId);
     if (!exp) return;
     const enhanceResult = await enhance(
@@ -379,6 +379,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
       dismissNudge(nudge.trigger);
     }
   };
+
+  if (!currentResume) return null;
 
   return (
     <div className="space-y-4">

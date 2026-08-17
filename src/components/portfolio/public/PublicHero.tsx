@@ -117,7 +117,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
               width={144}
               height={144}
               loading="eager"
-              fetchPriority="high"
+              {...{ fetchpriority: 'high' }}
               decoding="async"
               alt={`${profile.fullName || 'Portfolio'} avatar`}
               onError={(event) => {

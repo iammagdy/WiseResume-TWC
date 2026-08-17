@@ -15,13 +15,11 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_LABELS: Record<keyof ResumeHealthScore['categories'], string> = {
-  keywordOptimization: 'Keywords',
-  contentQuality: 'Work experience',
-  sectionStructure: 'Sections',
-  parsability: 'ATS parsing',
   contactCompleteness: 'Contact',
-  lengthDensity: 'Length',
-  templateFriendliness: 'Template',
+  summaryCompleteness: 'Summary',
+  experienceCompleteness: 'Work experience',
+  educationCompleteness: 'Education',
+  skillsCompleteness: 'Skills',
 };
 
 interface DashboardImproveQuickDialogProps {
@@ -74,7 +72,7 @@ export const DashboardImproveQuickDialog = memo(function DashboardImproveQuickDi
               <p className={cn('text-2xl font-semibold tabular-nums', getScoreColorClass(healthScore.overallScore))}>
                 {healthScore.overallScore}%
               </p>
-              <span className="text-xs text-muted-foreground">{getScoreLabel(healthScore.overallScore)} ATS</span>
+              <span className="text-xs text-muted-foreground">{getScoreLabel(healthScore.overallScore)} readiness</span>
             </div>
             <p className="text-sm text-foreground mt-2 leading-relaxed">{healthScore.topImprovement}</p>
             <p className="text-xs text-muted-foreground mt-1.5">
@@ -111,7 +109,7 @@ export const DashboardImproveQuickDialog = memo(function DashboardImproveQuickDi
             )}
             <Button variant="outline" className="w-full rounded-xl h-10" onClick={() => run(onViewAtsBreakdown)}>
               <BarChart3 className="w-4 h-4 mr-2" />
-              ATS breakdown by resume
+              Readiness breakdown by resume
             </Button>
             <Button variant="outline" className="w-full rounded-xl h-10" onClick={() => run(onTailorToJob)}>
               <Wand2 className="w-4 h-4 mr-2" />

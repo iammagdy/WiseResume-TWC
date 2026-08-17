@@ -18,7 +18,7 @@ export function OutreachHistory({ candidateId }: Props) {
 
   if (isLoading) return <p className="text-xs text-slate-400">Loading…</p>;
   if (emails.length === 0) return (
-    <p className="text-xs text-slate-400 italic">No outreach sent yet.</p>
+    <p className="text-xs text-slate-400 italic">No outreach activity yet.</p>
   );
 
   return (

@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react';
 import type { FeedbackPayload } from './captureErrorShim';
+import { sanitizeSensitiveText, sanitizeSensitiveUrl } from './security/sensitiveUrlSanitizer';
 
 declare const __APP_VERSION__: string;
 
@@ -59,10 +60,17 @@ export function initMonitoring(): void {
           return null;
         }
         event.exception.values?.forEach((v) => {
+          if (v.value) v.value = sanitizeSensitiveText(v.value);
           if (v.value && v.value.length > 200) {
             v.value = v.value.slice(0, 200) + ' ...[truncated]';
           }
+          v.stacktrace?.frames?.forEach((frame) => {
+            if (frame.filename) frame.filename = sanitizeSensitiveUrl(frame.filename);
+          });
         });
+      }
+      if (event.request?.url) {
+        event.request.url = sanitizeSensitiveUrl(event.request.url);
       }
       if (event.request?.data) {
         delete event.request.data;
@@ -75,6 +83,7 @@ export function initMonitoring(): void {
           if (b.category === 'storage') return false;
           const msg = b.message ?? '';
           if (msg.includes('wise_supabase') || msg.includes('localStorage') || msg.includes('sessionStorage')) return false;
+          if (b.message) b.message = sanitizeSensitiveText(b.message);
           return true;
         });
       }

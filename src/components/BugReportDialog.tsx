@@ -147,7 +147,7 @@ export function BugReportDialog() {
       email: user?.email || email.trim(),
       name: user?.name || user?.email || undefined,
       subject: buildCrashReportSubject(metadata),
-      message: effectiveMessage + (additionalContext.trim() ? `\n\nUser Note: ${additionalContext.trim()}` : ''),
+      message: metadata.error_message + (metadata.user_note ? `\n\nUser Note: ${metadata.user_note}` : ''),
       metadata,
       associatedEventId,
       tags: {

@@ -16,6 +16,8 @@ import { DEFAULT_RESUME_TEMPLATE_ID } from '@/lib/defaultTemplate';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { sanitizeExperiencePositions } from './genericPositionTitle';
 import { enrichParsedExperience } from './experiencePositionEnrichment';
+import { useSettingsStore } from '@/store/settingsStore';
+import { redactResumeTextForAI } from '@/lib/piiRedact';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -91,8 +93,11 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     // fileType: 'text/plain' because the function receives pre-extracted plain text
     // regardless of the source document format (PDF, DOCX, etc).
+    const localContact = parseResumeText(text).contactInfo;
+    const redactPiiBeforeAI = useSettingsStore.getState().redactPiiBeforeAI;
+    const providerText = redactResumeTextForAI(text, localContact, redactPiiBeforeAI);
     const { data, error } = await appwriteFunctions.invoke<ResumeData>('parse-resume', {
-      body: { text, fileType: 'text/plain' },
+      body: { text: providerText, fileType: 'text/plain' },
     });
 
     if (error) {
@@ -117,6 +122,15 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     if (!hasMeaningfulResumeData(data)) {
       throw new Error('AI parser returned an empty resume');
+    }
+
+    if (redactPiiBeforeAI) {
+      data.contactInfo = {
+        ...data.contactInfo,
+        ...Object.fromEntries(
+          Object.entries(localContact).filter(([, value]) => typeof value === 'string' && value.trim()),
+        ),
+      } as ResumeData['contactInfo'];
     }
 
     if (import.meta.env.DEV) console.log('AI parsing successful');
@@ -720,11 +734,11 @@ export function getExtractionSummary(data: ResumeData): {
   };
 } {
   // Defensive access — AI or fallback parser may return incomplete structures
-  const contact = data?.contactInfo ?? {};
+  const contact = data?.contactInfo;
   const counts = {
-    hasName: !!(contact as any).fullName,
-    hasEmail: !!(contact as any).email,
-    hasPhone: !!(contact as any).phone,
+    hasName: Boolean(contact?.fullName?.trim()),
+    hasEmail: Boolean(contact?.email?.trim()),
+    hasPhone: Boolean(contact?.phone?.trim()),
     experienceCount: (data?.experience ?? []).length,
     educationCount: (data?.education ?? []).length,
     skillsCount: (data?.skills ?? []).length,

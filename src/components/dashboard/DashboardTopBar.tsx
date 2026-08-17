@@ -60,7 +60,7 @@ export const DashboardTopBar = memo(function DashboardTopBar({
         </h1>
         {!compact && (
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl mt-2">
-            {t('app.dashboardTopBar.trackResumesDescription', 'Track your resumes, improve ATS score, and continue from the highest-impact action first.')}
+            {t('app.dashboardTopBar.trackResumesDescription', 'Track your resumes, improve their readiness, and continue from the highest-impact action first.')}
           </p>
         )}
       </div>

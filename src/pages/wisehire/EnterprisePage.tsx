@@ -13,7 +13,6 @@ import {
   TrendingUp,
   Users,
   ChevronRight,
-  X,
 } from 'lucide-react';
 
 const _ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -142,8 +141,8 @@ function HeroSection() {
           transition: 'color 0.35s ease',
         }}
       >
-        SSO, custom AI training, ATS/HRIS integrations, dedicated support, and an SLA — everything
-        your enterprise hiring team needs, configured to your requirements.
+        Enterprise options are scoped with your team before purchase. Identity, integration,
+        support, privacy, and service-level requirements are confirmed in writing.
       </p>
 
       {/* CTAs */}
@@ -156,7 +155,7 @@ function HeroSection() {
           whileTap={{ scale: 0.97 }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
-          Request a Demo
+          Start an enterprise enquiry
           <ArrowRight className="w-4 h-4" />
         </motion.a>
         <motion.a
@@ -172,14 +171,14 @@ function HeroSection() {
           whileTap={{ scale: 0.97 }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
-          See pricing
+          Review early access
           <ChevronRight className="w-4 h-4" />
         </motion.a>
       </div>
 
       {/* Trust badges */}
       <div className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center">
-        {['SOC 2-ready infrastructure', 'SLA guarantee', 'Dedicated onboarding', 'Custom MSA'].map((item) => (
+        {['Requirements discovery', 'Written implementation scope', 'Contract review', 'Human-reviewed AI workflow'].map((item) => (
           <span
             key={item}
             className="flex items-center gap-1.5"
@@ -199,7 +198,7 @@ function HeroSection() {
 
 // ── Section: Social Proof ────────────────────────────────────────────────────
 function SocialProofSection() {
-  const logos = ['Nexara Health', 'Fintell Group', 'Moda Retail', 'Vertex Labs', 'ClearPath HR', 'Orbis Capital'];
+  const workflows = ['Healthcare hiring', 'Financial services', 'Retail operations', 'Technology teams', 'Recruiting agencies', 'Professional services'];
   return (
     <section
       style={{
@@ -221,7 +220,7 @@ function SocialProofSection() {
           viewport={{ once: false, amount: 0.5 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
-          Trusted by enterprise teams at
+          Designed for complex hiring workflows
         </motion.p>
         <motion.div
           className="flex flex-wrap justify-center gap-x-8 gap-y-3"
@@ -230,7 +229,7 @@ function SocialProofSection() {
           whileInView="visible"
           viewport={{ once: false, amount: 0.3 }}
         >
-          {logos.map((name) => (
+          {workflows.map((name) => (
             <motion.span
               key={name}
               variants={logoItemVariants}
@@ -251,33 +250,33 @@ function SocialProofSection() {
 const ENT_FEATURES = [
   {
     icon: Lock,
-    title: 'SSO / SCIM Provisioning',
-    desc: 'Connect your identity provider (Okta, Azure AD, Google Workspace) for single sign-on and automatic user lifecycle management.',
+    title: 'Identity & Access Review',
+    desc: 'We document your identity-provider and user-lifecycle requirements before confirming an implementation scope.',
   },
   {
     icon: Cpu,
-    title: 'Custom AI Training',
-    desc: 'Fine-tune AI brief and screening models on your own historical hiring data and role criteria for higher match precision.',
+    title: 'AI Configuration Review',
+    desc: 'We review role criteria, factual-integrity controls, and human-approval requirements without promising custom model training.',
   },
   {
     icon: Plug,
-    title: 'ATS / HRIS Integrations',
-    desc: 'Native connectors for Workday, Greenhouse, Lever, Bamboo HR, and more — with custom integration support available.',
+    title: 'Integration Discovery',
+    desc: 'ATS, HRIS, and workflow integrations are assessed individually; availability is confirmed in the signed implementation scope.',
   },
   {
     icon: Headphones,
-    title: 'Dedicated Customer Success',
-    desc: 'A named CSM who onboards your team, runs quarterly business reviews, and escalates issues same-day.',
+    title: 'Support Planning',
+    desc: 'Onboarding, escalation, and review cadences are agreed for the selected service package.',
   },
   {
     icon: Shield,
-    title: 'SLA & Uptime Guarantee',
-    desc: '99.9% uptime SLA with incident response SLOs, priority support queue, and a status page with real-time notifications.',
+    title: 'Service-Level Terms',
+    desc: 'Any uptime, incident-response, or support commitments apply only when stated in a signed agreement.',
   },
   {
     icon: TrendingUp,
-    title: 'Advanced Security & Compliance',
-    desc: 'SOC 2-ready infrastructure, data residency options, custom DPA, and GDPR / CCPA tooling included.',
+    title: 'Privacy & Security Review',
+    desc: 'We review data flows, retention, access controls, and requested contractual terms before confirming availability.',
   },
 ];
 
@@ -311,7 +310,7 @@ function EnterpriseFeaturesSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            Enterprise capabilities
+            Enterprise discovery
           </p>
           <h2
             className="font-bold leading-tight"
@@ -323,13 +322,14 @@ function EnterpriseFeaturesSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            Everything your organisation needs
+            Areas we can scope with your organisation
           </h2>
           <p
             className="max-w-md mx-auto text-sm"
             style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
           >
-            WiseHire Enterprise is built to meet the security, scale, and compliance requirements of large organisations.
+            Each capability is subject to technical, security, legal, and commercial review. Nothing
+            listed here is available until it is confirmed in a written implementation scope.
           </p>
         </motion.div>
 
@@ -387,17 +387,17 @@ const HOW_STEPS = [
   {
     step: '01',
     title: 'Book a discovery call',
-    desc: "We'll learn about your team size, ATS stack, compliance requirements, and hiring volume to tailor the right solution.",
+    desc: "We'll review your team size, systems, compliance needs, hiring volume, and data-processing requirements.",
   },
   {
     step: '02',
-    title: 'Custom onboarding',
-    desc: 'Your dedicated CSM sets up SSO, configures integrations, runs admin training, and migrates existing pipeline data.',
+    title: 'Confirm scope and terms',
+    desc: 'We document which capabilities are feasible, the implementation responsibilities, commercial terms, and any service commitments.',
   },
   {
     step: '03',
-    title: 'Go live with your team',
-    desc: "Your whole hiring team is productive within days — with a tailored AI model trained on your roles' criteria.",
+    title: 'Implement what is agreed',
+    desc: 'Configuration, integrations, onboarding, and rollout begin only after the written scope is accepted. Timelines depend on that scope.',
   },
 ];
 
@@ -444,7 +444,7 @@ function HowItWorksSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            From call to live in days
+            From discovery to an agreed scope
           </h2>
         </motion.div>
 
@@ -502,165 +502,6 @@ function HowItWorksSection() {
   );
 }
 
-// ── Section: Comparison Table ────────────────────────────────────────────────
-const COMPARISON_ROWS = [
-  { feature: 'Active roles', business: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'Candidate briefs / month', business: '1,000', enterprise: 'Unlimited' },
-  { feature: 'Bulk CV screening', business: true, enterprise: true },
-  { feature: 'Talent Pool', business: true, enterprise: true },
-  { feature: 'API access', business: true, enterprise: true },
-  { feature: 'SSO / SCIM provisioning', business: false, enterprise: true },
-  { feature: 'Custom AI training', business: false, enterprise: true },
-  { feature: 'ATS / HRIS integrations', business: false, enterprise: true },
-  { feature: 'Dedicated CSM', business: false, enterprise: true },
-  { feature: 'SLA & uptime guarantee', business: false, enterprise: true },
-  { feature: 'Custom MSA / DPA', business: false, enterprise: true },
-  { feature: 'Data residency options', business: false, enterprise: true },
-  { feature: 'Support', business: 'Priority', enterprise: 'Enterprise (24 h SLO)' },
-];
-
-function ComparisonSection() {
-  return (
-    <section style={{ background: 'var(--lp-bg)', transition: 'background 0.35s ease' }}>
-      <div
-        className="max-w-4xl mx-auto w-full"
-        style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
-      >
-        <motion.div
-          className="text-center mb-12"
-          variants={itemVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, amount: 0.3 }}
-        >
-          <p
-            style={{
-              fontSize: '0.75rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--lp-eyebrow)',
-              fontWeight: 600,
-              marginBottom: '0.75rem',
-              transition: 'color 0.35s ease',
-            }}
-          >
-            Business vs Enterprise
-          </p>
-          <h2
-            className="font-bold leading-tight"
-            style={{
-              fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
-              color: 'var(--lp-text)',
-              letterSpacing: '-0.025em',
-              transition: 'color 0.35s ease',
-            }}
-          >
-            What makes Enterprise different
-          </h2>
-        </motion.div>
-
-        <motion.div
-          className="overflow-hidden"
-          variants={itemVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, amount: 0.1 }}
-          style={{ borderRadius: 20, border: '1px solid var(--lp-border-card)', overflow: 'hidden' }}
-        >
-          {/* Header row */}
-          <div
-            className="grid grid-cols-3 text-sm font-semibold"
-            style={{ borderBottom: '1px solid var(--lp-border-card)' }}
-          >
-            <div
-              className="px-5 py-4"
-              style={{ color: 'var(--lp-text-muted)', transition: 'color 0.35s ease' }}
-            >
-              Feature
-            </div>
-            <div
-              className="px-5 py-4 text-center"
-              style={{
-                color: 'var(--lp-text)',
-                background: 'var(--lp-card)',
-                borderLeft: '1px solid var(--lp-border-card)',
-                transition: 'color 0.35s ease, background 0.35s ease',
-              }}
-            >
-              Business
-            </div>
-            <div
-              className="px-5 py-4 text-center"
-              style={{
-                color: '#fff',
-                background: 'var(--lp-brand)',
-                borderLeft: '1px solid rgba(255,255,255,0.15)',
-              }}
-            >
-              Enterprise
-            </div>
-          </div>
-
-          {/* Data rows */}
-          {COMPARISON_ROWS.map((row, i) => (
-            <div
-              key={row.feature}
-              className="grid grid-cols-3 text-sm"
-              style={{
-                borderBottom: i < COMPARISON_ROWS.length - 1 ? '1px solid var(--lp-border-card)' : 'none',
-                background: i % 2 === 0 ? 'transparent' : 'var(--lp-section-alt)',
-              }}
-            >
-              <div
-                className="px-5 py-3.5"
-                style={{ color: 'var(--lp-text)', transition: 'color 0.35s ease' }}
-              >
-                {row.feature}
-              </div>
-              <div
-                className="px-5 py-3.5 text-center"
-                style={{
-                  color: 'var(--lp-text-muted)',
-                  borderLeft: '1px solid var(--lp-border-card)',
-                  transition: 'color 0.35s ease',
-                }}
-              >
-                {typeof row.business === 'boolean' ? (
-                  row.business ? (
-                    <CheckCircle2 className="w-4 h-4 mx-auto" style={{ color: 'var(--lp-eyebrow)' }} />
-                  ) : (
-                    <X className="w-4 h-4 mx-auto opacity-30" style={{ color: 'var(--lp-text-muted)' }} />
-                  )
-                ) : (
-                  row.business
-                )}
-              </div>
-              <div
-                className="px-5 py-3.5 text-center font-medium"
-                style={{
-                  color: '#e0eaff',
-                  background: 'rgba(29,78,216,0.07)',
-                  borderLeft: '1px solid rgba(29,78,216,0.20)',
-                }}
-              >
-                {typeof row.enterprise === 'boolean' ? (
-                  row.enterprise ? (
-                    <CheckCircle2 className="w-4 h-4 mx-auto" style={{ color: '#60A5FA' }} />
-                  ) : (
-                    <X className="w-4 h-4 mx-auto opacity-30" />
-                  )
-                ) : (
-                  <span style={{ color: 'var(--lp-text)' }}>{row.enterprise}</span>
-                )}
-              </div>
-            </div>
-          ))}
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
 // ── Section: Contact / Demo Request Form ──────────────────────────────────────
 const COMPANY_SIZES = [
   '50–200',
@@ -673,16 +514,14 @@ function ContactSection() {
   const [email, setEmail] = useState('');
   const [size, setSize] = useState('');
   const [message, setMessage] = useState('');
-  const [submitted, setSubmitted] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const subject = encodeURIComponent(`WiseHire Enterprise Demo Request — ${name}`);
+    const subject = encodeURIComponent(`WiseHire Enterprise Enquiry — ${name}`);
     const body = encodeURIComponent(
       `Hi WiseHire team,\n\nName: ${name}\nWork email: ${email}\nCompany size: ${size}\n\n${message}\n`,
     );
     window.location.href = `mailto:enterprise@thewise.cloud?subject=${subject}&body=${body}`;
-    setSubmitted(true);
   }
 
   return (
@@ -728,41 +567,18 @@ function ContactSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            Request a demo
+            Start an enterprise enquiry
           </h2>
           <p
             className="text-sm"
             style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
           >
-            Tell us about your team and we'll be in touch within one business day.
+            Tell us what you need. Submitting this form opens a draft in your email app; the page
+            does not transmit or store the information.
           </p>
         </motion.div>
 
-        {submitted ? (
-          <motion.div
-            className="flex flex-col items-center gap-4 py-10 text-center rounded-2xl"
-            variants={itemVariants}
-            initial="hidden"
-            animate="visible"
-            style={{ background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)' }}
-          >
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(29,78,216,0.12)' }}
-            >
-              <CheckCircle2 className="w-7 h-7" style={{ color: 'var(--lp-eyebrow)' }} />
-            </div>
-            <div>
-              <p className="font-bold text-lg mb-1" style={{ color: 'var(--lp-text)' }}>
-                Message sent!
-              </p>
-              <p className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-                We'll be in touch within one business day.
-              </p>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.form
+        <motion.form
             onSubmit={handleSubmit}
             className="flex flex-col gap-4 p-8 rounded-2xl"
             variants={itemVariants}
@@ -886,15 +702,14 @@ function ContactSection() {
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
-              Request Demo
+              Open email draft
               <ArrowRight className="w-4 h-4" />
             </motion.button>
 
             <p className="text-xs text-center" style={{ color: 'var(--lp-text-muted)' }}>
-              We respect your privacy. No spam, ever.
+              Nothing is sent until you review and send the draft from your email app.
             </p>
           </motion.form>
-        )}
       </div>
     </section>
   );
@@ -935,13 +750,14 @@ function FooterCtaSection() {
                 transition: 'color 0.35s ease',
               }}
             >
-              Ready to scale your hiring?
+              Want to discuss a larger deployment?
             </h2>
             <p
               className="text-sm max-w-sm mx-auto"
               style={{ color: 'var(--lp-text-muted)', lineHeight: 1.7, transition: 'color 0.35s ease' }}
             >
-              Book a 30-minute discovery call and we'll show you how WiseHire Enterprise fits your organisation.
+              Share your requirements and we will assess what can be supported before proposing
+              implementation or commercial terms.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -953,7 +769,7 @@ function FooterCtaSection() {
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
-              Talk to Sales
+              Start an enquiry
               <ArrowRight className="w-4 h-4" />
             </motion.a>
             <motion.div
@@ -987,7 +803,7 @@ function FooterCtaSection() {
             Terms of Service
           </Link>
           <a href="/?for=companies#wisehire-pricing" className="hover:underline" style={{ color: 'var(--lp-text-muted)' }}>
-            Pricing
+            Early access
           </a>
           <Link to="/" className="hover:underline" style={{ color: 'var(--lp-text-muted)' }}>
             WiseResume
@@ -1035,7 +851,7 @@ function EnterpriseNav() {
         whileTap={{ scale: 0.97 }}
         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
       >
-        Request Demo
+        Start enquiry
       </motion.a>
     </nav>
   );
@@ -1044,7 +860,7 @@ function EnterpriseNav() {
 // ── Page root ─────────────────────────────────────────────────────────────────
 export default function EnterprisePage() {
   useEffect(() => {
-    document.title = 'WiseHire Enterprise — Hire at Scale';
+    document.title = 'WiseHire Enterprise — Requirements Review';
     return () => { document.title = 'WiseResume — AI-Powered Career Platform'; };
   }, []);
 
@@ -1073,7 +889,6 @@ export default function EnterprisePage() {
         <SocialProofSection />
         <EnterpriseFeaturesSection />
         <HowItWorksSection />
-        <ComparisonSection />
         <ContactSection />
         <FooterCtaSection />
       </div>

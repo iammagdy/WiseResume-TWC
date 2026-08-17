@@ -226,7 +226,7 @@ export const ATSParserPreview = memo(function ATSParserPreview({ onClose, classN
           {/* ATS Checks */}
           <div className="border-t border-border pt-3 mt-2">
             <h4 className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-              ATS Compatibility Checks
+              Local parser checks
             </h4>
             <div className="space-y-1">
               {checks.map((check) => (

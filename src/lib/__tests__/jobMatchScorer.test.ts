@@ -1,9 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-
-// Mock supabase before importing scorer
-vi.mock('@/integrations/supabase/safeClient', () => ({
-  supabase: { functions: { invoke: vi.fn() } },
-}));
+import { describe, it, expect } from 'vitest';
 
 import { scoreJobMatch } from '../jobMatchScorer';
 import type { ResumeData } from '@/types/resume';
@@ -48,9 +43,11 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 // ─── Tests ───
 
 describe('scoreJobMatch', () => {
-  it('returns isAIVerified: false', () => {
-    const result = scoreJobMatch(makeResume(), makeJob());
-    expect(result.isAIVerified).toBe(false);
+  it('returns the same local estimate for the same inputs', () => {
+    const resume = makeResume({ skills: ['React', 'TypeScript'] });
+    const job = makeJob({ description: 'React TypeScript testing' });
+
+    expect(scoreJobMatch(resume, job)).toEqual(scoreJobMatch(resume, job));
   });
 
   it('returns low skillMatch for empty resume vs detailed job', () => {

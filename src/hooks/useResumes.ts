@@ -44,7 +44,7 @@ export interface DatabaseResume {
   job_url?: string;
 }
 
-export function parseDbResume(doc: any): DatabaseResume {
+export function parseDbResume(doc: unknown): DatabaseResume {
   return doc as DatabaseResume;
 }
 
@@ -95,7 +95,7 @@ export function resumeUpdatesToDbFields(updates: Partial<ResumeData>): Record<st
   return data;
 }
 
-export function dbToResumeData(db: any): ResumeData {
+export function dbToResumeData(db: DatabaseResume): ResumeData {
   return {
     id: db.$id,
     // Default to the WiseResume white/crimson template when none is stored;
@@ -143,7 +143,7 @@ export function resumeDataToDb(resume: ResumeData, userId: string): Partial<Data
   };
 }
 
-export function useResumes(options: { select?: (data: any[]) => any } = {}) {
+export function useResumes<TResult = DatabaseResume[]>(options: { select?: (data: DatabaseResume[]) => TResult } = {}) {
   const { user, authReady } = useAuth();
   return useQuery({
     queryKey: ['resumes', user?.id],
@@ -155,8 +155,9 @@ export function useResumes(options: { select?: (data: any[]) => any } = {}) {
         Query.orderDesc('$updatedAt'),
         Query.limit(50),
       ]);
-      writePersistedCache(`resumes:${user.id}`, response.documents);
-      return response.documents;
+      const resumes = response.documents.map(parseDbResume);
+      writePersistedCache(`resumes:${user.id}`, resumes);
+      return resumes;
     },
     enabled: authReady && !!user,
     placeholderData: (previous) =>

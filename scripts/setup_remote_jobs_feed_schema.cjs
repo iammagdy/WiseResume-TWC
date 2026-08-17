@@ -162,20 +162,17 @@ async function setupJobFeedItems() {
   const collId = 'job_feed_items';
   console.log(`\n1. Setting up collection "${collId}"`);
 
-  const allPerms = [
-    sdk.Permission.read(sdk.Role.any()),
-    sdk.Permission.create(sdk.Role.any()),
-    sdk.Permission.update(sdk.Role.any()),
-    sdk.Permission.delete(sdk.Role.any()),
-  ];
+  // Authenticated clients may read the curated feed. Only API-key-backed sync
+  // functions may create, update, or delete feed items.
+  const feedPerms = [sdk.Permission.read(sdk.Role.users())];
 
   if (!(await collectionExists(collId))) {
-    await databases.createCollection(DB_ID, collId, 'Remote Job Feed Items', allPerms, false);
+    await databases.createCollection(DB_ID, collId, 'Remote Job Feed Items', feedPerms, false);
     console.log('✓ collection created');
     await sleep(500);
   } else {
     console.log('✓ collection exists');
-    await ensurePermissions(collId, 'Remote Job Feed Items', allPerms, false);
+    await ensurePermissions(collId, 'Remote Job Feed Items', feedPerms, false);
   }
 
   await ensureStringAttr(collId, 'source', 32, false);
@@ -219,13 +216,6 @@ async function setupUserJobActions() {
 
   const userPerms = [
     sdk.Permission.create(sdk.Role.users()),
-    sdk.Permission.read(sdk.Role.users()),
-    sdk.Permission.update(sdk.Role.users()),
-    sdk.Permission.delete(sdk.Role.users()),
-    sdk.Permission.read(sdk.Role.any()),
-    sdk.Permission.create(sdk.Role.any()),
-    sdk.Permission.update(sdk.Role.any()),
-    sdk.Permission.delete(sdk.Role.any()),
   ];
 
   if (!(await collectionExists(collId))) {
@@ -258,20 +248,16 @@ async function setupJobFeedSyncRuns() {
   const collId = 'job_feed_sync_runs';
   console.log(`\n3. Setting up collection "${collId}"`);
 
-  const allPerms = [
-    sdk.Permission.read(sdk.Role.any()),
-    sdk.Permission.create(sdk.Role.any()),
-    sdk.Permission.update(sdk.Role.any()),
-    sdk.Permission.delete(sdk.Role.any()),
-  ];
+  // Operational sync records are server-only.
+  const serverOnlyPerms = [];
 
   if (!(await collectionExists(collId))) {
-    await databases.createCollection(DB_ID, collId, 'Job Feed Sync Runs', allPerms, false);
+    await databases.createCollection(DB_ID, collId, 'Job Feed Sync Runs', serverOnlyPerms, false);
     console.log('✓ collection created');
     await sleep(500);
   } else {
     console.log('✓ collection exists');
-    await ensurePermissions(collId, 'Job Feed Sync Runs', allPerms, false);
+    await ensurePermissions(collId, 'Job Feed Sync Runs', serverOnlyPerms, false);
   }
 
   await ensureStringAttr(collId, 'source', 32, false);

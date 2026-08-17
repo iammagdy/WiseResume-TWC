@@ -53,17 +53,17 @@ interface DashboardIntelligencePanelProps {
   className?: string;
 }
 
-const getTranslatedActivityLabel = (label: string, t: any) => {
+const getTranslatedActivityLabel = (label: string, t: ReturnType<typeof useLocale>['t']) => {
   if (label === 'Resume created') return t('app.activity.resumeCreated', 'Resume created');
   if (label === 'Resume deleted') return t('app.activity.resumeDeleted', 'Resume deleted');
   if (label === 'Resume duplicated') return t('app.activity.resumeDuplicated', 'Resume duplicated');
   if (label === 'Tailored copy saved') return t('app.activity.tailoredCopySaved', 'Tailored copy saved');
   if (label === 'Resume renamed') return t('app.activity.resumeRenamed', 'Resume renamed');
-  if (label.startsWith('ATS scored ')) {
-    const score = label.replace('ATS scored ', '').replace('%', '');
-    return t('app.activity.atsScoredWithVal', 'ATS scored {{score}}%', { score });
+  if (label.startsWith('Readiness updated ')) {
+    const score = label.replace('Readiness updated ', '').replace('%', '');
+    return t('app.activity.atsScoredWithVal', 'Readiness updated {{score}}%', { score });
   }
-  if (label === 'ATS scan completed') return t('app.activity.atsScanned', 'ATS scan completed');
+  if (label === 'Readiness check completed') return t('app.activity.atsScanned', 'Readiness check completed');
   if (label === 'Job posting imported') return t('app.activity.jobImported', 'Job posting imported');
   if (label === 'Application tracked') return t('app.activity.applicationTracked', 'Application tracked');
   if (label === 'Cover letter created') return t('app.activity.coverLetterCreated', 'Cover letter created');

@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 
 import { toast } from 'sonner';
+import { useAIAction } from '@/hooks/useAIAction';
 
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ export default function ResignationLetterEditPage() {
   const { data: letter, isLoading } = useResignationLetter(id || null);
   const { updateLetter, deleteLetter } = useResignationLetterMutations();
   const queryClient = useQueryClient();
+  const { execute: executeAI } = useAIAction({ operation: 'resignation-letter' });
 
   const [content, setContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -131,22 +133,25 @@ export default function ResignationLetterEditPage() {
     if (!letter) return;
     setRegenerating(true);
     try {
-      const { data, error } = await appwriteFunctions.invoke('generate-resignation-letter', {
-        body: {
-          recipientName: letter.recipient_name,
-          company: letter.company,
-          position: letter.position,
-          lastWorkingDay: letter.last_working_day,
-          noticePeriod: letter.notice_period,
-          reason: letter.reason,
-          tone: letter.tone,
-          templateStyle: letter.template_style,
-          additions: Array.isArray(letter.additions) ? letter.additions : [],
-        },
+      const data = await executeAI(async () => {
+        const { data: responseData, error } = await appwriteFunctions.invoke('generate-resignation-letter', {
+          body: {
+            recipientName: letter.recipient_name,
+            company: letter.company,
+            position: letter.position,
+            lastWorkingDay: letter.last_working_day,
+            noticePeriod: letter.notice_period,
+            reason: letter.reason,
+            tone: letter.tone,
+            templateStyle: letter.template_style,
+            additions: Array.isArray(letter.additions) ? letter.additions : [],
+          },
+        });
+        if (error) throw new Error(error.message || 'Failed to regenerate');
+        if (responseData?.error) throw new Error(responseData.error || 'Failed to regenerate');
+        return responseData;
       });
-
-      if (error) throw new Error(error.message || 'Failed to regenerate');
-      if (data?.error) throw new Error(data.error || 'Failed to regenerate');
+      if (!data) return;
       invalidateAiCreditQueries(queryClient);
       setContent(data.letter);
       setHasUnsavedChanges(true);
@@ -157,7 +162,7 @@ export default function ResignationLetterEditPage() {
     } finally {
       setRegenerating(false);
     }
-  }, [letter]);
+  }, [letter, executeAI, queryClient]);
 
   const handleChecklistToggle = useCallback((itemId: string) => {
     setChecklistProgress(prev => {

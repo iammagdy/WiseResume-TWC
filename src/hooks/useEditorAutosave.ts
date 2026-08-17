@@ -193,7 +193,7 @@ export function useEditorAutosave({
       setIsSaving(false);
       isFlushingRef.current = false;
     }
-  }, [user, currentResumeId, resumeRef, lastSavedResumeRef, updateResume, setIsSaving, setLastSavedAt, localLoadedAtRef, isSavingRef, addPendingChange]);
+  }, [resumeRef, user, currentResumeId, lastSavedResumeRef, localLoadedAtRef, setIsSaving, isSavingRef, updateResume, setLastSavedAt, shouldEmitAutoSaveToast, addPendingChange]);
 
   // Flush function: clears debounce and saves immediately
   const flushSave = useCallback(async () => {
@@ -224,7 +224,7 @@ export function useEditorAutosave({
       return;
     }
     lastLocalEditAtRef.current = Date.now();
-  }, [currentResumeSnapshot]);
+  }, [currentResumeSnapshot, resumeRef]);
   useEffect(() => {
     if (!user || !currentResumeId || !resumeRef.current) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);

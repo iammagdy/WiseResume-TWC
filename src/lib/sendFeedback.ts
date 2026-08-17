@@ -1,5 +1,6 @@
 import { captureFeedback } from './captureErrorShim';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
+import { sanitizeSensitiveText } from '@/lib/security/sensitiveUrlSanitizer';
 
 export type FeedbackType = 'bug' | 'feature' | 'contact' | 'auto-crash-report';
 
@@ -68,10 +69,17 @@ export async function sendFeedback(
     feedback_type: input.type,
     ...(input.tags ?? {}),
   };
-
-  const sentryMessage = input.subject
-    ? `[${input.subject}]\n${input.message}`
+  const shouldSanitizeCrashContent = input.type === 'bug' || input.type === 'auto-crash-report';
+  const safeSubject = shouldSanitizeCrashContent && input.subject
+    ? sanitizeSensitiveText(input.subject)
+    : input.subject;
+  const safeMessage = shouldSanitizeCrashContent
+    ? sanitizeSensitiveText(input.message)
     : input.message;
+
+  const sentryMessage = safeSubject
+    ? `[${safeSubject}]\n${safeMessage}`
+    : safeMessage;
 
   const sentryPromise = Promise.resolve().then(() =>
     captureFeedback({
@@ -86,8 +94,8 @@ export async function sendFeedback(
   const emailBody = {
     type: input.type,
     email: input.email,
-    subject: input.subject,
-    message: input.message,
+    subject: safeSubject,
+    message: safeMessage,
     metadata: input.metadata,
   };
 

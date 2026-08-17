@@ -81,8 +81,12 @@ async function runFailureIsolationTests() {
 
   const creditState = { chargeable: true, blocked: false, cost: 1, today: '2026-08-10', dailyLimit: 5, currentUsage: 0, doc: { $id: 'credit-1', $updatedAt: 'original', daily_usage: 0, total_usage: 0, usage_date: '2026-08-10' } };
   const creditDb = {
+    async createTransaction() { return { $id: 'credit-tx' }; },
     async getDocument() { return creditState.doc; },
     async updateDocument() { return {}; },
+    async incrementDocumentAttribute() { return creditState.doc; },
+    async decrementDocumentAttribute() { return creditState.doc; },
+    async updateTransaction() { return {}; },
   };
   assert.equal(await gatewayTest.recordAiUsage(creditDb, creditState), true, 'gateway reports only a successful credit write as charged');
   assert.equal(await gatewayTest.recordAiUsage(creditDb, { ...creditState, chargeable: false }), false, 'gateway no-charge path reports zero charged credits');
@@ -130,7 +134,8 @@ for (const [source, hub, marker] of [[resumeSource, 'resume-section-ai', 'if (id
 assert.match(resumeSource, /attachRuntimeReceipt\(\{ \.\.\.idemCheck\.result, _cached: true \}, runtimeRequestId\)/, 'resume cache hits replace the old correlation ID');
 assert.match(jobImportSource, /cached: true, runtime: \{ requestId: runtimeRequestId \}/, 'job-import cache hits replace the old correlation ID');
 assert.match(gatewaySource, /return charged \? creditState\.cost : 0/, 'gateway receipts use the factual charge result');
-assert.match(jobImportSource, /if \(await recordAiUsage\(db, creditState\)\) creditsCharged = creditState\.cost/, 'job-import receipts use the factual charge result');
+assert.match(jobImportSource, /creditsReserved\s*=\s*await recordAiUsage\(db, creditState\)/, 'job-import records whether the credit reservation actually succeeded');
+assert.match(jobImportSource, /const creditsCharged\s*=\s*creditsReserved \? creditState\.cost : 0/, 'job-import receipts use the factual charge result');
 assert.match(gatewaySource, /withCurrentRequestId\(cacheHit\.result, runtimeRequestId\)/, 'gateway cache hits return the current invocation ID');
 assert.match(gatewaySource, /withCurrentRequestId\(collisionHit\.result, runtimeRequestId\)/, 'gateway collision cache hits return the current invocation ID');
 

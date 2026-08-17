@@ -2,6 +2,7 @@ import { activityTracker } from '@/lib/activityTracker';
 import { detectScreen, categorizeError } from '@/lib/bugReport';
 import { getBuildVersion } from '@/lib/appVersion';
 import { getCrashReporterContext } from '@/lib/crashReportContext';
+import { sanitizeSensitiveText, sanitizeSensitiveUrl } from '@/lib/security/sensitiveUrlSanitizer';
 
 export interface CrashReportInput {
   error: Error;
@@ -54,10 +55,17 @@ function priorityLabel(isPremium: boolean): 'high' | 'normal' {
 
 export function buildCrashReportMetadata(input: CrashReportInput): CrashReportMetadata {
   const ctx = getCrashReporterContext();
-  const route = input.route ?? `${window.location.pathname}${window.location.search}`;
-  const pathname = route.split('?')[0] ?? route;
-  const search = route.includes('?') ? route.slice(route.indexOf('?')) : '';
-  const screen = input.screenLabel ?? detectScreen(pathname);
+  const currentRoute = typeof window !== 'undefined'
+    ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+    : '/';
+  const route = sanitizeSensitiveUrl(input.route ?? currentRoute);
+  const queryIndex = route.indexOf('?');
+  const hashIndex = route.indexOf('#');
+  const pathnameEnd = [queryIndex, hashIndex].filter(index => index >= 0).sort((a, b) => a - b)[0] ?? route.length;
+  const pathname = route.slice(0, pathnameEnd);
+  const searchEnd = hashIndex > queryIndex && queryIndex >= 0 ? hashIndex : route.length;
+  const search = queryIndex >= 0 ? route.slice(queryIndex, searchEnd) : '';
+  const screen = sanitizeSensitiveText(input.screenLabel ?? detectScreen(pathname));
   const snapshot = activityTracker.getSnapshot();
   const activeFeature = snapshot.activeFeature ?? input.action ?? null;
   const category = input.errorCategory ?? categorizeError(input.error.message, activeFeature).category;
@@ -68,9 +76,9 @@ export function buildCrashReportMetadata(input: CrashReportInput): CrashReportMe
   const meta: Omit<CrashReportMetadata, 'ai_fix_prompt'> = {
     report_type: input.reportType,
     error_name: input.error.name,
-    error_message: input.error.message,
-    error_stack: input.error.stack?.slice(0, 8000) ?? null,
-    component_stack: input.componentStack?.slice(0, 8000) ?? null,
+    error_message: sanitizeSensitiveText(input.error.message),
+    error_stack: input.error.stack ? sanitizeSensitiveText(input.error.stack.slice(0, 8000)) : null,
+    component_stack: input.componentStack ? sanitizeSensitiveText(input.componentStack.slice(0, 8000)) : null,
     route,
     screen,
     pathname,
@@ -90,8 +98,12 @@ export function buildCrashReportMetadata(input: CrashReportInput): CrashReportMe
     sentry_event_id: input.sentryEventId ?? null,
     auto_report: input.source === 'error_boundary_auto',
     source: input.source,
-    user_note: input.userNote?.trim() || null,
-    recent_errors: input.recentErrors ?? snapshot.recentErrors,
+    user_note: input.userNote ? sanitizeSensitiveText(input.userNote.trim()) || null : null,
+    recent_errors: (input.recentErrors ?? snapshot.recentErrors).map(recent => ({
+      ...recent,
+      message: sanitizeSensitiveText(recent.message),
+      stack: recent.stack ? sanitizeSensitiveText(recent.stack) : undefined,
+    })),
   };
 
   const ai_fix_prompt = buildAiFixPrompt(meta);

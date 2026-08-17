@@ -9,7 +9,7 @@ import {
   calcOverallScore,
 } from '@/lib/resumeCompletionRules';
 import type { ResumeData } from '@/types/resume';
-import type { ResumeHealthScore } from '@/hooks/useResumeScore';
+import { buildLocalResumeScore, type ResumeHealthScore } from '@/hooks/useResumeScore';
 
 interface SectionScores {
   contact: number;
@@ -28,8 +28,24 @@ interface EditorSectionScoresResult {
   justCompletedStep: string | null;
 }
 
+const CELEBRATION_MESSAGES: Record<string, string> = {
+  contact: 'Excellent! Contact section complete 🎉',
+  summary: 'Summary nailed! 🎉',
+  experience: 'Work experience locked in! 🎉',
+  education: 'Education section complete! 🎉',
+  skills: 'Skills section complete! Your resume is looking great! 🎉',
+};
+
+const NEXT_STEP_MESSAGES: Record<string, string> = {
+  contact: 'Next: Write your professional summary →',
+  summary: 'Next: Add your work experience →',
+  experience: 'Next: Add your education details →',
+  education: 'Next: List your key skills →',
+};
+
 /**
- * Computes per-section scores, overall score, local ATS health snapshot,
+ * Computes per-section completion, overall readiness, a canonical local
+ * readiness snapshot,
  * section completion status, and fires celebration toasts/confetti when a
  * section reaches 100%.
  *
@@ -75,7 +91,7 @@ export function useEditorSectionScores(currentResume: ResumeData | null): Editor
     [contactScore, summaryScore, experienceScore, educationScore, skillsScore],
   );
 
-  // Overall score for ATS badge (local, no API call)
+  // Overall resume readiness (local, deterministic, no API call)
   const overallScore = useMemo(
     () => (currentResume ? calcOverallScore(currentResume) : 0),
     [currentResume],
@@ -87,31 +103,16 @@ export function useEditorSectionScores(currentResume: ResumeData | null): Editor
     const prev = prevScoreRef.current;
     prevScoreRef.current = overallScore;
     if (overallScore - prev >= 5 && prev > 0) {
-      toast.success(`Score improved to ${overallScore}%!`, { duration: 2000 });
+      toast.success(`Resume readiness improved to ${overallScore}%!`, { duration: 2000 });
     }
   }, [overallScore]);
 
-  // Local health score object for the ATS breakdown widget
+  // Use the same canonical builder as dashboard/import scoring so the same
+  // resume revision cannot show different numbers on different screens.
   const localHealthScore = useMemo((): ResumeHealthScore | null => {
     if (!currentResume) return null;
-    return {
-      overallScore,
-      categories: {
-        keywordOptimization: sectionScores.skills,
-        contentQuality: sectionScores.experience,
-        sectionStructure: Math.round(
-          (sectionScores.contact + sectionScores.education + sectionScores.skills + sectionScores.experience) / 4,
-        ),
-        parsability: sectionScores.education,
-        contactCompleteness: sectionScores.contact,
-        lengthDensity: Math.round((sectionScores.experience + sectionScores.education) / 2),
-        templateFriendliness: 60,
-      },
-      topStrength: '',
-      topImprovement: overallScore < 70 ? 'Fill in more sections to improve your score' : '',
-      scoredAt: new Date().toISOString(),
-    };
-  }, [overallScore, sectionScores, currentResume]);
+    return buildLocalResumeScore(currentResume);
+  }, [currentResume]);
 
   // Section completion status (includes optional sections)
   const sectionStatus = useMemo(() => {
@@ -142,21 +143,6 @@ export function useEditorSectionScores(currentResume: ResumeData | null): Editor
   const [justCompletedStep, setJustCompletedStep] = useState<string | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confettiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const CELEBRATION_MESSAGES: Record<string, string> = {
-    contact: 'Excellent! Contact section complete 🎉',
-    summary: 'Summary nailed! 🎉',
-    experience: 'Work experience locked in! 🎉',
-    education: 'Education section complete! 🎉',
-    skills: 'Skills section complete! Your resume is looking great! 🎉',
-  };
-
-  const NEXT_STEP_MESSAGES: Record<string, string> = {
-    contact: 'Next: Write your professional summary →',
-    summary: 'Next: Add your work experience →',
-    experience: 'Next: Add your education details →',
-    education: 'Next: List your key skills →',
-  };
 
   useEffect(() => {
     if (!currentResume) return;

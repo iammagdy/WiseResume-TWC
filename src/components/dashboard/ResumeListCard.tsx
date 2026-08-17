@@ -135,7 +135,11 @@ export const ResumeListCard = memo(function ResumeListCard({
     if (showSwipeHint) {
       const timer = setTimeout(() => {
         setShowSwipeHint(false);
-        try { sessionStorage.setItem(SWIPE_HINT_KEY, '1'); } catch {}
+        try {
+          sessionStorage.setItem(SWIPE_HINT_KEY, '1');
+        } catch {
+          // The hint may repeat when browser storage is unavailable.
+        }
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -181,7 +185,7 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.$id));
   const matchScore = resume.job_match_score;
-  const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.$id, resume.$updatedAt]);
+  const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume]);
 
   const verifiedScoreClass = (score: number) => {
     if (score >= 75) return 'bg-success/10 text-success border-success/30';
@@ -193,7 +197,11 @@ export const ResumeListCard = memo(function ResumeListCard({
     setIsDragging(true);
     if (showSwipeHint) {
       setShowSwipeHint(false);
-      try { localStorage.setItem(SWIPE_HINT_KEY, '1'); } catch {}
+      try {
+        localStorage.setItem(SWIPE_HINT_KEY, '1');
+      } catch {
+        // Swiping still works when browser storage is unavailable.
+      }
     }
   };
 
@@ -401,6 +409,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                 score={healthScore?.overallScore ?? 0}
                 size={40}
                 isLoading={isScoring || healthScore == null}
+                label="Resume readiness"
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -512,6 +521,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     score={healthScore?.overallScore ?? 0}
                     size={44}
                     isLoading={isScoring || healthScore == null}
+                    label="Resume readiness"
                   />
                 </div>
               )}
@@ -556,7 +566,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                 )}
                 {healthScore && (
                   <p className="text-[11px] text-muted-foreground mt-1 tabular-nums sm:hidden">
-                    {t('app.resumeCard.atsPercentage', 'ATS {{score}}%', { score: healthScore.overallScore })}
+                    {t('app.resumeCard.atsPercentage', 'Ready {{score}}%', { score: healthScore.overallScore })}
                     {healthScore.keywordGaps && healthScore.keywordGaps.length > 0
                       ? ` · ${t('app.resumeCard.keywordGapsCount', '{{count}} gap(s)', { count: healthScore.keywordGaps.length })}`
                       : ''}
@@ -629,14 +639,14 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </ErrorBoundary>
               </div>
             )}
-            {/* Resume health / ATS score ring */}
+            {/* Deterministic resume-readiness ring */}
             <div className="shrink-0 flex flex-col items-center gap-1">
               {healthScore ? (
-                <ScoreRing score={healthScore.overallScore} size={48} isLoading={isScoring} />
+                <ScoreRing score={healthScore.overallScore} size={48} isLoading={isScoring} label="Resume readiness" />
               ) : (
-                <ScoreRing score={0} size={48} isLoading />
+                <ScoreRing score={0} size={48} isLoading label="Resume readiness" />
               )}
-              <span className="text-[10px] font-medium text-muted-foreground leading-none">ATS</span>
+              <span className="text-[10px] font-medium text-muted-foreground leading-none">Ready</span>
             </div>
 
             {/* Content */}

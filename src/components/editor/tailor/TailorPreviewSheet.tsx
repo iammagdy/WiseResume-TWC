@@ -11,6 +11,8 @@ import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateC
 import haptics from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useExportProgress } from '@/hooks/useExportProgress';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getDocumentLocale } from '@/i18n/resumeLocale';
 
 import templateComponents from '@/components/templates/registry';
 
@@ -76,8 +78,14 @@ export const TailorPreviewSheet = memo(function TailorPreviewSheet({
     try {
       const { generateNativePDF } = await import('@/lib/nativePdfGenerator');
       const { downloadFile } = await import('@/lib/downloadUtils');
+      const { pdfDefaults } = useSettingsStore.getState();
       const blob = await generateNativePDF(templateRef.current!, {
+        pageFormat: (resume.customization?.pageFormat ?? 'letter') as 'letter' | 'a4',
         onePage: pdfMode === 'one-page',
+        showPageNumbers: pdfDefaults.showPageNumbers ?? true,
+        pageNumberFormat: pdfDefaults.pageNumberFormat ?? 'full',
+        showBranding: pdfDefaults.showBranding ?? true,
+        locale: getDocumentLocale(resume),
         onProgress,
       });
       const name = resume.contactInfo?.fullName || 'Resume';

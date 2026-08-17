@@ -68,15 +68,17 @@ export function AIPrivacyDisclosure({
           <DialogDescription asChild>
             <div className="text-sm text-muted-foreground space-y-3 pt-1">
               <p>
-                To provide AI-powered features, your resume content — including personal
-                details such as your name, contact information, and work history — will
-                be sent to <strong className="text-foreground">{providerName}</strong> for
-                processing.
+                To provide AI-powered features, the content you submit — such as resume
+                details, job descriptions, links, or drafts — will be sent to{' '}
+                <strong className="text-foreground">{providerName}</strong> for processing.
+                When a job site blocks direct access, its link may also be sent to our
+                reader service so the posting can be extracted.
               </p>
               <p>
                 Please review {providerName}&apos;s privacy policy before continuing.
-                You can also enable <em>Redact personal info before AI processing</em> in
-                AI &amp; Voice settings to replace identifying details with placeholders.
+                For resume-based tools, you can also enable <em>Redact personal info
+                before AI processing</em> in AI &amp; Voice settings to replace identifying
+                contact details with placeholders.
               </p>
             </div>
           </DialogDescription>

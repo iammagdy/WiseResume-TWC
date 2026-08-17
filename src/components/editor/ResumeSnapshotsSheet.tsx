@@ -83,7 +83,7 @@ function SnapshotCard({
           </div>
           {snapshot.ats_score != null && (
             <Badge variant="outline" className="text-xs shrink-0">
-              ATS {snapshot.ats_score}%
+              Readiness {snapshot.ats_score}%
             </Badge>
           )}
         </div>

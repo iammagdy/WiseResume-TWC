@@ -25,7 +25,7 @@ export interface IndustryAlternative {
   role: string;
   transferableSkills: string[];
   newSkillsNeeded: string[];
-  salaryComparison: 'higher' | 'similar' | 'lower';
+  salaryComparison: 'higher' | 'similar' | 'lower' | 'unknown';
 }
 
 export interface ActionStep {

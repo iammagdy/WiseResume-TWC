@@ -5,6 +5,7 @@ import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { useAuth } from '@/hooks/useAuth';
 import { databases, ID, Query } from '@/lib/appwrite';
 import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { wisehireOwnerPermissions } from '@/lib/wisehire/documentPermissions';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +70,7 @@ function CompanyProfileSection() {
           COLLECTIONS.wisehire_companies,
           ID.unique(),
           { owner_id: userId, name: name.trim(), size },
+          wisehireOwnerPermissions(userId),
         );
       }
 

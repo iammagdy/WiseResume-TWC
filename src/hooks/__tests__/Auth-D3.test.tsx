@@ -16,19 +16,22 @@ vi.unmock("@/hooks/useAuth");
 import * as useAuthHook from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthContext } from "@/contexts/AuthContext";
+import type { AuthContextType } from "@/contexts/AuthContext";
 import { mockNavigate } from "@/test/mocks/router";
 
 vi.mock("@/hooks/useAuth");
 
 const mockUseAuth = vi.mocked(useAuthHook.useAuth);
 
-const makeAuth = (overrides = {}) => ({
+const makeAuth = (overrides: Partial<AuthContextType> = {}): AuthContextType => ({
   isAuthenticated: false,
   isImpersonating: false,
   loading: false,
   sessionValidated: true,
   authSettled: true,
-  user: null as any,
+  user: null,
+  appwriteUser: null,
+  authAvailable: true,
   authReady: false,
   signOut: vi.fn(),
   refreshSession: vi.fn().mockResolvedValue(null),
@@ -141,7 +144,7 @@ describe("useAuth — outside provider (D3)", () => {
       if (context === undefined) {
         throw new Error("useAuth must be used within an AuthProvider");
       }
-      return context as any;
+      return context;
     });
 
     // Suppress React error boundary console output

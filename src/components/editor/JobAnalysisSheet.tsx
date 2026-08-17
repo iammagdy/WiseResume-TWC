@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import editorLogger from '@/lib/editorLogger';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 interface JobAnalysisSheetProps {
   open: boolean;
@@ -54,6 +55,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
   })));
 
   const [isToastShown, setIsToastShown] = useState(false);
+  const redactedResume = useRedactedResume(currentResume);
 
   // Clear stale results when sheet closes
   const handleOpenChange = (isOpen: boolean) => {
@@ -82,7 +84,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
     setIsAnalyzing(true);
     try {
       const result = await execute(async () => {
-        return await analyzeResume(currentResume, jobDescription);
+        return await analyzeResume(redactedResume ?? currentResume, jobDescription);
       });
       
       if (result) {
@@ -175,12 +177,12 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
             >
               {/* Overall Score */}
               <div className="p-6 rounded-2xl bg-card border border-border text-center">
-                <p className="text-sm text-muted-foreground mb-2">Keyword Match Score</p>
+                <p className="text-sm text-muted-foreground mb-2">AI job-alignment estimate</p>
                 <p className={`text-5xl font-display font-bold ${getScoreColor(matchScore.overallScore)}`}>
                   {matchScore.overallScore}%
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-2 leading-snug max-w-[260px] mx-auto">
-                  Measures how well your resume content matches this job description's keywords — not your template's layout parsability or how external tools (Jobscan, Resumeworded) will score it.
+                  A model-generated content estimate for review—not an employer ATS score, hiring probability, or prediction. Verify every suggested gap against the posting.
                 </p>
               </div>
 
@@ -189,7 +191,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
                 <ScoreCard label="Skills Match" value={matchScore.skillsMatch} />
                 <ScoreCard label="Experience" value={matchScore.experienceRelevance} />
                 <ScoreCard label="Keywords" value={matchScore.keywordAlignment} />
-                <ScoreCard label="ATS Keywords" value={matchScore.atsCompatibility} />
+                <ScoreCard label="Term coverage estimate" value={matchScore.atsCompatibility} />
               </div>
 
               {/* Strengths */}

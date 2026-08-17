@@ -7,6 +7,10 @@ import { getAppwriteJWT } from '@/lib/appwriteJWT';
 import { resolvePublicApiBase } from '@/lib/publicApiBase';
 import type { SupportedLocale } from '@/i18n/core';
 import { localizeResumeTemplateElement } from '@/i18n/localizeResumeTemplate';
+import {
+  validatePdfExportRequestBody,
+  type PdfPageNumberFormat,
+} from '@/lib/security/pdfExportPolicy';
 
 const BRANDING_URL = 'https://wiseresume.app';
 
@@ -27,6 +31,7 @@ export interface GenerateNativePDFOptions {
   locale?: SupportedLocale;
   pageFormat?: 'letter' | 'a4';
   showPageNumbers?: boolean;
+  pageNumberFormat?: PdfPageNumberFormat;
   showBranding?: boolean;
   onePage?: boolean;
   atsMode?: boolean;
@@ -40,6 +45,7 @@ export interface GenerateCoverLetterNativePDFOptions {
   locale?: SupportedLocale;
   pageFormat?: 'letter' | 'a4';
   showPageNumbers?: boolean;
+  pageNumberFormat?: PdfPageNumberFormat;
   showBranding?: boolean;
   onProgress?: OnProgressCallback;
 }
@@ -238,6 +244,7 @@ async function callPdfServer(
     onePage?: boolean;
     atsMode?: boolean;
     showPageNumbers?: boolean;
+    pageNumberFormat?: PdfPageNumberFormat;
     showBranding?: boolean;
     customBreakPositions?: number[];
     totalContentHeightPx?: number;
@@ -250,6 +257,11 @@ async function callPdfServer(
   onProgress?: OnProgressCallback,
   attempt = 0,
 ): Promise<Blob> {
+  const validation = validatePdfExportRequestBody(payload);
+  if (!validation.ok) {
+    throw new Error(validation.message);
+  }
+
   const apiBase = resolvePublicApiBase();
   const url = `${apiBase}/api/export/pdf-native`;
 
@@ -326,6 +338,7 @@ export async function generateNativePDF(
     onePage = false,
     atsMode = false,
     showPageNumbers = true,
+    pageNumberFormat = 'full',
     showBranding = true,
     customBreakPositions,
     onProgress,
@@ -377,6 +390,7 @@ export async function generateNativePDF(
     onePage,
     atsMode,
     showPageNumbers,
+    pageNumberFormat,
     showBranding,
     // Render/crop height for the final page — trimmed or guarded as above.
     totalContentHeightPx,
@@ -396,7 +410,14 @@ export async function generateCoverLetterNativePDF(
   _contactInfo: ContactInfo | undefined,
   options: GenerateCoverLetterNativePDFOptions = {},
 ): Promise<Blob> {
-  const { onProgress, locale = 'en', pageFormat = 'letter', showPageNumbers = true, showBranding = true } = options;
+  const {
+    onProgress,
+    locale = 'en',
+    pageFormat = 'letter',
+    showPageNumbers = true,
+    pageNumberFormat = 'full',
+    showBranding = true,
+  } = options;
   onProgress?.('preparing', 10);
 
   if (locale === 'ar') {
@@ -406,12 +427,16 @@ export async function generateCoverLetterNativePDF(
       pageFormat,
       locale,
       showPageNumbers,
+      pageNumberFormat,
       showBranding,
     }, onProgress);
   }
 
   const { generateCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
-  const bytes = await generateCoverLetterPDF(letter as Parameters<typeof generateCoverLetterPDF>[0]);
+  const bytes = await generateCoverLetterPDF(
+    letter as Parameters<typeof generateCoverLetterPDF>[0],
+    { pageFormat, showPageNumbers, pageNumberFormat, showBranding },
+  );
 
   onProgress?.('downloading', 90);
   return new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useDeferredValue, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen, LayoutGrid, List } from 'lucide-react';
@@ -34,7 +34,7 @@ import { useLocale } from '@/i18n/LocaleProvider';
 
 import { isBefore, addDays, differenceInDays } from 'date-fns';
 import { safeFormatDate } from '@/lib/dateUtils';
-import { scoreJobMatch, scoreJobMatchAI, getCachedAIScore, JobMatchResult } from '@/lib/jobMatchScorer';
+import { scoreJobMatch, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
 
@@ -52,33 +52,34 @@ const STATUS_BADGE_CLASSES: Record<ApplicationStatus, string> = {
 function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied, t }: {job: Job;onClick: () => void;matchScore: JobMatchResult | null;onTailor: () => void;onMarkApplied: () => void;t: (key: string, fallback?: string) => string;}) {
   return (
     <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-2">
-      <button
-        onClick={onClick}
-        className="flex items-start gap-3 w-full text-left">
-        
-        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-          <Briefcase className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate" title={job.title}>{job.title}</p>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-            <Building2 className="w-3 h-3" />
-            <span className="truncate">{job.company}</span>
+      <div className="flex items-start gap-3 w-full">
+        <button
+          onClick={onClick}
+          className="flex flex-1 min-w-0 items-start gap-3 text-left">
+          <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <Briefcase className="w-5 h-5 text-primary" />
           </div>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {job.location &&
-            <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
-                <MapPin className="w-3 h-3" /> {job.location}
-              </span>
-            }
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{job.job_type}</Badge>
-            {job.salary_range &&
-            <span className="text-[11px] text-muted-foreground">{job.salary_range}</span>
-            }
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate" title={job.title}>{job.title}</p>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+              <Building2 className="w-3 h-3" />
+              <span className="truncate">{job.company}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {job.location &&
+              <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                  <MapPin className="w-3 h-3" /> {job.location}
+                </span>
+              }
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{job.job_type}</Badge>
+              {job.salary_range &&
+              <span className="text-[11px] text-muted-foreground">{job.salary_range}</span>
+              }
+            </div>
           </div>
-        </div>
+        </button>
         <JobMatchScore score={matchScore} jobTitle={job.title} />
-      </button>
+      </div>
       {/* Action buttons */}
       <div className="flex gap-2 pl-[52px]">
         <button
@@ -157,8 +158,9 @@ export default function ApplicationsPage() {
     return primary ? dbToResumeData(primary) : null;
   }, [resumes]);
 
-  // Compute heuristic match scores (instant)
-  const heuristicScores = useMemo(() => {
+  // Compute deterministic match estimates locally. Opening the Jobs tab must
+  // never send resume data to an AI provider or consume AI credits.
+  const matchScores = useMemo(() => {
     if (!primaryResume) return {};
     const scores: Record<string, JobMatchResult> = {};
     for (const job of jobs) {
@@ -166,55 +168,6 @@ export default function ApplicationsPage() {
     }
     return scores;
   }, [primaryResume, jobs]);
-
-  // AI scores state — overlays heuristic when available
-  const [aiScores, setAiScores] = useState<Record<string, JobMatchResult>>({});
-  const aiScoringRan = useRef(false);
-
-  // Fire background AI scoring for visible jobs (once per mount/resume change)
-  useEffect(() => {
-    if (!primaryResume || jobs.length === 0 || activeTab !== 'jobs') return;
-    const primaryResumeRaw = resumes?.find((r) => r.is_primary) || resumes?.[0];
-    if (!primaryResumeRaw) return;
-
-    // Reset flag when resume changes
-    aiScoringRan.current = false;
-
-    // Pre-fill from cache
-    const fromCache: Record<string, JobMatchResult> = {};
-    for (const job of jobs) {
-      const cached = getCachedAIScore(primaryResumeRaw.id, job.id);
-      if (cached) fromCache[job.id] = cached;
-    }
-    if (Object.keys(fromCache).length > 0) setAiScores(fromCache);
-
-    // Score uncached jobs in background (max 5 concurrent to avoid rate limits)
-    const uncached = jobs.filter((j) => !fromCache[j.id]);
-    if (uncached.length === 0 || aiScoringRan.current) return;
-    aiScoringRan.current = true;
-
-    let cancelled = false;
-    (async () => {
-      for (let i = 0; i < uncached.length && !cancelled; i++) {
-        const job = uncached[i];
-        const result = await scoreJobMatchAI(primaryResume, job, primaryResumeRaw.id);
-        if (result && !cancelled) {
-          setAiScores((prev) => ({ ...prev, [job.id]: result }));
-        }
-      }
-    })();
-
-    return () => {cancelled = true;};
-  }, [primaryResume, jobs, resumes, activeTab]);
-
-  // Merged scores: AI overrides heuristic when available
-  const matchScores = useMemo(() => {
-    const merged: Record<string, JobMatchResult> = { ...heuristicScores };
-    for (const [id, score] of Object.entries(aiScores)) {
-      merged[id] = score;
-    }
-    return merged;
-  }, [heuristicScores, aiScores]);
 
   const deferredQuery = useDeferredValue(filters.query);
 
@@ -248,7 +201,7 @@ export default function ApplicationsPage() {
     await queryClient.invalidateQueries({ queryKey: ['job-applications'] });
     haptics.success();
     toast.success(t('app.applicationsPageCopy.toasts.refreshed', 'Activity refreshed'));
-  }, [queryClient]);
+  }, [queryClient, t]);
 
   // Auth guard handled by ProtectedRoute
 
@@ -382,7 +335,7 @@ export default function ApplicationsPage() {
                 <KanbanBoard />
               ) : (
               <>
-              {/* AI Insights */}
+              {/* Deterministic activity insights */}
               <ActivityInsightsCard stats={stats} />
 
               {/* Analytics Dashboard */}

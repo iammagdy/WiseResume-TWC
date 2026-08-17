@@ -503,7 +503,7 @@ function DashboardPageContent() {
     } finally {
       setDuplicateResumeId(null);
     }
-  }, [duplicateResumeId, duplicateResume, resumes]);
+  }, [duplicateResumeId, resumes, duplicateResume, t]);
 
   const handleInterview = useCallback((resumeId: string) => {
     const resume = resumes?.find(r => r.$id === resumeId);
@@ -529,7 +529,7 @@ function DashboardPageContent() {
     } catch {
       toast.error(t('app.dashboardPage.resumeRenameFailed', 'Failed to rename resume'));
     }
-  }, [updateResume, resumes]);
+  }, [resumes, updateResume, t]);
 
   const handleDelete = useCallback((resumeId: string) => {
     setDeleteResumeId(resumeId);
@@ -557,7 +557,7 @@ function DashboardPageContent() {
     } finally {
       setDeleteResumeId(null);
     }
-  }, [deleteResumeId, resumes, deleteResume]);
+  }, [deleteResumeId, resumes, deleteResume, t]);
 
   // Deferred search for smoother typing
   const deferredSearch = useDeferredValue(searchQuery);
@@ -669,19 +669,19 @@ function DashboardPageContent() {
         },
       });
     }, 5000);
-  }, [selectedIds, deleteMultipleResumes, exitSelectionMode]);
+  }, [selectedIds, t, deleteMultipleResumes, exitSelectionMode]);
 
   const checklistSteps = useMemo((): ChecklistStep[] => {
     const hasAnyScore = Object.values(effectiveHealthScores).some(s => (s.overallScore ?? 0) > 0);
     const hasTargetJob = resumes.some(r => r.target_job_title);
     return [
       { id: 'first-resume', label: t('app.dashboardPage.checklist.createResume', 'Create your first resume'), description: t('app.dashboardPage.checklist.createResumeDesc', 'Build a professional resume to get started.'), done: resumes.length > 0, href: '/dashboard?action=create' },
-      { id: 'ats-check', label: t('app.dashboardPage.checklist.atsCheck', 'Run an ATS check'), description: t('app.dashboardPage.checklist.atsCheckDesc', 'See how well your resume scores with recruiters.'), done: hasAnyScore, href: '/editor' },
+      { id: 'ats-check', label: t('app.dashboardPage.checklist.atsCheck', 'Check resume readiness'), description: t('app.dashboardPage.checklist.atsCheckDesc', 'See which core resume section to complete next.'), done: hasAnyScore, href: '/editor' },
       { id: 'export', label: t('app.dashboardPage.checklist.export', 'Export your resume'), description: t('app.dashboardPage.checklist.exportDesc', 'Download your resume as PDF or PNG.'), done: exportedChecked, href: '/editor' },
       { id: 'target-job', label: t('app.dashboardPage.checklist.targetJob', 'Set a target job'), description: t('app.dashboardPage.checklist.targetJobDesc', 'Tailor your resume for specific roles.'), done: hasTargetJob, href: '/tailoring-hub' },
       { id: 'portfolio', label: t('app.dashboardPage.checklist.portfolio', 'View your portfolio'), description: t('app.dashboardPage.checklist.portfolioDesc', 'Share your professional portfolio online.'), done: !!profile?.portfolioEnabled, href: '/portfolio' },
     ];
-  }, [resumes, effectiveHealthScores, exportedChecked, profile?.portfolioEnabled]);
+  }, [effectiveHealthScores, resumes, t, exportedChecked, profile?.portfolioEnabled]);
 
   const onboardingCompleted = user?.id ? localStorage.getItem(`wr-onboarding-completed-${user.id}`) === 'true' : false;
   const isPowerUser = resumes.length >= 3 || resumes.some(r => r.parent_resume_id);
@@ -1135,7 +1135,7 @@ function DashboardPageContent() {
                   {showTrustBanner && (
                     <div className="flex items-center gap-2 py-1.5 text-muted-foreground">
                       <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <p className="text-xs font-medium text-foreground flex-1">{t('app.dashboardPage.footerEncrypted', 'Your career data is encrypted, private, and never shared.')}</p>
+                      <p className="text-xs font-medium text-foreground flex-1">{t('app.dashboardPage.footerEncrypted', 'Your career data is private by default; AI sharing happens only after disclosure.')}</p>
                       <button
                         onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
                         className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-muted/50"

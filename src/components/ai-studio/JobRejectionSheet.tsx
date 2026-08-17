@@ -14,6 +14,9 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
+import type { ResumeData } from '@/types/resume';
+import { restoreResumeContactPlaceholders } from '@/lib/piiRedact';
 
 interface JobRejectionSheetProps {
   open: boolean;
@@ -40,6 +43,8 @@ function isRejectionResult(v: unknown): v is RejectionResult {
 
 export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
+  const resume = currentResume as ResumeData | null;
+  const redactedResume = useRedactedResume(resume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
   const [rejectionText, setRejectionText] = useState('');
   const [result, setResult] = useState<RejectionResult | null>(null);
@@ -64,8 +69,9 @@ export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps
     setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
-        const candidateName = currentResume?.contactInfo?.fullName ?? '';
-        const summary = currentResume?.summary ?? '';
+        const providerResume = redactedResume ?? resume;
+        const candidateName = providerResume?.contactInfo?.fullName ?? '';
+        const summary = providerResume?.summary ?? '';
         const { data: responseData, error } = await appwriteFunctions.invoke('wise-ai-chat', {
           body: {
             type: 'job_rejection',
@@ -73,13 +79,16 @@ export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps
               rejectionText,
               candidateName,
               summary,
-              resumeContext: currentResume ?? null,
+              resumeContext: providerResume ?? null,
             },
           },
         });
         if (error) throw new Error(error.message);
         const content = extractAIContent(responseData);
-        return parseAIJson(content, isRejectionResult);
+        return restoreResumeContactPlaceholders(
+          parseAIJson(content, isRejectionResult),
+          resume?.contactInfo,
+        );
       });
       if (data) {
         setResult(data);
@@ -116,6 +125,9 @@ export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps
           <span role="status" aria-live="polite" className="sr-only">
             {isLoading ? 'Analyzing the rejection, please wait…' : result ? 'Rejection analysis ready.' : ''}
           </span>
+          <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            Unless the employer states a reason, AI cannot know why you were rejected. Treat the output as possible interpretations and next-step ideas only.
+          </p>
           {showDraftBanner && draft && !result && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
@@ -167,7 +179,7 @@ export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps
               </div>
 
               <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-1.5">
-                <p className="text-xs font-medium text-rose-600 dark:text-rose-400">Likely Reason</p>
+                <p className="text-xs font-medium text-rose-600 dark:text-rose-400">Possible Interpretation</p>
                 <p className="text-sm">{result.likelyReason}</p>
               </div>
 

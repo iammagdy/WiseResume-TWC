@@ -250,7 +250,7 @@ export default function WiseHireAnalyticsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Total candidates" value={data.totalCandidates} icon={Users} color="blue" />
                 <StatCard label="Resumes screened" value={data.totalScreened} icon={Zap} color="purple" />
-                <StatCard label="Avg match score" value={data.avgMatchScore} icon={Star} suffix="%" color="amber" />
+                <StatCard label="Avg evidence alignment" value={data.avgMatchScore} icon={Star} suffix="%" color="amber" />
                 <StatCard label="Avg time to hire" value={data.avgTimeToHire} icon={Clock} suffix=" days" color="emerald" />
               </div>
 

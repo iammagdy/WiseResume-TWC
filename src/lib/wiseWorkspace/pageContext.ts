@@ -20,7 +20,7 @@ const PAGE_REGISTRY: Array<{
     pageId: 'dashboard',
     routes: ['/dashboard', '/templates', '/resume'],
     pageTitle: 'Dashboard',
-    pageSummary: 'Manage resumes, ATS scores, and next-step recommendations.',
+    pageSummary: 'Manage resumes, readiness checks, and next-step recommendations.',
     contextFilter: 'resumes',
     suggestedActions: [
       { type: 'navigate', label: 'Create a resume', href: '/dashboard?action=create' },
@@ -35,7 +35,7 @@ const PAGE_REGISTRY: Array<{
     contextFilter: 'resumes',
     suggestedActions: [
       { type: 'focus_editor_section', label: 'Experience section', href: '/editor?section=experience' },
-      { type: 'send_prompt', label: 'Add metrics to bullets', prompt: 'Add metrics to my experience bullets' },
+      { type: 'send_prompt', label: 'Strengthen bullet evidence', prompt: 'Strengthen my experience bullets using only facts and numbers already in my resume. Ask me for any missing evidence before adding it.' },
     ],
   },
   {
@@ -129,11 +129,11 @@ export function matchLocalGuidance(
       steps: [
         'Open the Experience section in the editor.',
         'Select a role and tap a bullet.',
-        'Use AI Enhance or ask Wise AI to add numbers and impact.',
+        'Use AI Enhance to strengthen the wording, then enter verified numbers when prompted.',
       ],
       actions: [
         { type: 'focus_editor_section', label: 'Open Experience', href: '/editor?section=experience' },
-        { type: 'send_prompt', label: 'Improve my bullets', prompt: 'Add metrics to my top experience bullets' },
+        { type: 'send_prompt', label: 'Improve my bullets', prompt: 'Strengthen my top experience bullets using only verified facts. Ask me before adding any number or outcome that is not already present.' },
       ],
     };
   }

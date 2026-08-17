@@ -207,7 +207,7 @@ export function SetupTab(props: SetupTabProps) {
           <label className="text-xs font-medium text-foreground">Resume to display</label>
           <p className="text-[11px] text-muted-foreground">Choose which resume powers your portfolio content.</p>
           <Select
-            value={resumes.some((r) => getResumeDocumentId(r) === selectedResumeId) ? selectedResumeId : undefined}
+            value={resumes.some((r) => getResumeDocumentId(r) === selectedResumeId) ? selectedResumeId : ''}
             onValueChange={onSelectedResumeIdChange}
           >
             <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>

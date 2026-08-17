@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { databases, Query } from '@/lib/appwrite';
-import { COLLECTIONS, DATABASE_ID } from '@/lib/appwrite-collections';
+import { XCircle } from 'lucide-react';
 import { BriefOutput } from '@/components/wisehire/brief/BriefOutput';
 import { BriefSkeleton } from '@/components/wisehire/brief/BriefSkeleton';
 import type { CandidateBrief } from '@/hooks/wisehire/useBriefs';
+import { invokeWisehireAccess } from '@/lib/wisehire/wisehireAccessClient';
+import { usePrivateShareMeta } from '@/hooks/wisehire/usePrivateShareMeta';
 
 export default function PublicBriefPage() {
+  usePrivateShareMeta('Shared Candidate Brief · WiseHire');
   const { shareToken } = useParams<{ shareToken: string }>();
   const [brief, setBrief] = useState<CandidateBrief | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,34 +19,21 @@ export default function PublicBriefPage() {
 
     async function fetchBrief() {
       try {
-        const res = await databases.listDocuments(DATABASE_ID, COLLECTIONS.wisehire_candidate_briefs, [
-          Query.equal('share_token', shareToken!),
-          Query.equal('share_token_active', true),
-          Query.limit(1),
-        ]);
-
-        if (res.total === 0) { setNotFound(true); return; }
-
-        const doc = res.documents[0];
-
-        let candidate: { name: string; email: string } | null = null;
-        let role: { title: string } | null = null;
-
-        if (doc.candidate_id) {
-          try {
-            const candidateDoc = await databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_candidates, doc.candidate_id as string);
-            candidate = { name: candidateDoc.name as string, email: candidateDoc.email as string };
-          } catch { /* ignore — show brief without candidate name */ }
-        }
-
-        if (doc.role_id) {
-          try {
-            const roleDoc = await databases.getDocument(DATABASE_ID, COLLECTIONS.wisehire_roles, doc.role_id as string);
-            role = { title: roleDoc.title as string };
-          } catch { /* ignore — show brief without role title */ }
-        }
-
-        setBrief({ ...doc, id: doc.$id, candidate, role } as unknown as CandidateBrief);
+        const { data, error } = await invokeWisehireAccess<{ brief: Record<string, unknown> | null }>(
+          'public-brief',
+          { share_token: shareToken! },
+        );
+        if (error || !data?.brief) { setNotFound(true); return; }
+        setBrief({
+          owner_id: '',
+          candidate_id: '',
+          role_id: null,
+          ai_model_used: null,
+          is_byok: false,
+          share_token: null,
+          share_token_active: false,
+          ...data.brief,
+        } as unknown as CandidateBrief);
       } catch {
         setNotFound(true);
       } finally {
@@ -73,7 +62,7 @@ export default function PublicBriefPage() {
         ) : notFound ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
-              <span className="text-red-500 text-xl">✕</span>
+              <XCircle className="h-6 w-6 text-red-500" aria-hidden="true" />
             </div>
             <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Brief not found</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -81,7 +70,7 @@ export default function PublicBriefPage() {
             </p>
           </div>
         ) : brief ? (
-          <BriefOutput brief={brief} />
+          <BriefOutput brief={brief} publicView />
         ) : null}
       </main>
 

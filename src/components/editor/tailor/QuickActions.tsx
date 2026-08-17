@@ -13,6 +13,7 @@ import {
   resumeSectionAiFnName,
   resumeSectionAiBodyProps,
 } from '@/lib/resumeSectionAiFlag';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 
 interface QuickActionsProps {
@@ -34,40 +35,31 @@ export function QuickActions({ resume, tailorResult, jobDescription, onUpdateRes
   const [loading, setLoading] = useState<ActionId | null>(null);
   const [completed, setCompleted] = useState<ActionId[]>([]);
   const { execute: executeAI } = useAIAction({ operation: 'enhance' });
+  const redactedResume = useRedactedResume(resume);
 
   const handleAction = async (actionId: ActionId) => {
     setLoading(actionId);
 
     try {
       let instruction = '';
+      let section: 'experience' | 'projects' | 'custom' = 'custom';
+      let currentContent: unknown = [];
 
       switch (actionId) {
         case 'quantify':
-          instruction = `Review these resume bullet points and add specific metrics, numbers, and quantifiable results where possible. Only modify bullets that currently lack metrics. Return the enhanced experience array in the same format.
-
-Experience:
-${JSON.stringify(tailorResult.experience, null, 2)}
-
-Job Description:
-${jobDescription}
-
-Return JSON: { "experience": [...enhanced experience entries...] }`;
+          section = 'experience';
+          currentContent = tailorResult.experience;
+          instruction = 'Strengthen outcome language in these experience entries. Preserve every role, company, date, ID, and source fact. Never invent a number or metric; if evidence is missing, keep the factual wording unchanged.';
           break;
         case 'projects':
-          instruction = `Based on this job description, suggest 2-3 relevant side projects the candidate could add to strengthen their application. Use their existing skills and experience as a foundation. Don't fabricate - suggest realistic projects they could actually build.
-
-Skills: ${tailorResult.skills.join(', ')}
-Job: ${jobDescription}
-
-Return JSON: { "projects": [{ "name": "...", "description": "...", "technologies": ["..."] }] }`;
+          section = 'projects';
+          currentContent = tailorResult.projects ?? [];
+          instruction = 'Suggest up to three realistic project ideas the candidate could build for this role, grounded only in their demonstrated skills. These are future project recommendations, not claims of completed work.';
           break;
         case 'reorder':
-          instruction = `Given this job description, recommend the optimal order of resume sections for maximum impact. Consider what the hiring manager looks for first.
-
-Job: ${jobDescription}
-Current sections: summary, experience, education, skills, certifications
-
-Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "..." }`;
+          section = 'custom';
+          currentContent = ['summary', 'experience', 'education', 'skills', 'certifications'];
+          instruction = 'Reorder only these existing resume section names for the target role. Do not add or remove sections.';
           break;
       }
 
@@ -77,9 +69,11 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           {
             body: {
               ...resumeSectionAiBodyProps('enhance-section'),
-              section: 'custom',
-              content: instruction,
-              instruction,
+              section,
+              action: 'custom',
+              currentContent,
+              fixInstruction: instruction,
+              context: { resume: redactedResume, jobDescription },
             },
           },
         );
@@ -97,17 +91,23 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
         return;
       }
 
-      if (actionId === 'quantify' && result?.experience) {
-        onUpdateResult({ experience: result.experience });
-        toast.success('Bullets enhanced with metrics!');
-      } else if (actionId === 'projects' && result?.projects) {
-        toast.success(`${result.projects.length} project ideas generated! Check the suggestions.`, {
-          description: result.projects.map((p: any) => p.name).join(', '),
+      const improved = result?.improved;
+      if (actionId === 'quantify' && Array.isArray(improved)) {
+        onUpdateResult({ experience: improved as SuperTailorResult['experience'] });
+        toast.success('Outcome wording strengthened without inventing metrics.');
+      } else if (actionId === 'projects' && Array.isArray(improved)) {
+        const projectNames = improved
+          .map((project) => typeof project === 'object' && project !== null && 'name' in project
+            ? String(project.name)
+            : '')
+          .filter(Boolean);
+        toast.success(`${projectNames.length} project ideas generated for review.`, {
+          description: projectNames.join(', '),
           duration: 6000,
         });
-      } else if (actionId === 'reorder' && result?.recommendedOrder) {
+      } else if (actionId === 'reorder' && Array.isArray(improved)) {
         toast.success('Section order optimized!', {
-          description: result.reasoning || 'Sections reordered for maximum impact',
+          description: improved.filter((item): item is string => typeof item === 'string').join(' → '),
           duration: 6000,
         });
       } else {

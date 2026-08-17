@@ -54,7 +54,7 @@ export const DashboardMissingKeywordsDialog = memo(function DashboardMissingKeyw
           <DialogTitle>Missing keywords by resume</DialogTitle>
           <DialogDescription>
             {noGaps
-              ? 'No keyword gaps detected in your latest ATS scans.'
+              ? 'No keyword gaps detected in your latest job-match checks.'
               : `${rows.reduce((n, r) => n + r.gaps.length, 0)} gaps across ${rows.length} resume${rows.length !== 1 ? 's' : ''}`}
           </DialogDescription>
         </DialogHeader>
@@ -63,7 +63,7 @@ export const DashboardMissingKeywordsDialog = memo(function DashboardMissingKeyw
           <div className="space-y-3 pr-2">
             {noGaps ? (
               <p className="text-sm text-muted-foreground py-8 text-center">
-                Your resumes are using strong keywords for their target roles. Re-run ATS after tailoring to a new job.
+                No saved job-specific gaps are available. Run a job match after choosing a new target role.
               </p>
             ) : (
               rows.map(({ resume, gaps }) => (

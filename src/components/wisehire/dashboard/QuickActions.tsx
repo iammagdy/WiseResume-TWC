@@ -32,7 +32,7 @@ const ACTIONS = [
   },
   {
     label: 'Mask CVs',
-    description: 'Anonymise CVs for bias-free review',
+    description: 'Prepare de-identification drafts for manual review',
     icon: ShieldCheck,
     path: '/wisehire/mask-cvs',
     color: 'bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',

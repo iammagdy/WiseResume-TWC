@@ -73,8 +73,8 @@ export function WiseHireGuard() {
     return <WiseHireLoadingSkeleton />;
   }
 
-  // Trial expired + no paid plan → full-screen lockout
-  // Allow access to /wisehire/subscription so they can apply a coupon
+  // Trial expired + no paid plan → full-screen lockout.
+  // Keep the access page reachable so the user can review status and contact support.
   const isSubscriptionPage = location.pathname === '/wisehire/subscription';
   if (!isAdmin && whAccount?.isExpiredWithNoPlan && !isSubscriptionPage) {
     return <ContactUsLockout />;

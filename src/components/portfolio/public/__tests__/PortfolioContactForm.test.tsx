@@ -1,13 +1,19 @@
 import { vi } from 'vitest';
 
 // Directly assign the property on import.meta.env
-(import.meta.env as any).VITE_TURNSTILE_SITE_KEY = 'mock-site-key';
+vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'mock-site-key');
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PortfolioContactForm } from '../PortfolioContactForm';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import React from 'react';
+
+const turnstileTestWindow = window as Window & {
+  simulateTurnstileCallback?: (token: string) => void;
+  simulateTurnstileExpiredCallback?: () => void;
+  simulateTurnstileErrorCallback?: () => void;
+};
 
 // Mock appwriteFunctions
 vi.mock('@/lib/appwrite-functions', () => ({
@@ -38,9 +44,9 @@ describe('PortfolioContactForm Turnstile UX', () => {
     window.turnstile = {
       render: vi.fn((container, params) => {
         // Capture callbacks to simulate them in tests
-        (window as any).simulateTurnstileCallback = params.callback;
-        (window as any).simulateTurnstileExpiredCallback = params['expired-callback'];
-        (window as any).simulateTurnstileErrorCallback = params['error-callback'];
+        turnstileTestWindow.simulateTurnstileCallback = params.callback;
+        turnstileTestWindow.simulateTurnstileExpiredCallback = params['expired-callback'];
+        turnstileTestWindow.simulateTurnstileErrorCallback = params['error-callback'];
         return 'mock-widget-id';
       }),
       reset: vi.fn(),
@@ -49,9 +55,9 @@ describe('PortfolioContactForm Turnstile UX', () => {
   });
 
   afterEach(() => {
-    delete (window as any).simulateTurnstileCallback;
-    delete (window as any).simulateTurnstileExpiredCallback;
-    delete (window as any).simulateTurnstileErrorCallback;
+    delete turnstileTestWindow.simulateTurnstileCallback;
+    delete turnstileTestWindow.simulateTurnstileExpiredCallback;
+    delete turnstileTestWindow.simulateTurnstileErrorCallback;
     delete window.turnstile;
   });
 
@@ -80,11 +86,11 @@ describe('PortfolioContactForm Turnstile UX', () => {
 
     // Wait for the render mock to capture the callback
     await waitFor(() => {
-      expect((window as any).simulateTurnstileCallback).toBeDefined();
+      expect(turnstileTestWindow.simulateTurnstileCallback).toBeDefined();
     });
 
     // Simulate successful Turnstile validation callback
-    (window as any).simulateTurnstileCallback('valid-mock-token');
+    act(() => turnstileTestWindow.simulateTurnstileCallback?.('valid-mock-token'));
 
     const submitBtn = screen.getByRole('button', { name: /send message/i });
     
@@ -104,12 +110,12 @@ describe('PortfolioContactForm Turnstile UX', () => {
 
     // Wait for the render mock to capture the callbacks
     await waitFor(() => {
-      expect((window as any).simulateTurnstileCallback).toBeDefined();
-      expect((window as any).simulateTurnstileExpiredCallback).toBeDefined();
+      expect(turnstileTestWindow.simulateTurnstileCallback).toBeDefined();
+      expect(turnstileTestWindow.simulateTurnstileExpiredCallback).toBeDefined();
     });
 
     // Simulate success
-    (window as any).simulateTurnstileCallback('valid-mock-token');
+    act(() => turnstileTestWindow.simulateTurnstileCallback?.('valid-mock-token'));
     
     const submitBtn = screen.getByRole('button', { name: /send message/i });
     await waitFor(() => {
@@ -117,7 +123,7 @@ describe('PortfolioContactForm Turnstile UX', () => {
     });
     
     // Simulate expired
-    (window as any).simulateTurnstileExpiredCallback();
+    act(() => turnstileTestWindow.simulateTurnstileExpiredCallback?.());
 
     await waitFor(() => {
       expect(submitBtn.hasAttribute('disabled')).toBe(true);
@@ -130,11 +136,11 @@ describe('PortfolioContactForm Turnstile UX', () => {
     
     // Wait for the render mock to capture the callback
     await waitFor(() => {
-      expect((window as any).simulateTurnstileErrorCallback).toBeDefined();
+      expect(turnstileTestWindow.simulateTurnstileErrorCallback).toBeDefined();
     });
 
     // Simulate Turnstile load error callback
-    (window as any).simulateTurnstileErrorCallback();
+    act(() => turnstileTestWindow.simulateTurnstileErrorCallback?.());
 
     // Use findByText/findByRole to automatically wait for state update re-renders
     expect(await screen.findByText('Security check failed. Please try again.')).toBeDefined();
@@ -156,11 +162,11 @@ describe('PortfolioContactForm Turnstile UX', () => {
 
     // Wait for the render mock to capture the callback
     await waitFor(() => {
-      expect((window as any).simulateTurnstileCallback).toBeDefined();
+      expect(turnstileTestWindow.simulateTurnstileCallback).toBeDefined();
     });
 
     // Set token
-    (window as any).simulateTurnstileCallback('bad-mock-token');
+    act(() => turnstileTestWindow.simulateTurnstileCallback?.('bad-mock-token'));
 
     const submitBtn = screen.getByRole('button', { name: /send message/i });
     

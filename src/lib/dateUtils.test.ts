@@ -80,11 +80,11 @@ describe('compareDates', () => {
 describe('parseResumeDate', () => {
   it('should return null for empty or non-string inputs', () => {
     expect(parseResumeDate('')).toBeNull();
-    // @ts-ignore
+    // @ts-expect-error — runtime guard intentionally receives an invalid value.
     expect(parseResumeDate(null)).toBeNull();
-    // @ts-ignore
+    // @ts-expect-error — runtime guard intentionally receives an invalid value.
     expect(parseResumeDate(undefined)).toBeNull();
-    // @ts-ignore
+    // @ts-expect-error — runtime guard intentionally receives an invalid value.
     expect(parseResumeDate(123)).toBeNull();
   });
 

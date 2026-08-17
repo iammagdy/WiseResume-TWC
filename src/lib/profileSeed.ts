@@ -55,16 +55,12 @@ export async function upsertProfileIdentity({
   } catch (err) {
     if (trimmedName) {
       console.warn('[profileSeed] Failed to create with display_name, retrying with full_name only:', err);
-      try {
-        const created = await databases.createDocument(DATABASE_ID, COLLECTIONS.profiles, ID.unique(), {
-          user_id: userId,
-          email: normalizedEmail || null,
-          full_name: trimmedName,
-        });
-        return created.$id as string;
-      } catch (retryErr) {
-        throw retryErr;
-      }
+      const created = await databases.createDocument(DATABASE_ID, COLLECTIONS.profiles, ID.unique(), {
+        user_id: userId,
+        email: normalizedEmail || null,
+        full_name: trimmedName,
+      });
+      return created.$id as string;
     }
     throw err;
   }

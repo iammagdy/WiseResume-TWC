@@ -30,6 +30,8 @@ import partBadge from "./wise-loader-assets/part-badge.png";
 export type WiseLoaderVariant = "wiseresume" | "wisehire";
 export type WiseLoaderSize = "xs" | "sm" | "md" | "lg" | "xl";
 
+type LoaderPartStyle = React.CSSProperties & { '--rot': string };
+
 const SIZE_TOKENS: Record<WiseLoaderSize, number> = {
   xs: 16, // small icon buttons
   sm: 20, // normal buttons
@@ -160,7 +162,7 @@ export default function WiseLogoLoader({
       <style>{asmCss}</style>
       {PARTS.map((p, i) => {
         const sgn = i % 2 ? 1 : -1;
-        const base: React.CSSProperties = {
+        const base: LoaderPartStyle = {
           position: "absolute",
           left: p.x * u,
           top: p.y * u,
@@ -170,7 +172,7 @@ export default function WiseLogoLoader({
           transformOrigin: "center",
           willChange: "transform, opacity",
           // custom props consumed by the @keyframes below
-          ["--rot" as any]: `${sgn * 9}deg`,
+          '--rot': `${sgn * 9}deg`,
           animation: `wiseAsm ${durationMs}ms cubic-bezier(.34,1.56,.64,1) ${(-i * 0.11 * (durationMs / 3800)).toFixed(3)}s infinite`,
         };
 

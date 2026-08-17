@@ -23,6 +23,7 @@ import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { downloadFile } from '@/lib/downloadUtils';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 
 
 interface LinkedInOptimizerSheetProps {
@@ -100,6 +101,7 @@ function buildAllContentText(result: LinkedInResult, name: string): string {
 
 export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizerSheetProps) {
   const currentResume = useResumeStore((s) => s.currentResume);
+  const redactedResume = useRedactedResume(currentResume);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>('global');
@@ -127,7 +129,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
       const data = await executeAI(async () => {
         const { data, error } = await appwriteFunctions.invoke('optimize-for-linkedin', {
           body: {
-            resume: currentResume,
+            resume: redactedResume,
             region: selectedRegion,
           },
         });

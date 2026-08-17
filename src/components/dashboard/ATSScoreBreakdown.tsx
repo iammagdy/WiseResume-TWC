@@ -35,55 +35,29 @@ function StatusIcon({ score }: { score: number }) {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  keywordOptimization: 'Keywords',
-  contentQuality: 'Content Quality',
-  sectionStructure: 'Structure',
-  parsability: 'Parsability',
-  contactCompleteness: 'Contact Info',
-  lengthDensity: 'Length & Density',
-  templateFriendliness: 'Template',
+  contactCompleteness: 'Contact information',
+  summaryCompleteness: 'Professional summary',
+  experienceCompleteness: 'Work experience',
+  educationCompleteness: 'Education',
+  skillsCompleteness: 'Skills',
 };
 
 const CATEGORY_HINTS: Record<string, (score: number) => string> = {
-  keywordOptimization: (s) => s < 70 ? 'Add industry keywords & tools' : '',
-  contentQuality: (s) => s < 70 ? 'Use action verbs & metrics' : '',
-  sectionStructure: (s) => s < 70 ? 'Add missing sections' : '',
-  parsability: (s) => s < 70 ? 'Use consistent date formats' : '',
-  contactCompleteness: (s) => s < 70 ? 'Add email, phone & LinkedIn' : '',
-  lengthDensity: (s) => s < 70 ? 'Add more detail to bullets' : '',
-  templateFriendliness: (s) => s < 70 ? 'Switch to a single-column template' : '',
+  contactCompleteness: (s) => s < 70 ? 'Add email, phone & location' : '',
+  summaryCompleteness: (s) => s < 70 ? 'Add a focused 50+ word summary' : '',
+  experienceCompleteness: (s) => s < 70 ? 'Add roles, dates & bullet points' : '',
+  educationCompleteness: (s) => s < 70 ? 'Add degree, institution & date' : '',
+  skillsCompleteness: (s) => s < 70 ? 'List at least 5 relevant skills' : '',
 };
 
-// Weights must match the backend scoring formula exactly
+// The local readiness rubric weights the five core sections equally.
 const CATEGORY_WEIGHTS: Record<string, number> = {
-  keywordOptimization: 0.35,
-  contentQuality: 0.25,
-  sectionStructure: 0.10,
-  parsability: 0.10,
-  contactCompleteness: 0.05,
-  lengthDensity: 0.05,
-  templateFriendliness: 0.10,
+  contactCompleteness: 0.2,
+  summaryCompleteness: 0.2,
+  experienceCompleteness: 0.2,
+  educationCompleteness: 0.2,
+  skillsCompleteness: 0.2,
 };
-
-// ── Percentile label ─────────────────────────────────────────────────
-// Static distribution curve: score → approximate percentile rank
-const SCORE_DISTRIBUTION: Array<{ minScore: number; label: string }> = [
-  { minScore: 90, label: 'Top 5%' },
-  { minScore: 80, label: 'Top 10%' },
-  { minScore: 70, label: 'Top 20%' },
-  { minScore: 60, label: 'Top 35%' },
-  { minScore: 50, label: 'Top 50%' },
-  { minScore: 40, label: 'Top 65%' },
-  { minScore: 30, label: 'Top 80%' },
-  { minScore: 0, label: 'Bottom 30%' },
-];
-
-function getPercentileLabel(score: number): string {
-  for (const { minScore, label } of SCORE_DISTRIBUTION) {
-    if (score >= minScore) return label;
-  }
-  return 'Bottom 30%';
-}
 
 // ── Weak bullet reason labels ────────────────────────────────────────
 const WEAK_BULLET_REASON: Record<string, string> = {
@@ -112,9 +86,6 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
   const overall = healthScore.overallScore;
   const label = getScoreLabel(overall);
   const colorClass = getScoreColorClass(overall);
-  const percentile = getPercentileLabel(overall);
-
-  const keywordGaps = healthScore.keywordGaps ?? [];
   const weakBullets = healthScore.weakBullets ?? [];
 
   return (
@@ -125,7 +96,7 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
           className="w-full flex items-center justify-between gap-2 py-2 touch-manipulation active:scale-[0.98] transition-transform"
         >
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-foreground">ATS Score:</span>
+            <span className="text-sm font-medium text-foreground">Resume readiness:</span>
             <span className={cn('text-lg font-bold', colorClass)}>
               {isScoring ? <MiniSpinner size={16} className="inline" /> : `${overall}/100`}
             </span>
@@ -137,11 +108,6 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
             )}>
               {label}
             </span>
-            {!isScoring && (
-              <span className="text-xs text-muted-foreground font-medium">
-                {percentile}
-              </span>
-            )}
           </div>
           {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </button>
@@ -156,6 +122,11 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
           />
         </div>
         <div className="space-y-2">
+          {!compact && (
+            <p className="text-xs text-muted-foreground leading-relaxed pb-1">
+              A local completion check of your five core sections. It does not predict an employer's ATS ranking or measure job-keyword match.
+            </p>
+          )}
           {Object.entries(healthScore.categories)
             .sort(([keyA, a], [keyB, b]) => {
               const impactA = (100 - a) * (CATEGORY_WEIGHTS[keyA] ?? 0.1);
@@ -165,7 +136,6 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
             .map(([key, score], idx) => {
             const hint = CATEGORY_HINTS[key]?.(score) || '';
             const isTopFix = idx === 0 && score < 100;
-            const showGaps = key === 'keywordOptimization' && keywordGaps.length > 0;
             return (
               <div key={key}>
                 <div className="flex items-center gap-2">
@@ -179,12 +149,6 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
                     <span className="text-xs text-muted-foreground hidden sm:inline">({hint})</span>
                   )}
                 </div>
-                {showGaps && (
-                  <p className="text-xs text-muted-foreground mt-0.5 ml-6 leading-relaxed">
-                    Missing from body: {keywordGaps.slice(0, 8).join(', ')}
-                    {keywordGaps.length > 8 ? ` +${keywordGaps.length - 8} more` : ''}
-                  </p>
-                )}
               </div>
             );
           })}
@@ -254,7 +218,7 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
               }}
             >
               <Sparkles className="w-4 h-4 mr-1.5" />
-              Improve Score
+              Improve resume
             </Button>
           )}
         </div>

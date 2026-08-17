@@ -26,7 +26,9 @@ export function onDevKitLock(listener: LockListener): () => void {
 
 function notifyLockListeners() {
   for (const listener of _lockListeners) {
-    try { listener(); } catch { }
+    try { listener(); } catch {
+      // One faulty observer must not prevent the remaining listeners from running.
+    }
   }
 }
 
@@ -35,7 +37,9 @@ export function clearRememberedToken() {
     localStorage.removeItem(LS_TOKEN_KEY);
     localStorage.removeItem(LS_EXPIRY_KEY);
     localStorage.removeItem(LS_EMAIL_KEY);
-  } catch { }
+  } catch {
+    // Storage may be unavailable in restricted/private browsing contexts.
+  }
 }
 
 // ─── WebAuthn biometric helpers ───────────────────────────────────────────────
@@ -77,7 +81,9 @@ export function hasBiometricCredential(): boolean {
 
 /** Clears the stored credential ID (called on explicit lock so user must re-register). */
 export function clearBiometricCredential(): void {
-  try { localStorage.removeItem(LS_CRED_KEY); } catch { }
+  try { localStorage.removeItem(LS_CRED_KEY); } catch {
+    // Storage may be unavailable in restricted/private browsing contexts.
+  }
 }
 
 /**

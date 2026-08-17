@@ -43,7 +43,7 @@ export function ContactUsLockout() {
         {/* Subscription page link */}
         <Link to="/wisehire/subscription">
           <Button variant="outline" className="w-full mb-6">
-            View plans
+            View access options
           </Button>
         </Link>
 

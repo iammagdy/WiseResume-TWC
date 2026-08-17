@@ -77,7 +77,7 @@ describe('parseResumePDF (D4)', () => {
   });
 
   it('returns success:true with data when extraction and AI succeed', async () => {
-    mockGetDocument.mockReturnValueOnce(richPdfMock() as any);
+    mockGetDocument.mockReturnValueOnce(richPdfMock() as unknown as ReturnType<typeof getDocument>);
     invokeMock.mockResolvedValueOnce({ data: mockAIResult, error: null });
 
     const result = await parseResumePDF(makePdfFile());
@@ -96,7 +96,7 @@ describe('parseResumePDF (D4)', () => {
           }),
         }),
       }),
-    } as any);
+    } as unknown as ReturnType<typeof getDocument>);
 
     const result = await parseResumePDF(makePdfFile());
     expect(result.needsOCR).toBe(true);
@@ -105,7 +105,7 @@ describe('parseResumePDF (D4)', () => {
   });
 
   it('falls back cleanly when the AI response is malformed', async () => {
-    mockGetDocument.mockReturnValueOnce(richPdfMock() as any);
+    mockGetDocument.mockReturnValueOnce(richPdfMock() as unknown as ReturnType<typeof getDocument>);
     invokeMock.mockResolvedValueOnce({
       data: { content: '{"not":"resume"}', providerUsed: 'openrouter' },
       error: null,

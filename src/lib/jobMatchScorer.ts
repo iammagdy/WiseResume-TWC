@@ -1,6 +1,5 @@
 import { ResumeData } from '@/types/resume';
 import { Job } from '@/hooks/useJobs';
-import { appwriteFunctions } from '@/lib/appwrite-functions';
 
 export interface JobMatchResult {
   overall: number;
@@ -10,21 +9,9 @@ export interface JobMatchResult {
     found: string[];
     missing: string[];
   };
-  isAIVerified?: boolean;
 }
 
-// ─── In-memory AI score cache ───
-const aiScoreCache = new Map<string, JobMatchResult>();
-
-function cacheKey(resumeId: string, jobId: string): string {
-  return `${resumeId}:${jobId}`;
-}
-
-export function getCachedAIScore(resumeId: string, jobId: string): JobMatchResult | null {
-  return aiScoreCache.get(cacheKey(resumeId, jobId)) ?? null;
-}
-
-// ─── Client-side heuristic (instant fallback) ───
+// ─── Deterministic local estimate ───
 
 function extractKeywords(text: string): string[] {
   if (!text) return [];
@@ -52,12 +39,12 @@ function estimateYearsFromResume(resume: ResumeData): number {
   return Math.round(totalMonths / 12);
 }
 
-/** Instant client-side heuristic score (used as fallback while AI loads) */
+/** Instant client-side estimate. Never invokes AI or consumes AI credits. */
 export function scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult {
   const jobText = `${job.title} ${job.description} ${job.requirements}`;
   const jobKeywords = extractKeywords(jobText);
 
-  const resumeSkills = (resume.skills || []).map(s => (typeof s === 'string' ? s : (s as any)?.name || '').toLowerCase()).filter(Boolean);
+  const resumeSkills = (resume.skills || []).map((skill) => skill.toLowerCase()).filter(Boolean);
   const resumeText = [
     resume.summary,
     ...resume.experience.map(e => `${e.position} ${e.description} ${(e.achievements || []).join(' ')}`),
@@ -102,63 +89,5 @@ export function scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult {
       found: found.slice(0, 15),
       missing: missing.slice(0, 10),
     },
-    isAIVerified: false,
   };
-}
-
-// ─── AI-powered scoring via analyze-resume ───
-
-/**
- * Calls the analyze-resume edge function and maps the result to JobMatchResult.
- * Caches the result per resume+job pair. Does NOT deduct credits (background use).
- */
-export async function scoreJobMatchAI(
-  resume: ResumeData,
-  job: Job,
-  resumeId: string,
-): Promise<JobMatchResult | null> {
-  const key = cacheKey(resumeId, job.id);
-
-  // Return cached result if available
-  const cached = aiScoreCache.get(key);
-  if (cached) return cached;
-
-  try {
-    const jobDescription = `${job.title}\n${job.company}\n${job.description}\n${job.requirements}`;
-
-    // Use the bridge-aware appwriteFunctions wrapper so the user's Kinde-bridged
-    // Supabase JWT is attached. The raw `supabase.functions.invoke` path
-    // omits the Authorization header entirely when no native Supabase
-    // session exists (which is always, in our Kinde flow), causing
-    // analyze-resume's requireAuth to log "Missing authorization header"
-    // into error_log on every background score call (Task #41).
-    const { data, error } = await appwriteFunctions.invoke('analyze-resume', {
-      body: { resume, jobDescription },
-    });
-
-    if (error || data?.error) {
-      console.warn('[scoreJobMatchAI] Failed:', error?.message || data?.error);
-      return null;
-    }
-
-    const score = data?.score;
-    if (!score) return null;
-
-    const result: JobMatchResult = {
-      overall: score.overallScore ?? 0,
-      skillMatch: score.skillsMatch ?? score.keywordAlignment ?? 0,
-      experienceMatch: score.experienceRelevance ?? 0,
-      keywords: {
-        found: score.strengths?.slice(0, 15) ?? [],
-        missing: data?.gaps?.missingKeywords?.slice(0, 10) ?? [],
-      },
-      isAIVerified: true,
-    };
-
-    aiScoreCache.set(key, result);
-    return result;
-  } catch (err) {
-    console.warn('[scoreJobMatchAI] Error:', err);
-    return null;
-  }
 }

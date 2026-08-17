@@ -417,7 +417,7 @@ function InterviewPageContent() {
         }
       });
     }
-  }, [summary, sessionSaved, user, transcript, elapsedSeconds, saveSession, parsedSummary]);
+  }, [summary, sessionSaved, user, transcript, elapsedSeconds, saveSession, parsedSummary, currentResumeId]);
 
 
   const backTriggeredRef = useRef(false);
@@ -434,10 +434,10 @@ function InterviewPageContent() {
         <UpgradeWall
           requiredPlan="pro"
           featureName="Interview Coaching"
-          description="Practice real voice interviews with AI that listens, responds, and scores you live."
+          description="Practice spoken mock interviews with AI-generated questions and review feedback after each answer."
           features={[
-            'Live voice interview practice with AI',
-            'Real-time scoring & performance breakdown',
+            'Spoken mock-interview practice with AI',
+            'Answer-by-answer feedback and session summary',
             'Industry-specific question banks',
             'Resume-aware coaching & targeted feedback',
           ]}

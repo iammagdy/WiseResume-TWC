@@ -43,6 +43,7 @@ import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateAiCreditQueries } from '@/lib/invalidate-ai-credit-queries';
 import { cn } from '@/lib/utils';
+import { useAIAction } from '@/hooks/useAIAction';
 
 export interface ProfileData {
   summary: string | null;
@@ -214,6 +215,7 @@ export function ProfileImportSheet({
   const [editingExpIdx, setEditingExpIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const { execute: executeAI } = useAIAction({ operation: 'profile-import' });
 
   // Auto-jump to a specific method when the sheet opens with `initialMethod`.
   // Fires only on the open transition so the user can navigate freely afterwards.
@@ -230,21 +232,25 @@ export function ProfileImportSheet({
       }
     }
     lastOpenRef.current = open;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [open, initialMethod]);
 
   const platformLabel = PLATFORMS.find((p) => p.id === platform)?.label ?? 'LinkedIn';
 
   const callParseApi = useCallback(async (text: string): Promise<Partial<ProfileData>> => {
-    const { data, error: fnError } = await appwriteFunctions.invoke('parse-job', {
-      body: { action: 'linkedin', profileText: text.trim(), platform },
+    const result = await executeAI(async () => {
+      const { data, error: fnError } = await appwriteFunctions.invoke('parse-job', {
+        body: { action: 'linkedin', profileText: text.trim(), platform },
+      });
+      if (fnError) throw fnError;
+      if (data?.error === 'URL_ONLY_REJECTED') throw new Error(data.message);
+      if (data?.error) throw new Error(data.message || data.error);
+      return data as Partial<ProfileData>;
     });
-    if (fnError) throw fnError;
-    if (data?.error === 'URL_ONLY_REJECTED') throw new Error(data.message);
-    if (data?.error) throw new Error(data.message || data.error);
+    if (!result) throw new Error('AI profile import was cancelled.');
     invalidateAiCreditQueries(queryClient);
-    return data as Partial<ProfileData>;
-  }, [platform, queryClient]);
+    return result;
+  }, [executeAI, platform, queryClient]);
 
   const handleQuickAnalyze = async () => {
     if (!quickPasteText.trim()) {
@@ -345,12 +351,15 @@ export function ProfileImportSheet({
     }, 800);
 
     try {
-      const parseResult = await parseResumePDF(file);
-      let resumeData = parseResult.data;
-      if (parseResult.needsOCR) {
-        const { data: ocrData } = await parseResumePDFWithOCR(file);
-        resumeData = ocrData;
-      }
+      const resumeData = await executeAI(async () => {
+        const parseResult = await parseResumePDF(file);
+        let parsedResume = parseResult.data;
+        if (parseResult.needsOCR) {
+          const { data: ocrData } = await parseResumePDFWithOCR(file);
+          parsedResume = ocrData;
+        }
+        return parsedResume;
+      });
       if (!resumeData) throw new Error('Could not extract content from this PDF');
 
       clearInterval(stepInterval);

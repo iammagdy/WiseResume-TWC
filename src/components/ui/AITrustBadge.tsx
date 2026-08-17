@@ -20,7 +20,7 @@ export function AITrustBadge({ className, dismissible = true }: AITrustBadgeProp
       )}
     >
       <ShieldCheck className="w-3 h-3 text-primary shrink-0" />
-      <span>Private &amp; secure — your data never leaves your session</span>
+      <span>Review before applying — AI requests follow the privacy disclosure</span>
       {dismissible && (
         <button
           onClick={() => setDismissed(true)}

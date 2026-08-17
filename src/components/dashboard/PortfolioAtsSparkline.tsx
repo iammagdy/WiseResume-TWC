@@ -7,7 +7,7 @@ interface PortfolioAtsSparklineProps {
   className?: string;
 }
 
-/** Real portfolio ATS scores on a fixed 0–100 scale (no axis labels). */
+/** Portfolio readiness scores on a fixed 0–100 scale (no axis labels). */
 export const PortfolioAtsSparkline = memo(function PortfolioAtsSparkline({
   points,
   className,
@@ -41,7 +41,7 @@ export const PortfolioAtsSparkline = memo(function PortfolioAtsSparkline({
     <div
       className={cn('portfolio-ats-sparkline shrink-0', className)}
       role="img"
-      aria-label={`ATS portfolio trend, latest ${path.last}%`}
+      aria-label={`Resume readiness trend, latest ${path.last}%`}
     >
       <svg width={path.w} height={path.h} viewBox={`0 0 ${path.w} ${path.h}`} className="block overflow-visible">
         <defs>

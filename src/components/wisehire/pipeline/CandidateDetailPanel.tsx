@@ -137,14 +137,14 @@ export function CandidateDetailPanel({
             <CandidateNotes candidateId={candidate.id} />
           </div>
 
-          {/* Legacy hiring notes */}
+          {/* Legacy review notes */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Hiring Notes</p>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Review Notes</p>
             <Textarea
               value={notes}
               onChange={(e) => handleNotesChange(e.target.value)}
               rows={3}
-              placeholder="Add hiring notes…"
+              placeholder="Add review notes…"
               className="resize-none text-sm"
             />
             {notesDirty && (

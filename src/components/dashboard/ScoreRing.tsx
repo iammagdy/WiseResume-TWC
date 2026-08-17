@@ -10,7 +10,9 @@ interface ScoreRingProps {
   isLoading?: boolean;
   /** Accessible label prefix, e.g. "ATS match" */
   label?: string;
-  /** Compact: `78%` centered. Labeled: large score + "ATS" caption (hero/dialog). */
+  /** Caption rendered below the number in the labeled variant. */
+  caption?: string;
+  /** Compact: `78%` centered. Labeled: large score + caption (hero/dialog). */
   variant?: 'compact' | 'labeled';
   className?: string;
 }
@@ -77,7 +79,8 @@ export const ScoreRing = memo(function ScoreRing({
   size = 48,
   strokeWidth: strokeWidthProp,
   isLoading = false,
-  label = 'ATS match',
+  label = 'Score',
+  caption = 'Score',
   variant = 'compact',
   className,
 }: ScoreRingProps) {
@@ -200,7 +203,7 @@ export const ScoreRing = memo(function ScoreRing({
               {clamped}
             </span>
             <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 mt-0.5">
-              ATS
+              {caption}
             </span>
           </>
         ) : (

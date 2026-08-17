@@ -34,23 +34,23 @@ function makeItemVariant(i: number, reduced: boolean | null) {
 const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
   {
     icon: BrainCircuit,
-    headline: 'AI that reads CVs like a seasoned recruiter',
-    body: 'WiseHire extracts skills, flags concerns, and scores fit in seconds — so your team spends time on conversations, not admin.',
+    headline: 'Evidence summaries, not hiring decisions',
+    body: 'WiseHire drafts source-grounded summaries and questions to verify. It does not decide whether a candidate is suitable.',
   },
   {
     icon: Target,
-    headline: 'Consistent scoring across every applicant',
-    body: 'Structured match scores remove guesswork and reduce unconscious bias. Every candidate is evaluated against the same criteria.',
+    headline: 'A structured review format',
+    body: 'Selected role criteria can be applied in one review format, but AI outputs can vary and recruiters must check them against the source.',
   },
   {
     icon: Zap,
-    headline: 'From job brief to shortlist in under an hour',
-    body: 'Write the JD, screen 50 CVs, and surface your top 5 — all before your first coffee of the day.',
+    headline: 'Disclosure before candidate data is sent',
+    body: 'The first AI action explains what candidate or job data is sent to the configured provider and lets the user choose whether to continue.',
   },
   {
     icon: Users,
-    headline: 'Built for the whole hiring team',
-    body: 'Hiring managers, recruiters, and HR directors each get the view they need. Pipeline Board keeps everyone aligned without another meeting.',
+    headline: 'Human review stays required',
+    body: 'Recruiters remain responsible for checking facts, excluding protected traits, documenting decisions, and complying with employment law.',
   },
 ];
 
@@ -95,13 +95,13 @@ export function WiseHireTrustSection() {
               transition: 'color 0.35s ease',
             }}
           >
-            Hire smarter, not harder
+            Decision support with human review
           </h2>
           <p
             className="max-w-md mx-auto text-sm leading-relaxed"
             style={{ color: 'var(--lp-text-muted)', transition: 'color 0.35s ease' }}
           >
-            AI that gives your team an unfair advantage — without replacing the human judgement that great hiring requires.
+            Clear product boundaries for candidate evidence, AI processing, and recruiter accountability.
           </p>
         </motion.div>
 

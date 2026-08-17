@@ -15,7 +15,7 @@ import * as framerMotionMock from "./mocks/framer-motion";
 vi.mock("framer-motion", () => framerMotionMock);
 
 vi.mock("@/lib/lazyWithRetry", () => ({
-  lazyWithRetry: (factory: () => Promise<{ default: any }>) => React.lazy(factory),
+  lazyWithRetry: <T extends React.ComponentType<unknown>>(factory: () => Promise<{ default: T }>) => React.lazy(factory),
 }));
 
 // Global mocks for JSDOM missing features
@@ -44,7 +44,7 @@ if (typeof global !== "undefined") {
 
   // DOMMatrix is required by pdfjs-dist but not available in jsdom
   if (!global.DOMMatrix) {
-    (global as any).DOMMatrix = class DOMMatrix {
+    global.DOMMatrix = class DOMMatrix {
       a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
       m11 = 1; m12 = 0; m13 = 0; m14 = 0;
       m21 = 0; m22 = 1; m23 = 0; m24 = 0;
@@ -63,7 +63,7 @@ if (typeof global !== "undefined") {
       transformPoint(p?: DOMPointInit) { return { x: p?.x ?? 0, y: p?.y ?? 0, z: p?.z ?? 0, w: p?.w ?? 1 }; }
       toFloat32Array() { return new Float32Array(16); }
       toFloat64Array() { return new Float64Array(16); }
-    };
+    } as unknown as typeof DOMMatrix;
   }
 
   // Speech API stubs for voice/interview tests
