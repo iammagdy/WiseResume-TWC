@@ -20,7 +20,7 @@ const ATTRIBUTE_SPECS = [
     ['provider', 32], ['model', 128], ['status', 24], ['user_id', 64],
     ['idempotency_state', 24], ['error_class', 64], ['started_at', 32],
     ['completed_at', 32], ['expires_at', 32],
-  ].map(([key, size]) => ({ key, type: 'string', size, required: false, array: false })),
+  ].map(([key, size, required = false]) => ({ key, type: 'string', size, required, array: false })),
   ...['http_status', 'latency_ms', 'credits_charged'].map(key => ({ key, type: 'integer', required: false, array: false, min: 0, max: 999999 })),
   ...['is_fallback', 'is_admin_test'].map(key => ({ key, type: 'boolean', required: false, array: false, default: false })),
 ];
@@ -55,8 +55,18 @@ function indexCompatibilityError(index, spec) {
 }
 
 function assertServerOnlyCollection(collection) {
-  if (!Array.isArray(collection.permissions) || collection.permissions.length !== 0 || collection.documentSecurity !== false) {
-    throw new Error(`Incompatible collection "${COLLECTION_ID}": server-only permissions and documentSecurity=false are required`);
+  // Appwrite Collection responses expose collection permissions as `$permissions`.
+  // Do not fall back to an undocumented field: an absent/malformed response must fail closed.
+  const permissions = collection?.$permissions;
+  const permissionsIsArray = Array.isArray(permissions);
+  const permissionCount = permissionsIsArray ? permissions.length : 'unknown';
+  const documentSecurity = collection?.documentSecurity;
+  const documentSecurityValue = typeof documentSecurity === 'boolean' ? String(documentSecurity) : `type:${typeof documentSecurity}`;
+  if (!permissionsIsArray || permissionCount !== 0 || documentSecurity !== false) {
+    throw new Error(
+      `Incompatible collection "${COLLECTION_ID}": server-only permissions and documentSecurity=false are required `
+      + `(permissionsIsArray=${permissionsIsArray}, permissionCount=${permissionCount}, documentSecurity=${documentSecurityValue})`,
+    );
   }
 }
 

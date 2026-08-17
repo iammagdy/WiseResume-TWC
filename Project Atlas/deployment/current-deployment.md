@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-07-24
+**Last Verified:** 2026-08-15
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -18,9 +18,9 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
-* **Current Production Deployment:** Vercel deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for documentation-only commit `e7e92aba0261a5e587c766654dc9bf601732072d`; environment URL `https://wise-resume-6d1oagd4i-iam-magdy.vercel.app`; Vercel status `READY`; aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`.
+* **Current Production Deployment:** Vercel deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for the Atlas-recorded documentation-only commit `e7e92aba0261a5e587c766654dc9bf601732072d`; environment URL `https://wise-resume-6d1oagd4i-iam-magdy.vercel.app`; Vercel status `READY`; aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`. The canonical site returned HTTP 200 and served the merged AuthPage/AuthBold markers. The public response does not expose a commit SHA, so runtime-to-Git mapping is supported by served bundle evidence rather than a public header.
 * **Latest Verified Code-Bearing Deployment:** Vercel deployment `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`; environment URL `https://wise-resume-8rc0tr8nr-iam-magdy.vercel.app`; Vercel status `READY`. The subsequent current deployment changed only Project Atlas documentation.
-* **Trigger:** Pushes to the `main` branch automatically trigger Vercel production deployment workflows.
+* **Trigger:** Pushes to the `main` branch automatically trigger Vercel production deployment workflows. PR #183’s merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076` is on `main`; no manual Vercel integration was initiated. Read-only production verification passed for successful login, invalid credentials, and safe diagnostics; rate-limit, network/service, and unknown-auth-error paths remain unverified.
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist/`
 * **Active Frontend CSP:** Delivered through the Vite-injected meta tag. Appwrite access requires both `https://fra.cloud.appwrite.io` and `wss://fra.cloud.appwrite.io` in `connect-src`. Browser visitor tracking must not add GeoJS to `connect-src`; direct browser GeoJS requests were removed in favor of Appwrite ingestion metadata where available.
@@ -30,6 +30,10 @@ WiseResume uses a hybrid deployment architecture:
   * `VITE_TURNSTILE_SITE_KEY` (Cloudflare Turnstile site key for contact form security)
 
 ---
+
+## PR #183 Login Fix Production Verification (2026-08-14)
+
+The email/password login error-masking fix is merged into `main` at `4bea728dba622ae2124d0192241cc7b26bdf6076`. The frontend-only behavior is served on `https://wiseresume.app`: authorized credentials redirected to `/dashboard`, and a deliberately invalid non-user pair received only the generic invalid-credential message. The deployed AuthPage/AuthBold chunks contain the safe classifier, email-only trim, exact password handoff, and submit-time DOM/input markers. No Appwrite function, schema, permission, secret, environment variable, account, production-data, or manual deployment change occurred. The confirmed root cause remains generic masking of every Appwrite login failure as invalid credentials. The historical autofill/password-manager cause remains `UNCONFIRMED`. Rate-limit, network/service, and unknown-auth-error UI paths were not intentionally triggered in production and remain `UNVERIFIED`.
 
 ## 3. Appwrite Serverless Functions Deployment (`appwrite-hubs/`)
 
@@ -47,6 +51,31 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **GitHub Actions Run:** `30101982337` - success in `5m15s` after corrective PR #158.
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
+
+### Authorized WiseResume DevKit Deployment — 2026-08-15
+
+* **GitHub Actions Run:** `31880840961`, successful.
+* **Source Commit:** `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b`.
+* **Exact Target Input:** `ai-gateway,admin-devkit-data,admin-onboarding-funnel,email-service`.
+* **Scope Safety:** No `target=all`, Appwrite Console deployment, manual Vercel deployment, or unrelated function deployment occurred. The approved workflow did perform repository-controlled, idempotent production setup/configuration mutations recorded below.
+
+| Function ID | Deployment ID | Source/deployed SHA-256 | State |
+|---|---|---|---|
+| `ai-gateway` | `6a80467d45db108d5cab` | `158da0749573c9c2d7e173c256ee0d77f64c783536fcf920693ed1bb0715fafe` | enabled, ready, In Sync |
+| `admin-devkit-data` | `6a804687cfea6415139d` | `6d23504f47c53d72354ca2bb2a46e6bb695b2df0e5442d99d708b7f9075e8804` | enabled, ready, In Sync |
+| `admin-onboarding-funnel` | `6a8046923ac36d1cc638` | `efe2a22802e679c8d87e3089c8d284c26563b8c573f9b31b7db8440a0c57553c` | enabled, ready, In Sync |
+| `email-service` | `6a80469d1ee51e0246e0` | `744f82a1bd0f4dc9679a9cd30dc56b6195def4f0449f857df6e1bcf510a0548a` | enabled, ready, In Sync |
+
+* **Post-deployment verification:** `/devkit` reached a live terminal state with all 24 panels marked `LIVE`; App Overview and Onboarding reached terminal states; mixed AI slots showed `Degraded / Mixed`; invalid English and Arabic public-share routes reached `Resume Not Found` after `ShareSkeleton`; a read-only 22-route smoke check found no fatal markers.
+* **Warnings:** Data Integrity and Users aggregate sources were unavailable during capture; detailed App Analytics content was empty; Email configuration health did not reach a terminal state and no send/reset action was invoked; mobile/full dark-theme and some fixture-dependent paths remain unverified. Final operational verdict for the four-function deployment: `PASS_WITH_WARNINGS`.
+
+### Authorized repository-controlled production mutations
+
+The successful run `31880840961` is classified as `AUTHORIZED_REPOSITORY_CONTROLLED_PRODUCTION_MUTATION`, not as an absence of production mutation. Its log records creation of `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases`; synchronization of selected function variables; synchronization of the password-recovery template; Appwrite auth-template configuration; and update of `fn_deployed_hashes` for the four exact targets. The workflow log distinguishes these from pre-existing resources that were reported as already existing, including the idempotent `password_reset_otps` setup. No manual Console mutation, `target=all`, unrelated function deployment, permission broadening, unauthorized data mutation, or secret-value disclosure occurred.
+
+### Narrow email-verification template correction
+
+PR #194 merged the repository fix for the proven blank Verification-template regression. The fix uses repository-managed functional Verification and recovery templates, validates the Appwrite `{{redirect}}` contract before PATCH, and prevents either deployment helper from blanking the Verification template. Authorized run `31882493172` targeted `email-service` only, created deployment `6a804f862b4138bc1b06`, reached ready status, synchronized the managed Verification and recovery templates, synchronized non-secret email-service variables, and updated `fn_deployed_hashes` for `email-service`. Appwrite Console post-deployment visual confirmation remained blocked by the Console loading spinner; the workflow log is the available evidence of successful PATCH completion. End-to-end inbox verification is `FIXTURE_BLOCKED` because no approved safe QA identity/inbox was available.
 
 ---
 

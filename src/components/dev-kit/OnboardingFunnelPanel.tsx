@@ -11,6 +11,7 @@ import { invokeWithRetry } from '@/lib/devkit/devKitClient';
 import { unwrapAdminResponse, formatEdgeError } from '@/lib/devkit/edgeResponse';
 import { devKitAuthHeaders } from '@/lib/devkit/devKitAuth';
 import { DevKitErrorCard } from './DevKitErrorCard';
+import { classifyRequestFailure } from '@/lib/devkit/phase1UiSemantics';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line, Legend,
@@ -62,6 +63,7 @@ export function OnboardingFunnelPanel() {
   const { isUnlocked } = useDevKitSession();
   const [data, setData] = useState<FunnelData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error' | 'timeout'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState<number>(14);
   const [granularity, setGranularity] = useState<Granularity>('day');
@@ -73,18 +75,26 @@ export function OnboardingFunnelPanel() {
     if (!token) return;
 
     setLoading(true);
+    setLoadState('loading');
     setError(null);
     try {
-      const tuple = await invokeWithRetry(
+      const request = invokeWithRetry(
         'admin-onboarding-funnel',
         { headers: devKitAuthHeaders(), body: { days, granularity } },
       );
+      const tuple = await Promise.race([
+        request,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Onboarding funnel request timed out after 45 seconds')), 45_000)),
+      ]);
       const result = unwrapAdminResponse<FunnelData>(tuple, 'admin-onboarding-funnel');
       if (!isMounted()) return;
       if (!result) throw new Error('No data returned');
       setData(result);
+      setLoadState(result.totalEvents === 0 ? 'empty' : 'success');
     } catch (e) {
       if (!isMounted()) return;
+      const message = e instanceof Error ? e.message : String(e);
+      setLoadState(classifyRequestFailure(message, 'timed out'));
       setError(formatEdgeError(e, 'Failed to load funnel'));
     } finally {
       if (isMounted()) setLoading(false);
@@ -93,7 +103,7 @@ export function OnboardingFunnelPanel() {
 
   useEffect(() => {
     if (isUnlocked) fetchData();
-    else { setData(null); setError(null); }
+    else { setData(null); setLoadState('idle'); setError(null); }
   }, [isUnlocked, fetchData]);
 
   const startedUsers = data?.funnel.find(f => f.step === 'started')?.users ?? 0;
@@ -188,11 +198,16 @@ export function OnboardingFunnelPanel() {
         </div>
       </div>
 
-      {error && (
-        <DevKitErrorCard error={error} title="Couldn't load onboarding funnel" context={{ panel: 'Onboarding Funnel', function: 'admin-devkit-data' }} />
+      {(loadState === 'error' || loadState === 'timeout') && !data && error && (
+        <DevKitErrorCard error={error} title={loadState === 'timeout' ? 'Onboarding funnel timed out' : "Couldn't load onboarding funnel"} onRetry={fetchData} context={{ panel: 'Onboarding Funnel', function: 'admin-onboarding-funnel' }} />
+      )}
+      {loadState === 'empty' && !loading && data && (
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+          No onboarding events are available for this date range.
+        </div>
       )}
 
-      {loading && !data && (
+      {loadState === 'loading' && !data && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />
@@ -200,7 +215,7 @@ export function OnboardingFunnelPanel() {
         </div>
       )}
 
-      {data && (
+      {data && data.totalEvents > 0 && (
         <>
           {/* Funnel summary */}
           <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">

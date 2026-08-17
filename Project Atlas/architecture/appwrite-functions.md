@@ -1,6 +1,6 @@
 # Canonical Appwrite Functions Specification
 
-**Last Verified:** 2026-08-13
+**Last Verified:** 2026-08-15
 **Status:** Canonical Architecture Specification
 **Location:** `Project Atlas/architecture/appwrite-functions.md`
 
@@ -69,8 +69,8 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 
 ## Registry Notes
 
-* **Email verification contract (production verified 2026-08-13):** `send-verification` derives the target user from the authenticated Appwrite session and makes exactly one official `POST /account/verifications/email` request. Appwrite owns the verification token, Custom SMTP/Resend delivery path, Verification template, and existing completion endpoint. The function returns no verification secret and reports success only as `delivery: 'appwrite', providerAccepted: true`, which is request acceptance rather than an inbox-delivery claim. The only approved function target for future source deployment is `email-service`.
-* **Production recovery evidence:** the earlier code deployment was targeted to `email-service` with source-hash alignment. The final production blocker was the Appwrite Verification template: whitespace-only subject/body and no `{{redirect}}`. Once corrected, one controlled resend completed via `email-service` with HTTP `200`, Appwrite accepted it, Resend recorded delivery, the owner confirmed receipt, and the normal WiseResume confirmation action completed Appwrite verification and onboarding. The welcome email was also delivered. The template correction required no code change or deployment.
+* **Email verification contract (architecture verified 2026-08-15):** `send-verification` derives the target user from the authenticated Appwrite session and makes exactly one official `POST /account/verifications/email` request. It does not call Resend directly. Appwrite owns the verification token and lifecycle and sends through the configured Custom SMTP transport and its Verification template. The function returns no verification secret and reports success only as `delivery: 'appwrite', providerAccepted: true`, which is request acceptance rather than an inbox-delivery claim. The only approved function target for source/configuration deployment is `email-service`.
+* **Proven production regression and correction:** the successful run `31880840961` previously synchronized a whitespace-only Appwrite Verification template (`subject=' '`, `message=' '`), even though the live send-verification path depends on Appwrite’s own usable template. The live Console audit confirmed blank subject/body fields and no saved `{{redirect}}` placeholder. PR #194 added a shared repository-managed template contract with placeholder validation and updated both deployment helpers so they synchronize the functional managed template instead of blanking it. Narrow authorized run `31882493172` deployed only `email-service` and synchronized the managed verification and recovery templates. The production inbox lifecycle remains `FIXTURE_BLOCKED`: no approved QA identity/inbox was available, so no claim is made that a real message was received or that Appwrite verification completed end to end.
 * **Historical delivery trace (2026-08-11):** the two earlier accepted sends had no matching Resend event. This is retained as dated diagnostic evidence, not a current `APPWRITE_FALLBACK_NOT_DELIVERABLE` condition or owner-action blocker.
 
 * `admin-sentry` uses fixed function ID `6a0760710000ff231048`.
@@ -84,7 +84,7 @@ The 28 deployable functions are registered in `scripts/deploy_hubs.cjs`, the sou
 * **Workflow:** `.github/workflows/deploy-appwrite-hubs.yml`
 * **Helper:** `node scripts/deploy_hubs.cjs --only=<function-name>`
 * **Rule:** Never use `target=all`; always name the approved target(s).
-* **Latest email-verification target:** `email-service` only; the merged official-lifecycle source hash is `5dffc7dd54aeaf9f30efc8b43e0dfe9b991c081accf4a7a5ba4a41a16639c39b`, and the verified production delivery flow required no deployment after the template correction.
+* **Latest email-verification target:** `email-service` only; PR #194 merged the repository-controlled template synchronization fix, and authorized run `31882493172` created deployment `6a804f862b4138bc1b06` with ready status. The workflow log records successful synchronization of the managed Verification and recovery templates. Source/configuration parity is corrected; inbox receipt and confirmation remain `FIXTURE_BLOCKED` pending an approved safe QA identity/inbox.
 
 ## Public-Repository Hardening (2026-07-24, Deployed)
 

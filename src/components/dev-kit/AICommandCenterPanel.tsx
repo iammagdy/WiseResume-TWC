@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { AIKeysPanel } from './AIKeysPanel';
 import { AIRoutingSwitcher } from './AIRoutingSwitcher';
 import { DevKitTabBar } from './DevKitUI';
+import { formatCompletionStatus } from '@/lib/devkit/completionHealthUi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,8 +22,23 @@ interface ProviderPing {
   httpStatus: number;
 }
 
+interface CompletionProbeResult {
+  status: string;
+  testedAt?: string;
+  latencyMs?: number;
+}
+
+interface CompletionHealth {
+  status: 'available' | 'unavailable' | 'error';
+  checkedAt: string | null;
+  results: Record<string, CompletionProbeResult>;
+  message?: string;
+}
+
 interface MissionControlAI {
   providerPings: ProviderPing[];
+  reachability?: { status: string; checkedAt: string; providers: ProviderPing[] };
+  completionHealth?: CompletionHealth;
   openrouterConfigured: boolean;
   groqConfigured: boolean;
   anyProviderOk: boolean;
@@ -35,11 +51,15 @@ interface MissionControlData {
 }
 
 interface UsageStats {
-  total: number;
-  openrouter: number;
-  groq: number;
-  deepseek: number;
-  nvidia: number;
+  total: number | null;
+  requestedLimit?: number;
+  availableTotal?: number | null;
+  attributedTotal?: number | null;
+  unattributed?: number | null;
+  openrouter: number | null;
+  groq: number | null;
+  deepseek: number | null;
+  nvidia: number | null;
 }
 
 interface Execution {
@@ -72,6 +92,13 @@ const TABS: { id: AISubTab; label: string; Icon: React.ElementType }[] = [
   { id: 'keys',     label: 'Keys & Models',  Icon: KeyRound },
   { id: 'routing',  label: 'Routing',        Icon: Route },
 ];
+
+function completionStatusForProvider(health: CompletionHealth | undefined, provider: string) {
+  const results = health?.results
+    ? Object.entries(health.results).filter(([key]) => key.startsWith(`${provider}:`)).map(([, value]) => value)
+    : [];
+  return formatCompletionStatus(health?.status, results);
+}
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 
@@ -124,9 +151,10 @@ function AIOverviewTab() {
   }
 
   const providerPings = mcData?.ai.providerPings ?? [];
-  const stats = actData?.usageStats ?? { total: 0, openrouter: 0, groq: 0, deepseek: 0, nvidia: 0 };
+  const stats = actData?.usageStats;
   const executions = actData?.executions ?? [];
-  const totalTracked = stats.openrouter + stats.groq + stats.deepseek + stats.nvidia;
+  const totalTracked = stats?.attributedTotal ?? null;
+  const completionHealth = mcData?.ai.completionHealth;
 
   return (
     <div className="space-y-6">
@@ -134,6 +162,7 @@ function AIOverviewTab() {
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
           <p className="text-xs font-bold uppercase tracking-widest text-white/40">Provider Health</p>
+          <p className="text-[10px] text-white/30">Transport reachability and real completion/key/model health are measured separately.</p>
           {mcData?.checkedAt && (
             <p className="text-[10px] text-white/25 font-mono">
               Last checked {new Date(mcData.checkedAt).toLocaleTimeString()}
@@ -169,6 +198,7 @@ function AIOverviewTab() {
             const display = PROVIDER_DISPLAY[provId];
             const notConfigured = !ping || ping.httpStatus === 0;
             const ok = ping?.ok ?? false;
+            const completion = completionStatusForProvider(completionHealth, provId);
 
             return (
               <div
@@ -205,7 +235,11 @@ function AIOverviewTab() {
                     </p>
                   )}
                   <p className="text-[10px] text-white/30 mt-0.5">
-                    {notConfigured ? 'API key not set' : ok ? 'Ping successful' : 'Ping failed'}
+                    {notConfigured ? 'Transport not configured' : ok ? 'Transport reachable' : 'Transport unreachable'}
+                  </p>
+                  <p className="text-[10px] mt-1">
+                    <span className="text-white/30">Completion/key/model:</span>{' '}
+                    <span className={completion.tone}>{completion.label}</span>
                   </p>
                 </div>
               </div>
@@ -229,7 +263,9 @@ function AIOverviewTab() {
         <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.03] space-y-5">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <BarChart3 size={16} className="text-white/40" /> Traffic Distribution
-            <span className="text-[10px] text-white/25 font-normal ml-auto">last 50 calls</span>
+            <span className="text-[10px] text-white/25 font-normal ml-auto">
+              {stats?.total == null ? 'requested up to 50 · actual unavailable' : `requested up to 50 · actual ${stats.total}`}
+            </span>
           </h3>
           {actData?.usageFetchError ? (
             <DevKitErrorCard
@@ -241,12 +277,14 @@ function AIOverviewTab() {
             />
           ) : actData?.missingUsageCollection ? (
             <p className="text-xs text-white/30 italic">ai_usage_logs collection not found.</p>
+          ) : !stats || stats.total === 0 ? (
+            <p className="text-xs text-white/30 italic">No usage data in the actual requested window.</p>
           ) : totalTracked === 0 ? (
-            <p className="text-xs text-white/30 italic">No usage data in ai_usage_logs yet.</p>
+            <p className="text-xs text-white/30 italic">No provider-attributed usage in the actual requested window.</p>
           ) : (
             <div className="space-y-4">
               {(['openrouter', 'groq', 'deepseek', 'nvidia'] as const).map(provId => {
-                const count = stats[provId];
+                const count = stats[provId] ?? 0;
                 const display = PROVIDER_DISPLAY[provId];
                 const percent = totalTracked > 0 ? Math.round((count / totalTracked) * 100) : 0;
                 if (count === 0) return null;
@@ -265,6 +303,12 @@ function AIOverviewTab() {
                   </div>
                 );
               })}
+              {(stats.unattributed ?? 0) > 0 && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
+                  Unknown / Unattributed: {stats.unattributed} of {stats.total} sampled records ({stats.attributedTotal ?? 0} attributed)
+                </div>
+              )}
+              <p className="text-[10px] text-white/30">The chart uses the actual returned sample, not a claim that exactly 50 calls were present.</p>
             </div>
           )}
         </div>

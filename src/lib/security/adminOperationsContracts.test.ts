@@ -21,6 +21,22 @@ describe('DevKit admin operations contracts', () => {
     expect(workflow).toContain("contains(fromJSON(steps.targets.outputs.targets_json), 'admin-impersonate')");
   });
 
+  it('creates security schema compatibly and waits for attribute readiness before indexes', () => {
+    const schema = read('scripts/setup-security-collections.cjs');
+    const readinessWait = schema.indexOf('await waitForAttribute(collectionId, attr.key);');
+    const indexLoop = schema.indexOf('for (const idx of indexes)');
+
+    expect(schema).toContain("{ type: 'integer', key: 'question_count', required: false, min: 0, max: 10 }");
+    expect(schema).not.toContain("key: 'question_count', required: true, min: 0, max: 10, defaultVal: 0");
+    expect(read('appwrite-hubs/ai-gateway/src/main.js')).toContain('db.updateDocument(DB_ID, collectionId, documentId, { [attribute]: 0 })');
+    expect(schema).toContain('const ATTRIBUTE_WAIT_ATTEMPTS = 60;');
+    expect(schema).toContain("attribute?.status === 'available'");
+    expect(readinessWait).toBeGreaterThan(-1);
+    expect(indexLoop).toBeGreaterThan(readinessWait);
+    expect(schema).toContain('Run before deploying affected hubs');
+    expect(schema).not.toContain('Run once after deployment');
+  });
+
   it('keeps identity collision behavior suspension-only and guarded', () => {
     const backend = read('appwrite-hubs/admin-devkit-data/src/main.js');
     const panel = read('src/components/dev-kit/AdminUsersPanel.tsx');

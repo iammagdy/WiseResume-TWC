@@ -121,7 +121,6 @@ const PORTFOLIO_MAX_QUESTIONS = 10;      // server-side per-session question cap
 const MAX_CONCURRENT_JOBS_PER_USER = 2;  // max simultaneous expensive AI jobs per user
 // Per-plan per-minute request caps - cross-instance, cold-start-safe.
 const PLAN_PER_MINUTE_LIMITS = { free: 3, pro: 10, premium: 20 };
-let _chatSessionsMissing = false;        // warn once when question_count attr is absent
 const EMAIL_RATE_LIMITS_COLLECTION_ID = 'email_rate_limits';
 const PORTFOLIO_DAILY_USAGE_COLLECTION_ID = 'portfolio_daily_usage';
 const PORTFOLIO_DAILY_CAPS = { free: 50, pro: 200, premium: -1 };
@@ -279,23 +278,128 @@ async function checkPersistentEmailRateLimit(db, ip, senderEmail) {
   } catch { return { ok: true }; }
 }
 
+function isAppwriteNotFoundError(err) {
+  return err?.code === 404 || /could not be found/i.test(err?.message || '');
+}
+
+function isAppwriteDuplicateError(err) {
+  return err?.code === 409 || /already exists|duplicate/i.test(err?.message || '');
+}
+
+/**
+ * Reserve one counter slot using Appwrite's server-side increment endpoint.
+ * The optional `max` is evaluated by Appwrite as part of the increment, so
+ * concurrent callers cannot all pass a read-then-write check. A missing
+ * counter document is initialized at zero; a duplicate create is expected
+ * when multiple first callers race and is followed by the increment.
+ */
+async function reserveCounterSlot(db, {
+  collectionId,
+  documentId,
+  attribute,
+  max,
+  createData,
+  matchesDocument = () => true,
+}) {
+  let doc;
+  try {
+    doc = await db.getDocument(DB_ID, collectionId, documentId);
+  } catch (err) {
+    if (!isAppwriteNotFoundError(err)) {
+      console.warn(`[ai-gateway][warn] quota document read failed: ${err.message}`);
+      return { ok: false, unavailable: true };
+    }
+    try {
+      await db.createDocument(DB_ID, collectionId, documentId, {
+        ...createData,
+        [attribute]: 0,
+      });
+    } catch (createErr) {
+      if (!isAppwriteDuplicateError(createErr)) {
+        console.warn(`[ai-gateway][warn] quota document initialization failed: ${createErr.message}`);
+        return { ok: false, unavailable: true };
+      }
+    }
+    try {
+      doc = await db.getDocument(DB_ID, collectionId, documentId);
+    } catch (readAfterCreateErr) {
+      console.warn(`[ai-gateway][warn] quota document reread failed: ${readAfterCreateErr.message}`);
+      return { ok: false, unavailable: true };
+    }
+  }
+
+  if (!matchesDocument(doc)) {
+    return { ok: false, unavailable: true };
+  }
+
+  let currentValue = doc?.[attribute];
+  if (currentValue === undefined || currentValue === null) {
+    try {
+      doc = await db.updateDocument(DB_ID, collectionId, documentId, { [attribute]: 0 });
+      currentValue = doc?.[attribute];
+    } catch (backfillError) {
+      console.warn(`[ai-gateway][warn] quota counter ${collectionId}.${attribute} backfill failed: ${backfillError.message}`);
+      return { ok: false, unavailable: true };
+    }
+  }
+
+  const current = Number(currentValue);
+  if (!Number.isInteger(current) || current < 0) {
+    console.warn(`[ai-gateway][warn] quota counter ${collectionId}.${attribute} is missing or invalid`);
+    return { ok: false, unavailable: true };
+  }
+  if (current >= max) return { ok: false, limited: true };
+
+  try {
+    const updated = await db.incrementDocumentAttribute(
+      DB_ID,
+      collectionId,
+      documentId,
+      attribute,
+      1,
+      max,
+    );
+    const next = Number(updated?.[attribute]);
+    if (!Number.isInteger(next) || next < current + 1 || next > max) {
+      console.warn(`[ai-gateway][warn] quota increment returned an invalid ${collectionId}.${attribute} value`);
+      return { ok: false, unavailable: true };
+    }
+    return { ok: true };
+  } catch (err) {
+    // A concurrent request may have filled the last slot. Re-read only to
+    // distinguish a genuine limit response from an unavailable quota store;
+    // the admission decision itself was made by the atomic increment.
+    try {
+      const after = await db.getDocument(DB_ID, collectionId, documentId);
+      if (Number(after?.[attribute]) >= max) return { ok: false, limited: true };
+    } catch { /* preserve fail-closed behavior below */ }
+    console.warn(`[ai-gateway][warn] quota increment failed: ${err.message}`);
+    return { ok: false, unavailable: true };
+  }
+}
+
 async function checkPortfolioDailyCap(db, ownerUserId, plan) {
   const cap = PORTFOLIO_DAILY_CAPS[plan] ?? PORTFOLIO_DAILY_CAPS.free;
   if (cap === -1) return { ok: true };
   const today = new Date().toISOString().slice(0, 10);
   const docId = `${ownerUserId}:${today}`;
-  try {
-    let doc;
-    try { doc = await db.getDocument(DB_ID, PORTFOLIO_DAILY_USAGE_COLLECTION_ID, docId); }
-    catch (e) { if (e.code === 404 || /could not be found/i.test(e.message || '')) doc = null; else throw e; }
-    const count = doc && doc.date === today ? Number(doc.question_count || 0) : 0;
-    if (count >= cap) return { ok: false };
-    if (!doc) await db.createDocument(DB_ID, PORTFOLIO_DAILY_USAGE_COLLECTION_ID, docId, { owner_user_id: ownerUserId, date: today, question_count: 1 });
-    else await db.updateDocument(DB_ID, PORTFOLIO_DAILY_USAGE_COLLECTION_ID, docId, { question_count: count + 1 });
-    return { ok: true };
-    // PORT-P2-02: fail CLOSED — a DB error must not silently disable the owner's
-    // daily question cap and expose them to unbounded AI credit drain.
-  } catch { return { ok: false }; }
+  const reservation = await reserveCounterSlot(db, {
+    collectionId: PORTFOLIO_DAILY_USAGE_COLLECTION_ID,
+    documentId: docId,
+    attribute: 'question_count',
+    max: cap,
+    createData: { owner_user_id: ownerUserId, date: today },
+    matchesDocument: (doc) => doc?.owner_user_id === ownerUserId && doc?.date === today,
+  });
+  if (reservation.ok) return { ok: true, reservation: {
+    collectionId: PORTFOLIO_DAILY_USAGE_COLLECTION_ID,
+    documentId: docId,
+    attribute: 'question_count',
+  } };
+  if (reservation.limited) {
+    return { ok: false, status: 429, code: 'portfolio_daily_cap', message: 'This portfolio has reached its daily AI question limit. Please try again tomorrow.' };
+  }
+  return { ok: false, status: 503, code: 'daily_quota_unavailable', message: 'Unable to validate the portfolio daily AI limit right now. Please try again shortly.' };
 }
 
 async function verifyTurnstileToken(token, req, correlationId = '') {
@@ -1455,9 +1559,7 @@ async function countPendingJobs(db, userId) {
 }
 
 /**
- * Validate a portfolio chat session and atomically increment its question counter.
- * Requires chat_sessions.question_count (Integer, default 0) - degrades gracefully
- * with a one-time warn when the attribute has not yet been added via Appwrite Console.
+ * Validate a portfolio chat session and atomically reserve one question slot.
  * Session documents are keyed by $id (the sessionToken the client received).
  * Returns { ok: true } or { ok: false, status, code, message }.
  */
@@ -1467,34 +1569,50 @@ async function validatePortfolioSession(db, sessionToken) {
   }
   try {
     const doc = await db.getDocument(DB_ID, CHAT_SESSIONS_COLLECTION_ID, sessionToken);
-    if (typeof doc.question_count !== 'number') {
-      if (!_chatSessionsMissing) {
-        _chatSessionsMissing = true;
-        console.warn(
-          '[ai-gateway][warn] chat_sessions.question_count attribute is missing. ' +
-          'Add it in Appwrite Console (DB: main, Collection: chat_sessions, ' +
-          'Type: Integer, default: 0) to enable server-side question-count enforcement.'
-        );
-      }
-      return { ok: true }; // degrade: client-side cap remains active
+    const reservation = await reserveCounterSlot(db, {
+      collectionId: CHAT_SESSIONS_COLLECTION_ID,
+      documentId: doc.$id,
+      attribute: 'question_count',
+      max: PORTFOLIO_MAX_QUESTIONS,
+      createData: {},
+      matchesDocument: (current) => current?.$id === doc.$id,
+    });
+    if (reservation.ok) {
+      return {
+        ok: true,
+        reservation: {
+          collectionId: CHAT_SESSIONS_COLLECTION_ID,
+          documentId: doc.$id,
+          attribute: 'question_count',
+        },
+      };
     }
-    if (doc.question_count >= PORTFOLIO_MAX_QUESTIONS) {
+    if (reservation.limited) {
       return { ok: false, status: 429, code: 'session_limit_reached', message: 'Question limit reached for this portfolio session.' };
     }
-    await db.updateDocument(DB_ID, CHAT_SESSIONS_COLLECTION_ID, doc.$id, {
-      question_count: doc.question_count + 1,
-    });
-    return { ok: true };
+    return { ok: false, status: 503, code: 'session_validation_error', message: 'Unable to validate the portfolio chat session right now. Please try again shortly.' };
   } catch (err) {
-    if (err.code === 404 || /could not be found/i.test(err.message || '')) {
+    if (isAppwriteNotFoundError(err)) {
       return { ok: false, status: 403, code: 'session_not_found', message: 'Portfolio session not found or expired.' };
     }
-    // PORT-P2-02: fail CLOSED on transient DB errors. Previously this returned
-    // { ok: true }, so an Appwrite outage silently disabled the per-session
-    // question cap and allowed unlimited owner-funded AI questions. The
-    // client-side guard alone is not authoritative (it is per-tab resettable).
     console.warn(`[ai-gateway][warn] validatePortfolioSession error: ${err.message}`);
     return { ok: false, status: 503, code: 'session_validation_error', message: 'Unable to validate the portfolio chat session right now. Please try again shortly.' };
+  }
+}
+
+async function releaseCounterSlot(db, reservation) {
+  if (!reservation) return;
+  try {
+    await db.decrementDocumentAttribute(
+      DB_ID,
+      reservation.collectionId,
+      reservation.documentId,
+      reservation.attribute,
+      1,
+      0,
+    );
+  } catch (err) {
+    console.warn(`[ai-gateway][warn] quota reservation release failed for ${reservation.collectionId}: ${err?.message || 'unknown error'}`);
   }
 }
 
@@ -3867,6 +3985,7 @@ module.exports = async ({ req, res, log, error }) => {
   let idempotencyDocId = null;
   let contentKey = null;
   let featureName = '';
+  let releasePortfolioQuotaReservations = async () => {};
 
   // Broad outer catch - preserves the JSON error contract on any unexpected failure.
   try {
@@ -4207,80 +4326,13 @@ module.exports = async ({ req, res, log, error }) => {
     // Admin tests skip plan lookup (nonce already gates them).
     const plan = isAdminTest ? 'free' : await getEffectivePlan(db, effectiveUserId);
 
-    // -- 2b. ASK-PORTFOLIO SESSION ENFORCEMENT --------------------------------
-    // Server-side per-session question cap.  Degrades gracefully when the
-    // chat_sessions.question_count attribute has not yet been added in Appwrite Console.
-    if (featureName === 'ask-portfolio') {
-      if (
-        publicPortfolioAuth &&
-        asString(opts.username || '').toLowerCase() !== publicPortfolioAuth.username
-      ) {
-        await flushDD();
-        return res.json({
-          status: 'error',
-          code: 'session_not_found',
-          message: 'Portfolio session not found or expired.',
-        }, 403);
-      }
-      const sessionCheck = await validatePortfolioSession(
-        db,
-        publicPortfolioAuth ? publicPortfolioAuth.sid : asString(opts.sessionToken || ''),
-      );
-      if (!sessionCheck.ok) {
-        await flushDD();
-        return res.json({
-          status: 'error',
-          code:    sessionCheck.code || 'session_error',
-          message: sessionCheck.message,
-        }, sessionCheck.status || 403);
-      }
-      if (publicPortfolioAuth?.ownerUserId) {
-        const dailyCap = await checkPortfolioDailyCap(db, publicPortfolioAuth.ownerUserId, plan);
-        if (!dailyCap.ok) {
-          await flushDD();
-          return res.json({
-            status: 'error',
-            code: 'portfolio_daily_cap',
-            message: 'This portfolio has reached its daily AI question limit. Please try again tomorrow.',
-          }, 429);
-        }
-      }
-    }
-
-    const rateLimit = checkServerRateLimit(effectiveUserId, featureName);
-    if (!rateLimit.ok) {
-      await flushDD();
-      return res.json({
-        status: 'error',
-        code: 'rate_limited',
-        message: 'Too many AI requests. Please wait and try again.',
-        retryAfterSeconds: rateLimit.retryAfterSeconds,
-      }, 429);
-    }
-
-    // Persistent per-plan per-minute rate limit - cross-instance, cold-start-safe.
-    // Queries ai_request_logs for recent rows; degrades gracefully when unavailable.
-    // Requires indexes on ai_request_logs.user_id and ai_request_logs.created_at.
-    if (!isAdminTest) {
-      const persistentLimit = await checkPersistentRateLimit(db, effectiveUserId, plan);
-      if (!persistentLimit.ok) {
-        await flushDD();
-        return res.json({
-          status: 'error',
-          code: 'rate_limited',
-          message: 'Too many AI requests. Please wait a minute and try again.',
-          retryAfterSeconds: persistentLimit.retryAfterSeconds,
-        }, 429);
-      }
-    }
-
     // Sanitize opts early - needed for both idempotency key and message building.
     const aiOpts = sanitizeAiPayload(opts);
 
     // -- IDEMPOTENCY CHECK -------------------------------------------------------
-    // Server-side content key: SHA256(userId:feature:payloadHash:5-min-bucket).
-    // Handles double-click, refresh, back-nav, and multi-tab replay without
-    // requiring the client to generate or track a UUID across page loads.
+    // Reserve the request before any portfolio quota counter is incremented.
+    // The unique server-side key prevents duplicate provider execution and
+    // ensures a retried request cannot consume a second session/daily slot.
     // Admin tests bypass idempotency - nonce validity is their dedup gate.
     if (!isAdminTest) {
       const contentKeys = computeContentKeys(effectiveUserId, featureName, aiOpts);
@@ -4295,18 +4347,15 @@ module.exports = async ({ req, res, log, error }) => {
       }
 
       if (cacheHit.hit && cacheHit.status === 'pending') {
-        // Another request with the same fingerprint is already in flight.
-        // Tell the client to back off rather than queuing another provider call.
         await flushDD();
         return res.json({
           status: 'error',
-          code:   'request_in_progress',
+          code: 'request_in_progress',
           message: 'This request is already being processed. Please wait a moment and try again.',
         }, 409);
       }
 
       if (cacheHit.hit && cacheHit.status === 'success') {
-        // Exact duplicate within the dedup window - return cached result at zero cost.
         log(`Idempotency cache hit for user=${effectiveUserId} feature=${featureName} key=${contentKey.slice(0, 16)}...`);
         await safeLogAiRequest(db, {
           feature: featureName, provider: 'cache', model: 'none', latencyMs: 0,
@@ -4316,22 +4365,18 @@ module.exports = async ({ req, res, log, error }) => {
         }, effectiveUserId);
         await flushDD();
         if (cacheHit.result) return res.json(withCurrentRequestId(cacheHit.result, runtimeRequestId));
-        // Result payload was larger than the 60 KB cache limit - can't replay.
         return res.json({
           status: 'error',
-          code:   'idempotency_result_unavailable',
+          code: 'idempotency_result_unavailable',
           message: 'This request was already processed. The result is no longer available - please reload.',
         }, 409);
       }
 
       if (cacheHit.hit && cacheHit.status === 'failed') {
-        // A prior bounded failure is retryable. Result-only callers consume the
-        // cached error; a fresh user action clears it and starts one new job.
         await deleteIdempotencyDoc(db, cacheHit.docId);
         contentKey = contentKeys[0];
       }
 
-      // Cache miss - mark this key as in-flight so rapid duplicates get a 409.
       idempotencyDocId = await createIdempotencyPending(db, contentKey, effectiveUserId, featureName);
       if (idempotencyDocId === 'collision') {
         const collisionHit = await checkIdempotencyCache(db, contentKey, log);
@@ -4352,10 +4397,107 @@ module.exports = async ({ req, res, log, error }) => {
           message: 'This request is already being processed. Please wait a moment and try again.',
         }, 409);
       }
+
+      // Public portfolio AI must not proceed without a durable deduplication
+      // reservation. This is a fail-closed guard for missing schema or a
+      // transient Appwrite write failure; other AI features retain legacy
+      // behavior while their existing compatibility path is preserved.
+      if (featureName === 'ask-portfolio' && !idempotencyDocId) {
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'idempotency_unavailable',
+          message: 'Unable to establish a safe request reservation right now. Please try again shortly.',
+        }, 503);
+      }
     }
-    // ---------------------------------------------------------------------------
+
+    const rateLimit = checkServerRateLimit(effectiveUserId, featureName);
+    if (!rateLimit.ok) {
+      await deleteIdempotencyDoc(db, idempotencyDocId);
+      await flushDD();
+      return res.json({
+        status: 'error',
+        code: 'rate_limited',
+        message: 'Too many AI requests. Please wait and try again.',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      }, 429);
+    }
+
+    // Persistent per-plan per-minute rate limit - cross-instance, cold-start-safe.
+    // Queries ai_request_logs for recent rows; degrades gracefully when unavailable.
+    // Requires indexes on ai_request_logs.user_id and ai_request_logs.created_at.
+    if (!isAdminTest) {
+      const persistentLimit = await checkPersistentRateLimit(db, effectiveUserId, plan);
+      if (!persistentLimit.ok) {
+        await deleteIdempotencyDoc(db, idempotencyDocId);
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'rate_limited',
+          message: 'Too many AI requests. Please wait a minute and try again.',
+          retryAfterSeconds: persistentLimit.retryAfterSeconds,
+        }, 429);
+      }
+    }
+
+    const portfolioQuotaReservations = [];
+    let portfolioQuotaReservationsReleased = false;
+    releasePortfolioQuotaReservations = async () => {
+      if (portfolioQuotaReservationsReleased) return;
+      portfolioQuotaReservationsReleased = true;
+      await Promise.all(portfolioQuotaReservations.map((reservation) => releaseCounterSlot(db, reservation)));
+    }
+
+    // -- 2b. ASK-PORTFOLIO SESSION ENFORCEMENT --------------------------------
+    // Server-side per-session question cap. The authoritative counter is
+    // incremented atomically by Appwrite before provider admission.
+    if (featureName === 'ask-portfolio') {
+      if (
+        publicPortfolioAuth &&
+        asString(opts.username || '').toLowerCase() !== publicPortfolioAuth.username
+      ) {
+        await deleteIdempotencyDoc(db, idempotencyDocId);
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code: 'session_not_found',
+          message: 'Portfolio session not found or expired.',
+        }, 403);
+      }
+      const sessionCheck = await validatePortfolioSession(
+        db,
+        publicPortfolioAuth ? publicPortfolioAuth.sid : asString(opts.sessionToken || ''),
+      );
+      if (!sessionCheck.ok) {
+        await releasePortfolioQuotaReservations();
+        await deleteIdempotencyDoc(db, idempotencyDocId);
+        await flushDD();
+        return res.json({
+          status: 'error',
+          code:    sessionCheck.code || 'session_error',
+          message: sessionCheck.message,
+        }, sessionCheck.status || 403);
+      }
+      if (sessionCheck.reservation) portfolioQuotaReservations.push(sessionCheck.reservation);
+      if (publicPortfolioAuth?.ownerUserId) {
+        const dailyCap = await checkPortfolioDailyCap(db, publicPortfolioAuth.ownerUserId, plan);
+        if (!dailyCap.ok) {
+          await releasePortfolioQuotaReservations();
+          await deleteIdempotencyDoc(db, idempotencyDocId);
+          await flushDD();
+          return res.json({
+            status: 'error',
+            code: dailyCap.code || 'portfolio_daily_cap',
+            message: dailyCap.message || 'This portfolio has reached its daily AI question limit. Please try again tomorrow.',
+          }, dailyCap.status || 429);
+        }
+        if (dailyCap.reservation) portfolioQuotaReservations.push(dailyCap.reservation);
+      }
+    }
 
     async function finalizeIdempotencyFailure(code, message, httpStatus) {
+      await releasePortfolioQuotaReservations();
       if (featureName === 'tailor-resume') {
         await updateIdempotencyFailure(db, idempotencyDocId, {
           status: 'error',
@@ -4916,6 +5058,7 @@ module.exports = async ({ req, res, log, error }) => {
     return res.json(responsePayload);
 
   } catch (err) {
+    await releasePortfolioQuotaReservations();
     if (activeCreditLockUserId) await releaseCreditLock(db, activeCreditLockUserId);
     if (idempotencyDocId) {
       if (featureName === 'tailor-resume') {
@@ -4983,4 +5126,8 @@ module.exports.__test = {
   wiseAiChatInstructions,
   isSupportedAiFeature,
   recordAiUsage,
+  reserveCounterSlot,
+  validatePortfolioSession,
+  checkPortfolioDailyCap,
+  releaseCounterSlot,
 };

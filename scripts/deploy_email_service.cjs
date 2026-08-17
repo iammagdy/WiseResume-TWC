@@ -3,8 +3,8 @@
  * deploy_email_service.cjs
  *
  * Targeted deploy script for the email-service Appwrite Function.
- * Also blanks Appwrite's built-in Email Verification and Password Recovery
- * templates so they don't fire alongside our Resend emails.
+ * Synchronizes Appwrite's built-in Email Verification and Password Recovery
+ * templates from the repository-managed functional templates.
  *
  * Usage:
  *   APPWRITE_API_KEY=<key> node scripts/deploy_email_service.cjs
@@ -18,6 +18,7 @@ const sdk  = require('node-appwrite');
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { readManagedAuthTemplates } = require('./auth-template-contract.cjs');
 
 const ENDPOINT   = (process.env.APPWRITE_ENDPOINT   || 'https://fra.cloud.appwrite.io/v1').replace(/\/$/, '');
 const PROJECT_ID = process.env.APPWRITE_PROJECT_ID  || '69fd362b001eb325a192';
@@ -131,19 +132,13 @@ async function deploy(archivePath) {
   console.log(`  ✅ Deployed: ${deployment.$id}, status=${deployment.status}`);
 }
 
-// ─── Blank Appwrite auth templates ────────────────────────────────────────────
-// This stops Appwrite from firing its own (broken) email template alongside ours.
-// We set both to a single space so Appwrite "sends" an invisible no-op email.
+// ─── Sync managed Appwrite auth templates ─────────────────────────────────────
 
-async function blankAuthTemplates() {
-  const templates = [
-    { type: 'verification', locale: 'en', subject: 'Verify your email' },
-    { type: 'magicSession', locale: 'en', subject: 'Reset your password' },
-    // Use the REST API directly — the Projects SDK class handles this
-  ];
+async function syncAuthTemplates() {
+  const templates = readManagedAuthTemplates(process.cwd());
 
-  for (const { type, locale, subject } of templates) {
-    const url = `${ENDPOINT}/projects/${PROJECT_ID}/templates/email/${type}/${locale}`;
+  for (const template of Object.values(templates)) {
+    const url = `${ENDPOINT}/projects/${PROJECT_ID}/templates/email/${template.type}/en`;
     try {
       const res = await fetch(url, {
         method: 'PATCH',
@@ -152,41 +147,16 @@ async function blankAuthTemplates() {
           'X-Appwrite-Key': API_KEY,
           'X-Appwrite-Project': PROJECT_ID,
         },
-        body: JSON.stringify({ subject, message: ' ' }),
+        body: JSON.stringify({ subject: template.subject, message: template.message }),
       });
       if (res.ok) {
-        console.log(`  ✅ Blanked ${type}/${locale} template`);
+        console.log(`  ✅ Synced ${template.type}/en template`);
       } else {
         const text = await res.text();
-        console.warn(`  ⚠️  Could not blank ${type} template (${res.status}): ${text.slice(0, 120)}`);
+        console.warn(`  ⚠️  Could not sync ${template.type} template (${res.status}): ${text.slice(0, 200)}`);
       }
     } catch (e) {
-      console.warn(`  ⚠️  Could not blank ${type} template: ${e.message}`);
-    }
-  }
-
-  // Also blank verification and recovery separately using correct types
-  const authTypes = ['verification', 'recovery'];
-  for (const type of authTypes) {
-    const url = `${ENDPOINT}/projects/${PROJECT_ID}/templates/email/${type}/en`;
-    try {
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Appwrite-Key': API_KEY,
-          'X-Appwrite-Project': PROJECT_ID,
-        },
-        body: JSON.stringify({ subject: 'WiseResume', message: ' ' }),
-      });
-      if (res.ok) {
-        console.log(`  ✅ Blanked auth template: ${type}`);
-      } else {
-        const text = await res.text();
-        console.warn(`  ⚠️  Could not blank ${type} (${res.status}): ${text.slice(0, 200)}`);
-      }
-    } catch (e) {
-      console.warn(`  ⚠️  Could not blank ${type}: ${e.message}`);
+      console.warn(`  ⚠️  Could not sync ${template.type} template: ${e.message}`);
     }
   }
 }
@@ -233,9 +203,9 @@ async function run() {
   console.log('\n📤 Uploading deployment...');
   await deploy(archivePath);
 
-  // 5. Blank Appwrite templates
-  console.log('\n🔇 Blanking Appwrite built-in email templates...');
-  await blankAuthTemplates();
+  // 5. Sync managed Appwrite auth templates
+  console.log('\n✉️  Syncing Appwrite auth email templates...');
+  await syncAuthTemplates();
 
   // 6. Cleanup
   try { fs.unlinkSync(archivePath); } catch {}

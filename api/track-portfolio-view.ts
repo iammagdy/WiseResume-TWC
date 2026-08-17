@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Databases, Query, ID, Permission, Role } from 'node-appwrite';
+import { getTrustedVercelClientIp } from './_lib/trustedClientIp.js';
 
 // Vercel serverless target for navigator.sendBeacon portfolio-visit analytics
 // (PORT-P2-10). Mirrors the validated logic previously only present in
@@ -65,13 +66,7 @@ function parseBody(req: VercelRequest): Record<string, unknown> {
 
 // IP is used ONLY as an in-memory rate-limit key — it is never stored or logged.
 function getClientIp(req: VercelRequest): string {
-  const cfIp = typeof req.headers['cf-connecting-ip'] === 'string' ? req.headers['cf-connecting-ip'].trim() : '';
-  if (cfIp) return cfIp;
-  const realIp = typeof req.headers['x-real-ip'] === 'string' ? req.headers['x-real-ip'].trim() : '';
-  if (realIp) return realIp;
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim() || 'unknown';
-  return 'unknown';
+  return getTrustedVercelClientIp(req);
 }
 
 function checkRateLimit(ip: string): boolean {

@@ -33,6 +33,7 @@ import type {
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ShareSkeleton } from '@/components/layout/PageSkeletons';
 
 const SECTIONS = [
   'summary',
@@ -106,8 +107,9 @@ export default function SharePage() {
     }
   };
 
-  // Suspense fallback already shows ShareSkeleton; avoid double skeleton
-  if (initialShare.isLoading) return null;
+  // Keep the page visibly loading while the public share lookup is pending.
+  // Returning null here produced a blank page when the public lookup was slow.
+  if (initialShare.isLoading) return <ShareSkeleton />;
 
   if (initialShare.error || !data) {
     return (

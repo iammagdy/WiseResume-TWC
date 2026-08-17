@@ -932,6 +932,8 @@ async function handleSendTest({ req, res, log, error, body }) {
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 const DB_ID = 'main';
+const ADMIN_RESET_NONCES_COLLECTION_ID = 'admin_reset_request_nonces';
+const ADMIN_RESET_NONCE_TTL_MS = 5 * 60 * 1000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function getOtpSecret() {
@@ -1038,7 +1040,7 @@ async function handleSendPasswordResetOtp({ req, res, log, error, body, adminAud
     }
 
     // 4. Generate 6-digit OTP code
-    const otpCode = crypto.randomInt(100000, 1000000).toString();
+    const otpCode = generatePasswordResetOtp();
     const otpHash = crypto.createHmac('sha256', secret).update(otpCode).digest('hex');
 
     // 5. Store OTP document (with clientIp and sanitized userAgent)
@@ -1086,6 +1088,10 @@ async function handleSendPasswordResetOtp({ req, res, log, error, body, adminAud
   }
 }
 
+function generatePasswordResetOtp() {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
 function getInternalHmacSecret() {
   return process.env.EMAIL_SERVICE_INTERNAL_HMAC_SECRET || '';
 }
@@ -1098,13 +1104,14 @@ function verifyInternalRequestSignature(body) {
   const targetUserId = String(body?.target_user_id || '').trim();
   const targetEmail = String(body?.target_email || '').trim();
   const actorUserId = body?.actor_user_id != null ? String(body.actor_user_id) : '';
+  const nonce = String(body?.nonce || '').trim();
   const signature = String(body?.signature || '').trim();
 
-  if (!timestamp || !targetUserId || !targetEmail || !signature) return false;
-
+  if (!timestamp || !targetUserId || !targetEmail || !nonce || !signature) return false;
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(nonce)) return false;
   if (Math.abs(Date.now() - timestamp) > 5 * 60 * 1000) return false;
 
-  const message = `${timestamp}:${targetUserId}:${targetEmail}:${actorUserId}`;
+  const message = `${timestamp}:${targetUserId}:${targetEmail}:${actorUserId}:${nonce}`;
   const expected = crypto.createHmac('sha256', secret).update(message).digest('base64url');
 
   const actualBuffer = Buffer.from(signature);
@@ -1114,10 +1121,66 @@ function verifyInternalRequestSignature(body) {
   return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
+function isDuplicateNonceError(err) {
+  return err?.code === 409 || /already exists|duplicate/i.test(err?.message || '');
+}
+
+async function purgeExpiredAdminResetNonces(db) {
+  try {
+    const expired = await db.listDocuments(DB_ID, ADMIN_RESET_NONCES_COLLECTION_ID, [
+      sdk.Query.lessThan('expires_at', new Date().toISOString()),
+      sdk.Query.limit(100),
+    ]);
+    await Promise.all(expired.documents.map((doc) =>
+      db.deleteDocument(DB_ID, ADMIN_RESET_NONCES_COLLECTION_ID, doc.$id).catch(() => undefined)
+    ));
+  } catch {
+    // Cleanup is best effort; nonce uniqueness remains authoritative.
+  }
+}
+
+async function consumeInternalRequestNonce(body, database = null) {
+  const nonce = String(body?.nonce || '').trim();
+  const targetUserId = String(body?.target_user_id || '').trim();
+  const targetEmail = String(body?.target_email || '').trim().toLowerCase();
+  const actorUserId = body?.actor_user_id != null ? String(body.actor_user_id) : '';
+  const apiKey = appwriteApiKey();
+  const client = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(apiKey);
+  const db = database || new sdk.Databases(client);
+  const now = Date.now();
+
+  try {
+    await db.createDocument(DB_ID, ADMIN_RESET_NONCES_COLLECTION_ID, nonce, {
+      nonce,
+      target_user_id: targetUserId,
+      target_email: targetEmail,
+      actor_user_id: actorUserId,
+      created_at: new Date(now).toISOString(),
+      expires_at: new Date(now + ADMIN_RESET_NONCE_TTL_MS).toISOString(),
+    });
+  } catch (err) {
+    if (isDuplicateNonceError(err)) return false;
+    throw err;
+  }
+
+  // Keep the replay ledger bounded even when Appwrite TTL is not configured.
+  await purgeExpiredAdminResetNonces(db);
+  return true;
+}
+
 async function handleInternalSendAdminPasswordResetOtp({ req, res, log, error, body }) {
   if (!verifyInternalRequestSignature(body)) {
     error('internal-send-admin-password-reset-otp: invalid or missing internal HMAC signature');
     return json(res, { error: 'Unauthorized' }, 401);
+  }
+  try {
+    if (!await consumeInternalRequestNonce(body)) {
+      error('internal-send-admin-password-reset-otp: replayed internal request rejected');
+      return json(res, { error: 'Unauthorized' }, 401);
+    }
+  } catch (err) {
+    error(`internal-send-admin-password-reset-otp: nonce store unavailable: ${err.message}`);
+    return json(res, { error: 'Internal server configuration error' }, 503);
   }
 
   const targetUserId = String(body?.target_user_id || '').trim();
@@ -1146,6 +1209,15 @@ async function handleInternalSendAdminPasswordResetLink({ req, res, log, error, 
   if (!verifyInternalRequestSignature(body)) {
     error('internal-send-admin-password-reset-link: invalid or missing internal HMAC signature');
     return json(res, { error: 'Unauthorized' }, 401);
+  }
+  try {
+    if (!await consumeInternalRequestNonce(body)) {
+      error('internal-send-admin-password-reset-link: replayed internal request rejected');
+      return json(res, { error: 'Unauthorized' }, 401);
+    }
+  } catch (err) {
+    error(`internal-send-admin-password-reset-link: nonce store unavailable: ${err.message}`);
+    return json(res, { error: 'Internal server configuration error' }, 503);
   }
 
   const targetUserId = String(body?.target_user_id || '').trim();
@@ -1540,7 +1612,9 @@ module.exports = async ({ req, res, log, error }) => {
 module.exports._test = {
   getOtpSecret,
   getInternalHmacSecret,
+  generatePasswordResetOtp,
   verifyInternalRequestSignature,
+  consumeInternalRequestNonce,
   handleInternalSendAdminPasswordResetOtp,
   handleInternalSendAdminPasswordResetLink,
   requestUserEmailVerification,

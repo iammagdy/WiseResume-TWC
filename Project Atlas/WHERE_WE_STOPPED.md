@@ -1,8 +1,110 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-13
-**Status:** Email Verification Production Verified; LinkedIn and Jobs Production QA Remain Pending
+**Last Verified:** 2026-08-15
+**Status:** `EMAIL_VERIFICATION_FIX_MERGED_NARROW_DEPLOYMENT_FIXTURE_BLOCKED` — PRs #183–#194 are merged into `main`; the authorized run `31880840961` deployed exactly the four approved Appwrite functions and all four are ready/In Sync with source/deployed hash parity; PR #194 and narrow run `31882493172` corrected the proven blank Appwrite Verification-template regression by targeting only `email-service`; end-to-end inbox/link/confirmation QA is `FIXTURE_BLOCKED` because no approved safe QA identity/inbox was available; no manual Vercel deployment or unrelated production mutation was performed
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
+
+---
+
+## Full post-change regression audit (2026-08-15)
+
+* **Verdict:** `PASS_WITH_WARNINGS`. The complete matrix covers all 111 source-declared routes: 46 `PASS`, 14 `PASS_WITH_WARNING`, 1 `PRODUCT_BUG`, 26 `FIXTURE_BLOCKED`, 18 `ACCESS_BLOCKED`, 5 `EXPECTED_REDIRECT`, and 1 `EXPECTED_UNDEPLOYED_BACKEND_BEHAVIOR`. Fatal console errors: `0`. Unexpected network failures: `0`. The route-level `ENVIRONMENT_ISSUE` total is `0`; real mobile viewport and full dark-theme testing remain environment-limited and are not claimed as passes.
+* **Proven regression:** `/share/:token` blanked during slow/missing lookup because `SharePage.tsx` returned `null` while the retrying public-share query was loading. PR #188 merged the `ShareSkeleton` fix and one focused regression test into `main`; post-deployment invalid-token checks for both English and Arabic routes reached the explicit `Resume Not Found` state after the transient skeleton, with no blank root or fatal console error.
+* **Production:** Public, authenticated, Arabic/RTL, WiseHire public, DevKit v2, and representative protected routes rendered stable states. The former `/devkit` CommonJS crash was not reproduced; legacy `/devkit` reached a live terminal state with all 24 panels marked `LIVE`, and App Overview plus Onboarding reached terminal states.
+* **Deployment:** Authorized run `31880840961` completed successfully from main `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b` with exact targets `ai-gateway,admin-devkit-data,admin-onboarding-funnel,email-service`. Runs `31871663976`, `31875957559`, and `31879539590` failed before function deployment during the now-resolved repository preflight sequence. The successful workflow also performed documented, repository-controlled idempotent setup/configuration mutations, including named security-collection setup, selected variable/template synchronization, and `fn_deployed_hashes` updates; these were not manual Console mutations or unauthorized data changes. PR #189 corrected the Appwrite response-shape assertion; PR #191 reconciled the complete live application-attribute contract as optional while preserving all types, indexes, defaults, and server-only security requirements. No `target=all`, unrelated function deployment, permission broadening, secret disclosure, or manual Vercel deployment occurred.
+* **PRs:** #188 — [fix(share): render loading state for public share lookups](https://github.com/iammagdy/WiseResume-TWC/pull/188) — merged; final reviewed head `9e13bb649b9f90965895adbdfce61f3648b774bf`, implementation commit `49a2a9d33698f2dd143f747553fbe4005288898a`, merge commit `888ac4cdb13aea3728eb966db521918b1bf57db5`. #189 — [fix(appwrite): read Collection permissions from `$permissions`](https://github.com/iammagdy/WiseResume-TWC/pull/189) — merged with merge commit `fd88f91c13003764eac45955dbff8d92586b77bd`; reviewed head `7ef73c275181a594cb2856cfee4433cb5ce7c073`. #191 — [fix(appwrite): reconcile complete runtime receipts contract](https://github.com/iammagdy/WiseResume-TWC/pull/191) — merged into `main` with final main SHA `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b`. Applicable checks passed; TestSprite remains the known non-applicable `No tests detected` warning.
+* **Report:** [`reports/2026-08-15-full-post-change-regression-audit.md`](./reports/2026-08-15-full-post-change-regression-audit.md)
+* **Email-verification closeout:** The live Appwrite Verification template was confirmed pre-fix with blank subject/body fields and no saved `{{redirect}}` placeholder. This was classified as `PRODUCT_REGRESSION / DEPLOYMENT CONFIG BUG` caused by repository-controlled template blanking. PR #194 merged the managed functional Verification/recovery template contract and placeholder validation. Authorized run `31882493172` targeted only `email-service`, created deployment `6a804f862b4138bc1b06`, reached ready status, and recorded successful template synchronization. The Appwrite Console remained on a loading spinner after deployment, so the workflow log is the available PATCH evidence.
+* **QA boundary:** No approved safe QA identity/inbox was available; signup/resend/inbox receipt/link/confirmation/Appwrite-verified/onboarding routing are `FIXTURE_BLOCKED`. No real-user credentials, tokens, links, or send/reset action was used. The Email panel configuration check remained nonterminal with no console output and is classified as `TEST/AUTOMATION ISSUE or EXPECTED LIMITATION`, not a proven product/backend failure.
+* **Stop point:** Repository fix, PR #194 merge, narrow authorized deployment, and Atlas reconciliation are complete. Final workstream verdict is `FIXTURE_BLOCKED`, not `VERIFIED_READY`, solely because the safe end-to-end inbox fixture was unavailable. No owner action is required for the completed deployment; unrelated Function drift remains intentionally untouched.
+
+## AI runtime receipts schema contract remediation (2026-08-15; final live-contract reconciliation)
+
+* **Status:** `MERGED_AND_LIVE_VERIFIED`. PR #187 established the earlier six-required-attribute hypothesis, but later live metadata and workflow evidence showed that hypothesis was not truthful. PR #191 (`fix/appwrite-runtime-receipts-final-preflight` → `main`) superseded it and merged with final main SHA `b6cf2aa07ce94f160e048a8a02e86aaa0db7293b`; authorized run `31880840961` passed the corrected contract preflight.
+* **Failed workflows:** Runs `31871663976` and `31875957559` failed at the server-only security assertion. Run `31879539590` passed the `$permissions` gate and failed at `request_id: required false (expected true)`. These three runs deployed no function. Run `31880840961` passed the reconciled preflight and deployed exactly the four approved functions.
+* **Security:** The current live collection was observed with `permissions=[]` and `documentSecurity=false`; the reported security assertion failure is not reproducible now, and its historical operand/origin is `UNKNOWN`.
+* **Contract:** The complete live `ai_runtime_receipts` application contract is all-optional for existing attributes. The six disputed fields are writer-populated but not proven schema-required. PR #191 changed only those six flags back to optional; all existing types, sizes, defaults, and indexes remain unchanged.
+* **Validation:** Focused AI runtime schema tests passed (8 tests); relevant Node syntax checks, TypeScript, and diff checks passed. PR Validation, Security validation, Vercel, and Vercel Preview Comments passed. TestSprite failed only with the known non-applicable `No tests detected` warning.
+* **Deployment boundary:** The corrected schema contract preflight passed in run `31880840961`; the approved workflow performed its documented repository-controlled setup/configuration mutations, including idempotent collection setup and auth-template/configuration synchronization. No manual Console mutation, permission broadening, unauthorized data mutation, or secret/environment disclosure occurred. The exact four targets deployed successfully and their parity is recorded in the deployment section above.
+
+## DevKit production crash hotfix (2026-08-15)
+
+* **Status:** `MERGED_AND_PRODUCTION_VERIFIED`. PR #185 (`fix/devkit-module-boundary-hotfix` → `main`) matched head `46dc76f16a037d86a73d11b74f27a7e15ad744c6` and merged with commit `fe68327897ad95e924fb2941bcc5af44d156895e`.
+* **Root cause:** `/devkit` browser code imported the CommonJS Appwrite hub runtime `appwrite-hubs/admin-devkit-data/src/completion-health.js`, causing `ReferenceError: module is not defined` in the browser bundle.
+* **Fix:** Frontend now uses browser-safe ESM `src/lib/devkit/completionHealth.ts`; backend CommonJS behavior remains unchanged and semantics remain identical.
+* **Validation:** Focused DevKit suite passed with 1 file / 10 tests; TypeScript, diff check, relevant backend syntax checks, and production build passed. Existing large-chunk warnings are non-blocking.
+* **Checks:** PR Validation, Vercel preview, and Vercel Preview Comments passed. TestSprite Pre-Check failed only with the known non-applicable `No tests detected` warning.
+* **Boundary:** The former browser crash was absent in post-deployment `/devkit` verification. No manual Vercel deployment or unrelated Appwrite deployment occurred; only the four authorized targets were deployed. No schema/permission change, secret/environment change, or production-data change occurred.
+* **Report:** [`reports/devkit/2026-08-15-module-boundary-hotfix.md`](./reports/devkit/2026-08-15-module-boundary-hotfix.md)
+* **Stop point:** PR #185 merge and Atlas closeout are complete. Await only the normal Vercel production deployment status; any Appwrite deployment requires a separate approved targeted-deployment task.
+
+## DevKit Phase 1 PR #184 merge closeout (2026-08-15)
+
+* **PR verification:** PR #184 (`fix/devkit-phase1-live-data` → `main`) had the required head `04251b41f6661e1eb33f8f034cfa52b119e5a8bc`. PR Validation, Security Validation, Vercel, and Vercel Preview Comments passed. TestSprite Pre-Check failed only with the known non-applicable `No tests detected` warning.
+* **Merge:** PR #184 merged successfully at `2026-08-15T06:17:32Z` with merge commit `9ff1f14a353cc2a82d95bee722e2e4f54f4f6580`; `origin/main` is at the same SHA and contains the feature head.
+* **Deployment:** `MERGED_AND_PRODUCTION_VERIFIED_WITH_WARNINGS`. The Phase 1 behavior was verified through the authorized targeted deployment and live DevKit checks. No unrelated function, schema, permission, secret, environment, account, or production-data change occurred.
+* **Deployment result:** `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and `email-service` were deployed only through authorized run `31880840961` and verified ready/In Sync. Unrelated pre-existing drift was left unchanged. Do not use `target=all`.
+* **Report:** [`reports/devkit/2026-08-15-phase1-merge.md`](./reports/devkit/2026-08-15-phase1-merge.md)
+* **Stop point:** Merge and documentation closeout are complete. Any deployment requires a separate approved targeted-deployment task and post-deployment verification.
+
+## DevKit live verification closeout (2026-08-14)
+
+* **Verdict:** `LIVE_PARTIALLY_VERIFIED_WITH_CONFIRMED_MISMATCHES`. The authenticated production DevKit session reached Home, Data Integrity, Users, Visitor Deep Dive, AI Health, AI Keys, Observability, Functions, Mission Control, and Diagnostics. App Overview and Onboarding remained skeleton/unavailable during repeated captures.
+* **Confirmed live mismatches:** Data Integrity showed 44 Auth Users versus 33 Verified plus 10 Unverified; AI Health showed 44 attributed calls under a `last 50 calls` label; AI Health provider pings were successful while AI Keys marked OpenRouter Slot 1 `Rate Limited`; and `ai-gateway` plus `admin-devkit-data` showed `Needs Redeploy` hash drift.
+* **Confirmed live scope disclosures:** Visitor Deep Dive disclosed a 5,000-event cap. Observability displayed explicit empty states. Diagnostics returned 47 healthy, 0 warning, 0 broken, and 0 not configured. Mission Control reported 28/28 deployed and no new drift for its posture check, which is distinct from source-hash parity.
+* **P1/P2 classifications:** P1-01 `CONFIRMED_CODE_ONLY`; P1-02 `DOWNGRADED`; P2-01 `CONFIRMED_CODE_ONLY`; P2-02 `CONFIRMED_LIVE`; P2-03 `CONFIRMED_CODE_ONLY`; P2-04 `CONFIRMED_CODE_ONLY`; P2-05 `DOWNGRADED`.
+* **Evidence boundary:** Protected Function response bodies were not replayed or retained as independent raw exports; therefore exact equality for every displayed aggregate is not claimed. No code, Appwrite, schema, permissions, environment variables, secrets, accounts, production data, deployments, or destructive DevKit actions were changed.
+* **Report:** [`reports/devkit/2026-08-14-live-data-verification.md`](./reports/devkit/2026-08-14-live-data-verification.md)
+* **Stop point:** Live verification and documentation closeout are complete. Do not implement fixes or run deployment/Appwrite operations from this task. Any remediation requires a separate approved task.
+
+---
+
+## DevKit Phase 1 fix branch closeout (2026-08-14)
+
+* **Branch/commit:** `fix/devkit-phase1-live-data` at implementation commit `c1600bc0a176b6af4911aefa94cfd82364532ea6`, created from clean `main`.
+* **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. The scoped DevKit fixes are implemented locally and validated; no PR was opened and no merge or deployment occurred.
+* **Implementation:** Exact unverified Auth totals now accompany an explicitly labelled ten-user sample; backend failures use `null` plus availability/error semantics; legitimate Premium/Pro zeroes remain zero; AI transport reachability is separate from stored completion/key/model health; the usage card reports the actual returned sample and Unknown/Unattributed rows; App Overview and Onboarding have bounded terminal states.
+* **Validation:** Focused Phase 1 tests passed: 1 file / 4 tests. `npx tsc --noEmit`, changed-hub `node --check`, `git diff --check`, and `npm run build` passed. Existing Vite large-chunk warnings are non-blocking.
+* **Deployment drift:** Read-only production Functions inspection confirmed `ai-gateway` and `admin-devkit-data` `Needs Redeploy`. `ai-gateway` is pending PR #181 debt; `admin-devkit-data` has PR #181 drift plus this branch’s changes. `admin-onboarding-funnel` was live `In Sync` before this branch and now needs a targeted deploy for the new error propagation. Distinct `email-service` parity was not visible in the fresh loaded slice; visible `admin-email` was `In Sync`, so the PR #181 `email-service` target remains to be confirmed before deployment.
+* **Future targeted deploys:** `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and the confirmed PR #181 `email-service` target after exact-ID/status confirmation. Do not use `target=all`; obtain owner approval and run the required targeted workflow/preflight.
+* **Boundary:** No Appwrite, schema, permissions, secrets, environment variables, accounts, production data, or destructive DevKit action changed.
+* **Report:** [`reports/devkit/2026-08-14-phase1-fix.md`](./reports/devkit/2026-08-14-phase1-fix.md)
+* **Stop point:** Implementation, local validation, read-only drift inspection, and Atlas documentation are complete. Push this branch for review only; do not open a PR, merge, or deploy from this task.
+
+---
+
+## Email/password login closeout (2026-08-14)
+
+### Final production verification (2026-08-14)
+
+* **Production deployment:** The canonical site `https://wiseresume.app` returned HTTP 200 from Vercel. Atlas identifies the current Vercel deployment as `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX`, status `READY`, with production aliases. The public response did not expose a commit SHA; the merged behavior was verified from the served AuthPage/AuthBold asset markers.
+* **Successful login:** `PASS`. Authorized credentials redirected to `https://wiseresume.app/dashboard`, and the authenticated workspace rendered normally.
+* **Invalid credentials:** `PASS`. A deliberately invalid non-user pair displayed only the generic `Invalid email or password. You can reset your password if needed.` message. No raw Appwrite error, credential, token, or internal detail appeared.
+* **Email/password handling:** The deployed bundle includes email-only `.trim()` and exact password handoff. The observed successful login used the requested surrounding-email-whitespace path, but direct byte-level capture of the real submitted password was not performed.
+* **Safe diagnostics:** `PASS` for the observed session; no console output or credential/token logging was observed after login.
+* **Unverified:** Rate-limit, network/service-failure, and unknown-auth-error UI paths were not intentionally triggered in production. Autofill/password-manager causation remains `UNCONFIRMED`.
+
+
+* **Merge:** PR #183 (`fix/login-error-classification` → `main`) merged successfully with merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076`. Final `main` contains both login-fix commits `f29e612f` and `1f38dbb`.
+* **Confirmed root cause:** The production email/password login path masked every Appwrite/authentication exception as `Invalid email or password`, so users could not distinguish invalid credentials from network, rate-limit, service, or unknown failures.
+* **Merged behavior:** Safe user-facing authentication error classification, credential-safe diagnostics, submit-time DOM reconciliation for stale controlled/autofill/password-manager values, email surrounding-whitespace trimming only, and exact password preservation.
+* **Historical boundary:** Autofill/password-manager state mismatch remains `UNCONFIRMED` as the cause of the historical incident. The verified root cause is login error masking.
+* **Validation:** Required PR checks completed successfully; focused authentication tests, TypeScript validation, `git diff --check`, and production build passed. The non-required TestSprite pre-check reported `No tests detected` and did not block merge.
+* **Deployment:** `PRODUCTION_LOGIN_VERIFIED_WITH_UNVERIFIED_FAILURE_PATHS`. No Appwrite change, schema/permission change, secret/environment change, manual Vercel deployment, or production-data change occurred. The current Vercel deployment is recorded as `READY`; runtime-to-Git SHA mapping is not exposed by the public response and is supported by served bundle markers.
+* **Stop point:** Main is merged and final read-only production login verification is complete for deployment identity, successful login, invalid credentials, input-handling markers, and safe diagnostics. Do not change Appwrite or claim the historical autofill hypothesis as proven. Optional future QA may exercise rate-limit/network/service/unknown-error presentation in a non-production environment.
+
+---
+
+## Public-repository P2 remediation closeout (2026-08-14)
+
+* **Scope:** Remediation branch `security/public-audit-p2-remediation`, based on the public-audit baseline `main` at `71b2864a5bb09b4082729db59950e2dc778abba3`. The corrected audit interpretation is seven P2 findings, with no P0 or P1 discovered during remediation.
+* **Implementation status:** All seven P2 code/test gaps were addressed locally: React Router `7.18.2`; atomic AI quota reservation and release; cryptographic reset OTPs; nonce-bound, single-use internal reset HMAC requests; durable PDF rate/concurrency and input/output bounds in the production Vercel route; trusted Vercel IP extraction across anonymous routes; and a reliable security suite with a path-filtered, secret-free CI workflow.
+* **Schema status:** The repository-controlled setup script now provisions `chat_sessions`, `admin_reset_request_nonces`, `pdf_export_rate_limits`, and `pdf_export_active_leases` with expiry indexes and server-only permissions. `chat_sessions.question_count` is optional for Appwrite compatibility; the AI gateway backfills missing legacy counters to zero before atomic reservation. Attribute readiness is polled before dependent indexes. Production schema application has not occurred.
+* **Validation:** The fresh final check passed `git diff --check`, `npx tsc --noEmit`, `npm run build`, the focused security suite (`24` files / `129` tests after the legacy-counter, schema-readiness, and Appwrite-ID regressions), the complete repository suite (`189` files passed, `1` skipped; `1,088` tests passed, `8` skipped, `1` todo), three changed-hub `node --check` commands, the Appwrite SDK schema API contract check, and `npm audit --omit=dev` with zero vulnerabilities. Required PR checks `Typecheck + portfolio tests` and `Security regression suite` completed successfully; the non-required TestSprite pre-check reported `No tests detected` and did not block merge. Source-hash regeneration remains represented in the committed remediation manifest.
+* **Git state:** PR #181 was merged into `main` with merge commit `6acb230f2948653826b73c64877bec3617c1bead`. The merged remediation commit `432409d0b3e5a8ca8ce320ae41409f93db085c38` is contained in `origin/main`; the documentation-only post-merge closeout follows on `main`.
+* **Deployment state:** `MERGED_PENDING_DEPLOYMENT`. The exact Appwrite targets requiring the approved targeted workflow are `ai-gateway`, `email-service`, and `admin-devkit-data`; that workflow runs `scripts/setup-security-collections.cjs` before deploying any of those affected hubs. Vercel deployment remains pending; the trusted Vercel client-IP behavior still requires live verification against spoofed headers after deployment. No `target=all` deployment was used, and no production schema mutation occurred.
+* **Owner actions:** After deployment, verify that Vercel does not allow caller-supplied IP headers to change the trusted client identity using a normal-versus-spoofed-header integration test. Enable GitHub Secret Scanning and Push Protection. These external checks are not claimed as verified from the sandbox.
+* **Stop point:** PR #181 is merged, and this post-merge documentation closeout is the final local action. No Appwrite deployment, Vercel deployment, production schema mutation, or production configuration change was performed.
 
 ---
 
@@ -19,7 +121,7 @@
 
 * **Production Domain:** `https://wiseresume.app`
 * **Repository:** `iammagdy/WiseResume-TWC`
-* **Active Branch:** `main`. The repository-state baseline was synchronized at `8fc45e010722f72ed7f3dc9a9f252eeb19045c83` after PR #179; this reconciliation is a subsequent documentation-only record.
+* **Active Branch:** `main`. Current post-merge main is `4bea728dba622ae2124d0192241cc7b26bdf6076`, which contains PR #183’s login-fix commits `f29e612f` and `1f38dbb`; the earlier `8fc45e010722f72ed7f3dc9a9f252eeb19045c83` remains only as the PR #179 synchronization baseline.
 * **Frontend:** React 18, TypeScript 5, Vite 6, Tailwind CSS, Radix UI, shadcn/ui.
 * **Frontend Hosting:** Vercel. Current production is documentation-only deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for commit `e7e92aba0261a5e587c766654dc9bf601732072d`; latest verified code-bearing production remains `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`.
 * **Backend Platform:** Appwrite Cloud (`fra.cloud.appwrite.io`).
@@ -33,6 +135,7 @@
 
 ## 2. Latest Important Commits
 
+* **`4bea728d`** - `Merge pull request #183 from iammagdy/fix/login-error-classification` - **LOGIN ERROR-MASKING FIX MERGED; VERCEL DEPLOYMENT AND LIVE LOGIN VERIFICATION PENDING**
 * **`cfcaf82e`** - `Merge pull request #178 from iammagdy/codex/fix-verification-delivery` - **OFFICIAL APPWRITE EMAIL-VERIFICATION LIFECYCLE MERGED; PRODUCTION DELIVERY NOW VERIFIED**
 * **`5225c130`** - Auth/jobs stabilization production release - **FRONTEND PRODUCTION DEPLOYED; REMAINING LINKEDIN AND JOBS QA IS SEPARATE**
 * **`fdbfb8de`** - `Merge pull request #173 from iammagdy/codex/ai-runtime-receipts-ci-schema` - **CI SCHEMA PROVISIONING MERGED; TARGETED APPWRITE RUNTIME VERIFIED**

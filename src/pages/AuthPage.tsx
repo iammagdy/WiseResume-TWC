@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/hooks/useAuth';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
-import { AuthBold, type AuthBoldMode } from '@/components/auth/AuthBold';
+import { AuthBold, type AuthBoldMode, type AuthSubmitValues } from '@/components/auth/AuthBold';
 import { account as appwriteAccount, ID } from '@/lib/appwrite';
 import { appwriteFunctions } from '@/lib/appwrite-functions';
 import { upsertProfileIdentity } from '@/lib/profileSeed';
@@ -15,6 +15,7 @@ import { clearAllCachedScores } from '@/hooks/useResumeScore';
 import { clearAllEditorSessions } from '@/lib/editorSession';
 import { clearPlanCache } from '@/lib/planCache';
 import { safeInternalRedirect } from '@/lib/security/safeInternalRedirect';
+import { authErrorMessage, classifyAuthError } from '@/lib/authError';
 
 const SIGNUP_PLAN_KEY = 'signup_plan_intent';
 
@@ -173,11 +174,13 @@ export default function AuthPage() {
     }
   }, [mode]);
 
-  const doLogin = async () => {
+  const doLogin = async (submittedValues?: AuthSubmitValues) => {
     setLoading(true);
     setError(null);
+    const submittedEmail = (submittedValues?.email ?? email).trim();
+    const submittedPassword = submittedValues?.password ?? password;
     try {
-      await appwriteAccount.createEmailPasswordSession(email, password);
+      await appwriteAccount.createEmailPasswordSession(submittedEmail, submittedPassword);
       // Clear caches only after successful session creation
       queryClient.clear();
       clearAllPersistedCaches();
@@ -197,8 +200,17 @@ export default function AuthPage() {
       setSignupPlanIntent(null);
       toast.success('Logged in successfully!');
       navigate(redirectTo, { replace: true });
-    } catch {
-      const msg = 'Invalid email or password. You can reset your password if needed.';
+    } catch (err: unknown) {
+      const classified = classifyAuthError(err);
+      console.warn('[AuthPage] email/password sign-in failed', {
+        stage: 'create-email-password-session',
+        kind: classified.kind,
+        status: classified.status,
+        code: classified.code,
+        type: classified.type,
+        requestId: classified.requestId,
+      });
+      const msg = authErrorMessage(classified.kind);
       setError(msg);
       toast.error(msg);
     } finally {
@@ -398,8 +410,8 @@ export default function AuthPage() {
     }
   };
 
-  const onSubmit = () => {
-    if (mode === 'signin') return doLogin();
+  const onSubmit = (submittedValues?: AuthSubmitValues) => {
+    if (mode === 'signin') return doLogin(submittedValues);
     if (mode === 'signup') return doRegister();
     if (mode === 'forgot') {
       if (forgotStep === 'email') return doSendPasswordResetOtp();

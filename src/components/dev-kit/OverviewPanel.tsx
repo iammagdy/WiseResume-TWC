@@ -12,12 +12,22 @@ import { DevKitMetricCard, DevKitSection, DevKitLoading } from './DevKitUI';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface OverviewStatsData {
-  totalAuthUsers: number;
-  verifiedUsers: number;
-  totalResumes: number;
-  orphanedResumes: number;
-  rawResumeDocuments?: number;
+  totalAuthUsers: number | null;
+  verifiedUsers: number | null;
+  unverifiedUsersTotal?: number | null;
+  unverifiedUsersTotalExact?: boolean;
+  unverifiedUsersSampleLimit?: number;
+  unverifiedUsersIsSample?: boolean;
+  totalResumes: number | null;
+  orphanedResumes: number | null;
+  rawResumeDocuments?: number | null;
   truncated?: boolean;
+  availability?: {
+    overall?: 'available' | 'partial' | 'error';
+    authUsers?: 'available' | 'error';
+    unverifiedUsers?: 'available' | 'error';
+    resumes?: 'available' | 'error';
+  };
   unverifiedUsers?: Array<{
     user_id: string;
     email: string | null;
@@ -27,13 +37,18 @@ interface OverviewStatsData {
 }
 
 interface OverviewStats {
-  totalAuthUsers: number;
-  verifiedUsers: number;
-  totalResumes: number;
-  orphanedResumes: number;
-  rawResumeDocuments: number;
+  totalAuthUsers: number | null;
+  verifiedUsers: number | null;
+  unverifiedUsersTotal: number | null;
+  unverifiedUsersTotalExact: boolean;
+  unverifiedUsersSampleLimit: number;
+  unverifiedUsersIsSample: boolean;
+  totalResumes: number | null;
+  orphanedResumes: number | null;
+  rawResumeDocuments: number | null;
   truncated: boolean;
   unverifiedUsers: NonNullable<OverviewStatsData['unverifiedUsers']>;
+  availability: NonNullable<OverviewStatsData['availability']>;
   backend: string;
   latency: number;
   lastUpdate: Date;
@@ -87,16 +102,21 @@ export const OverviewPanel = () => {
       );
       const result = unwrapAdminResponse<OverviewStatsData>(tuple, 'admin-devkit-data');
       setStats({
-        totalAuthUsers:  result.totalAuthUsers  ?? 0,
-        verifiedUsers:   result.verifiedUsers   ?? 0,
-        totalResumes:    result.totalResumes    ?? 0,
-        orphanedResumes: result.orphanedResumes ?? 0,
-        rawResumeDocuments: result.rawResumeDocuments ?? result.totalResumes ?? 0,
-        truncated:       result.truncated ?? false,
+        totalAuthUsers: result.totalAuthUsers ?? null,
+        verifiedUsers: result.verifiedUsers ?? null,
+        unverifiedUsersTotal: result.unverifiedUsersTotal ?? null,
+        unverifiedUsersTotalExact: result.unverifiedUsersTotalExact === true,
+        unverifiedUsersSampleLimit: result.unverifiedUsersSampleLimit ?? 10,
+        unverifiedUsersIsSample: result.unverifiedUsersIsSample !== false,
+        totalResumes: result.totalResumes ?? null,
+        orphanedResumes: result.orphanedResumes ?? null,
+        rawResumeDocuments: result.rawResumeDocuments ?? null,
+        truncated: result.truncated ?? false,
         unverifiedUsers: result.unverifiedUsers ?? [],
-        backend:         'Appwrite',
-        latency:         Date.now() - start,
-        lastUpdate:      new Date(),
+        availability: result.availability ?? { overall: 'available' },
+        backend: 'Appwrite',
+        latency: Date.now() - start,
+        lastUpdate: new Date(),
       });
       setError(null);
     } catch (err: unknown) {
@@ -147,21 +167,29 @@ export const OverviewPanel = () => {
     return <DevKitErrorCard error={error} onRetry={fetchStats} />;
   }
 
-  const orphaned = stats?.orphanedResumes ?? 0;
-  const resumeSub = orphaned > 0
-    ? `${orphaned} orphaned hidden from active count`
-    : 'Active auth users only';
+  const orphaned = stats?.orphanedResumes ?? null;
+  const resumeSub = orphaned == null
+    ? 'Unavailable — resume source failed'
+    : orphaned > 0
+      ? `${orphaned} orphaned hidden from active count`
+      : 'Active auth users only';
+  const hasPartialData = stats?.availability.overall === 'partial' || stats?.availability.overall === 'error' || Boolean(error);
 
   const totalOrphans = (purgePreview?.orphanedProfiles ?? 0) + (purgePreview?.orphanedResumes ?? 0);
 
   return (
     <div className="space-y-6">
+      {hasPartialData && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
+          <span><strong>Partial data</strong> — one or more Appwrite sources are unavailable. Affected values are shown as Unavailable, not zero.</span>
+        </div>
+      )}
       {stats?.truncated && (
         <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-300">
           <Info size={14} className="mt-0.5 shrink-0 text-yellow-400" />
           <span>
-            <strong>Approximate data</strong> — user base exceeds 500 accounts. Verified/unverified counts and orphan
-            analysis cover the first 500 users only. Total auth user count is exact.
+            <strong>Sampled analysis</strong> — the resume ownership check examines at most 500 Auth users. The Auth user total, verified total, and unverified total are exact; only ownership/orphan analysis is bounded.
           </span>
         </div>
       )}
@@ -170,16 +198,16 @@ export const OverviewPanel = () => {
         <DevKitMetricCard
           icon={Users}
           label="Auth Users"
-          value={stats?.totalAuthUsers ?? 0}
-          subtext={`Verified: ${stats?.verifiedUsers ?? 0}`}
+          value={stats?.totalAuthUsers ?? 'Unavailable'}
+          subtext={`Verified: ${stats?.verifiedUsers ?? 'Unavailable'} · Unverified: ${stats?.unverifiedUsersTotal ?? 'Unavailable'}`}
           loading={loading && !stats}
         />
         <DevKitMetricCard
           icon={FileText}
           label="Total Resumes"
-          value={stats?.totalResumes ?? 0}
+          value={stats?.totalResumes ?? 'Unavailable'}
           subtext={resumeSub}
-          status={orphaned > 0 ? 'warning' : 'success'}
+          status={orphaned == null ? 'error' : orphaned > 0 ? 'warning' : 'success'}
           loading={loading && !stats}
         />
         <DevKitMetricCard
@@ -191,15 +219,18 @@ export const OverviewPanel = () => {
         />
       </div>
 
-      {stats && stats.unverifiedUsers.length > 0 && (
+      {stats && (stats.unverifiedUsers.length > 0 || stats.unverifiedUsersTotal != null) && (
         <DevKitSection
           title="Unverified Auth Users"
           icon={AlertTriangle}
           status="warning"
           action={
-            <span className="text-xs text-muted-foreground">{stats.unverifiedUsers.length} pending</span>
+            <span className="text-xs text-muted-foreground">
+              {stats.unverifiedUsersTotalExact ? `${stats.unverifiedUsersTotal} total` : 'Total unavailable'} · sample {stats.unverifiedUsers.length}/{stats.unverifiedUsersSampleLimit}
+            </span>
           }
         >
+          <p className="mb-3 text-xs text-muted-foreground">The list below is a sample, not the full unverified-user population.</p>
           <div className="space-y-1">
             {stats.unverifiedUsers.map(user => (
               <div key={user.user_id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -213,7 +244,7 @@ export const OverviewPanel = () => {
       )}
 
       {/* Orphan cleanup — warning prompt */}
-      {orphaned > 0 && purgePhase === 'idle' && !purgeResult && (
+      {orphaned != null && orphaned > 0 && purgePhase === 'idle' && !purgeResult && (
         <DevKitSection
           title="Orphaned Resumes Detected"
           icon={AlertTriangle}
