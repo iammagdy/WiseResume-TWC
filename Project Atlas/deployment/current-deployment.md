@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-08-15
+**Last Verified:** 2026-08-20
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -18,9 +18,9 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
-* **Current Production Deployment:** Vercel deployment `dpl_J5Bhtano4s4yGk8BqJVZ2SEGRGaX` for the Atlas-recorded documentation-only commit `e7e92aba0261a5e587c766654dc9bf601732072d`; environment URL `https://wise-resume-6d1oagd4i-iam-magdy.vercel.app`; Vercel status `READY`; aliases include `wiseresume.app`, `www.wiseresume.app`, and `resume.thewise.cloud`. The canonical site returned HTTP 200 and served the merged AuthPage/AuthBold markers. The public response does not expose a commit SHA, so runtime-to-Git mapping is supported by served bundle evidence rather than a public header.
-* **Latest Verified Code-Bearing Deployment:** Vercel deployment `dpl_Hvot534UMdVDKrLwtDNuQHpiMigr` for product commit `51271e0a5ff355e5d5ad5c6078c7357b50f50f42`; environment URL `https://wise-resume-8rc0tr8nr-iam-magdy.vercel.app`; Vercel status `READY`. The subsequent current deployment changed only Project Atlas documentation.
-* **Trigger:** Pushes to the `main` branch automatically trigger Vercel production deployment workflows. PR #183’s merge commit `4bea728dba622ae2124d0192241cc7b26bdf6076` is on `main`; no manual Vercel integration was initiated. Read-only production verification passed for successful login, invalid credentials, and safe diagnostics; rate-limit, network/service, and unknown-auth-error paths remain unverified.
+* **Current Production Deployment:** GitHub deployment record `6000810045` for Vercel environment `Production`, associated with merge commit `39c58a338eef75581b910741f932233a2defde63`, completed successfully at `2026-08-20T10:57:02Z`. Vercel target URL: `https://wise-resume-6fh0vfr31-iam-magdy.vercel.app`. The canonical site `https://wiseresume.app` returned HTTP 200 with `x-vercel-cache: HIT` and last-modified `2026-08-20T10:57:27Z`. The public response does not expose a commit SHA, so runtime-to-Git mapping is supported by the GitHub deployment record and deployment target metadata rather than a public header.
+* **Merge boundary:** PR [#198](https://github.com/iammagdy/WiseResume-TWC/pull/198) merged into `main` at `2026-08-20T10:55:06Z`. The deployment status for the merge commit was `success` with Vercel target `https://vercel.com/iam-magdy/wise-resume-twc/H6P61XeonWPWb7wz6DtPF8nC48uV`.
+* **Trigger:** The merge to `main` triggered the normal Vercel Production deployment path; no manual Vercel deployment was initiated. Authenticated browser QA after deployment passed the landing route, Dashboard upload/import, Applications route boundary, Editor no-context redirect, and deleted-result Tailoring Result boundary with the warnings recorded in `Project Atlas/WHERE_WE_STOPPED.md`. No Appwrite deployment occurred or was required for this frontend-only change.
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist/`
 * **Active Frontend CSP:** Delivered through the Vite-injected meta tag. Appwrite access requires both `https://fra.cloud.appwrite.io` and `wss://fra.cloud.appwrite.io` in `connect-src`. Browser visitor tracking must not add GeoJS to `connect-src`; direct browser GeoJS requests were removed in favor of Appwrite ingestion metadata where available.

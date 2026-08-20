@@ -1,6 +1,6 @@
 # WiseResume Developer & AI Agent Rules
 
-**Last verified:** 2026-06-26
+**Last verified:** 2026-08-20
 **Type:** governance
 **Sources:**
 - `Project Atlas/GOVERNANCE.md`
