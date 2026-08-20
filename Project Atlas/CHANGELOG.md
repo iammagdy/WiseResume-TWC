@@ -1,13 +1,13 @@
 # Project Atlas Master Changelog
 
-## 2026-08-20 - Sentry production fixes (local; not deployed)
+## 2026-08-20 - Sentry production fixes (PR #198 open; not deployed)
 
-- **Confirmed fixes:** Removed the `DashboardUploadWidget` temporal-dead-zone crash behind WISE-RESUME-16; added capability-safe tracking IDs for older browsers; gated `web-vitals` registration when `Array.prototype.at` is unavailable; and guarded the Appwrite Realtime heartbeat timer against non-OPEN sockets for WISE-RESUME-P/Z.
+- **Confirmed fixes:** Removed the `DashboardUploadWidget` temporal-dead-zone crash behind WISE-RESUME-16; added capability-safe tracking IDs for older browsers; gated `web-vitals` registration when `Array.prototype.at` is unavailable; and upgraded the browser Appwrite SDK to `26.2.0` so maintained Realtime heartbeat protection handles non-OPEN sockets for WISE-RESUME-P/Z.
 - **Investigations:** WISE-RESUME-11 is corrected in current Applications source and was absent from the captured live `/applications` state, so no code change was needed. WISE-RESUME-13 remains unproven because current `BrowserRouter` composition does not explain its event. WISE-RESUME-Q has insufficient stack/reoccurrence evidence and received no speculative fix.
-- **Regression coverage:** Added focused DashboardUploadWidget structure and web-vitals compatibility tests; extended visitor tracking and Appwrite Realtime security tests. Six focused test files passed with 33 tests.
-- **Validation:** `npx tsc --noEmit` passed; `npm run build` passed; the no-sourcemap check passed. `git diff --check` and final Git status checks were blocked because Git is unavailable in the connected Windows shell. Local landing and live authenticated Applications/Tailoring route-boundary checks reached stable states.
+- **Regression coverage:** Added focused DashboardUploadWidget structure and web-vitals compatibility tests; extended visitor tracking coverage and retained the existing Appwrite Realtime security coverage. Six focused test files passed with 32 tests.
+- **Validation:** `npx tsc --noEmit`, `npm run build`, the no-sourcemap check, and `git diff --check` passed. PR Validation, Security validation, Vercel, and Vercel Preview Comments passed. TestSprite Pre-Check remains the known non-applicable `No tests detected` failure. Local landing and live authenticated Applications/Tailoring route-boundary checks reached stable states.
 - **Sentry re-check:** Eight unresolved production groups remain in the 30-day query; the 7-day aggregate remains WISE-RESUME-16 (5 events) and WISE-RESUME-13 (1 event), expected because no frontend deployment occurred. No Sentry issue was resolved, ignored, assigned, or reconfigured.
-- **Release boundary:** No commit, push, merge, Vercel deployment, Appwrite deployment, schema/permission change, secret/configuration change, or production data change occurred. Frontend deployment requires the approved Vercel path from `main`; no Appwrite deployment is required for the frontend-only Realtime guard.
+- **Release boundary:** Commit `8f1501b6fe5b269932ebe85038d3153cc9ea542f` is pushed on `fix/sentry-production-errors` in [PR #198](https://github.com/iammagdy/WiseResume-TWC/pull/198), which is open and unmerged. No Vercel or Appwrite deployment has occurred. Frontend deployment requires the approved Vercel path from `main` after merge; no Appwrite deployment is required for the frontend-only changes.
 - **Report:** [`reports/2026-08-20-sentry-production-fixes-local.md`](./reports/2026-08-20-sentry-production-fixes-local.md)
 
 ## 2026-08-17 - Comprehensive trust, security, AI, ATS, and export hardening (local; not deployed)
