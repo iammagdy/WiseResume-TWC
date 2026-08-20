@@ -1,10 +1,21 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-15
-**Status:** `EMAIL_VERIFICATION_FIX_MERGED_NARROW_DEPLOYMENT_FIXTURE_BLOCKED` — PRs #183–#194 are merged into `main`; the authorized run `31880840961` deployed exactly the four approved Appwrite functions and all four are ready/In Sync with source/deployed hash parity; PR #194 and narrow run `31882493172` corrected the proven blank Appwrite Verification-template regression by targeting only `email-service`; end-to-end inbox/link/confirmation QA is `FIXTURE_BLOCKED` because no approved safe QA identity/inbox was available; no manual Vercel deployment or unrelated production mutation was performed
+**Last Verified:** 2026-08-20
+**Status:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED` — local Sentry fixes for WISE-RESUME-16, WISE-RESUME-T/V, and WISE-RESUME-P/Z are implemented on `fix/sentry-production-errors`; WISE-RESUME-11 is source/live-route verified as already corrected; WISE-RESUME-13 remains unproven and WISE-RESUME-Q remains insufficiently evidenced; no commit, push, merge, Vercel deployment, Appwrite deployment, Sentry mutation, or configuration change occurred
+
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## Sentry production fixes — local implementation (2026-08-20)
+
+* **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED`. Confirmed fixes were implemented for the DashboardUploadWidget temporal-dead-zone crash (WISE-RESUME-16), older-browser visitor IDs and web-vitals compatibility (WISE-RESUME-T/V), and Appwrite Realtime heartbeat lifecycle races (WISE-RESUME-P/Z). WISE-RESUME-11 is already corrected in current source and was not changed. WISE-RESUME-13 was not changed because the current BrowserRouter mount path does not prove the reported event’s root cause. WISE-RESUME-Q remains insufficiently evidenced and has no invented fix.
+* **Files:** `src/components/dashboard/DashboardUploadWidget.tsx`, `src/lib/visitorTrack.ts`, `src/lib/reportWebVitals.ts`, and `src/lib/appwrite.ts`, with focused regression coverage in the corresponding dashboard, visitor, web-vitals, and Realtime test files.
+* **Validation:** Six focused test files passed with 33 tests. `npx tsc --noEmit` passed. `npm run build` passed and the no-sourcemap check passed; existing large-chunk warnings remain advisory. `git diff --check` and final Git status checks were `BLOCKED_EXTERNAL_ACCESS` because Git is unavailable in the connected Windows shell. Local browser QA rendered `/` normally; production `/applications` and a synthetic Tailoring Result route reached stable authenticated states without the historical Applications ReferenceError or a fatal Realtime/route crash.
+* **Sentry:** A read-only post-fix check still found eight unresolved 30-day groups; the 7-day production aggregate remained WISE-RESUME-16 (5 events) and WISE-RESUME-13 (1 event), as expected because no frontend deployment occurred. No Sentry issue was resolved, ignored, assigned, or otherwise changed.
+* **Deployment:** Frontend changes require review plus the normal approved Vercel deployment from `main`. No Appwrite deployment is required because the Realtime guard is frontend-only. Post-deployment Sentry and authenticated route QA remain required.
+* **Report:** [`reports/2026-08-20-sentry-production-fixes-local.md`](./reports/2026-08-20-sentry-production-fixes-local.md)
+* **Stop point:** Ready for review, not production-fixed or deploy-complete. Owner approval is required before commit/push/merge/deployment.
 
 ## Full post-change regression audit (2026-08-15)
 

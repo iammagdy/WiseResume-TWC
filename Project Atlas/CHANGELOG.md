@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-20 - Sentry production fixes (local; not deployed)
+
+- **Confirmed fixes:** Removed the `DashboardUploadWidget` temporal-dead-zone crash behind WISE-RESUME-16; added capability-safe tracking IDs for older browsers; gated `web-vitals` registration when `Array.prototype.at` is unavailable; and guarded the Appwrite Realtime heartbeat timer against non-OPEN sockets for WISE-RESUME-P/Z.
+- **Investigations:** WISE-RESUME-11 is corrected in current Applications source and was absent from the captured live `/applications` state, so no code change was needed. WISE-RESUME-13 remains unproven because current `BrowserRouter` composition does not explain its event. WISE-RESUME-Q has insufficient stack/reoccurrence evidence and received no speculative fix.
+- **Regression coverage:** Added focused DashboardUploadWidget structure and web-vitals compatibility tests; extended visitor tracking and Appwrite Realtime security tests. Six focused test files passed with 33 tests.
+- **Validation:** `npx tsc --noEmit` passed; `npm run build` passed; the no-sourcemap check passed. `git diff --check` and final Git status checks were blocked because Git is unavailable in the connected Windows shell. Local landing and live authenticated Applications/Tailoring route-boundary checks reached stable states.
+- **Sentry re-check:** Eight unresolved production groups remain in the 30-day query; the 7-day aggregate remains WISE-RESUME-16 (5 events) and WISE-RESUME-13 (1 event), expected because no frontend deployment occurred. No Sentry issue was resolved, ignored, assigned, or reconfigured.
+- **Release boundary:** No commit, push, merge, Vercel deployment, Appwrite deployment, schema/permission change, secret/configuration change, or production data change occurred. Frontend deployment requires the approved Vercel path from `main`; no Appwrite deployment is required for the frontend-only Realtime guard.
+- **Report:** [`reports/2026-08-20-sentry-production-fixes-local.md`](./reports/2026-08-20-sentry-production-fixes-local.md)
+
 ## 2026-08-17 - Comprehensive trust, security, AI, ATS, and export hardening (local; not deployed)
 
 - **AI privacy and spend**: Removed automatic paid AI matching from the Applications/Jobs experience, routed user-triggered AI actions through the privacy disclosure and resume redaction boundary, made Remote Jobs match scores deterministic, and prevented stale/cross-content idempotency reuse and first-credit-document races.

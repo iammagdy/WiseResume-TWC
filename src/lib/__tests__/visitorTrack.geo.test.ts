@@ -37,6 +37,7 @@ describe('visitor tracking browser geo behavior', () => {
     vi.useRealTimers();
     vi.doUnmock('@/lib/appwrite');
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     globalThis.fetch = originalFetch;
   });
 
@@ -73,6 +74,28 @@ describe('visitor tracking browser geo behavior', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(createExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps page-view analytics working when crypto.randomUUID is unavailable', async () => {
+    const getRandomValues = vi.fn((bytes: Uint8Array) => {
+      bytes.fill(7);
+      return bytes;
+    });
+    vi.stubGlobal('crypto', { getRandomValues });
+
+    const { createTrackingId, trackPageView } = await import('../visitorTrack');
+    const id = createTrackingId();
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+
+    trackPageView('/auth/verify-email');
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(getRandomValues).toHaveBeenCalled();
+    expect(createExecutionMock).toHaveBeenCalledWith(
+      'track-visitor-event',
+      expect.any(String),
+      true,
+    );
   });
 });
 

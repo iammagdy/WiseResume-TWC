@@ -1,11 +1,21 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-08-15
-**Status:** Canonical Production Snapshot - Targeted Appwrite deployment run `31880840961` completed successfully for exactly `ai-gateway`, `admin-devkit-data`, `admin-onboarding-funnel`, and `email-service`; all four are enabled, ready, and `In Sync` with source/deployed hash parity. The later narrow email-service run `31882493172` applied the merged PR #194 functional Verification-template correction. The email-verification lifecycle remains `FIXTURE_BLOCKED` because no approved safe QA identity/inbox was available; the proven blank-template regression is corrected and documented. PRs #183–#194 are merged; legacy unrelated Function drift remains untouched.
+**Last Verified:** 2026-08-20
+**Status:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED` local Sentry-fix snapshot. Production remains on the prior deployed behavior. WISE-RESUME-16, WISE-RESUME-T/V, and WISE-RESUME-P/Z have scoped frontend fixes implemented on `fix/sentry-production-errors`; WISE-RESUME-11 is corrected in current source and absent from the captured live Applications state; WISE-RESUME-13 remains unproven; WISE-RESUME-Q remains insufficiently evidenced. No commit, push, merge, Vercel deployment, Appwrite deployment, Sentry mutation, or configuration change occurred.
+
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Sentry production fixes — local implementation (2026-08-20)
+
+* **Scope:** Dashboard declaration-order crash, older-browser visitor IDs/web-vitals registration, and Appwrite Realtime heartbeat lifecycle handling were fixed locally with minimal changes. Current Applications source parity was verified; the Router-context and no-stack invalid-state reports were not given speculative fixes.
+* **Validation:** Six focused Vitest files passed with 33 tests; `npx tsc --noEmit` passed; `npm run build` passed; the no-sourcemap check passed. Existing Vite large-chunk warnings are advisory. `git diff --check` and final Git status commands were blocked because the connected Windows shell has no Git executable.
+* **Browser:** Local `/` rendered normally. Live authenticated `/applications` reached the Applications workspace without the historical `t is not defined` error. Live synthetic Tailoring Result reached the explicit deleted-resume terminal state without a fatal blank root or visible realtime error. Full authenticated upload/editor/live-tailoring subscription verification remains outstanding.
+* **Sentry:** Read-only post-fix review still showed eight unresolved production groups over 30 days; the last-seven-day aggregate remained WISE-RESUME-16 (5 events) and WISE-RESUME-13 (1 event). This is expected because local frontend changes were not deployed. No Sentry issue state or configuration was changed.
+* **Deployment:** Frontend changes require the normal reviewed Vercel deployment from `main`; no Appwrite deployment is required for the frontend-only Realtime guard. Post-deployment browser QA and Sentry re-check are required.
+* **Report:** [`reports/2026-08-20-sentry-production-fixes-local.md`](./reports/2026-08-20-sentry-production-fixes-local.md)
 
 ## Full post-change regression audit (2026-08-15)
 
