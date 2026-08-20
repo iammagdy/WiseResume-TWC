@@ -38,16 +38,42 @@ function getConsent(): boolean {
   }
 }
 
+/**
+ * Generate a visitor identifier without assuming crypto.randomUUID exists.
+ * Tracking identifiers are not security credentials, so the final fallback is
+ * intentionally compatibility-first for older browsers and restricted contexts.
+ */
+export function createTrackingId(): string {
+  const cryptoApi = typeof globalThis.crypto !== 'undefined' ? globalThis.crypto : undefined;
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+
+  if (typeof cryptoApi?.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    cryptoApi.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex = '';
+    for (const byte of bytes) {
+      hex += ('0' + byte.toString(16)).slice(-2);
+    }
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
 function getOrCreateAnonId(): string {
   try {
     let id = localStorage.getItem(ANON_ID_KEY);
     if (!id) {
-      id = crypto.randomUUID();
+      id = createTrackingId();
       localStorage.setItem(ANON_ID_KEY, id);
     }
     return id;
   } catch {
-    return crypto.randomUUID();
+    return createTrackingId();
   }
 }
 
@@ -55,12 +81,12 @@ function getOrCreateSessionId(): string {
   try {
     let id = sessionStorage.getItem(SESSION_ID_KEY);
     if (!id) {
-      id = crypto.randomUUID();
+      id = createTrackingId();
       sessionStorage.setItem(SESSION_ID_KEY, id);
     }
     return id;
   } catch {
-    return crypto.randomUUID();
+    return createTrackingId();
   }
 }
 
@@ -68,7 +94,7 @@ function getOrCreateSessionId(): string {
 // Not persisted anywhere — new value each page load.
 let _ephemeralId: string | null = null;
 function getEphemeralId(): string {
-  if (!_ephemeralId) _ephemeralId = crypto.randomUUID();
+  if (!_ephemeralId) _ephemeralId = createTrackingId();
   return _ephemeralId;
 }
 

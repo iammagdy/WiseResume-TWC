@@ -1,10 +1,21 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-15
-**Status:** `EMAIL_VERIFICATION_FIX_MERGED_NARROW_DEPLOYMENT_FIXTURE_BLOCKED` — PRs #183–#194 are merged into `main`; the authorized run `31880840961` deployed exactly the four approved Appwrite functions and all four are ready/In Sync with source/deployed hash parity; PR #194 and narrow run `31882493172` corrected the proven blank Appwrite Verification-template regression by targeting only `email-service`; end-to-end inbox/link/confirmation QA is `FIXTURE_BLOCKED` because no approved safe QA identity/inbox was available; no manual Vercel deployment or unrelated production mutation was performed
+**Last Verified:** 2026-08-20
+**Status:** `PUSHED_PENDING_REVIEW` — commit `8f1501b6fe5b269932ebe85038d3153cc9ea542f` is pushed on `fix/sentry-production-errors`; PR [#198](https://github.com/iammagdy/WiseResume-TWC/pull/198) is open and unmerged. Primary validation and CI passed; no frontend deployment has occurred. Vercel is required after merge; no Appwrite deployment is required. WISE-RESUME-11 is source/live-route verified as already corrected; WISE-RESUME-13 remains unproven and WISE-RESUME-Q remains insufficiently evidenced.
+
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## Sentry production fixes — PR #198 open; not deployed (2026-08-20)
+
+* **Verdict:** `PUSHED_PENDING_REVIEW`. Confirmed fixes for the DashboardUploadWidget temporal-dead-zone crash (WISE-RESUME-16), older-browser visitor IDs and web-vitals compatibility (WISE-RESUME-T/V), and Appwrite Realtime heartbeat lifecycle races (WISE-RESUME-P/Z) are committed in `8f1501b6` and pushed in PR [#198](https://github.com/iammagdy/WiseResume-TWC/pull/198), which is open and unmerged. WISE-RESUME-11 is already corrected in current source and was not changed. WISE-RESUME-13 was not changed because the current BrowserRouter mount path does not prove the reported event’s root cause. WISE-RESUME-Q remains insufficiently evidenced and has no invented fix.
+* **Files:** `src/components/dashboard/DashboardUploadWidget.tsx`, `src/lib/visitorTrack.ts`, `src/lib/reportWebVitals.ts`, `package.json`, and `package-lock.json`, with focused regression coverage in the corresponding dashboard, visitor, web-vitals, and existing Realtime test files. The browser Appwrite SDK is upgraded to `26.2.0`; no private heartbeat override is retained.
+* **Validation:** Six focused test files passed with 32 tests. `npx tsc --noEmit`, `npm run build`, the no-sourcemap check, and `git diff --check` passed. PR Validation, Security validation, Vercel, and Vercel Preview Comments passed. TestSprite Pre-Check remains the known non-applicable `No tests detected` failure. Local browser QA rendered `/` normally; production `/applications` and a synthetic Tailoring Result route reached stable authenticated states without the historical Applications ReferenceError or a fatal Realtime/route crash.
+* **Sentry:** A read-only post-fix check still found eight unresolved 30-day groups; the 7-day production aggregate remained WISE-RESUME-16 (5 events) and WISE-RESUME-13 (1 event), as expected because no frontend deployment occurred. No Sentry issue was resolved, ignored, assigned, or otherwise changed.
+* **Deployment:** PR [#198](https://github.com/iammagdy/WiseResume-TWC/pull/198) remains open and unmerged. Frontend changes require the normal approved Vercel deployment from `main` after merge. No Appwrite deployment is required because no Appwrite function, schema, permission, or configuration changed. Post-deployment Sentry and authenticated route QA remain required.
+* **Report:** [`reports/2026-08-20-sentry-production-fixes-local.md`](./reports/2026-08-20-sentry-production-fixes-local.md)
+* **Stop point:** `PUSHED_PENDING_REVIEW`. The corrected documentation and implementation are pushed in PR #198 at head `8f1501b6`; do not merge or deploy until review approval. Vercel deployment is required after merge; no Appwrite deployment is required.
 
 ## Full post-change regression audit (2026-08-15)
 

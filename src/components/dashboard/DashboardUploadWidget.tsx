@@ -83,14 +83,6 @@ export function DashboardUploadWidget({
     clearParsedData,
   } = useResumeUpload();
 
-  // Open review sheet when parsing completes
-  useEffect(() => {
-    if (parsedData && !isProcessing) {
-      setShowReview(true);
-      triggerATSScoring(parsedData);
-    }
-  }, [parsedData, isProcessing, triggerATSScoring]);
-
   const triggerATSScoring = useCallback((resumeData: ResumeData) => {
     const tempId = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -100,6 +92,14 @@ export function DashboardUploadWidget({
       .then((result) => setAtsScore(result))
       .finally(() => setIsScoring(false));
   }, [scoreResume]);
+
+  // Open review sheet when parsing completes
+  useEffect(() => {
+    if (parsedData && !isProcessing) {
+      setShowReview(true);
+      triggerATSScoring(parsedData);
+    }
+  }, [parsedData, isProcessing, triggerATSScoring]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
