@@ -1,6 +1,6 @@
 # Project Atlas Master Changelog
 
-## 2026-08-22 - WiseResume benefits truthfulness and entitlement hardening (local; not deployed)
+## 2026-08-22 - WiseResume benefits truthfulness and entitlement hardening (PR #199 draft; not deployed)
 
 - **Gate fix:** Added a page-level Pro entitlement boundary to `src/pages/TailoringHubPage.tsx`, closing the direct-route Free-user bypass while preserving Pro and internal `premium`/public Ultimate access.
 - **Truthful matrix:** Replaced unsupported plan claims in shared pricing and subscription surfaces with the owner-approved Free, Pro, and Ultimate benefits. Removed priority/dedicated support, early access, custom branding, white-label, and version-history/restore claims. Added matching English/Arabic `app.planFeatures` catalogs.
@@ -8,7 +8,7 @@
 - **Branding rule:** Extracted the existing verified Ultimate clean-export rule into `src/lib/planEntitlements.ts`; Free and Pro remain blocked, and only verified internal `premium` can remove WiseResume branding.
 - **Regression coverage:** Added focused plan-entitlement tests and extended Tailoring Hub recovery tests for Free/Pro/Ultimate direct-route behavior.
 - **Validation:** `git diff --check`, i18n checks, Arabic coverage, focused tests (6 passed), full Vitest (222 files, 1,233 tests passed; 1 skipped file, 8 skipped tests, 1 todo), ESLint, TypeScript, and production build/no-sourcemap check passed. Build retained advisory large-chunk warnings. Complete browser visual QA is `BLOCKED_EXTERNAL_ACCESS` because the connected preview request returned HTTP 504; local `/pricing` HTTP response was 200.
-- **Boundary:** No commit, push, merge, deployment, Appwrite or backend change, environment-variable change, production payment change, RevenueCat/Paddle configuration change, or payment activation occurred. Branch remains `feat/ultimate-plan-display-rename` and is intentionally uncommitted.
+- **Boundary:** Commit `5b419c2` is pushed on `feat/ultimate-plan-display-rename`, and Draft PR [#199](https://github.com/iammagdy/WiseResume-TWC/pull/199) targets `main` but is not merged. No deployment, Appwrite or backend change, environment-variable change, production payment change, RevenueCat/Paddle configuration change, or payment activation occurred. Merge remains blocked until browser QA is completed.
 
 ## 2026-08-22 - WiseResume plan display rename and benefits audit (local; not deployed)
 
