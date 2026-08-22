@@ -7,16 +7,17 @@
 
 ---
 
-## WiseResume PR #199 localization and mobile badge follow-up — pending Preview QA (2026-08-22)
+## WiseResume PR #199 localization and mobile badge follow-up — Preview QA blocked (2026-08-22)
 
-* **Verdict:** `IMPLEMENTED_UNVERIFIED`. Confirmed Arabic plan-surface localization blockers and the cramped mobile Subscription Coming Soon badge were fixed locally on `feat/ultimate-plan-display-rename`; Preview browser QA has not yet been rerun against the follow-up commit.
-* **Root cause/fix:** New catalog sections are nested under the JSON `aiStudio` object, while the partial patch used top-level runtime paths. Pricing, Subscription, Analytics, Tailoring Hub, shared upgrade-wall, and resume-limit upgrade callers now use `app.aiStudio.*` paths. Analytics export messages are under `aiStudio.analyticsPage`; Pricing CTA labels are explicitly cataloged. The Subscription badge now wraps safely on narrow viewports without enabling billing.
+* **Verdict:** `BROWSER_QA_BLOCKED`. The scoped Arabic plan-surface localization and responsive Subscription badge fixes are committed and pushed. Arabic Pricing, Subscription, Analytics, and Free upgrade-wall checks passed on the stable Preview; the required Pro authenticated checks are blocked by unstable Preview access/session state.
+* **Root cause/fix:** New catalog sections are nested under the JSON `aiStudio` object, while the partial patch used top-level runtime paths. Pricing, Subscription, Analytics, Tailoring Hub, shared upgrade-wall, and resume-limit upgrade callers now use `app.aiStudio.*` paths. Analytics export messages are under `aiStudio.analyticsPage`; Pricing CTA labels are explicitly cataloged. The workspace top bar now uses localized Analytics/Subscription title keys. The Subscription badge now wraps safely on narrow viewports without enabling billing.
 * **Preserved contracts:** Public plan labels remain Free, Pro, and Ultimate; internal keys remain `free|pro|premium`; prices remain `$0/$5/$10`; AI limits and entitlement behavior are unchanged; checkout remains Coming Soon/disabled; no Paddle, RevenueCat, Appwrite, backend, schema, permission, auth, secret, or payment activation change was made.
 * **Validation:** Focused Arabic coverage passed 6 tests; focused Tailoring/Analytics tests passed 19 tests; full Vitest passed 222 files with 1 skipped, 1,236 tests passed, 8 skipped, and 1 todo. `npm run test:i18n`, `npm run test:i18n:coverage`, `npm run lint`, `npx tsc --noEmit`, `git diff --check`, and the production build/no-sourcemap check passed. Existing Vite large-chunk warnings remain advisory. TestSprite Pre-Check remains the known `No tests detected` non-applicable warning; no CI edits were made.
-* **Browser QA:** Pending push and Preview deployment. The previously authorized single Appwrite Preview Web-platform entry remains in place and was not changed by this follow-up.
-* **Git/deployment:** Follow-up files are currently uncommitted on the existing branch. No merge or Production deployment is authorized. After commit/push, record the new SHA, Preview deployment, browser evidence, and final merge verdict here.
+* **Browser QA:** Arabic public Pricing passed; Arabic Ultimate Subscription passed after the workspace-title correction, including a readable wrapped Coming Soon badge; Arabic Ultimate Analytics access passed with visible export control; Free English and Arabic Tailoring Hub/Analytics upgrade walls passed. Pro verification is `ENVIRONMENT ISSUE`: the stable alias timed out during inspection and redirected direct authenticated routes to Vercel Login after the owner switched to the Pro fixture. No product conclusion is inferred for the missing Pro checks.
+* **Appwrite/deployment:** The previously authorized single Appwrite Preview Web-platform entry remains in place and was not changed by this follow-up. No Appwrite deployment or Production deployment occurred.
+* **Git:** Commit `5d2edf0cb872ae01dae644621a0302011e4342e6` is pushed on `feat/ultimate-plan-display-rename`; PR [#199](https://github.com/iammagdy/WiseResume-TWC/pull/199) remains Draft/Open against `main`. No merge was performed.
 * **Report:** [`reports/2026-08-22-pr199-localization-follow-up.md`](./reports/2026-08-22-pr199-localization-follow-up.md)
-* **Stop point:** Commit and push the explicit scoped files, wait for Preview, and rerun the required English/Arabic desktop/mobile and Free/Pro/Ultimate browser matrix before considering merge.
+* **Stop point:** Recover stable Preview authentication/session state and rerun only the missing Pro Tailoring Hub, Pro Analytics, Pro Subscription badge, and Pro mobile checks before considering merge.
 
 ## WiseResume benefits truthfulness and entitlement hardening — Draft PR #199, not deployed (2026-08-22)
 

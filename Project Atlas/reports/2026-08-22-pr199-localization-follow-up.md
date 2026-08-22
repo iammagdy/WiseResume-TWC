@@ -6,7 +6,7 @@
 
 **PR:** [#199](https://github.com/iammagdy/WiseResume-TWC/pull/199), Draft/Open, targeting `main`
 
-**Status:** `IMPLEMENTED_UNVERIFIED` locally; Preview browser QA remains pending after push.
+**Status:** `BROWSER_QA_BLOCKED` — the localization and mobile badge fixes are pushed and Arabic/Free Preview checks passed; Pro authenticated Preview checks are blocked by Vercel access/session instability.
 
 ## Scope
 
@@ -43,10 +43,16 @@ The connected browser’s stable Preview authentication was previously restored 
 
 Arabic Subscription browser QA exposed a literal `app.subscription` title in the shared workspace top bar even though the page body was localized. The source path map was corrected to use `app.aiStudio.subscriptionPage.title` and `app.aiStudio.analyticsPage.title`, and focused Arabic coverage now guards both mappings. This is a follow-up source fix requiring a new Preview deployment and rerun.
 
+## Post-push browser QA
+
+The latest stable Preview alias rendered the pushed build. Arabic public Pricing passed with `مجاني`, `برو`, and `ألتيميت` at `$0`, `$5`, and `$10`; no Premium display label appeared; supported benefits and `إزالة علامة WiseResume` were visible. Arabic Ultimate Subscription passed after the workspace-title correction, including `الاشتراك`, `ألتيميت`, `إزالة علامة WiseResume`, and a contained readable `الدفع عبر الإنترنت قريباً` badge. Arabic Ultimate Analytics access passed with `التحليلات`, visible export control, and correct Ultimate access; the page retains English data/metric labels outside this plan-gate scope.
+
+The Free fixture passed in English and Arabic: direct Tailoring Hub access showed the Pro gate, and direct Analytics access showed the Ultimate gate. Both locales displayed localized upgrade-wall copy, no payment activation, and no visible RTL clipping in the captured viewport. Pro verification is blocked: after the owner switched to the Pro fixture, the stable alias repeatedly timed out during page inspection and then redirected direct authenticated routes to the Vercel Login page. This is classified as an `ENVIRONMENT ISSUE`, not a product failure. Pro Tailoring Hub access, Pro Analytics blocking, Pro Subscription plan badge, and dedicated Pro mobile checks remain unverified.
+
 ## Required next action
 
-Commit only the intended files, push the existing branch, wait for the resulting Vercel Preview, and rerun focused browser QA on the stable alias for Arabic and English desktop/mobile surfaces, Free/Pro/Ultimate gates, Pro mobile behavior, and the responsive Coming Soon badge. Merge remains blocked until that browser evidence is complete.
+Recover owner-authenticated access to the stable Preview alias and rerun only the missing Pro checks, including Pro Tailoring Hub access, Pro Analytics blocking, Pro Subscription badge, and mobile layout. Do not merge until those checks are completed or an explicit owner-approved waiver is recorded. Do not deploy Production.
 
 ## Git state at documentation time
 
-The follow-up changes are uncommitted and have not been pushed. The base branch remains `feat/ultimate-plan-display-rename` at the pre-follow-up PR head. Final commit SHA, Preview deployment, browser evidence, and merge verdict must be recorded after push and QA.
+The intended follow-up is committed and pushed as `5d2edf0cb872ae01dae644621a0302011e4342e6` (`fix(i18n): localize workspace plan titles`) on `feat/ultimate-plan-display-rename`. PR #199 remains Draft/Open against `main`. The working tree was clean at the last Git check. No merge or Production deployment was performed.
