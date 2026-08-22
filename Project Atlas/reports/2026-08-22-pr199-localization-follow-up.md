@@ -56,3 +56,13 @@ Recover owner-authenticated access to the stable Preview alias and rerun only th
 ## Git state at documentation time
 
 The intended follow-up is committed and pushed as `5d2edf0cb872ae01dae644621a0302011e4342e6` (`fix(i18n): localize workspace plan titles`) on `feat/ultimate-plan-display-rename`. PR #199 remains Draft/Open against `main`. The working tree was clean at the last Git check. No merge or Production deployment was performed.
+
+## Merge and Production closeout
+
+PR #199 was marked ready and merged through the normal GitHub workflow at `2026-08-22T13:04:07Z`. Merge commit and final `origin/main` are both `deb673f4f1b603f044af0ef216b3e4cf03ec244e`. The PR is `MERGED`, no longer Draft, and the working tree was clean at the merge verification. No force merge, manual Vercel deploy, Appwrite deploy, payment activation, or provider configuration change was performed.
+
+Vercel Project Overview subsequently reported Production `Ready`, source `main`, commit `deb673f`, with message `Merge PR #199: rename Premium to Ultimate and localize plan surfaces`, and the `wiseresume.app` domain attached. Live `/pricing` then rendered the merged Arabic plan catalog: `مجاني` `$0/شهرياً`, `برو` `$5/شهرياً`, and `ألتيميت` `$10/شهرياً`; corrected benefits including `إزالة علامة WiseResume`; and no stale Premium/$9/$19 or unsupported claims. Billing remained non-activating.
+
+Post-deployment warning: the connected browser retained Arabic locale, so the post-deployment public verification observed `/pricing` in Arabic. `/en/pricing` is not a supported route and returned the application 404. The supported English route is `/pricing` with the persisted locale preference reset to English; no language switch was exposed in the narrow current session, so an English-specific post-deployment render was not independently captured. Earlier Preview English QA passed before merge. This is a verification limitation, not evidence of a Production product defect.
+
+Appwrite Preview hostname authorization remains configuration-only and unchanged during this task. Payment activation remains incomplete. Paddle and RevenueCat Sandbox state remains unchanged. TestSprite remains `No tests detected`; repository evidence indicates it is not a required branch-protection context, while the actual PR Validation/Typecheck, Vercel, and Preview Comments checks passed.
