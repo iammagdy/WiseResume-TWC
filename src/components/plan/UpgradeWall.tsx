@@ -1,6 +1,7 @@
 import { Crown, Lock, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useLocale } from '@/i18n/LocaleProvider';
 
 interface UpgradeWallProps {
   requiredPlan: 'pro' | 'premium';
@@ -10,12 +11,12 @@ interface UpgradeWallProps {
   compact?: boolean;
 }
 
-function planLabel(plan: 'pro' | 'premium') {
-  return plan === 'pro' ? 'Pro' : 'Ultimate';
-}
-
 export function UpgradeWall({ requiredPlan, featureName, description, features, compact = false }: UpgradeWallProps) {
   const navigate = useNavigate();
+  const { t } = useLocale();
+  const planLabel = requiredPlan === 'pro'
+    ? t('app.pro', 'Pro')
+    : t('app.premium', 'Ultimate');
 
   if (compact) {
     return (
@@ -24,7 +25,7 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
           <Crown className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">{featureName} requires {planLabel(requiredPlan)}</p>
+          <p className="text-sm font-semibold text-foreground">{t('app.aiStudio.upgradeWall.requiresPlan', '{{featureName}} requires {{plan}}', { featureName, plan: planLabel })}</p>
           {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
         </div>
         {features && features.length > 0 && (
@@ -42,10 +43,10 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
         <div className="flex gap-2">
           <Button size="sm" disabled className="gap-1.5">
             <Clock className="w-3.5 h-3.5" />
-            Coming Soon
+            {t('app.aiStudio.upgradeWall.comingSoon', 'Coming Soon')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => navigate('/subscription')} className="text-muted-foreground">
-            View plans
+            {t('app.aiStudio.upgradeWall.viewPlans', 'View plans')}
           </Button>
         </div>
       </div>
@@ -59,10 +60,10 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
       </div>
       <div className="space-y-1.5 max-w-xs">
         <h2 className="text-lg font-bold text-foreground">
-          {featureName} is a {planLabel(requiredPlan)} feature
+          {t('app.aiStudio.upgradeWall.isPlanFeature', '{{featureName}} is a {{plan}} feature', { featureName, plan: planLabel })}
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          {description ?? `Upgrade to ${planLabel(requiredPlan)} to unlock ${featureName} and all other advanced tools.`}
+          {description ?? t('app.aiStudio.upgradeWall.defaultDescription', 'Upgrade to {{plan}} to unlock {{featureName}} and all other advanced tools.', { plan: planLabel, featureName })}
         </p>
       </div>
       {features && features.length > 0 && (
@@ -80,13 +81,13 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
       <div className="flex flex-col gap-3 w-full max-w-xs">
         <Button size="lg" className="w-full gap-2" disabled>
           <Clock className="w-4 h-4" />
-          Coming Soon
+          {t('app.aiStudio.upgradeWall.comingSoon', 'Coming Soon')}
         </Button>
         <p className="text-xs text-muted-foreground text-center">
-          Online payment is not available yet.
+          {t('app.aiStudio.upgradeWall.onlinePaymentUnavailable', 'Online payment is not available yet.')}
         </p>
         <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => navigate('/subscription')}>
-          View all plans
+          {t('app.aiStudio.upgradeWall.viewAllPlans', 'View all plans')}
         </Button>
       </div>
     </div>

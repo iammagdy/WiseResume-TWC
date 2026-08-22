@@ -7,6 +7,17 @@
 
 ---
 
+## WiseResume PR #199 localization and mobile badge follow-up — pending Preview QA (2026-08-22)
+
+* **Verdict:** `IMPLEMENTED_UNVERIFIED`. Confirmed Arabic plan-surface localization blockers and the cramped mobile Subscription Coming Soon badge were fixed locally on `feat/ultimate-plan-display-rename`; Preview browser QA has not yet been rerun against the follow-up commit.
+* **Root cause/fix:** New catalog sections are nested under the JSON `aiStudio` object, while the partial patch used top-level runtime paths. Pricing, Subscription, Analytics, Tailoring Hub, shared upgrade-wall, and resume-limit upgrade callers now use `app.aiStudio.*` paths. Analytics export messages are under `aiStudio.analyticsPage`; Pricing CTA labels are explicitly cataloged. The Subscription badge now wraps safely on narrow viewports without enabling billing.
+* **Preserved contracts:** Public plan labels remain Free, Pro, and Ultimate; internal keys remain `free|pro|premium`; prices remain `$0/$5/$10`; AI limits and entitlement behavior are unchanged; checkout remains Coming Soon/disabled; no Paddle, RevenueCat, Appwrite, backend, schema, permission, auth, secret, or payment activation change was made.
+* **Validation:** Focused Arabic coverage passed 6 tests; focused Tailoring/Analytics tests passed 19 tests; full Vitest passed 222 files with 1 skipped, 1,236 tests passed, 8 skipped, and 1 todo. `npm run test:i18n`, `npm run test:i18n:coverage`, `npm run lint`, `npx tsc --noEmit`, `git diff --check`, and the production build/no-sourcemap check passed. Existing Vite large-chunk warnings remain advisory. TestSprite Pre-Check remains the known `No tests detected` non-applicable warning; no CI edits were made.
+* **Browser QA:** Pending push and Preview deployment. The previously authorized single Appwrite Preview Web-platform entry remains in place and was not changed by this follow-up.
+* **Git/deployment:** Follow-up files are currently uncommitted on the existing branch. No merge or Production deployment is authorized. After commit/push, record the new SHA, Preview deployment, browser evidence, and final merge verdict here.
+* **Report:** [`reports/2026-08-22-pr199-localization-follow-up.md`](./reports/2026-08-22-pr199-localization-follow-up.md)
+* **Stop point:** Commit and push the explicit scoped files, wait for Preview, and rerun the required English/Arabic desktop/mobile and Free/Pro/Ultimate browser matrix before considering merge.
+
 ## WiseResume benefits truthfulness and entitlement hardening — Draft PR #199, not deployed (2026-08-22)
 
 * **Verdict:** `IMPLEMENTED_UNVERIFIED` for production and `TESTED_LOCAL` for repository behavior. The page-level Tailoring Hub Pro gate and approved benefits/copy reconciliation are implemented on `feat/ultimate-plan-display-rename`; internal keys remain `free|pro|premium`, and public labels remain Free, Pro `$5/month`, and Ultimate `$10/month`.

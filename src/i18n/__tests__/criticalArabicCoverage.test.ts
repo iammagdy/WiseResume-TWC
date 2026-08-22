@@ -4,6 +4,20 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(__dirname, '../../..');
 
+type Catalog = {
+  aiStudio: {
+    pricingPage: Record<string, string>;
+    analyticsPage: Record<string, string>;
+    tailoringHubGate: Record<string, string>;
+    subscriptionPage: Record<string, string>;
+    upgradeWall: Record<string, string>;
+    planFeatures: Record<string, Record<string, string>>;
+  };
+  premium: string;
+  pro: string;
+  free: string;
+};
+
 function read(relativePath: string) {
   return readFileSync(resolve(repoRoot, relativePath), 'utf8');
 }
@@ -67,6 +81,82 @@ describe('critical Arabic coverage surfaces', () => {
       expect(source, `${file} should import useLocale`).toMatch(/useLocale/);
       expect(source, `${file} should translate user-facing copy`).toMatch(/\bt\('/);
     }
+  });
+
+  it('keeps corrected plan surfaces localized in Arabic without English catalog fallbacks', () => {
+    const english = JSON.parse(read('locales/en/app.json')) as Catalog;
+    const arabic = JSON.parse(read('locales/ar/app.json')) as Catalog;
+    const englishApp = english.aiStudio;
+    const arabicApp = arabic.aiStudio;
+    const requiredKeys = [
+      ['pricingPage', 'title'],
+      ['pricingPage', 'subtitle'],
+      ['pricingPage', 'recommended'],
+      ['pricingPage', 'perMonth'],
+      ['pricingPage', 'currentPlan'],
+      ['pricingPage', 'included'],
+      ['pricingPage', 'upgrade'],
+      ['analyticsPage', 'title'],
+      ['analyticsPage', 'exportReport'],
+      ['analyticsPage', 'analyticsExportSuccess'],
+      ['analyticsPage', 'analyticsExportError'],
+      ['analyticsPage', 'featureName'],
+      ['tailoringHubGate', 'featureName'],
+      ['subscriptionPage', 'title'],
+      ['subscriptionPage', 'paymentsComingSoon'],
+      ['subscriptionPage', 'planIncludes'],
+      ['subscriptionPage', 'onlinePaymentUnavailable'],
+      ['subscriptionPage', 'shareTitle'],
+      ['subscriptionPage', 'shareDescription'],
+      ['upgradeWall', 'requiresPlan'],
+      ['upgradeWall', 'defaultDescription'],
+      ['upgradeWall', 'viewPlans'],
+    ];
+
+    for (const [section, key] of requiredKeys) {
+      const englishValue = englishApp[section]?.[key];
+      const arabicValue = arabicApp[section]?.[key];
+      expect(arabicValue, `Arabic key app.${section}.${key} should exist`).toBeTruthy();
+      expect(arabicValue, `Arabic key app.${section}.${key} should not fall back to English`).not.toBe(englishValue);
+    }
+
+    expect(arabic.premium).toBe('ألتيميت');
+    expect(arabic.pro).toBe('برو');
+    expect(arabic.free).toBe('مجاني');
+    expect(arabicApp.subscriptionPage.paymentsComingSoon).toContain('الدفع');
+    expect(arabicApp.planFeatures.premium['4']).toContain('إزالة');
+  });
+
+  it('keeps the corrected plan surfaces wired to localized catalog keys', () => {
+    const localizedSources = [
+      'src/pages/PricingPage.tsx',
+      'src/pages/SubscriptionPage.tsx',
+      'src/pages/AnalyticsPage.tsx',
+      'src/pages/TailoringHubPage.tsx',
+      'src/components/plan/UpgradeWall.tsx',
+    ];
+
+    for (const file of localizedSources) {
+      const source = read(file);
+      expect(source, `${file} should use LocaleProvider`).toMatch(/useLocale/);
+      expect(source, `${file} should call the translation helper`).toMatch(/\bt\('/);
+    }
+
+    expect(read('src/pages/PricingPage.tsx')).toContain("app.aiStudio.pricingPage");
+    expect(read('src/pages/SubscriptionPage.tsx')).toContain("app.aiStudio.subscriptionPage");
+    expect(read('src/pages/AnalyticsPage.tsx')).toContain("app.aiStudio.analyticsPage");
+    expect(read('src/pages/TailoringHubPage.tsx')).toContain("app.aiStudio.tailoringHubGate");
+    expect(read('src/components/plan/UpgradeWall.tsx')).toContain("app.aiStudio.upgradeWall");
+  });
+
+  it('does not change the internal plan-key contract', () => {
+    const planConfig = read('src/lib/planConfig.ts');
+    const planEntitlements = read('src/lib/planEntitlements.ts');
+    expect(planConfig).toMatch(/free/);
+    expect(planConfig).toMatch(/pro/);
+    expect(planConfig).toMatch(/premium/);
+    expect(planEntitlements).toMatch(/plan === 'premium'/);
+    expect(planEntitlements).not.toContain('ultimate');
   });
 
   it('does not keep known English-only copy in the highest-impact pages', () => {

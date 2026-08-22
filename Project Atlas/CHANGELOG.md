@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-22 - WiseResume PR #199 localization and mobile Subscription badge follow-up (Preview QA pending)
+
+- **Confirmed blocker fixes:** Localized the approved Arabic plan surfaces for Pricing, Subscription, Analytics lock/access content, Tailoring Hub, the shared upgrade wall, and the existing resume-limit upgrade wall. Corrected all new runtime paths to the actual `app.aiStudio.*` catalog namespace, moved Analytics export messages into `aiStudio.analyticsPage`, and added explicit localized Pricing CTA labels.
+- **Mobile fix:** Updated only the Subscription `Online payments coming soon` badge layout so its content wraps safely on narrow screens. Billing remains disabled and no checkout/payment behavior changed.
+- **Preserved contracts:** Public labels remain Free, Pro, and Ultimate; internal keys remain `free`, `pro`, and `premium`; prices remain `$0/$5/$10`; AI limits, entitlements, gates, credit logic, and clean-export behavior remain unchanged. No Paddle, RevenueCat, Appwrite, backend, schema, permission, auth, secret, webhook, or payment activation change was made.
+- **Validation:** Focused Arabic coverage passed 6 tests; focused Tailoring/Analytics tests passed 19 tests; full Vitest passed 222 files with 1 skipped, 1,236 tests passed, 8 skipped, and 1 todo. `npm run test:i18n`, `npm run test:i18n:coverage`, `npm run lint`, `npx tsc --noEmit`, `git diff --check`, and the production build/no-sourcemap check passed. Existing Vite large-chunk warnings remain advisory.
+- **CI/browser boundary:** TestSprite Pre-Check remains the known non-applicable `No tests detected` warning; no CI change was made. The previously authorized single Appwrite Preview Web-platform entry was not changed. Follow-up browser QA is pending the new Preview deployment, and PR #199 remains Draft/Open and unmerged.
+- **Report:** [`reports/2026-08-22-pr199-localization-follow-up.md`](./reports/2026-08-22-pr199-localization-follow-up.md)
+
 ## 2026-08-22 - WiseResume benefits truthfulness and entitlement hardening (PR #199 draft; not deployed)
 
 - **Gate fix:** Added a page-level Pro entitlement boundary to `src/pages/TailoringHubPage.tsx`, closing the direct-route Free-user bypass while preserving Pro and internal `premium`/public Ultimate access.

@@ -72,10 +72,6 @@ const RESUME_LIMIT: Record<PlanName, number | null> = {
   premium: null,
 };
 
-function planLabel(plan: string) {
-  return plan === 'premium' ? 'Ultimate' : plan.charAt(0).toUpperCase() + plan.slice(1);
-}
-
 function PlanIcon({ plan, className }: { plan: string; className?: string }) {
   if (plan === 'premium') return <Gem className={className ?? 'w-5 h-5 text-amber-500'} />;
   if (plan === 'pro') return <Crown className={className ?? 'w-5 h-5 text-blue-500'} />;
@@ -96,6 +92,11 @@ export default function SubscriptionPage() {
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
   const { t } = useLocale();
+  const planLabel = (value: string) => value === 'premium'
+    ? t('app.premium', 'Ultimate')
+    : value === 'pro'
+      ? t('app.pro', 'Pro')
+      : t('app.free', 'Free');
   const { data: meData } = useMe();
   usePlanUpgradeCelebration();
 
@@ -125,7 +126,7 @@ export default function SubscriptionPage() {
       <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-3">
           <BackButton />
-          <h1 className="text-page-title">Subscription</h1>
+          <h1 className="text-page-title">{t('app.aiStudio.subscriptionPage.title', 'Subscription')}</h1>
           <div className="flex-1" />
           <TrialCountdownBadge />
         </div>
@@ -177,13 +178,13 @@ export default function SubscriptionPage() {
                         : 'border-blue-400/60 text-blue-500'
                     }
                   >
-                    {isActiveTrial ? 'Trial' : 'Active'}
+                    {isActiveTrial ? t('app.aiStudio.subscriptionPage.trial', 'Trial') : t('app.aiStudio.subscriptionPage.active', 'Active')}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {isPremium
-                    ? "You're on Ultimate — here's everything unlocked for you"
-                    : "You're on Pro — here's everything unlocked for you"}
+                    ? t('app.aiStudio.subscriptionPage.heroUltimate', "You're on Ultimate — here's everything unlocked for you")
+                    : t('app.aiStudio.subscriptionPage.heroPro', "You're on Pro — here's everything unlocked for you")}
                 </p>
                 {isActiveTrial && trialExpiresAt && (
                   <div className="flex items-center gap-1.5 mt-2">
@@ -191,7 +192,7 @@ export default function SubscriptionPage() {
                       className={`w-3.5 h-3.5 shrink-0 ${isPremium ? 'text-amber-500' : 'text-blue-500'}`}
                     />
                     <span className={`text-xs font-medium ${isPremium ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                      Trial ends {formatDate(trialExpiresAt)}
+                      {t('app.aiStudio.subscriptionPage.trialEnds', 'Trial ends {{date}}', { date: formatDate(trialExpiresAt) })}
                     </span>
                   </div>
                 )}
@@ -200,9 +201,9 @@ export default function SubscriptionPage() {
                     <TrialCountdownBadge />
                   </div>
                 )}
-                <Badge variant="outline" className="mt-3 gap-1.5 text-xs">
-                  <Clock className="w-3.5 h-3.5" />
-                  Online payments coming soon
+                <Badge variant="outline" className="mt-3 inline-flex w-fit max-w-full h-auto items-start justify-center gap-1.5 whitespace-normal py-1 text-center text-xs leading-tight">
+                  <Clock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span className="min-w-0 break-words">{t('app.aiStudio.subscriptionPage.paymentsComingSoon', 'Online payments coming soon')}</span>
                 </Badge>
               </div>
             </div>
@@ -214,10 +215,10 @@ export default function SubscriptionPage() {
                 <PlanIcon plan={plan} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
+                <p className="text-sm font-medium text-muted-foreground">{t('app.aiStudio.subscriptionPage.currentPlan', 'Current Plan')}</p>
                 <p className="text-lg font-bold">{planLabel(plan)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Upgrade to unlock AI tools, unlimited resumes, and more
+                  {t('app.aiStudio.subscriptionPage.upgradeDescription', 'Upgrade to unlock AI tools, unlimited resumes, and more')}
                 </p>
               </div>
             </CardContent>
@@ -227,19 +228,19 @@ export default function SubscriptionPage() {
         {/* Usage */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Usage</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t('app.aiStudio.subscriptionPage.usageTitle', 'Usage')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             {/* Resumes */}
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <span className="font-medium">Resumes</span>
+                <span className="font-medium">{t('app.aiStudio.subscriptionPage.resumes', 'Resumes')}</span>
                 {resumesLoading || planLoading ? (
                   <Skeleton className="h-4 w-16" />
                 ) : isUnlimitedResumes ? (
                   <span className="flex items-center gap-1 font-semibold text-primary">
                     <InfinityIcon className="w-3.5 h-3.5" />
-                    Unlimited
+                    {t('app.aiStudio.subscriptionPage.unlimited', 'Unlimited')}
                   </span>
                 ) : (
                   <span className="text-muted-foreground font-medium">
@@ -255,20 +256,20 @@ export default function SubscriptionPage() {
                 <Progress value={Math.min((resumeCount / (resumeLimit ?? 1)) * 100, 100)} className="h-2" />
               )}
               {!isUnlimitedResumes && resumeCount >= (resumeLimit ?? 1) && (
-                <p className="text-xs text-destructive mt-1.5">Resume limit reached — upgrade to add more</p>
+                <p className="text-xs text-destructive mt-1.5">{t('app.aiStudio.subscriptionPage.resumeLimitReached', 'Resume limit reached — upgrade to add more')}</p>
               )}
             </div>
 
             {/* AI Credits */}
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <span className="font-medium">AI Credits (today)</span>
+                <span className="font-medium">{t('app.aiStudio.subscriptionPage.aiCreditsToday', 'AI Credits (today)')}</span>
                 {creditsLoading ? (
                   <Skeleton className="h-4 w-16" />
                 ) : isUnlimitedCredits ? (
                   <span className="flex items-center gap-1 font-semibold text-primary">
                     <InfinityIcon className="w-3.5 h-3.5" />
-                    Unlimited
+                    {t('app.aiStudio.subscriptionPage.unlimited', 'Unlimited')}
                   </span>
                 ) : (
                   <span className="text-muted-foreground font-medium">
@@ -284,7 +285,7 @@ export default function SubscriptionPage() {
                 <>
                   <Progress value={dailyLimit > 0 ? Math.min((dailyUsage / dailyLimit) * 100, 100) : 0} className="h-2" />
                   {!isUnlimitedCredits && (
-                    <p className="text-xs text-muted-foreground mt-1.5">Resets daily at midnight UTC</p>
+                    <p className="text-xs text-muted-foreground mt-1.5">{t('app.aiStudio.subscriptionPage.resetsDaily', 'Resets daily at midnight UTC')}</p>
                   )}
                 </>
               )}
@@ -298,7 +299,7 @@ export default function SubscriptionPage() {
             <div className="flex items-center gap-2">
               <PlanIcon plan={plan} />
               <CardTitle className={`text-sm font-semibold ${isPremium ? 'text-amber-600 dark:text-amber-400' : isPro ? 'text-blue-600 dark:text-blue-400' : ''}`}>
-                Your {planLabel(plan)} Plan includes
+                {t('app.aiStudio.subscriptionPage.planIncludes', 'Your {{plan}} Plan includes', { plan: planLabel(plan) })}
               </CardTitle>
             </div>
           </CardHeader>
@@ -313,16 +314,19 @@ export default function SubscriptionPage() {
                 <Bot className="w-5 h-5 shrink-0 text-muted-foreground" />
               )}
               <span className={`text-sm font-semibold ${isPremium ? 'text-amber-700 dark:text-amber-300' : isPro ? 'text-blue-700 dark:text-blue-300' : ''}`}>
-                {isPremium ? 'Unlimited AI credits/day' : isPro ? `${PLAN_CREDIT_LIMITS.pro} AI credits/day` : `${PLAN_CREDIT_LIMITS.free} AI credits/day`}
+                {isPremium
+                  ? t('app.aiStudio.subscriptionPage.unlimitedAiCreditsPerDay', 'Unlimited AI credits/day')
+                  : t('app.aiStudio.subscriptionPage.aiCreditsPerDay', '{{count}} AI credits/day', { count: isPro ? PLAN_CREDIT_LIMITS.pro : PLAN_CREDIT_LIMITS.free })}
               </span>
               {isPremium && (
-                <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-amber-500 text-white border-0">Unlimited</Badge>
+                                  <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-amber-500 text-white border-0">{t('app.aiStudio.subscriptionPage.unlimited', 'Unlimited')}</Badge>
+
               )}
             </div>
 
             {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature, index) => {
               const Icon = feature.icon;
-              const label = t(`app.planFeatures.${plan}.${index}`, feature.label);
+              const label = t(`app.aiStudio.planFeatures.${plan}.${index}`, feature.label);
               return (
                 <div key={`${plan}-${index}-${label}`} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isPremium ? 'bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/40 dark:hover:bg-amber-900/20' : isPro ? 'bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/40 dark:hover:bg-blue-900/20' : 'bg-muted/30 hover:bg-muted/50'} transition-colors`}>
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isPremium ? 'bg-amber-100 dark:bg-amber-900/40' : isPro ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-muted'}`}>
@@ -345,19 +349,21 @@ export default function SubscriptionPage() {
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${target === 'premium' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'}`}>
-                    {target === 'premium' ? 'POWER USERS' : 'POPULAR'}
+                    {target === 'premium'
+                      ? t('app.aiStudio.subscriptionPage.powerUsers', 'POWER USERS')
+                      : t('app.aiStudio.subscriptionPage.popular', 'POPULAR')}
                   </span>
                   <PlanIcon plan={target} className={`w-5 h-5 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
                   <p className="text-sm font-semibold">{planLabel(target)}</p>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-xl font-bold">{displayPrice}</span>
-                  <span className="text-sm text-muted-foreground">/month</span>
+                  <span className="text-sm text-muted-foreground">{t('app.aiStudio.subscriptionPage.perMonth', '/month')}</span>
                 </div>
                 <div className="space-y-1.5">
                   {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature, index) => {
                     const Icon = feature.icon;
-                    const label = t(`app.planFeatures.${target}.${index}`, feature.label);
+                    const label = t(`app.aiStudio.planFeatures.${target}.${index}`, feature.label);
                     return (
                       <div key={`${target}-${index}-${label}`} className="flex items-center gap-2 text-sm">
                         <Icon className={`w-4 h-4 shrink-0 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
@@ -372,10 +378,10 @@ export default function SubscriptionPage() {
                   data-track={`subscription-upgrade-cta-${target}`}
                 >
                   <Clock className="w-4 h-4" />
-                  Coming Soon
+                  {t('app.aiStudio.subscriptionPage.comingSoon', 'Coming Soon')}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  Online payment is not available yet.
+                  {t('app.aiStudio.subscriptionPage.onlinePaymentUnavailable', 'Online payment is not available yet.')}
                 </p>
               </CardContent>
             </Card>
@@ -387,11 +393,11 @@ export default function SubscriptionPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <Share2 className="w-5 h-5 text-primary" />
             <div className="flex-1">
-              <p className="text-sm font-medium">Share WiseResume</p>
-              <p className="text-xs text-muted-foreground">Send the app link to a friend</p>
+              <p className="text-sm font-medium">{t('app.aiStudio.subscriptionPage.shareTitle', 'Share WiseResume')}</p>
+              <p className="text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.shareDescription', 'Send the app link to a friend')}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate('/referral')}>
-              Share
+              {t('app.aiStudio.subscriptionPage.share', 'Share')}
             </Button>
           </CardContent>
         </Card>

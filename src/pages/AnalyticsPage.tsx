@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePlan } from '@/hooks/usePlan';
+import { useLocale } from '@/i18n/LocaleProvider';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { Button } from '@/components/ui/button';
 import { FileText, Target, Briefcase, Flame, Download, TrendingUp, TrendingDown, Award, Calendar } from 'lucide-react';
@@ -22,6 +23,7 @@ import { downloadFile } from '@/lib/downloadUtils';
 
 export default function AnalyticsPage() {
   const { isPremium, isLoading: planLoading } = usePlan();
+  const { t } = useLocale();
   const { user } = useAuth();
   const { profile } = useProfile(user?.id);
   const { data: resumes = [] } = useResumes();
@@ -123,8 +125,8 @@ export default function AnalyticsPage() {
       fileName: `wiseresume-analytics-${generatedAt.toISOString().slice(0, 10)}.csv`,
       mimeType: 'text/csv;charset=utf-8',
     });
-    if (result.success) toast.success('Analytics report downloaded');
-    else if (!result.cancelled) toast.error('Could not export the analytics report');
+    if (result.success) toast.success(t('app.aiStudio.analyticsPage.analyticsExportSuccess', 'Analytics report downloaded'));
+    else if (!result.cancelled) toast.error(t('app.aiStudio.analyticsPage.analyticsExportError', 'Could not export the analytics report'));
   };
 
   if (planLoading) {
@@ -133,7 +135,7 @@ export default function AnalyticsPage() {
         <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-3">
             <BackButton />
-            <h1 className="text-page-title">Analytics</h1>
+            <h1 className="text-page-title">{t('app.aiStudio.analyticsPage.title', 'Analytics')}</h1>
           </div>
         </header>
         <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -153,19 +155,19 @@ export default function AnalyticsPage() {
         <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-3">
             <BackButton />
-            <h1 className="text-page-title">Analytics</h1>
+            <h1 className="text-page-title">{t('app.aiStudio.analyticsPage.title', 'Analytics')}</h1>
           </div>
         </header>
         <div className="flex-1 overflow-y-auto">
           <UpgradeWall
             requiredPlan="premium"
-            featureName="Analytics Dashboard"
-            description="Get deep insights into your resume performance, application funnel, and career progress with Ultimate."
+            featureName={t('app.aiStudio.analyticsPage.featureName', 'Analytics Dashboard')}
+            description={t('app.aiStudio.analyticsPage.description', 'Get deep insights into your resume performance, application funnel, and career progress with Ultimate.')}
             features={[
-              'Resume readiness trends across all resumes',
-              'Application funnel & interview rate',
-              'Resume completion & improvement nudges',
-              'Activity streak and career momentum',
+              t('app.aiStudio.analyticsPage.feature0', 'Resume readiness trends across all resumes'),
+              t('app.aiStudio.analyticsPage.feature1', 'Application funnel & interview rate'),
+              t('app.aiStudio.analyticsPage.feature2', 'Resume completion & improvement nudges'),
+              t('app.aiStudio.analyticsPage.feature3', 'Activity streak and career momentum'),
             ]}
           />
         </div>
@@ -178,14 +180,14 @@ export default function AnalyticsPage() {
       <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-3">
           <BackButton />
-          <h1 className="text-page-title">Analytics</h1>
+          <h1 className="text-page-title">{t('app.aiStudio.analyticsPage.title', 'Analytics')}</h1>
           <div className="flex-1" />
           <Button
             variant="ghost"
             size="icon"
             className="w-9 h-9"
             onClick={() => { void handleExportReport(); }}
-            aria-label="Export report"
+            aria-label={t('app.aiStudio.analyticsPage.exportReport', 'Export report')}
           >
             <Download className="w-4 h-4" />
           </Button>
