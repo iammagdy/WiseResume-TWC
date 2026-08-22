@@ -1100,7 +1100,7 @@ function WhatsNextStep({
       title: 'Practice interviews',
       description: 'Answer questions with our AI coach and get instant scoring.',
       action: isFreeUser
-        ? () => toast.info('Interview Coach is available on Pro and Premium plans.')
+        ? () => toast.info('Interview Coach is available on Pro and Ultimate plans.')
         : () => onAction('/interview'),
       gated: isFreeUser,
     },
@@ -1136,7 +1136,7 @@ function WhatsNextStep({
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm text-foreground">{title}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-              {gated && <p className="text-xs text-primary mt-0.5">Pro &amp; Premium only</p>}
+              {gated && <p className="text-xs text-primary mt-0.5">Pro &amp; Ultimate only</p>}
             </div>
             <ChevronRight className={`w-4 h-4 shrink-0 ${gated ? 'text-muted-foreground/40' : 'text-muted-foreground group-hover:text-primary transition-colors'}`} />
           </button>

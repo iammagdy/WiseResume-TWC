@@ -11,7 +11,7 @@ interface UpgradeWallProps {
 }
 
 function planLabel(plan: 'pro' | 'premium') {
-  return plan === 'pro' ? 'Pro' : 'Premium';
+  return plan === 'pro' ? 'Pro' : 'Ultimate';
 }
 
 export function UpgradeWall({ requiredPlan, featureName, description, features, compact = false }: UpgradeWallProps) {

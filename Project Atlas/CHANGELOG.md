@@ -1,5 +1,24 @@
 # Project Atlas Master Changelog
 
+## 2026-08-22 - WiseResume benefits truthfulness and entitlement hardening (local; not deployed)
+
+- **Gate fix:** Added a page-level Pro entitlement boundary to `src/pages/TailoringHubPage.tsx`, closing the direct-route Free-user bypass while preserving Pro and internal `premium`/public Ultimate access.
+- **Truthful matrix:** Replaced unsupported plan claims in shared pricing and subscription surfaces with the owner-approved Free, Pro, and Ultimate benefits. Removed priority/dedicated support, early access, custom branding, white-label, and version-history/restore claims. Added matching English/Arabic `app.planFeatures` catalogs.
+- **Preserved contracts:** Internal plan keys remain `free`, `pro`, and `premium`; RevenueCat entitlement IDs, AI limits, credit deduction, resolver, coupons, trials, webhooks, Appwrite, Paddle, and payment architecture were unchanged. Checkout remains Coming Soon/disabled.
+- **Branding rule:** Extracted the existing verified Ultimate clean-export rule into `src/lib/planEntitlements.ts`; Free and Pro remain blocked, and only verified internal `premium` can remove WiseResume branding.
+- **Regression coverage:** Added focused plan-entitlement tests and extended Tailoring Hub recovery tests for Free/Pro/Ultimate direct-route behavior.
+- **Validation:** `git diff --check`, i18n checks, Arabic coverage, focused tests (6 passed), full Vitest (222 files, 1,233 tests passed; 1 skipped file, 8 skipped tests, 1 todo), ESLint, TypeScript, and production build/no-sourcemap check passed. Build retained advisory large-chunk warnings. Complete browser visual QA is `BLOCKED_EXTERNAL_ACCESS` because the connected preview request returned HTTP 504; local `/pricing` HTTP response was 200.
+- **Boundary:** No commit, push, merge, deployment, Appwrite or backend change, environment-variable change, production payment change, RevenueCat/Paddle configuration change, or payment activation occurred. Branch remains `feat/ultimate-plan-display-rename` and is intentionally uncommitted.
+
+## 2026-08-22 - WiseResume plan display rename and benefits audit (local; not deployed)
+
+- **Commercial display:** Public plan copy now uses Free, Pro at $5/month, and Ultimate at $10/month. Internal plan keys remain `free`, `pro`, and `premium`; RevenueCat entitlement IDs remain `pro` and `premium`.
+- **Source scope:** Updated customer-facing plan labels and prices across pricing, subscription, upgrade, dashboard/workspace, settings, export-related, analytics, onboarding, authentication, and English/Arabic locale surfaces. Generic premium concepts, DevKit/admin controls, internal identifiers, gates, AI limits, coupon/trial behavior, and backend code were intentionally preserved.
+- **Benefits audit:** Added [`reports/2026-08-22-wise-resume-plan-benefits-audit.md`](./reports/2026-08-22-wise-resume-plan-benefits-audit.md), covering the exact current gates/limits and a separate recommended matrix. Recommendations were not implemented.
+- **Sandbox catalog:** Renamed the existing Paddle Sandbox product in place to WiseResume Ultimate, preserving product `pro_01m0fnm7000501f67z1bmhzaff`, price `pri_01m0fnq9hetwdwm9e1sa49n08s`, and recurring $10/month terms. RevenueCat Sandbox was inspected without mutation; its imported-product action menu had no safe display-label-only control.
+- **Validation:** `git diff --check`, `npm run test:i18n`, `npm run test:i18n:coverage`, `npm run lint`, `npm run test` (221 files passed, 1 skipped; 1,228 tests passed, 8 skipped, 1 todo), `npx tsc --noEmit`, and `npm run build` passed. The build retained advisory large-chunk warnings and passed the no-sourcemap check.
+- **Boundary:** No commit, push, merge, deployment, Appwrite change, webhook/backend change, environment-variable change, production Paddle/RevenueCat change, or payment activation occurred. The branch remains uncommitted at `feat/ultimate-plan-display-rename`.
+
 ## 2026-08-20 - Sentry production fixes (PR #198 merged and deployed)
 
 - **Confirmed fixes:** Removed the `DashboardUploadWidget` temporal-dead-zone crash behind WISE-RESUME-16; added capability-safe tracking IDs for older browsers; gated `web-vitals` registration when `Array.prototype.at` is unavailable; and upgraded the browser Appwrite SDK to `26.2.0` so maintained Realtime heartbeat protection handles non-OPEN sockets for WISE-RESUME-P/Z.

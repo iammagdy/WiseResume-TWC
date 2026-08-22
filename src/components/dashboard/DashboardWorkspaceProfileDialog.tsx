@@ -53,7 +53,7 @@ interface DashboardWorkspaceProfileDialogProps {
 }
 
 function planDisplayName(plan: PlanName) {
-  if (plan === 'premium') return 'Premium';
+  if (plan === 'premium') return 'Ultimate';
   if (plan === 'pro') return 'Pro';
   return 'Free';
 }
@@ -185,7 +185,7 @@ export const DashboardWorkspaceProfileDialog = memo(function DashboardWorkspaceP
               onClick={() => run(onUpgrade)}
             >
               <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              Upgrade to Premium
+              Upgrade to Ultimate
             </Button>
           )}
         </div>

@@ -12,8 +12,8 @@ export type PlanKey = 'free' | 'pro' | 'premium';
 
 export const PLAN_PRICES: Record<string, string> = {
   free: '$0',
-  pro: '$9',
-  premium: '$19',
+  pro: '$5',
+  premium: '$10',
 };
 
 /**
@@ -28,27 +28,35 @@ export const PLAN_CREDIT_LIMITS: Record<PlanKey, number> = {
 
 export const PLAN_FEATURE_LABELS: Record<PlanKey, string[]> = {
   free: [
-    '1 resume',
-    'Basic AI suggestions',
-    'Resume readiness check',
-    'PDF export',
-    'Portfolio site',
+    '1 regular resume',
+    '5 AI actions/day',
+    'Resume Editor',
+    'Standard templates',
+    'Standard export formats',
+    'WiseResume branding on applicable exports',
+    'Portfolio core',
+    'Current Free portfolio-AI allowance',
+    'Readiness/ATS-oriented scoring where supported',
   ],
   pro: [
+    'Everything in Free',
     'Unlimited resumes',
-    'Advanced AI tools',
-    'Smart tailoring',
-    'Interview coaching',
-    'Cover letter generator',
-    'Application tracker',
-    'Priority support',
+    '50 AI actions/day',
+    'Current Pro per-minute allowance',
+    'Smart Tailoring / Tailoring Hub',
+    'AI Studio',
+    'Cover Letters',
+    'Interview Prep',
+    'Application Tracker / saved jobs',
+    'Current Pro portfolio-AI allowance',
+    'WiseResume branding remains on exports',
   ],
   premium: [
     'Everything in Pro',
-    'Custom branding',
-    'Analytics dashboard',
-    'White-label exports',
-    'Early access features',
-    'Dedicated support',
+    'Unlimited AI actions',
+    'Current Ultimate per-minute allowance',
+    'Analytics + CSV export',
+    'Remove WiseResume branding',
+    'Current Ultimate portfolio-AI allowance',
   ],
 };

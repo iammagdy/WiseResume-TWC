@@ -19,6 +19,10 @@ import { authErrorMessage, classifyAuthError } from '@/lib/authError';
 
 const SIGNUP_PLAN_KEY = 'signup_plan_intent';
 
+function displayPlanLabel(plan: string) {
+  return plan.toLowerCase() === 'premium' ? 'Ultimate' : plan.charAt(0).toUpperCase() + plan.slice(1);
+}
+
 export default function AuthPage() {
   const { locale } = useLocale();
   const navigate = useNavigate();
@@ -377,7 +381,7 @@ export default function AuthPage() {
       }
       const planIntent = sessionStorage.getItem(SIGNUP_PLAN_KEY);
       if (planIntent) {
-        const label = planIntent.charAt(0).toUpperCase() + planIntent.slice(1);
+        const label = displayPlanLabel(planIntent);
         toast.message(
           `You're signing up for the ${label} plan. Choose your subscription after verifying email.`,
         );
@@ -449,7 +453,7 @@ export default function AuthPage() {
             ? (
                 <>
                   You&apos;re signing up for the{' '}
-                  <strong style={{ textTransform: 'capitalize' }}>{signupPlanIntent}</strong> plan.
+                  <strong>{displayPlanLabel(signupPlanIntent)}</strong> plan.
                 </>
               )
             : undefined

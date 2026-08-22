@@ -31,7 +31,7 @@ export const NavMembershipBadge = memo(function NavMembershipBadge({
       0,
       Math.ceil((new Date(trialExpiresAt!).getTime() - Date.now()) / 86_400_000),
     );
-    const tier = trialPlan === 'premium' ? 'Premium' : 'Pro';
+    const tier = trialPlan === 'premium' ? 'Ultimate' : 'Pro';
     const isPremiumTrial = trialPlan === 'premium';
     return (
       <span
@@ -58,11 +58,11 @@ export const NavMembershipBadge = memo(function NavMembershipBadge({
     return (
       <span
         className={cn('nav-membership-badge nav-membership-badge--premium', className)}
-        aria-label="Premium membership active"
-        title="Premium Active"
+        aria-label="Ultimate membership active"
+        title="Ultimate Active"
       >
         <Crown className="nav-membership-badge__icon" strokeWidth={2} aria-hidden />
-        <span className="nav-membership-badge__label">Premium</span>
+        <span className="nav-membership-badge__label">Ultimate</span>
       </span>
     );
   }

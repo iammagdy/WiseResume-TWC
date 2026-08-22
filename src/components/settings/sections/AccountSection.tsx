@@ -43,7 +43,7 @@ function PlanBadge({ plan }: { plan: string }) {
             : planKey === 'pro'
             ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-400/30'
             : 'bg-muted text-muted-foreground border-border';
-    const label = planKey.charAt(0).toUpperCase() + planKey.slice(1);
+    const label = planKey === 'premium' ? 'Ultimate' : planKey.charAt(0).toUpperCase() + planKey.slice(1);
     return (
         <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border', colorClass)}>
             {label}

@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
   saveJobDescription: vi.fn(),
   setJobDescription: vi.fn(),
   setSearchParams: vi.fn(),
+  plan: {
+    isPro: true,
+    isPremium: false,
+    isLoading: false,
+  },
   tailor: vi.fn(),
   resume: {
     id: 'resume-1',
@@ -52,6 +57,7 @@ vi.mock('@/hooks/useResumes', () => ({
 }));
 vi.mock('@/hooks/useJobs', () => ({ useJob: () => ({ data: null }) }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { $id: 'user-1' } }) }));
+vi.mock('@/hooks/usePlan', () => ({ usePlan: () => mocks.plan }));
 vi.mock('@/hooks/useAIAction', () => ({ useAIAction: () => ({ execute: mocks.executeAI }) }));
 vi.mock('@/hooks/useImportJob', () => ({ useImportJob: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock('@/hooks/useRedactedResume', () => ({ useRedactedResume: () => mocks.resume }));
@@ -107,8 +113,36 @@ import TailoringHubPage from '@/pages/TailoringHubPage';
 describe('TailoringHubPage bounded failure recovery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.plan.isPro = true;
+    mocks.plan.isPremium = false;
+    mocks.plan.isLoading = false;
     sessionStorage.setItem('wr_tailoring_session', '1');
     vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('blocks Free users from the direct Tailoring Hub route', () => {
+    mocks.plan.isPro = false;
+
+    render(<TailoringHubPage />);
+
+    expect(screen.getByText('Smart Tailoring is a Pro feature')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tailor now' })).not.toBeInTheDocument();
+  });
+
+  it('allows Pro and Ultimate users through the direct Tailoring Hub route', () => {
+    const plans = [
+      { isPro: true, isPremium: false },
+      { isPro: true, isPremium: true },
+    ];
+
+    for (const plan of plans) {
+      mocks.plan.isPro = plan.isPro;
+      mocks.plan.isPremium = plan.isPremium;
+
+      const { unmount } = render(<TailoringHubPage />);
+      expect(screen.getByRole('button', { name: 'Tailor now' })).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it('ends loading, blocks duplicate clicks, allows retry, and never saves or navigates after timeout', async () => {

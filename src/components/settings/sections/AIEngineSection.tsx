@@ -53,7 +53,7 @@ export const AIEngineSection = memo(function AIEngineSection() {
       ? 'bg-amber-500'
       : 'bg-emerald-500';
 
-  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+  const planLabel = plan === 'premium' ? 'Ultimate' : plan.charAt(0).toUpperCase() + plan.slice(1);
 
   return (
     <div className="rounded-2xl overflow-hidden border border-border shadow-soft bg-card">

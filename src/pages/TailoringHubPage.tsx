@@ -10,6 +10,8 @@ import { useResumes, dbToResumeData, type DatabaseResume } from '@/hooks/useResu
 import { useJob, type Job } from '@/hooks/useJobs';
 import { ImportJobSheet } from '@/components/jobs/ImportJobSheet';
 import { useAuth } from '@/hooks/useAuth';
+import { usePlan } from '@/hooks/usePlan';
+import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useImportJob } from '@/hooks/useImportJob';
 import { useRedactedResume } from '@/hooks/useRedactedResume';
@@ -72,6 +74,7 @@ export default function JobMatchWorkspacePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const { isPro, isLoading: planLoading } = usePlan();
   const queryClient = useQueryClient();
 
   const {
@@ -545,6 +548,25 @@ export default function JobMatchWorkspacePage() {
       description: 'A retry will not start duplicate AI work.',
     });
   };
+
+  if (planLoading) return null;
+
+  if (!isPro) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <UpgradeWall
+          requiredPlan="pro"
+          featureName="Smart Tailoring"
+          description="Use the Tailoring Hub to match your resume to a specific job with guided AI tailoring."
+          features={[
+            'Smart Tailoring and tailored resume versions',
+            'Job match analysis and saved job context',
+            'AI-assisted resume improvements for each role',
+          ]}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="jmw-page">

@@ -160,7 +160,7 @@ export default function AnalyticsPage() {
           <UpgradeWall
             requiredPlan="premium"
             featureName="Analytics Dashboard"
-            description="Get deep insights into your resume performance, application funnel, and career progress with Premium."
+            description="Get deep insights into your resume performance, application funnel, and career progress with Ultimate."
             features={[
               'Resume readiness trends across all resumes',
               'Application funnel & interview rate',

@@ -170,8 +170,8 @@
   },
   "free": "Free",
   "pro": "Pro",
-  "premium": "Premium",
-  "membershipPremium": "Premium membership",
+  "premium": "Ultimate",
+  "membershipPremium": "Ultimate membership",
   "membershipPro": "Pro membership",
   "membershipChecking": "Your membership",
   "membershipFreePlan": "Free plan",
@@ -188,7 +188,7 @@
     "yourProfile": "Your profile",
     "resetsAtMidnight": "Resets at midnight"
   },
-  "membershipPremiumBadge": "Premium",
+  "membershipPremiumBadge": "Ultimate",
   "membershipProBadge": "Pro",
   "topBar": {
     "importJob": "Import Job",
@@ -290,9 +290,42 @@
       "multipleResumes": "Multiple Resumes",
       "resumeLimitDesc": "Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more.",
       "featResumes": "Unlimited resumes for every role & industry",
-      "featTailor": "AI-tailored resume versions in seconds",
-      "featCompare": "Side-by-side resume comparison",
-      "featHistory": "Version history & restore"
+      "featTailor": "Smart Tailoring and tailored resume versions",
+      "featCompare": "AI Studio, Cover Letters, and Interview Prep"
+    },
+    "planFeatures": {
+      "free": {
+        "0": "1 regular resume",
+        "1": "5 AI actions/day",
+        "2": "Resume Editor",
+        "3": "Standard templates",
+        "4": "Standard export formats",
+        "5": "WiseResume branding on applicable exports",
+        "6": "Portfolio core",
+        "7": "Current Free portfolio-AI allowance",
+        "8": "Readiness/ATS-oriented scoring where supported"
+      },
+      "pro": {
+        "0": "Everything in Free",
+        "1": "Unlimited resumes",
+        "2": "50 AI actions/day",
+        "3": "Current Pro per-minute allowance",
+        "4": "Smart Tailoring / Tailoring Hub",
+        "5": "AI Studio",
+        "6": "Cover Letters",
+        "7": "Interview Prep",
+        "8": "Application Tracker / saved jobs",
+        "9": "Current Pro portfolio-AI allowance",
+        "10": "WiseResume branding remains on exports"
+      },
+      "premium": {
+        "0": "Everything in Pro",
+        "1": "Unlimited AI actions",
+        "2": "Current Ultimate per-minute allowance",
+        "3": "Analytics + CSV export",
+        "4": "Remove WiseResume branding",
+        "5": "Current Ultimate portfolio-AI allowance"
+      }
     },
     "tools": {
       "tailor": {

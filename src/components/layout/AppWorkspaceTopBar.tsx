@@ -102,7 +102,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
                 )}
               >
                 <Crown className="w-3 h-3 shrink-0" aria-hidden />
-                {plan === 'premium' ? t('app.membershipPremiumBadge', 'Premium') : t('app.membershipProBadge', 'Pro')}
+                {plan === 'premium' ? t('app.membershipPremiumBadge', 'Ultimate') : t('app.membershipProBadge', 'Pro')}
               </span>
             )}
           </div>

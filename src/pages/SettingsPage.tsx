@@ -191,11 +191,12 @@ export default function SettingsPage() {
   };
 
   const displayName = profile?.fullName || user?.email || t('app.settingsPage.userFallback', 'مستخدم');
+  const planLabel = plan === 'premium' ? 'Ultimate' : plan.charAt(0).toUpperCase() + plan.slice(1);
   const planCta =
     plan === 'free'
       ? t('app.settingsPage.plan.free', 'الخطة المجانية · استخدم كوبوناً للترقية')
       : t('app.settingsPage.plan.paid', 'خطة {{plan}} · إدارة الاشتراك', {
-          plan: `${plan.charAt(0).toUpperCase() + plan.slice(1)}`,
+          plan: planLabel,
         });
 
   if (loading) return <SettingsSkeleton />;

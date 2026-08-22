@@ -11,9 +11,9 @@ const UPGRADE_MESSAGES: Record<string, string> = {
   'free→pro':
     "Welcome to Pro! You've unlocked AI tools, unlimited resume tailoring, and the Application Tracker.",
   'free→premium':
-    "Welcome to Premium! You have unlimited AI credits, full Analytics, and every Pro feature.",
+    "Welcome to Ultimate! You have unlimited AI credits, full Analytics, and every Pro feature.",
   'pro→premium':
-    "Upgraded to Premium! Unlimited AI credits and Analytics are now unlocked for you.",
+    "Upgraded to Ultimate! Unlimited AI credits and Analytics are now unlocked for you.",
 };
 
 function storageKey(userId: string) {

@@ -28,7 +28,7 @@ export const DashboardPlanBadge = memo(function DashboardPlanBadge({
       0,
       Math.ceil((new Date(trialExpiresAt!).getTime() - Date.now()) / 86_400_000),
     );
-    const label = trialPlan === 'premium' ? 'Premium trial' : 'Pro trial';
+    const label = trialPlan === 'premium' ? 'Ultimate trial' : 'Pro trial';
     return (
       <span
         className={cn(
@@ -53,9 +53,9 @@ export const DashboardPlanBadge = memo(function DashboardPlanBadge({
           'dark:border-amber-500/12 dark:bg-amber-950/20 dark:text-amber-100/75',
           className,
         )}
-        aria-label="Premium active"
+        aria-label="Ultimate active"
       >
-        Premium Active
+        Ultimate Active
       </span>
     );
   }

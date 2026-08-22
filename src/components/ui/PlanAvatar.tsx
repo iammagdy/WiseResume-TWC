@@ -18,7 +18,7 @@ function planRingClass(plan: PlanName): string {
 }
 
 function planLabelText(plan: PlanName): string {
-  if (plan === 'premium') return 'Premium';
+  if (plan === 'premium') return 'Ultimate';
   if (plan === 'pro') return 'Pro';
   return 'Free';
 }

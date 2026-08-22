@@ -2,6 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
+import { useLocale } from '@/i18n/LocaleProvider';
 import triggerHaptic from '@/lib/haptics';
 import { useState, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import { PLAN_FEATURE_LABELS } from '@/lib/planConfig';
@@ -31,6 +32,11 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { plan } = usePlan();
+  const { t } = useLocale();
+  const featureLabels = (planKey: keyof typeof pricingFeatures) =>
+    pricingFeatures[planKey].map((feature, index) =>
+      t(`app.planFeatures.${planKey}.${index}`, feature),
+    );
 
   const handlePerPlanCTA = (targetPlan: string) => {
     triggerHaptic.medium();
@@ -39,7 +45,7 @@ export default function PricingPage() {
   };
 
   // Plan rank so an authenticated user is never told to "Upgrade" to a tier
-  // already covered by their plan (e.g. a Premium user must not see "Upgrade"
+  // already covered by their plan (e.g. an Ultimate user must not see "Upgrade"
   // on the Free / Pro cards). Unknown plans fall back to the lowest rank.
   const PLAN_RANK: Record<string, number> = { free: 0, pro: 1, premium: 2 };
   const planRank = (p: string) => PLAN_RANK[p] ?? 0;
@@ -82,7 +88,7 @@ export default function PricingPage() {
             <h2 className="text-base font-bold mb-4">Free</h2>
             <div className="text-4xl font-extrabold mb-6">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
             <ul className="space-y-3 mb-8 flex-1">
-              {pricingFeatures.free.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14}/> {f}</li>)}
+              {featureLabels('free').map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14}/> {f}</li>)}
             </ul>
             <PricingButton onClick={() => handlePerPlanCTA('free')} variant="outline" disabled={isCtaDisabled('free')}>{ctaLabel('free')}</PricingButton>
           </div>
@@ -93,19 +99,19 @@ export default function PricingPage() {
               Recommended
             </span>
             <h2 className="text-base font-bold mb-4">Pro</h2>
-            <div className="text-4xl font-extrabold mb-6">$9<span className="text-sm font-normal opacity-70">/mo</span></div>
+            <div className="text-4xl font-extrabold mb-6">$5<span className="text-sm font-normal opacity-70">/mo</span></div>
             <ul className="space-y-3 mb-8 flex-1">
-              {pricingFeatures.pro.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14}/> {f}</li>)}
+              {featureLabels('pro').map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14}/> {f}</li>)}
             </ul>
             <button onClick={() => handlePerPlanCTA('pro')} disabled={isCtaDisabled('pro')} className="w-full h-11 bg-white text-primary rounded-xl font-bold disabled:opacity-60 disabled:cursor-not-allowed">{ctaLabel('pro')}</button>
           </div>
 
-          {/* Premium */}
+          {/* Ultimate */}
           <div className="flex flex-col rounded-2xl border p-7 bg-card border-amber-500/30">
-            <h2 className="text-base font-bold mb-4">Premium</h2>
-            <div className="text-4xl font-extrabold mb-6">$19<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+            <h2 className="text-base font-bold mb-4">Ultimate</h2>
+            <div className="text-4xl font-extrabold mb-6">$10<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
             <ul className="space-y-3 mb-8 flex-1">
-              {pricingFeatures.premium.map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14} className="text-amber-500"/> {f}</li>)}
+              {featureLabels('premium').map(f => <li key={f} className="text-sm flex items-center gap-2"><Check size={14} className="text-amber-500"/> {f}</li>)}
             </ul>
             <PricingButton onClick={() => handlePerPlanCTA('premium')} variant="outline" disabled={isCtaDisabled('premium')}>{ctaLabel('premium')}</PricingButton>
           </div>

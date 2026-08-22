@@ -84,7 +84,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   const showUpgradeCta = membershipResolved && plan === 'free';
 
   const planLabel =
-    plan === 'premium' ? t('app.membershipPremium', 'Premium plan') : plan === 'pro' ? t('app.membershipPro', 'Pro plan') : t('app.membershipFreePlan', 'Free plan');
+    plan === 'premium' ? t('app.membershipPremium', 'Ultimate plan') : plan === 'pro' ? t('app.membershipPro', 'Pro plan') : t('app.membershipFreePlan', 'Free plan');
   // Once the plan is resolved (from the TTL-bounded cache or live data),
   // `planLoading` is false — show the actual plan label rather than the
   // indefinite "Checking your plan…" state, which now only appears on a
@@ -92,7 +92,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
   // for entitlement gating (upgrade CTA / Free chip), not the badge label.
   const membershipTitle =
     plan === 'premium'
-      ? t('app.membershipPremium', 'Premium membership')
+      ? t('app.membershipPremium', 'Ultimate membership')
       : plan === 'pro'
         ? t('app.membershipPro', 'Pro membership')
         : planLoading
@@ -324,7 +324,7 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
                             : 'border-primary/30 bg-primary/10 text-primary',
                         )}
                       >
-                        {isPremium ? t('app.premium', 'Premium') : t('app.pro', 'Pro')}
+                        {isPremium ? t('app.premium', 'Ultimate') : t('app.pro', 'Pro')}
                       </span>
                     ) : !planLoading ? (
                       <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] border border-border/60 bg-muted/50 text-muted-foreground">

@@ -7,6 +7,27 @@
 
 ---
 
+## WiseResume benefits truthfulness and entitlement hardening — local, not deployed (2026-08-22)
+
+* **Verdict:** `IMPLEMENTED_UNVERIFIED` for production and `TESTED_LOCAL` for repository behavior. The page-level Tailoring Hub Pro gate and approved benefits/copy reconciliation are implemented on `feat/ultimate-plan-display-rename`; internal keys remain `free|pro|premium`, and public labels remain Free, Pro `$5/month`, and Ultimate `$10/month`.
+* **Root cause/fix:** Tailoring Hub lacked a top-level entitlement boundary, allowing a direct-route Free bypass. `TailoringHubPage.tsx` now uses the shared Pro upgrade wall before rendering workspace/landing content. Existing AI Studio, Cover Letters, Interview, Applications, Analytics, and resume-cap gates were preserved.
+* **Copy:** Unsupported priority/dedicated support, early access, custom branding, white-label exports, and version-history/restore claims were removed from pricing/subscription/upgrade copy. English and Arabic `app.planFeatures` catalogs now describe only the approved current matrix, including exact Ultimate wording `Remove WiseResume branding`.
+* **Tests/validation:** Added `src/lib/planEntitlements.test.ts` and extended `TailoringHubPage-recovery.test.tsx`. i18n, Arabic coverage, focused tests (6), full Vitest (222 files/1,233 tests), ESLint, TypeScript, `git diff --check`, and production build/no-sourcemap checks passed. Large-chunk warnings remain advisory. Local `/pricing` returned HTTP 200.
+* **Browser QA:** `BLOCKED_EXTERNAL_ACCESS` for complete rendered desktop/mobile and English/Arabic LTR/RTL verification because the connected browser exposed-preview request returned HTTP 504. No production browser session was modified.
+* **Git/deployment:** Branch remains intentionally uncommitted at `feat/ultimate-plan-display-rename`, with no push, merge, Vercel deployment, Appwrite/backend/schema/permission/configuration change, environment-variable change, payment activation, or production Paddle/RevenueCat change.
+* **Report:** [`reports/2026-08-22-wise-resume-benefits-hardening.md`](./reports/2026-08-22-wise-resume-benefits-hardening.md)
+* **Stop point:** Owner review is required before commit/PR or deployment. Any future benefit implementation, server enforcement, custom domain, version history, support SLA, or payment activation requires a separate approved task.
+
+## WiseResume plan display rename and benefits audit — local, not deployed (2026-08-22)
+
+* **Verdict:** `PASS_WITH_WARNINGS`. The owner-authorized display rename is implemented on branch `feat/ultimate-plan-display-rename`: public labels are Free, Pro `$5/month`, and Ultimate `$10/month`; internal keys remain `free|pro|premium`; RevenueCat entitlements remain `pro|premium`.
+* **Audit:** [`reports/2026-08-22-wise-resume-plan-benefits-audit.md`](./reports/2026-08-22-wise-resume-plan-benefits-audit.md) records the 23 requested areas, exact current matrix, explicit gates, AI limits, advertised-but-unproven claims, and a separate recommended matrix. Recommended benefit/gating changes were not implemented.
+* **Paddle Sandbox:** Existing product `pro_01m0fnm7000501f67z1bmhzaff` was renamed in place to WiseResume Ultimate; price `pri_01m0fnq9hetwdwm9e1sa49n08s` remains recurring USD $10/month. Pro was not changed. No Paddle Production action occurred.
+* **RevenueCat Sandbox:** TheWiseCloud Paddle product and entitlement mappings were inspected and preserved. The imported product’s action menu exposed only Make Inactive, so no unsafe label/configuration mutation was attempted. Any post-Paddle propagation into the imported display label is `UNVERIFIED`.
+* **Validation:** `git diff --check`, locale checks, ESLint, full Vitest, TypeScript, and production build/no-sourcemap checks passed after final edits. Existing large-chunk warnings remain advisory. A first build attempt was terminated during temporary memory pressure; the retry passed.
+* **Git/deployment:** The clone is based on `58e198626844b9213e1621ecf31d5627fe1c1a97`, equal to `origin/main` at the audit point. Source/documentation changes remain uncommitted. No push, merge, Vercel deployment, Appwrite deployment/configuration, webhook, backend, environment-variable, or payment activation occurred.
+* **Stop point:** This task is complete for the approved display rename and audit. Next action requires owner approval for any entitlement/benefit change, route-gate hardening, version history, custom domains, support claims, or production payment activation.
+
 ## Sentry production fixes — merged and deployed (2026-08-20)
 
 * **Verdict:** `DEPLOYED_VERIFIED_WITH_WARNINGS`. The scoped fixes for WISE-RESUME-16, WISE-RESUME-T/V, and WISE-RESUME-P/Z were merged in PR #198. WISE-RESUME-11 is already corrected in current source and was not changed. WISE-RESUME-13 was not changed because the current BrowserRouter mount path does not prove the reported event’s root cause. WISE-RESUME-Q remains insufficiently evidenced and has no invented fix.

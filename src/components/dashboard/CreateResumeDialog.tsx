@@ -492,7 +492,6 @@ export function CreateResumeDialog({
                 t('app.upgradeWall.featResumes', 'Unlimited resumes for every role & industry'),
                 t('app.upgradeWall.featTailor', 'AI-tailored resume versions in seconds'),
                 t('app.upgradeWall.featCompare', 'Side-by-side resume comparison'),
-                t('app.upgradeWall.featHistory', 'Version history & restore'),
               ]}
               compact
             />

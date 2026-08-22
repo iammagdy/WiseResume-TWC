@@ -7,13 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   Check, Crown, Share2, Sparkles, Gem, CalendarClock, FileText, Wand2, Target,
-  MessageSquare, Mail, LayoutList, HeadphonesIcon, Palette, BarChart2,
-  Package, Zap, Infinity as InfinityIcon, Bot, Star, Clock,
+  MessageSquare, Mail, LayoutList, BarChart2,
+  Package, Infinity as InfinityIcon, Bot, Star, Clock,
 } from 'lucide-react';
 import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan, PlanName } from '@/hooks/usePlan';
+import { useLocale } from '@/i18n/LocaleProvider';
 import { useMe } from '@/hooks/useMe';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
@@ -27,34 +28,42 @@ interface PlanFeature {
 
 const PLAN_FEATURES: Record<string, PlanFeature[]> = {
   free: [
-    { label: '1 resume', icon: FileText },
-    { label: 'Basic AI suggestions', icon: Bot },
-    { label: 'Resume readiness check', icon: Target },
-    { label: 'PDF export', icon: Package },
-    { label: 'Portfolio site', icon: Star },
+    { label: '1 regular resume', icon: FileText },
+    { label: '5 AI actions/day', icon: Bot },
+    { label: 'Resume Editor', icon: Wand2 },
+    { label: 'Standard templates', icon: Star },
+    { label: 'Standard export formats', icon: Package },
+    { label: 'WiseResume branding on applicable exports', icon: Package },
+    { label: 'Portfolio core', icon: Star },
+    { label: 'Current Free portfolio-AI allowance', icon: Bot },
+    { label: 'Readiness/ATS-oriented scoring where supported', icon: Target },
   ],
   pro: [
+    { label: 'Everything in Free', icon: Crown },
     { label: 'Unlimited resumes', icon: FileText },
-    { label: 'Advanced AI tools', icon: Wand2 },
-    { label: 'Smart tailoring', icon: Target },
-    { label: 'Interview coaching', icon: MessageSquare },
-    { label: 'Cover letter generator', icon: Mail },
-    { label: 'Application tracker', icon: LayoutList },
-    { label: 'Priority support', icon: HeadphonesIcon },
+    { label: '50 AI actions/day', icon: Bot },
+    { label: 'Current Pro per-minute allowance', icon: Clock },
+    { label: 'Smart Tailoring / Tailoring Hub', icon: Target },
+    { label: 'AI Studio', icon: Wand2 },
+    { label: 'Cover Letters', icon: Mail },
+    { label: 'Interview Prep', icon: MessageSquare },
+    { label: 'Application Tracker / saved jobs', icon: LayoutList },
+    { label: 'Current Pro portfolio-AI allowance', icon: Bot },
+    { label: 'WiseResume branding remains on exports', icon: Package },
   ],
   premium: [
     { label: 'Everything in Pro', icon: Crown },
-    { label: 'Custom branding', icon: Palette },
-    { label: 'Analytics dashboard', icon: BarChart2 },
-    { label: 'White-label exports', icon: Package },
-    { label: 'Early access features', icon: Zap },
-    { label: 'Dedicated support', icon: HeadphonesIcon },
+    { label: 'Unlimited AI actions', icon: InfinityIcon },
+    { label: 'Current Ultimate per-minute allowance', icon: Clock },
+    { label: 'Analytics + CSV export', icon: BarChart2 },
+    { label: 'Remove WiseResume branding', icon: Package },
+    { label: 'Current Ultimate portfolio-AI allowance', icon: Bot },
   ],
 };
 
 const PLAN_PRICES: Record<string, string> = {
-  pro: '$9',
-  premium: '$19',
+  pro: '$5',
+  premium: '$10',
 };
 
 const RESUME_LIMIT: Record<PlanName, number | null> = {
@@ -64,7 +73,7 @@ const RESUME_LIMIT: Record<PlanName, number | null> = {
 };
 
 function planLabel(plan: string) {
-  return plan.charAt(0).toUpperCase() + plan.slice(1);
+  return plan === 'premium' ? 'Ultimate' : plan.charAt(0).toUpperCase() + plan.slice(1);
 }
 
 function PlanIcon({ plan, className }: { plan: string; className?: string }) {
@@ -86,6 +95,7 @@ export default function SubscriptionPage() {
   const { data: resumes = [], isLoading: resumesLoading } = useResumes();
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
+  const { t } = useLocale();
   const { data: meData } = useMe();
   usePlanUpgradeCelebration();
 
@@ -172,7 +182,7 @@ export default function SubscriptionPage() {
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {isPremium
-                    ? "You're on Premium — here's everything unlocked for you"
+                    ? "You're on Ultimate — here's everything unlocked for you"
                     : "You're on Pro — here's everything unlocked for you"}
                 </p>
                 {isActiveTrial && trialExpiresAt && (
@@ -310,14 +320,15 @@ export default function SubscriptionPage() {
               )}
             </div>
 
-            {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature) => {
+            {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature, index) => {
               const Icon = feature.icon;
+              const label = t(`app.planFeatures.${plan}.${index}`, feature.label);
               return (
-                <div key={feature.label} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isPremium ? 'bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/40 dark:hover:bg-amber-900/20' : isPro ? 'bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/40 dark:hover:bg-blue-900/20' : 'bg-muted/30 hover:bg-muted/50'} transition-colors`}>
+                <div key={`${plan}-${index}-${label}`} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isPremium ? 'bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/40 dark:hover:bg-amber-900/20' : isPro ? 'bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/40 dark:hover:bg-blue-900/20' : 'bg-muted/30 hover:bg-muted/50'} transition-colors`}>
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isPremium ? 'bg-amber-100 dark:bg-amber-900/40' : isPro ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-muted'}`}>
                     <Icon className={`w-4 h-4 ${isPremium ? 'text-amber-500' : isPro ? 'text-blue-500' : 'text-muted-foreground'}`} />
                   </div>
-                  <span className="text-sm font-medium">{feature.label}</span>
+                  <span className="text-sm font-medium">{label}</span>
                   <Check className={`w-4 h-4 ml-auto shrink-0 ${isPremium ? 'text-amber-500' : isPro ? 'text-blue-500' : 'text-muted-foreground'}`} />
                 </div>
               );
@@ -344,12 +355,13 @@ export default function SubscriptionPage() {
                   <span className="text-sm text-muted-foreground">/month</span>
                 </div>
                 <div className="space-y-1.5">
-                  {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature) => {
+                  {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature, index) => {
                     const Icon = feature.icon;
+                    const label = t(`app.planFeatures.${target}.${index}`, feature.label);
                     return (
-                      <div key={feature.label} className="flex items-center gap-2 text-sm">
+                      <div key={`${target}-${index}-${label}`} className="flex items-center gap-2 text-sm">
                         <Icon className={`w-4 h-4 shrink-0 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
-                        <span>{feature.label}</span>
+                        <span>{label}</span>
                       </div>
                     );
                   })}
