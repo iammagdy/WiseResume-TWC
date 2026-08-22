@@ -486,13 +486,12 @@ export function CreateResumeDialog({
           <div className="py-4 space-y-4">
             <UpgradeWall
               requiredPlan="pro"
-              featureName={t('app.upgradeWall.multipleResumes', 'Multiple Resumes')}
-              description={t('app.upgradeWall.resumeLimitDesc', 'Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more.')}
+              featureName={t('app.aiStudio.upgradeWall.multipleResumes', 'Multiple Resumes')}
+              description={t('app.aiStudio.upgradeWall.resumeLimitDesc', 'Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more.')}
               features={[
-                t('app.upgradeWall.featResumes', 'Unlimited resumes for every role & industry'),
-                t('app.upgradeWall.featTailor', 'AI-tailored resume versions in seconds'),
-                t('app.upgradeWall.featCompare', 'Side-by-side resume comparison'),
-                t('app.upgradeWall.featHistory', 'Version history & restore'),
+                t('app.aiStudio.upgradeWall.featResumes', 'Unlimited resumes for every role & industry'),
+                t('app.aiStudio.upgradeWall.featTailor', 'AI-tailored resume versions in seconds'),
+                t('app.aiStudio.upgradeWall.featCompare', 'Side-by-side resume comparison'),
               ]}
               compact
             />

@@ -41,7 +41,7 @@ Allows job seekers to preview their formatted resume across multiple page layout
 * Export menus support standard PDF, one-page PDF, ATS-focused PDF, combined resume/cover-letter PDF, DOCX, printing, and plain text where the current screen provides those actions.
 * Standard PDF output honors Letter/A4, page-number visibility, simple/full page-number format, and branding settings. English cover-letter PDF honors the same paper, page-label, and branding settings; Arabic cover letters use the hardened Chromium path.
 * One-page PDF scales the complete rendered document into one physical page instead of discarding content after page one.
-* Premium accounts with a verified subscription may remove WiseResume branding. Free, Pro, unknown, and unverified entitlement states keep branding; the authenticated PDF endpoint independently enforces this rule.
+* Ultimate accounts (internal `premium`) with a verified subscription may remove WiseResume branding. Free, Pro, unknown, and unverified entitlement states keep branding; the authenticated PDF endpoint independently enforces this rule.
 * Supports template typography selection (Inter, Playfair Display, Roboto, Outfit).
 * URL actions (`/preview?id=<id>&action=download|ats-pdf|docx`) are captured at mount and converted into a user-activated fallback CTA after resume bootstrap. They intentionally do not auto-download without a user action.
 * Tailoring Result exports must not rely on Preview URL actions for immediate downloads. As of 2026-07-21, `/tailoring-hub/result/:resumeId` exports ATS PDF and Word/DOCX directly from its loaded tailored resume snapshot.
@@ -53,7 +53,7 @@ Allows job seekers to preview their formatted resume across multiple page layout
 * Letter and A4 exports must use their true physical paper dimensions while preserving the existing resume layout coordinate system.
 * Untrusted export HTML must not execute JavaScript. Renderer requests continue blocking external subresources.
 * The shared PDF policy rejects invalid option types and bounds work to 6 MiB of embedded HTML, 12 pages / 12,000 DOM nodes, 8 MiB per rendered page, and 32 MiB merged output. Warm renderer processes also enforce six requests per authenticated user per minute and two concurrent renders.
-* Branding removal is a verified Premium entitlement, not a general authenticated-user capability.
+* Branding removal is a verified Ultimate entitlement (internal `premium`), not a general authenticated-user capability.
 * ATS-facing copy must remain probabilistic (for example, ATS-focused or parser-friendly), never a universal compatibility guarantee.
 
 ---

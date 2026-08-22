@@ -34,7 +34,7 @@ export function AICreditsIndicator() {
     ? 'Unlimited (your API key)'
     : isActiveTrial
       ? `Unlimited · Trial (${trialDaysLeft}d left)`
-      : 'Unlimited · Premium plan';
+      : 'Unlimited · Ultimate plan';
 
   const unlimitedColor = isUnlimited
     ? isBYOK

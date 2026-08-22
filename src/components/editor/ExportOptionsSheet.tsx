@@ -15,6 +15,7 @@ import { ExportProgressBar } from './export/ExportProgressBar';
 import { LaTeXPreviewPanel } from './export/LaTeXPreviewPanel';
 import { ExportPreviewThumbnail } from './export/ExportPreviewThumbnail';
 import type { ExportOptionDef } from './export/ExportOptionCard';
+import { canRemoveBranding as canRemoveBrandingForPlan } from '@/lib/planEntitlements';
 
 interface ExportOptionsSheetProps {
   open: boolean;
@@ -40,8 +41,8 @@ export function ExportOptionsSheet({
 }: ExportOptionsSheetProps) {
   const { pdfDefaults, lastExportType, setLastExportType } = useSettingsStore();
   const { isOnline } = useNetworkStatus();
-  const { isPremium, subscriptionVerified } = usePlan();
-  const canRemoveBranding = isPremium && subscriptionVerified;
+  const { plan, subscriptionVerified } = usePlan();
+  const canRemoveBranding = canRemoveBrandingForPlan(plan, subscriptionVerified);
 
   const defaultType = (lastExportType as ExportType) || 'resume';
   const [selectedType, setSelectedType] = useState<ExportType>(defaultType);

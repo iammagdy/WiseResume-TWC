@@ -54,7 +54,7 @@ export function PdfOptionsFooter({
             {!isPremium && (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 ml-1">
                 <Lock className="w-2.5 h-2.5" />
-                Premium
+                Ultimate
               </span>
             )}
           </Label>

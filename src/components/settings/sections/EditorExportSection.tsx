@@ -115,7 +115,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                                     {t('app.settingsPage.exports.badgeTitle', 'WiseResume Badge')}
                                     {!canRemoveBranding && (
                                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                                            <Lock className="h-3 w-3" aria-hidden /> Premium
+                                            <Lock className="h-3 w-3" aria-hidden /> Ultimate
                                         </span>
                                     )}
                                 </Label>

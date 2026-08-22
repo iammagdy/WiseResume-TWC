@@ -50,8 +50,8 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
     ['/examples', 'app.examples'],
     ['/guides', 'app.guides'],
     ['/help', 'app.help'],
-    ['/analytics', 'app.analytics'],
-    ['/subscription', 'app.subscription'],
+    ['/analytics', 'app.aiStudio.analyticsPage.title'],
+    ['/subscription', 'app.aiStudio.subscriptionPage.title'],
     ['/referral', 'app.referral'],
     ['/achievements', 'app.achievements'],
   ];
@@ -102,7 +102,7 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
                 )}
               >
                 <Crown className="w-3 h-3 shrink-0" aria-hidden />
-                {plan === 'premium' ? t('app.membershipPremiumBadge', 'Premium') : t('app.membershipProBadge', 'Pro')}
+                {plan === 'premium' ? t('app.membershipPremiumBadge', 'Ultimate') : t('app.membershipProBadge', 'Pro')}
               </span>
             )}
           </div>

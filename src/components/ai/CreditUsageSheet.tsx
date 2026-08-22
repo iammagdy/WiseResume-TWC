@@ -81,7 +81,7 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
     ? 'using your own API key'
     : isActiveTrial
       ? `Trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} remaining`
-      : 'Premium plan';
+      : 'Ultimate plan';
 
   const { data: allActivity } = useQuery({
     queryKey: ['ai-usage-breakdown', user?.id],

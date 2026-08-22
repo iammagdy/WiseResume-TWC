@@ -24,7 +24,7 @@ export function TrialCountdownBadge() {
     Math.ceil((new Date(trialExpiresAt!).getTime() - Date.now()) / 86_400_000),
   );
 
-  const planLabel = trialPlan === 'premium' ? 'Premium' : 'Pro';
+  const planLabel = trialPlan === 'premium' ? 'Ultimate' : 'Pro';
   const isPremiumTrial = trialPlan === 'premium';
   const colorClass = isPremiumTrial
     ? 'bg-amber-500/10 border-amber-400/40 text-amber-600 dark:text-amber-400'

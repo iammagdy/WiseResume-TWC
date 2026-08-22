@@ -37,8 +37,8 @@ export function JobMatchStickyFooter({
 
   const hintText = hasUnlimitedCredits
     ? isActiveTrial && trialPlan === 'premium'
-      ? 'Premium trial · No credits used · Changes saved automatically'
-      : 'Premium · No credits used · Changes saved automatically'
+      ? 'Ultimate trial · No credits used · Changes saved automatically'
+      : 'Ultimate · No credits used · Changes saved automatically'
     : `Uses ${formatCreditLabel(creditCost)} · Changes saved automatically`;
 
   return (

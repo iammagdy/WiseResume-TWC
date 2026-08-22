@@ -20,7 +20,7 @@ export function PlanChip({ plan, trialPlan = null, trialExpiresAt = null }: Plan
       0,
       Math.ceil((new Date(trialExpiresAt!).getTime() - Date.now()) / 86_400_000),
     );
-    const planLabel = trialPlan === 'premium' ? 'Premium' : 'Pro';
+    const planLabel = trialPlan === 'premium' ? 'Ultimate' : 'Pro';
     const colorClass =
       trialPlan === 'premium'
         ? 'bg-amber-500/10 border-amber-400/40 text-amber-600 dark:text-amber-400'
@@ -41,7 +41,7 @@ export function PlanChip({ plan, trialPlan = null, trialExpiresAt = null }: Plan
     return (
       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 border border-amber-400/40 text-amber-600 dark:text-amber-400 whitespace-nowrap">
         <Gem className="w-3 h-3 shrink-0" />
-        Premium
+        Ultimate
       </span>
     );
   }
