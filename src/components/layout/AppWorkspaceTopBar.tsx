@@ -50,8 +50,8 @@ export function AppWorkspaceTopBar({ onImportJob, className }: AppWorkspaceTopBa
     ['/examples', 'app.examples'],
     ['/guides', 'app.guides'],
     ['/help', 'app.help'],
-    ['/analytics', 'app.analytics'],
-    ['/subscription', 'app.subscription'],
+    ['/analytics', 'app.aiStudio.analyticsPage.title'],
+    ['/subscription', 'app.aiStudio.subscriptionPage.title'],
     ['/referral', 'app.referral'],
     ['/achievements', 'app.achievements'],
   ];

@@ -16,7 +16,7 @@ This follow-up is limited to the owner-authorized confirmed Browser QA blockers:
 
 The localization patch had initially addressed plan-surface copy using paths that did not match the catalog structure. The new catalog sections live under the direct JSON `aiStudio` object, so the corrected runtime paths are `app.aiStudio.pricingPage.*`, `app.aiStudio.subscriptionPage.*`, `app.aiStudio.analyticsPage.*`, `app.aiStudio.tailoringHubGate.*`, `app.aiStudio.upgradeWall.*`, and `app.aiStudio.planFeatures.*`. Analytics export messages were placed in the Analytics section, and Pricing CTA labels were added there rather than relying on unverified root keys.
 
-The shared `UpgradeWall` and the existing resume-limit upgrade caller now use the same localized catalog namespace. The Subscription badge keeps billing disabled while using wrapping, width, icon, and line-height classes that prevent cramped mobile presentation. The public labels remain Free, Pro, and Ultimate; internal plan keys remain `free`, `pro`, and `premium`; prices remain `$0`, `$5`, and `$10`; and Ultimate clean export remains `Remove WiseResume branding` in English and `إزالة علامة WiseResume` in Arabic.
+The shared `UpgradeWall` and the existing resume-limit upgrade caller now use the same localized catalog namespace. The workspace top bar now maps Analytics and Subscription to their localized `aiStudio` title keys, preventing the literal `app.subscription`/`app.analytics` fallback observed during Preview QA. The Subscription badge keeps billing disabled while using wrapping, width, icon, and line-height classes that prevent cramped mobile presentation. The public labels remain Free, Pro, and Ultimate; internal plan keys remain `free`, `pro`, and `premium`; prices remain `$0`, `$5`, and `$10`; and Ultimate clean export remains `Remove WiseResume branding` in English and `إزالة علامة WiseResume` in Arabic.
 
 ## Files changed in this follow-up
 
@@ -25,7 +25,7 @@ The shared `UpgradeWall` and the existing resume-limit upgrade caller now use th
 | Catalogs | `locales/en/app.json`, `locales/ar/app.json` |
 | Plan surfaces | `src/pages/PricingPage.tsx`, `src/pages/SubscriptionPage.tsx`, `src/pages/AnalyticsPage.tsx`, `src/pages/TailoringHubPage.tsx` |
 | Shared upgrade walls | `src/components/plan/UpgradeWall.tsx`, `src/components/dashboard/CreateResumeDialog.tsx` |
-| Regression coverage | `src/i18n/__tests__/criticalArabicCoverage.test.ts` |
+| Regression coverage | `src/i18n/__tests__/criticalArabicCoverage.test.ts`, `src/components/layout/AppWorkspaceTopBar.tsx` |
 
 ## Local validation
 
@@ -38,6 +38,10 @@ An earlier lint run failed on two explicit `any` types introduced in the focused
 The active repository workflows contain no TestSprite references. PR #199 currently reports successful Typecheck + portfolio tests, Vercel, and Vercel Preview Comments, with the separate `TestSprite Pre-Check` failure `No tests detected`. Historical Atlas evidence classifies that result as a known non-applicable informational warning; no CI change was made.
 
 The connected browser’s stable Preview authentication was previously restored by adding exactly one Appwrite Web-platform hostname: `wise-resume-twc-git-feat-ultimate-plan-display-rename-iam-magdy.vercel.app`. That configuration change predates this follow-up and was not repeated or broadened. No Appwrite deployment or repository backend change is required for this patch. No Production deployment or merge is authorized.
+
+## Post-push QA finding
+
+Arabic Subscription browser QA exposed a literal `app.subscription` title in the shared workspace top bar even though the page body was localized. The source path map was corrected to use `app.aiStudio.subscriptionPage.title` and `app.aiStudio.analyticsPage.title`, and focused Arabic coverage now guards both mappings. This is a follow-up source fix requiring a new Preview deployment and rerun.
 
 ## Required next action
 

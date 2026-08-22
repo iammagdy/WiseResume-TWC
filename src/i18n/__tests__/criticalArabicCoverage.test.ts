@@ -134,6 +134,7 @@ describe('critical Arabic coverage surfaces', () => {
       'src/pages/AnalyticsPage.tsx',
       'src/pages/TailoringHubPage.tsx',
       'src/components/plan/UpgradeWall.tsx',
+      'src/components/layout/AppWorkspaceTopBar.tsx',
     ];
 
     for (const file of localizedSources) {
@@ -147,6 +148,11 @@ describe('critical Arabic coverage surfaces', () => {
     expect(read('src/pages/AnalyticsPage.tsx')).toContain("app.aiStudio.analyticsPage");
     expect(read('src/pages/TailoringHubPage.tsx')).toContain("app.aiStudio.tailoringHubGate");
     expect(read('src/components/plan/UpgradeWall.tsx')).toContain("app.aiStudio.upgradeWall");
+    const topBarSource = read('src/components/layout/AppWorkspaceTopBar.tsx');
+    expect(topBarSource).toContain("['/analytics', 'app.aiStudio.analyticsPage.title']");
+    expect(topBarSource).toContain("['/subscription', 'app.aiStudio.subscriptionPage.title']");
+    expect(topBarSource).not.toContain("['/analytics', 'app.analytics']");
+    expect(topBarSource).not.toContain("['/subscription', 'app.subscription']");
   });
 
   it('does not change the internal plan-key contract', () => {
