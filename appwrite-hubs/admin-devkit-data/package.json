@@ -4,6 +4,7 @@
   "description": "Appwrite Function — serves DevKit admin panels: Mission Control, Analytics, Observability, Live Activity",
   "main": "src/main.js",
   "dependencies": {
+    "@wiseresume/subscription-resolver": "file:../shared-subscription-resolver",
     "node-appwrite": "^17.2.0",
     "axios": "^1.4.0"
   }

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "src/main.js",
   "dependencies": {
+    "@wiseresume/subscription-resolver": "file:../shared-subscription-resolver",
     "node-appwrite": "25.2.0"
   }
 }

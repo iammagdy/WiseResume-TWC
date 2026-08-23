@@ -7,6 +7,15 @@
 
 ---
 
+## WiseResume Payments Phase 1 RevenueCat provider-state implementation (local; unverified) — 2026-08-22
+
+* **Verdict:** `IMPLEMENTED_UNVERIFIED`. Owner-approved additive provider-state architecture is implemented locally on `feat/revenuecat-subscription-sync`; current `HEAD` remains the clean `origin/main` baseline before these uncommitted changes. No payment activation is claimed.
+* **Architecture:** Added server-only `revenuecat_subscription_state` and durable `revenuecat_event_ledger` setup definitions. Provider lifecycle does not write directly to the existing overloaded `subscriptions` plan fields. A shared highest-valid-plan resolver preserves manual/admin, coupon, active-trial, and Free fallback candidates.
+* **Lifecycle/security:** Added fail-closed `revenuecat-webhook` handling for the seven approved lifecycle events, product/entitlement allowlists, canonical Appwrite user verification, duplicate and stale-event protection, 90-day ledger metadata, and non-sensitive logs. Internal values remain `free|pro|premium`; public Ultimate maps to `premium` and is never persisted as `ultimate`.
+* **Consumers/tooling:** Coupons reads, server-side AI plan lookup, and admin manual/trial mutations use the provider-aware resolver. Manifest, function-policy, source-hash, targeted setup, and deployment-workflow references were added. Existing `subscriptions` attributes and live configuration were not changed.
+* **Validation:** Focused mock-only RevenueCat/schema/AI/policy coverage passed 15 tests; existing coupon and AI concurrency hub tests passed. Full Vitest passed with 222 files, 1,236 tests passed, 8 skipped, and 1 todo. `node --check`, `git diff --check`, and `npx tsc --noEmit` passed. The first plain build attempt hit sandbox memory pressure; the same `npm run build` completed on `NODE_OPTIONS=--max-old-space-size=2048`, with existing large-chunk warnings remaining advisory.
+* **Release boundary:** No Appwrite schema setup execution, Appwrite deployment, RevenueCat webhook/dashboard change, Paddle/Vercel change, secret or environment value change, frontend checkout activation, Production data mutation, commit, push, or merge occurred. Browser/runtime and live third-party verification remain pending.
+
 ## WiseResume PR #199 localization, Pro QA, merge, and Production closeout (2026-08-22)
 
 * **Verdict:** `DEPLOYED_VERIFIED_WITH_WARNINGS`. PR #199 completed the final Pro browser QA, was marked ready, and merged through the normal GitHub workflow. Vercel Production deployed the merge commit successfully. Production Arabic Pricing confirmed the merged plan catalog and disabled billing.

@@ -5,6 +5,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { normalizeUserQuery, filterAndSortUsers } = require('./user-query.cjs');
 const { deriveExactUserCounts, buildUsageStats, summarizeCompletionHealth } = require('./phase1-semantics.cjs');
+const { resolveEffectivePlan } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
 const SESSION_TTL_MS = 60 * 60 * 1000;
@@ -13,6 +14,7 @@ const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWR
 const PRODUCTION_URL = process.env.PRODUCTION_URL || 'https://wiseresume.app';
 const IMPERSONATION_SESSIONS_COLLECTION = 'admin_impersonation_sessions';
 const BROADCASTS_COLLECTION = 'broadcasts';
+const PROVIDER_STATE_COLLECTION = 'revenuecat_subscription_state';
 const BROADCAST_SEVERITIES = new Set(['info', 'warning', 'critical']);
 // Authoritative admin identity — must be set via ADMIN_EMAIL env variable.
 // No hard-coded fallback: when absent, admin-only paths fail closed.
@@ -1589,6 +1591,15 @@ async function getProfileDoc(databases, userId) {
   return res.documents[0] || null;
 }
 
+async function getProviderState(databases, userId) {
+  const res = await safeList(databases, PROVIDER_STATE_COLLECTION, [sdk.Query.equal('user_id', userId), sdk.Query.limit(1)]);
+  return res.documents[0] || null;
+}
+
+function resolvedPlan(subscription, providerState) {
+  return resolveEffectivePlan({ subscription, providerState }).plan;
+}
+
 // â”€â”€â”€ Admin mutation handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // â”€â”€â”€ Plan change helpers: notification + email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1853,8 +1864,10 @@ async function handleSetPlan(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || profile?.plan || 'free';
-  const changeType = classifyPlanChange(previousPlan, plan);
-  const patch = { plan, effective_plan: plan, status: 'active', trial_plan: null, trial_expires_at: null };
+  const providerState = await getProviderState(databases, target_user_id);
+  const effectivePlan = resolvedPlan({ ...subDoc, plan, trial_plan: null, trial_expires_at: null }, providerState);
+  const changeType = classifyPlanChange(previousPlan, effectivePlan);
+  const patch = { plan, effective_plan: effectivePlan, status: 'active', trial_plan: null, trial_expires_at: null };
   const subPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
     // UPDATE intentionally omitted: written exclusively by server-side admin client.
@@ -1898,19 +1911,21 @@ async function handleGrantTrial(body, log) {
   const subRes = await safeList(databases, 'subscriptions', [sdk.Query.equal('user_id', target_user_id), sdk.Query.limit(1)]);
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
+  const providerState = await getProviderState(databases, target_user_id);
+  const effectivePlan = resolvedPlan({ ...subDoc, plan: subDoc?.plan || 'free', trial_plan: plan, trial_expires_at: expiresAt }, providerState);
   const trialPerms = [
     sdk.Permission.read(sdk.Role.user(target_user_id)),
     // UPDATE intentionally omitted: written exclusively by server-side admin client.
   ];
   if (subDoc) {
-    const trialPatch = { trial_plan: plan, effective_plan: plan, trial_expires_at: expiresAt, status: 'active' };
+    const trialPatch = { trial_plan: plan, effective_plan: effectivePlan, trial_expires_at: expiresAt, status: 'active' };
     const trialPatches = [trialPatch, Object.fromEntries(Object.entries(trialPatch).filter(([k]) => k !== 'effective_plan'))];
     for (let i = 0; i < trialPatches.length; i++) {
       try { await databases.updateDocument(DB_ID, 'subscriptions', subDoc.$id, trialPatches[i], trialPerms); break; }
       catch (e) { if (i < trialPatches.length - 1) continue; throw e; }
     }
   } else {
-    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', effective_plan: plan, trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, trialPerms);
+    await databases.createDocument(DB_ID, 'subscriptions', sdk.ID.unique(), { user_id: target_user_id, plan: 'free', effective_plan: effectivePlan, trial_plan: plan, trial_expires_at: expiresAt, status: 'active' }, trialPerms);
   }
 
   await auditLog(databases, 'grant-trial', { target_user_id, plan, days });
@@ -1934,13 +1949,15 @@ async function handleRevokeTrial(body, log) {
   const subDoc = subRes.documents[0] || null;
   const previousPlan = subDoc?.effective_plan || subDoc?.trial_plan || subDoc?.plan || 'free';
   const basePlan = subDoc?.plan || 'free';
+  const providerState = await getProviderState(databases, target_user_id);
+  const effectivePlan = resolvedPlan({ ...subDoc, plan: basePlan, trial_plan: null, trial_expires_at: null }, providerState);
   if (subDoc) {
     const revokePerms = [
       sdk.Permission.read(sdk.Role.user(target_user_id)),
       // UPDATE intentionally omitted: written exclusively by server-side admin client.
     ];
     const revokePatches = [
-      { trial_plan: null, trial_expires_at: null, effective_plan: basePlan },
+      { trial_plan: null, trial_expires_at: null, effective_plan: effectivePlan },
       { trial_plan: null, trial_expires_at: null },
     ];
     for (let i = 0; i < revokePatches.length; i++) {
@@ -1952,10 +1969,10 @@ async function handleRevokeTrial(body, log) {
   await auditLog(databases, 'revoke-trial', { target_user_id });
   log(`revoke-trial: ${target_user_id}`);
   const [notificationCreated, emailResult] = await Promise.all([
-    createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: basePlan, changeType: 'trial_end', durationLabel: null }, log),
-    sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: basePlan, changeType: 'trial_end', durationLabel: null, log }),
+    createPlanNotificationForChange(databases, target_user_id, { previousPlan, newPlan: effectivePlan, changeType: 'trial_end', durationLabel: null }, log),
+    sendPlanChangeEmail({ userId: target_user_id, previousPlan, newPlan: effectivePlan, changeType: 'trial_end', durationLabel: null, log }),
   ]);
-  return { ok: true, plan: basePlan, notificationCreated, ...emailResult };
+  return { ok: true, plan: effectivePlan, notificationCreated, ...emailResult };
 }
 
 async function handleSuspendUser(body, log) {

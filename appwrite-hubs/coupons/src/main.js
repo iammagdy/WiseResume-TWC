@@ -2,6 +2,7 @@
 
 const sdk = require('node-appwrite');
 const crypto = require('crypto');
+const { resolveEffectivePlan } = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -87,6 +88,20 @@ async function findSubscription(databases, userId, transactionId) {
     sdk.Query.limit(1),
   ], transactionId);
   return existing.documents[0] || null;
+}
+
+async function findProviderState(databases, userId) {
+  try {
+    const existing = await databases.listDocuments(DB_ID, 'revenuecat_subscription_state', [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    return existing.documents?.[0] || null;
+  } catch {
+    // The additive collection may not exist until the explicitly approved
+    // schema setup is applied. Legacy subscription reads remain available.
+    return null;
+  }
 }
 
 async function writeSubscription(databases, userId, patch, transactionId) {
@@ -282,28 +297,20 @@ async function getMySubscription(body, res) {
   }
 
   const sub = await findSubscription(databases, user.$id);
-
-  if (!sub) {
-    return json(res, {
-      status: 'success',
-      data: { plan: 'free', effective_plan: 'free', status: null, trial_plan: null, trial_expires_at: null, coupon_code: null },
-    });
-  }
-
-  const trialPlan = sub.trial_plan ?? null;
-  const trialExpiresAt = sub.trial_expires_at ?? null;
-  const trialActive = !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt).getTime() > Date.now();
-  const effectivePlan = sub.effective_plan ?? (trialActive ? trialPlan : (sub.plan ?? 'free'));
+  const providerState = await findProviderState(databases, user.$id);
+  const trialPlan = sub?.trial_plan ?? null;
+  const trialExpiresAt = sub?.trial_expires_at ?? null;
+  const effectivePlan = resolveEffectivePlan({ subscription: sub, providerState }).plan;
 
   return json(res, {
     status: 'success',
     data: {
-      plan: sub.plan ?? 'free',
+      plan: sub?.plan ?? 'free',
       effective_plan: effectivePlan,
-      status: sub.status ?? null,
+      status: sub?.status ?? providerState?.status ?? null,
       trial_plan: trialPlan,
       trial_expires_at: trialExpiresAt,
-      coupon_code: sub.coupon_code ?? null,
+      coupon_code: sub?.coupon_code ?? null,
     },
   });
 }
@@ -382,4 +389,6 @@ module.exports.__test = {
   resolveCouponEntitlement,
   redemptionDocumentId,
   redeemCouponAtomically,
+  findProviderState,
+  resolveEffectivePlan,
 };

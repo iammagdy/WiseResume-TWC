@@ -1,11 +1,9 @@
 {
-  "name": "ai-gateway-hub",
+  "name": "wiseresume-revenuecat-webhook",
   "version": "1.0.0",
-  "description": "Smart Hub for AI Routing and Fallback in Appwrite",
   "main": "src/main.js",
   "dependencies": {
     "@wiseresume/subscription-resolver": "file:../shared-subscription-resolver",
-    "axios": "^1.4.0",
-    "node-appwrite": "^17.2.0"
+    "node-appwrite": "25.2.0"
   }
 }

@@ -122,6 +122,12 @@ const FUNCTION_EXECUTION_POLICIES = Object.freeze({
     handlerAuth: 'Requires a valid Sentry webhook signature or signed DevKit token',
     execute: Object.freeze(['any']),
   }),
+  'revenuecat-webhook': Object.freeze({
+    classification: 'anonymous-public',
+    caller: 'RevenueCat HTTPS webhook delivery',
+    handlerAuth: 'Requires constant-time comparison of the Authorization secret before parsing or mutating state',
+    execute: Object.freeze(['any']),
+  }),
   'email-service': Object.freeze({
     classification: 'anonymous-public',
     caller: 'Public auth email flows, authenticated account actions, and signed internal admin email actions',
