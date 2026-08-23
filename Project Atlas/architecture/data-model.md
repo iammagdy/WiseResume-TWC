@@ -49,3 +49,13 @@ Appwrite Databases stores application entities across 96+ collections.
   * Security: server-only collection with empty collection permissions and `documentSecurity: false`. Normal users never read or mutate documents directly.
   * Delivery: authenticated, sanitized `GET /api/broadcasts`; owner writes use signed `admin-devkit-data` actions.
   * Scheduling: `active` plus optional expiry only. No start-time field is currently supported.
+
+
+## RevenueCat provider-state collections (local implementation, not applied)
+
+The local Payments Phase 1 implementation adds two repository-controlled, server-only collections without changing `subscriptions`:
+
+* **`revenuecat_subscription_state`** stores one normalized RevenueCat-derived state per canonical Appwrite user, including internal `plan` (`pro|premium` only), entitlement, verified product/price, environment, lifecycle status, expiration, renewal intent, and latest accepted event metadata. The repository-controlled schema defines a unique `user_id_unique` index, while the webhook also uses a deterministic per-user document ID.
+* **`revenuecat_event_ledger`** stores durable event IDs, lifecycle type, canonical user ID when valid, provider/received timestamps, processing status, ordering key, outcome, and a 90-day cleanup timestamp. Its `event_id_unique` index is the idempotency boundary.
+
+Both collections require `permissions=[]` and `documentSecurity=false`; browsers have no direct read or write access. `scripts/setup_revenuecat_schema.cjs` is idempotent and fail-closed, but was not executed in this local-only task. The existing overloaded `subscriptions` attributes and permissions remain untouched.

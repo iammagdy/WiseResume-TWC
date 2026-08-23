@@ -6,6 +6,7 @@ const zlib = require('zlib');
 const sdk = require('node-appwrite');
 const extractedPrompts = require('./extracted_prompts.json');
 const runtimeReceipts = require('./runtime-receipts.cjs');
+const { resolveEffectivePlan } = require('@wiseresume/subscription-resolver');
 
 function enableLLMObs() { /* Datadog removed - dd-trace has native Windows binaries incompatible with Linux Appwrite */ }
 async function flushDD() { /* no-op */ }
@@ -30,6 +31,7 @@ const BASES = {
 const DB_ID = 'main';
 const AI_CREDITS_COLLECTION_ID = 'ai_credits';
 const SUBSCRIPTIONS_COLLECTION_ID = 'subscriptions';
+const PROVIDER_STATE_COLLECTION_ID = 'revenuecat_subscription_state';
 const SERVER_RATE_LIMIT_WINDOW_MS = 60_000;
 const SERVER_RATE_LIMIT_MAX_REQUESTS = 20;
 const PLAN_DAILY_LIMITS = {
@@ -1088,20 +1090,30 @@ function isTrialActive(subscription) {
 }
 
 async function getEffectivePlan(db, userId) {
+  let subscription = null;
+  let providerState = null;
   try {
     const res = await db.listDocuments(DB_ID, SUBSCRIPTIONS_COLLECTION_ID, [
       sdk.Query.equal('user_id', userId),
       sdk.Query.limit(1),
     ]);
-    const subscription = res.documents?.[0];
-    const rawPlan = subscription?.effective_plan ||
-      (isTrialActive(subscription) ? subscription.trial_plan : subscription?.plan) ||
-      'free';
-    const plan = String(rawPlan).toLowerCase();
-    return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';
+    subscription = res.documents?.[0] || null;
   } catch {
-    return 'free';
+    subscription = null;
   }
+  try {
+    const providerRes = await db.listDocuments(DB_ID, PROVIDER_STATE_COLLECTION_ID, [
+      sdk.Query.equal('user_id', userId),
+      sdk.Query.limit(1),
+    ]);
+    providerState = providerRes.documents?.[0] || null;
+  } catch {
+    // The additive provider collection may not exist until its approved setup
+    // is applied; preserve the legacy subscription path in that state.
+    providerState = null;
+  }
+  const plan = resolveEffectivePlan({ subscription, providerState }).plan;
+  return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';
 }
 
 function userCreditPermissions(userId) {
@@ -5130,4 +5142,5 @@ module.exports.__test = {
   validatePortfolioSession,
   checkPortfolioDailyCap,
   releaseCounterSlot,
+  getEffectivePlan,
 };

@@ -76,6 +76,7 @@ const HUBS = [
     { id: 'job-import', name: 'Job Import Hub', file: 'job-import.tar.gz' },
     { id: 'ai-gateway', name: 'AI Gateway Hub', file: 'ai-gateway.tar.gz' },
     { id: 'coupons', name: 'Coupons Hub', file: 'coupons.tar.gz' },
+    { id: 'revenuecat-webhook', name: 'RevenueCat Subscription Webhook', file: 'revenuecat-webhook.tar.gz' },
     { id: 'wisehire-gateway', name: 'WiseHire Gateway Hub', file: 'wisehire-gateway.tar.gz' },
     { id: 'public-share', name: 'Public Share Hub', file: 'public-share.tar.gz' },
     { id: 'ai-health', name: 'AI Health Hub', file: 'ai-health.tar.gz' },
@@ -668,6 +669,13 @@ async function ensureEmailHubVariables(fnIds) {
     }
 }
 
+async function ensureRevenueCatWebhookVariables() {
+    await ensureVariable('revenuecat-webhook', 'APPWRITE_API_KEY', process.env.APPWRITE_API_KEY);
+    await ensureVariable('revenuecat-webhook', 'APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1');
+    await ensureVariable('revenuecat-webhook', 'APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID || '69fd362b001eb325a192');
+    await ensureVariable('revenuecat-webhook', 'REVENUECAT_WEBHOOK_AUTH_SECRET', process.env.REVENUECAT_WEBHOOK_AUTH_SECRET);
+}
+
 async function ensureCouponsWiseHireVariables(fnIds) {
     for (const fnId of fnIds) {
         for (const [key, value] of [
@@ -820,6 +828,12 @@ async function syncVariablesForHubs(hubIds) {
 
     const emailTargets = ['admin-email', 'admin-testmail', 'admin-devkit-data'].filter(id => selected.has(id));
     if (emailTargets.length) await ensureEmailHubVariables(emailTargets);
+
+    if (selected.has('revenuecat-webhook')) {
+        await ensureRevenueCatWebhookVariables();
+        console.log('\nEnsuring RevenueCat provider-state schemas...');
+        execSync('node scripts/setup_revenuecat_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
 
     const couponsTargets = ['coupons', 'wisehire-gateway', 'public-share'].filter(id => selected.has(id));
     if (couponsTargets.length) await ensureCouponsWiseHireVariables(couponsTargets);

@@ -1,5 +1,21 @@
 # Project Atlas Master Changelog
 
+## 2026-08-23 - WiseResume PR #201 Security CI shared-resolver packaging fix (local; awaiting refreshed checks)
+
+- **Root cause:** The Security validation workflow runs `npm ci --ignore-scripts` at repository root and then imports Appwrite hub CommonJS sources from `src/lib/security`. The hub-local `file:../shared-subscription-resolver` installs were not present in a fresh root CI install, so Node could not resolve `@wiseresume/subscription-resolver` from `appwrite-hubs/ai-gateway/src/main.js` or `appwrite-hubs/admin-devkit-data/src/main.js`.
+- **Fix:** Added the existing local package as a root-level npm `file:./appwrite-hubs/shared-subscription-resolver` dependency and regenerated the root lockfile. No workspace migration, duplicated resolver, security workflow weakening, or business-logic change was introduced.
+- **Validation:** After a root `npm ci --ignore-scripts`, `require.resolve('@wiseresume/subscription-resolver')` succeeded and the exact Security workflow command `npx vitest run src/lib/security` passed 33 files and 168 tests. Focused Payments/hub tests, syntax checks, TypeScript, full Vitest, and bounded-heap build also passed locally.
+- **PR boundary:** The corrective change is not deployed. No Appwrite, RevenueCat, Paddle, Vercel, secret, schema, permission, Production, checkout, or payment activation change occurred. PR #201 remains open and must not be merged until refreshed Security validation passes. TestSprite remains informational and was not modified.
+
+## 2026-08-22 - WiseResume Payments Phase 1 RevenueCat provider-state implementation (local; unverified)
+
+- **Architecture:** Added the additive server-only `revenuecat_subscription_state` and durable `revenuecat_event_ledger` schema definitions. The existing overloaded `subscriptions` collection is unchanged; no live schema setup was executed.
+- **Resolver:** Added a shared highest-valid-plan resolver with `free < pro < premium` ranking. Coupon subscription reads, AI server-side plan limits, and admin manual/trial mutations now account for valid provider state without allowing provider events to erase stronger manual, coupon, or trial access. `ultimate` is never persisted; public Ultimate remains internal `premium`.
+- **Webhook:** Added the local `revenuecat-webhook` Appwrite hub with fail-closed Authorization comparison using the environment name `REVENUECAT_WEBHOOK_AUTH_SECRET`, canonical Appwrite `app_user_id` verification, allowlisted products/entitlements/events, duplicate protection, stale-event protection, safe lifecycle handling, and non-sensitive logs.
+- **Tooling:** Added the manifest/policy/source-hash/deployment-workflow wiring and unexecuted targeted schema setup hook. No secret value was entered or changed.
+- **Validation:** Focused RevenueCat/schema/AI/policy tests passed (15 tests); existing coupon and AI concurrency hub tests passed; full Vitest passed with 222 files, 1,236 tests passed, 8 skipped, and 1 todo; `node --check`, `git diff --check`, and `npx tsc --noEmit` passed. The first plain build attempt hit sandbox memory pressure; the same `npm run build` completed on `NODE_OPTIONS=--max-old-space-size=2048`, with only existing large-chunk warnings.
+- **Release boundary:** Status is `IMPLEMENTED_UNVERIFIED`. No Appwrite schema application or function deployment, RevenueCat webhook creation, Paddle/Vercel configuration, secret configuration, checkout/payment activation, Production data change, commit, push, or merge occurred.
+
 ## 2026-08-22 - WiseResume PR #199 localization, Pro QA, merge, and Production closeout
 
 - **Confirmed blocker fixes:** Localized the approved Arabic plan surfaces for Pricing, Subscription, Analytics lock/access content, Tailoring Hub, the shared upgrade wall, and the existing resume-limit upgrade wall. Corrected all new runtime paths to the actual `app.aiStudio.*` catalog namespace, moved Analytics export messages into `aiStudio.analyticsPage`, added explicit localized Pricing CTA labels, and corrected the Analytics/Subscription workspace top-bar title mappings.

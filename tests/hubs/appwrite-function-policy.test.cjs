@@ -12,7 +12,7 @@ const {
 const manifestIds = manifest.functions.map(fn => fn.functionId);
 
 test('every deployable Appwrite function has one explicit execution policy', () => {
-  assert.equal(manifestIds.length, 28);
+  assert.equal(manifestIds.length, 29);
   assert.doesNotThrow(() => assertFunctionPolicyCoverage(manifestIds));
 });
 

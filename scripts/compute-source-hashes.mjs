@@ -33,6 +33,7 @@ const HUBS = [
   'admin-visitor-analytics',
   'ai-health',
   'coupons',
+  'revenuecat-webhook',
   'email-service',
   'email-templates',
   'job-import',
