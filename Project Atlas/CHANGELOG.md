@@ -1,5 +1,12 @@
 # Project Atlas Master Changelog
 
+## 2026-08-23 - WiseResume Payments Phase 2A additive Appwrite schema applied and verified
+
+- **Applied scope:** Ran the repository-controlled `scripts/setup_revenuecat_schema.cjs` against Appwrite project `69fd362b001eb325a192`, database `main`. Exactly `revenuecat_subscription_state` and `revenuecat_event_ledger` were targeted; no documents were inserted.
+- **Live result:** Both collections exist with the exact expected attributes and available indexes. Both are server-only with `permissions=[]`, `documentSecurity=false`, and zero documents. `user_id_unique` and `event_id_unique` are live unique indexes.
+- **Compatibility fix:** Appwrite rejected `will_renew` as both required and defaulted. The repository definition now uses optional boolean `will_renew` with default `true`; the live schema matches and the contract test covers it.
+- **Boundary:** Existing `subscriptions` was not modified. No Function was deployed, no Function permissions changed, no secret or RevenueCat webhook was configured, Paddle/Vercel were unchanged, checkout/payment activation remains disabled, and no Production user/provider data was inserted.
+
 ## 2026-08-23 - WiseResume PR #201 Security CI fix, merge, and payment boundary closeout
 
 - **CI root cause/fix:** Security validation installed only the repository root, while the shared resolver was initially available only through hub-local file dependencies. Added the existing `file:./appwrite-hubs/shared-subscription-resolver` dependency to the root `package.json` and lockfile. No workspace migration, duplicated resolver, test skip, or security-workflow weakening was introduced.

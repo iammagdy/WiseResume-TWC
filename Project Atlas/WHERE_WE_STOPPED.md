@@ -14,6 +14,14 @@
 * **Validation:** Fresh root install plus `require.resolve` succeeded; exact `npx vitest run src/lib/security` passed 33 files/168 tests. Focused Payments/hub tests, `node --check`, `git diff --check`, `npx tsc --noEmit`, full Vitest, and bounded-heap build passed locally.
 * **PR state:** PR #201 is merged at `2026-08-23T16:56:51Z`; `origin/main` contains the implementation at `4ee28340618d12b6d1e10913013c2d18c7353bc1`. The merge included the root npm file-dependency fix required by Security validation. No Appwrite schema/deployment, RevenueCat webhook/dashboard change, Paddle/Vercel change, secret/configuration change, payment activation, or Production data change occurred. TestSprite remained informational and was not modified.
 
+## WiseResume Payments Phase 2A RevenueCat schema application — 2026-08-23
+
+* **Verdict:** `SCHEMA_APPLIED_VERIFIED`. The repository-controlled setup script applied exactly `revenuecat_subscription_state` and `revenuecat_event_ledger` to Appwrite project `69fd362b001eb325a192`, database `main`.
+* **Live verification:** Both collections exist with exact expected attributes and available indexes. Both have `permissions=[]`, `documentSecurity=false`, and zero documents. `user_id_unique` enforces one provider-state record per canonical user; `event_id_unique` enforces duplicate event-ID rejection. The existing `subscriptions` collection was not changed.
+* **Compatibility correction:** Appwrite rejected a required boolean with a default, so `will_renew` is now optional with default `true`, covered by the schema contract test, and the live schema matches it.
+* **Boundaries:** No Function was deployed, no Function permissions changed, no webhook secret was configured, no RevenueCat webhook/dashboard setting was changed, no Paddle/Vercel/payment setting was changed, no checkout was activated, and no Production user/provider documents were inserted.
+* **Next action:** Stop here. A separate owner-approved phase is required for targeted Function deployment, secret configuration, RevenueCat webhook creation, and sandbox lifecycle verification.
+
 ## WiseResume Payments Phase 1 RevenueCat provider-state implementation (local; unverified) — 2026-08-22
 
 * **Verdict:** `IMPLEMENTED_UNVERIFIED`. Owner-approved additive provider-state architecture was merged through PR [#201](https://github.com/iammagdy/WiseResume-TWC/pull/201) at merge commit `4ee28340618d12b6d1e10913013c2d18c7353bc1`. The implementation is present on `main`, but no payment activation is claimed.

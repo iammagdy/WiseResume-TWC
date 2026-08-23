@@ -22,6 +22,7 @@ test('provider state and event ledger contracts are durable and browser-write-fr
   const ledger = schema.COLLECTION_SPECS.find(spec => spec.id === 'revenuecat_event_ledger');
   assert.deepEqual(state.attributes.find(attribute => attribute.key === 'plan'), { key: 'plan', type: 'string', size: 16, required: true, array: false });
   assert.ok(state.attributes.some(attribute => attribute.key === 'latest_event_timestamp_ms'));
+  assert.deepEqual(state.attributes.find(attribute => attribute.key === 'will_renew'), { key: 'will_renew', type: 'boolean', required: false, array: false, default: true });
   assert.deepEqual(state.indexes.find(index => index.key === 'user_id_unique'), { key: 'user_id_unique', type: 'unique', attributes: ['user_id'], orders: ['ASC'] });
   assert.equal(ledger.indexes.find(index => index.key === 'event_id_unique').type, 'unique');
   assert.ok(ledger.attributes.some(attribute => attribute.key === 'processing_status'));
