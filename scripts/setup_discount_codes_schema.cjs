@@ -22,10 +22,26 @@ const DB_ID      = 'main';
 const COLL_ID    = 'discount_codes';
 const REDEMPTIONS_COLL_ID = 'coupon_redemptions';
 
-if (!API_KEY) { console.error('✗ APPWRITE_API_KEY is required'); process.exit(1); }
+// coupon_redemptions.user_id is a legacy oversized string attribute in the live
+// project. A composite unique index on user_id + discount_code_id exceeds
+// Appwrite's 767-byte index limit. Redemption uniqueness is enforced by the
+// deterministic document ID in appwrite-hubs/coupons/src/main.js; this index
+// preserves the fallback lookup without attempting to index the oversized field.
+const INDEX_SPECS = [
+  { collectionId: COLL_ID, key: 'code_unique', type: 'unique', attributes: ['code'] },
+  { collectionId: REDEMPTIONS_COLL_ID, key: 'discount_code_idx', type: 'key', attributes: ['discount_code_id'] },
+];
 
-const client    = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
-const databases = new sdk.Databases(client);
+let databases;
+
+function getDatabases() {
+  if (!databases) {
+    if (!API_KEY) throw new Error('APPWRITE_API_KEY is required');
+    const client = new sdk.Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
+    databases = new sdk.Databases(client);
+  }
+  return databases;
+}
 
 async function collectionExists(id) {
   try { await databases.getCollection(DB_ID, id); return true; }
@@ -112,6 +128,7 @@ async function ensureServerOnlyCollection(id, name) {
 }
 
 async function main() {
+  getDatabases();
   console.log(`Setting up discount_codes schema — project=${PROJECT_ID} db=${DB_ID}`);
 
   await ensureServerOnlyCollection(COLL_ID, 'Discount Codes');
@@ -127,8 +144,9 @@ async function main() {
   await ensureIntAttr(COLL_ID, 'max_uses', false, 0);
   await ensureIntAttr(COLL_ID, 'uses_count', false, 0);
 
-  if (!(await indexExists(COLL_ID, 'code_unique'))) {
-    await databases.createIndex(DB_ID, COLL_ID, 'code_unique', 'unique', ['code']);
+  const codeIndex = INDEX_SPECS.find(index => index.key === 'code_unique');
+  if (!(await indexExists(codeIndex.collectionId, codeIndex.key))) {
+    await databases.createIndex(DB_ID, codeIndex.collectionId, codeIndex.key, codeIndex.type, codeIndex.attributes);
     console.log('  ✓ created unique index on code');
   } else {
     console.log('  ✓ index code_unique already exists');
@@ -141,20 +159,19 @@ async function main() {
   await ensureStringAttr(REDEMPTIONS_COLL_ID, 'status', 32, true);
   await ensureDatetimeAttr(REDEMPTIONS_COLL_ID, 'redeemed_at', true);
 
-  if (!(await indexExists(REDEMPTIONS_COLL_ID, 'user_coupon_unique'))) {
-    await databases.createIndex(
-      DB_ID,
-      REDEMPTIONS_COLL_ID,
-      'user_coupon_unique',
-      'unique',
-      ['user_id', 'discount_code_id'],
-    );
-    console.log('  ✓ created unique redemption index on user + coupon');
+  const redemptionIndex = INDEX_SPECS.find(index => index.key === 'discount_code_idx');
+  if (!(await indexExists(redemptionIndex.collectionId, redemptionIndex.key))) {
+    await databases.createIndex(DB_ID, redemptionIndex.collectionId, redemptionIndex.key, redemptionIndex.type, redemptionIndex.attributes);
+    console.log('  ✓ created redemption lookup index on discount_code_id');
   } else {
-    console.log('  ✓ index user_coupon_unique already exists');
+    console.log('  ✓ index discount_code_idx already exists');
   }
 
   console.log('\n✅ discount_codes schema ready');
 }
 
-main().catch(e => { console.error('✗', e.message); process.exit(1); });
+if (require.main === module) {
+  main().catch(e => { console.error('✗', e.message); process.exit(1); });
+}
+
+module.exports = { __test: { INDEX_SPECS } };
