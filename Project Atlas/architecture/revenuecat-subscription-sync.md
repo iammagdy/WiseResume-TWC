@@ -1,7 +1,7 @@
 # WiseResume RevenueCat Subscription Synchronization
 
 **Last Verified:** 2026-08-22
-**Status:** `IMPLEMENTED_UNVERIFIED` — local implementation and mock-only validation completed; Appwrite schema application, function deployment, RevenueCat webhook creation, secret configuration, payment activation, and browser/Production verification were intentionally not performed.
+**Status:** `IMPLEMENTED_UNVERIFIED` — implementation merged through PR #201 at `4ee28340618d12b6d1e10913013c2d18c7353bc1`; Appwrite schema application, function deployment, RevenueCat webhook creation, secret configuration, payment activation, and browser/Production verification were intentionally not performed.
 **Location:** `Project Atlas/architecture/revenuecat-subscription-sync.md`
 
 ## Scope and preserved contracts
@@ -51,7 +51,7 @@ Duplicate deliveries are rejected as already recorded by the durable event ledge
 
 Local validation completed for the new code includes 15 focused Node tests across webhook lifecycle, schema contract, AI plan regression, and Appwrite function-policy coverage; existing coupon and AI concurrency hub tests also passed. The full frontend Vitest suite passed with 222 files, 1,236 tests, 8 skipped tests, and 1 todo. `node --check`, `git diff --check`, and `npx tsc --noEmit` passed. The first plain `npm run build` attempt was terminated by sandbox memory pressure; the same build completed successfully on a bounded-heap retry (`NODE_OPTIONS=--max-old-space-size=2048 npm run build`), retaining only the existing advisory large-chunk warnings and emitting no source maps.
 
-This status is local only: `IMPLEMENTED_UNVERIFIED`. No Appwrite schema setup script was executed, no Appwrite function was deployed, no RevenueCat webhook was created, no secret or environment value was entered or changed, no Paddle or Vercel configuration was changed, no checkout was activated, no Production data was mutated, and no commit, push, merge, or deployment was performed.
+This status remains `IMPLEMENTED_UNVERIFIED` after merge: No Appwrite schema setup script was executed, no Appwrite function was deployed, no RevenueCat webhook was created, no secret or environment value was entered or changed, no Paddle or Vercel configuration was changed, no checkout was activated, and no Production data was mutated. The repository implementation was committed, pushed, and merged through PR #201; no external deployment or payment activation occurred.
 
 ## References
 
