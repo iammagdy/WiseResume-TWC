@@ -21,7 +21,7 @@ The repository includes the unexecuted `scripts/setup_revenuecat_schema.cjs` pro
 
 ### Provider-state attributes
 
-`revenuecat_subscription_state` contains `user_id` (required string, 64), `plan` (required string, 16), `entitlement_id` (required string, 64), `product_id` (required string, 128), `environment` (required string, 16), `status` (required string, 24), `expires_at` (required string, 32), `will_renew` (required boolean, default `true`), `latest_event_id` (required string, 128), `latest_event_type` (required string, 32), `latest_event_timestamp_ms` (required integer), and `updated_at` (required string, 32). The `user_id_unique` unique index guarantees at most one current provider-state document per canonical user; the companion user index supports server-side lookup, and the latest-event index supports operational inspection.
+`revenuecat_subscription_state` contains `user_id` (required string, 64), `plan` (required string, 16), `entitlement_id` (required string, 64), `product_id` (required string, 128), `environment` (required string, 16), `status` (required string, 24), `expires_at` (required string, 32), `will_renew` (optional boolean, default `true`), `latest_event_id` (required string, 128), `latest_event_type` (required string, 32), `latest_event_timestamp_ms` (required integer), and `updated_at` (required string, 32). The `user_id_unique` unique index guarantees at most one current provider-state document per canonical user; the companion user index supports server-side lookup, and the latest-event index supports operational inspection.
 
 ### Event-ledger attributes
 
@@ -51,7 +51,7 @@ Duplicate deliveries are rejected as already recorded by the durable event ledge
 
 Local validation completed for the new code includes 15 focused Node tests across webhook lifecycle, schema contract, AI plan regression, and Appwrite function-policy coverage; existing coupon and AI concurrency hub tests also passed. The full frontend Vitest suite passed with 222 files, 1,236 tests, 8 skipped tests, and 1 todo. `node --check`, `git diff --check`, and `npx tsc --noEmit` passed. The first plain `npm run build` attempt was terminated by sandbox memory pressure; the same build completed successfully on a bounded-heap retry (`NODE_OPTIONS=--max-old-space-size=2048 npm run build`), retaining only the existing advisory large-chunk warnings and emitting no source maps.
 
-This status remains `IMPLEMENTED_UNVERIFIED` after merge: No Appwrite schema setup script was executed, no Appwrite function was deployed, no RevenueCat webhook was created, no secret or environment value was entered or changed, no Paddle or Vercel configuration was changed, no checkout was activated, and no Production data was mutated. The repository implementation was committed, pushed, and merged through PR #201; no external deployment or payment activation occurred.
+This status is `SCHEMA_APPLIED_VERIFIED` after Phase 2A: the two additive Appwrite collections were applied and live-verified. No Appwrite function was deployed, no RevenueCat webhook was created, no secret or environment value was entered or changed, no Paddle or Vercel configuration was changed, no checkout was activated, and no Production data was mutated. The repository implementation was committed, pushed, and merged through PR #201; no external Function deployment or payment activation occurred.
 
 ## References
 

@@ -25,7 +25,7 @@ const COLLECTION_SPECS = Object.freeze([
       { key: 'environment', type: 'string', size: 16, required: true, array: false },
       { key: 'status', type: 'string', size: 24, required: true, array: false },
       { key: 'expires_at', type: 'string', size: 32, required: true, array: false },
-      { key: 'will_renew', type: 'boolean', required: true, array: false, default: true },
+      { key: 'will_renew', type: 'boolean', required: false, array: false, default: true },
       { key: 'latest_event_id', type: 'string', size: 128, required: true, array: false },
       { key: 'latest_event_type', type: 'string', size: 32, required: true, array: false },
       { key: 'latest_event_timestamp_ms', type: 'integer', required: true, array: false, min: 0, max: 9999999999999 },

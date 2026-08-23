@@ -1,20 +1,20 @@
 # WiseResume Payments Phase 1 — RevenueCat Provider-State Implementation Report
 
 **Date:** 2026-08-22
-**Status:** `IMPLEMENTED_UNVERIFIED`
-**Branch:** `feat/revenuecat-subscription-sync`
-**Baseline:** `b03e39296389c9bc9d820f344a405e9f01c67246` (`HEAD` and `origin/main`)
-**Scope:** Local repository implementation and mock-only validation. No external payment, Appwrite, RevenueCat, Paddle, Vercel, secret, or Production change was authorized or performed.
+**Status:** `SCHEMA_APPLIED_VERIFIED` — Phase 2A only
+**Branch:** `fix/payments-phase2a-schema-compat`
+**Baseline:** `3cc66720a176912de22fefcc35b43028ed79ec68` (`origin/main` before this Phase 2A correction)
+**Scope:** Repository-controlled additive Appwrite schema application and read-only live verification. No Function deployment, webhook configuration, secret configuration, payment activation, or Production data change was authorized or performed.
 
 ## Verdict
 
-The owner-approved additive RevenueCat provider-state architecture is implemented locally and validated with focused mock-only tests plus the relevant existing repository tests. The existing overloaded `subscriptions` collection is not modified by the webhook design, and provider lifecycle is resolved through isolated state plus a highest-valid-plan resolver. The implementation is **not deployed, configured, browser-tested, or Production-verified**.
+Phase 2A applied exactly the two repository-controlled additive RevenueCat collections to Appwrite project `69fd362b001eb325a192`, database `main`, and verified their live schema, indexes, uniqueness constraints, server-only permissions, document-security flags, and zero document counts. The existing overloaded `subscriptions` collection remained untouched. The Function, webhook secret, RevenueCat webhook configuration, checkout, and payment activation remain unconfigured and unverified.
 
-> `IMPLEMENTED_UNVERIFIED` means the repository behavior is locally implemented and tested, while all external configuration and runtime verification remain intentionally pending.
+> `SCHEMA_APPLIED_VERIFIED` means only the two additive collections were applied and their live contracts were verified; it does not mean the Appwrite Function is deployed, a RevenueCat webhook is configured, or payments are active.
 
 ## 1. Scope completed
 
-The implementation adds a new Appwrite hub, a shared server-side resolver package, two unexecuted idempotent schema definitions, targeted deployment metadata, focused test coverage, and Atlas documentation. The work does not activate checkout, alter payment settings, create a RevenueCat webhook, apply Appwrite schemas, deploy Appwrite Functions, change secrets, or mutate Production data.
+The implementation adds a new Appwrite hub, a shared server-side resolver package, two idempotent schema definitions, targeted deployment metadata, focused test coverage, and Atlas documentation. Phase 2A executed only the schema setup script; it did not activate checkout, alter payment settings, create a RevenueCat webhook, deploy Appwrite Functions, change secrets, or mutate Production data.
 
 | Area | Result | Evidence |
 |---|---|---|
@@ -121,27 +121,39 @@ The provider-state uniqueness requirement is proven by both the unique `user_id_
 
 The implementation commits were pushed on `feat/revenuecat-subscription-sync` and merged through PR #201 at `2026-08-23T16:56:51Z` with merge commit `4ee28340618d12b6d1e10913013c2d18c7353bc1`. `origin/main` contains the implementation; no force operation occurred.
 
-No Appwrite schema setup command was executed. No Appwrite Function was deployed. No RevenueCat webhook was created or changed. No Paddle product, price, webhook, API key, subscription, or dashboard setting was changed. No Vercel configuration or deployment was changed. No secret or environment value was entered, changed, or exposed. Checkout and payment activation remain disabled.
+The repository-controlled schema setup command was executed against Appwrite project `69fd362b001eb325a192`, database `main`, and completed successfully after the Appwrite-compatible `will_renew` correction. No Appwrite Function was deployed. No RevenueCat webhook was created or changed. No Paddle product, price, webhook, API key, subscription, or dashboard setting was changed. No Vercel configuration or deployment was changed. No webhook secret or Appwrite Function environment value was configured. Checkout and payment activation remain disabled.
 
-## 12. Draft PR state
+## 12. Phase 2A live schema verification
 
-The approved commit is `5e789b605bd53661affc5afd2dc0f95934ae8ea1` (`feat(payments): add RevenueCat subscription sync foundation`). It was pushed to `feat/revenuecat-subscription-sync`, and Draft PR [#201](https://github.com/iammagdy/WiseResume-TWC/pull/201) is open against `main`. The PR body explicitly states that the collections and Function are defined but not applied or deployed, the webhook secret is not configured, no RevenueCat dashboard webhook exists from this work, checkout remains disabled, and external configuration requires a separate owner-approved phase.
+The live verification used a temporary sanitized Node/Appwrite SDK reader and inspected only collection metadata, attributes, indexes, permissions, `documentSecurity`, and document totals. No customer/provider documents were read.
+
+| Collection | Live result |
+|---|---|
+| `revenuecat_subscription_state` | Exists in `main`; exact attributes available; `will_renew` is optional boolean with default `true`; `user_id_unique` is available and unique; `permissions=[]`; `documentSecurity=false`; document total `0`. |
+| `revenuecat_event_ledger` | Exists in `main`; exact attributes available; `event_id_unique` is available and unique; `permissions=[]`; `documentSecurity=false`; document total `0`. |
+| Existing `subscriptions` | Existing `User Subscriptions` collection remained readable with its existing permissions and `documentSecurity=true`; the setup script did not target or mutate it. |
+
+The first setup attempt stopped on Appwrite’s rule that a required attribute cannot also have a default. The repository definition was corrected to `will_renew` optional/default `true`, the schema contract test was extended, and the idempotent setup was rerun successfully.
+
+## 13. Merged PR state
+
+PR [#201](https://github.com/iammagdy/WiseResume-TWC/pull/201) merged at `2026-08-23T16:56:51Z` with merge commit `4ee28340618d12b6d1e10913013c2d18c7353bc1`. Documentation closeout PR [#202](https://github.com/iammagdy/WiseResume-TWC/pull/202) merged at `2026-08-23T17:00:54Z` with merge commit `3cc66720a176912de22fefcc35b43028ed79ec68`. The implementation and closeout documentation are present on `main`; the live schema was subsequently applied only in this Phase 2A task.
 
 Before merge, PR Validation, Security validation, Vercel, and Vercel Preview Comments passed after the root dependency fix. TestSprite Pre-Check reported `FAILURE` with no tests detected, remained informational, and was not modified. PR #201 was marked ready and merged through the normal workflow; no CI configuration was changed to alter these statuses.
 
-## 13. Browser and live verification
+## 14. Browser and live verification
 
-Browser/runtime verification was not performed for this local-only implementation. Live Appwrite schema coexistence remains outside this implementation because the owner explicitly approved proceeding with the additive design without applying it. RevenueCat webhook delivery, Appwrite user lookup, live state persistence, Realtime subscription refresh, AI limit behavior against live provider state, and Production payment behavior are therefore **UNVERIFIED**.
+Browser/runtime verification was not performed in this schema-only phase. Live Appwrite schema verification is complete for the two additive collections. RevenueCat webhook delivery, Appwrite user lookup through the Function, live provider-state persistence, Realtime subscription refresh, AI limit behavior against live provider state, and Production payment behavior remain **UNVERIFIED** because the Function and webhook are not deployed/configured.
 
-## 14. Risks and required next action
+## 15. Risks and required next action
 
-The primary remaining risk is integration configuration: the two collections must be applied server-side, the Appwrite Function must be deployed through the targeted repository workflow, the secret must be configured, and RevenueCat must be pointed to the deployed HTTPS endpoint. Those are separate owner-authorized release steps and were intentionally not performed here. A future rollout should apply the schema before deploying the function, verify the live collection contract and server-only permissions, configure the secret out of band, create the RevenueCat webhook in the intended environment, and then run safe sandbox lifecycle verification.
+The remaining risk is integration configuration and runtime verification: the Appwrite Function must be deployed through the targeted repository workflow, the webhook secret must be configured out of band, and RevenueCat must be pointed to the deployed HTTPS endpoint. Those steps were intentionally not performed here. A future rollout should re-check the live server-only collections, deploy only the targeted Function, configure the secret, create the RevenueCat webhook in the intended Sandbox environment, and then run safe lifecycle verification.
 
-The required next action is a separate owner-approved external configuration/deployment phase. Do not describe this work as Production-ready until the Appwrite schema and Function are deployed, the secret and RevenueCat webhook are configured, and browser/runtime verification is completed.
+The required next action is a separate owner-approved Function/webhook configuration phase. Do not describe this work as Production-ready until the targeted Appwrite Function is deployed, the secret and RevenueCat webhook are configured, and browser/runtime verification is completed.
 
 ## References
 
 [1]: https://www.revenuecat.com/docs/integrations/webhooks "RevenueCat Webhooks"
 [2]: https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields "RevenueCat Webhook Event Types and Fields"
 
-IMPLEMENTED_UNVERIFIED
+SCHEMA_APPLIED_VERIFIED
