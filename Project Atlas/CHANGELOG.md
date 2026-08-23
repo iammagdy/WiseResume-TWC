@@ -1,5 +1,11 @@
 # Project Atlas Master Changelog
 
+## 2026-08-23 - WiseResume PR #201 Security CI fix, merge, and payment boundary closeout
+
+- **CI root cause/fix:** Security validation installed only the repository root, while the shared resolver was initially available only through hub-local file dependencies. Added the existing `file:./appwrite-hubs/shared-subscription-resolver` dependency to the root `package.json` and lockfile. No workspace migration, duplicated resolver, test skip, or security-workflow weakening was introduced.
+- **Merge:** PR [#201](https://github.com/iammagdy/WiseResume-TWC/pull/201) passed PR Validation, Security validation, Vercel, and Vercel Preview Comments after the fix, then merged at `2026-08-23T16:56:51Z` with merge commit `4ee28340618d12b6d1e10913013c2d18c7353bc1`. TestSprite `No tests detected` remained informational and was not modified.
+- **Boundary:** The Payments Phase 1 implementation is present on `main` but remains `IMPLEMENTED_UNVERIFIED`. Appwrite schemas and Functions were not deployed, the webhook secret was not configured, no RevenueCat webhook was created, Paddle/Vercel configuration and Production data were unchanged, and checkout/payment activation remains disabled.
+
 ## 2026-08-23 - WiseResume PR #201 Security CI shared-resolver packaging fix (local; awaiting refreshed checks)
 
 - **Root cause:** The Security validation workflow runs `npm ci --ignore-scripts` at repository root and then imports Appwrite hub CommonJS sources from `src/lib/security`. The hub-local `file:../shared-subscription-resolver` installs were not present in a fresh root CI install, so Node could not resolve `@wiseresume/subscription-resolver` from `appwrite-hubs/ai-gateway/src/main.js` or `appwrite-hubs/admin-devkit-data/src/main.js`.
