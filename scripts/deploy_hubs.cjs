@@ -1,6 +1,7 @@
 const sdk = require('node-appwrite');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 const {
@@ -181,37 +182,45 @@ function manifestConfigForHub(hub) {
     return fn;
 }
 
-function materializeLocalFileDependencies(hubDir, pkg) {
-    const dependencies = {
-        ...(pkg.dependencies || {}),
-        ...(pkg.optionalDependencies || {}),
-    };
+function stageLocalFileDependencies(hubDir, stageDir, pkg) {
+    const stagedPkg = JSON.parse(JSON.stringify(pkg));
+    const dependencySections = ['dependencies', 'optionalDependencies'];
+    const localDependencyRoot = path.join(stageDir, '.deployment-local-deps');
 
-    for (const [dependencyName, spec] of Object.entries(dependencies)) {
-        if (typeof spec !== 'string' || !spec.startsWith('file:')) continue;
+    for (const section of dependencySections) {
+        for (const [dependencyName, spec] of Object.entries(stagedPkg[section] || {})) {
+            if (typeof spec !== 'string' || !spec.startsWith('file:')) continue;
 
-        const sourceDir = path.resolve(hubDir, spec.slice('file:'.length));
-        const sourcePackageJson = path.join(sourceDir, 'package.json');
-        if (!fs.existsSync(sourcePackageJson)) {
-            throw new Error(`Local dependency ${dependencyName} is missing package.json at ${sourceDir}`);
+            const sourceDir = path.resolve(hubDir, spec.slice('file:'.length));
+            const sourcePackageJson = path.join(sourceDir, 'package.json');
+            if (!fs.existsSync(sourcePackageJson)) {
+                throw new Error(`Local dependency ${dependencyName} is missing package.json at ${sourceDir}`);
+            }
+
+            const declaredName = JSON.parse(fs.readFileSync(sourcePackageJson, 'utf8')).name;
+            if (declaredName !== dependencyName) {
+                throw new Error(`Local dependency name mismatch: ${dependencyName} != ${declaredName}`);
+            }
+
+            const stagedName = `dep-${crypto.createHash('sha256').update(dependencyName).digest('hex').slice(0, 16)}`;
+            const stagedDependencyDir = path.join(localDependencyRoot, stagedName);
+            fs.mkdirSync(localDependencyRoot, { recursive: true });
+            fs.cpSync(sourceDir, stagedDependencyDir, { recursive: true, dereference: true });
+            stagedPkg[section][dependencyName] = `file:./.deployment-local-deps/${stagedName}`;
         }
+    }
 
-        const declaredName = JSON.parse(fs.readFileSync(sourcePackageJson, 'utf8')).name;
-        if (declaredName !== dependencyName) {
-            throw new Error(`Local dependency name mismatch: ${dependencyName} != ${declaredName}`);
-        }
+    fs.writeFileSync(path.join(stageDir, 'package.json'), `${JSON.stringify(stagedPkg, null, 2)}\n`);
+    return stagedPkg;
+}
 
-        const targetDir = path.join(hubDir, 'node_modules', dependencyName);
-        if (!fs.existsSync(targetDir)) {
-            throw new Error(`Installed local dependency ${dependencyName} is missing from ${targetDir}`);
-        }
-
-        const targetStat = fs.lstatSync(targetDir);
-        if (targetStat.isSymbolicLink()) {
-            fs.rmSync(targetDir, { force: true });
-            fs.cpSync(sourceDir, targetDir, { recursive: true, dereference: true });
-            console.log(`  Materialized local dependency ${dependencyName} for deployment`);
-        }
+function materializeStagedFileDependencies(stageDir, pkg) {
+    for (const dependencyName of Object.keys(pkg.dependencies || {})) {
+        const targetDir = path.join(stageDir, 'node_modules', dependencyName);
+        if (!fs.existsSync(targetDir) || !fs.lstatSync(targetDir).isSymbolicLink()) continue;
+        const resolvedDir = fs.realpathSync(targetDir);
+        fs.rmSync(targetDir, { force: true });
+        fs.cpSync(resolvedDir, targetDir, { recursive: true, dereference: true });
     }
 }
 
@@ -225,13 +234,26 @@ function buildHub(hub) {
         if (!fs.existsSync(packageLock)) {
             throw new Error(`Deterministic build blocked: ${hub.id} is missing package-lock.json`);
         }
-        const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf8'));
-        console.log(`  Installing deps for ${hub.id}...`);
-        execSync('npm ci --omit=dev --ignore-scripts --silent', { cwd: hubDir, stdio: 'inherit' });
-        materializeLocalFileDependencies(hubDir, pkg);
+
+        const stageDir = fs.mkdtempSync(path.join(os.tmpdir(), `wiseresume-${hub.id}-`));
+        try {
+            fs.cpSync(hubDir, stageDir, {
+                recursive: true,
+                filter: source => path.basename(source) !== 'node_modules' && path.basename(source) !== 'package-lock.json',
+            });
+            const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf8'));
+            const stagedPkg = stageLocalFileDependencies(hubDir, stageDir, pkg);
+            console.log(`  Installing deps for ${hub.id}...`);
+            execSync('npm install --package-lock-only --ignore-scripts --no-audit --no-fund --silent', { cwd: stageDir, stdio: 'inherit' });
+            execSync('npm ci --omit=dev --ignore-scripts --silent', { cwd: stageDir, stdio: 'inherit' });
+            materializeStagedFileDependencies(stageDir, stagedPkg);
+            execSync(`tar -czf "${archivePath}" .`, { cwd: stageDir });
+        } finally {
+            fs.rmSync(stageDir, { recursive: true, force: true });
+        }
+    } else {
+        execSync(`tar -czf "${archivePath}" .`, { cwd: hubDir });
     }
-    console.log(`  Packaging ${hub.id}...`);
-    execSync(`tar -czf "${archivePath}" .`, { cwd: hubDir });
     console.log(`  Built ${hub.file}`);
 }
 
