@@ -181,6 +181,40 @@ function manifestConfigForHub(hub) {
     return fn;
 }
 
+function materializeLocalFileDependencies(hubDir, pkg) {
+    const dependencies = {
+        ...(pkg.dependencies || {}),
+        ...(pkg.optionalDependencies || {}),
+    };
+
+    for (const [dependencyName, spec] of Object.entries(dependencies)) {
+        if (typeof spec !== 'string' || !spec.startsWith('file:')) continue;
+
+        const sourceDir = path.resolve(hubDir, spec.slice('file:'.length));
+        const sourcePackageJson = path.join(sourceDir, 'package.json');
+        if (!fs.existsSync(sourcePackageJson)) {
+            throw new Error(`Local dependency ${dependencyName} is missing package.json at ${sourceDir}`);
+        }
+
+        const declaredName = JSON.parse(fs.readFileSync(sourcePackageJson, 'utf8')).name;
+        if (declaredName !== dependencyName) {
+            throw new Error(`Local dependency name mismatch: ${dependencyName} != ${declaredName}`);
+        }
+
+        const targetDir = path.join(hubDir, 'node_modules', dependencyName);
+        if (!fs.existsSync(targetDir)) {
+            throw new Error(`Installed local dependency ${dependencyName} is missing from ${targetDir}`);
+        }
+
+        const targetStat = fs.lstatSync(targetDir);
+        if (targetStat.isSymbolicLink()) {
+            fs.rmSync(targetDir, { force: true });
+            fs.cpSync(sourceDir, targetDir, { recursive: true, dereference: true });
+            console.log(`  Materialized local dependency ${dependencyName} for deployment`);
+        }
+    }
+}
+
 function buildHub(hub) {
     const hubDir = path.join(ROOT, 'appwrite-hubs', hub.id);
     const archivePath = path.join(ROOT, hub.file);
@@ -191,8 +225,10 @@ function buildHub(hub) {
         if (!fs.existsSync(packageLock)) {
             throw new Error(`Deterministic build blocked: ${hub.id} is missing package-lock.json`);
         }
+        const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf8'));
         console.log(`  Installing deps for ${hub.id}...`);
         execSync('npm ci --omit=dev --ignore-scripts --silent', { cwd: hubDir, stdio: 'inherit' });
+        materializeLocalFileDependencies(hubDir, pkg);
     }
     console.log(`  Packaging ${hub.id}...`);
     execSync(`tar -czf "${archivePath}" .`, { cwd: hubDir });
