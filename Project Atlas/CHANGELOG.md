@@ -1,5 +1,12 @@
 # Project Atlas Master Changelog
 
+## 2026-08-23 - WiseResume PR #201 Security CI shared-resolver packaging fix (local; awaiting refreshed checks)
+
+- **Root cause:** The Security validation workflow runs `npm ci --ignore-scripts` at repository root and then imports Appwrite hub CommonJS sources from `src/lib/security`. The hub-local `file:../shared-subscription-resolver` installs were not present in a fresh root CI install, so Node could not resolve `@wiseresume/subscription-resolver` from `appwrite-hubs/ai-gateway/src/main.js` or `appwrite-hubs/admin-devkit-data/src/main.js`.
+- **Fix:** Added the existing local package as a root-level npm `file:./appwrite-hubs/shared-subscription-resolver` dependency and regenerated the root lockfile. No workspace migration, duplicated resolver, security workflow weakening, or business-logic change was introduced.
+- **Validation:** After a root `npm ci --ignore-scripts`, `require.resolve('@wiseresume/subscription-resolver')` succeeded and the exact Security workflow command `npx vitest run src/lib/security` passed 33 files and 168 tests. Focused Payments/hub tests, syntax checks, TypeScript, full Vitest, and bounded-heap build also passed locally.
+- **PR boundary:** The corrective change is not deployed. No Appwrite, RevenueCat, Paddle, Vercel, secret, schema, permission, Production, checkout, or payment activation change occurred. PR #201 remains open and must not be merged until refreshed Security validation passes. TestSprite remains informational and was not modified.
+
 ## 2026-08-22 - WiseResume Payments Phase 1 RevenueCat provider-state implementation (local; unverified)
 
 - **Architecture:** Added the additive server-only `revenuecat_subscription_state` and durable `revenuecat_event_ledger` schema definitions. The existing overloaded `subscriptions` collection is unchanged; no live schema setup was executed.

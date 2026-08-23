@@ -7,6 +7,13 @@
 
 ---
 
+## WiseResume PR #201 Security CI shared-resolver packaging fix — 2026-08-23
+
+* **Root cause:** The Security validation workflow installs only the repository root with `npm ci --ignore-scripts`, then imports hub CommonJS sources from `src/lib/security`. The new shared resolver existed only as hub-local `file:../shared-subscription-resolver` dependencies, so a fresh root CI install could not resolve `@wiseresume/subscription-resolver`.
+* **Fix:** Added the existing local resolver package as a root npm file dependency and regenerated the root lockfile. This is a minimal package-availability fix, not a workspace migration, duplicated business logic, test skip, or security-workflow weakening.
+* **Validation:** Fresh root install plus `require.resolve` succeeded; exact `npx vitest run src/lib/security` passed 33 files/168 tests. Focused Payments/hub tests, `node --check`, `git diff --check`, `npx tsc --noEmit`, full Vitest, and bounded-heap build passed locally.
+* **PR state:** A corrective commit is ready to push to PR #201. No Appwrite schema/deployment, RevenueCat webhook/dashboard change, Paddle/Vercel change, secret/configuration change, payment activation, Production data change, or merge occurred. TestSprite remains informational and was not modified.
+
 ## WiseResume Payments Phase 1 RevenueCat provider-state implementation (local; unverified) — 2026-08-22
 
 * **Verdict:** `IMPLEMENTED_UNVERIFIED`. Owner-approved additive provider-state architecture is implemented locally on `feat/revenuecat-subscription-sync`; current `HEAD` remains the clean `origin/main` baseline before these uncommitted changes. No payment activation is claimed.
