@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-08-20
+**Last Verified:** 2026-08-23
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -51,6 +51,23 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **GitHub Actions Run:** `30101982337` - success in `5m15s` after corrective PR #158.
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
+
+### Authorized WiseResume Payments Phase 2B Deployment — 2026-08-23
+
+* **GitHub Actions Run:** `32659598098`, successful.
+* **Source Commit:** `8e9476fbc9a58118fc13b5eec80505a0ca97d1f3`.
+* **Exact Target Input:** `revenuecat-webhook,coupons,ai-gateway,admin-devkit-data`.
+* **Packaging corrections:** PR #207 added the webhook package lockfile; PR #208 added local resolver materialization; PR #209 staged local dependencies inside each archive with internal lockfile paths. All three merged normally into `main`.
+* **Scope Safety:** No `target=all`, Appwrite Console source deployment, unrelated Function deployment, Paddle/RevenueCat webhook creation, checkout activation, or Production payment activation occurred.
+
+| Function ID | Deployment ID | Repository source SHA-256 | Runtime / entrypoint | Execute | API state |
+|---|---|---|---|---|---|
+| `revenuecat-webhook` | `6a8b428bcc672552c93c` | `84b912c8fb19847b8c9f3e5fb244e6a6f0d47ea75a3479be2e83f8416ed2d3ca` | `node-22` / `src/main.js` | `["any"]` | enabled, ready, `live=false` |
+| `coupons` | `6a8b4298cc91fa11cc23` | `7f446ce4beaeebff1b0d1b9fd5759525c5c5641d42f133b9a487552cfabf9125` | `node-22` / `src/main.js` | `["any"]` | enabled, ready, `live=false` |
+| `ai-gateway` | `6a8b42a5e0965bff82f1` | `90dc27f2352511f8fc26a085ef85cb703ed085dd7af853aaf536ca90c836f867` | `node-22` / `src/main.js` | `["users"]` | enabled, ready, `live=false` |
+| `admin-devkit-data` | `6a8b42b268421195ca8f` | `7683b44a7dc033aecc739541cc0ec91f0d7fcd31fabf7a2a8718d498b22431e0` | `node-22` / `src/main.js` | `["users"]` | enabled, ready, `live=false` |
+
+The webhook Function exposes the variable name `REVENUECAT_WEBHOOK_AUTH_SECRET` with Appwrite’s secret flag. The secret value is not recorded; Appwrite redacts it, so value parity is not independently provable. The custom domain `revenuecat-webhook.wiseresume.app` has the required CNAME to `fra.cloud.appwrite.io`, but its certificate remains pending/invalid under strict TLS and its diagnostic route returns HTTP `421`. The next runtime gate is `APPWRITE_CUSTOM_DOMAIN_SSL_PENDING`.
 
 ### Authorized WiseResume DevKit Deployment — 2026-08-15
 

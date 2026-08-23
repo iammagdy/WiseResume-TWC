@@ -1,6 +1,6 @@
 # Canonical Third-Party & Infrastructure Integrations
 
-**Last Verified:** 2026-07-03  
+**Last Verified:** 2026-08-23
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/integrations.md`  
 
@@ -16,4 +16,4 @@
 | **DOCX Parsing** | Mammoth.js | Client-side `docxParser.ts` | Local browser-side text extraction from uploaded Word resumes. |
 | **OCR Fallback** | Tesseract.js | Web Worker (`public/ocr/`) | Optical Character Recognition for image-only scanned PDFs. |
 | **Transactional Email** | SendGrid / SMTP | Appwrite `email-service` function | Portfolio contact notifications, OTP password resets. |
-| **Subscription lifecycle** | RevenueCat → future Paddle integration | Appwrite `revenuecat-webhook` plus server-only provider-state collections | Phase 2A: `revenuecat_subscription_state` and `revenuecat_event_ledger` are applied and live-verified as server-only collections. The Function, webhook secret, RevenueCat configuration, and payment activation remain unconfigured. |
+| **Subscription lifecycle** | RevenueCat → Paddle Sandbox (future activation) | Appwrite `revenuecat-webhook` plus server-only provider-state collections | Phase 2A collections are live and verified; the exact four-target Phase 2B Function deployment is ready. The custom domain `revenuecat-webhook.wiseresume.app` remains blocked by pending/invalid SSL, so RevenueCat webhook delivery, lifecycle verification, and payment activation remain unconfigured. |

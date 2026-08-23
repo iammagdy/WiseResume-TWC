@@ -1,12 +1,22 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-08-20
-**Status:** `DEPLOYED_VERIFIED_WITH_WARNINGS` — PR [#198](https://github.com/iammagdy/WiseResume-TWC/pull/198) merged into `main` at merge commit `39c58a338eef75581b910741f932233a2defde63`. The Vercel Production deployment completed successfully, and authenticated browser QA reached stable route states. WISE-RESUME-16, WISE-RESUME-T/V, and WISE-RESUME-P/Z have deployed frontend fixes; WISE-RESUME-11 is corrected in current source and was absent from the captured live Applications state; WISE-RESUME-13 remains unresolved but its only observed event predates deployment; WISE-RESUME-Q remains insufficiently evidenced.
+**Last Verified:** 2026-08-23
+**Status:** `PAYMENTS_SESSION_CLOSED_SSL_PENDING` — The existing PR #198 Production status remains `DEPLOYED_VERIFIED_WITH_WARNINGS`. Payments Phase 2B deployed the exact approved Appwrite Function targets, but the custom RevenueCat webhook domain remains unavailable under strict TLS; no RevenueCat webhook or lifecycle activation occurred.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments Phase 2B session closeout — 2026-08-23
+
+* **Runtime:** Targeted workflow `32659598098` succeeded from `8e9476fbc9a58118fc13b5eec80505a0ca97d1f3` with exactly `revenuecat-webhook,coupons,ai-gateway,admin-devkit-data`; all selected Functions are enabled with latest Appwrite deployments `ready`. The API `live` flag is `false` for each and is not treated as an inferred Production-live claim.
+* **Provider-state schema:** `revenuecat_subscription_state` and `revenuecat_event_ledger` are live, server-only, uniquely indexed, and at zero documents. Existing `subscriptions` was not destructively changed.
+* **Custom domain:** `revenuecat-webhook.wiseresume.app` resolves through the required CNAME to `fra.cloud.appwrite.io`, but strict TLS fails hostname validation because the presented certificate SAN is `t.sni-820-default.ssl.fastly.net`; the insecure route diagnostic returns HTTP `421`. Current blocker: `APPWRITE_CUSTOM_DOMAIN_SSL_PENDING`.
+* **Provider boundary:** No RevenueCat Sandbox webhook or Production webhook was created; no lifecycle events were sent; no real customer subscription state was used; checkout remains disabled and Production payments remain inactive.
+* **Credential warning:** A Paddle Sandbox API key was unintentionally exposed by a tool/MCP result during read-only inspection. The secret value is never recorded. Rotation is `ROTATION DEFERRED BY OWNER` and must occur before further provider activation or Production payment work.
+* **Next action:** Re-check strict TLS and Appwrite certificate status first in a new session. If pending, stop. If valid, run the three transport smoke tests, then create a Sandbox-only RevenueCat webhook and use only a dedicated non-real test fixture for lifecycle verification.
+* **Report:** [`reports/2026-08-23-payments-session-closeout.md`](./reports/2026-08-23-payments-session-closeout.md)
 
 ## Sentry production fixes — merged and deployed (2026-08-20)
 
