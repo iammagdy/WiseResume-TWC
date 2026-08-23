@@ -62,12 +62,12 @@ The focused validation passed:
 
 ## 5. Git and deployment state
 
-The Phase 2B workflow run `32656801892` deployed zero Functions and remains the historical failed attempt. No Phase 2B deployment was retried. This fix is on `fix/coupon-schema-index-compat`; it has not yet been committed, pushed, or merged at the time of this report.
+The Phase 2B workflow run `32656801892` deployed zero Functions and remains the historical failed attempt. No Phase 2B deployment was retried. The fix was committed as `ccd1c44`, pushed on `fix/coupon-schema-index-compat`, and merged through PR [#205](https://github.com/iammagdy/WiseResume-TWC/pull/205) at `2026-08-23T18:18:09Z` with merge commit `c7e4dc4e9ea8e7dc15bbf0b6cd8fc5e12d404870`. `origin/main` contains the fix.
 
 No RevenueCat webhook was created. No Appwrite webhook secret was configured. Paddle, Vercel, checkout, payment activation, AI credits, user subscriptions, and Production data were not changed.
 
 ## 6. Exact next action
 
-Commit and push this scoped schema compatibility fix, open a focused PR against `main`, run normal required checks, and merge only if they pass. After merge, a separately authorized Phase 2B deployment may retry the four proven Function targets. Do not bypass the coupon schema hook, use `target=all`, deploy from the Appwrite Console, create the RevenueCat webhook, or configure secrets in this task.
+The focused fix PR #205 has merged and `origin/main` contains the correction. Stop this task. A separately authorized Phase 2B deployment may later retry the four proven Function targets. Do not bypass the coupon schema hook, use `target=all`, deploy from the Appwrite Console, create the RevenueCat webhook, or configure secrets in this task.
 
 COUPON_SCHEMA_BLOCKER_RESOLVED

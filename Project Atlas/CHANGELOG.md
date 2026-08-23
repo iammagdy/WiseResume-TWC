@@ -2,6 +2,8 @@
 
 ## 2026-08-23 - WiseResume coupon schema index compatibility blocker resolved
 
+- **Merge closeout:** Focused PR [#205](https://github.com/iammagdy/WiseResume-TWC/pull/205) merged at `2026-08-23T18:18:09Z` with merge commit `c7e4dc4e9ea8e7dc15bbf0b6cd8fc5e12d404870`; `origin/main` contains the fix. Phase 2B Function deployment remains stopped pending a separate approved retry.
+
 - **Confirmed blocker:** Phase 2B workflow run `32656801892` deployed zero Functions and stopped in `Ensure coupon security schema` while creating `coupon_redemptions.user_coupon_unique`.
 - **Root cause:** Live `coupon_redemptions.user_id` is a legacy string size `65000`; with `discount_code_id` size `64`, a four-byte composite index width is `260256`, above Appwrite’s 767-byte limit.
 - **Minimal fix:** Retained unique `discount_codes.code_unique` and replaced the impossible composite unique index with non-unique `coupon_redemptions.discount_code_idx` on `discount_code_id`. The existing deterministic redemption document ID and transaction flow preserve per-user/coupon uniqueness and coupon semantics.
