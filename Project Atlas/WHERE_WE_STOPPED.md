@@ -1,11 +1,22 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-20
-**Status:** `DEPLOYED_VERIFIED_WITH_WARNINGS` — PR [#198](https://github.com/iammagdy/WiseResume-TWC/pull/198) merged into `main` at `39c58a338eef75581b910741f932233a2defde63`; Vercel Production deployment succeeded; authenticated browser QA reached stable states; and the read-only post-deployment Sentry check found no recurrence after deployment. WISE-RESUME-13 remains unresolved but its observed event predates deployment, while WISE-RESUME-Q remains insufficiently evidenced.
+**Last Verified:** 2026-08-23
+**Status:** `PAYMENTS_SESSION_CLOSED_SSL_PENDING` — Payments Phase 2B targeted Appwrite deployment succeeded, but the custom webhook domain certificate remains pending/invalid under strict TLS. No RevenueCat webhook or lifecycle activation occurred. The PR #199 Production status remains `DEPLOYED_VERIFIED_WITH_WARNINGS` as a separate completed workstream.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Payments full session closeout — 2026-08-23
+
+* **Verdict:** `PAYMENTS_SESSION_CLOSED_SSL_PENDING`. Payments Phase 1 is merged, Phase 2A schema is live and verified, the coupon-schema blocker is resolved, and the exact four-target Phase 2B Appwrite deployment completed successfully in run `32659598098` from `8e9476fbc9a58118fc13b5eec80505a0ca97d1f3`.
+* **Live Functions:** `revenuecat-webhook`, `coupons`, `ai-gateway`, and `admin-devkit-data` are enabled with latest deployments `ready`; exact deployment IDs, runtimes, entrypoints, execute permissions, and source hashes are recorded in [`reports/2026-08-23-payments-session-closeout.md`](./reports/2026-08-23-payments-session-closeout.md). The API `live` flag was `false` for all four and is not translated into an inferred Production-live claim.
+* **Schema:** `revenuecat_subscription_state` and `revenuecat_event_ledger` remain server-only, `permissions=[]`, `documentSecurity=false`, uniquely indexed, and at zero documents. Existing `subscriptions` was not destructively modified.
+* **Custom domain:** `revenuecat-webhook.wiseresume.app` exists and its CNAME resolves to `fra.cloud.appwrite.io`, but strict TLS still fails because the presented certificate SAN is `t.sni-820-default.ssl.fastly.net`; the insecure routing diagnostic returns HTTP `421`. The current blocker is `APPWRITE_CUSTOM_DOMAIN_SSL_PENDING`.
+* **Provider boundary:** No new RevenueCat Sandbox webhook was created, no Production webhook was created, and no lifecycle event or real customer subscription state was used. Checkout remains Coming Soon/disabled and Production payments remain inactive. Generated `.appwrite.run` and Edge `.appwrite.network` domains were not exposed by the project/API/UI; no guessed hostname or execution-API relay was used.
+* **Credential warning:** A Paddle Sandbox API key was unintentionally exposed by a tool/MCP result during read-only provider inspection. The value is never recorded. Rotation remains `ROTATION DEFERRED BY OWNER`; rotate/revoke it before further provider activation or Production payment work.
+* **Next action:** A new session must first re-check strict TLS and Appwrite certificate status for `revenuecat-webhook.wiseresume.app`; if SSL is still pending, stop. If valid, run the three transport smoke tests, then create a Sandbox-only RevenueCat webhook and use only a dedicated non-real fixture for lifecycle verification. Do not activate checkout or Production payments.
+* **Report:** [`reports/2026-08-23-payments-session-closeout.md`](./reports/2026-08-23-payments-session-closeout.md)
 
 ## WiseResume PR #201 Security CI shared-resolver packaging fix — 2026-08-23
 

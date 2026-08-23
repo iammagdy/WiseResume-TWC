@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-23 - WiseResume Payments session closeout at custom-domain SSL gate
+
+- **Verdict:** `PAYMENTS_SESSION_CLOSED_SSL_PENDING`. Phase 1 is merged; Phase 2A additive schema is live and verified; the coupon-schema blocker is resolved; and targeted Phase 2B workflow `32659598098` succeeded from `8e9476fbc9a58118fc13b5eec80505a0ca97d1f3` for exactly `revenuecat-webhook,coupons,ai-gateway,admin-devkit-data`.
+- **Runtime:** The four selected Functions are enabled with latest Appwrite deployments `ready`. Current metadata records `live=false`; no Production-live claim is inferred. Exact deployment IDs, runtimes, entrypoints, execute permissions, variable names, and repository hashes are recorded in [`reports/2026-08-23-payments-session-closeout.md`](./reports/2026-08-23-payments-session-closeout.md).
+- **Schema:** `revenuecat_subscription_state` and `revenuecat_event_ledger` remain server-only with `permissions=[]`, `documentSecurity=false`, required unique indexes, and zero documents. Existing `subscriptions` was not destructively modified.
+- **Domain:** `revenuecat-webhook.wiseresume.app` resolves through its CNAME to `fra.cloud.appwrite.io`, but strict TLS still fails because the presented certificate SAN is `t.sni-820-default.ssl.fastly.net`; the insecure diagnostic returns HTTP `421`. The next gate is `APPWRITE_CUSTOM_DOMAIN_SSL_PENDING`.
+- **Provider boundary:** No RevenueCat Sandbox or Production webhook was created, no lifecycle event was sent, no real customer subscription state was used, and checkout/Production payments remain inactive. Generated `.appwrite.run` and Edge `.appwrite.network` domains were not exposed by the project/API/UI, and no guessed or execution-API relay endpoint was used.
+- **Credential warning:** A Paddle Sandbox API key was unintentionally exposed by a tool/MCP result during read-only provider inspection. The value is never recorded or re-read. Rotation is `ROTATION DEFERRED BY OWNER`; rotate/revoke it before further provider activation or Production payment work. Production Paddle credentials were not proven affected.
+- **Stop point:** Do not resume runtime configuration or lifecycle testing until strict HTTPS is valid. Then run the three transport smoke tests, create a Sandbox-only webhook, verify a dedicated non-real fixture, and stop before frontend checkout.
+
 ## 2026-08-23 - WiseResume coupon schema index compatibility blocker resolved
 
 - **Merge closeout:** Focused PR [#205](https://github.com/iammagdy/WiseResume-TWC/pull/205) merged at `2026-08-23T18:18:09Z` with merge commit `c7e4dc4e9ea8e7dc15bbf0b6cd8fc5e12d404870`; `origin/main` contains the fix. Phase 2B Function deployment remains stopped pending a separate approved retry.
