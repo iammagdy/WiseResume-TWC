@@ -1,5 +1,13 @@
 # Project Atlas Master Changelog
 
+## 2026-08-23 - WiseResume coupon schema index compatibility blocker resolved
+
+- **Confirmed blocker:** Phase 2B workflow run `32656801892` deployed zero Functions and stopped in `Ensure coupon security schema` while creating `coupon_redemptions.user_coupon_unique`.
+- **Root cause:** Live `coupon_redemptions.user_id` is a legacy string size `65000`; with `discount_code_id` size `64`, a four-byte composite index width is `260256`, above Appwrite’s 767-byte limit.
+- **Minimal fix:** Retained unique `discount_codes.code_unique` and replaced the impossible composite unique index with non-unique `coupon_redemptions.discount_code_idx` on `discount_code_id`. The existing deterministic redemption document ID and transaction flow preserve per-user/coupon uniqueness and coupon semantics.
+- **Live result:** Corrected setup completed; both coupon collections remain server-only with `permissions=[]`, `documentSecurity=false`, and current document totals of one each. No coupon values or customer documents were read.
+- **Boundary:** No Appwrite Function deployment, RevenueCat webhook, secret configuration, Paddle/Vercel change, payment activation, subscription change, AI-credit change, or Phase 2B retry occurred.
+
 ## 2026-08-23 - WiseResume Payments Phase 2A additive Appwrite schema applied and verified
 
 - **Applied scope:** Ran the repository-controlled `scripts/setup_revenuecat_schema.cjs` against Appwrite project `69fd362b001eb325a192`, database `main`. Exactly `revenuecat_subscription_state` and `revenuecat_event_ledger` were targeted; no documents were inserted.

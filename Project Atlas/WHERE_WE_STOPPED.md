@@ -14,6 +14,14 @@
 * **Validation:** Fresh root install plus `require.resolve` succeeded; exact `npx vitest run src/lib/security` passed 33 files/168 tests. Focused Payments/hub tests, `node --check`, `git diff --check`, `npx tsc --noEmit`, full Vitest, and bounded-heap build passed locally.
 * **PR state:** PR #201 is merged at `2026-08-23T16:56:51Z`; `origin/main` contains the implementation at `4ee28340618d12b6d1e10913013c2d18c7353bc1`. The merge included the root npm file-dependency fix required by Security validation. No Appwrite schema/deployment, RevenueCat webhook/dashboard change, Paddle/Vercel change, secret/configuration change, payment activation, or Production data change occurred. TestSprite remained informational and was not modified.
 
+## WiseResume Payments Phase 2B coupon-schema compatibility blocker — 2026-08-23
+
+* **Verdict:** `COUPON_SCHEMA_BLOCKER_RESOLVED`. The targeted Phase 2B workflow run `32656801892` deployed zero Functions and stopped in the existing coupon-security schema hook.
+* **Root cause:** The live `coupon_redemptions.user_id` attribute is a legacy string size `65000`; the attempted unique composite index on `user_id` plus `discount_code_id` size `64` would require `(65000 + 64) × 4 = 260256` bytes, exceeding Appwrite’s 767-byte index limit.
+* **Fix:** The repository setup now retains unique `discount_codes.code_unique` and creates non-unique `coupon_redemptions.discount_code_idx` on `discount_code_id`. Redemption uniqueness remains enforced by the existing deterministic document ID and transaction flow; no collection, attribute, document, permission, or security semantics were deleted or broadened.
+* **Live result:** The corrected setup completed. `discount_codes` and `coupon_redemptions` remain server-only with `permissions=[]` and `documentSecurity=false`; the corrected index is available; current document totals are one each. No coupon values or customer documents were read.
+* **Next action:** Commit/push/open a focused PR for this repository fix and merge only after normal checks pass. Do not retry Phase 2B or configure RevenueCat until that PR is merged.
+
 ## WiseResume Payments Phase 2A RevenueCat schema application — 2026-08-23
 
 * **Verdict:** `SCHEMA_APPLIED_VERIFIED`. The repository-controlled setup script applied exactly `revenuecat_subscription_state` and `revenuecat_event_ledger` to Appwrite project `69fd362b001eb325a192`, database `main`.
