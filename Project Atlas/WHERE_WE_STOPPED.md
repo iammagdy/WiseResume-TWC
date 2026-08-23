@@ -20,7 +20,7 @@
 * **Root cause:** The live `coupon_redemptions.user_id` attribute is a legacy string size `65000`; the attempted unique composite index on `user_id` plus `discount_code_id` size `64` would require `(65000 + 64) × 4 = 260256` bytes, exceeding Appwrite’s 767-byte index limit.
 * **Fix:** The repository setup now retains unique `discount_codes.code_unique` and creates non-unique `coupon_redemptions.discount_code_idx` on `discount_code_id`. Redemption uniqueness remains enforced by the existing deterministic document ID and transaction flow; no collection, attribute, document, permission, or security semantics were deleted or broadened.
 * **Live result:** The corrected setup completed. `discount_codes` and `coupon_redemptions` remain server-only with `permissions=[]` and `documentSecurity=false`; the corrected index is available; current document totals are one each. No coupon values or customer documents were read.
-* **Next action:** Commit/push/open a focused PR for this repository fix and merge only after normal checks pass. Do not retry Phase 2B or configure RevenueCat until that PR is merged.
+* **Closeout:** Focused PR [#205](https://github.com/iammagdy/WiseResume-TWC/pull/205) merged at `2026-08-23T18:18:09Z` with merge commit `c7e4dc4e9ea8e7dc15bbf0b6cd8fc5e12d404870`; `origin/main` contains the fix. Do not retry Phase 2B or configure RevenueCat until a separately approved deployment phase resumes.
 
 ## WiseResume Payments Phase 2A RevenueCat schema application — 2026-08-23
 
