@@ -265,6 +265,10 @@ async function processEvent(databases, event, nowMs = Date.now(), users = null) 
 
 function response(res, payload, status = 200) { return res.json(payload, status); }
 
+function testAcknowledgement() {
+  return { outcome: 'acknowledged', code: 'test_acknowledged', mutated: false };
+}
+
 module.exports = async ({ req, res, log, error }) => {
   const requestId = header(req, 'x-appwrite-execution-id') || 'request';
   if (!authenticated(req)) {
@@ -279,6 +283,12 @@ module.exports = async ({ req, res, log, error }) => {
   }
 
   const event = normalizeEvent(body);
+  if (event.type === 'TEST') {
+    const result = testAcknowledgement();
+    log?.(`RevenueCat webhook ${requestId}: TEST -> acknowledged`);
+    return response(res, { status: 'success', data: { ok: true, ...result } }, 200);
+  }
+
   const validity = validateEvent(event);
   if (!validity.ok) {
     log?.(`RevenueCat webhook ${requestId}: rejected ${event.type || 'unknown'} (${validity.code || 'unknown_product_or_entitlement'})`);
@@ -314,6 +324,7 @@ module.exports.__test = {
   stateDocumentId,
   ledgerDocumentId,
   providerStatePatch,
+  testAcknowledgement,
   processEvent,
   resolveEffectivePlan,
 };
