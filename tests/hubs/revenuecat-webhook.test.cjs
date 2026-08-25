@@ -97,6 +97,43 @@ test('rejects missing or invalid Authorization before JSON/database mutation', (
   }
 });
 
+test('reports only safe authentication metadata without exposing credential content', () => {
+  const previous = process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+  process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = 'secret';
+  try {
+    assert.deepEqual(__test.authenticationMetadata({ headers: {} }), {
+      headerPresent: false,
+      scheme: 'missing',
+      tokenLength: 0,
+      secretConfigured: true,
+      secretLength: 6,
+      lengthsEqual: false,
+    });
+    assert.deepEqual(__test.authenticationMetadata({ headers: { Authorization: 'Bearer wrong' } }), {
+      headerPresent: true,
+      scheme: 'bearer',
+      tokenLength: 5,
+      secretConfigured: true,
+      secretLength: 6,
+      lengthsEqual: false,
+    });
+    assert.deepEqual(__test.authenticationMetadata({ headers: { Authorization: 'Bearer secret' } }), {
+      headerPresent: true,
+      scheme: 'bearer',
+      tokenLength: 6,
+      secretConfigured: true,
+      secretLength: 6,
+      lengthsEqual: true,
+    });
+    const serialized = JSON.stringify(__test.authenticationMetadata({ headers: { Authorization: 'Bearer wrong' } }));
+    assert.equal(serialized.includes('wrong'), false);
+    assert.equal(serialized.includes('"secret"'), false);
+  } finally {
+    if (previous === undefined) delete process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+    else process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = previous;
+  }
+});
+
 test('returns safe malformed-body rejection when Appwrite bodyText is malformed and legacy body getter throws', async () => {
   const previous = process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
   process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = 'secret';
