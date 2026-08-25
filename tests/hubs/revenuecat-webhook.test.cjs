@@ -97,6 +97,34 @@ test('rejects missing or invalid Authorization before JSON/database mutation', (
   }
 });
 
+test('returns safe malformed-body rejection when Appwrite bodyText is malformed and legacy body getter throws', async () => {
+  const previous = process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+  process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = 'secret';
+  let response;
+  const req = {
+    headers: { Authorization: 'Bearer secret' },
+    bodyText: '{',
+    get body() {
+      throw new SyntaxError('Appwrite legacy body JSON getter');
+    },
+  };
+  try {
+    await webhook({
+      req,
+      res: { json(payload, status) { response = { payload, status }; return response; } },
+      log() {},
+      error() {},
+    });
+  } finally {
+    if (previous === undefined) delete process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+    else process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = previous;
+  }
+  assert.deepEqual(response, {
+    payload: { status: 'error', code: 'malformed_body', message: 'Malformed request.' },
+    status: 400,
+  });
+});
+
 test('rejects malformed, unknown event, product, entitlement, and identity inputs without mutation', async () => {
   assert.equal(__test.parseJsonBody({ body: '{' }), null);
   assert.equal(__test.validateEvent(event({ type: 'UNKNOWN' })).ok, false);
