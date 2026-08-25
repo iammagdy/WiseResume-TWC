@@ -80,6 +80,22 @@ function timingSafeSecretMatches(provided, expected) {
   return providedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(providedBuffer, expectedBuffer);
 }
 
+function authenticationMetadata(req) {
+  const configured = getEnv('REVENUECAT_WEBHOOK_AUTH_SECRET');
+  const provided = String(header(req, 'Authorization') || '').trim();
+  const parts = provided ? provided.split(/\s+/) : [];
+  const scheme = !provided ? 'missing' : (/^Bearer$/i.test(parts[0]) ? 'bearer' : 'other');
+  const token = scheme === 'bearer' ? parts.slice(1).join(' ').trim() : '';
+  return {
+    headerPresent: provided.length > 0,
+    scheme,
+    tokenLength: token.length,
+    secretConfigured: configured.length > 0,
+    secretLength: configured.length,
+    lengthsEqual: token.length > 0 && configured.length > 0 && token.length === configured.length,
+  };
+}
+
 function authenticated(req) {
   const configured = getEnv('REVENUECAT_WEBHOOK_AUTH_SECRET');
   const provided = header(req, 'Authorization');
@@ -265,10 +281,15 @@ async function processEvent(databases, event, nowMs = Date.now(), users = null) 
 
 function response(res, payload, status = 200) { return res.json(payload, status); }
 
+function testAcknowledgement() {
+  return { outcome: 'acknowledged', code: 'test_acknowledged', mutated: false };
+}
+
 module.exports = async ({ req, res, log, error }) => {
   const requestId = header(req, 'x-appwrite-execution-id') || 'request';
   if (!authenticated(req)) {
-    log?.(`RevenueCat webhook ${requestId}: rejected authentication`);
+    const auth = authenticationMetadata(req);
+    log?.(`RevenueCat webhook ${requestId}: rejected authentication (header=${auth.headerPresent ? 'present' : 'missing'} scheme=${auth.scheme} token_length=${auth.tokenLength} secret_configured=${auth.secretConfigured ? 'yes' : 'no'} secret_length=${auth.secretLength} lengths_equal=${auth.lengthsEqual ? 'yes' : 'no'})`);
     return response(res, { status: 'error', code: 'unauthorized', message: 'Unauthorized.' }, 401);
   }
 
@@ -279,6 +300,12 @@ module.exports = async ({ req, res, log, error }) => {
   }
 
   const event = normalizeEvent(body);
+  if (event.type === 'TEST') {
+    const result = testAcknowledgement();
+    log?.(`RevenueCat webhook ${requestId}: TEST -> acknowledged`);
+    return response(res, { status: 'success', data: { ok: true, ...result } }, 200);
+  }
+
   const validity = validateEvent(event);
   if (!validity.ok) {
     log?.(`RevenueCat webhook ${requestId}: rejected ${event.type || 'unknown'} (${validity.code || 'unknown_product_or_entitlement'})`);
@@ -306,6 +333,7 @@ module.exports.__test = {
   LEDGER_RETENTION_DAYS,
   parseJsonBody,
   timingSafeSecretMatches,
+  authenticationMetadata,
   authenticated,
   normalizeEvent,
   validateEvent,
@@ -314,6 +342,7 @@ module.exports.__test = {
   stateDocumentId,
   ledgerDocumentId,
   providerStatePatch,
+  testAcknowledgement,
   processEvent,
   resolveEffectivePlan,
 };

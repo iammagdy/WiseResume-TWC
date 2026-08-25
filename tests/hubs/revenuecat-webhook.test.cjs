@@ -97,6 +97,43 @@ test('rejects missing or invalid Authorization before JSON/database mutation', (
   }
 });
 
+test('reports only safe authentication metadata without exposing credential content', () => {
+  const previous = process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+  process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = 'secret';
+  try {
+    assert.deepEqual(__test.authenticationMetadata({ headers: {} }), {
+      headerPresent: false,
+      scheme: 'missing',
+      tokenLength: 0,
+      secretConfigured: true,
+      secretLength: 6,
+      lengthsEqual: false,
+    });
+    assert.deepEqual(__test.authenticationMetadata({ headers: { Authorization: 'Bearer wrong' } }), {
+      headerPresent: true,
+      scheme: 'bearer',
+      tokenLength: 5,
+      secretConfigured: true,
+      secretLength: 6,
+      lengthsEqual: false,
+    });
+    assert.deepEqual(__test.authenticationMetadata({ headers: { Authorization: 'Bearer secret' } }), {
+      headerPresent: true,
+      scheme: 'bearer',
+      tokenLength: 6,
+      secretConfigured: true,
+      secretLength: 6,
+      lengthsEqual: true,
+    });
+    const serialized = JSON.stringify(__test.authenticationMetadata({ headers: { Authorization: 'Bearer wrong' } }));
+    assert.equal(serialized.includes('wrong'), false);
+    assert.equal(serialized.includes('"secret"'), false);
+  } finally {
+    if (previous === undefined) delete process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+    else process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = previous;
+  }
+});
+
 test('returns safe malformed-body rejection when Appwrite bodyText is malformed and legacy body getter throws', async () => {
   const previous = process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
   process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = 'secret';
@@ -123,6 +160,50 @@ test('returns safe malformed-body rejection when Appwrite bodyText is malformed 
     payload: { status: 'error', code: 'malformed_body', message: 'Malformed request.' },
     status: 400,
   });
+});
+
+test('acknowledges authenticated TEST events without validation or database mutation', async () => {
+  const previous = process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+  const appwriteEnvNames = [
+    'APPWRITE_FUNCTION_API_ENDPOINT',
+    'APPWRITE_ENDPOINT',
+    'APPWRITE_FUNCTION_PROJECT_ID',
+    'APPWRITE_PROJECT_ID',
+    'APPWRITE_API_KEY',
+    'APPWRITE_FUNCTION_API_KEY',
+  ];
+  const previousAppwriteEnv = Object.fromEntries(appwriteEnvNames.map(name => [name, process.env[name]]));
+  process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = 'secret';
+  appwriteEnvNames.forEach(name => delete process.env[name]);
+  let response;
+  const logs = [];
+  const req = {
+    headers: { Authorization: 'Bearer secret' },
+    bodyText: JSON.stringify({ event: { id: 'evt_test', type: 'TEST' } }),
+  };
+  try {
+    await webhook({
+      req,
+      res: { json(payload, status) { response = { payload, status }; return response; } },
+      log(message) { logs.push(message); },
+      error() {},
+    });
+  } finally {
+    if (previous === undefined) delete process.env.REVENUECAT_WEBHOOK_AUTH_SECRET;
+    else process.env.REVENUECAT_WEBHOOK_AUTH_SECRET = previous;
+    appwriteEnvNames.forEach(name => {
+      if (previousAppwriteEnv[name] === undefined) delete process.env[name];
+      else process.env[name] = previousAppwriteEnv[name];
+    });
+  }
+  assert.deepEqual(response, {
+    payload: {
+      status: 'success',
+      data: { ok: true, outcome: 'acknowledged', code: 'test_acknowledged', mutated: false },
+    },
+    status: 200,
+  });
+  assert.deepEqual(logs, ['RevenueCat webhook request: TEST -> acknowledged']);
 });
 
 test('rejects malformed, unknown event, product, entitlement, and identity inputs without mutation', async () => {
