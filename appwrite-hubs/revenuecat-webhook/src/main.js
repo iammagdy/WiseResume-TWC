@@ -46,8 +46,19 @@ function header(req, name) {
 }
 
 function rawBody(req) {
-  if (typeof req?.body === 'string') return req.body;
-  if (req?.body && typeof req.body === 'object') return JSON.stringify(req.body);
+  try {
+    if (typeof req?.bodyText === 'string') return req.bodyText;
+  } catch {
+    // Appwrite exposes bodyText as the safe raw-body contract; keep parsing fail-closed.
+  }
+
+  try {
+    if (typeof req?.body === 'string') return req.body;
+    if (req?.body && typeof req.body === 'object') return JSON.stringify(req.body);
+  } catch {
+    // Legacy req.body can be a throwing JSON getter for malformed application/json.
+  }
+
   return '';
 }
 

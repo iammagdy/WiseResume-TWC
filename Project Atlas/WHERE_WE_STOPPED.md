@@ -1,11 +1,23 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-23
-**Status:** `PAYMENTS_SESSION_CLOSED_SSL_PENDING` — Payments Phase 2B targeted Appwrite deployment succeeded, but the custom webhook domain certificate remains pending/invalid under strict TLS. No RevenueCat webhook or lifecycle activation occurred. The PR #199 Production status remains `DEPLOYED_VERIFIED_WITH_WARNINGS` as a separate completed workstream.
+**Last Verified:** 2026-08-25
+**Status:** `RUNTIME_SECURITY_GATE_VERIFIED` — the custom webhook domain remains strict-TLS valid, the targeted `revenuecat-webhook` deployment is active, and all three post-deployment security smoke tests pass. RevenueCat webhook/lifecycle testing is intentionally not started; frontend checkout and Production payments remain disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Payments Phase 2B runtime-contract fix and security-gate verification — 2026-08-25
+
+* **Verdict:** `RUNTIME_SECURITY_GATE_VERIFIED`. The smallest safe fix now prefers Appwrite `req.bodyText`, defensively isolates the legacy `req.body` fallback, preserves the 256 KB guard and explicit JSON parsing, and prevents malformed JSON from becoming an internal exception.
+* **Implementation:** Changed `appwrite-hubs/revenuecat-webhook/src/main.js`, added the real bodyText-plus-throwing-legacy-getter regression test in `tests/hubs/revenuecat-webhook.test.cjs`, and regenerated `src/lib/devkit/sourceHashes.generated.json`. Implementation commit `fffa2505` was pushed on scoped branch `fix/revenuecat-bodytext-runtime`; no PR was created or merged.
+* **Validation:** Focused RevenueCat webhook/schema/plan tests passed 12/12; `npx tsc --noEmit`, `node --check` for the changed webhook and schema setup script, `git diff --check`, and source-hash generation/check passed. The new normalized webhook hash is `10c19ccbc0c62eeed81929a874b761f95e85bee259ef62cf341b68e72d5a8a4e`.
+* **Targeted deployment:** Repository-controlled workflow run `32818859197` succeeded with exactly `target=revenuecat-webhook`. Appwrite active deployment is `6a8d3bb7c758c5514b95`, Node-22, 3.1 MB, Manual source, with `revenuecat-webhook.wiseresume.app` attached. No `target=all`, Console deployment, unrelated Function deployment, DNS change, or secret change occurred.
+* **Security result:** Missing Authorization returned `401` in Completed execution `6a8d3bf091ccc6f14199`; invalid Authorization returned `401` in Completed execution `6a8d3bfd1344215a26f4`; valid-secret malformed JSON returned `400` with `malformed_body` in Completed execution `6a8d3c163f4c84b14675` (confirmation execution `6a8d3c0bcbb4adac579c` also completed with `400`). The pre-fix `500` remains historical only.
+* **Mutation checks:** Live `revenuecat_subscription_state` and `revenuecat_event_ledger` both show no rows after the rejected-request tests. No valid provider event was sent and no live subscription state was created.
+* **Provider boundary:** RevenueCat webhook integration and lifecycle testing remain unstarted. No Sandbox webhook was created or changed, no test fixture was mutated, frontend checkout remains disabled, and Production payments remain inactive. The previously recorded Paddle Sandbox credential-rotation warning remains unresolved; its value was not retrieved.
+* **Next action:** Owner review of the scoped commit and verified gate. Only after explicit authorization should a separate session inspect or reuse exactly one RevenueCat Sandbox webhook, confirm a dedicated non-real fixture, and begin Pro/Ultimate lifecycle testing. Do not activate checkout or Production payments.
+* **Report:** [`reports/2026-08-25-payments-phase2b-runtime-verification.md`](./reports/2026-08-25-payments-phase2b-runtime-verification.md)
 
 ## WiseResume Payments full session closeout — 2026-08-23
 
