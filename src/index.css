@@ -791,8 +791,7 @@ button,
   .dashboard-workspace-sidebar__inner {
     height: 100%;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: visible;
   }
 
   .dashboard-workspace-sidebar__scroll {
