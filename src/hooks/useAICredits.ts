@@ -13,9 +13,6 @@ export interface AICredits {
   updated_at: string;
 }
 
-/** Sentinel value in daily_limit meaning unlimited (Premium plan). */
-const UNLIMITED_SENTINEL = -1;
-
 // BYOK was removed in the flat-pool migration. The managed 6-key pool is the
 // only AI engine, and the server enforces all plan/credit limits, so the
 // client must never report itself as "bring your own key" to bypass them.
@@ -78,44 +75,34 @@ export function useAICredits() {
   }
 
   const rawCredits = meData?.ai_credits ?? null;
+  const effectivePlan = (meData?.subscription?.effective_plan ?? 'free') as keyof typeof PLAN_CREDIT_LIMITS;
+  // The server derives the hard limit from the effective plan. Mirror that
+  // contract in the client so a legacy/stale ai_credits.daily_limit cannot
+  // keep a paid user on the old Free display cap.
+  const effectiveLimit = effectivePlan === 'premium'
+    ? Infinity
+    : PLAN_CREDIT_LIMITS[effectivePlan] ?? PLAN_CREDIT_LIMITS.free;
 
   let data: Partial<AICredits> | null = null;
 
   if (!user) {
     data = null;
   } else if (!rawCredits) {
-    // No ai_credits row — derive the correct limit from the effective plan
-    const effectivePlan = meData?.subscription?.effective_plan ?? 'free';
-    let defaultLimit: number;
-    if (effectivePlan === 'premium') {
-      defaultLimit = Infinity; // Unlimited
-    } else if (effectivePlan === 'pro') {
-      defaultLimit = PLAN_CREDIT_LIMITS.pro;
-    } else {
-      defaultLimit = PLAN_CREDIT_LIMITS.free;
-    }
     data = {
       daily_usage: 0,
-      daily_limit: defaultLimit,
+      daily_limit: effectiveLimit,
       usage_date: new Date().toISOString().split('T')[0],
       total_usage: 0,
     };
-  } else if (rawCredits.daily_limit === UNLIMITED_SENTINEL) {
-    data = {
-      ...rawCredits,
-      daily_limit: Infinity,
-    } as unknown as AICredits;
   } else {
     const today = new Date().toISOString().split('T')[0];
-    if (rawCredits.usage_date !== today) {
-      data = {
-        ...rawCredits,
-        daily_usage: 0,
-        usage_date: today,
-      } as AICredits;
-    } else {
-      data = rawCredits as unknown as AICredits;
-    }
+    data = {
+      ...rawCredits,
+      daily_limit: effectiveLimit,
+      ...(rawCredits.usage_date !== today
+        ? { daily_usage: 0, usage_date: today }
+        : {}),
+    } as AICredits;
   }
 
   return {
@@ -157,19 +144,24 @@ export function useAICreditsMutations() {
     if (!user) return true;
 
     // Use cached 'me' data for a fast optimistic check (server will enforce the hard limit)
-    type MeCacheShape = { ai_credits: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null;
-    const cached = queryClient.getQueryData<MeCacheShape>(['me', user.id]);
+    type MeCacheShape = {
+      ai_credits: { daily_usage: number; daily_limit: number; usage_date: string } | null;
+      subscription?: { effective_plan?: string | null } | null;
+    } | null;
 
-    const data = (cached as { ai_credits?: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null)?.ai_credits ?? null;
+    const cachedShape = queryClient.getQueryData<MeCacheShape>(['me', user.id]);
+    const data = cachedShape?.ai_credits ?? null;
+    const cachedPlan = (cachedShape?.subscription?.effective_plan ?? 'free') as keyof typeof PLAN_CREDIT_LIMITS;
+    const effectiveLimit = cachedPlan === 'premium'
+      ? Infinity
+      : PLAN_CREDIT_LIMITS[cachedPlan] ?? PLAN_CREDIT_LIMITS.free;
 
-    if (!data) return true;
-
-    if (data.daily_limit === UNLIMITED_SENTINEL) return true;
+    if (!data || !Number.isFinite(effectiveLimit)) return true;
 
     const today = new Date().toISOString().split('T')[0];
     if (data.usage_date !== today) return true;
 
-    if ((data.daily_usage || 0) >= (data.daily_limit || PLAN_CREDIT_LIMITS.free)) {
+    if ((data.daily_usage || 0) >= effectiveLimit) {
       return false;
     }
 
