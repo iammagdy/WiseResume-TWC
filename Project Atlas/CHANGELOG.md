@@ -1,5 +1,14 @@
 # Project Atlas Master Changelog
 
+## 2026-08-26 - WiseResume PR #216 sidebar overflow correction merged and deployed
+
+- **Verdict:** `PASS_WITH_WARNINGS`. PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) corrected the sidebar layout by making the navigation region the single vertical scroll owner and keeping the membership/account footer outside that region. The change was frontend-only; billing, account logic, Appwrite, RevenueCat, Paddle, DNS, secrets, checkout, and Production payments were untouched.
+- **Scope and merge:** Authorized head `f18017f2af81ca939c047082f6215baf545bfc1b` remained unchanged and the PR contained exactly `src/components/layout/AppWorkspaceSidebar.tsx` and `src/index.css`. Normal merge produced `82d3640c743442db304c50cb57a229648685b59a`, which matches `origin/main` in a fresh clean clone.
+- **Deployment:** GitHub deployment `6101175755` targeted Vercel `Production` for merge commit `82d3640c743442db304c50cb57a229648685b59a` and completed with `success` at `2026-08-26T09:44:10Z`. No manual Vercel deployment was used.
+- **Browser QA:** Arabic RTL desktop at approximately 1526×811 showed the lower account/profile control, Manage billing, Pro card, and `50 / 50` AI credits within the viewport. The account menu opened; Plan & billing reached `/subscription`, showing Pro, Active, and `0 / 50` daily usage. Dark and light desktop checks retained reachability with no visually apparent horizontal clipping.
+- **Validation boundary:** English LTR and reduced mobile viewport are `UNVERIFIED` because the live locale switch was feature-flagged off for the session and the available browser controls did not resize the viewport. The navigation already fit the tested desktop height, so a scroll probe found no overflow container; this is consistent with scroll-on-overflow behavior, not a failure. Full report: [`reports/2026-08-26-sidebar-pr216-production-closeout.md`](./reports/2026-08-26-sidebar-pr216-production-closeout.md).
+- **Next action:** Resume the separate read-only Payments Phase 2C investigation: inspect only Appwrite `revenuecat_subscription_state`, `revenuecat_event_ledger`, and legacy `subscriptions`, then cross-check RevenueCat/Paddle delivery evidence. Do not repeat payment, grant entitlements, or mutate provider configuration.
+
 ## 2026-08-25 - WiseResume Payments Phase 2B runtime-contract fix verified
 
 - **Verdict:** `RUNTIME_SECURITY_GATE_VERIFIED`. The scoped `revenuecat-webhook` fix prefers Appwrite `req.bodyText`, defensively isolates the legacy `req.body` fallback, preserves the 256 KB guard and explicit JSON parsing, and prevents malformed JSON from becoming an internal exception.

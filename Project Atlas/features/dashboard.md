@@ -12,6 +12,11 @@ The User Dashboard provides authenticated job seekers with a central command cen
 ---
 
 ## 2. Routes & Navigation
+
+### Authenticated sidebar layout
+
+The desktop workspace sidebar uses one vertical scroll owner for the navigation region only. Membership and account/profile controls remain outside that navigation scroll region so they stay reachable at short desktop heights; nested sidebar scrolling and horizontal overflow must not be introduced. The mobile sidebar sheet must preserve the same account-control reachability. This layout contract was corrected in PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216), merged at `82d3640c743442db304c50cb57a229648685b59a`, and deployed through the normal Vercel Production path. Arabic RTL desktop behavior was verified post-deployment in dark and light modes; English LTR and reduced mobile viewport remain `UNVERIFIED` for that deployment check.
+
 * `/dashboard` — Main authenticated dashboard view.
 * `/ar/dashboard` — Arabic localized dashboard view.
 
