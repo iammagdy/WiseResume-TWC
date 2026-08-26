@@ -52,6 +52,14 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
 
+### Current WiseResume Payments Phase 2C Sandbox readiness — 2026-08-26
+
+* **Current state:** The existing non-real Paddle Sandbox automatic Pro payment completed and is represented in RevenueCat Sandbox by one `PURCHASES_INITIAL_PURCHASE`, an active Pro entitlement, and an active Paddle subscription. Appwrite contains the matching processed `INITIAL_PURCHASE` ledger row and active `revenuecat_subscription_state` provider row; WiseResume resolves Pro from provider state. No Production payment is authorized or verified.
+* **Webhook transport:** The existing Sandbox RevenueCat integration targets `https://revenuecat-webhook.wiseresume.app`. A safe unauthenticated probe returns HTTP 401, and the current certificate matches the webhook hostname. No lifecycle event was sent during the Phase 2D-A audit.
+* **Catalog:** Safe read-only RevenueCat checks show active `pro` and `premium` entitlements, active monthly Pro and Ultimate/Premium products, and both products attached to the current Sandbox offering. No credential-bearing app configuration was opened.
+* **Boundaries:** Frontend checkout remains disabled (`paymentsEnabled=false`); Production Paddle/RevenueCat configuration, Production webhook, Production secret parity, and Production TEST remain `UNVERIFIED`. Live cancellation, expiration, billing issue, duplicate replay, stale replay, and Ultimate activation remain `UNVERIFIED`.
+* **Security warning:** A prior RevenueCat app-list response exposed plaintext Paddle Sandbox API-key fields. The owner declined rotation. The exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK`; the value is not recorded, and this warning is not a Production approval.
+
 ### Authorized WiseResume Payments Phase 2B Deployment — 2026-08-23
 
 * **GitHub Actions Run:** `32659598098`, successful.
