@@ -1,11 +1,20 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-25
+**Last Verified:** 2026-08-26
 **Status:** `RUNTIME_SECURITY_GATE_VERIFIED` — the custom webhook domain remains strict-TLS valid, the targeted `revenuecat-webhook` deployment is active, and all three post-deployment security smoke tests pass. RevenueCat webhook/lifecycle testing is intentionally not started; frontend checkout and Production payments remain disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Payments Phase 2C sidebar overflow correction — 2026-08-26
+
+* **Verdict:** `PASS_WITH_WARNINGS`. Corrective PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) replaced the ineffective nested sidebar scroll with a single navigation-region scroll owner and kept the membership/account footer outside that scroll region. The change remained frontend-only and did not alter billing, account logic, Appwrite, RevenueCat, Paddle, DNS, secrets, checkout, or Production payment behavior.
+* **Scope / merge:** The authorized PR head remained `f18017f2af81ca939c047082f6215baf545bfc1b`; the exact scope was `src/components/layout/AppWorkspaceSidebar.tsx` and `src/index.css` only. PR #216 merged normally into `main` at `82d3640c743442db304c50cb57a229648685b59a`; a fresh clone confirmed `origin/main` equals that SHA and the worktree was clean before this documentation edit.
+* **Deployment:** GitHub deployment record `6101175755` targeted Vercel `Production` for merge commit `82d3640c743442db304c50cb57a229648685b59a` and completed with `success` at `2026-08-26T09:44:10Z`. The normal main-branch deployment path was used; no manual Vercel deployment was initiated.
+* **Browser QA:** In the connected authenticated browser, Arabic RTL desktop at approximately 1526×811 rendered the Pro card, `50 / 50` AI credits, Manage billing, and the account/profile control within the viewport. The account menu opened and Plan & billing reached `/subscription`; the page showed Pro, Active, and `0 / 50` daily usage. The same desktop sidebar remained usable in dark and light modes with no visually apparent horizontal clipping. No payment or billing mutation occurred.
+* **Boundary:** English LTR and reduced mobile-viewport QA are `UNVERIFIED`: the live authenticated UI did not expose the feature-flagged locale switch, and the available browser controls did not provide viewport resizing. A direct sidebar scroll probe found no overflow container because the navigation already fit the tested viewport; this is consistent with scroll-on-overflow behavior and is not treated as a failure. Full evidence is in [`reports/2026-08-26-sidebar-pr216-production-closeout.md`](./reports/2026-08-26-sidebar-pr216-production-closeout.md).
+* **Payments stop point:** Paddle Sandbox automatic Pro payment remains Complete and the monthly subscription remains Active, while RevenueCat still shows no paid subscriber/entitlement and the exact Appwrite Pro source remains `UNKNOWN`/`UNVERIFIED`. Do not repeat payment, grant entitlements, or mutate provider configuration. The next step is read-only Appwrite collection verification followed by read-only RevenueCat/Paddle delivery investigation.
 
 ## WiseResume Payments Phase 2B runtime-contract fix and security-gate verification — 2026-08-25
 
