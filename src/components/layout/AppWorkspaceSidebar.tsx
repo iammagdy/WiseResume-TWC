@@ -228,7 +228,12 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
           </div>
         </div>
 
-        <div className={cn('shrink-0 px-2 pb-2', effectiveCollapsed && 'px-1.5')}>
+        <div
+          className={cn(
+            'dashboard-workspace-sidebar__scroll flex-1 min-h-0 overflow-y-auto px-2 pb-2',
+            effectiveCollapsed && 'px-1.5',
+          )}
+        >
           {!effectiveCollapsed && (
             <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">
               {t('app.workspace', 'Workspace')}
@@ -270,8 +275,6 @@ export const AppWorkspaceSidebar = memo(function AppWorkspaceSidebar({
             })}
           </nav>
         </div>
-
-        <div className="flex-1 min-h-0" aria-hidden />
 
         <div
           className={cn(
