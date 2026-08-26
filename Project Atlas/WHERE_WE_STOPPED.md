@@ -7,6 +7,16 @@
 
 ---
 
+## WiseResume Payments Phase 2C Sandbox lifecycle QA — 2026-08-26
+
+* **Lifecycle verdict:** `PASS_WITH_WARNINGS`. Using the existing QA fixture `6a8d5e4c0029004e93c3`, the already-completed Paddle Sandbox Pro path is now verified through RevenueCat Sandbox, Appwrite, and WiseResume. RevenueCat has one Sandbox `PURCHASES_INITIAL_PURCHASE` event with the canonical `app_user_id`; Appwrite contains one processed `INITIAL_PURCHASE` ledger row and one active provider-state row with `plan=pro`, `entitlement_id=pro`, the approved Pro price, and `will_renew=true`.
+* **Exact Pro source:** The active `revenuecat_subscription_state` row is the current source of WiseResume Pro. The legacy `subscriptions` table contains no row for the canonical QA user. The provider state is linked to the processed lifecycle ledger event with outcome `state_updated`.
+* **UI/persistence:** Arabic RTL dashboard and Subscription surfaces continue to show Pro, `50 / 50` workspace credits, Active status, and `0 / 50` daily usage after navigation/refresh verification. No payment or billing action was repeated.
+* **Repository protection coverage:** Focused webhook/schema tests passed 12/12, covering TEST no-mutation acknowledgement, Ultimate normalization, lifecycle transitions, duplicate idempotency, stale-event rejection, resolver precedence, and schema contracts. These are fake-store regression tests, not live transition evidence.
+* **Unverified live transitions:** Live duplicate replay, stale/out-of-order event, cancellation, `will_renew=false`, access-until-expiration, billing issue, expiration, and Ultimate activation remain `UNVERIFIED` because no provider mutation, fabricated event, entitlement grant, or second payment is allowed. Current live Pro remains active and renewing in Sandbox.
+* **Security warning:** A prior RevenueCat app-list response exposed plaintext Paddle Sandbox API-key fields. The values were not copied, stored, printed, reread, or included in Atlas. The owner explicitly declined rotation. This remains an `UNRESOLVED_SECURITY_WARNING`; do not classify this phase as fully secure. No further credential-bearing provider view/API was opened after the warning.
+* **Evidence:** Full sanitized report: [`reports/2026-08-26-payments-phase2c-lifecycle-qa.md`](./reports/2026-08-26-payments-phase2c-lifecycle-qa.md). The next action is to retain the warning and only verify additional live transitions if a safe, non-mutating provider mechanism or naturally occurring Sandbox event becomes available.
+
 ## WiseResume Payments Phase 2C sidebar overflow correction — 2026-08-26
 
 * **Verdict:** `PASS_WITH_WARNINGS`. Corrective PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) replaced the ineffective nested sidebar scroll with a single navigation-region scroll owner and kept the membership/account footer outside that scroll region. The change remained frontend-only and did not alter billing, account logic, Appwrite, RevenueCat, Paddle, DNS, secrets, checkout, or Production payment behavior.
