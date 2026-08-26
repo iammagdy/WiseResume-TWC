@@ -1,7 +1,7 @@
 # WiseResume RevenueCat Subscription Synchronization
 
-**Last Verified:** 2026-08-23
-**Status:** `PAYMENTS_SESSION_CLOSED_SSL_PENDING` — Phase 1 implementation is merged, Phase 2A schema is live and verified, and the exact four-target Phase 2B Appwrite deployment completed in run `32659598098`; the RevenueCat webhook remains uncreated because `revenuecat-webhook.wiseresume.app` is not ready under strict TLS.
+**Last Verified:** 2026-08-26
+**Status:** `PAYMENTS_PHASE2C_SANDBOX_VERIFIED_WITH_WARNINGS` — Phase 1 implementation, Phase 2A schema, targeted webhook deployment, and the existing Sandbox Pro lifecycle are verified. The custom webhook domain is reachable under valid strict TLS. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
 **Location:** `Project Atlas/architecture/revenuecat-subscription-sync.md`
 
 ## Scope and preserved contracts
@@ -51,9 +51,11 @@ Duplicate deliveries are rejected as already recorded by the durable event ledge
 
 Local validation completed for the implementation includes 15 focused Node tests across webhook lifecycle, schema contract, AI plan regression, and Appwrite function-policy coverage; existing coupon and AI concurrency hub tests also passed. The full frontend Vitest suite passed with 222 files, 1,236 tests, 8 skipped tests, and 1 todo. `node --check`, `git diff --check`, and `npx tsc --noEmit` passed. The first plain `npm run build` attempt was terminated by sandbox memory pressure; the same build completed successfully on a bounded-heap retry (`NODE_OPTIONS=--max-old-space-size=2048 npm run build`), retaining only existing advisory large-chunk warnings and emitting no source maps.
 
-Phase 2A applied and live-verified the two additive collections. After two repository-controlled packaging corrections, targeted workflow run `32659598098` from `8e9476fbc9a58118fc13b5eec80505a0ca97d1f3` deployed exactly `revenuecat-webhook,coupons,ai-gateway,admin-devkit-data`; each selected Function has a ready latest deployment. The current Appwrite API reports `live=false` for all four, so this document does not infer a Production-live claim from deployment readiness. The webhook variable name `REVENUECAT_WEBHOOK_AUTH_SECRET` exists and is marked secret; its value match is not independently provable because Appwrite redacts secret values.
+Phase 2A applied and live-verified the two additive collections. After two repository-controlled packaging corrections, targeted workflow run `32659598098` from `8e9476fbc9a58118fc13b5eec80505a0ca97d1f3` deployed exactly `revenuecat-webhook,coupons,ai-gateway,admin-devkit-data`; each selected Function has a ready latest deployment. The API `live=false` field is not treated as an inferred Production-live claim. The webhook variable name `REVENUECAT_WEBHOOK_AUTH_SECRET` exists and is marked secret; its value is not recorded.
 
-The custom domain `revenuecat-webhook.wiseresume.app` resolves through the Appwrite CNAME, but strict TLS still presents the Fastly default certificate for `t.sni-820-default.ssl.fastly.net` and the insecure diagnostic returns HTTP `421`. The status is therefore `APPWRITE_CUSTOM_DOMAIN_SSL_PENDING`. No RevenueCat webhook was created, no lifecycle event was sent, no real customer state was used, no checkout was activated, and no Production payment state was changed.
+Phase 2C then verified the existing non-real Sandbox Pro path without repeating payment: Paddle automatic Pro completed, RevenueCat recorded one Sandbox `PURCHASES_INITIAL_PURCHASE` with the canonical Appwrite user ID, the Pro entitlement is active, Appwrite recorded one processed `INITIAL_PURCHASE` ledger row and one active provider-state row, and WiseResume resolves Pro from that provider state. The current custom domain returns HTTP 401 to an unauthenticated probe and presents a certificate for `revenuecat-webhook.wiseresume.app`; no lifecycle event was sent during this Phase 2D-A audit. Frontend checkout remains disabled and no Production payment state is authorized or verified. Live cancellation, expiration, billing issue, duplicate replay, stale replay, and Ultimate activation remain `UNVERIFIED`.
+
+A prior RevenueCat app-list response exposed plaintext Paddle Sandbox API-key fields. The owner declined rotation, so the risk remains `OWNER_ACCEPTED_UNRESOLVED_RISK`; no credential-bearing app configuration is treated as cleared for Production.
 
 ## References
 

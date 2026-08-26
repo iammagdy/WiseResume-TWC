@@ -1,7 +1,7 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-26
-**Status:** `PAYMENTS_SESSION_CLOSED_SSL_PENDING` — The existing PR #198 Production status remains `DEPLOYED_VERIFIED_WITH_WARNINGS`. Payments Phase 2B deployed the exact approved Appwrite Function targets, but the custom RevenueCat webhook domain remains unavailable under strict TLS; no RevenueCat webhook or lifecycle activation occurred.
+**Status:** `PAYMENTS_PHASE2C_SANDBOX_VERIFIED_WITH_WARNINGS` — The existing PR #198 Production status remains `DEPLOYED_VERIFIED_WITH_WARNINGS`. Phase 2C verified the non-real Paddle Sandbox Pro path through RevenueCat, Appwrite, and WiseResume. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
@@ -21,7 +21,7 @@
 * **Frontend merge/deployment:** PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) merged normally into `main` at `82d3640c743442db304c50cb57a229648685b59a`. GitHub Production deployment `6101175755` for that commit completed with `success` at `2026-08-26T09:44:10Z` through the normal Vercel main-branch path; no manual deployment occurred.
 * **UI result:** The corrective two-file change makes the navigation region the single sidebar vertical scroll owner and keeps the membership/account footer outside the scroll region. Arabic RTL desktop QA at approximately 1526×811 showed the account/profile control, Manage billing, Pro card, and AI credits `50 / 50` all reachable. Plan & billing opened `/subscription`, which showed Pro, Active, and daily usage `0 / 50`. Dark and light desktop checks showed no visually apparent horizontal clipping.
 * **QA boundary:** English LTR and reduced mobile-viewport QA remain `UNVERIFIED` because the connected live UI did not expose the feature-flagged locale switch and the available browser controls did not support viewport resizing. No billing/account mutation was performed. Detailed evidence is in [`reports/2026-08-26-sidebar-pr216-production-closeout.md`](./reports/2026-08-26-sidebar-pr216-production-closeout.md).
-* **Payment boundary:** The Paddle Sandbox automatic Pro transaction/subscription evidence and the RevenueCat no-entitlement mismatch remain unchanged. The exact Appwrite source of the current Pro resolution remains `UNKNOWN`/`UNVERIFIED`; resume read-only collection/provider investigation next. Do not repeat payment, grant entitlement, or mutate provider configuration.
+* **Payment boundary:** This older sidebar closeout statement is superseded by the later Phase 2C lifecycle entry above. The existing Paddle Sandbox automatic Pro transaction/subscription, RevenueCat Pro entitlement/event, Appwrite ledger/provider state, and WiseResume Pro resolution are now verified. Do not repeat payment, grant entitlement, or mutate provider configuration.
 
 ## Payments Phase 2B session closeout — 2026-08-23
 

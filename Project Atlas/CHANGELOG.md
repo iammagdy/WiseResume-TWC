@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-26 - WiseResume Payments Phase 2D-A Production readiness inventory and security gate
+
+- **Verdict:** `PLAN_READY_NOT_PRODUCTION_READY`. This audit was requirements/documentation only; no checkout implementation, Production activation, payment, provider mutation, secret change, deployment, commit, push, or merge occurred.
+- **Current evidence:** The Phase 2C Sandbox Pro path remains verified through Paddle automatic checkout, RevenueCat Sandbox, Appwrite provider state/event ledger, and WiseResume effective-plan/UI behavior. Pro maps to internal `pro`; Ultimate maps to internal `premium`; `ultimate` must never be persisted.
+- **Production inventory:** Production Paddle/RevenueCat configuration, Production product association, Production webhook, Production secret parity, Production TEST, and checkout/session creation remain `UNVERIFIED`. Frontend billing remains disabled with `paymentsEnabled=false`.
+- **Lifecycle boundary:** Repository duplicate/stale protections and lifecycle transition contracts are tested; live cancellation, renewal intent, access-until-expiration, expiration, billing issue, duplicate replay, stale replay, Ultimate activation, and Free browser regression remain `UNVERIFIED`.
+- **Security:** Prior Paddle Sandbox credential exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation. No credential value was inspected or recorded, and the warning is not a Production security approval.
+- **Documentation:** Current living payment/deployment statements were reconciled in `CURRENT_STATE.md`, `WHERE_WE_STOPPED.md`, the RevenueCat architecture, integrations, data-model, deployment specification, and [`reports/2026-08-26-payments-phase2d-a-readiness-audit.md`](./reports/2026-08-26-payments-phase2d-a-readiness-audit.md). The changes remain uncommitted and unpushed under the audit-only boundary.
+- **Next phase:** Separately authorize Phase 2D-B safe-fixture and lifecycle-evidence planning; keep checkout and Production payments disabled until the security and Production-readiness gates are accepted.
+
 ## 2026-08-26 - WiseResume Payments Phase 2C Sandbox lifecycle QA
 
 - **Lifecycle verdict:** `PASS_WITH_WARNINGS`. The existing QA fixture `6a8d5e4c0029004e93c3` is verified through the already-completed Paddle Sandbox Pro purchase, RevenueCat Sandbox, Appwrite, and WiseResume. RevenueCat contains one Sandbox `PURCHASES_INITIAL_PURCHASE`; Appwrite contains one processed matching ledger event and one active provider-state row with `plan=pro`, `entitlement_id=pro`, the approved Pro price, and `will_renew=true`.

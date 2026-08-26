@@ -1,6 +1,6 @@
 # Canonical Data Model & Collections Specification
 
-**Last Verified:** 2026-07-24
+**Last Verified:** 2026-08-26
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/data-model.md`  
 
@@ -51,11 +51,11 @@ Appwrite Databases stores application entities across 96+ collections.
   * Scheduling: `active` plus optional expiry only. No start-time field is currently supported.
 
 
-## RevenueCat provider-state collections (Phase 2A live; Phase 2B transport pending)
+## RevenueCat provider-state collections (Phase 2C Sandbox lifecycle verified; Production pending)
 
-Phase 2A applied the two repository-controlled, server-only collections without changing `subscriptions`. Live verification on 2026-08-23 confirmed both collections exist in Appwrite project `69fd362b001eb325a192`, database `main`, with zero documents and the exact repository contract:
+Phase 2A applied the two repository-controlled, server-only collections without changing `subscriptions`. Phase 2C read-only verification confirmed both collections exist in Appwrite project `69fd362b001eb325a192`, database `main`, with the exact repository contract and one current Sandbox Pro provider-state row plus one processed lifecycle-ledger row for the canonical non-real QA fixture:
 
 * **`revenuecat_subscription_state`** stores one normalized RevenueCat-derived state per canonical Appwrite user, including internal `plan` (`pro|premium` only), entitlement, verified product/price, environment, lifecycle status, expiration, renewal intent, and latest accepted event metadata. The repository-controlled schema defines a unique `user_id_unique` index, while the webhook also uses a deterministic per-user document ID.
 * **`revenuecat_event_ledger`** stores durable event IDs, lifecycle type, canonical user ID when valid, provider/received timestamps, processing status, ordering key, outcome, and a 90-day cleanup timestamp. Its `event_id_unique` index is the idempotency boundary.
 
-Both collections have live `permissions=[]` and `documentSecurity=false`; browsers have no direct read or write access. The live `user_id_unique` and `event_id_unique` indexes are available and enforce the intended uniqueness contracts. `scripts/setup_revenuecat_schema.cjs` remains idempotent and fail-closed. The existing overloaded `subscriptions` attributes, permissions, and documents were not modified. The targeted `revenuecat-webhook` Function is deployed with a ready latest deployment, but its external custom-domain certificate is still pending/invalid under strict TLS; no provider-state or ledger document has been inserted and no RevenueCat webhook has been created.
+Both collections have live `permissions=[]` and `documentSecurity=false`; browsers have no direct read or write access. The live `user_id_unique` and `event_id_unique` indexes are available and enforce the intended uniqueness contracts. `scripts/setup_revenuecat_schema.cjs` remains idempotent and fail-closed. The existing overloaded `subscriptions` attributes, permissions, and documents were not modified. Phase 2C verified the targeted `revenuecat-webhook` path through the existing Sandbox integration, and the current custom domain presents a valid hostname certificate. The QA fixture’s provider-state row is active Pro and its ledger contains the processed `INITIAL_PURCHASE`; Production provider state and lifecycle evidence remain unverified.

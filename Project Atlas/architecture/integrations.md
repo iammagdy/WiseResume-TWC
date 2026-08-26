@@ -1,6 +1,6 @@
 # Canonical Third-Party & Infrastructure Integrations
 
-**Last Verified:** 2026-08-23
+**Last Verified:** 2026-08-26
 **Status:** Canonical Architecture Specification  
 **Location:** `Project Atlas/architecture/integrations.md`  
 
@@ -16,4 +16,4 @@
 | **DOCX Parsing** | Mammoth.js | Client-side `docxParser.ts` | Local browser-side text extraction from uploaded Word resumes. |
 | **OCR Fallback** | Tesseract.js | Web Worker (`public/ocr/`) | Optical Character Recognition for image-only scanned PDFs. |
 | **Transactional Email** | SendGrid / SMTP | Appwrite `email-service` function | Portfolio contact notifications, OTP password resets. |
-| **Subscription lifecycle** | RevenueCat → Paddle Sandbox (future activation) | Appwrite `revenuecat-webhook` plus server-only provider-state collections | Phase 2A collections are live and verified; the exact four-target Phase 2B Function deployment is ready. The custom domain `revenuecat-webhook.wiseresume.app` remains blocked by pending/invalid SSL, so RevenueCat webhook delivery, lifecycle verification, and payment activation remain unconfigured. |
+| **Subscription lifecycle** | Paddle Sandbox → RevenueCat Sandbox → Appwrite `revenuecat-webhook` → WiseResume provider-state resolver | Appwrite `revenuecat-webhook` plus server-only provider-state collections | Phase 2C verified the existing non-real Sandbox Pro path end-to-end, including RevenueCat ingestion, active Pro entitlement, Appwrite ledger/provider state, effective Pro plan, and UI credits. The current Sandbox webhook route is reachable under valid strict TLS. Production provider configuration, checkout, and payment activation remain unverified/disabled. |
