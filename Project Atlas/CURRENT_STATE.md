@@ -8,6 +8,14 @@
 
 ---
 
+## Payments Phase 2C Sandbox lifecycle QA — 2026-08-26
+
+* **Verified Pro path:** The existing QA fixture `6a8d5e4c0029004e93c3` has an active Paddle Sandbox Pro subscription represented in RevenueCat by one active Pro entitlement and one Sandbox `PURCHASES_INITIAL_PURCHASE` event. Appwrite has one processed matching `INITIAL_PURCHASE` ledger record and one active `revenuecat_subscription_state` record with `plan=pro`, `entitlement_id=pro`, the approved Pro price, and `will_renew=true`.
+* **WiseResume result:** The provider-state row is the exact current Pro source; legacy `subscriptions` has no row for the QA user. The authenticated Arabic RTL UI still shows Pro, `50 / 50` workspace credits, Active status, and `0 / 50` daily usage after navigation/refresh verification.
+* **Lifecycle boundary:** Repository-controlled fake-store tests pass 12/12 for TEST no-mutation, Ultimate normalization, lifecycle transitions, duplicate idempotency, stale-event rejection, resolver precedence, and schema contracts. Live duplicate replay, stale events, cancellation, billing issue, expiration, and Ultimate activation remain `UNVERIFIED` because no provider mutation, fabricated event, entitlement grant, or second payment is allowed.
+* **Security warning:** A prior RevenueCat app-list response exposed plaintext Paddle Sandbox API-key fields. Values were not copied, stored, printed, reread, or recorded. The owner declined rotation; this remains `UNRESOLVED_SECURITY_WARNING`, and the phase is not fully secure. No further credential-bearing provider view/API was opened after the warning.
+* **Evidence:** [`reports/2026-08-26-payments-phase2c-lifecycle-qa.md`](./reports/2026-08-26-payments-phase2c-lifecycle-qa.md)
+
 ## Payments Phase 2C sidebar overflow correction — 2026-08-26
 
 * **Frontend merge/deployment:** PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) merged normally into `main` at `82d3640c743442db304c50cb57a229648685b59a`. GitHub Production deployment `6101175755` for that commit completed with `success` at `2026-08-26T09:44:10Z` through the normal Vercel main-branch path; no manual deployment occurred.

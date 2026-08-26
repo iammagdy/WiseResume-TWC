@@ -1,5 +1,15 @@
 # Project Atlas Master Changelog
 
+## 2026-08-26 - WiseResume Payments Phase 2C Sandbox lifecycle QA
+
+- **Lifecycle verdict:** `PASS_WITH_WARNINGS`. The existing QA fixture `6a8d5e4c0029004e93c3` is verified through the already-completed Paddle Sandbox Pro purchase, RevenueCat Sandbox, Appwrite, and WiseResume. RevenueCat contains one Sandbox `PURCHASES_INITIAL_PURCHASE`; Appwrite contains one processed matching ledger event and one active provider-state row with `plan=pro`, `entitlement_id=pro`, the approved Pro price, and `will_renew=true`.
+- **Exact source:** The active `revenuecat_subscription_state` row is the exact current WiseResume Pro source. The legacy `subscriptions` table has no row for the canonical QA user. RevenueCat customer history shows the same `app_user_id`, active Pro entitlement, active Paddle subscription, and access enabled.
+- **UI/persistence:** Arabic RTL dashboard and Subscription surfaces show Pro, `50 / 50` workspace credits, Active status, and `0 / 50` daily usage after navigation/refresh verification. No payment, entitlement grant, billing action, or provider mutation occurred.
+- **Repository protection coverage:** Focused webhook/schema tests passed 12/12, covering TEST no-mutation acknowledgement, Ultimate normalization without persisting `ultimate`, lifecycle transitions, duplicate idempotency, stale-event rejection, resolver precedence, and schema contracts. These are deterministic fake-store tests, not live transition evidence.
+- **Unverified live transitions:** Live duplicate replay, stale/out-of-order events, cancellation/`will_renew=false`, access-until-expiration, billing issue, expiration, and Ultimate activation remain `UNVERIFIED` because no provider mutation, fabricated event, entitlement grant, or second payment is allowed. The current Pro subscription remains active and renewing in Sandbox.
+- **Security warning:** A prior RevenueCat app-list response exposed plaintext Paddle Sandbox API-key fields. Values were not copied, stored, printed, reread, or recorded. The owner explicitly declined rotation. This remains `UNRESOLVED_SECURITY_WARNING`; the lifecycle result is not a security clearance. No further credential-bearing provider view/API was opened after the warning.
+- **Report:** [`reports/2026-08-26-payments-phase2c-lifecycle-qa.md`](./reports/2026-08-26-payments-phase2c-lifecycle-qa.md)
+
 ## 2026-08-26 - WiseResume PR #216 sidebar overflow correction merged and deployed
 
 - **Verdict:** `PASS_WITH_WARNINGS`. PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) corrected the sidebar layout by making the navigation region the single vertical scroll owner and keeping the membership/account footer outside that region. The change was frontend-only; billing, account logic, Appwrite, RevenueCat, Paddle, DNS, secrets, checkout, and Production payments were untouched.
