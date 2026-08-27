@@ -149,6 +149,16 @@
       "ignore": [".git", ".gitignore", "*.tar.gz"]
     },
     {
+      "functionId": "billing-checkout",
+      "name": "Billing Checkout",
+      "runtime": "node-22",
+      "execute": ["users"],
+      "path": "appwrite-hubs/billing-checkout",
+      "entrypoint": "src/main.js",
+      "commands": "npm ci --omit=dev --ignore-scripts",
+      "ignore": [".git", ".gitignore", "*.tar.gz"]
+    },
+    {
       "functionId": "revenuecat-webhook",
       "name": "RevenueCat Subscription Webhook",
       "runtime": "node-22",

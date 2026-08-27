@@ -32,6 +32,12 @@ const FUNCTION_EXECUTION_POLICIES = Object.freeze({
     handlerAuth: 'Validation is public; redemption and subscription actions validate an Appwrite JWT',
     execute: Object.freeze(['any']),
   }),
+  'billing-checkout': Object.freeze({
+    classification: 'authenticated-user',
+    caller: 'Authenticated subscription checkout intent through the future server-owned billing flow',
+    handlerAuth: 'Resolves the canonical Appwrite user from an Appwrite JWT before any storage or provider call',
+    execute: Object.freeze(['users']),
+  }),
   'wisehire-gateway': Object.freeze({
     classification: 'authenticated-user',
     caller: 'WiseHire frontend actions through src/lib/appwrite-functions.ts',

@@ -77,6 +77,7 @@ const HUBS = [
     { id: 'job-import', name: 'Job Import Hub', file: 'job-import.tar.gz' },
     { id: 'ai-gateway', name: 'AI Gateway Hub', file: 'ai-gateway.tar.gz' },
     { id: 'coupons', name: 'Coupons Hub', file: 'coupons.tar.gz' },
+    { id: 'billing-checkout', name: 'Billing Checkout', file: 'billing-checkout.tar.gz' },
     { id: 'revenuecat-webhook', name: 'RevenueCat Subscription Webhook', file: 'revenuecat-webhook.tar.gz' },
     { id: 'wisehire-gateway', name: 'WiseHire Gateway Hub', file: 'wisehire-gateway.tar.gz' },
     { id: 'public-share', name: 'Public Share Hub', file: 'public-share.tar.gz' },
@@ -891,6 +892,11 @@ async function syncVariablesForHubs(hubIds) {
         await ensureRevenueCatWebhookVariables();
         console.log('\nEnsuring RevenueCat provider-state schemas...');
         execSync('node scripts/setup_revenuecat_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
+    }
+
+    if (selected.has('billing-checkout')) {
+        console.log('\nEnsuring billing checkout schemas...');
+        execSync('node scripts/setup_billing_checkout_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
     }
 
     const couponsTargets = ['coupons', 'wisehire-gateway', 'public-share'].filter(id => selected.has(id));

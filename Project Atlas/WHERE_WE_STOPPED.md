@@ -1,11 +1,22 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-26
-**Status:** `PAYMENTS_PHASE2C_SANDBOX_VERIFIED_WITH_WARNINGS` — the custom webhook domain is strict-TLS valid, the targeted `revenuecat-webhook` deployment is active, and the existing Sandbox Pro lifecycle is verified through RevenueCat, Appwrite, and WiseResume. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
+**Last Verified:** 2026-08-28
+**Status:** `PHASE2D_C2_IMPLEMENTED_VALIDATED_NOT_DEPLOYED_WITH_BUILD_ENVIRONMENT_WARNING` — the approved server-owned authenticated checkout/session boundary is implemented locally with fail-closed Production behavior, additive server-only schema definitions, and focused tests. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Payments Phase 2D-C.2 server-owned checkout boundary — 2026-08-28
+
+* **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED_WITH_BUILD_ENVIRONMENT_WARNING`. A local scoped branch `feat/phase2dc2-server-checkout` implements the approved authenticated `billing-checkout` Appwrite Function boundary. No commit, push, PR, merge, schema application, Function deployment, provider mutation, secret/configuration change, DNS/Vercel change, transaction, or payment occurred.
+* **Implementation:** Added canonical Appwrite JWT user resolution, exact internal `pro|premium` validation, server-side catalog mapping, automatic-only provider input, fixed return path, safe response/error shapes, server-backed `BILLING_CHECKOUT_ENABLED` default-off gating, and an injectable provider seam whose default is unconfigured. Checkout creation never grants plan access or mutates legacy subscriptions, RevenueCat state/ledger, entitlements, or credits.
+* **Storage:** Added unexecuted idempotent definitions for server-only `billing_checkout_sessions` and `billing_checkout_locks` with unique session/public-reference and lock indexes, user/plan binding, 15-minute active sessions, 24-hour same-key replay policy, and three-attempt-per-user/10-minute rate limiting.
+* **Preservation:** `src/lib/billing.ts` remains `paymentsEnabled=false`; the Sandbox `_ptxn` helper remains unchanged and retains its single-transaction allowlist; the RevenueCat webhook and shared resolver remain authoritative.
+* **Validation:** Focused checkout tests, existing RevenueCat/policy/schema/webhook regressions, full Vitest (224 files / 1,251 passed / 1 skipped / 1 todo), `node --check`, TypeScript, ESLint, and `git diff --check` passed. The canonical production build was attempted but blocked by sandbox memory/OOM/stall after transforming 5,892 modules; generated `dist` was removed. Browser QA was not required because no frontend behavior changed.
+* **Security:** No credential values were added, read, logged, or recorded. The prior Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` and blocks Production security clearance.
+* **Report:** [`reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md`](./reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md)
+* **Next action:** Resolve the build environment limitation and re-run the canonical build/no-sourcemap gate. Only after that may the owner separately authorize commit/PR review; keep Production disabled and do not apply the schema or deploy this Function in this phase.
 
 ## WiseResume Payments Phase 2D-B.1 live-domain Sandbox checkout — 2026-08-27
 

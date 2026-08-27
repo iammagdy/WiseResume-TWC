@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-08-28 - WiseResume Payments Phase 2D-C.2 server-owned checkout boundary
+
+- **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED_WITH_BUILD_ENVIRONMENT_WARNING`. Local branch `feat/phase2dc2-server-checkout` adds the authenticated server-owned `billing-checkout` Function boundary and additive server-only schema definitions. No commit, push, PR, merge, schema application, Function deployment, provider mutation, secret/configuration change, DNS/Vercel change, transaction, or payment occurred.
+- **Contract:** The Function resolves the canonical Appwrite user from JWT context, accepts only internal `pro`/`premium`, maps price/product/entitlement server-side, sends automatic-only provider input with safe correlation metadata, uses a fixed return path, and returns only a safe opaque session response. Browser user/price/transaction/environment/provider/return fields are rejected.
+- **Protection:** `BILLING_CHECKOUT_ENABLED` defaults false; missing Production catalog/provider readiness fails closed. Server-only session/lock definitions implement 15-minute active sessions, 24-hour replay policy, one active user/plan session, and three attempts per user per ten minutes. Checkout never writes plan access, legacy subscriptions, provider state/ledger, entitlements, or credits.
+- **Preservation:** `paymentsEnabled=false`, disabled public purchase CTAs, the Sandbox `_ptxn` single-transaction helper, and the RevenueCat webhook/resolver authority remain unchanged.
+- **Validation:** Focused tests, existing RevenueCat/policy/schema/webhook regressions, full Vitest (224 files / 1,251 passed / 1 skipped / 1 todo), `node --check`, TypeScript, ESLint, and `git diff --check` passed. The canonical build was attempted but blocked by sandbox memory/OOM/stall after 5,892 modules were transformed; generated `dist` was removed after each attempt.
+- **Security:** No credential values were added, read, logged, or recorded. The prior Paddle Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` and blocks Production security clearance.
+- **Report:** [`reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md`](./reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md)
+- **Next action:** Re-run the canonical build/no-sourcemap gate in a clean environment, then obtain separate authorization for commit/PR review. Do not apply the schema, deploy the Function, activate billing, or configure Production in this phase.
+
 ## 2026-08-27 - WiseResume Payments Phase 2D-B.1 live-domain Sandbox checkout
 
 - **Verdict:** `LIVE_SANDBOX_CHECKOUT_AND_ULTIMATE_SYNC_VERIFIED_WITH_WARNINGS`. PR [#220](https://github.com/iammagdy/WiseResume-TWC/pull/220) merged normally at `770591bfcdbcab34ad6914babadcf381554dba7`; Vercel Production built the merged main commit.
