@@ -55,5 +55,13 @@
     "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr",
     "may": "May", "jun": "Jun", "jul": "Jul", "aug": "Aug",
     "sep": "Sep", "oct": "Oct", "nov": "Nov", "dec": "Dec"
+  },
+  "sandboxCheckout": {
+    "loading": "Opening secure Sandbox checkout…",
+    "open": "Secure Sandbox checkout opened.",
+    "completed": "Payment submitted. Waiting for provider confirmation.",
+    "cancelled": "Sandbox checkout cancelled.",
+    "error": "Sandbox checkout could not be opened.",
+    "unavailable": "Sandbox checkout is unavailable for this page."
   }
 }
