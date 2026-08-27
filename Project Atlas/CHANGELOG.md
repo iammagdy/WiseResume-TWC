@@ -1,5 +1,16 @@
 # Project Atlas Master Changelog
 
+## 2026-08-27 - WiseResume Payments Phase 2D-B.1 live-domain Sandbox checkout
+
+- **Verdict:** `LIVE_SANDBOX_CHECKOUT_AND_ULTIMATE_SYNC_VERIFIED_WITH_WARNINGS`. PR [#220](https://github.com/iammagdy/WiseResume-TWC/pull/220) merged normally at `770591bfcdbcab34ad6914babadcf381554dba7`; Vercel Production built the merged main commit.
+- **Implementation:** Added a strict allowlist for the existing Ultimate transaction, Sandbox-only Paddle.js initialization behind `VITE_PADDLE_SANDBOX_CHECKOUT_ENABLED`, exact Paddle CSP hosts, provider-pending return handling, and transient Appwrite session preservation for non-401 failures. General billing remains disabled.
+- **Validation:** Focused checkout/auth tests passed 6/6; lint, TypeScript, production build, no-sourcemap guard, and diff checks passed. Required PR checks passed; TestSprite `No tests detected` remains non-required.
+- **Live QA:** The live `_ptxn` route reached the Paddle loading state and returned to `billing=pending` without payment interaction in this verification sequence. The authenticated QA account remained signed in. Subscription UI showed Ultimate, Active, unlimited resumes, and unlimited daily AI credits.
+- **Provider chain:** RevenueCat Sandbox shows `PURCHASES_INITIAL_PURCHASE`, the existing Paddle transaction mapping, active `premium`, `gives_access=true`, and `will_renew`. Appwrite shows the matching processed `INITIAL_PURCHASE` with `state_updated`; the protected Pro fixture remains separate.
+- **Boundary:** No new payment, transaction, entitlement grant, provider configuration, Appwrite schema, DNS, or secret change was made. Production billing remains unauthorized/unverified. The previous Paddle Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK`.
+- **Report:** [`reports/2026-08-27-payments-phase2d-b-live-domain-closeout.md`](./reports/2026-08-27-payments-phase2d-b-live-domain-closeout.md)
+- **Next action:** Retain the Sandbox-only implementation provisionally for Phase 2D-C and perform a production-readiness review before broader checkout exposure or further provider lifecycle mutation.
+
 ## 2026-08-26 - WiseResume Payments Phase 2D-A Production readiness inventory and security gate
 
 - **Verdict:** `PLAN_READY_NOT_PRODUCTION_READY`. This audit was requirements/documentation only; no checkout implementation, Production activation, payment, provider mutation, secret change, deployment, commit, push, or merge occurred.
