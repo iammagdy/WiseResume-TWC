@@ -188,8 +188,39 @@ function publicSessionResponse(session, providerResult) {
     state: 'created_or_reused',
     expires_at: asString(session.expiresAt || session.expires_at),
   };
-  if (providerResult?.checkoutUrl) data.checkout_url = providerResult.checkoutUrl;
+  const checkoutReference = asString(providerResult?.checkoutReference || session.checkout_reference);
+  if (checkoutReference && checkoutReference.length <= 160) data.checkout_reference = checkoutReference;
+  const checkoutUrl = asString(providerResult?.checkoutUrl || session.checkout_url);
+  if (checkoutUrl && checkoutUrl.length <= 2048) data.checkout_url = checkoutUrl;
   return { status: 'success', data };
+}
+
+function buildUserLockPayload({ lockKey, userId, windowStartedAt, attemptCount, nowIso, rateLimitExpiresAt, existing }) {
+  return {
+    scope: 'user', lock_key: lockKey, user_id: userId, plan: '*', state: 'active',
+    window_started_at: windowStartedAt, attempt_count: attemptCount,
+    created_at: existing?.created_at || nowIso, updated_at: nowIso, expires_at: rateLimitExpiresAt,
+  };
+}
+
+function buildPlanLockPayload({ lockKey, userId, plan, environment, priceId, sessionId, requestKeyFingerprint, windowStartedAt, attemptCount, nowIso, expiresAt, existing }) {
+  return {
+    scope: 'plan', lock_key: lockKey, user_id: userId, plan, environment, price_id: priceId,
+    session_id: sessionId, state: 'creating', request_key_fingerprint: requestKeyFingerprint,
+    window_started_at: windowStartedAt, attempt_count: attemptCount,
+    created_at: existing?.created_at || nowIso, updated_at: nowIso, expires_at: expiresAt,
+  };
+}
+
+function validateLockPayload(payload) {
+  if (!isRecord(payload) || !['user', 'plan'].includes(payload.scope)) throw new Error('Invalid checkout lock scope.');
+  const commonFields = ['scope', 'lock_key', 'user_id', 'plan', 'state', 'window_started_at', 'attempt_count', 'created_at', 'updated_at', 'expires_at'];
+  if (commonFields.some(field => payload[field] === undefined || payload[field] === null)) throw new Error('Invalid checkout lock payload.');
+  if (payload.scope === 'plan') {
+    const planFields = ['environment', 'price_id', 'session_id', 'request_key_fingerprint'];
+    if (planFields.some(field => typeof payload[field] !== 'string' || payload[field].length === 0)) throw new Error('Invalid plan checkout lock payload.');
+  }
+  return payload;
 }
 
 class AppwriteCheckoutStore {
@@ -233,6 +264,9 @@ class AppwriteCheckoutStore {
             if (!sameInput) fail('idempotency_conflict', 409, 'This checkout request key was already used.');
             if (['creating', 'created', 'opened', 'pending'].includes(replayCandidate.state) &&
                 new Date(replayCandidate.expires_at || 0).getTime() > input.nowMs) {
+              if (replayCandidate.state === 'creating' || !replayCandidate.checkout_reference) {
+                fail('checkout_in_progress', 409, 'A checkout is already being prepared.');
+              }
               return { outcome: 'reused', session: replayCandidate };
             }
             fail('idempotency_conflict', 409, 'This checkout request key cannot be replayed.');
@@ -249,7 +283,10 @@ class AppwriteCheckoutStore {
           await this.databases.updateTransaction(transaction.$id, true, false);
           committed = true;
           if (!existing) throw new Error('Checkout session lock has no session record.');
-          return { outcome: 'reused', session: existing };
+          const canResume = ['created', 'opened', 'pending'].includes(existing.state) &&
+            typeof existing.checkout_reference === 'string' && existing.checkout_reference.length > 0;
+          if (canResume) return { outcome: 'reused', session: existing };
+          fail('checkout_in_progress', 409, 'A checkout is already being prepared.');
         }
         const windowStart = userLock && new Date(userLock.window_started_at).getTime() > input.nowMs - RATE_LIMIT_WINDOW_MS
           ? userLock.window_started_at
@@ -261,33 +298,30 @@ class AppwriteCheckoutStore {
           fail('rate_limited', 429, 'Checkout attempts are temporarily limited.');
         }
         const sessionId = `session_${hash(input.sessionKey).slice(0, 28)}`;
-        const lockPayload = {
-          scope: 'plan', lock_key: planLockId, user_id: input.userId, plan: input.plan,
-          environment: input.environment, price_id: input.priceId, session_id: sessionId,
-          state: 'creating', request_key_fingerprint: input.requestKeyFingerprint,
-          window_started_at: windowStart, attempt_count: attemptCount + 1,
-          created_at: planLock?.created_at || nowIso, updated_at: nowIso, expires_at: input.expiresAt,
-        };
+        const lockPayload = validateLockPayload(buildPlanLockPayload({
+          lockKey: planLockId, userId: input.userId, plan: input.plan, environment: input.environment,
+          priceId: input.priceId, sessionId, requestKeyFingerprint: input.requestKeyFingerprint,
+          windowStartedAt: windowStart, attemptCount: attemptCount + 1,
+          nowIso, expiresAt: input.expiresAt, existing: planLock,
+        }));
         if (planLock) await this.databases.updateDocument(DB_ID, LOCK_COLLECTION, planLockId, lockPayload, [], transaction.$id);
         else await this.databases.createDocument(DB_ID, LOCK_COLLECTION, planLockId, lockPayload, [], transaction.$id);
         if (userLock) {
-          await this.databases.updateDocument(DB_ID, LOCK_COLLECTION, userLockId, {
-            scope: 'user', lock_key: userLockId, user_id: input.userId, plan: '*', state: 'active',
-            window_started_at: windowStart, attempt_count: attemptCount + 1,
-            created_at: userLock.created_at || nowIso, updated_at: nowIso, expires_at: input.rateLimitExpiresAt,
-          }, [], transaction.$id);
+          await this.databases.updateDocument(DB_ID, LOCK_COLLECTION, userLockId, validateLockPayload(buildUserLockPayload({
+            lockKey: userLockId, userId: input.userId, windowStartedAt: windowStart,
+            attemptCount: attemptCount + 1, nowIso, rateLimitExpiresAt: input.rateLimitExpiresAt, existing: userLock,
+          })), [], transaction.$id);
         } else {
-          await this.databases.createDocument(DB_ID, LOCK_COLLECTION, userLockId, {
-            scope: 'user', lock_key: userLockId, user_id: input.userId, plan: '*', state: 'active',
-            window_started_at: windowStart, attempt_count: attemptCount + 1,
-            created_at: nowIso, updated_at: nowIso, expires_at: input.rateLimitExpiresAt,
-          }, [], transaction.$id);
+          await this.databases.createDocument(DB_ID, LOCK_COLLECTION, userLockId, validateLockPayload(buildUserLockPayload({
+            lockKey: userLockId, userId: input.userId, windowStartedAt: windowStart,
+            attemptCount: attemptCount + 1, nowIso, rateLimitExpiresAt: input.rateLimitExpiresAt,
+          })), [], transaction.$id);
         }
         const session = {
           session_key: input.sessionKey, request_key_fingerprint: input.requestKeyFingerprint,
           user_id: input.userId, plan: input.plan, environment: input.environment,
           price_id: input.priceId, product_id: input.productId, entitlement_id: input.entitlementId,
-          provider_transaction_id: '', checkout_reference: '', state: 'creating',
+          provider_transaction_id: '', checkout_reference: '', checkout_url: '', state: 'creating',
           correlation_id: input.correlationId, public_reference: input.publicReference,
           created_at: nowIso, updated_at: nowIso, expires_at: input.expiresAt, last_error_code: '',
         };
@@ -315,6 +349,7 @@ class AppwriteCheckoutStore {
       await this.databases.updateDocument(DB_ID, SESSION_COLLECTION, session.$id, {
         provider_transaction_id: providerResult.providerTransactionId,
         checkout_reference: providerResult.checkoutReference,
+        checkout_url: providerResult.checkoutUrl || '',
         state: 'created', updated_at: nowIso, last_error_code: '',
       }, [], transaction.$id);
       await this.databases.updateDocument(DB_ID, LOCK_COLLECTION, `plan_${hash(`${session.user_id}:${session.plan}:${session.environment}`).slice(0, 28)}`, {
@@ -505,4 +540,7 @@ module.exports.__test = {
   resolveCanonicalUser,
   safeProviderResult,
   validateRequest,
+  buildUserLockPayload,
+  buildPlanLockPayload,
+  validateLockPayload,
 };

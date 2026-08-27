@@ -12,6 +12,9 @@ const {
   MAX_CREATIONS_PER_USER,
   safeProviderResult,
   validateRequest,
+  buildUserLockPayload,
+  buildPlanLockPayload,
+  validateLockPayload,
 } = billing.__test;
 
 class MemoryCheckoutStore {
@@ -37,11 +40,19 @@ class MemoryCheckoutStore {
     if (prior) {
       const sameInput = prior.plan === input.plan && prior.environment === input.environment && prior.price_id === input.priceId;
       if (!sameInput) throw new BillingCheckoutError('idempotency_conflict', 409, 'This checkout request key was already used.');
-      if (this.nowMs - prior.createdAt <= IDEMPOTENCY_WINDOW_MS && prior.state !== 'failed') return { outcome: 'reused', session: prior };
+      if (this.nowMs - prior.createdAt <= IDEMPOTENCY_WINDOW_MS && prior.state !== 'failed') {
+        if (prior.state !== 'created' || !prior.checkout_reference) {
+          throw new BillingCheckoutError('checkout_in_progress', 409, 'A checkout is already being prepared.');
+        }
+        return { outcome: 'reused', session: prior };
+      }
       throw new BillingCheckoutError('idempotency_conflict', 409, 'This checkout request key cannot be replayed.');
     }
     const active = this.activeByPlan.get(`${input.userId}:${input.plan}:${input.environment}`);
     if (active && new Date(active.expires_at).getTime() > this.nowMs && active.state !== 'failed') {
+      if (active.state !== 'created' || !active.checkout_reference) {
+        throw new BillingCheckoutError('checkout_in_progress', 409, 'A checkout is already being prepared.');
+      }
       return { outcome: 'reused', session: active };
     }
     const attemptKey = `${input.userId}:${Math.floor(input.nowMs / (10 * 60 * 1000))}`;
@@ -143,6 +154,35 @@ assert.deepEqual(schema.COLLECTION_SPECS.map(spec => spec.id), ['billing_checkou
 for (const spec of schema.COLLECTION_SPECS) {
   assert.deepEqual(spec.attributes.find(attribute => attribute.key === 'user_id')?.required, true);
 }
+const lockSpec = schema.COLLECTION_SPECS.find(spec => spec.id === 'billing_checkout_locks');
+function assertSchemaCompatible(payload) {
+  const attributes = new Map(lockSpec.attributes.map(attribute => [attribute.key, attribute]));
+  for (const attribute of lockSpec.attributes.filter(attribute => attribute.required)) {
+    assert.notEqual(payload[attribute.key], undefined, `${payload.scope} lock is missing required ${attribute.key}`);
+  }
+  for (const key of Object.keys(payload)) assert.equal(attributes.has(key), true, `${payload.scope} lock has unknown ${key}`);
+}
+const userLockPayload = validateLockPayload(buildUserLockPayload({
+  lockKey: 'user_lock', userId: 'canonical-user', windowStartedAt: new Date(nowMs).toISOString(),
+  attemptCount: 1, nowIso: new Date(nowMs).toISOString(), rateLimitExpiresAt: new Date(nowMs + 600000).toISOString(),
+}));
+assertSchemaCompatible(userLockPayload);
+assert.equal(userLockPayload.environment, undefined);
+assert.equal(userLockPayload.price_id, undefined);
+assert.equal(userLockPayload.session_id, undefined);
+assert.equal(userLockPayload.request_key_fingerprint, undefined);
+const planLockPayload = validateLockPayload(buildPlanLockPayload({
+  lockKey: 'plan_lock', userId: 'canonical-user', plan: 'pro', environment: 'production', priceId: 'price_pro',
+  sessionId: 'session_1', requestKeyFingerprint: 'fingerprint',
+  windowStartedAt: new Date(nowMs).toISOString(), attemptCount: 1, nowIso: new Date(nowMs).toISOString(),
+  expiresAt: new Date(nowMs + ACTIVE_WINDOW_MS).toISOString(),
+}));
+assertSchemaCompatible(planLockPayload);
+for (const field of ['environment', 'price_id', 'session_id', 'request_key_fingerprint']) assert.equal(typeof planLockPayload[field], 'string');
+for (const field of ['environment', 'price_id', 'session_id', 'request_key_fingerprint']) {
+  const invalid = { ...planLockPayload, [field]: undefined };
+  assert.throws(() => validateLockPayload(invalid), /plan checkout lock payload/);
+}
 
 // Unauthenticated callers are rejected before storage/provider work.
 {
@@ -237,7 +277,7 @@ for (const plan of ['pro', 'premium']) {
   const result = await invoke({ action: 'create-session', plan: 'pro' }, {
     user: { $id: 'canonical-user-2' }, store: new MemoryCheckoutStore({ nowMs }), provider: provider({ calls }), config: config(), now: () => nowMs,
   });
-  assert.deepEqual(Object.keys(result.response.data).sort(), ['expires_at', 'plan', 'session_reference', 'state']);
+  assert.deepEqual(Object.keys(result.response.data).sort(), ['checkout_reference', 'expires_at', 'plan', 'session_reference', 'state']);
   assert.equal(JSON.stringify(result.response).includes('provider-transaction-server-only'), false);
   assert.equal(JSON.stringify(result.response).includes('entitlement'), false);
 }
@@ -253,7 +293,13 @@ for (const plan of ['pro', 'premium']) {
     invoke({ action: 'create-session', plan: 'pro', idempotency_key: 'same-key' }, dependencies),
   ]);
   assert.equal(calls.length, 1);
-  assert.equal(new Set(results.map(result => result.response.data.session_reference)).size, 1);
+  assert.equal(results.filter(result => result.response.status === 'success').length, 1);
+  assert.equal(results.filter(result => result.response.error === 'checkout_in_progress').length, 2);
+  const retry = await invoke({ action: 'create-session', plan: 'pro', idempotency_key: 'same-key' }, dependencies);
+  assert.equal(retry.response.status, 'success');
+  assert.equal(retry.response.data.checkout_reference, 'provider-reference-not-public');
+  assert.equal(retry.response.data.session_reference, results.find(result => result.response.status === 'success').response.data.session_reference);
+  assert.equal(calls.length, 1);
   const conflict = await invoke({ action: 'create-session', plan: 'premium', idempotency_key: 'same-key' }, dependencies);
   assert.equal(conflict.response.error, 'idempotency_conflict');
 }

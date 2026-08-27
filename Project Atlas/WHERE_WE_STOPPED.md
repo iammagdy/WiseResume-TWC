@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-28
-**Status:** `PHASE2D_C2_IMPLEMENTED_VALIDATED_NOT_DEPLOYED_WITH_BUILD_ENVIRONMENT_WARNING` — the approved server-owned authenticated checkout/session boundary is implemented locally with fail-closed Production behavior, additive server-only schema definitions, and focused tests. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
+**Status:** `DRAFT_PR_CI_VALIDATED_NOT_MERGED_NOT_DEPLOYED` — the Phase 2D-C.2 server-owned checkout/session boundary and corrective schema/runtime fix are committed in Draft PR #223. CI and Vercel Preview passed. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -9,14 +9,14 @@
 
 ## WiseResume Payments Phase 2D-C.2 server-owned checkout boundary — 2026-08-28
 
-* **Verdict:** `IMPLEMENTED_VALIDATED_NOT_DEPLOYED_WITH_BUILD_ENVIRONMENT_WARNING`. A local scoped branch `feat/phase2dc2-server-checkout` implements the approved authenticated `billing-checkout` Appwrite Function boundary. No commit, push, PR, merge, schema application, Function deployment, provider mutation, secret/configuration change, DNS/Vercel change, transaction, or payment occurred.
+* **Verdict:** `DRAFT_PR_CI_VALIDATED_NOT_MERGED_NOT_DEPLOYED`. The initial implementation commit was `fe5d8be8dad2b4c2d066249323bfaf57147b3075`; Draft PR [#223](https://github.com/iammagdy/WiseResume-TWC/pull/223) is open against `main`, and a corrective commit is now pushed on the same branch. No merge, schema application, Function deployment, provider mutation, secret/configuration change, DNS change, transaction, or payment occurred.
 * **Implementation:** Added canonical Appwrite JWT user resolution, exact internal `pro|premium` validation, server-side catalog mapping, automatic-only provider input, fixed return path, safe response/error shapes, server-backed `BILLING_CHECKOUT_ENABLED` default-off gating, and an injectable provider seam whose default is unconfigured. Checkout creation never grants plan access or mutates legacy subscriptions, RevenueCat state/ledger, entitlements, or credits.
-* **Storage:** Added unexecuted idempotent definitions for server-only `billing_checkout_sessions` and `billing_checkout_locks` with unique session/public-reference and lock indexes, user/plan binding, 15-minute active sessions, 24-hour same-key replay policy, and three-attempt-per-user/10-minute rate limiting.
+* **Storage/correction:** Added unexecuted idempotent definitions for server-only `billing_checkout_sessions` and `billing_checkout_locks`. Corrective review found that user-scope locks omit plan-only `environment`, `price_id`, `session_id`, and `request_key_fingerprint`; those fields are now optional in the shared schema and required by application validation for plan-scope locks. Runtime payload builders and schema compatibility tests cover both scopes.
 * **Preservation:** `src/lib/billing.ts` remains `paymentsEnabled=false`; the Sandbox `_ptxn` helper remains unchanged and retains its single-transaction allowlist; the RevenueCat webhook and shared resolver remain authoritative.
-* **Validation:** Focused checkout tests, existing RevenueCat/policy/schema/webhook regressions, full Vitest (224 files / 1,251 passed / 1 skipped / 1 todo), `node --check`, TypeScript, ESLint, and `git diff --check` passed. The canonical production build was attempted but blocked by sandbox memory/OOM/stall after transforming 5,892 modules; generated `dist` was removed. Browser QA was not required because no frontend behavior changed.
+* **Validation:** Corrective focused checkout/schema tests, existing RevenueCat/policy/schema/webhook regressions, full Vitest (224 files / 1,251 passed / 1 skipped / 1 todo), `node --check`, TypeScript, ESLint, `git diff --check`, and secret-pattern scan passed. The local canonical build’s prior termination/OOM is confirmed as an environment limitation; higher-resource GitHub Typecheck + portfolio tests, Security regression suite, and Vercel Preview all passed. Browser QA was not required because no frontend behavior changed.
 * **Security:** No credential values were added, read, logged, or recorded. The prior Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` and blocks Production security clearance.
 * **Report:** [`reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md`](./reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md)
-* **Next action:** Resolve the build environment limitation and re-run the canonical build/no-sourcemap gate. Only after that may the owner separately authorize commit/PR review; keep Production disabled and do not apply the schema or deploy this Function in this phase.
+* **Next action:** Keep PR #223 Draft. Do not mark Ready or merge. A later explicit authorization is required before applying the schema, deploying `billing-checkout`, enabling billing, or configuring Production.
 
 ## WiseResume Payments Phase 2D-B.1 live-domain Sandbox checkout — 2026-08-27
 
