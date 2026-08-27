@@ -9,6 +9,7 @@ import { clearAllEditorSessions } from '@/lib/editorSession';
 import { clearPlanCache } from '@/lib/planCache';
 import { setErrorBoundaryUserId } from '@/components/ErrorBoundary';
 import { hydrateResumeStoreForUser } from '@/store/resumeStore';
+import { isUnauthorizedAppwriteError } from '@/lib/authSession';
 import {
   isImpersonating as isImpersonatingFn,
   getImpersonationState,
@@ -84,9 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: live.name,
         emailVerification: live.emailVerification === true,
       };
-    } catch {
-      setAppwriteUser(null);
-      persistSessionUser(null);
+    } catch (error: unknown) {
+      // A checkout overlay can briefly interrupt the network. Preserve the
+      // current authenticated state on transient failures; only an explicit
+      // Appwrite 401 means the remote session is actually unauthorised.
+      if (isUnauthorizedAppwriteError(error)) {
+        setAppwriteUser(null);
+        persistSessionUser(null);
+      }
       return null;
     } finally {
       setAppwriteLoading(false);

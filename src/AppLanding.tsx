@@ -5,6 +5,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { useResumeStore } from "@/store/resumeStore";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { ConsentBanner } from "@/components/layout/ConsentBanner";
+import { SandboxTransactionCheckout } from "@/components/billing/SandboxTransactionCheckout";
 
 const AuroraLayerLazy = lazyWithRetry(() =>
   import("@/components/landing/AuroraLayer").then((m) => ({ default: m.AuroraLayer }))
@@ -60,6 +61,7 @@ function LandingRoutes() {
 
   return (
     <>
+      <SandboxTransactionCheckout />
       <Suspense fallback={null}>
         <AuroraLayerLazy />
       </Suspense>

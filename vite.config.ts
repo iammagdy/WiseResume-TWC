@@ -17,9 +17,9 @@ const CSP_BASE = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://fra.cloud.appwrite.io wss://fra.cloud.appwrite.io https://api.resend.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io https://challenges.cloudflare.com https://*.ingest.de.sentry.io",
+  "connect-src 'self' https://fra.cloud.appwrite.io wss://fra.cloud.appwrite.io https://api.resend.com https://api.openrouter.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.elevenlabs.io https://challenges.cloudflare.com https://*.ingest.de.sentry.io https://sandbox-api.paddle.com",
   "worker-src 'self' blob:",
-  "frame-src https://challenges.cloudflare.com",
+  "frame-src https://challenges.cloudflare.com https://sandbox-buy.paddle.com",
   "object-src 'none'",
   "base-uri 'self'",
 ];
@@ -28,7 +28,7 @@ const CSP_BASE = [
 // Note: frame-ancestors is included here for defense-in-depth, but meta-tag
 // CSP does not enforce frame-ancestors in all browsers — the _headers file
 // provides the authoritative HTTP header for frame-ancestors enforcement.
-const CSP = [...CSP_BASE, "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com", "frame-ancestors 'none'"].join('; ');
+const CSP = [...CSP_BASE, "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://cdn.paddle.com", "frame-ancestors 'none'"].join('; ');
 
 function cspPlugin(): Plugin {
   return {
