@@ -7,6 +7,17 @@
 
 ---
 
+## WiseResume Payments Phase 2D-B.1 live-domain Sandbox checkout — 2026-08-27
+
+* **Verdict:** `LIVE_SANDBOX_CHECKOUT_AND_ULTIMATE_SYNC_VERIFIED_WITH_WARNINGS`. PR [#220](https://github.com/iammagdy/WiseResume-TWC/pull/220) merged normally at `770591bfcdbcab34ad6914babadcf381554dba7`; the corresponding Vercel main deployment reached the Production deployment list. The live domain now handles the existing Sandbox `_ptxn` transaction without enabling general billing.
+* **Root cause/fix:** The default Paddle transaction link originally opened the ordinary landing page because WiseResume did not initialize Paddle.js or handle `_ptxn`. The live patch adds a strict allowlist for `txn_01m0yynrv52wtsqcc7p7vgzxhj`, Sandbox-only Paddle.js initialization, explicit live-host and environment-flag gates, exact Paddle CSP hosts, provider-pending return handling, and a transient Appwrite revalidation safeguard that clears the session only for an explicit 401.
+* **Validation:** Focused checkout/auth tests passed 6/6; lint, TypeScript, production build, no-sourcemap guard, and diff checks passed. Required PR checks passed. TestSprite `No tests detected` remains the known non-required status.
+* **Live browser QA:** The existing `_ptxn` route reached the localized Paddle loading state and returned to `billing=pending` without payment interaction in this verification sequence. The authenticated live subscription page remained signed in and showed the QA account as Ultimate, Active, unlimited resumes, and unlimited daily AI credits.
+* **Provider/application evidence:** RevenueCat read-only shows the canonical Ultimate customer with Sandbox `PURCHASES_INITIAL_PURCHASE`, Paddle transaction mapping, active `premium` entitlement, `gives_access=true`, `pending_payment=false`, and `will_renew`. Appwrite `revenuecat_event_ledger` shows the matching processed `INITIAL_PURCHASE` with `state_updated`; the existing Pro fixture row remains separate and unchanged.
+* **Boundary:** Production billing remains unauthorized and unverified. Ultimate cancellation, expiration, billing issue, stale/duplicate replay, and access-until-expiration transitions remain `UNVERIFIED`. The previously recorded Paddle Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK`; no credential value is recorded.
+* **Report:** [`reports/2026-08-27-payments-phase2d-b-live-domain-closeout.md`](./reports/2026-08-27-payments-phase2d-b-live-domain-closeout.md)
+* **Next action:** Retain this Sandbox-only implementation provisionally for Phase 2D-C and conduct a production-readiness review before any broader checkout exposure or provider lifecycle mutation. Do not repeat the Ultimate payment or touch the Pro fixture.
+
 ## WiseResume Payments Phase 2C Sandbox lifecycle QA — 2026-08-26
 
 * **Lifecycle verdict:** `PASS_WITH_WARNINGS`. Using the existing QA fixture `6a8d5e4c0029004e93c3`, the already-completed Paddle Sandbox Pro path is now verified through RevenueCat Sandbox, Appwrite, and WiseResume. RevenueCat has one Sandbox `PURCHASES_INITIAL_PURCHASE` event with the canonical `app_user_id`; Appwrite contains one processed `INITIAL_PURCHASE` ledger row and one active provider-state row with `plan=pro`, `entitlement_id=pro`, the approved Pro price, and `will_renew=true`.
