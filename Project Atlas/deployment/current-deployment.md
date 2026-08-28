@@ -1,6 +1,6 @@
 # WiseResume Current Deployment Guide
 
-**Last Verified:** 2026-08-26
+**Last Verified:** 2026-08-28
 **Status:** Canonical Deployment Specification  
 **Location:** `Project Atlas/deployment/current-deployment.md`  
 
@@ -18,7 +18,7 @@ WiseResume uses a hybrid deployment architecture:
 ## 2. Frontend Deployment (Vercel)
 
 * **Production URL:** `https://wiseresume.app`
-* **Current Production Deployment:** GitHub deployment record `6101175755` for Vercel environment `Production`, associated with merge commit `82d3640c743442db304c50cb57a229648685b59a`, completed with status `success` at `2026-08-26T09:44:10Z`. The normal main-branch deployment path was used; no manual Vercel deployment was initiated. Runtime-to-Git mapping is supported by the GitHub deployment record.
+* **Current Production Deployment:** GitHub deployment record `6134499586` for Vercel environment `Production`, associated with merged product commit `1abe49349d0998f13709c7af9d80164435b5069e`, completed with status `success`; target URL was `https://wise-resume-n0pbocame-iam-magdy.vercel.app`. The normal main-branch deployment path was used; no manual Vercel deployment was initiated.
 * **Merge boundary:** PR [#216](https://github.com/iammagdy/WiseResume-TWC/pull/216) merged normally into `main` at `82d3640c743442db304c50cb57a229648685b59a` after the authorized head `f18017f2af81ca939c047082f6215baf545bfc1b` and two-file scope were re-confirmed. The deployment status for that merge commit was `success`.
 * **Trigger / QA:** The merge to `main` triggered the normal Vercel Production deployment path. Authenticated Arabic RTL desktop QA at approximately 1526×811 showed the corrected sidebar footer/account reachability, Pro card, Manage billing, and `50 / 50` credits in both dark and light modes. Plan & billing reached `/subscription` with Pro, Active, and `0 / 50` daily usage. English LTR and reduced mobile viewport remain `UNVERIFIED` because the live locale control was feature-flagged off and the available browser controls did not resize the viewport. No Appwrite deployment occurred or was required.
 * **Build Command:** `npm run build`
@@ -51,6 +51,14 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **GitHub Actions Run:** `30101982337` - success in `5m15s` after corrective PR #158.
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
+
+### Current WiseResume Payments Sandbox runtime readiness — 2026-08-28
+
+* **Runtime:** Public Sandbox/Test Mode UI and explicit server Sandbox/Production isolation are merged in PR #225. The server-owned `billing-checkout` boundary accepts only authenticated canonical users and internal `pro|premium`, with server-selected catalog, automatic collection, canonical custom data, safe opaque session output, and no local entitlement authority.
+* **Appwrite:** The additive `billing_checkout_sessions` and `billing_checkout_locks` collections were applied by targeted workflow `33135870481`. Exactly `billing-checkout` was deployed and reached ready deployment `6a90f1babbd3925c3583`.
+* **Provider boundary:** No safe server Paddle credential was proven available through an approved masked path. No provider-authenticated request, transaction, or lifecycle mutation was performed. The runtime remains fail-closed with billing and provider readiness disabled; Production remains disabled.
+* **Frontend QA:** Live public Pricing QA passed in English and Arabic RTL with Sandbox/Test Mode and no-real-charge disclosure. Authenticated checkout, mobile, theme alternates, and provider reconciliation remain `UNVERIFIED`.
+* **Security:** The prior exposed Paddle Sandbox API-key warning remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; no value was retrieved or used. This is not a Production approval.
 
 ### Current WiseResume Payments Phase 2C Sandbox readiness — 2026-08-26
 

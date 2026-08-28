@@ -1,11 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-28
-**Status:** `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED` — the non-credential public Sandbox implementation merged in PR #225 at `1abe49349d0998f13709c7af9d80164435b5069e`. The additive schema is applied and exactly `billing-checkout` is deployed at ready deployment `6a90f1babbd3925c3583`, with billing and provider readiness still disabled. No provider-authenticated request occurred. Real Paddle Sandbox transaction execution is blocked because no safe server credential is authorized for use. The prior Paddle Sandbox credential exposure remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
+**Status:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED` — the public Sandbox implementation, environment isolation, additive schema, and targeted `billing-checkout` deployment are complete and fail-closed. No safe server Paddle credential was proven available through an approved masked path, so no provider-authenticated request or transaction was performed. Production billing remains disabled. The prior Paddle Sandbox credential exposure remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Payments final Sandbox billing completion mission — 2026-08-28
+
+* **Verdict:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED`. PR #225 merged at `1abe49349d0998f13709c7af9d80164435b5069e`; PR #226 merged at `5f57d990fa16686d7ee57a341885e57aa347d9e8`. The additive checkout schema was applied and exactly `billing-checkout` was deployed at ready deployment `6a90f1babbd3925c3583`.
+* **Credential boundary:** No provider credential value was retrieved, displayed, copied, logged, hashed, compared, configured, or used. Local Sandbox provider-key presence was absent. Remote Appwrite billing-variable values remain `UNVERIFIED` because the safe metadata path was unavailable and generic deployment helpers read values.
+* **QA:** Local focused/full validation passed; live public Pricing QA passed in English and Arabic RTL. Real Pro/Ultimate E2E, RevenueCat ingestion, Appwrite lifecycle mutation, post-purchase limits/persistence, upgrade, cancellation, expiration, billing issue, and Manage Billing remain `UNVERIFIED`.
+* **Next action:** Separately authorize a safe server credential path before any provider-authenticated Sandbox execution. Do not weaken the architecture or use browser-side authority.
+* **Report:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md)
 
 ## WiseResume Payments Phase 2D public Sandbox billing implementation — 2026-08-28
 

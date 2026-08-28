@@ -1,12 +1,21 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-08-26
-**Status:** `PAYMENTS_PHASE2C_SANDBOX_VERIFIED_WITH_WARNINGS` — The existing PR #198 Production status remains `DEPLOYED_VERIFIED_WITH_WARNINGS`. Phase 2C verified the non-real Paddle Sandbox Pro path through RevenueCat, Appwrite, and WiseResume. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
+**Last Verified:** 2026-08-28
+**Status:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED` — Public Sandbox billing code, environment isolation, additive checkout schema, and targeted `billing-checkout` deployment are complete and fail-closed. Real provider-authenticated Sandbox execution remains blocked because no safe server Paddle credential was proven available through an approved masked path. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments final Sandbox billing completion mission — 2026-08-28
+
+* **Verdict:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED`. The public Sandbox/Test Mode UI, explicit Sandbox/Production server isolation, server-owned checkout contract, additive checkout schema, and targeted `billing-checkout` deployment are complete. PR #225 merged at `1abe49349d0998f13709c7af9d80164435b5069e`; PR #226 merged at `5f57d990fa16686d7ee57a341885e57aa347d9e8`.
+* **Deployment:** Workflow `33135870481` succeeded; exactly `billing-checkout` was deployed and reached ready deployment `6a90f1babbd3925c3583`. Vercel Production deployment `6134499586` succeeded for the merged product commit.
+* **Credential boundary:** No provider credential value was retrieved or used. Local Sandbox provider-key presence was absent; remote Appwrite billing-variable values remain `UNVERIFIED` because the safe metadata path was unavailable and generic deployment variable helpers read values. No provider-authenticated request or transaction was performed.
+* **QA:** Focused and full local validation passed; live public Pricing QA passed in English and Arabic RTL. Real Pro/Ultimate E2E, RevenueCat ingestion, Appwrite lifecycle mutation, post-purchase limits/persistence, upgrade, cancellation, expiration, billing issue, and Manage Billing remain `UNVERIFIED`.
+* **Security:** The prior exposed Paddle Sandbox API-key warning remains unresolved and owner-accepted. Production billing remains disabled.
+* **Report:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md)
 
 ## Payments Phase 2C Sandbox lifecycle QA — 2026-08-26
 
