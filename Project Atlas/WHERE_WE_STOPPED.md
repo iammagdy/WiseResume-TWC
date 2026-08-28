@@ -13,7 +13,7 @@
 * **Credential boundary:** No provider credential value was retrieved, displayed, copied, logged, hashed, compared, configured, or used. Local Sandbox provider-key presence was absent. Remote Appwrite billing-variable values remain `UNVERIFIED` because the safe metadata path was unavailable and generic deployment helpers read values.
 * **QA:** Local focused/full validation passed; live public Pricing QA passed in English and Arabic RTL. Real Pro/Ultimate E2E, RevenueCat ingestion, Appwrite lifecycle mutation, post-purchase limits/persistence, upgrade, cancellation, expiration, billing issue, and Manage Billing remain `UNVERIFIED`.
 * **Next action:** Separately authorize a safe server credential path before any provider-authenticated Sandbox execution. Do not weaken the architecture or use browser-side authority.
-* **Report:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md)
+* **Reports:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md) and the complete Codex continuation package [`reports/2026-08-28-codex-billing-handover.md`](./reports/2026-08-28-codex-billing-handover.md).
 
 ## WiseResume Payments Phase 2D public Sandbox billing implementation — 2026-08-28
 

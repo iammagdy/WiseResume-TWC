@@ -15,7 +15,7 @@
 * **Credential boundary:** No provider credential value was retrieved or used. Local Sandbox provider-key presence was absent; remote Appwrite billing-variable values remain `UNVERIFIED` because the safe metadata path was unavailable and generic deployment variable helpers read values. No provider-authenticated request or transaction was performed.
 * **QA:** Focused and full local validation passed; live public Pricing QA passed in English and Arabic RTL. Real Pro/Ultimate E2E, RevenueCat ingestion, Appwrite lifecycle mutation, post-purchase limits/persistence, upgrade, cancellation, expiration, billing issue, and Manage Billing remain `UNVERIFIED`.
 * **Security:** The prior exposed Paddle Sandbox API-key warning remains unresolved and owner-accepted. Production billing remains disabled.
-* **Report:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md)
+* **Reports:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md) and the complete Codex continuation package [`reports/2026-08-28-codex-billing-handover.md`](./reports/2026-08-28-codex-billing-handover.md).
 
 ## Payments Phase 2C Sandbox lifecycle QA — 2026-08-26
 

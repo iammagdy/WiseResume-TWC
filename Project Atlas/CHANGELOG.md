@@ -7,7 +7,7 @@
 - **Credential boundary:** No provider credential value was retrieved, displayed, copied, logged, hashed, compared, configured, or used. No Paddle, RevenueCat, or lifecycle mutation was performed. Remote billing-variable values remain `UNVERIFIED` because the safe metadata path was unavailable.
 - **QA:** Focused and full local validation passed. Live public Pricing QA passed in English and Arabic RTL. Real Pro/Ultimate provider E2E, reconciliation, limits, persistence after new purchases, upgrade, cancellation, expiration, billing issue, and Manage Billing remain `UNVERIFIED`.
 - **Security:** The previous exposed Paddle Sandbox API-key incident remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`. Production billing remains disabled.
-- **Report:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md)
+- **Reports:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md) and the full Codex continuation package [`reports/2026-08-28-codex-billing-handover.md`](./reports/2026-08-28-codex-billing-handover.md).
 - **Next action:** A safe server credential path must be separately authorized before any provider-authenticated Sandbox execution. Do not weaken the server-owned architecture or use browser-side authority.
 
 ## 2026-08-28 - WiseResume Payments Phase 2 public Sandbox billing implementation
