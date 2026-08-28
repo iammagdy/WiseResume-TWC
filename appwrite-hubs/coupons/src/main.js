@@ -2,7 +2,10 @@
 
 const sdk = require('node-appwrite');
 const crypto = require('crypto');
-const { resolveEffectivePlan } = require('@wiseresume/subscription-resolver');
+const {
+  resolveEffectivePlan,
+  configuredProviderEnvironment,
+} = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
 const ENDPOINT = process.env.APPWRITE_FUNCTION_API_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
@@ -300,7 +303,11 @@ async function getMySubscription(body, res) {
   const providerState = await findProviderState(databases, user.$id);
   const trialPlan = sub?.trial_plan ?? null;
   const trialExpiresAt = sub?.trial_expires_at ?? null;
-  const effectivePlan = resolveEffectivePlan({ subscription: sub, providerState }).plan;
+  const effectivePlan = resolveEffectivePlan({
+    subscription: sub,
+    providerState,
+    providerEnvironment: configuredProviderEnvironment(),
+  }).plan;
 
   return json(res, {
     status: 'success',

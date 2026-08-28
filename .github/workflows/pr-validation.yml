@@ -48,7 +48,12 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
-      - name: Run portfolio tests (relevant, known-passing)
+      - name: Run billing contract tests
+        run: >-
+          node tests/hubs/billing-checkout.test.cjs &&
+          node --test tests/hubs/revenuecat-webhook.test.cjs tests/hubs/revenuecat-schema.test.cjs
+
+      - name: Run frontend and portfolio tests (relevant, known-passing)
         run: >-
           npx vitest run
           src/hooks/__tests__/usePublicPortfolio.test.tsx

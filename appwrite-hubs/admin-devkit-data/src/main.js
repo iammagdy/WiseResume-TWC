@@ -5,7 +5,10 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { normalizeUserQuery, filterAndSortUsers } = require('./user-query.cjs');
 const { deriveExactUserCounts, buildUsageStats, summarizeCompletionHealth } = require('./phase1-semantics.cjs');
-const { resolveEffectivePlan } = require('@wiseresume/subscription-resolver');
+const {
+  resolveEffectivePlan,
+  configuredProviderEnvironment,
+} = require('@wiseresume/subscription-resolver');
 
 const DB_ID = 'main';
 const SESSION_TTL_MS = 60 * 60 * 1000;
@@ -1597,7 +1600,11 @@ async function getProviderState(databases, userId) {
 }
 
 function resolvedPlan(subscription, providerState) {
-  return resolveEffectivePlan({ subscription, providerState }).plan;
+  return resolveEffectivePlan({
+    subscription,
+    providerState,
+    providerEnvironment: configuredProviderEnvironment(),
+  }).plan;
 }
 
 // â”€â”€â”€ Admin mutation handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

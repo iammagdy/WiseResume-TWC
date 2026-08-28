@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Check, Crown, Share2, Sparkles, Gem, CalendarClock, FileText, Wand2, Target,
   MessageSquare, Mail, LayoutList, BarChart2,
-  Package, Infinity as InfinityIcon, Bot, Star, Clock,
+  Package, Infinity as InfinityIcon, Bot, Star, Clock, Loader2, AlertCircle, ExternalLink,
 } from 'lucide-react';
 import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
 import { useResumes } from '@/hooks/useResumes';
@@ -20,6 +20,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { billingState } from '@/lib/billing';
+import {
+  createBillingCheckoutSession,
+  openServerCheckout,
+  type BillingCheckoutPlan,
+} from '@/lib/billingCheckout';
+import { useEffect, useState } from 'react';
 
 interface PlanFeature {
   label: string;
@@ -97,8 +103,61 @@ export default function SubscriptionPage() {
     : value === 'pro'
       ? t('app.pro', 'Pro')
       : t('app.free', 'Free');
-  const { data: meData } = useMe();
+  const { data: meData, refetch: refetchMe } = useMe();
   usePlanUpgradeCelebration();
+
+  const [checkoutPlan, setCheckoutPlan] = useState<BillingCheckoutPlan | null>(() => {
+    const pending = sessionStorage.getItem('billing_pending_plan');
+    return pending === 'pro' || pending === 'premium' ? pending : null;
+  });
+  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'preparing' | 'pending' | 'error'>('idle');
+  const [checkoutMessage, setCheckoutMessage] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('billing') !== 'pending') return;
+    setCheckoutStatus('pending');
+    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPending', 'Payment submitted. We’re waiting for provider confirmation before updating access.'));
+    const pendingPlan = sessionStorage.getItem('billing_pending_plan');
+    if (pendingPlan === 'pro' || pendingPlan === 'premium') setCheckoutPlan(pendingPlan);
+    const startedAt = Date.now();
+    const timer = window.setInterval(async () => {
+      const result = await refetchMe();
+      const resolved = String(result.data?.subscription?.effective_plan ?? '').toLowerCase();
+      const targetReached = checkoutPlan === 'premium'
+        ? resolved === 'premium'
+        : checkoutPlan === 'pro'
+          ? resolved === 'pro' || resolved === 'premium'
+          : false;
+      if (targetReached || Date.now() - startedAt > 90_000) {
+        window.clearInterval(timer);
+        if (targetReached) sessionStorage.removeItem('billing_pending_plan');
+      }
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [checkoutPlan, refetchMe, t]);
+
+  const beginCheckout = async (target: BillingCheckoutPlan) => {
+    setCheckoutPlan(target);
+    setCheckoutStatus('preparing');
+    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPreparing', 'Preparing secure test checkout…'));
+    const result = await createBillingCheckoutSession(target);
+    if (!result.ok) {
+      setCheckoutStatus('error');
+      setCheckoutMessage(result.code === 'payments_disabled'
+        ? t('app.aiStudio.subscriptionPage.checkoutUnavailable', 'Sandbox checkout is not available right now. No charge was made.')
+        : result.message || t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. No charge was made.'));
+      return;
+    }
+    sessionStorage.setItem('billing_pending_plan', target);
+    if (!openServerCheckout(result.session)) {
+      setCheckoutStatus('error');
+      setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutError', 'We couldn’t start checkout. No charge was made.'));
+      return;
+    }
+    setCheckoutStatus('pending');
+    setCheckoutMessage(t('app.aiStudio.subscriptionPage.checkoutPending', 'Payment submitted. We’re waiting for provider confirmation before updating access.'));
+  };
 
   const trialPlan = meData?.subscription?.trial_plan ?? null;
   const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
@@ -119,7 +178,7 @@ export default function SubscriptionPage() {
   const upgradeTargets: string[] = isPremium ? [] : isPro ? ['premium'] : ['pro', 'premium'];
   const isPaid = isPro || isPremium;
 
-  const paymentsComingSoon = !billingState.paymentsEnabled;
+  const isSandboxTestMode = billingState.isSandboxTestMode;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -220,6 +279,35 @@ export default function SubscriptionPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {t('app.aiStudio.subscriptionPage.upgradeDescription', 'Upgrade to unlock AI tools, unlimited resumes, and more')}
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isSandboxTestMode && (
+          <Card className="border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20" role="status">
+            <CardContent className="p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('app.aiStudio.subscriptionPage.sandboxMode', 'Sandbox / Test Mode')}</p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-200/80">{t('app.aiStudio.subscriptionPage.sandboxNoCharge', 'No real charge. Test checkout only.')}</p>
+                <p className="text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.checkoutNoLocalGrant', 'Your plan updates only after verified provider confirmation.')}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {checkoutStatus !== 'idle' && (
+          <Card className={checkoutStatus === 'error' ? 'border-destructive/50' : 'border-primary/30'} role={checkoutStatus === 'error' ? 'alert' : 'status'}>
+            <CardContent className="p-4 flex items-start gap-3">
+              {checkoutStatus === 'preparing' ? <Loader2 className="w-5 h-5 shrink-0 animate-spin text-primary" /> : checkoutStatus === 'error' ? <AlertCircle className="w-5 h-5 shrink-0 text-destructive" /> : <Clock className="w-5 h-5 shrink-0 text-primary" />}
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-sm font-medium">{checkoutMessage}</p>
+                <p className="text-xs text-muted-foreground">{t('app.aiStudio.subscriptionPage.checkoutNoLocalGrant', 'Your plan updates only after verified provider confirmation.')}</p>
+                {checkoutStatus === 'pending' && <span className="inline-flex items-center gap-1 text-xs text-primary"><ExternalLink className="w-3 h-3" />{t('app.aiStudio.subscriptionPage.checkoutPendingShort', 'Waiting for provider confirmation')}</span>}
+                {checkoutStatus === 'error' && checkoutPlan && (
+                  <Button variant="outline" size="sm" className="mt-2" onClick={() => beginCheckout(checkoutPlan)}>{t('app.aiStudio.subscriptionPage.checkoutRetry', 'Try again')}</Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -374,14 +462,19 @@ export default function SubscriptionPage() {
                 </div>
                 <Button
                   className={`w-full mt-1 gap-2 ${target === 'premium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'}`}
-                  disabled={paymentsComingSoon}
+                  disabled={checkoutStatus === 'preparing' || target === plan}
+                  onClick={() => beginCheckout(target as BillingCheckoutPlan)}
                   data-track={`subscription-upgrade-cta-${target}`}
                 >
-                  <Clock className="w-4 h-4" />
-                  {t('app.aiStudio.subscriptionPage.comingSoon', 'Coming Soon')}
+                  {checkoutStatus === 'preparing' && checkoutPlan === target ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                  {isSandboxTestMode
+                    ? t('app.aiStudio.subscriptionPage.checkoutTestOnly', 'Sandbox test checkout')
+                    : t('app.aiStudio.subscriptionPage.comingSoon', 'Coming Soon')}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  {t('app.aiStudio.subscriptionPage.onlinePaymentUnavailable', 'Online payment is not available yet.')}
+                  {isSandboxTestMode
+                    ? t('app.aiStudio.subscriptionPage.sandboxNoCharge', 'No real charge. Test checkout only.')
+                    : t('app.aiStudio.subscriptionPage.onlinePaymentUnavailable', 'Online payment is not available yet.')}
                 </p>
               </CardContent>
             </Card>

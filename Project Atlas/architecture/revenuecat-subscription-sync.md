@@ -57,6 +57,18 @@ Phase 2C then verified the existing non-real Sandbox Pro path without repeating 
 
 A prior RevenueCat app-list response exposed plaintext Paddle Sandbox API-key fields. The owner declined rotation, so the risk remains `OWNER_ACCEPTED_UNRESOLVED_RISK`; no credential-bearing app configuration is treated as cleared for Production.
 
+## Public Sandbox checkout boundary
+
+The public Sandbox/Test Mode contract is implemented locally but remains fail-closed and not provider-executable. The authenticated `billing-checkout` Function requires an explicit trusted `BILLING_CHECKOUT_ENVIRONMENT` of `sandbox` or `production`, selects catalog values only from the matching `BILLING_SANDBOX_*` or `BILLING_PRODUCTION_*` family, requires `BILLING_CHECKOUT_ENABLED=true` and `BILLING_CHECKOUT_PROVIDER_READY=true`, and validates an approved HTTPS checkout origin. Production remains disabled by default and no Production catalog or provider credential is configured by this phase.
+
+The Paddle adapter creates only automatic transactions from server-selected catalog values and canonical Appwrite user metadata. It validates the returned transaction item, product, price, quantity, custom data, collection mode, environment when supplied, and approved HTTPS checkout URL. It returns no raw provider payload and never writes entitlement, credits, subscription, provider-state, or ledger data. RevenueCat-to-Appwrite webhook ingestion remains the only provider-state authority.
+
+The shared resolver accepts a RevenueCat provider candidate only when a trusted caller supplies a valid environment and the persisted state carries the same environment. Missing or mismatched mode ignores the provider candidate while preserving manual/admin, coupon, active-trial, and Free precedence. This prevents retained Sandbox state from granting future Production access. All current resolver consumers use the same environment adapter; deploy-time environment synchronization is a separate targeted operations step.
+
+Pricing and Subscription expose Sandbox/Test Mode and no-real-charge copy in English and Arabic. Authenticated checkout sends only `action`, internal `plan`, and optional idempotency key. Return/pending UI revalidates the authoritative subscription query and never grants a plan locally. The historical single-transaction `_ptxn` path remains a protected QA compatibility path, not the normal public checkout architecture.
+
+The implementation is `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED`: no safe server Paddle credential was authorized, so no provider-authenticated request, transaction, schema application, Function deployment, or live checkout test occurred. The prior exposed Sandbox API-key warning remains an unresolved owner-accepted security warning and is not a Production approval.
+
 ## References
 
 [1]: https://www.revenuecat.com/docs/integrations/webhooks "RevenueCat Webhooks"

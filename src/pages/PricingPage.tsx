@@ -6,6 +6,7 @@ import { useLocale } from '@/i18n/LocaleProvider';
 import triggerHaptic from '@/lib/haptics';
 import { useState, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import { PLAN_FEATURE_LABELS } from '@/lib/planConfig';
+import { billingState } from '@/lib/billing';
 
 const pricingFeatures = PLAN_FEATURE_LABELS;
 
@@ -82,6 +83,12 @@ export default function PricingPage() {
         <div className="text-center mb-14">
           <h1 className="text-4xl font-extrabold mb-4">{t('app.aiStudio.pricingPage.title', 'Simple, transparent pricing')}</h1>
           <p className="text-muted-foreground text-lg">{t('app.aiStudio.pricingPage.subtitle', "Start free. Upgrade when you're ready.")}</p>
+          {billingState.isSandboxTestMode && (
+            <div className="mt-5 mx-auto max-w-xl rounded-xl border border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3 text-left" role="status">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('app.aiStudio.pricingPage.sandboxMode', 'Sandbox / Test Mode')}</p>
+              <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-1">{t('app.aiStudio.pricingPage.sandboxNoCharge', 'Test checkout only — no real charge.')}</p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-20">
