@@ -394,7 +394,7 @@ class AppwriteCheckoutStore {
       ]);
       return result.documents?.[0] || null;
     } catch (_) {
-      return null;
+      fail('state_unavailable', 503, 'Subscription state is temporarily unavailable.');
     }
   }
 }
@@ -526,6 +526,7 @@ module.exports.__test = {
   SESSION_COLLECTION,
   BillingCheckoutError,
   BillingCheckoutService,
+  AppwriteCheckoutStore,
   UnconfiguredProvider,
   assertNotAlreadyEntitled,
   assertRuntimeEnabled,

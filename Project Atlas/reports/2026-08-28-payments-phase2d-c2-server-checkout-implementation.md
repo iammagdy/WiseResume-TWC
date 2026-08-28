@@ -4,14 +4,16 @@
 **Repository:** `iammagdy/WiseResume-TWC`
 **Branch:** `feat/phase2dc2-server-checkout`
 **Base:** `4d1e906f039ee49fb3a05ee8ecba447214f0766b`
-**Mode:** Local implementation and validation only
-**Verdict:** `DRAFT_PR_CI_VALIDATED_NOT_MERGED_NOT_DEPLOYED`
+**Mode:** Corrective implementation and Draft PR validation
+**Verdict:** `FAIL_CLOSED_CORRECTED_DRAFT_PR_CI_PENDING`
 
 ## Objective and root cause
 
 Phase 2D-C.2 implements the approved server-owned checkout/session boundary without activating billing. The prior Phase 2D-C.1 contract identified that the browser must not select a user, price, transaction, provider environment, or return URL, and that a future checkout must be durable, idempotent, rate-limited, and fail closed when Production catalog/configuration is unavailable. Before this change there was no repository-owned checkout-session Function or storage contract.
 
 The implementation deliberately does not connect to Paddle, RevenueCat, Appwrite configuration, or any payment provider. `paymentsEnabled=false` and the existing Sandbox-only `_ptxn` helper remain unchanged.
+
+The corrective review confirmed a second real defect: `findOptional()` converted every Appwrite read failure into `null`, allowing authoritative subscription/provider-state outages to look like Free. The correction returns sanitized `state_unavailable` before reservation or provider work.
 
 ## Files changed
 
@@ -20,7 +22,7 @@ The implementation deliberately does not connect to Paddle, RevenueCat, Appwrite
 | Appwrite Function | `appwrite-hubs/billing-checkout/src/main.js`, `appwrite-hubs/billing-checkout/package.json`, `appwrite-hubs/billing-checkout/package-lock.json` | Authenticated server boundary, canonical-user resolution, fail-closed gates, session coordination, safe response/error contract, and injectable provider seam. |
 | Repository registration | `appwrite.json`, `scripts/appwrite-function-policy.cjs`, `scripts/deploy_hubs.cjs` | Adds an explicit authenticated-user `billing-checkout` target and a future targeted schema hook. No remote Function or schema was created. |
 | Additive schema definition | `scripts/setup_billing_checkout_schema.cjs` | Idempotent definitions for server-only `billing_checkout_sessions` and `billing_checkout_locks`. Scope-specific lock fields are optional at schema level and validated for plan-scope records. The script was not executed. |
-| Tests | `tests/hubs/billing-checkout.test.cjs`, `tests/hubs/appwrite-function-policy.test.cjs` | Focused contract/security coverage and updated manifest count for the intentional new target. |
+| Tests | `tests/hubs/billing-checkout.test.cjs`, `tests/hubs/appwrite-function-policy.test.cjs` | Focused contract/security coverage, scope-specific lock compatibility, recovery, and fail-closed authoritative-read coverage. |
 | Existing QA helper | `src/lib/sandboxPaddleCheckout.ts` | **Unchanged.** |
 | Frontend billing gate | `src/lib/billing.ts` | **Unchanged; `paymentsEnabled=false`.** |
 
@@ -55,7 +57,7 @@ The default policy is one active session per user and plan for 15 minutes, a 24-
 
 ## Security review
 
-Focused tests cover unauthenticated access, exact plan rejection including `free` and public `ultimate`, spoofed user/price/transaction/environment/provider/return inputs, canonical `app_user_id`, Pro/Premium mapping, automatic collection, duplicate and concurrent requests, same-key conflict, active entitlement blocking, rate-limit exhaustion, wrong environment, missing catalog fail-closed behavior, kill switch off, provider output mismatch, approved-origin URL validation, sanitized provider failure, safe response shape, and zero mutation of provider state, legacy subscriptions, entitlements, or credits.
+Focused tests cover unauthenticated access, exact plan rejection including `free` and public `ultimate`, spoofed user/price/transaction/environment/provider/return inputs, canonical `app_user_id`, Pro/Premium mapping, automatic collection, duplicate and concurrent requests, same-key conflict, active entitlement blocking, rate-limit exhaustion, wrong environment, missing catalog fail-closed behavior, kill switch off, provider output mismatch, approved-origin URL validation, sanitized provider failure, safe response shape, user/plan lock schema compatibility, same-key recovery, legitimate Free resolution, valid paid-state rejection, subscription/provider read failures, partial-read failure, and zero mutation of provider state, legacy subscriptions, entitlements, or credits.
 
 The implementation contains no credential values and does not read or log provider credentials. The prior Paddle Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation. That warning blocks Production security clearance but does not block this local, non-activating implementation phase.
 
@@ -76,7 +78,7 @@ The implementation contains no credential values and does not read or log provid
 
 ## Git, deployment, and PR state
 
-The original implementation commit is `fe5d8be8dad2b4c2d066249323bfaf57147b3075`; the corrective change is being prepared on the same branch for Draft PR #223. PR #223 is open and Draft, with no merge. No Appwrite deployment, schema application, provider mutation, secret change, DNS change, Vercel configuration change, or payment occurred. Production remains disabled and unverified.
+The initial implementation commit is `fe5d8be8dad2b4c2d066249323bfaf57147b3075`; the schema/recovery correction is `708faa4012f40a18edf11dd7af5a0f36be7b6505`; the fail-closed authoritative-read correction is included in the latest pushed revision for Draft PR #223. PR #223 is open and Draft, with no merge. No Appwrite deployment, schema application, provider mutation, secret change, DNS change, Vercel configuration change, or payment occurred. Production remains disabled and unverified.
 
 ## Remaining Sandbox-to-Production migration work
 
@@ -84,8 +86,8 @@ A future separately authorized phase must validate the Production Paddle catalog
 
 ## Corrective review
 
-The owner review identified a real schema/runtime compatibility defect: user-scope lock documents omitted fields that were incorrectly required by the shared lock schema. The correction makes plan-only fields optional in the schema, enforces them for plan locks in application logic, and adds payload-to-schema regression coverage. The reused-session path now returns the same safe provider checkout reference after a lost original response and returns `checkout_in_progress` while a provider reference is not yet available.
+The owner review identified two real defects. First, user-scope lock documents omitted fields that were incorrectly required by the shared lock schema; plan-only fields are now optional in the shared schema and required by runtime validation for plan-scope records. Second, authoritative subscription/provider-state read failures were converted to `null`; `findOptional()` now raises sanitized `state_unavailable`, so no reservation, lock, session, or provider call can occur during a partial read failure. Tests cover both corrections and preserve the existing shared resolver precedence. The reused-session path returns the same safe provider checkout reference after a lost original response and returns `checkout_in_progress` while a provider reference is not yet available.
 
 ## Exact next action
 
-Keep PR #223 Draft and do not mark it Ready or merge it. Review the corrective commit and its successful CI/Vercel reruns. A later explicit authorization is required before marking Ready, merging, applying the schema, deploying `billing-checkout`, enabling billing, or configuring Production.
+Keep PR #223 Draft and do not mark it Ready or merge it. Review the fail-closed correction and its CI/Vercel reruns. A later explicit authorization is required before marking Ready, merging, applying the schema, deploying `billing-checkout`, enabling billing, or configuring Production.

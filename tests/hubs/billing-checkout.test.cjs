@@ -120,6 +120,28 @@ function provider({ calls, result = {} } = {}) {
   };
 }
 
+function appwriteDatabase({ subscription = null, providerState = null, failCollection = null } = {}) {
+  return {
+    async listDocuments(_databaseId, collection) {
+      if (collection === failCollection) throw new Error(`sensitive Appwrite failure for ${collection}`);
+      const document = collection === 'subscriptions' ? subscription : providerState;
+      return { documents: document ? [document] : [] };
+    },
+  };
+}
+
+function trackingAppwriteStore(options = {}) {
+  const store = new billing.__test.AppwriteCheckoutStore(appwriteDatabase(options));
+  store.reserveCalls = 0;
+  const reserve = store.reserve.bind(store);
+  store.reserve = async (...args) => { store.reserveCalls += 1; return reserve(...args); };
+  return store;
+}
+
+function providerState(plan) {
+  return { plan, status: 'active', expires_at: new Date(nowMs + ACTIVE_WINDOW_MS).toISOString() };
+}
+
 function responseCapture() {
   return {
     value: null,
@@ -182,6 +204,62 @@ for (const field of ['environment', 'price_id', 'session_id', 'request_key_finge
 for (const field of ['environment', 'price_id', 'session_id', 'request_key_fingerprint']) {
   const invalid = { ...planLockPayload, [field]: undefined };
   assert.throws(() => validateLockPayload(invalid), /plan checkout lock payload/);
+}
+
+// The existing resolver inputs remain authoritative: no rows is legitimate Free.
+{
+  const store = trackingAppwriteStore();
+  assert.equal(await store.getEffectivePlan('free-user'), 'free');
+}
+
+// Valid provider state wins through the existing shared resolver; checkout is rejected before reservation/provider work.
+for (const plan of ['pro', 'premium']) {
+  const store = trackingAppwriteStore({ providerState: providerState(plan) });
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan }, {
+    user: { $id: `provider-state-${plan}` }, store, provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.error, 'already_entitled');
+  assert.equal(calls.length, 0);
+  assert.equal(store.reserveCalls, 0);
+}
+{
+  const store = trackingAppwriteStore({ providerState: providerState('premium') });
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'premium-blocks-pro' }, store, provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.error, 'already_entitled');
+  assert.equal(calls.length, 0);
+  assert.equal(store.reserveCalls, 0);
+}
+
+// Authoritative read failures fail closed; no provider, session, or lock work is attempted and raw errors stay private.
+for (const failCollection of ['subscriptions', 'revenuecat_subscription_state']) {
+  const store = trackingAppwriteStore({ failCollection });
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: `read-failure-${failCollection}` }, store, provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.status, 'error');
+  assert.equal(result.response.error, 'state_unavailable');
+  assert.equal(result.response.statusCode, 503);
+  assert.equal(result.response.message.includes('sensitive Appwrite failure'), false);
+  assert.equal(result.logs.some(message => message.includes('sensitive Appwrite failure')), false);
+  assert.equal(calls.length, 0);
+  assert.equal(store.reserveCalls, 0);
+}
+
+// A partial authoritative read failure cannot fall through to checkout creation.
+{
+  const store = trackingAppwriteStore({ failCollection: 'revenuecat_subscription_state' });
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'partial-read-failure' }, store, provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.error, 'state_unavailable');
+  assert.equal(calls.length, 0);
+  assert.equal(store.reserveCalls, 0);
 }
 
 // Unauthenticated callers are rejected before storage/provider work.
