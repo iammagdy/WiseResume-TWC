@@ -1,11 +1,22 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-26
-**Status:** `PAYMENTS_PHASE2C_SANDBOX_VERIFIED_WITH_WARNINGS` — the custom webhook domain is strict-TLS valid, the targeted `revenuecat-webhook` deployment is active, and the existing Sandbox Pro lifecycle is verified through RevenueCat, Appwrite, and WiseResume. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
+**Last Verified:** 2026-08-28
+**Status:** `READY_FOR_REVIEW_NOT_MERGED_NOT_DEPLOYED` — the Phase 2D-C.2 server-owned checkout/session boundary has passed implementation review, local validation, GitHub CI, and Vercel Preview. PR #223 is OPEN and Ready for Review, targeting `main`. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Payments Phase 2D-C.2 server-owned checkout boundary — 2026-08-28
+
+* **Verdict:** `READY_FOR_REVIEW_NOT_MERGED_NOT_DEPLOYED`. Initial implementation `fe5d8be8dad2b4c2d066249323bfaf57147b3075`, schema/recovery correction `708faa4012f40a18edf11dd7af5a0f36be7b6505`, fail-closed entitlement-read correction `f7da71b9f8c84e92f7736ab7fe7ff5b5e2b59a02`, and validated no-key idempotency correction `c94e485612756a032ad710ff0e07916e3005554b` are in Ready-for-Review PR [#223](https://github.com/iammagdy/WiseResume-TWC/pull/223), whose final documentation head is `053a3bf4a29083f7a9ed5e062c14765e6f8257e9`. No merge, schema application, Function deployment, provider mutation, secret/configuration change, DNS change, transaction, or payment occurred.
+* **Implementation:** Added canonical Appwrite JWT user resolution, exact internal `pro|premium` validation, server-side catalog mapping, automatic-only provider input, fixed return path, safe response/error shapes, server-backed `BILLING_CHECKOUT_ENABLED` default-off gating, and an injectable provider seam whose default is unconfigured. Checkout creation never grants plan access or mutates legacy subscriptions, RevenueCat state/ledger, entitlements, or credits.
+* **Storage/correction:** Added unexecuted idempotent definitions for server-only `billing_checkout_sessions` and `billing_checkout_locks`. Corrective review found that user-scope locks omit plan-only `environment`, `price_id`, `session_id`, and `request_key_fingerprint`; those fields are now optional in the shared schema and required by application validation for plan-scope locks. Runtime payload builders and schema compatibility tests cover both scopes.
+* **Preservation:** `src/lib/billing.ts` remains `paymentsEnabled=false`; the Sandbox `_ptxn` helper remains unchanged and retains its single-transaction allowlist; the RevenueCat webhook and shared resolver remain authoritative.
+* **Validation:** New no-key idempotency focused tests, existing authoritative-read/schema/RevenueCat/policy/webhook regressions, full Vitest (224 files / 1,251 passed / 1 skipped / 1 todo), `node --check`, TypeScript, ESLint, `git diff --check`, and secret-pattern scan passed locally. Corrective GitHub Typecheck + portfolio tests, Security regression suite, and Vercel Preview all passed. Browser QA is not required because no frontend behavior changed.
+* **Security:** No credential values were added, read, logged, or recorded. The prior Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` and blocks Production security clearance.
+* **Report:** [`reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md`](./reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md)
+* **Next action:** PR #223 is Ready for Review but must remain unmerged. Obtain owner review and explicit merge authorization before using the normal merge workflow. Applying the schema, deploying `billing-checkout`, enabling billing, or configuring Production remain separate gated actions.
 
 ## WiseResume Payments Phase 2D-B.1 live-domain Sandbox checkout — 2026-08-27
 
