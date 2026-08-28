@@ -22,7 +22,7 @@ PR #223 was approved and merged normally. The merge included the Phase 2D-C.2 se
 | Final `main` | `a910c7679058d3283edb807e780836da39a917a4` |
 | `origin/main` | `a910c7679058d3283edb807e780836da39a917a4` |
 | Local tracked worktree | Clean |
-| Preserved local C1 report | Untracked and preserved; not part of the merge |
+| C1 contract/threat-model report | Included unchanged in this docs-only closeout; historical C1 status preserved |
 | PR Validation | Passed before merge |
 | Security validation | Passed before merge |
 | Vercel Preview | Passed before merge |
@@ -32,6 +32,10 @@ PR #223 was approved and merged normally. The merge included the Phase 2D-C.2 se
 
 The earlier C2 wording `READY_FOR_REVIEW_NOT_MERGED_NOT_DEPLOYED` was accurate before merge but became stale after merge. The active Atlas handover, changelog, implementation report, and this post-merge closeout now identify the merged state as `MERGED_NOT_DEPLOYED_WITH_PAYMENTS_DISABLED`.
 
+## C1 report disposition
+
+The preserved `2026-08-28-payments-phase2d-c1-server-checkout-contract-threat-model.md` contains unique and still-accurate historical evidence that is not fully reproduced by the shorter C2 implementation report. Its detailed request/response contract, threat matrix, environment-separation requirements, lifecycle policy gates, and provider documentation references remain useful as the design source that preceded implementation. The file is therefore included unchanged in this documentation-only closeout. Its historical `CONTRACT_READY_NOT_IMPLEMENTED` verdict and pre-C2 main references are intentionally preserved; they are not claims about the post-merge C2 implementation state.
+
 ## Safety and deployment boundary
 
 The merge did not apply the `billing_checkout` schema and did not deploy the `billing-checkout` Appwrite Function. No Appwrite Function was deployed by this closeout. `paymentsEnabled=false` remains unchanged, `BILLING_CHECKOUT_ENABLED` remains default-off, and no Paddle or RevenueCat Production configuration, secret, DNS record, transaction, payment, or provider mutation occurred.
@@ -39,6 +43,16 @@ The merge did not apply the `billing_checkout` schema and did not deploy the `bi
 The existing Sandbox-only `_ptxn` helper remains unchanged and retains its single-transaction allowlist. RevenueCat-to-Appwrite lifecycle ingestion remains the authority for paid access. Checkout creation does not grant entitlements, credits, subscriptions, provider state, or lifecycle-ledger records.
 
 The prior Paddle Sandbox API-key exposure remains `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation. It continues to block Production security clearance.
+
+## Published documentation files
+
+This closeout publishes the following Atlas documentation files:
+
+- `Project Atlas/reports/2026-08-28-payments-phase2d-c1-server-checkout-contract-threat-model.md` — included unchanged as the historical C1 contract/threat-model record.
+- `Project Atlas/reports/2026-08-28-payments-phase2d-c2-server-checkout-implementation.md` — reconciled to the merged C2 state.
+- `Project Atlas/reports/2026-08-28-payments-phase2d-c2-post-merge-closeout.md` — post-merge evidence and safety boundary.
+- `Project Atlas/WHERE_WE_STOPPED.md` — active handover state.
+- `Project Atlas/CHANGELOG.md` — dated changelog entry.
 
 ## Exact next action
 
