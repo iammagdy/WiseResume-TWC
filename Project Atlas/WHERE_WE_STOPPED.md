@@ -1,11 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-28
-**Status:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED` — the public Sandbox implementation, environment isolation, additive schema, and targeted `billing-checkout` deployment are complete and fail-closed. No safe server Paddle credential was proven available through an approved masked path, so no provider-authenticated request or transaction was performed. Production billing remains disabled. The prior Paddle Sandbox credential exposure remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
+**Status:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY` — the public Sandbox implementation, environment isolation, additive schema, and targeted diagnostic `billing-checkout` deployment are complete. Checkout remains fail-closed and disabled; the exact unexpected `AppwriteCheckoutStore.reserve()` operation remains `UNPROVEN` until a separately authorized single retry records its allowlisted stage. Production billing remains disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Sandbox reserve-stage diagnostic deployment — 2026-08-28
+
+* **Verdict:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY`. PR [#229](https://github.com/iammagdy/WiseResume-TWC/pull/229) merged at `88b411af877d9cd33a098508f27e0ef9f080e849`; targeted workflow `33206687391` deployed only `billing-checkout`, which is Active as `6a91ea0e63105206adf6` on Node-22.
+* **Diagnosis boundary:** Root cause remains `UNPROVEN`. The observed failure is confined to the unexpected reservation boundary; the diagnostic now records only one fixed allowlisted reserve-stage identifier in the Function execution log. It never records raw error text, stack, request data, user identifiers, headers, provider payloads, credentials, or environment values. Browser/public error behavior is unchanged: unexpected errors remain HTTP 500 `checkout_unavailable`; typed `BillingCheckoutError` behavior is unchanged.
+* **Validation:** Focused billing checkout, RevenueCat schema/webhook, and schema-permission tests passed; changed-file syntax checks, scoped ESLint, and `git diff --check` passed. The former time-dependent synthetic active-entitlement test is corrected as `TEST_BUG / DATA_FIXTURE_ISSUE`; no production resolver behavior changed.
+* **Runtime boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved. `BILLING_CHECKOUT_PROVIDER_READY` was not changed. No provider request, transaction, entitlement, credit, lifecycle/provider-state write, secret inspection/change, RevenueCat/Paddle configuration, Production billing setting, or unrelated Function deployment occurred.
+* **Next action:** The owner must explicitly authorize one controlled Pro Sandbox retry while checkout is enabled for that narrow attempt, with immediate disable-on-failure. Inspect only the resulting sanitized stage and do not claim a provider result unless the full independent provider-to-Appwrite lifecycle chain is observed.
 
 ## WiseResume Payments final Sandbox billing completion mission — 2026-08-28
 

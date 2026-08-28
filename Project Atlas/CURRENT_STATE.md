@@ -1,12 +1,19 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-28
-**Status:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED` — Public Sandbox billing code, environment isolation, additive checkout schema, and targeted `billing-checkout` deployment are complete and fail-closed. Real provider-authenticated Sandbox execution remains blocked because no safe server Paddle credential was proven available through an approved masked path. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
+**Status:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY` — Public Sandbox billing code, environment isolation, additive checkout schema, and targeted reserve-stage diagnostic deployment are complete and fail-closed. Checkout remains disabled; the exact unexpected reservation operation is `UNPROVEN` until a separately authorized single retry records its allowlisted internal stage. Production payments remain disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments reserve-stage diagnostic deployment — 2026-08-28
+
+* **Verdict:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY`. PR #229 merged at `88b411af877d9cd33a098508f27e0ef9f080e849`; workflow `33206687391` deployed only `billing-checkout`, which is Active as `6a91ea0e63105206adf6` on Node-22.
+* **Diagnostic contract:** Unexpected `AppwriteCheckoutStore.reserve()` failures now preserve the existing HTTP 500 `checkout_unavailable` public response and write only a fixed allowlisted reserve stage to the internal Function execution log. Typed checkout errors remain unchanged. No raw error, stack, request/header, account identifier, provider data, credential, or environment value is logged by this diagnostic.
+* **Current boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved; provider readiness was not changed. No checkout, Paddle transaction, RevenueCat ingestion/configuration, Appwrite entitlement/credit/provider-state mutation, or Production billing activation occurred. The root cause remains `UNPROVEN`.
+* **Next action:** Owner authorization is required for exactly one controlled Pro Sandbox retry that may temporarily enable checkout and must disable it immediately on failure. The retry is diagnostic evidence only; it does not establish provider or lifecycle success without independent evidence.
 
 ## Payments final Sandbox billing completion mission — 2026-08-28
 
