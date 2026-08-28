@@ -1,6 +1,14 @@
 # Stability improvements
 
-**Last verified:** 2026-08-17
+**Last verified:** 2026-08-28
+
+## A safe checkout diagnostic is ready (2026-08-28)
+
+**What was the situation:** A Sandbox checkout stopped before reaching the payment provider, but the system correctly showed only a general temporary-error message and did not reveal the exact internal failure.
+
+**What changed:** The private system log can now safely label which part of the checkout preparation failed, without recording personal details, payment details, passwords, or secret keys. The normal message shown to people using the site stays exactly the same.
+
+**What you'll notice:** Nothing visible changes yet. Checkout remains turned off while the next controlled test is prepared; no payment, subscription, credit, or Production setting was changed.
 
 ## A broad safety and honesty pass is ready for release (2026-08-17)
 

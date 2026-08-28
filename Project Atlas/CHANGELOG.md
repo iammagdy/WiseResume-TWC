@@ -1,5 +1,12 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-28 - Sanitized billing checkout reserve diagnostics
+
+- **Verdict:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY`. PR #229 merged at `88b411af877d9cd33a098508f27e0ef9f080e849`; targeted workflow `33206687391` deployed only `billing-checkout`, which is Active as `6a91ea0e63105206adf6` on Node-22.
+- **Implementation:** `AppwriteCheckoutStore.reserve()` attaches a fixed allowlisted internal stage to unexpected Appwrite reservation failures, including transaction creation, request-key lookup, lock reads/writes, existing-session lookup, transaction commits, and rollback. It logs neither raw error details nor sensitive request/provider/credential data.
+- **Contract and validation:** Generic HTTP 500 `checkout_unavailable` and typed `BillingCheckoutError` responses remain unchanged. Focused billing checkout, RevenueCat schema/webhook, and schema-permission tests passed alongside syntax, scoped ESLint, and diff checks. The corrected synthetic entitlement timestamp is classified `TEST_BUG / DATA_FIXTURE_ISSUE`; resolver production behavior was not changed.
+- **Boundary:** Checkout remains disabled; provider readiness is unchanged. No provider call, transaction, entitlement/credit/provider-state mutation, secret/configuration access, Production billing change, or unrelated Function deployment occurred. Root cause remains `UNPROVEN` pending one separately authorized controlled retry.
+
 ## 2026-08-28 - Final Sandbox billing completion mission
 
 - **Verdict:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED`. The public Sandbox/Test Mode UI, explicit Sandbox/Production server isolation, server-owned checkout boundary, additive checkout schema, and targeted `billing-checkout` deployment are complete and fail-closed.

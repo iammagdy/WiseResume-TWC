@@ -54,6 +54,10 @@ Appwrite Functions are deployed independently from the frontend application usin
 
 ### Current WiseResume Payments Sandbox runtime readiness — 2026-08-28
 
+* **Diagnostic deployment:** PR #229 merged at `88b411af877d9cd33a098508f27e0ef9f080e849`; targeted workflow `33206687391` deployed only `billing-checkout`. The active deployment is `6a91ea0e63105206adf6`, Node-22, Manual source. It adds only sanitized allowlisted diagnostics for unexpected `AppwriteCheckoutStore.reserve()` failures; public error behavior is unchanged.
+* **Operational boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved and provider readiness is unchanged. The deployment did not synchronize billing Function variables, alter provider credentials/configuration, invoke Paddle/RevenueCat, mutate billing state, or affect Production billing.
+* **Next diagnostic evidence:** Root cause remains `UNPROVEN`; a separately authorized controlled retry is required to obtain the safe stage identifier. No checkout or payment may occur before that explicit approval.
+
 * **Runtime:** Public Sandbox/Test Mode UI and explicit server Sandbox/Production isolation are merged in PR #225. The server-owned `billing-checkout` boundary accepts only authenticated canonical users and internal `pro|premium`, with server-selected catalog, automatic collection, canonical custom data, safe opaque session output, and no local entitlement authority.
 * **Appwrite:** The additive `billing_checkout_sessions` and `billing_checkout_locks` collections were applied by targeted workflow `33135870481`. Exactly `billing-checkout` was deployed and reached ready deployment `6a90f1babbd3925c3583`.
 * **Provider boundary:** No safe server Paddle credential was proven available through an approved masked path. No provider-authenticated request, transaction, or lifecycle mutation was performed. The runtime remains fail-closed with billing and provider readiness disabled; Production remains disabled.

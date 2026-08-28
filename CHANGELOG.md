@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-28 — Sanitized billing checkout reservation diagnostics
+
+- **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): added an allowlisted in-memory diagnostic stage for unexpected `AppwriteCheckoutStore.reserve()` operation failures. The Function execution log may now identify only the failed operation stage; it does not record underlying error messages, stacks, request data, identifiers, provider payloads, headers, credentials, or environment values.
+- **Public contract** (`appwrite-hubs/billing-checkout/src/main.js`): unexpected reservation failures still return the existing HTTP 500 `checkout_unavailable` generic response. Existing `BillingCheckoutError` response status/code/message behavior is unchanged.
+- **Tests** (`tests/hubs/billing-checkout.test.cjs`): added reserve-stage and leakage regressions for transaction creation, request-key lookup, lock reads/writes, session creation, and commit failures; stabilized the synthetic active-entitlement timestamp so it cannot expire with wall-clock time.
+- **Deployment:** PR #229 merged at `88b411af877d9cd33a098508f27e0ef9f080e849`; targeted workflow `33206687391` deployed only `billing-checkout`, with active Node-22 deployment `6a91ea0e63105206adf6`.
+- **Boundary:** Checkout remains disabled. No provider request, transaction, entitlement, credit, secret, revenue configuration, production billing setting, or unrelated Function was changed.
+
 ## 2026-08-17 — Comprehensive trust, security, AI, export, and UX hardening
 
 - **Authorization and schemas** (`scripts/setup_ai_credits_schema.cjs`, `scripts/setup_remote_jobs_feed_schema.cjs`, `scripts/setup_discount_codes_schema.cjs`, `scripts/setup_wisehire_collections_schema.cjs`, `scripts/setup_resume_share_security_schema.cjs`): replaced anonymous collection authority with server-only or owner-scoped permissions and added deployment-policy regression checks.
