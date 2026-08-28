@@ -1,7 +1,7 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-28
-**Status:** `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED` — the non-credential public Sandbox implementation is locally validated on `feat/public-sandbox-billing`. The server checkout boundary remains fail-closed and undeployed; no schema was applied, no provider-authenticated request occurred, and Production payments remain disabled. Real Paddle Sandbox transaction execution is blocked because no safe server credential is authorized for use. The prior Paddle Sandbox credential exposure remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
+**Status:** `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED` — the non-credential public Sandbox implementation merged in PR #225 at `1abe49349d0998f13709c7af9d80164435b5069e`. The additive schema is applied and exactly `billing-checkout` is deployed at ready deployment `6a90f1babbd3925c3583`, with billing and provider readiness still disabled. No provider-authenticated request occurred. Real Paddle Sandbox transaction execution is blocked because no safe server credential is authorized for use. The prior Paddle Sandbox credential exposure remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
@@ -9,13 +9,13 @@
 
 ## WiseResume Payments Phase 2D public Sandbox billing implementation — 2026-08-28
 
-* **Verdict:** `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED`. The public Sandbox implementation is complete locally but not yet merged or deployed. The checkout Function now has explicit Sandbox/Production mode separation, scoped catalogs, automatic Paddle adapter validation, and default-off provider readiness. The shared resolver ignores provider state when the trusted mode is missing or mismatched, so Sandbox state cannot grant future Production access.
+* **Verdict:** `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED`. PR [#225](https://github.com/iammagdy/WiseResume-TWC/pull/225) merged normally at `1abe49349d0998f13709c7af9d80164435b5069e`. The additive schema was applied and exactly `billing-checkout` was deployed by workflow run `33135870481`; ready deployment is `6a90f1babbd3925c3583`.
 * **Frontend:** Pricing and Subscription expose bilingual `Sandbox / Test Mode` and `No real charge` disclosures. Authenticated checkout sends only the internal `pro|premium` request contract to `billing-checkout`; pending/error flows revalidate authoritative subscription state and never grant plan or credits locally. The historical single-transaction `_ptxn` helper remains unchanged and is not the normal public checkout architecture.
-* **Tests:** Focused billing, resolver, schema, webhook, frontend checkout-client, i18n, TypeScript, ESLint, full Vitest, build/no-sourcemap, source-hash, and diff checks passed locally. Connected-browser verification was `BLOCKED_EXTERNAL_ACCESS` because the browser channel could not establish a connection; local `/pricing` returned HTTP 200.
-* **Deployment:** No schema application or Function deployment occurred. The canonical targeted workflow may later deploy only `billing-checkout` with kill switch and provider readiness false, but no local Appwrite deployment credential was available and no provider key was read or configured.
+* **Tests:** Focused billing, resolver, schema, webhook, frontend checkout-client, i18n, TypeScript, ESLint, full Vitest, build/no-sourcemap, source-hash, and diff checks passed locally. Live public Pricing browser QA passed in English and persisted Arabic RTL; authenticated Subscription CTA, mobile viewport, and dark/light alternates remain `UNVERIFIED`.
+* **Deployment:** The Function was deployed with no provider credential configured and remains fail-closed because `BILLING_CHECKOUT_ENABLED=false` and `BILLING_CHECKOUT_PROVIDER_READY=false`. No provider-authenticated smoke test was run.
 * **Security:** No credential value was inspected or used. The prior exposed Paddle Sandbox API-key warning remains unresolved and owner-accepted; no credential-bearing provider endpoint was reopened.
 * **Report:** [`reports/2026-08-28-public-sandbox-billing-closeout.md`](./reports/2026-08-28-public-sandbox-billing-closeout.md)
-* **Next action:** Review the scoped diff, run the normal PR workflow, and merge only if required checks remain green. After merge, decide separately whether a kill-switch-off `billing-checkout` schema/deployment operation is safe without any provider credential. Real Sandbox transaction execution remains blocked.
+* **Next action:** Real Paddle Sandbox transaction execution and lifecycle verification remain blocked because no safe server credential is authorized for use. Production billing remains disabled.
 
 ## WiseResume Payments Phase 2D-C.2 server-owned checkout boundary — 2026-08-28
 

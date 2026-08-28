@@ -3,12 +3,12 @@
 **Date:** 2026-08-28
 **Author:** Manus AI
 **Repository:** `iammagdy/WiseResume-TWC`
-**Branch:** `feat/public-sandbox-billing`
+**Branch:** `main` after PR #225 merge
 **Status:** `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED`
 
 ## Verdict
 
-The non-credential-dependent public Sandbox billing implementation is complete locally and is ready for normal review. The server boundary now supports an explicitly selected `sandbox` or future `production` mode, uses separate environment-scoped catalog variable names, validates automatic Paddle transaction responses, and remains fail-closed by default. The frontend has bilingual Sandbox/Test Mode disclosure and an authenticated server-checkout client that never grants access locally.
+The non-credential-dependent public Sandbox billing implementation was merged normally in PR #225 at `1abe49349d0998f13709c7af9d80164435b5069e`. The additive server-only schema was applied and exactly `billing-checkout` was deployed through the approved targeted workflow; active deployment `6a90f1babbd3925c3583` reached `ready`. The server boundary supports an explicitly selected `sandbox` or future `production` mode, uses separate environment-scoped catalog variable names, validates automatic Paddle transaction responses, and remains fail-closed by default. The frontend has bilingual Sandbox/Test Mode disclosure and an authenticated server-checkout client that never grants access locally.
 
 Real Paddle Sandbox transaction creation, checkout completion, upgrade, cancellation, and lifecycle verification remain blocked because **no safe server Paddle credential is authorized for use**. No provider-authenticated request was made in this phase. Production billing remains disabled.
 
@@ -32,13 +32,13 @@ The focused billing-checkout CommonJS suite passed, including strict authenticat
 
 `node --check` passed for all changed JavaScript files. `npx tsc --noEmit`, `npm run lint`, `npm run test:i18n`, full Vitest, `git diff --check`, and the production build/no-sourcemap guard passed locally. The full Vitest result was 225 files passed with one skipped file, 1,254 tests passed, one todo, and no failed tests. Existing advisory Vite large-chunk warnings remain. A prior build attempt was terminated during temporary sandbox memory pressure; the retry passed after the local dev process was stopped.
 
-Local HTTP verification confirmed the isolated Vite server returned HTTP 200 for `/pricing`. Connected-browser verification was not completed because the browser channel returned `Could not establish connection`; no provider checkout or live-domain mutation was attempted.
+Live browser verification passed for the merged Vercel Production deployment and `https://wiseresume.app/pricing`: English rendered the Sandbox/Test Mode and no-real-charge disclosure, and the connected browser’s persisted Arabic RTL state rendered the equivalent Arabic disclosure with Free/Pro/Ultimate cards and no visible provider identifiers. No CTA was clicked and no provider checkout was attempted. Authenticated Subscription CTA, mobile viewport, and dark/light alternates remain unverified in this phase.
 
 ## Deployment and provider boundary
 
-No Appwrite schema was applied and no Appwrite Function was deployed in this phase because the local deployment environment did not contain an Appwrite deployment credential and the approved provider credential was unavailable. No provider configuration, secret, Paddle product/price, RevenueCat app, webhook, DNS record, Vercel setting, transaction, payment, entitlement, or lifecycle state was changed.
+The additive `billing_checkout_sessions` and `billing_checkout_locks` schema was applied successfully by workflow run `33135870481`, and exactly `billing-checkout` was deployed from merged main by the same targeted workflow. The deployment created Function `billing-checkout`, reached ready deployment `6a90f1babbd3925c3583`, and did not deploy any unrelated Function. The release remains safe because `BILLING_CHECKOUT_ENABLED` and `BILLING_CHECKOUT_PROVIDER_READY` were not enabled, no Paddle credential was configured or read, and the default runtime is fail-closed.
 
-The target-only deployment workflow remains the approved path for a later `billing-checkout` deployment. It must run with `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=false`, explicit `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, a matching approved origin, and a separately authorized safe server credential before any provider-authenticated execution. The server adapter is intentionally unusable while the provider credential is absent.
+No provider configuration, secret, Paddle product/price, RevenueCat app, webhook, DNS record, Vercel setting, transaction, payment, entitlement, or lifecycle state was changed. The server adapter is intentionally unusable while the provider credential is absent. No provider-authenticated smoke test was run.
 
 The existing RevenueCat-to-Appwrite webhook remains authoritative for provider state and entitlement activation. Browser success, checkout return, session creation, and frontend polling do not grant plan access, credits, subscription state, or ledger records.
 
@@ -50,4 +50,4 @@ The exact provider-only blocker is: **real Paddle Sandbox transaction execution 
 
 ## Required next action
 
-Review and merge the scoped implementation through the normal repository workflow if CI remains green. After merge, a separate owner-authorized operations phase may apply the additive server-only schema and deploy exactly `billing-checkout` with the kill switch off, without configuring or reading any Paddle credential. Real Sandbox checkout and lifecycle execution must remain stopped until a safe server credential is separately authorized without reopening the exposed credential-bearing provider path.
+The next action is provider-only: real Paddle Sandbox transaction execution, checkout completion, lifecycle verification, and any authenticated upgrade/cancel/expiration testing remain stopped because no safe server credential is authorized for use. Production billing remains disabled. Any future provider execution must be separately authorized without reopening the exposed credential-bearing provider path.

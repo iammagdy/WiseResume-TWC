@@ -1,7 +1,7 @@
 # WiseResume RevenueCat Subscription Synchronization
 
-**Last Verified:** 2026-08-26
-**Status:** `PAYMENTS_PHASE2C_SANDBOX_VERIFIED_WITH_WARNINGS` — Phase 1 implementation, Phase 2A schema, targeted webhook deployment, and the existing Sandbox Pro lifecycle are verified. The custom webhook domain is reachable under valid strict TLS. Frontend checkout and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `OWNER_ACCEPTED_UNRESOLVED_RISK` because the owner declined rotation; this is not a Production security approval.
+**Last Verified:** 2026-08-28
+**Status:** `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED` — Phase 1 implementation, Phase 2A schema, targeted webhook deployment, existing Sandbox Pro lifecycle, public Sandbox checkout boundary, additive checkout schema, and targeted kill-switch-off `billing-checkout` deployment are verified. Provider-authenticated checkout execution remains blocked because no safe server Paddle credential is authorized for use. Frontend billing and Production payments remain disabled. The prior Paddle Sandbox credential exposure is `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`; this is not a Production security approval.
 **Location:** `Project Atlas/architecture/revenuecat-subscription-sync.md`
 
 ## Scope and preserved contracts
@@ -67,7 +67,7 @@ The shared resolver accepts a RevenueCat provider candidate only when a trusted 
 
 Pricing and Subscription expose Sandbox/Test Mode and no-real-charge copy in English and Arabic. Authenticated checkout sends only `action`, internal `plan`, and optional idempotency key. Return/pending UI revalidates the authoritative subscription query and never grants a plan locally. The historical single-transaction `_ptxn` path remains a protected QA compatibility path, not the normal public checkout architecture.
 
-The implementation is `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED`: no safe server Paddle credential was authorized, so no provider-authenticated request, transaction, schema application, Function deployment, or live checkout test occurred. The prior exposed Sandbox API-key warning remains an unresolved owner-accepted security warning and is not a Production approval.
+The implementation is `SANDBOX_IMPLEMENTATION_READY_PROVIDER_CREDENTIAL_BLOCKED`: no safe server Paddle credential was authorized, so no provider-authenticated request, transaction, or live checkout test occurred. The additive checkout schema was applied and exactly `billing-checkout` was deployed with the kill switch and provider readiness disabled. The prior exposed Sandbox API-key warning remains an unresolved owner-accepted security warning and is not a Production approval.
 
 ## References
 
