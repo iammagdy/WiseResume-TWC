@@ -16,6 +16,20 @@ const ALLOWED_PLANS = new Set(['pro', 'premium']);
 const PLAN_RANK = Object.freeze({ free: 0, pro: 1, premium: 2 });
 const SAFE_RETURN_PATH = '/subscription?billing=pending';
 const SAFE_SOURCE = 'wiseresume-web';
+const RESERVE_DIAGNOSTIC_STAGES = new Set([
+  'reserve.create_transaction',
+  'reserve.find_request_key',
+  'reserve.get_user_lock',
+  'reserve.get_plan_lock',
+  'reserve.get_existing_session',
+  'reserve.commit_existing',
+  'reserve.write_plan_lock',
+  'reserve.write_user_lock',
+  'reserve.write_session',
+  'reserve.commit',
+  'reserve.rollback',
+]);
+const reserveDiagnosticStages = new WeakMap();
 
 class BillingCheckoutError extends Error {
   constructor(code, status, message) {
@@ -28,6 +42,31 @@ class BillingCheckoutError extends Error {
 
 function fail(code, status, message) {
   throw new BillingCheckoutError(code, status, message);
+}
+
+function reserveDiagnosticStage(error) {
+  return error && (typeof error === 'object' || typeof error === 'function')
+    ? reserveDiagnosticStages.get(error) || ''
+    : '';
+}
+
+function annotateReserveFailure(error, stage) {
+  if (error instanceof BillingCheckoutError || !RESERVE_DIAGNOSTIC_STAGES.has(stage)) return error;
+  if (error && (typeof error === 'object' || typeof error === 'function')) {
+    reserveDiagnosticStages.set(error, stage);
+    return error;
+  }
+  const sanitizedError = new Error('Reserve operation failed.');
+  reserveDiagnosticStages.set(sanitizedError, stage);
+  return sanitizedError;
+}
+
+async function reserveOperation(stage, operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    throw annotateReserveFailure(error, stage);
+  }
 }
 
 function isRecord(value) {
@@ -261,18 +300,18 @@ class AppwriteCheckoutStore {
 
   async reserve(input) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const transaction = await this.databases.createTransaction(20);
+      const transaction = await reserveOperation('reserve.create_transaction', () => this.databases.createTransaction(20));
       let committed = false;
       try {
         const nowIso = new Date(input.nowMs).toISOString();
-        const replayCandidate = await this.findByRequestKey(input.userId, input.requestKeyFingerprint, transaction.$id);
+        const replayCandidate = await reserveOperation('reserve.find_request_key', () => this.findByRequestKey(input.userId, input.requestKeyFingerprint, transaction.$id));
         if (replayCandidate) {
           const replayAge = input.nowMs - new Date(replayCandidate.created_at || 0).getTime();
           const sameInput = replayCandidate.plan === input.plan &&
             replayCandidate.environment === input.environment &&
             replayCandidate.price_id === input.priceId;
           if (replayAge >= 0 && replayAge <= IDEMPOTENCY_WINDOW_MS) {
-            await this.databases.updateTransaction(transaction.$id, true, false);
+            await reserveOperation('reserve.commit_existing', () => this.databases.updateTransaction(transaction.$id, true, false));
             committed = true;
             if (!sameInput) fail('idempotency_conflict', 409, 'This checkout request key was already used.');
             if (['creating', 'created', 'opened', 'pending'].includes(replayCandidate.state) &&
@@ -287,13 +326,13 @@ class AppwriteCheckoutStore {
         }
         const userLockId = `user_${hash(input.userId).slice(0, 28)}`;
         const planLockId = `plan_${hash(`${input.userId}:${input.plan}:${input.environment}`).slice(0, 28)}`;
-        const userLock = await this.getDocument(LOCK_COLLECTION, userLockId, transaction.$id);
-        const planLock = await this.getDocument(LOCK_COLLECTION, planLockId, transaction.$id);
+        const userLock = await reserveOperation('reserve.get_user_lock', () => this.getDocument(LOCK_COLLECTION, userLockId, transaction.$id));
+        const planLock = await reserveOperation('reserve.get_plan_lock', () => this.getDocument(LOCK_COLLECTION, planLockId, transaction.$id));
         const planLockActive = planLock && new Date(planLock.expires_at).getTime() > input.nowMs &&
           ['creating', 'created', 'opened', 'pending'].includes(planLock.state);
         if (planLockActive) {
-          const existing = await this.getDocument(SESSION_COLLECTION, planLock.session_id, transaction.$id);
-          await this.databases.updateTransaction(transaction.$id, true, false);
+          const existing = await reserveOperation('reserve.get_existing_session', () => this.getDocument(SESSION_COLLECTION, planLock.session_id, transaction.$id));
+          await reserveOperation('reserve.commit_existing', () => this.databases.updateTransaction(transaction.$id, true, false));
           committed = true;
           if (!existing) throw new Error('Checkout session lock has no session record.');
           const canResume = ['created', 'opened', 'pending'].includes(existing.state) &&
@@ -306,7 +345,7 @@ class AppwriteCheckoutStore {
           : nowIso;
         const attemptCount = userLock && windowStart === userLock.window_started_at ? Number(userLock.attempt_count || 0) : 0;
         if (attemptCount >= MAX_CREATIONS_PER_USER) {
-          await this.databases.updateTransaction(transaction.$id, true, false);
+          await reserveOperation('reserve.commit_existing', () => this.databases.updateTransaction(transaction.$id, true, false));
           committed = true;
           fail('rate_limited', 429, 'Checkout attempts are temporarily limited.');
         }
@@ -317,18 +356,18 @@ class AppwriteCheckoutStore {
           windowStartedAt: windowStart, attemptCount: attemptCount + 1,
           nowIso, expiresAt: input.expiresAt, existing: planLock,
         }));
-        if (planLock) await this.databases.updateDocument(DB_ID, LOCK_COLLECTION, planLockId, lockPayload, [], transaction.$id);
-        else await this.databases.createDocument(DB_ID, LOCK_COLLECTION, planLockId, lockPayload, [], transaction.$id);
+        if (planLock) await reserveOperation('reserve.write_plan_lock', () => this.databases.updateDocument(DB_ID, LOCK_COLLECTION, planLockId, lockPayload, [], transaction.$id));
+        else await reserveOperation('reserve.write_plan_lock', () => this.databases.createDocument(DB_ID, LOCK_COLLECTION, planLockId, lockPayload, [], transaction.$id));
         if (userLock) {
-          await this.databases.updateDocument(DB_ID, LOCK_COLLECTION, userLockId, validateLockPayload(buildUserLockPayload({
+          await reserveOperation('reserve.write_user_lock', () => this.databases.updateDocument(DB_ID, LOCK_COLLECTION, userLockId, validateLockPayload(buildUserLockPayload({
             lockKey: userLockId, userId: input.userId, windowStartedAt: windowStart,
             attemptCount: attemptCount + 1, nowIso, rateLimitExpiresAt: input.rateLimitExpiresAt, existing: userLock,
-          })), [], transaction.$id);
+          })), [], transaction.$id));
         } else {
-          await this.databases.createDocument(DB_ID, LOCK_COLLECTION, userLockId, validateLockPayload(buildUserLockPayload({
+          await reserveOperation('reserve.write_user_lock', () => this.databases.createDocument(DB_ID, LOCK_COLLECTION, userLockId, validateLockPayload(buildUserLockPayload({
             lockKey: userLockId, userId: input.userId, windowStartedAt: windowStart,
             attemptCount: attemptCount + 1, nowIso, rateLimitExpiresAt: input.rateLimitExpiresAt,
-          })), [], transaction.$id);
+          })), [], transaction.$id));
         }
         const session = {
           session_key: input.sessionKey, request_key_fingerprint: input.requestKeyFingerprint,
@@ -338,13 +377,17 @@ class AppwriteCheckoutStore {
           correlation_id: input.correlationId, public_reference: input.publicReference,
           created_at: nowIso, updated_at: nowIso, expires_at: input.expiresAt, last_error_code: '',
         };
-        await this.databases.createDocument(DB_ID, SESSION_COLLECTION, sessionId, session, [], transaction.$id);
-        await this.databases.updateTransaction(transaction.$id, true, false);
+        await reserveOperation('reserve.write_session', () => this.databases.createDocument(DB_ID, SESSION_COLLECTION, sessionId, session, [], transaction.$id));
+        await reserveOperation('reserve.commit', () => this.databases.updateTransaction(transaction.$id, true, false));
         committed = true;
         return { outcome: 'created', session: { ...session, $id: sessionId } };
       } catch (error) {
         if (!committed) {
-          try { await this.databases.updateTransaction(transaction.$id, false, true); } catch (_) {}
+          try {
+            await reserveOperation('reserve.rollback', () => this.databases.updateTransaction(transaction.$id, false, true));
+          } catch (rollbackError) {
+            if (!reserveDiagnosticStage(error)) error = rollbackError;
+          }
         }
         if (error?.code === 409 && attempt < 2) continue;
         if (error instanceof BillingCheckoutError) throw error;
@@ -606,7 +649,10 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     const response = await service.create({ userId: user.$id, ...request });
     return res.json(response, 200);
   } catch (caught) {
-    if (typeof error === 'function') error(`billing-checkout ${caught instanceof BillingCheckoutError ? caught.code : 'checkout_unavailable'}`);
+    if (typeof error === 'function') {
+      const stage = reserveDiagnosticStage(caught);
+      error(`billing-checkout ${caught instanceof BillingCheckoutError ? caught.code : 'checkout_unavailable'}${stage ? ` stage=${stage}` : ''}`);
+    }
     return safeErrorResponse(res, caught);
   }
 }
@@ -622,6 +668,7 @@ module.exports.__test = {
   MAX_CREATIONS_PER_USER,
   PLAN_RANK,
   RATE_LIMIT_WINDOW_MS,
+  RESERVE_DIAGNOSTIC_STAGES,
   SAFE_RETURN_PATH,
   SESSION_COLLECTION,
   BillingCheckoutError,
@@ -644,6 +691,7 @@ module.exports.__test = {
   extractJwt,
   resolveCanonicalUser,
   safeProviderResult,
+  reserveDiagnosticStage,
   validateRequest,
   buildUserLockPayload,
   buildPlanLockPayload,

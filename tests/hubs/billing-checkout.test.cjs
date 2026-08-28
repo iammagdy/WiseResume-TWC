@@ -133,6 +133,52 @@ function appwriteDatabase({ subscription = null, providerState = null, failColle
   };
 }
 
+function reserveDiagnosticDatabase({ failureStage = '', failureFactory = null } = {}) {
+  const fail = stage => {
+    if (stage !== failureStage) return;
+    throw failureFactory ? failureFactory() : new Error('underlying diagnostic marker');
+  };
+  const notFound = () => {
+    const error = new Error('not found');
+    error.code = 404;
+    return error;
+  };
+  return {
+    async createTransaction() {
+      fail('reserve.create_transaction');
+      return { $id: 'diagnostic-transaction' };
+    },
+    async listDocuments(_databaseId, collection) {
+      if (collection === 'billing_checkout_sessions') fail('reserve.find_request_key');
+      return { documents: [] };
+    },
+    async getDocument(_databaseId, collection, id) {
+      if (collection === 'billing_checkout_locks' && id.startsWith('user_')) fail('reserve.get_user_lock');
+      if (collection === 'billing_checkout_locks' && id.startsWith('plan_')) fail('reserve.get_plan_lock');
+      if (collection === 'billing_checkout_sessions') fail('reserve.get_existing_session');
+      throw notFound();
+    },
+    async createDocument(_databaseId, collection, id) {
+      if (collection === 'billing_checkout_locks' && id.startsWith('plan_')) fail('reserve.write_plan_lock');
+      if (collection === 'billing_checkout_locks' && id.startsWith('user_')) fail('reserve.write_user_lock');
+      if (collection === 'billing_checkout_sessions') fail('reserve.write_session');
+      return { $id: id };
+    },
+    async updateDocument() {
+      return {};
+    },
+    async updateTransaction(_transactionId, commit, rollback) {
+      if (commit) fail('reserve.commit');
+      if (rollback) fail('reserve.rollback');
+      return {};
+    },
+  };
+}
+
+function diagnosticStore(options = {}) {
+  return new billing.__test.AppwriteCheckoutStore(reserveDiagnosticDatabase(options), 'production');
+}
+
 function trackingAppwriteStore(options = {}) {
   const store = new billing.__test.AppwriteCheckoutStore(appwriteDatabase(options), 'production');
   store.reserveCalls = 0;
@@ -170,7 +216,8 @@ async function invoke(body, dependencies = {}) {
   return { response, logs };
 }
 
-const nowMs = Date.parse('2026-08-28T10:00:00.000Z');
+// This must remain in the future so active-entitlement fixtures cannot expire as wall-clock time advances.
+const nowMs = Date.parse('2099-08-28T10:00:00.000Z');
 
 async function main() {
 // Schema is additive and server-only; no remote setup is invoked by this test.
@@ -279,6 +326,58 @@ for (const failCollection of ['subscriptions', 'revenuecat_subscription_state'])
   assert.equal(result.response.error, 'unauthorized');
   assert.equal(result.response.statusCode, 401);
   assert.equal(calls.length, 0);
+}
+
+// Unexpected Appwrite reservation failures retain the public fail-closed contract while logging only allowlisted stages.
+for (const stage of [
+  'reserve.create_transaction',
+  'reserve.find_request_key',
+  'reserve.get_user_lock',
+  'reserve.write_plan_lock',
+  'reserve.write_user_lock',
+  'reserve.write_session',
+  'reserve.commit',
+]) {
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: `diagnostic-${stage}` }, store: diagnosticStore({ failureStage: stage }), provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.statusCode, 500);
+  assert.equal(result.response.error, 'checkout_unavailable');
+  assert.equal(result.response.message, 'Checkout is temporarily unavailable.');
+  assert.deepEqual(result.logs, [`billing-checkout checkout_unavailable stage=${stage}`]);
+  assert.equal(JSON.stringify(result.response).includes('underlying diagnostic marker'), false);
+  assert.equal(result.logs.some(message => message.includes('underlying diagnostic marker')), false);
+  assert.equal(calls.length, 0);
+}
+
+// Typed checkout failures remain typed and do not gain an internal reserve stage.
+{
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'typed-reserve-error' },
+    store: diagnosticStore({
+      failureStage: 'reserve.find_request_key',
+      failureFactory: () => new BillingCheckoutError('checkout_in_progress', 409, 'A checkout is already being prepared.'),
+    }),
+    provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.statusCode, 409);
+  assert.equal(result.response.error, 'checkout_in_progress');
+  assert.deepEqual(result.logs, ['billing-checkout checkout_in_progress']);
+  assert.equal(calls.length, 0);
+}
+
+// A successful Appwrite-backed reservation remains provider-backed and does not emit a diagnostic stage.
+{
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'diagnostic-success' }, store: diagnosticStore(), provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.statusCode, 200);
+  assert.equal(result.response.status, 'success');
+  assert.deepEqual(result.logs, []);
+  assert.equal(calls.length, 1);
 }
 
 // Exact internal plans only: free, public Ultimate, labels, and unknown values fail.
