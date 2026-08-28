@@ -253,9 +253,17 @@ test('duplicate events are idempotent and older events cannot regress provider s
 
 test('resolver preserves higher manual, coupon, and active-trial candidates and falls back to Free', () => {
   const expires = new Date(nowMs + 86400000).toISOString();
-  assert.equal(resolveEffectivePlan({ subscription: { plan: 'premium' }, providerState: { plan: 'pro', status: 'active', expires_at: expires }, nowMs }).plan, 'premium');
-  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free', coupon_code: 'PROMO' }, providerState: { plan: 'pro', status: 'expired', expires_at: expires }, nowMs }).plan, 'free');
-  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free', trial_plan: 'pro', trial_expires_at: expires }, providerState: { plan: 'premium', status: 'expired', expires_at: expires }, nowMs }).plan, 'pro');
-  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free' }, providerState: { plan: 'premium', status: 'expired', expires_at: expires }, nowMs }).plan, 'free');
-  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free' }, providerState: { plan: 'pro', status: 'canceled', expires_at: expires }, nowMs }).plan, 'pro');
+  assert.equal(resolveEffectivePlan({ subscription: { plan: 'premium' }, providerState: { plan: 'pro', environment: 'PRODUCTION', status: 'active', expires_at: expires }, providerEnvironment: 'production', nowMs }).plan, 'premium');
+  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free', coupon_code: 'PROMO' }, providerState: { plan: 'pro', environment: 'PRODUCTION', status: 'expired', expires_at: expires }, providerEnvironment: 'production', nowMs }).plan, 'free');
+  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free', trial_plan: 'pro', trial_expires_at: expires }, providerState: { plan: 'premium', environment: 'PRODUCTION', status: 'expired', expires_at: expires }, providerEnvironment: 'production', nowMs }).plan, 'pro');
+  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free' }, providerState: { plan: 'premium', environment: 'PRODUCTION', status: 'expired', expires_at: expires }, providerEnvironment: 'production', nowMs }).plan, 'free');
+  assert.equal(resolveEffectivePlan({ subscription: { plan: 'free' }, providerState: { plan: 'pro', environment: 'PRODUCTION', status: 'canceled', expires_at: expires }, providerEnvironment: 'production', nowMs }).plan, 'pro');
+});
+
+test('filters provider state by trusted environment and fails closed when mode is unknown', () => {
+  const expires = new Date(nowMs + 86400000).toISOString();
+  const sandboxState = { plan: 'premium', environment: 'SANDBOX', status: 'active', expires_at: expires };
+  assert.equal(resolveEffectivePlan({ providerState: sandboxState, providerEnvironment: 'sandbox', nowMs }).plan, 'premium');
+  assert.equal(resolveEffectivePlan({ providerState: sandboxState, providerEnvironment: 'production', nowMs }).plan, 'free');
+  assert.equal(resolveEffectivePlan({ providerState: sandboxState, nowMs }).plan, 'free');
 });

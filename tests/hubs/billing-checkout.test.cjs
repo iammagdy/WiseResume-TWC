@@ -15,6 +15,8 @@ const {
   buildUserLockPayload,
   buildPlanLockPayload,
   validateLockPayload,
+  PaddleAutomaticProvider,
+  readConfig,
 } = billing.__test;
 
 class MemoryCheckoutStore {
@@ -97,6 +99,7 @@ function config(overrides = {}) {
     environment: 'production',
     providerReady: true,
     approvedCheckoutOrigin: 'https://checkout.example.test',
+    catalogEnvironment: 'production',
     catalog: {
       pro: { priceId: 'price_pro_reviewed', productId: 'product_pro_reviewed', entitlementId: 'pro' },
       premium: { priceId: 'price_premium_reviewed', productId: 'product_premium_reviewed', entitlementId: 'premium' },
@@ -131,15 +134,15 @@ function appwriteDatabase({ subscription = null, providerState = null, failColle
 }
 
 function trackingAppwriteStore(options = {}) {
-  const store = new billing.__test.AppwriteCheckoutStore(appwriteDatabase(options));
+  const store = new billing.__test.AppwriteCheckoutStore(appwriteDatabase(options), 'production');
   store.reserveCalls = 0;
   const reserve = store.reserve.bind(store);
   store.reserve = async (...args) => { store.reserveCalls += 1; return reserve(...args); };
   return store;
 }
 
-function providerState(plan) {
-  return { plan, status: 'active', expires_at: new Date(nowMs + ACTIVE_WINDOW_MS).toISOString() };
+function providerState(plan, environment = 'production') {
+  return { plan, environment, status: 'active', expires_at: new Date(nowMs + ACTIVE_WINDOW_MS).toISOString() };
 }
 
 function responseCapture() {
@@ -471,7 +474,55 @@ assert.equal(safeProviderResult({ checkoutReference: 'ref', providerTransactionI
   assert.equal(store.creditWrites, 0);
 }
 
-console.log('✓ billing-checkout: authenticated, fail-closed, automatic-only, idempotent, rate-limited, non-granting contract OK');
+// Paddle adapter uses only the selected environment endpoint and sends server-selected catalog data.
+{
+  const requests = [];
+  const provider = new PaddleAutomaticProvider({
+    env: { BILLING_SANDBOX_PADDLE_API_KEY: 'sandbox-test-key' },
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        async json() {
+          return {
+            data: {
+              id: 'txn_sandbox_123',
+              collection_mode: 'automatic',
+              items: [{ price: { id: 'price_sandbox_pro', product_id: 'product_sandbox_pro' }, quantity: 1 }],
+              custom_data: { app_user_id: 'canonical-user' },
+              checkout: { url: 'https://checkout.example.test/sandbox' },
+              environment: 'sandbox',
+            },
+          };
+        },
+      };
+    },
+  });
+  const output = await provider.createCheckout({
+    environment: 'sandbox',
+    priceId: 'price_sandbox_pro',
+    productId: 'product_sandbox_pro',
+    customData: { app_user_id: 'canonical-user' },
+  });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, 'https://sandbox-api.paddle.com/transactions');
+  assert.equal(requests[0].options.method, 'POST');
+  assert.equal(JSON.parse(requests[0].options.body).collection_mode, 'automatic');
+  assert.deepEqual(JSON.parse(requests[0].options.body).items, [{ price_id: 'price_sandbox_pro', quantity: 1 }]);
+  assert.deepEqual(JSON.parse(requests[0].options.body).custom_data, { app_user_id: 'canonical-user' });
+  assert.equal(output.providerEnvironment, 'sandbox');
+  assert.equal(output.collectionMode, 'automatic');
+  assert.equal(output.checkoutUrl, 'https://checkout.example.test/sandbox');
+  assert.equal(JSON.stringify(output).includes('sandbox-test-key'), false);
+}
+{
+  const provider = new PaddleAutomaticProvider({ env: {}, fetchImpl: async () => { throw new Error('must not call'); } });
+  await assert.rejects(() => provider.createCheckout({ environment: 'sandbox', priceId: 'price', customData: { app_user_id: 'user' } }), error => error.code === 'provider_unavailable');
+}
+assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'sandbox', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod', BILLING_SANDBOX_PREMIUM_PRICE_ID: 'su', BILLING_SANDBOX_PREMIUM_PRODUCT_ID: 'suprod' }).catalog.pro.priceId, 'sp');
+assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'production', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod' }).catalog.pro.priceId, '');
+
+console.log('✓ billing-checkout: authenticated, fail-closed, environment-isolated, automatic-only, idempotent, rate-limited, non-granting contract OK');
 }
 
 main().catch(error => {

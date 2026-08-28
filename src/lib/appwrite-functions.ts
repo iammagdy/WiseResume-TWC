@@ -526,6 +526,18 @@ export const appwriteFunctions = {
 
       const statusCode = execution.responseStatusCode;
       if (statusCode >= 400) {
+        if (fnName === 'billing-checkout' && parsed !== null && typeof parsed === 'object') {
+          const envelope = parsed as { error?: unknown; message?: unknown };
+          return {
+            data: null,
+            error: {
+              message: typeof envelope.message === 'string' ? envelope.message : classifyHttpError(fnName, statusCode, parsed),
+              status: statusCode,
+              code: typeof envelope.error === 'string' ? envelope.error : undefined,
+              raw: parsed,
+            },
+          };
+        }
         if (routeToAiGateway && parsed !== null && typeof parsed === 'object') {
           const envelope = parsed as { code?: string; error?: string; message?: string };
           if (envelope.code || envelope.error) {

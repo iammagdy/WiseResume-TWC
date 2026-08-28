@@ -5,6 +5,7 @@ const sdk = require('node-appwrite');
 const {
   VALID_PAID_PLANS,
   normalizePlan,
+  normalizeProviderEnvironment,
   resolveEffectivePlan,
 } = require('@wiseresume/subscription-resolver');
 
@@ -275,7 +276,11 @@ async function processEvent(databases, event, nowMs = Date.now(), users = null) 
     code: 'state_updated',
     mutated: true,
     plan,
-    effectivePlan: resolveEffectivePlan({ providerState: providerStatePatch(event, plan, nowMs, previous), nowMs }).plan,
+    effectivePlan: resolveEffectivePlan({
+      providerState: providerStatePatch(event, plan, nowMs, previous),
+      providerEnvironment: normalizeProviderEnvironment(event.environment),
+      nowMs,
+    }).plan,
   };
 }
 

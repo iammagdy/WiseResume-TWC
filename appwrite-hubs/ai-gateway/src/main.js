@@ -6,7 +6,10 @@ const zlib = require('zlib');
 const sdk = require('node-appwrite');
 const extractedPrompts = require('./extracted_prompts.json');
 const runtimeReceipts = require('./runtime-receipts.cjs');
-const { resolveEffectivePlan } = require('@wiseresume/subscription-resolver');
+const {
+  resolveEffectivePlan,
+  configuredProviderEnvironment,
+} = require('@wiseresume/subscription-resolver');
 
 function enableLLMObs() { /* Datadog removed - dd-trace has native Windows binaries incompatible with Linux Appwrite */ }
 async function flushDD() { /* no-op */ }
@@ -1112,7 +1115,11 @@ async function getEffectivePlan(db, userId) {
     // is applied; preserve the legacy subscription path in that state.
     providerState = null;
   }
-  const plan = resolveEffectivePlan({ subscription, providerState }).plan;
+  const plan = resolveEffectivePlan({
+    subscription,
+    providerState,
+    providerEnvironment: configuredProviderEnvironment(),
+  }).plan;
   return Object.prototype.hasOwnProperty.call(PLAN_DAILY_LIMITS, plan) ? plan : 'free';
 }
 

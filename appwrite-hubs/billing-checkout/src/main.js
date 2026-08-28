@@ -105,27 +105,35 @@ function normalizeEnvironment(value) {
   return value === 'production' || value === 'sandbox' ? value : '';
 }
 
-function buildCatalog(env = process.env) {
+function catalogVariablePrefix(environment) {
+  return environment === 'sandbox' ? 'BILLING_SANDBOX' : environment === 'production' ? 'BILLING_PRODUCTION' : '';
+}
+
+function buildCatalog(env = process.env, environment = normalizeEnvironment(env.BILLING_CHECKOUT_ENVIRONMENT)) {
+  const prefix = catalogVariablePrefix(environment);
   return {
     pro: {
-      priceId: asString(env.BILLING_PRO_PRICE_ID).trim(),
-      productId: asString(env.BILLING_PRO_PRODUCT_ID).trim(),
+      priceId: prefix ? asString(env[`${prefix}_PRO_PRICE_ID`]).trim() : '',
+      productId: prefix ? asString(env[`${prefix}_PRO_PRODUCT_ID`]).trim() : '',
       entitlementId: 'pro',
     },
     premium: {
-      priceId: asString(env.BILLING_PREMIUM_PRICE_ID).trim(),
-      productId: asString(env.BILLING_PREMIUM_PRODUCT_ID).trim(),
+      priceId: prefix ? asString(env[`${prefix}_PREMIUM_PRICE_ID`]).trim() : '',
+      productId: prefix ? asString(env[`${prefix}_PREMIUM_PRODUCT_ID`]).trim() : '',
       entitlementId: 'premium',
     },
   };
 }
 
 function readConfig(env = process.env, overrides = {}) {
+  const environment = normalizeEnvironment(asString(env.BILLING_CHECKOUT_ENVIRONMENT).trim().toLowerCase());
   const config = {
     enabled: asString(env.BILLING_CHECKOUT_ENABLED).toLowerCase() === 'true',
-    environment: normalizeEnvironment(asString(env.BILLING_CHECKOUT_ENVIRONMENT).trim().toLowerCase() || 'production'),
+    environment,
     providerReady: asString(env.BILLING_CHECKOUT_PROVIDER_READY).toLowerCase() === 'true',
-    catalog: buildCatalog(env),
+    approvedCheckoutOrigin: asString(env.BILLING_CHECKOUT_APPROVED_ORIGIN).trim().replace(/\/$/, ''),
+    catalogEnvironment: environment,
+    catalog: buildCatalog(env, environment),
     ...overrides,
   };
   return config;
@@ -140,8 +148,12 @@ function validateCatalogEntry(entry) {
 
 function assertRuntimeEnabled(config, plan) {
   if (!config.enabled) fail('payments_disabled', 403, 'Checkout is not available.');
-  if (config.environment !== 'production') fail('environment_mismatch', 409, 'Checkout environment is unavailable.');
+  if (!normalizeEnvironment(config.environment)) fail('environment_mismatch', 409, 'Checkout environment is unavailable.');
+  if (config.catalogEnvironment !== config.environment) fail('catalog_mismatch', 409, 'Checkout catalog is unavailable.');
   if (!validateCatalogEntry(config.catalog?.[plan])) fail('catalog_mismatch', 409, 'Checkout catalog is unavailable.');
+  if (!config.approvedCheckoutOrigin || !/^https:\/\//i.test(config.approvedCheckoutOrigin)) {
+    fail('catalog_mismatch', 409, 'Checkout catalog is unavailable.');
+  }
   if (!config.providerReady) fail('payments_disabled', 403, 'Checkout is not available.');
 }
 
@@ -224,8 +236,9 @@ function validateLockPayload(payload) {
 }
 
 class AppwriteCheckoutStore {
-  constructor(databases) {
+  constructor(databases, providerEnvironment = '') {
     this.databases = databases;
+    this.providerEnvironment = providerEnvironment;
   }
 
   async getDocument(collection, id, transactionId) {
@@ -384,7 +397,7 @@ class AppwriteCheckoutStore {
       this.findOptional('subscriptions', userId),
       this.findOptional('revenuecat_subscription_state', userId),
     ]);
-    return resolveEffectivePlan({ subscription, providerState }).plan;
+    return resolveEffectivePlan({ subscription, providerState, providerEnvironment: this.providerEnvironment }).plan;
   }
 
   async findOptional(collection, userId) {
@@ -402,6 +415,90 @@ class AppwriteCheckoutStore {
 class UnconfiguredProvider {
   async createCheckout() {
     fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  }
+}
+
+const PADDLE_API_ORIGINS = Object.freeze({
+  sandbox: 'https://sandbox-api.paddle.com',
+  production: 'https://api.paddle.com',
+});
+
+function providerKeyVariable(environment) {
+  return environment === 'sandbox' ? 'BILLING_SANDBOX_PADDLE_API_KEY' : 'BILLING_PRODUCTION_PADDLE_API_KEY';
+}
+
+function safeProviderString(value, maxLength = 160) {
+  const result = asString(value).trim();
+  return result && result.length <= maxLength ? result : '';
+}
+
+function parsePaddleTransaction(payload, input) {
+  const transaction = isRecord(payload?.data) ? payload.data : null;
+  if (!transaction) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  const transactionId = safeProviderString(transaction.id);
+  const collectionMode = asString(transaction.collection_mode);
+  const items = Array.isArray(transaction.items) ? transaction.items : [];
+  const itemMatches = items.length === 1 &&
+    asString(items[0]?.price?.id || items[0]?.price_id) === input.priceId &&
+    asString(items[0]?.price?.product_id || items[0]?.price?.product?.id || items[0]?.product_id) === input.productId &&
+    Number(items[0]?.quantity || 0) === 1;
+  const customData = isRecord(transaction.custom_data) ? transaction.custom_data : null;
+  const userMatches = customData && asString(customData.app_user_id) === input.customData.app_user_id;
+  if (!transactionId || !transactionId.startsWith('txn_') || collectionMode !== 'automatic' || !itemMatches || !userMatches) {
+    fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  }
+  const responseEnvironment = normalizeEnvironment(transaction.environment || transaction.paddle_environment);
+  if (responseEnvironment && responseEnvironment !== input.environment) {
+    fail('environment_mismatch', 409, 'Checkout environment is unavailable.');
+  }
+  let checkoutUrl = '';
+  if (isRecord(transaction.checkout) && transaction.checkout.url !== undefined) {
+    checkoutUrl = safeProviderString(transaction.checkout.url, 2048);
+    if (!checkoutUrl) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  }
+  return {
+    providerTransactionId: transactionId,
+    providerEnvironment: input.environment,
+    collectionMode,
+    checkoutReference: opaqueReference('paddle'),
+    checkoutUrl: checkoutUrl || undefined,
+  };
+}
+
+class PaddleAutomaticProvider {
+  constructor({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
+    this.env = env;
+    this.fetchImpl = fetchImpl;
+  }
+
+  async createCheckout(input) {
+    const endpoint = PADDLE_API_ORIGINS[input.environment];
+    const key = asString(this.env[providerKeyVariable(input.environment)]).trim();
+    if (!endpoint || !key || typeof this.fetchImpl !== 'function') {
+      fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+    }
+    let response;
+    try {
+      response = await this.fetchImpl(`${endpoint}/transactions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          items: [{ price_id: input.priceId, quantity: 1 }],
+          collection_mode: 'automatic',
+          custom_data: input.customData,
+        }),
+      });
+    } catch (_) {
+      fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+    }
+    if (!response?.ok) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+    let payload;
+    try { payload = await response.json(); } catch (_) { fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.'); }
+    return parsePaddleTransaction(payload, input);
   }
 }
 
@@ -501,8 +598,8 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     const request = validateRequest(body);
     const config = dependencies.config || readConfig();
     const service = new BillingCheckoutService({
-      store: dependencies.store || new AppwriteCheckoutStore(clients.databases),
-      provider: dependencies.provider || new UnconfiguredProvider(),
+      store: dependencies.store || new AppwriteCheckoutStore(clients.databases, config.environment),
+      provider: dependencies.provider || new PaddleAutomaticProvider({ fetchImpl: dependencies.fetchImpl }),
       config,
       now: dependencies.now,
     });
@@ -531,6 +628,10 @@ module.exports.__test = {
   BillingCheckoutService,
   AppwriteCheckoutStore,
   UnconfiguredProvider,
+  PaddleAutomaticProvider,
+  PADDLE_API_ORIGINS,
+  parsePaddleTransaction,
+  providerKeyVariable,
   assertNotAlreadyEntitled,
   assertRuntimeEnabled,
   buildCatalog,
