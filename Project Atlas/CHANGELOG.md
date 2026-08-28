@@ -1,4 +1,14 @@
-# Project Atlas Master Changelog
+# WiseResume Atlas Master Changelog
+
+## 2026-08-28 - Final Sandbox billing completion mission
+
+- **Verdict:** `SANDBOX_RUNTIME_READY_SAFE_PROVIDER_CREDENTIAL_REQUIRED`. The public Sandbox/Test Mode UI, explicit Sandbox/Production server isolation, server-owned checkout boundary, additive checkout schema, and targeted `billing-checkout` deployment are complete and fail-closed.
+- **Evidence:** PR #225 merged at `1abe49349d0998f13709c7af9d80164435b5069e`; PR #226 merged at `5f57d990fa16686d7ee57a341885e57aa347d9e8`; Appwrite workflow `33135870481` deployed ready `billing-checkout` deployment `6a90f1babbd3925c3583`; Vercel Production deployment `6134499586` succeeded.
+- **Credential boundary:** No provider credential value was retrieved, displayed, copied, logged, hashed, compared, configured, or used. No Paddle, RevenueCat, or lifecycle mutation was performed. Remote billing-variable values remain `UNVERIFIED` because the safe metadata path was unavailable.
+- **QA:** Focused and full local validation passed. Live public Pricing QA passed in English and Arabic RTL. Real Pro/Ultimate provider E2E, reconciliation, limits, persistence after new purchases, upgrade, cancellation, expiration, billing issue, and Manage Billing remain `UNVERIFIED`.
+- **Security:** The previous exposed Paddle Sandbox API-key incident remains `SECURITY_INCIDENT_SECRET_EXPOSURE` / `OWNER_ACCEPTED_UNRESOLVED_RISK`. Production billing remains disabled.
+- **Report:** [`reports/2026-08-28-public-sandbox-billing-e2e-closeout.md`](./reports/2026-08-28-public-sandbox-billing-e2e-closeout.md)
+- **Next action:** A safe server credential path must be separately authorized before any provider-authenticated Sandbox execution. Do not weaken the server-owned architecture or use browser-side authority.
 
 ## 2026-08-28 - WiseResume Payments Phase 2 public Sandbox billing implementation
 
