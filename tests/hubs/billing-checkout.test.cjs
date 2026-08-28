@@ -382,6 +382,35 @@ for (const plan of ['pro', 'premium']) {
   assert.equal(conflict.response.error, 'idempotency_conflict');
 }
 
+// Without an explicit key, separate plan attempts receive independent server keys and do not collide.
+{
+  const calls = [];
+  const store = new MemoryCheckoutStore({ nowMs });
+  const dependencies = { user: { $id: 'no-key-plan-user' }, store, provider: provider({ calls }), config: config(), now: () => nowMs };
+  const pro = await invoke({ action: 'create-session', plan: 'pro' }, dependencies);
+  const premium = await invoke({ action: 'create-session', plan: 'premium' }, dependencies);
+  assert.equal(pro.response.status, 'success');
+  assert.equal(premium.response.status, 'success');
+  assert.equal(calls.length, 2);
+  assert.notEqual(pro.response.data.session_reference, premium.response.data.session_reference);
+}
+
+// A failed no-key attempt gets a fresh server key, so a legitimate retry is not stale-key blocked.
+{
+  const store = new MemoryCheckoutStore({ nowMs });
+  const failing = { async createCheckout() { throw new Error('provider failure must stay private'); } };
+  const first = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'no-key-retry-user' }, store, provider: failing, config: config(), now: () => nowMs,
+  });
+  assert.equal(first.response.error, 'provider_unavailable');
+  const calls = [];
+  const retry = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'no-key-retry-user' }, store, provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(retry.response.status, 'success');
+  assert.equal(calls.length, 1);
+}
+
 // Stronger existing plan blocks checkout; Ultimate is read-normalized only and never a write target.
 for (const currentPlan of ['pro', 'premium', 'ultimate']) {
   const calls = [];

@@ -422,7 +422,10 @@ class BillingCheckoutService {
     const catalog = this.config.catalog[plan];
     const nowMs = this.now();
     const replayBucket = Math.floor(nowMs / IDEMPOTENCY_WINDOW_MS);
-    const requestKey = idempotencyKey || `auto:${replayBucket}`;
+    // Explicit keys provide replay/recovery semantics. Without one, each request
+    // gets a unique server-generated attempt key; the plan lock still coalesces
+    // concurrent/simultaneous sessions without cross-plan collision or stale retry blocking.
+    const requestKey = idempotencyKey || opaqueReference('attempt');
     const requestKeyFingerprint = hash(requestKey);
     const sessionKey = hash(`${userId}:${plan}:${this.config.environment}:${catalog.priceId}:${requestKeyFingerprint}:${replayBucket}`);
     const sessionInput = {
