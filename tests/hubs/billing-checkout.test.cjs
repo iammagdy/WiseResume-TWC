@@ -12,6 +12,7 @@ const {
   BillingCheckoutService,
   IDEMPOTENCY_WINDOW_MS,
   MAX_CREATIONS_PER_USER,
+  providerDiagnostic,
   safeProviderResult,
   validateRequest,
   buildUserLockPayload,
@@ -123,6 +124,27 @@ function provider({ calls, result = {} } = {}) {
       };
     },
   };
+}
+
+function paddleTransactionPayload(overrides = {}) {
+  const transaction = {
+    id: 'txn_sandbox_123',
+    collection_mode: 'automatic',
+    items: [{ price: { id: 'price_sandbox_pro', product_id: 'product_sandbox_pro' }, quantity: 1 }],
+    custom_data: { app_user_id: 'canonical-user' },
+    checkout: { url: 'https://checkout.example.test/sandbox' },
+    environment: 'sandbox',
+    ...overrides,
+  };
+  return { data: transaction };
+}
+
+function assertProviderDiagnostic(error, stage, category, status) {
+  assert.equal(error.code, 'provider_unavailable');
+  const expected = { stage, category };
+  if (Number.isInteger(status)) expected.status = status;
+  assert.deepEqual(providerDiagnostic(error), expected);
+  return true;
 }
 
 function appwriteDatabase({ subscription = null, providerState = null, failCollection = null } = {}) {
@@ -691,9 +713,148 @@ assert.equal(safeProviderResult({ checkoutReference: 'ref', providerTransactionI
   assert.equal(output.checkoutUrl, 'https://checkout.example.test/sandbox');
   assert.equal(JSON.stringify(output).includes('sandbox-test-key'), false);
 }
+const sandboxProviderInput = {
+  environment: 'sandbox',
+  priceId: 'price_sandbox_pro',
+  productId: 'product_sandbox_pro',
+  customData: { app_user_id: 'canonical-user' },
+};
+
+// Provider failures have fixed, non-sensitive diagnostic classifications.
 {
   const provider = new PaddleAutomaticProvider({ env: {}, fetchImpl: async () => { throw new Error('must not call'); } });
-  await assert.rejects(() => provider.createCheckout({ environment: 'sandbox', priceId: 'price', customData: { app_user_id: 'user' } }), error => error.code === 'provider_unavailable');
+  await assert.rejects(
+    () => provider.createCheckout(sandboxProviderInput),
+    error => assertProviderDiagnostic(error, 'provider.runtime_configuration', 'missing_runtime_credential'),
+  );
+}
+{
+  const provider = new PaddleAutomaticProvider({
+    env: { BILLING_SANDBOX_PADDLE_API_KEY: 'fixture-key' }, fetchImpl: null,
+  });
+  await assert.rejects(
+    () => provider.createCheckout(sandboxProviderInput),
+    error => assertProviderDiagnostic(error, 'provider.runtime_configuration', 'fetch_unavailable'),
+  );
+}
+{
+  const provider = new PaddleAutomaticProvider({ env: {}, fetchImpl: async () => ({ ok: true }) });
+  await assert.rejects(
+    () => provider.createCheckout({ ...sandboxProviderInput, environment: '' }),
+    error => assertProviderDiagnostic(error, 'provider.runtime_configuration', 'missing_provider_endpoint'),
+  );
+}
+{
+  const provider = new PaddleAutomaticProvider({
+    env: { BILLING_SANDBOX_PADDLE_API_KEY: 'fixture-key' },
+    fetchImpl: async () => { throw new Error('raw transport failure must stay private'); },
+  });
+  await assert.rejects(
+    () => provider.createCheckout(sandboxProviderInput),
+    error => assertProviderDiagnostic(error, 'provider.transport', 'transport_failure'),
+  );
+}
+for (const [status, category] of [
+  [401, 'provider_auth_rejected'], [403, 'provider_auth_rejected'],
+  [400, 'provider_request_rejected'], [422, 'provider_request_rejected'],
+  [404, 'provider_not_found'], [409, 'provider_conflict'],
+  [429, 'provider_rate_limited'], [503, 'provider_upstream_error'], [418, 'provider_http_other'],
+]) {
+  const provider = new PaddleAutomaticProvider({
+    env: { BILLING_SANDBOX_PADDLE_API_KEY: 'fixture-key' },
+    fetchImpl: async () => ({ ok: false, status, text: async () => 'provider response body must not be read' }),
+  });
+  await assert.rejects(
+    () => provider.createCheckout(sandboxProviderInput),
+    error => assertProviderDiagnostic(error, 'provider.http_response', category, status),
+  );
+}
+{
+  const provider = new PaddleAutomaticProvider({
+    env: { BILLING_SANDBOX_PADDLE_API_KEY: 'fixture-key' },
+    fetchImpl: async () => ({ ok: true, status: 201, json: async () => { throw new Error('raw JSON parser error'); } }),
+  });
+  await assert.rejects(
+    () => provider.createCheckout(sandboxProviderInput),
+    error => assertProviderDiagnostic(error, 'provider.response_json', 'invalid_json'),
+  );
+}
+for (const [overrides, category] of [
+  [{ data: null }, 'missing_transaction'],
+  [{ id: 'invalid-id' }, 'invalid_transaction_id'],
+  [{ collection_mode: 'manual' }, 'collection_mode_mismatch'],
+  [{ items: [{ price: { id: 'wrong-price', product_id: 'product_sandbox_pro' }, quantity: 1 }] }, 'item_mismatch'],
+  [{ custom_data: { app_user_id: 'wrong-user' } }, 'user_mapping_mismatch'],
+  [{ checkout: { url: '' } }, 'invalid_checkout_url'],
+]) {
+  const payload = Object.prototype.hasOwnProperty.call(overrides, 'data') ? overrides : paddleTransactionPayload(overrides);
+  const provider = new PaddleAutomaticProvider({
+    env: { BILLING_SANDBOX_PADDLE_API_KEY: 'fixture-key' },
+    fetchImpl: async () => ({ ok: true, status: 201, json: async () => payload }),
+  });
+  await assert.rejects(
+    () => provider.createCheckout(sandboxProviderInput),
+    error => assertProviderDiagnostic(error, 'provider.transaction_validation', category),
+  );
+}
+{
+  const provider = new PaddleAutomaticProvider({
+    env: { BILLING_SANDBOX_PADDLE_API_KEY: 'fixture-key' },
+    fetchImpl: async () => ({ ok: true, status: 201, json: async () => paddleTransactionPayload({ environment: 'production' }) }),
+  });
+  await assert.rejects(() => provider.createCheckout(sandboxProviderInput), error => {
+    assert.equal(error.code, 'environment_mismatch');
+    assert.deepEqual(providerDiagnostic(error), { stage: 'provider.transaction_validation', category: 'environment_mismatch' });
+    return true;
+  });
+}
+assert.throws(
+  () => safeProviderResult({ checkoutReference: 'ref', providerTransactionId: 'txn', providerEnvironment: 'production', collectionMode: 'automatic', checkoutUrl: 'https://evil.example/x' }, config()),
+  error => assertProviderDiagnostic(error, 'provider.safe_result_validation', 'checkout_origin_mismatch'),
+);
+assert.throws(
+  () => safeProviderResult({ checkoutReference: '', providerTransactionId: 'txn', providerEnvironment: 'production', collectionMode: 'automatic' }, config()),
+  error => assertProviderDiagnostic(error, 'provider.safe_result_validation', 'checkout_reference_invalid'),
+);
+assert.throws(
+  () => safeProviderResult({ checkoutReference: 'ref', providerTransactionId: '', providerEnvironment: 'production', collectionMode: 'automatic' }, config()),
+  error => assertProviderDiagnostic(error, 'provider.safe_result_validation', 'provider_transaction_reference_invalid'),
+);
+
+// A persistence error after successful provider validation is distinguishable and still marks the reservation failed.
+{
+  const store = new MemoryCheckoutStore({ nowMs });
+  let failCalls = 0;
+  const originalFail = store.fail.bind(store);
+  store.complete = async () => { throw new Error('provider transaction id must never be logged'); };
+  store.fail = async (...args) => {
+    failCalls += 1;
+    return originalFail(...args);
+  };
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'persist-failure-user' }, store, provider: provider({ calls: [] }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.statusCode, 502);
+  assert.equal(result.response.error, 'provider_unavailable');
+  assert.equal(result.response.message.includes('provider transaction id'), false);
+  assert.deepEqual(result.logs, ['billing-checkout provider_unavailable stage=provider.persist_complete category=persistence_failure']);
+  assert.equal(result.logs.join('\n').includes('provider transaction id'), false);
+  assert.equal(failCalls, 1);
+  assert.equal(store.sessions.values().next().value.state, 'failed');
+}
+
+// A runtime configuration failure reaches the handler as a generic browser response with only safe internal diagnostics.
+{
+  const store = new MemoryCheckoutStore({ nowMs });
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: 'runtime-configuration-user' }, store,
+    provider: new PaddleAutomaticProvider({ env: {}, fetchImpl: async () => { throw new Error('must not call'); } }),
+    config: config({ environment: 'sandbox', catalogEnvironment: 'sandbox' }), now: () => nowMs,
+  });
+  assert.equal(result.response.statusCode, 502);
+  assert.equal(result.response.error, 'provider_unavailable');
+  assert.deepEqual(result.logs, ['billing-checkout provider_unavailable stage=provider.runtime_configuration category=missing_runtime_credential']);
+  assert.equal(store.sessions.values().next().value.state, 'failed');
 }
 assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'sandbox', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod', BILLING_SANDBOX_PREMIUM_PRICE_ID: 'su', BILLING_SANDBOX_PREMIUM_PRODUCT_ID: 'suprod' }).catalog.pro.priceId, 'sp');
 assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'production', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod' }).catalog.pro.priceId, '');
