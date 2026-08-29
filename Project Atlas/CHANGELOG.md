@@ -1,5 +1,13 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-29 - Sanitized provider-boundary diagnostics deployed
+
+- **Verdict:** `PROVIDER_DIAGNOSTIC_RUNTIME_READY`. Provider root cause remains `UNPROVEN`; the previously observed generic provider failure can occur during provider creation, validation, or post-provider Appwrite persistence.
+- **Implementation:** PR #236 merged at `7c0f8f550e8201d7c1827361f76dbcf7d25a2983`. `billing-checkout` now emits only fixed provider stage/category labels and safe provider HTTP status numbers. Its public provider-unavailable error stays generic, and `store.complete()` failure is separately distinguishable while preserving best-effort terminal session/lock handling.
+- **Validation and deployment:** Focused provider diagnostics and normal provider success paths pass alongside RevenueCat webhook/schema, schema-permission, Function-policy, P0/security, i18n, TypeScript, ESLint, no-sourcemap, and GitHub PR Validation/Security checks. Targeted workflow `33255846652` deployed only `billing-checkout`; active Node-22 deployment is `6a92e2ae54493520824b`.
+- **Boundary:** Checkout remains disabled; no provider transaction, entitlement, credit, provider-state/ledger, schema, scope, secret, catalog, Paddle/RevenueCat, Vercel, or Production setting changed. PR #235 remains a separate open documentation record.
+- **Next action:** A separately authorized one-time controlled Pro Sandbox diagnostic retry may use the new log boundary. On any failure, disable checkout first and do not retry without new authorization.
+
 ## 2026-08-29 - Billing checkout transaction TTL correction
 
 - **Verdict:** `TRANSACTION_TTL_FIX_DEPLOYED_READY_FOR_CONTROLLED_PRO_RETRY`. The controlled diagnostic established that `createTransaction(20)` produced an Appwrite HTTP 400 before any provider call because 20 seconds is below the Appwrite transaction minimum of 60 seconds.

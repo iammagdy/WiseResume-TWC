@@ -1,11 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-29
-**Status:** `TRANSACTION_TTL_FIX_DEPLOYED_READY_FOR_CONTROLLED_PRO_RETRY` — the public Sandbox implementation, environment isolation, additive schema, and targeted `billing-checkout` deployment are complete. The root cause of the reservation failure is confirmed: `createTransaction(20)` sent an invalid 20-second Appwrite TTL. Checkout remains disabled and Production billing remains disabled pending one separately authorized controlled Pro retry.
+**Status:** `PROVIDER_DIAGNOSTIC_RUNTIME_READY` — the public Sandbox implementation, environment isolation, additive schema, and targeted `billing-checkout` deployment are complete. The reservation TTL root cause is fixed; provider-boundary diagnostics are now active. Checkout and Production billing remain disabled pending one separately authorized controlled Pro diagnostic retry.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Sandbox provider-boundary diagnostic deployment — 2026-08-29
+
+* **Verdict:** `PROVIDER_DIAGNOSTIC_RUNTIME_READY`. The prior `provider_unavailable` result remains `ROOT_CAUSE_UNPROVEN`: reservation had passed, but the former catch boundary included provider creation, response validation, and persistence. The Function now distinguishes fixed, sanitized provider-boundary stages without changing checkout behavior.
+* **Implementation and safety:** PR [#236](https://github.com/iammagdy/WiseResume-TWC/pull/236) merged at `7c0f8f550e8201d7c1827361f76dbcf7d25a2983`. Logs contain only allowlisted stage/category values and safe numeric HTTP statuses. No raw exception, provider response, request, user identifier, transaction, catalog identifier, URL, header, cookie, credential, or environment value is logged. The browser still receives the existing generic `provider_unavailable` HTTP 502 for unexpected provider failures; typed environment/catalog contracts remain compatible.
+* **Validation and deployment:** Focused billing checkout, RevenueCat webhook/schema, schema-permission hardening, Function policy, AI credit concurrency, P0/security regression, i18n/Arabic coverage, TypeScript, ESLint, no-sourcemap, and required GitHub checks passed. The targeted workflow `33255846652` deployed only `billing-checkout`; Appwrite shows active Node-22 deployment `6a92e2ae54493520824b`. Two unrelated baseline checks remain recorded as `TEST_BUG / DATA_FIXTURE_ISSUE` (AI provider-environment fixture) and `BASELINE_REPOSITORY_FIXTURE_ISSUE` (missing resolver lockfile reported by deployment hardening); neither was changed.
+* **Runtime boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved; provider readiness, Function scopes, schema, credential, catalog, Paddle/RevenueCat configuration, Vercel, and Production billing were not changed. No checkout, provider transaction, entitlement, credit, event-ledger, or provider-state mutation occurred. PR #235 remains separate and open.
+* **Next action:** Owner must separately authorize exactly one new controlled Pro Sandbox diagnostic retry. Enable checkout only for that one attempt, roll it back first on failure, and report only the new sanitized diagnostic evidence. Do not start Ultimate.
 
 ## WiseResume Sandbox billing transaction TTL correction — 2026-08-29
 

@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-08-29
 
+## A payment-provider issue can now be pinpointed safely (2026-08-29)
+
+**What was the situation:** A limited Sandbox checkout reached the provider boundary but correctly showed only a general temporary-error message. That protected private payment information, but did not distinguish a provider connection problem from a final internal save problem.
+
+**What changed:** The private service log can now name the exact broad step that failed—such as connection, a provider response, a safe validation check, or saving the prepared checkout—using only fixed labels. It still never records payment details, account details, URLs, passwords, or secret keys. The message people see in WiseResume remains the same general temporary-error message.
+
+**What you'll notice:** Nothing is turned on. Sandbox checkout stays off, no payment was attempted, and Production billing remains disabled. One separately approved Pro Sandbox test is the next step.
+
 ## Sandbox checkout preparation now uses the provider's required timing (2026-08-29)
 
 **What was the situation:** A carefully limited Sandbox checkout test stopped before it could reach the payment provider because an internal preparation step used too short a safety window.
