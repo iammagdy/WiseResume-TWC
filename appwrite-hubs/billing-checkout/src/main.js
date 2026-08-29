@@ -31,6 +31,11 @@ const RESERVE_DIAGNOSTIC_STAGES = new Set([
   'reserve.rollback',
 ]);
 const reserveDiagnosticStages = new WeakMap();
+const PROVIDER_DIAGNOSTIC_STAGES = new Set([
+  'provider.runtime_configuration', 'provider.transport', 'provider.http_response', 'provider.response_json',
+  'provider.transaction_validation', 'provider.safe_result_validation', 'provider.persist_complete', 'provider.create_checkout',
+]);
+const providerDiagnosticStages = new WeakMap();
 const TRANSPORT_ERROR_NAMES = new Set(['AbortError', 'FetchError', 'NetworkError', 'TimeoutError', 'TypeError']);
 const TRANSPORT_ERROR_CODES = new Set(['ECONNABORTED', 'ECONNREFUSED', 'ECONNRESET', 'ENETUNREACH', 'ENOTFOUND', 'ETIMEDOUT']);
 
@@ -82,6 +87,12 @@ function reserveDiagnostic(error) {
     : null;
 }
 
+function providerDiagnostic(error) {
+  return error && (typeof error === 'object' || typeof error === 'function')
+    ? providerDiagnosticStages.get(error) || null
+    : null;
+}
+
 function annotateReserveFailure(error, stage, classification = null) {
   if (error instanceof BillingCheckoutError || !RESERVE_DIAGNOSTIC_STAGES.has(stage)) return error;
   const diagnostic = { stage, ...(classification || {}) };
@@ -92,6 +103,26 @@ function annotateReserveFailure(error, stage, classification = null) {
   const sanitizedError = new Error('Reserve operation failed.');
   reserveDiagnosticStages.set(sanitizedError, diagnostic);
   return sanitizedError;
+}
+
+function annotateProviderFailure(error, stage, category, status = null) {
+  if (!PROVIDER_DIAGNOSTIC_STAGES.has(stage) || typeof category !== 'string' || !category) return error;
+  if (error && (typeof error === 'object' || typeof error === 'function')) {
+    if (!providerDiagnosticStages.has(error)) providerDiagnosticStages.set(error, { stage, category, ...(Number.isInteger(status) ? { status } : {}) });
+    return error;
+  }
+  const sanitizedError = new Error('Provider operation failed.');
+  providerDiagnosticStages.set(sanitizedError, { stage, category, ...(Number.isInteger(status) ? { status } : {}) });
+  return sanitizedError;
+}
+
+function failProviderDiagnostic(stage, category, { code = 'provider_unavailable', status = 502, message = 'Checkout provider is temporarily unavailable.', diagnosticStatus = null } = {}) {
+  const error = new BillingCheckoutError(code, status, message);
+  throw annotateProviderFailure(error, stage, category, diagnosticStatus);
+}
+
+async function providerOperation(stage, fallbackCategory, operation) {
+  try { return await operation(); } catch (error) { throw annotateProviderFailure(error, stage, fallbackCategory); }
 }
 
 async function reserveOperation(stage, operation) {
@@ -244,26 +275,27 @@ function assertNotAlreadyEntitled(currentPlan, requestedPlan) {
 }
 
 function safeProviderResult(result, config) {
-  if (!isRecord(result)) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  if (!isRecord(result)) failProviderDiagnostic('provider.safe_result_validation', 'checkout_reference_invalid');
   const reference = asString(result.checkoutReference);
-  if (!reference || reference.length > 160) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  if (!reference || reference.length > 160) failProviderDiagnostic('provider.safe_result_validation', 'checkout_reference_invalid');
   const providerEnvironment = asString(result.providerEnvironment);
-  if (providerEnvironment !== config.environment) fail('environment_mismatch', 409, 'Checkout environment is unavailable.');
-  if (asString(result.collectionMode) !== 'automatic') fail('catalog_mismatch', 409, 'Checkout catalog is unavailable.');
+  if (providerEnvironment !== config.environment) failProviderDiagnostic('provider.safe_result_validation', 'provider_environment_mismatch', { code: 'environment_mismatch', status: 409, message: 'Checkout environment is unavailable.' });
+  if (asString(result.collectionMode) !== 'automatic') failProviderDiagnostic('provider.safe_result_validation', 'collection_mode_mismatch', { code: 'catalog_mismatch', status: 409, message: 'Checkout catalog is unavailable.' });
   const transactionId = asString(result.providerTransactionId);
-  if (!transactionId || transactionId.length > 160) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  if (!transactionId || transactionId.length > 160) failProviderDiagnostic('provider.safe_result_validation', 'provider_transaction_reference_invalid');
   let checkoutUrl = null;
   if (result.checkoutUrl !== undefined) {
     const approvedOrigin = asString(config.approvedCheckoutOrigin).replace(/\/$/, '');
+    let url;
     try {
-      const url = new URL(asString(result.checkoutUrl));
-      if (!approvedOrigin || url.origin !== approvedOrigin || url.protocol !== 'https:') {
-        fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
-      }
-      checkoutUrl = url.toString();
+      url = new URL(asString(result.checkoutUrl));
     } catch {
-      fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+      failProviderDiagnostic('provider.safe_result_validation', 'checkout_url_invalid');
     }
+    if (!approvedOrigin || url.origin !== approvedOrigin || url.protocol !== 'https:') {
+      failProviderDiagnostic('provider.safe_result_validation', 'checkout_origin_mismatch');
+    }
+    checkoutUrl = url.toString();
   }
   return { checkoutReference: reference, providerTransactionId: transactionId, checkoutUrl };
 }
@@ -493,7 +525,7 @@ class AppwriteCheckoutStore {
 
 class UnconfiguredProvider {
   async createCheckout() {
-    fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+    failProviderDiagnostic('provider.runtime_configuration', 'missing_runtime_credential');
   }
 }
 
@@ -513,27 +545,27 @@ function safeProviderString(value, maxLength = 160) {
 
 function parsePaddleTransaction(payload, input) {
   const transaction = isRecord(payload?.data) ? payload.data : null;
-  if (!transaction) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+  if (!transaction) failProviderDiagnostic('provider.transaction_validation', 'missing_transaction');
   const transactionId = safeProviderString(transaction.id);
+  if (!transactionId || !transactionId.startsWith('txn_')) failProviderDiagnostic('provider.transaction_validation', 'invalid_transaction_id');
   const collectionMode = asString(transaction.collection_mode);
+  if (collectionMode !== 'automatic') failProviderDiagnostic('provider.transaction_validation', 'collection_mode_mismatch');
   const items = Array.isArray(transaction.items) ? transaction.items : [];
   const itemMatches = items.length === 1 &&
     asString(items[0]?.price?.id || items[0]?.price_id) === input.priceId &&
     asString(items[0]?.price?.product_id || items[0]?.price?.product?.id || items[0]?.product_id) === input.productId &&
     Number(items[0]?.quantity || 0) === 1;
+  if (!itemMatches) failProviderDiagnostic('provider.transaction_validation', 'item_mismatch');
   const customData = isRecord(transaction.custom_data) ? transaction.custom_data : null;
-  const userMatches = customData && asString(customData.app_user_id) === input.customData.app_user_id;
-  if (!transactionId || !transactionId.startsWith('txn_') || collectionMode !== 'automatic' || !itemMatches || !userMatches) {
-    fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
-  }
+  if (!customData || asString(customData.app_user_id) !== input.customData.app_user_id) failProviderDiagnostic('provider.transaction_validation', 'user_mapping_mismatch');
   const responseEnvironment = normalizeEnvironment(transaction.environment || transaction.paddle_environment);
   if (responseEnvironment && responseEnvironment !== input.environment) {
-    fail('environment_mismatch', 409, 'Checkout environment is unavailable.');
+    failProviderDiagnostic('provider.transaction_validation', 'environment_mismatch', { code: 'environment_mismatch', status: 409, message: 'Checkout environment is unavailable.' });
   }
   let checkoutUrl = '';
   if (isRecord(transaction.checkout) && transaction.checkout.url !== undefined) {
     checkoutUrl = safeProviderString(transaction.checkout.url, 2048);
-    if (!checkoutUrl) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+    if (!checkoutUrl) failProviderDiagnostic('provider.transaction_validation', 'invalid_checkout_url');
   }
   return {
     providerTransactionId: transactionId,
@@ -553,9 +585,9 @@ class PaddleAutomaticProvider {
   async createCheckout(input) {
     const endpoint = PADDLE_API_ORIGINS[input.environment];
     const key = asString(this.env[providerKeyVariable(input.environment)]).trim();
-    if (!endpoint || !key || typeof this.fetchImpl !== 'function') {
-      fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
-    }
+    if (!endpoint) failProviderDiagnostic('provider.runtime_configuration', 'missing_provider_endpoint');
+    if (!key) failProviderDiagnostic('provider.runtime_configuration', 'missing_runtime_credential');
+    if (typeof this.fetchImpl !== 'function') failProviderDiagnostic('provider.runtime_configuration', 'fetch_unavailable');
     let response;
     try {
       response = await this.fetchImpl(`${endpoint}/transactions`, {
@@ -572,11 +604,21 @@ class PaddleAutomaticProvider {
         }),
       });
     } catch (_) {
-      fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+      failProviderDiagnostic('provider.transport', 'transport_failure');
     }
-    if (!response?.ok) fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+    if (!response?.ok) {
+      const status = Number(response?.status);
+      const category = status === 401 || status === 403 ? 'provider_auth_rejected'
+        : status === 400 || status === 422 ? 'provider_request_rejected'
+          : status === 404 ? 'provider_not_found'
+            : status === 409 ? 'provider_conflict'
+              : status === 429 ? 'provider_rate_limited'
+                : Number.isInteger(status) && status >= 500 && status <= 599 ? 'provider_upstream_error'
+                  : 'provider_http_other';
+      failProviderDiagnostic('provider.http_response', category, { diagnosticStatus: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null });
+    }
     let payload;
-    try { payload = await response.json(); } catch (_) { fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.'); }
+    try { payload = await response.json(); } catch (_) { failProviderDiagnostic('provider.response_json', 'invalid_json'); }
     return parsePaddleTransaction(payload, input);
   }
 }
@@ -629,14 +671,18 @@ class BillingCheckoutService {
       correlationId: sessionInput.correlationId,
     };
     try {
-      const result = safeProviderResult(await this.provider.createCheckout(providerInput), this.config);
-      await this.store.complete(reservation.session, result, this.now());
+      const providerResult = await providerOperation('provider.create_checkout', 'provider_operation_failure', () => this.provider.createCheckout(providerInput));
+      const result = await providerOperation('provider.safe_result_validation', 'safe_result_validation_failure', () => safeProviderResult(providerResult, this.config));
+      await providerOperation('provider.persist_complete', 'persistence_failure', () => this.store.complete(reservation.session, result, this.now()));
       return publicSessionResponse({ ...reservation.session, expiresAt: sessionInput.expiresAt, plan }, result);
     } catch (error) {
       const safeCode = error instanceof BillingCheckoutError ? error.code : 'provider_unavailable';
-      await this.store.fail(reservation.session, safeCode, this.now());
+      try { await this.store.fail(reservation.session, safeCode, this.now()); } catch (_) {}
       if (error instanceof BillingCheckoutError) throw error;
-      fail('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+      const sanitizedError = new BillingCheckoutError('provider_unavailable', 502, 'Checkout provider is temporarily unavailable.');
+      const diagnostic = providerDiagnostic(error);
+      if (diagnostic) throw annotateProviderFailure(sanitizedError, diagnostic.stage, diagnostic.category, diagnostic.status);
+      throw sanitizedError;
     }
   }
 }
@@ -686,9 +732,9 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     return res.json(response, 200);
   } catch (caught) {
     if (typeof error === 'function') {
-      const diagnostic = reserveDiagnostic(caught);
+      const diagnostic = providerDiagnostic(caught) || reserveDiagnostic(caught);
       const stage = diagnostic?.stage || '';
-      const category = stage === 'reserve.create_transaction' && diagnostic?.category
+      const category = diagnostic?.category
         ? ` category=${diagnostic.category}`
         : '';
       const status = Number.isInteger(diagnostic?.status) ? ` status=${diagnostic.status}` : '';
@@ -708,6 +754,7 @@ module.exports.__test = {
   MAX_BODY_BYTES,
   MAX_CREATIONS_PER_USER,
   PLAN_RANK,
+  PROVIDER_DIAGNOSTIC_STAGES,
   RATE_LIMIT_WINDOW_MS,
   RESERVE_DIAGNOSTIC_STAGES,
   SAFE_RETURN_PATH,
@@ -719,6 +766,7 @@ module.exports.__test = {
   PaddleAutomaticProvider,
   PADDLE_API_ORIGINS,
   parsePaddleTransaction,
+  providerDiagnostic,
   providerKeyVariable,
   assertNotAlreadyEntitled,
   assertRuntimeEnabled,
