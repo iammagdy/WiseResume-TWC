@@ -11,6 +11,7 @@ const ACTIVE_WINDOW_MS = 15 * 60 * 1000;
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const MAX_CREATIONS_PER_USER = 3;
+const CHECKOUT_TRANSACTION_TTL_SECONDS = 60;
 const MAX_BODY_BYTES = 8 * 1024;
 const ALLOWED_PLANS = new Set(['pro', 'premium']);
 const PLAN_RANK = Object.freeze({ free: 0, pro: 1, premium: 2 });
@@ -335,7 +336,7 @@ class AppwriteCheckoutStore {
 
   async reserve(input) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const transaction = await reserveOperation('reserve.create_transaction', () => this.databases.createTransaction(20));
+      const transaction = await reserveOperation('reserve.create_transaction', () => this.databases.createTransaction(CHECKOUT_TRANSACTION_TTL_SECONDS));
       let committed = false;
       try {
         const nowIso = new Date(input.nowMs).toISOString();
@@ -434,7 +435,7 @@ class AppwriteCheckoutStore {
 
   async complete(session, providerResult, nowMs) {
     const nowIso = new Date(nowMs).toISOString();
-    const transaction = await this.databases.createTransaction(20);
+    const transaction = await this.databases.createTransaction(CHECKOUT_TRANSACTION_TTL_SECONDS);
     let committed = false;
     try {
       await this.databases.updateDocument(DB_ID, SESSION_COLLECTION, session.$id, {

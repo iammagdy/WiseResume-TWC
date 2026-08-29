@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const billing = require('../../appwrite-hubs/billing-checkout/src/main.js');
 const schema = require('../../scripts/setup_billing_checkout_schema.cjs');
 
@@ -134,6 +136,8 @@ function appwriteDatabase({ subscription = null, providerState = null, failColle
 }
 
 function reserveDiagnosticDatabase({ failureStage = '', failureFactory = null } = {}) {
+  const transactionTtls = [];
+  const transactionUpdates = [];
   const fail = stage => {
     if (stage !== failureStage) return;
     throw failureFactory ? failureFactory() : new Error('underlying diagnostic marker');
@@ -144,7 +148,10 @@ function reserveDiagnosticDatabase({ failureStage = '', failureFactory = null } 
     return error;
   };
   return {
-    async createTransaction() {
+    transactionTtls,
+    transactionUpdates,
+    async createTransaction(ttl) {
+      transactionTtls.push(ttl);
       fail('reserve.create_transaction');
       return { $id: 'diagnostic-transaction' };
     },
@@ -167,7 +174,8 @@ function reserveDiagnosticDatabase({ failureStage = '', failureFactory = null } 
     async updateDocument() {
       return {};
     },
-    async updateTransaction(_transactionId, commit, rollback) {
+    async updateTransaction(transactionId, commit, rollback) {
+      transactionUpdates.push({ transactionId, commit, rollback });
       if (commit) fail('reserve.commit');
       if (rollback) fail('reserve.rollback');
       return {};
@@ -176,7 +184,11 @@ function reserveDiagnosticDatabase({ failureStage = '', failureFactory = null } 
 }
 
 function diagnosticStore(options = {}) {
-  return new billing.__test.AppwriteCheckoutStore(reserveDiagnosticDatabase(options), 'production');
+  const databases = reserveDiagnosticDatabase(options);
+  const store = new billing.__test.AppwriteCheckoutStore(databases, 'production');
+  store.transactionTtls = databases.transactionTtls;
+  store.transactionUpdates = databases.transactionUpdates;
+  return store;
 }
 
 function trackingAppwriteStore(options = {}) {
@@ -220,6 +232,10 @@ async function invoke(body, dependencies = {}) {
 const nowMs = Date.parse('2099-08-28T10:00:00.000Z');
 
 async function main() {
+const billingSource = fs.readFileSync(path.join(__dirname, '../../appwrite-hubs/billing-checkout/src/main.js'), 'utf8');
+assert.match(billingSource, /const CHECKOUT_TRANSACTION_TTL_SECONDS = 60;/);
+assert.doesNotMatch(billingSource, /createTransaction\(20\)/);
+
 // Schema is additive and server-only; no remote setup is invoked by this test.
 assert.equal(schema.DB_ID, 'main');
 assert.deepEqual(schema.COLLECTION_SPECS.map(spec => spec.id), ['billing_checkout_sessions', 'billing_checkout_locks']);
@@ -425,13 +441,20 @@ for (const { error, category } of [
 // A successful Appwrite-backed reservation remains provider-backed and does not emit a diagnostic stage.
 {
   const calls = [];
+  const store = diagnosticStore();
   const result = await invoke({ action: 'create-session', plan: 'pro' }, {
-    user: { $id: 'diagnostic-success' }, store: diagnosticStore(), provider: provider({ calls }), config: config(), now: () => nowMs,
+    user: { $id: 'diagnostic-success' }, store, provider: provider({ calls }), config: config(), now: () => nowMs,
   });
   assert.equal(result.response.statusCode, 200);
   assert.equal(result.response.status, 'success');
   assert.deepEqual(result.logs, []);
   assert.equal(calls.length, 1);
+  assert.deepEqual(store.transactionTtls, [60, 60]);
+  assert.ok(store.transactionTtls.every(ttl => ttl >= 60));
+  assert.deepEqual(store.transactionUpdates.map(({ commit, rollback }) => ({ commit, rollback })), [
+    { commit: true, rollback: false },
+    { commit: true, rollback: false },
+  ]);
 }
 
 // Exact internal plans only: free, public Ultimate, labels, and unknown values fail.
