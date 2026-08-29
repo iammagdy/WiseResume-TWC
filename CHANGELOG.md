@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-29 — Billing checkout records safe provider-boundary diagnostics
+
+- **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): adds fixed, allowlisted diagnostics for runtime configuration, transport, provider HTTP status, JSON decoding, transaction validation, safe result validation, and post-provider persistence. The diagnostic contains only a fixed stage/category and, for HTTP failures, a numeric status; it never logs request/provider payloads, identifiers, URLs, credentials, headers, or raw errors.
+- **Failure safety:** `store.complete()` is separately classified as `provider.persist_complete / persistence_failure`, while the original failure still drives best-effort session/lock failure marking. Browser responses remain the existing generic `provider_unavailable` HTTP 502 for unexpected provider failures; existing typed environment/catalog errors remain unchanged.
+- **Regression coverage** (`tests/hubs/billing-checkout.test.cjs`): covers absent runtime configuration, missing fetch, transport, all provider HTTP classes, invalid JSON, transaction/result mismatches, generic public responses, raw-data non-leakage, and post-provider persistence failure.
+- **Deployment:** PR #236 merged at `7c0f8f550e8201d7c1827361f76dbcf7d25a2983`; targeted workflow `33255846652` deployed only `billing-checkout`, with active Node-22 deployment `6a92e2ae54493520824b`.
+- **Boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved. No checkout attempt, provider transaction, entitlement, credit, schema, scope, credential, catalog, Paddle/RevenueCat configuration, Vercel setting, or Production billing setting changed. PR #235 remains separate and open.
+
 ## 2026-08-29 — Billing checkout uses Appwrite's minimum transaction TTL
 
 - **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): replaced the invalid 20-second Appwrite transaction TTL with the named `CHECKOUT_TRANSACTION_TTL_SECONDS = 60` constant for both reservation and post-provider completion transactions. Reservation, session expiry, idempotency, rate limiting, lock, provider, resolver, and public error behavior are unchanged.
