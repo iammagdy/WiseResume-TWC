@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-29 — Sanitized create-transaction classification
+
+- **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): the existing allowlisted `reserve.create_transaction` diagnostic now records only a fixed category and, when available, a numeric HTTP status. Categories cover authentication, permission, unsupported operation, conflict, rate limit, Appwrite client/platform failure, transport failure, and unknown failure. No raw exception text, stack, payload, header, credential, or environment value is recorded.
+- **Public contract** (`appwrite-hubs/billing-checkout/src/main.js`): unexpected reservation failures still return HTTP 500 `checkout_unavailable` with the existing generic message; typed `BillingCheckoutError` responses remain unchanged.
+- **Tests** (`tests/hubs/billing-checkout.test.cjs`): added category and leakage regression coverage for representative status, transport, and unknown failures while preserving successful reservation behavior.
+- **Release:** PR #231 merged at `22582fe0720a393c076f26be81d0a4142733439a`; targeted workflow `33241806930` deployed only `billing-checkout`, Active as `6a928fa51f970fc41e8d` on Node-22.
+- **Boundary:** Checkout remains disabled. No Function scope, schema, credential, catalog, provider, entitlement, credit, RevenueCat, Paddle, Vercel, or Production-billing change occurred.
+
 ## 2026-08-28 — Sanitized billing checkout reservation diagnostics
 
 - **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): added an allowlisted in-memory diagnostic stage for unexpected `AppwriteCheckoutStore.reserve()` operation failures. The Function execution log may now identify only the failed operation stage; it does not record underlying error messages, stacks, request data, identifiers, provider payloads, headers, credentials, or environment values.

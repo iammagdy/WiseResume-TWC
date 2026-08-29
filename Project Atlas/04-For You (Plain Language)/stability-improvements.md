@@ -1,6 +1,14 @@
 # Stability improvements
 
-**Last verified:** 2026-08-28
+**Last verified:** 2026-08-29
+
+## The private checkout diagnostic can now give a safer clue (2026-08-29)
+
+**What was the situation:** A controlled Sandbox checkout reached the background checkout service but stopped before the payment provider, and the safe record only identified the broad preparation step.
+
+**What changed:** The private record can now use a short pre-approved label to distinguish common kinds of preparation failures, without recording personal information, payment information, passwords, or secret keys. The normal site message remains the same general temporary-error message.
+
+**What you'll notice:** Nothing changes for visitors yet. Checkout remains turned off, and no payment, subscription, credit, or Production setting was changed.
 
 ## A safe checkout diagnostic is ready (2026-08-28)
 

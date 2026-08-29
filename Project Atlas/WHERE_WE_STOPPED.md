@@ -1,11 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-28
-**Status:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY` — the public Sandbox implementation, environment isolation, additive schema, and targeted diagnostic `billing-checkout` deployment are complete. Checkout remains fail-closed and disabled; the exact unexpected `AppwriteCheckoutStore.reserve()` operation remains `UNPROVEN` until a separately authorized single retry records its allowlisted stage. Production billing remains disabled.
+**Last Verified:** 2026-08-29
+**Status:** `CREATE_TRANSACTION_DIAGNOSTIC_RUNTIME_READY` — the public Sandbox implementation, environment isolation, additive schema, least-privilege Function scopes, and targeted create-transaction diagnostic deployment are complete. Checkout remains fail-closed and disabled; Production billing remains disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Sandbox create-transaction diagnostic deployment — 2026-08-29
+
+* **Verdict:** `CREATE_TRANSACTION_DIAGNOSTIC_RUNTIME_READY`. PR [#231](https://github.com/iammagdy/WiseResume-TWC/pull/231) merged at `22582fe0720a393c076f26be81d0a4142733439a`; targeted workflow `33241806930` deployed exactly `billing-checkout`, Active as `6a928fa51f970fc41e8d` on Node-22.
+* **Diagnosis boundary:** the prior controlled retry proved that browser `createExecution` succeeds and runtime reaches `AppwriteCheckoutStore.reserve()` before failing at `databases.createTransaction(20)`. The Function now logs only fixed categories and an optional numeric status for that one stage. It never records raw error text, stack, request data, account identifiers, headers, provider data, credentials, or environment values. Root cause remains `UNPROVEN` until a separately authorized retry produces the safe category.
+* **Validation:** focused billing checkout, RevenueCat schema, schema-permission hardening, and Function-policy checks passed, together with changed-file syntax and diff checks. The public HTTP 500 `checkout_unavailable` contract and typed checkout errors are unchanged.
+* **Boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved. No scope, schema, secret, catalog, Paddle, RevenueCat, Vercel, transaction, entitlement, credit, provider-state, or Production-billing change occurred.
+* **Next action:** obtain explicit owner authorization for exactly one controlled Pro Sandbox diagnostic retry, enable checkout only for that attempt, disable it immediately on failure, and inspect only the resulting sanitized category.
 
 ## WiseResume Sandbox reserve-stage diagnostic deployment — 2026-08-28
 
