@@ -1,5 +1,12 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-29 - Billing checkout transaction TTL correction
+
+- **Verdict:** `TRANSACTION_TTL_FIX_DEPLOYED_READY_FOR_CONTROLLED_PRO_RETRY`. The controlled diagnostic established that `createTransaction(20)` produced an Appwrite HTTP 400 before any provider call because 20 seconds is below the Appwrite transaction minimum of 60 seconds.
+- **Implementation:** PR #233 merged at `9a8b4e96de41eaeaed85667591734573ad54205a`. `billing-checkout` now uses `CHECKOUT_TRANSACTION_TTL_SECONDS = 60` for both reservation and completion transactions; no other checkout behavior changed.
+- **Validation and deployment:** focused billing checkout, RevenueCat webhook/schema, schema-permission hardening, Function-policy, syntax, ESLint, TypeScript, and diff checks passed. Required GitHub Typecheck, Security, and Vercel checks passed; TestSprite remains the known non-required `No tests detected` result. Targeted workflow `33254188892` deployed only `billing-checkout` to active Node-22 deployment `6a92d987de7c16d14b4a`.
+- **Boundary:** Checkout remains disabled. Function scopes, schema, credential, catalog, provider configuration, RevenueCat, Paddle, entitlements, credits, and Production billing are unchanged. One separately authorized controlled Pro Sandbox retry is the next step.
+
 ## 2026-08-28 - Sanitized billing checkout reserve diagnostics
 
 - **Verdict:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY`. PR #229 merged at `88b411af877d9cd33a098508f27e0ef9f080e849`; targeted workflow `33206687391` deployed only `billing-checkout`, which is Active as `6a91ea0e63105206adf6` on Node-22.

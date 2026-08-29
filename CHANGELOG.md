@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-08-29 — Billing checkout uses Appwrite's minimum transaction TTL
+
+- **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): replaced the invalid 20-second Appwrite transaction TTL with the named `CHECKOUT_TRANSACTION_TTL_SECONDS = 60` constant for both reservation and post-provider completion transactions. Reservation, session expiry, idempotency, rate limiting, lock, provider, resolver, and public error behavior are unchanged.
+- **Regression coverage** (`tests/hubs/billing-checkout.test.cjs`): verifies no billing checkout call retains `createTransaction(20)`, both successful-path transactions use 60 seconds, commits remain unchanged, and the existing sanitized failure contract remains covered.
+- **Deployment:** PR #233 merged at `9a8b4e96de41eaeaed85667591734573ad54205a`; targeted workflow `33254188892` deployed only `billing-checkout`, with active Node-22 deployment `6a92d987de7c16d14b4a`.
+- **Boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved. No provider transaction, entitlement, credit, schema, Function scope, credential, RevenueCat/Paddle configuration, or Production billing setting changed.
+
 ## 2026-08-28 — Sanitized billing checkout reservation diagnostics
 
 - **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): added an allowlisted in-memory diagnostic stage for unexpected `AppwriteCheckoutStore.reserve()` operation failures. The Function execution log may now identify only the failed operation stage; it does not record underlying error messages, stacks, request data, identifiers, provider payloads, headers, credentials, or environment values.

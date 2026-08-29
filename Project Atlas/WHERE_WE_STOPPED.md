@@ -1,11 +1,18 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-28
-**Status:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY` — the public Sandbox implementation, environment isolation, additive schema, and targeted diagnostic `billing-checkout` deployment are complete. Checkout remains fail-closed and disabled; the exact unexpected `AppwriteCheckoutStore.reserve()` operation remains `UNPROVEN` until a separately authorized single retry records its allowlisted stage. Production billing remains disabled.
+**Last Verified:** 2026-08-29
+**Status:** `TRANSACTION_TTL_FIX_DEPLOYED_READY_FOR_CONTROLLED_PRO_RETRY` — the public Sandbox implementation, environment isolation, additive schema, and targeted `billing-checkout` deployment are complete. The root cause of the reservation failure is confirmed: `createTransaction(20)` sent an invalid 20-second Appwrite TTL. Checkout remains disabled and Production billing remains disabled pending one separately authorized controlled Pro retry.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Sandbox billing transaction TTL correction — 2026-08-29
+
+* **Verdict:** `TRANSACTION_TTL_FIX_DEPLOYED_READY_FOR_CONTROLLED_PRO_RETRY`. The controlled retry reached `reserve.create_transaction` and returned a sanitized Appwrite HTTP 400 before Paddle. The confirmed cause is Appwrite's minimum 60-second transaction TTL: the Function used `createTransaction(20)`.
+* **Fix and validation:** PR [#233](https://github.com/iammagdy/WiseResume-TWC/pull/233) merged at `9a8b4e96de41eaeaed85667591734573ad54205a`. The Function now uses `CHECKOUT_TRANSACTION_TTL_SECONDS = 60` for both checkout transaction paths. Focused billing checkout, RevenueCat webhook/schema, schema-permission, Function-policy, syntax, ESLint, TypeScript, diff, and required GitHub checks passed.
+* **Deployment and boundary:** Targeted workflow `33254188892` deployed only `billing-checkout`; active Node-22 deployment is `6a92d987de7c16d14b4a`. `BILLING_CHECKOUT_ENABLED=false` remains preserved. No provider transaction, entitlement, credit, schema, scope, secret, catalog, Paddle/RevenueCat configuration, or Production setting changed.
+* **Next action:** Owner must separately authorize exactly one new controlled Pro Sandbox retry. Do not enable checkout or initiate a provider transaction before that authorization.
 
 ## WiseResume Sandbox reserve-stage diagnostic deployment — 2026-08-28
 

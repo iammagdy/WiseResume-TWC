@@ -1,6 +1,14 @@
 # Stability improvements
 
-**Last verified:** 2026-08-28
+**Last verified:** 2026-08-29
+
+## Sandbox checkout preparation now uses the provider's required timing (2026-08-29)
+
+**What was the situation:** A carefully limited Sandbox checkout test stopped before it could reach the payment provider because an internal preparation step used too short a safety window.
+
+**What changed:** The checkout preparation now uses the minimum time window required by the underlying service, with an automated check to prevent this exact issue from returning.
+
+**What you'll notice:** Nothing is turned on yet. Checkout remains off and no payment, subscription, credit, or Production setting changed. One separately approved Sandbox test is still needed.
 
 ## A safe checkout diagnostic is ready (2026-08-28)
 
