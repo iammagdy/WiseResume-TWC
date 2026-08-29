@@ -30,6 +30,8 @@ const RESERVE_DIAGNOSTIC_STAGES = new Set([
   'reserve.rollback',
 ]);
 const reserveDiagnosticStages = new WeakMap();
+const TRANSPORT_ERROR_NAMES = new Set(['AbortError', 'FetchError', 'NetworkError', 'TimeoutError', 'TypeError']);
+const TRANSPORT_ERROR_CODES = new Set(['ECONNABORTED', 'ECONNREFUSED', 'ECONNRESET', 'ENETUNREACH', 'ENOTFOUND', 'ETIMEDOUT']);
 
 class BillingCheckoutError extends Error {
   constructor(code, status, message) {
@@ -46,18 +48,48 @@ function fail(code, status, message) {
 
 function reserveDiagnosticStage(error) {
   return error && (typeof error === 'object' || typeof error === 'function')
-    ? reserveDiagnosticStages.get(error) || ''
+    ? reserveDiagnosticStages.get(error)?.stage || ''
     : '';
 }
 
-function annotateReserveFailure(error, stage) {
+function numericErrorStatus(error) {
+  const status = Number(error?.code);
+  return Number.isInteger(status) && status >= 400 && status <= 599 ? status : null;
+}
+
+function classifyCreateTransactionFailure(error) {
+  const status = numericErrorStatus(error);
+  if (status === 401) return { category: 'authentication_failure', status };
+  if (status === 403) return { category: 'permission_denied', status };
+  if (status === 404 || status === 405) return { category: 'unsupported_or_not_found', status };
+  if (status === 409) return { category: 'conflict', status };
+  if (status === 429) return { category: 'rate_limited', status };
+  if (status !== null && status >= 500) return { category: 'appwrite_platform_error', status };
+  if (status !== null) return { category: 'appwrite_client_error', status };
+
+  const name = typeof error?.name === 'string' ? error.name : '';
+  const code = typeof error?.code === 'string' ? error.code : '';
+  if (TRANSPORT_ERROR_NAMES.has(name) || TRANSPORT_ERROR_CODES.has(code)) {
+    return { category: 'transport_failure', status: null };
+  }
+  return { category: 'unknown', status: null };
+}
+
+function reserveDiagnostic(error) {
+  return error && (typeof error === 'object' || typeof error === 'function')
+    ? reserveDiagnosticStages.get(error) || null
+    : null;
+}
+
+function annotateReserveFailure(error, stage, classification = null) {
   if (error instanceof BillingCheckoutError || !RESERVE_DIAGNOSTIC_STAGES.has(stage)) return error;
+  const diagnostic = { stage, ...(classification || {}) };
   if (error && (typeof error === 'object' || typeof error === 'function')) {
-    reserveDiagnosticStages.set(error, stage);
+    reserveDiagnosticStages.set(error, diagnostic);
     return error;
   }
   const sanitizedError = new Error('Reserve operation failed.');
-  reserveDiagnosticStages.set(sanitizedError, stage);
+  reserveDiagnosticStages.set(sanitizedError, diagnostic);
   return sanitizedError;
 }
 
@@ -65,7 +97,10 @@ async function reserveOperation(stage, operation) {
   try {
     return await operation();
   } catch (error) {
-    throw annotateReserveFailure(error, stage);
+    const classification = stage === 'reserve.create_transaction'
+      ? classifyCreateTransactionFailure(error)
+      : null;
+    throw annotateReserveFailure(error, stage, classification);
   }
 }
 
@@ -650,8 +685,13 @@ async function handleBillingCheckout({ req, res, error }, dependencies = {}) {
     return res.json(response, 200);
   } catch (caught) {
     if (typeof error === 'function') {
-      const stage = reserveDiagnosticStage(caught);
-      error(`billing-checkout ${caught instanceof BillingCheckoutError ? caught.code : 'checkout_unavailable'}${stage ? ` stage=${stage}` : ''}`);
+      const diagnostic = reserveDiagnostic(caught);
+      const stage = diagnostic?.stage || '';
+      const category = stage === 'reserve.create_transaction' && diagnostic?.category
+        ? ` category=${diagnostic.category}`
+        : '';
+      const status = Number.isInteger(diagnostic?.status) ? ` status=${diagnostic.status}` : '';
+      error(`billing-checkout ${caught instanceof BillingCheckoutError ? caught.code : 'checkout_unavailable'}${stage ? ` stage=${stage}` : ''}${category}${status}`);
     }
     return safeErrorResponse(res, caught);
   }
@@ -692,6 +732,7 @@ module.exports.__test = {
   resolveCanonicalUser,
   safeProviderResult,
   reserveDiagnosticStage,
+  classifyCreateTransactionFailure,
   validateRequest,
   buildUserLockPayload,
   buildPlanLockPayload,

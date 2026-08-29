@@ -345,9 +345,63 @@ for (const stage of [
   assert.equal(result.response.statusCode, 500);
   assert.equal(result.response.error, 'checkout_unavailable');
   assert.equal(result.response.message, 'Checkout is temporarily unavailable.');
-  assert.deepEqual(result.logs, [`billing-checkout checkout_unavailable stage=${stage}`]);
+  assert.deepEqual(result.logs, [
+    `billing-checkout checkout_unavailable stage=${stage}${stage === 'reserve.create_transaction' ? ' category=unknown' : ''}`,
+  ]);
   assert.equal(JSON.stringify(result.response).includes('underlying diagnostic marker'), false);
   assert.equal(result.logs.some(message => message.includes('underlying diagnostic marker')), false);
+  assert.equal(calls.length, 0);
+}
+
+// createTransaction failures receive only a fixed safe category and numeric HTTP status when present.
+for (const { status, category } of [
+  { status: 401, category: 'authentication_failure' },
+  { status: 403, category: 'permission_denied' },
+  { status: 404, category: 'unsupported_or_not_found' },
+  { status: 405, category: 'unsupported_or_not_found' },
+  { status: 409, category: 'conflict' },
+  { status: 429, category: 'rate_limited' },
+  { status: 500, category: 'appwrite_platform_error' },
+  { status: 418, category: 'appwrite_client_error' },
+]) {
+  const calls = [];
+  const sensitiveError = new Error('secret error message must never be logged');
+  sensitiveError.code = status;
+  sensitiveError.stack = 'secret stack must never be logged';
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: `diagnostic-status-${status}` },
+    store: diagnosticStore({
+      failureStage: 'reserve.create_transaction',
+      failureFactory: () => sensitiveError,
+    }),
+    provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.statusCode, 500);
+  assert.equal(result.response.error, 'checkout_unavailable');
+  assert.deepEqual(result.logs, [`billing-checkout checkout_unavailable stage=reserve.create_transaction category=${category} status=${status}`]);
+  assert.equal(JSON.stringify(result.response).includes('secret error message'), false);
+  assert.equal(result.logs.some(message => /secret error message|secret stack/.test(message)), false);
+  assert.equal(calls.length, 0);
+}
+
+for (const { error, category } of [
+  { error: Object.assign(new TypeError('secret transport detail'), { stack: 'secret transport stack' }), category: 'transport_failure' },
+  { error: Object.assign(new Error('secret unknown detail'), { stack: 'secret unknown stack' }), category: 'unknown' },
+]) {
+  const calls = [];
+  const result = await invoke({ action: 'create-session', plan: 'pro' }, {
+    user: { $id: `diagnostic-${category}` },
+    store: diagnosticStore({
+      failureStage: 'reserve.create_transaction',
+      failureFactory: () => error,
+    }),
+    provider: provider({ calls }), config: config(), now: () => nowMs,
+  });
+  assert.equal(result.response.statusCode, 500);
+  assert.equal(result.response.error, 'checkout_unavailable');
+  assert.deepEqual(result.logs, [`billing-checkout checkout_unavailable stage=reserve.create_transaction category=${category}`]);
+  assert.equal(JSON.stringify(result.response).includes('secret'), false);
+  assert.equal(result.logs.some(message => message.includes('secret')), false);
   assert.equal(calls.length, 0);
 }
 
