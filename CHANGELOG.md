@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-29 — Controlled Pro Sandbox checkout stopped at provider availability
+
+- **Runtime evidence** (`billing-checkout`): one authorized Pro-only Sandbox attempt completed reservation then returned the existing safe HTTP 502 `provider_unavailable` response before a checkout page opened. The failure execution was `6a92dcfe29c1034f21fe`; no raw provider or credential data was inspected or recorded.
+- **Safety rollback:** `BILLING_CHECKOUT_ENABLED` was restored to `false` immediately. Targeted workflow `33254874185` deployed only `billing-checkout`, with active Node-22 deployment `6a92dd4b575c9bf7c5fa`.
+- **Boundary:** No second checkout, Paddle transaction confirmation, RevenueCat mutation, entitlement/credit grant, schema/scope/catalog/credential/configuration change, or Production billing change occurred. The exact provider-unavailability cause remains unproven because secret values and provider inventory paths were not inspected.
+
 ## 2026-08-29 — Billing checkout uses Appwrite's minimum transaction TTL
 
 - **Billing checkout** (`appwrite-hubs/billing-checkout/src/main.js`): replaced the invalid 20-second Appwrite transaction TTL with the named `CHECKOUT_TRANSACTION_TTL_SECONDS = 60` constant for both reservation and post-provider completion transactions. Reservation, session expiry, idempotency, rate limiting, lock, provider, resolver, and public error behavior are unchanged.

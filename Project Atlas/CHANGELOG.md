@@ -1,5 +1,12 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-29 - Controlled Pro Sandbox provider availability blocker
+
+- **Verdict:** `CONTROLLED_PRO_SANDBOX_RETRY_FAILED_PROVIDER_UNAVAILABLE`. One owner-authorized Pro-only attempt reached the provider phase after the 60-second Appwrite transaction-TTL correction. Execution `6a92dcfe29c1034f21fe` ended HTTP 502 with the existing safe `provider_unavailable` code; it did not produce a provider checkout surface.
+- **Safety:** Checkout was immediately returned to disabled state and targeted workflow `33254874185` deployed only `billing-checkout`, active as `6a92dd4b575c9bf7c5fa` on Node-22. No second attempt occurred.
+- **Evidence boundary:** Reservation records exist, confirming the failure is past the reservation stage. Paddle contact/transaction, RevenueCat v2 ingestion, and provider-backed Appwrite lifecycle writes remain unverified; no provider inventory or secret-bearing source was read. Production billing remains disabled.
+- **Next action:** Authorize a safe, non-secret provider-readiness diagnosis that can distinguish missing runtime credential attachment from upstream Paddle request/response failure before another checkout attempt.
+
 ## 2026-08-29 - Billing checkout transaction TTL correction
 
 - **Verdict:** `TRANSACTION_TTL_FIX_DEPLOYED_READY_FOR_CONTROLLED_PRO_RETRY`. The controlled diagnostic established that `createTransaction(20)` produced an Appwrite HTTP 400 before any provider call because 20 seconds is below the Appwrite transaction minimum of 60 seconds.

@@ -1,11 +1,18 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-29
-**Status:** `TRANSACTION_TTL_FIX_DEPLOYED_READY_FOR_CONTROLLED_PRO_RETRY` — the public Sandbox implementation, environment isolation, additive schema, and targeted `billing-checkout` deployment are complete. The root cause of the reservation failure is confirmed: `createTransaction(20)` sent an invalid 20-second Appwrite TTL. Checkout remains disabled and Production billing remains disabled pending one separately authorized controlled Pro retry.
+**Status:** `CONTROLLED_PRO_SANDBOX_RETRY_FAILED_PROVIDER_UNAVAILABLE` — the 60-second transaction-TTL correction is active, but one controlled Pro attempt reached the provider phase and returned the safe `provider_unavailable` response. Checkout remains disabled and Production billing remains disabled pending a separately authorized provider-readiness diagnosis.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Sandbox Pro provider-availability retry — 2026-08-29
+
+* **Verdict:** `CONTROLLED_PRO_SANDBOX_RETRY_FAILED_PROVIDER_UNAVAILABLE`. Exactly one authorized Pro-only checkout attempt ran from the fresh Free QA account. It created Function execution `6a92dcfe29c1034f21fe`, which failed with the existing safe HTTP 502 `provider_unavailable` response after reservation. No Paddle checkout page opened and no second attempt was made.
+* **Safety rollback:** `BILLING_CHECKOUT_ENABLED=false` was restored first. Targeted workflow `33254874185` deployed only `billing-checkout`; active Node-22 deployment is `6a92dd4b575c9bf7c5fa`.
+* **Evidence boundary:** Checkout reservation records are present, so the Function passed the transaction-reservation step. Paddle contact/transaction, RevenueCat v2 ingestion, Appwrite provider ledger/state, effective Pro, 50-credit, and persistence evidence are all `UNVERIFIED`. No provider inventory route or secret value was inspected; no manual access grant occurred. Production billing remains disabled.
+* **Next action:** Owner must separately authorize a minimal safe provider-readiness diagnosis that distinguishes credential attachment from an upstream Paddle request/response failure. Do not enable checkout or make another purchase attempt beforehand.
 
 ## WiseResume Sandbox billing transaction TTL correction — 2026-08-29
 

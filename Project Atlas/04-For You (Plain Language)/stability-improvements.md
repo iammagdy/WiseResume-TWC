@@ -2,6 +2,14 @@
 
 **Last verified:** 2026-08-29
 
+## A Sandbox payment test now stops safely when the payment service is unavailable (2026-08-29)
+
+**What was the situation:** The first carefully limited Pro test passed the app's preparation step but could not open the payment service.
+
+**What changed:** The test was stopped after that single attempt and checkout was turned off again straight away. The app kept the account on its Free plan and did not add any subscription or credits.
+
+**What you'll notice:** Nothing is available for purchase yet. A safe check of the payment connection is needed before another Sandbox test; Production remains off.
+
 ## Sandbox checkout preparation now uses the provider's required timing (2026-08-29)
 
 **What was the situation:** A carefully limited Sandbox checkout test stopped before it could reach the payment provider because an internal preparation step used too short a safety window.
