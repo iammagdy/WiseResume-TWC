@@ -36,7 +36,7 @@
 ## 2026-08-30 - Production billing readiness audit and rollout plan completed
 
 - **Verdict:** `PRODUCTION_BILLING_READINESS_WITH_BLOCKERS`. Read-only audit of Production Paddle catalog, secret contracts, RevenueCat integration, Appwrite functions, frontend gates, routing, and lifecycle risk completed.
-- **Integrity & Bounds:** Production billing remains strictly disabled. Zero secrets exposed, zero production mutations performed, zero real transactions initiated.
+- **Integrity & Historical Bounds:** Production billing remained strictly disabled during that audit. Zero secrets were exposed, zero production mutations were performed during that audit, and zero real transactions were initiated.
 - **Report:** [`reports/2026-08-30-production-billing-readiness-audit-closeout.md`](./reports/2026-08-30-production-billing-readiness-audit-closeout.md)
 
 ## 2026-08-30 - Ultimate Sandbox billing & entitlement full lifecycle verified end-to-end
