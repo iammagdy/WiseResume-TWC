@@ -1,20 +1,21 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `REVENUECAT_WEBHOOK_DEPLOYMENT_ACTIVE_AWAITING_REDELIVERY` — Appwrite Function `revenuecat-webhook` active deployment is verified: `6a93f29096156b1450f1` on Node-22 (`ready`, `activate: true`). Presence of variable `REVENUECAT_WEBHOOK_AUTH_SECRET` is verified by metadata only (secret value never read or exposed). Scopes remain `[]`. Appwrite database state remains unmutated (Free tier / 0 ledger rows). Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled. Awaiting single redelivery click from RevenueCat Sandbox dashboard.
+**Status:** `PRO_SANDBOX_END_TO_END_VERIFIED` — The complete Pro billing and entitlement lifecycle is verified end-to-end in Sandbox: Paddle checkout creation & test payment (`checkout.completed`) -> RevenueCat Sandbox ingestion (`pro` entitlement active) -> Appwrite `revenuecat-webhook` execution (HTTP 200 / `INITIAL_PURCHASE -> processed`) -> genuine `revenuecat_event_ledger` document (`rce_5bd50567c70f0a4a6f91916fd480f`) -> genuine `revenuecat_subscription_state` document (`rcs_42c302ce8e3ca4eb6bb5a20f76edd`, `plan=pro`, `environment=SANDBOX`, `status=active`) -> effective plan resolved to Pro with 50 daily AI credits -> persistence verified. Zero duplicate transactions, zero synthetic writes, `BILLING_CHECKOUT_ENABLED=false` restored, and Production billing remains disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
 
-## Payments RevenueCat webhook deployment verification & redelivery readiness — 2026-08-30
+## Payments Pro Sandbox end-to-end lifecycle verified — 2026-08-30
 
-* **Verdict:** `REVENUECAT_WEBHOOK_DEPLOYMENT_ACTIVE_AWAITING_REDELIVERY`. Targeted deployment `6a93f29096156b1450f1` verified active on Node-22.
-* **Variable & Secret Safety:** `REVENUECAT_WEBHOOK_AUTH_SECRET` verified present by metadata only; secret value strictly protected with zero reads.
-* **Appwrite State:** Remained unmutated (`free` plan, 0 ledger rows, 5 daily credits).
-* **Gate & Production Safety:** `BILLING_CHECKOUT_ENABLED=false` remains disabled; Production billing remains disabled.
-* **Report:** [`reports/2026-08-30-revenuecat-webhook-deployment-verification-closeout.md`](./reports/2026-08-30-revenuecat-webhook-deployment-verification-closeout.md)
+* **Verdict:** `PRO_SANDBOX_END_TO_END_VERIFIED`. Complete end-to-end verification succeeded.
+* **Webhook Execution:** Execution `6a93f45d25b5a94613f5` succeeded with HTTP 200 (`INITIAL_PURCHASE -> processed`).
+* **Database State:** Genuine `revenuecat_event_ledger` and `revenuecat_subscription_state` documents created (`plan=pro`, `entitlement_id=pro`, `environment=SANDBOX`, `status=active`).
+* **Plan & Credits:** Resolved to Pro with 50 daily AI credits; persistence verified.
+* **Gate & Production Safety:** `BILLING_CHECKOUT_ENABLED=false` verified; Production billing strictly disabled.
+* **Report:** [`reports/2026-08-30-pro-sandbox-end-to-end-verified-closeout.md`](./reports/2026-08-30-pro-sandbox-end-to-end-verified-closeout.md)
 
 ## Payments Sandbox Paddle credential wiring & deployment — 2026-08-30
 
