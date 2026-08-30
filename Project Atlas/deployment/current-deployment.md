@@ -52,15 +52,13 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
 
-### Phase P1/P2 Production Billing Wiring & Deployment Status — 2026-08-30
+### Phase P1/P2/P3 Production Billing Deployment & Webhook Routing Status — 2026-08-30
 
-* **PR #247 & #248 Merged:** PR #247 merged to `main` (`78c0afc9`) with Production Paddle catalog & fail-closed deploy guards. PR #248 merged to `main` (`ba5a785e`) updating source hash manifest for `revenuecat-webhook` (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
-* **Phase P2 Successful Run:** Workflow run `33310801069` on `main` (`ba5a785e`) succeeded for target `billing-checkout,revenuecat-webhook`.
-* **Active Deployments:**
-  - `billing-checkout`: `6a941dfe80f78ba25dbf`, Node-22, status `ready`. `BILLING_PRODUCTION_PADDLE_API_KEY` presence confirmed (value never exposed). Four Production catalog IDs synced.
-  - `revenuecat-webhook`: `6a941e0dbd0c2cf9ce40`, Node-22, status `ready`. Deployed source hash `704b896e...` verified. `REVENUECAT_WEBHOOK_AUTH_SECRET` presence confirmed.
-* **Schema Status:** `SCHEMA_RECONCILIATION_SUCCEEDED` — Provider-state and billing checkout schemas reported ready. No schema mutation observed or reported.
-* **Historical Run Note:** Initial run `33309686634` failed pre-deploy at Step 7 before PR #248 merged; 0 Appwrite Functions deployed in that run.
+* **PR #247 & #248 Merged:** Production catalog & fail-closed deploy guards merged (`78c0afc9`); source hash manifest merged (`ba5a785e`).
+* **Phase P2 Active Deployments:** Workflow run `33310801069` deployed `billing-checkout` (`6a941dfe80f78ba25dbf`, Node-22, ready) and `revenuecat-webhook` (`6a941e0dbd0c2cf9ce40`, Node-22, ready).
+* **Phase P3 Webhook Routing Verified:** Owner updated RevenueCat outbound webhook environment scope to `Both Production and Sandbox` targeting `https://revenuecat-webhook.wiseresume.app` with `Authorization: Bearer <secret>` (`AUTH_HEADER_PRESENT`).
+* **TEST Transport:** Handled clean `TEST` event with HTTP 200 (`acknowledged`, `mutated=false`). DB ledger (2) and subscription state (2) unchanged.
+* **Important Delivery Boundary:** `PRODUCTION_DELIVERY_NOT_YET_PROVEN` — Outbound configuration and transport verified, but zero genuine Production purchases executed.
 * **Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled.
 
 ### Current WiseResume Payments Sandbox runtime readiness — 2026-08-28
