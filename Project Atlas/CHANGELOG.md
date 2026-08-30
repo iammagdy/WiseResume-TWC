@@ -1,5 +1,14 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-30 - Phase P3 RevenueCat Production webhook routing verified
+
+- **Verdict:** `P3_PRODUCTION_WEBHOOK_ROUTING_CONFIG_VERIFIED_WITH_TEST_TRANSPORT_EVIDENCE`.
+- **Configuration:** RevenueCat outbound webhook environment scope updated by owner to `Both Production and Sandbox` for endpoint `https://revenuecat-webhook.wiseresume.app`. `Authorization: Bearer <secret>` presence confirmed (`AUTH_HEADER_PRESENT`).
+- **TEST Transport Evidence:** Deployed `revenuecat-webhook` (`6a941e0dbd0c2cf9ce40`, Node-22, ready) handled official RevenueCat `TEST` payload with HTTP 200 (`acknowledged`, `mutated=false`). DB ledger (2) and subscription state (2) unchanged.
+- **Important Delivery Boundary:** `PRODUCTION_DELIVERY_NOT_YET_PROVEN` — Outbound webhook configuration and official authenticated TEST transport are verified. No genuine Production lifecycle event has been executed yet.
+- **Integrity & Bounds:** `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments.
+- **Next Action:** PLAN — but do not execute — one controlled Production Pro smoke transaction phase (under separate owner authorization).
+
 ## 2026-08-30 - Phase P2 Appwrite targeted deployment complete
 
 - **Verdict:** `P2_TARGETED_DEPLOYMENT_VERIFIED_WITH_WARNINGS`. Targeted deployment workflow `33310801069` on `main` (`ba5a785ee54a84194fac8630af3370f9f3a9ccf0`) completed with `success` for targets `billing-checkout,revenuecat-webhook`.
