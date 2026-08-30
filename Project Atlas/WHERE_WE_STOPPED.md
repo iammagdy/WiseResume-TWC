@@ -1,19 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-30
-**Status:** `REVENUECAT_WEBHOOK_REDELIVERY_AUTH_REJECTED` — Targeted deployment workflow `33302510002` deployed `revenuecat-webhook` (Active deployment: `6a93eea77fa8571b8f5a` on Node-22). Live presence of `REVENUECAT_WEBHOOK_AUTH_SECRET` is verified (length 64). Webhook execution `6a93eedf05bcd111854a` was rejected with HTTP 401 (`token_length=64 secret_configured=yes secret_length=64 lengths_equal=yes`) indicating token content mismatch. Appwrite state remains unmutated (Free plan / 0 ledger rows). Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
+**Status:** `REVENUECAT_WEBHOOK_DEPLOYMENT_ACTIVE_AWAITING_REDELIVERY` — Appwrite Function `revenuecat-webhook` active deployment is verified: `6a93f29096156b1450f1` on Node-22 (`ready`, `activate: true`). Presence of variable `REVENUECAT_WEBHOOK_AUTH_SECRET` is verified by metadata only (secret value never read or exposed). Scopes remain `[]`. Appwrite database state remains unmutated (Free tier / 0 ledger rows). Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled. Awaiting single redelivery click from RevenueCat Sandbox dashboard.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
-## WiseResume RevenueCat webhook secret alignment & redelivery diagnostic — 2026-08-30
+## WiseResume RevenueCat webhook deployment verification & redelivery readiness — 2026-08-30
 
-* **Verdict:** `REVENUECAT_WEBHOOK_REDELIVERY_AUTH_REJECTED`. Targeted deployment workflow `33302510002` deployed `revenuecat-webhook` (Active: `6a93eea77fa8571b8f5a`).
-* **Execution Result:** Webhook execution `6a93eedf05bcd111854a` returned HTTP 401 with sanitized log `token_length=64 secret_configured=yes secret_length=64 lengths_equal=yes`. Lengths are aligned at 64 characters, but token string comparison failed.
+* **Verdict:** `REVENUECAT_WEBHOOK_DEPLOYMENT_ACTIVE_AWAITING_REDELIVERY`. Targeted deployment `6a93f29096156b1450f1` verified active on Node-22.
+* **Variable & Secret Safety:** `REVENUECAT_WEBHOOK_AUTH_SECRET` verified present by metadata only; secret value strictly protected with zero reads.
 * **Appwrite State:** Remained unmutated (`free` plan, 0 ledger rows, 5 daily credits).
 * **Gate & Production Safety:** `BILLING_CHECKOUT_ENABLED=false` remains disabled; Production billing remains disabled.
-* **Report:** [`reports/2026-08-30-revenuecat-webhook-reconciliation-diagnostic-closeout.md`](./reports/2026-08-30-revenuecat-webhook-reconciliation-diagnostic-closeout.md)
+* **Report:** [`reports/2026-08-30-revenuecat-webhook-deployment-verification-closeout.md`](./reports/2026-08-30-revenuecat-webhook-deployment-verification-closeout.md)
 
 ## WiseResume Sandbox Paddle credential wiring & deployment — 2026-08-30
 
