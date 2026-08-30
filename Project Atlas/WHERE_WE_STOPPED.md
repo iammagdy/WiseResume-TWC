@@ -16,15 +16,15 @@
 
 ## Phase P1 Production billing repository wiring (PR #247 MERGED @ 78c0afc9) — 2026-08-30
 
-* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. All four targeted code changes implemented, committed, pushed, and PR #247 opened. Tests pass 11/11 (revenuecat-webhook), 6/6 (billing-checkout-deployment), 7/7 (deployment-hardening), 4/4 (appwrite-function-policy). `git diff --check` clean.
+* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_MERGED_TO_MAIN`. All four targeted code changes implemented, committed, pushed, PR #247 opened and merged into `main` at merge SHA `78c0afc9c9bdc7c962d57f6fee1c8ad20e408526`. Tests pass 11/11 (revenuecat-webhook), 6/6 (billing-checkout-deployment), 7/7 (deployment-hardening), 4/4 (appwrite-function-policy). `git diff --check` clean.
 * **Changes in PR #247 (10 files changed):**
   * `revenuecat-webhook/src/main.js`: `PRODUCT_TO_PLAN` extended additively with Production price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`). Sandbox entries preserved.
   * `.github/workflows/deploy-appwrite-hubs.yml`: `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 non-secret Production catalog ID env vars wired into deploy step.
   * `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` and `run()` pre-deploy guard extended to fail closed if Production billing is configured without `BILLING_PRODUCTION_PADDLE_API_KEY`. Sandbox-only deploys remain compatible.
   * `tests/hubs/`: Unit & deployment regression tests updated and passing.
   * `Project Atlas/`: CHANGELOG, CURRENT_STATE, WHERE_WE_STOPPED reconciled.
-* **Status boundary:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false`. `paymentsEnabled: false`. No deployment, no console change.
-* **Next action:** Owner reviews and merges PR #247 to `main`. After merge and separate owner authorization, proceed to Phase P2: deploy `billing-checkout` and `revenuecat-webhook` with Production variables via GitHub Actions workflow (`--only=billing-checkout,revenuecat-webhook`).
+* **Status boundary:** PR #247 merged; initial P2 workflow `33309686634` failed pre-deploy due to stale manifest; 0 Appwrite Functions deployed; `BILLING_CHECKOUT_ENABLED=false`; `paymentsEnabled: false`; Production billing remains strictly disabled.
+* **Next action:** Merge source-hash recovery PR #248 to `main`. After merge and separate owner authorization, proceed to a NEW Phase P2 targeted deployment run (`--only=billing-checkout,revenuecat-webhook`).
 
 ## WiseResume Production billing readiness audit complete — 2026-08-30
 

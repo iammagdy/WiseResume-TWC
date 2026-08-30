@@ -17,14 +17,14 @@
 
 ## Payments Phase P1 Production billing repository wiring (PR #247 MERGED @ 78c0afc9) — 2026-08-30
 
-* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. Repository-side Production billing wiring implemented, committed, pushed, and PR #247 opened.
+* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_MERGED_TO_MAIN`. Repository-side Production billing wiring was committed (`134c0288`), PR #247 opened and merged into `main` at merge SHA `78c0afc9c9bdc7c962d57f6fee1c8ad20e408526`.
 * **Changes in PR #247 (10 files changed):**
   - `appwrite-hubs/revenuecat-webhook/src/main.js`: `PRODUCT_TO_PLAN` additively extended with Production price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`). Sandbox entries preserved.
   - `.github/workflows/deploy-appwrite-hubs.yml`: `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 Production catalog ID env vars wired into deploy step.
   - `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` and `run()` pre-deploy guard extended to fail closed if Production billing is configured without `BILLING_PRODUCTION_PADDLE_API_KEY`.
   - `tests/hubs/`: Updated unit & deployment regression tests (6/6 billing-checkout-deployment, 7/7 deployment-hardening, 11/11 revenuecat-webhook).
-* **Current boundary:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false`. `paymentsEnabled: false`. No deployment performed; Production billing remains disabled. Zero secret values exposed.
-* **Next action:** Owner reviews and merges PR #247 into `main`. Next phase: Phase P2 targeted Appwrite deployment of `billing-checkout` and `revenuecat-webhook` with Production variables after merge and separate authorization.
+* **Current boundary:** PR #247 merged; initial P2 workflow `33309686634` failed pre-deploy due to stale manifest; 0 Appwrite Functions deployed; `BILLING_CHECKOUT_ENABLED=false`; `paymentsEnabled: false`; Production billing remains strictly disabled. Zero secret values exposed.
+* **Next action:** Merge source-hash recovery PR #248, then separately authorize a NEW Phase P2 targeted deployment run (`--only=billing-checkout,revenuecat-webhook`).
 
 ## Payments Production billing readiness audit complete — 2026-08-30
 
