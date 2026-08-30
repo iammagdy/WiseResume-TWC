@@ -1,12 +1,23 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `ULTIMATE_SANDBOX_END_TO_END_VERIFIED` — The complete Ultimate (internal plan: `premium`) billing and entitlement lifecycle is verified end-to-end in Sandbox: Paddle checkout creation & test payment (`checkout.completed`) -> RevenueCat Sandbox ingestion (`premium` entitlement active) -> Appwrite `revenuecat-webhook` execution (HTTP 200 / `INITIAL_PURCHASE -> processed`) -> genuine `revenuecat_event_ledger` document -> genuine `revenuecat_subscription_state` document (`plan=premium`, `environment=SANDBOX`, `status=active`) -> effective plan resolved to Ultimate with unlimited (Infinity) daily AI credits -> UI and persistence verified. Zero duplicate transactions, zero synthetic writes, protected fixtures untouched, `BILLING_CHECKOUT_ENABLED=false` restored, and Production billing remains disabled.
+**Status:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR` — Phase P1 repository-side Production billing wiring is implemented locally and all tests pass (revenuecat-webhook 11/11, billing-checkout, deployment hardening, function policy). Seven files modified (76 insertions, 1 deletion). No deployment, no Production billing enabled, no real transaction, zero secrets exposed. Awaiting owner PR creation and merge.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments Phase P1 Production billing repository wiring complete — 2026-08-30
+
+* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR`. Repository-side Production billing wiring implemented and fully verified locally.
+* **Changes:**
+  - `appwrite-hubs/revenuecat-webhook/src/main.js`: `PRODUCT_TO_PLAN` additively extended with Production price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`). Sandbox entries preserved.
+  - `.github/workflows/deploy-appwrite-hubs.yml`: `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 Production catalog ID env vars wired into deploy step.
+  - `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` extended to sync Production API key (optional — skipped if absent for Sandbox-only deploys) and 4 Production catalog ID vars to the Appwrite Function.
+  - `tests/hubs/revenuecat-webhook.test.cjs`, `billing-checkout.test.cjs`, `billing-checkout-deployment.test.cjs`, `deployment-hardening.test.cjs`: All unit & deployment regression tests updated and passing.
+* **Current boundary:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false`. `paymentsEnabled: false`. No deployment performed; Production billing remains disabled. Zero secret values exposed.
+* **Next action:** Owner creates PR from `main` branch of worktree `D:/WiseResume-TWC-sandbox-paddle-wiring` and merges. Next phase: P2 deployment of Appwrite Functions with Production variables.
 
 ## Payments Production billing readiness audit complete — 2026-08-30
 

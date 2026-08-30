@@ -735,6 +735,29 @@ async function ensureRevenueCatWebhookVariables() {
     await ensureVariable('revenuecat-webhook', 'REVENUECAT_WEBHOOK_AUTH_SECRET', process.env.REVENUECAT_WEBHOOK_AUTH_SECRET);
 }
 
+async function isProductionBillingConfigured() {
+    const targetEnvironment = (
+        process.env.BILLING_CHECKOUT_ENVIRONMENT ||
+        await existingVariableValue('billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT')
+    )?.toLowerCase();
+
+    if (targetEnvironment === 'production') return true;
+
+    if (
+        process.env.BILLING_PRODUCTION_PRO_PRICE_ID ||
+        process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID ||
+        process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID ||
+        process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID ||
+        process.env.BILLING_PRODUCTION_PADDLE_API_KEY
+    ) {
+        return true;
+    }
+
+    const existingProPrice = await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PRO_PRICE_ID');
+    const existingProdKey = await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
+    return Boolean(existingProPrice || existingProdKey);
+}
+
 async function ensureBillingCheckoutVariables() {
     const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
         await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
@@ -742,6 +765,28 @@ async function ensureBillingCheckoutVariables() {
         throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required to deploy billing-checkout');
     }
     await ensureVariable('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY', sandboxPaddleKey);
+
+    const productionConfigured = await isProductionBillingConfigured();
+    const productionPaddleKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY ||
+        await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
+
+    if (productionConfigured && !productionPaddleKey) {
+        throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required to deploy billing-checkout when configured for Production');
+    }
+
+    if (productionPaddleKey) {
+        await ensureVariable('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY', productionPaddleKey);
+    }
+
+    // Sync Production catalog IDs (non-secret, hardcoded in the workflow env).
+    for (const [key, value] of [
+        ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
+        ['BILLING_PRODUCTION_PRO_PRODUCT_ID', process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID],
+        ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
+        ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
+    ]) {
+        if (value) await ensureVariable('billing-checkout', key, value);
+    }
 }
 
 async function ensureCouponsWiseHireVariables(fnIds) {
@@ -1008,6 +1053,15 @@ async function run() {
             await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
         if (!sandboxPaddleKey) {
             throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required before deploying billing-checkout');
+        }
+
+        const productionConfigured = await isProductionBillingConfigured();
+        if (productionConfigured) {
+            const productionPaddleKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY ||
+                await existingVariableValue('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY');
+            if (!productionPaddleKey) {
+                throw new Error('BILLING_PRODUCTION_PADDLE_API_KEY is required before deploying billing-checkout when configured for Production');
+            }
         }
     }
 

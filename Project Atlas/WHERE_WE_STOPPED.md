@@ -1,11 +1,22 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-30
-**Status:** `ULTIMATE_SANDBOX_END_TO_END_VERIFIED` — The complete Ultimate (internal plan: `premium`) billing and entitlement lifecycle is verified end-to-end in Sandbox: Paddle checkout creation & test payment (`checkout.completed`) -> RevenueCat Sandbox ingestion (`premium` entitlement active) -> Appwrite `revenuecat-webhook` execution (HTTP 200 / `INITIAL_PURCHASE -> processed`) -> genuine `revenuecat_event_ledger` document -> genuine `revenuecat_subscription_state` document (`plan=premium`, `environment=SANDBOX`, `status=active`) -> effective plan resolved to Ultimate with unlimited (Infinity) daily AI credits -> UI and persistence verified. Zero duplicate transactions, zero synthetic writes, protected fixtures untouched, `BILLING_CHECKOUT_ENABLED=false` restored, and Production billing remains disabled.
+**Status:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR` — Phase P1 repository wiring for Production billing is implemented and all tests pass. Five files changed (50 insertions, 0 deletions). No deployment occurred, no Production billing enabled, no real transaction, no secrets exposed. Awaiting owner PR creation and merge.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## Phase P1 Production billing repository wiring complete — 2026-08-30
+
+* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR`. All four targeted code changes are implemented and verified. Tests pass 11/11 (revenuecat-webhook) and all billing-checkout assertions. `git diff --check` clean.
+* **Changes:**
+  * `revenuecat-webhook/src/main.js`: `PRODUCT_TO_PLAN` extended additively with Production price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`). Sandbox entries preserved.
+  * `.github/workflows/deploy-appwrite-hubs.yml`: `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 non-secret Production catalog ID env vars wired into deploy step.
+  * `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` extended to optionally sync `BILLING_PRODUCTION_PADDLE_API_KEY` and 4 Production catalog ID vars. Sandbox key guard unchanged.
+  * `tests/hubs/revenuecat-webhook.test.cjs` + `billing-checkout.test.cjs`: Focused Production catalog tests added.
+* **Status boundary:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false`. `paymentsEnabled: false`. No deployment, no console change.
+* **Next action:** Owner creates PR from `D:/WiseResume-TWC-sandbox-paddle-wiring` (branch `main`) and merges. After merge, proceed to Phase P2: deploy `billing-checkout` and `revenuecat-webhook` with Production variables via GitHub Actions workflow (`--only=billing-checkout,revenuecat-webhook`).
 
 ## WiseResume Production billing readiness audit complete — 2026-08-30
 
@@ -14,6 +25,7 @@
 * **Blockers:** Production Paddle API key, catalog price/product IDs, GitHub workflow secret exposure, `revenuecat-webhook` product mapping table update, and Production RevenueCat configuration are required from owner before production launch.
 * **Current boundary:** Production billing remains strictly `DISABLED`. Zero secret values exposed; zero production mutations performed.
 * **Report:** [`reports/2026-08-30-production-billing-readiness-audit-closeout.md`](./reports/2026-08-30-production-billing-readiness-audit-closeout.md)
+
 
 ## WiseResume Ultimate Sandbox end-to-end lifecycle verified — 2026-08-30
 
