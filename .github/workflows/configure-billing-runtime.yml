@@ -17,10 +17,6 @@ on:
         description: 'Required exact confirmation string for production-smoke-open: OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT'
         required: false
         type: string
-      approved_origin:
-        description: 'Optional approved checkout HTTPS origin override'
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -47,6 +43,17 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Verify HEAD matches origin/main
+        run: |
+          git fetch origin main --depth=1
+          CURRENT_HEAD=$(git rev-parse HEAD)
+          ORIGIN_MAIN=$(git rev-parse origin/main)
+          if [ "$CURRENT_HEAD" != "$ORIGIN_MAIN" ]; then
+            echo "[FATAL] Workflow HEAD ($CURRENT_HEAD) does not match origin/main ($ORIGIN_MAIN). Execution blocked."
+            exit 1
+          fi
+          echo "[PASS] Verified HEAD matches origin/main ($CURRENT_HEAD)"
+
       - name: Setup Node.js
         # actions/setup-node v4.4.0
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -67,7 +74,9 @@ jobs:
           BILLING_PRODUCTION_PREMIUM_PRICE_ID: pri_01m192m6bwzvarmcr05c78by7r
           BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: pro_01m192jr9nzd6k5ysa6yhk5aq7
           WISERESUME_BILLING_RUNTIME_AUTOMATION: '1'
+          GITHUB_ACTIONS: 'true'
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           BILLING_RUNTIME_MODE: ${{ inputs.mode }}
           BILLING_RUNTIME_CONFIRM: ${{ inputs.confirm_smoke_open }}
-          BILLING_RUNTIME_APPROVED_ORIGIN: ${{ inputs.approved_origin }}
         run: node scripts/configure_billing_runtime.cjs

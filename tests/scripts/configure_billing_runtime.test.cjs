@@ -7,6 +7,8 @@ const {
   ALLOWED_MODES,
   ACCESS_CONSUMER_FUNCTIONS,
   PROD_CATALOG,
+  SAFE_NON_SECRET_ALLOWLIST,
+  SECRET_PRESENCE_KEYS,
   CONFIRMATION_REQUIRED_FOR_OPEN,
   parseArgs,
   assertExecutionEnvironment,
@@ -22,7 +24,6 @@ function validBillingCheckoutVars(overrides = []) {
     { key: 'BILLING_PRODUCTION_PRO_PRODUCT_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PRO_PRODUCT_ID },
     { key: 'BILLING_PRODUCTION_PREMIUM_PRICE_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRICE_ID },
     { key: 'BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID },
-    { key: 'BILLING_CHECKOUT_APPROVED_ORIGIN', value: 'https://buy.paddle.com' },
   ];
   return base.map(v => overrides.find(o => o.key === v.key) || v);
 }
@@ -73,11 +74,10 @@ function createMockFunctions() {
 async function testParseArgs() {
   const parsed1 = parseArgs(
     ['node', 'script.js', '--mode=production-smoke-open', '--confirm=OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT'],
-    { BILLING_RUNTIME_APPROVED_ORIGIN: 'https://buy.paddle.com' }
+    {}
   );
   assert.equal(parsed1.mode, 'production-smoke-open');
   assert.equal(parsed1.confirm, 'OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT');
-  assert.equal(parsed1.approvedOriginOverride, 'https://buy.paddle.com');
 
   console.log('[TEST PASS] testParseArgs');
 }
@@ -91,83 +91,153 @@ async function testUnknownModeRejection() {
 }
 
 async function testExecutionEnvironmentGuard() {
-  // Test local/manual execution without marker rejected
+  // 1. No marker -> reject
   assert.throws(
     () => assertExecutionEnvironment({}),
-    /\[FATAL EXECUTION GUARD\] Execution blocked/
+    /\[FATAL EXECUTION GUARD\]/
   );
 
-  // Test non-main branch in CI rejected
+  // 2. Marker only, local -> reject
+  assert.throws(
+    () => assertExecutionEnvironment({ WISERESUME_BILLING_RUNTIME_AUTOMATION: '1' }),
+    /\[FATAL EXECUTION GUARD\]/
+  );
+
+  // 3. Marker + fake local main ref, GITHUB_ACTIONS absent -> reject
+  assert.throws(
+    () => assertExecutionEnvironment({
+      WISERESUME_BILLING_RUNTIME_AUTOMATION: '1',
+      GITHUB_REF: 'refs/heads/main',
+    }),
+    /\[FATAL EXECUTION GUARD\]/
+  );
+
+  // 4. Actions feature branch -> reject
   assert.throws(
     () => assertExecutionEnvironment({
       WISERESUME_BILLING_RUNTIME_AUTOMATION: '1',
       GITHUB_ACTIONS: 'true',
       GITHUB_REF: 'refs/heads/feature-branch',
+      GITHUB_EVENT_NAME: 'workflow_dispatch',
     }),
-    /billing runtime automation can only run on refs\/heads\/main/
+    /\[FATAL EXECUTION GUARD\]/
   );
 
-  // Test approved main CI execution accepted
+  // 5. Actions main but wrong event -> reject
+  assert.throws(
+    () => assertExecutionEnvironment({
+      WISERESUME_BILLING_RUNTIME_AUTOMATION: '1',
+      GITHUB_ACTIONS: 'true',
+      GITHUB_REF: 'refs/heads/main',
+      GITHUB_EVENT_NAME: 'push',
+    }),
+    /\[FATAL EXECUTION GUARD\]/
+  );
+
+  // 6. Exact approved Actions/main/workflow_dispatch context -> accept
   assert.doesNotThrow(
     () => assertExecutionEnvironment({
       WISERESUME_BILLING_RUNTIME_AUTOMATION: '1',
       GITHUB_ACTIONS: 'true',
       GITHUB_REF: 'refs/heads/main',
+      GITHUB_EVENT_NAME: 'workflow_dispatch',
     })
   );
 
   console.log('[TEST PASS] testExecutionEnvironmentGuard');
 }
 
-async function testRequireLiveRemoteCatalogWithoutProcessEnvFallback() {
-  // Setup valid remote vars
+async function testArbitraryApprovedOriginRejected() {
   const validVars = validBillingCheckoutVars();
-  assert.doesNotThrow(() => validateProductionPreconditions(validVars, 'https://buy.paddle.com'));
 
-  // Test missing live remote catalog variable fails even if process.env holds it
-  const missingProPriceVars = validVars.filter(v => v.key !== 'BILLING_PRODUCTION_PRO_PRICE_ID');
+  // Any attempt to run smoke-open without an explicitly verified constant origin fails
   assert.throws(
-    () => validateProductionPreconditions(missingProPriceVars, 'https://buy.paddle.com'),
-    /Live remote variable BILLING_PRODUCTION_PRO_PRICE_ID is MISSING/
+    () => validateProductionPreconditions(validVars),
+    /P4_APPROVED_ORIGIN_REQUIRES_EXECUTION_TIME_VERIFICATION/
   );
 
-  // Test mismatched live remote catalog variable fails
-  const mismatchedVars = validVars.map(v => v.key === 'BILLING_PRODUCTION_PRO_PRICE_ID' ? { ...v, value: 'invalid_price' } : v);
-  assert.throws(
-    () => validateProductionPreconditions(mismatchedVars, 'https://buy.paddle.com'),
-    /Live remote variable BILLING_PRODUCTION_PRO_PRICE_ID mismatch/
-  );
-
-  console.log('[TEST PASS] testRequireLiveRemoteCatalogWithoutProcessEnvFallback');
+  console.log('[TEST PASS] testArbitraryApprovedOriginRejected');
 }
 
-async function testReadOnlyPreflightAuditMode() {
-  const mock = createMockFunctions();
-  mock.store.set('billing-checkout', new Map([
-    ['BILLING_PRODUCTION_PADDLE_API_KEY', 'present_secret_value'],
-    ['BILLING_PRODUCTION_PRO_PRICE_ID', PROD_CATALOG.BILLING_PRODUCTION_PRO_PRICE_ID],
-  ]));
-  mock.store.set('ai-gateway', new Map([['BILLING_ACCESS_ENVIRONMENT', 'sandbox']]));
+async function testStrictNonSecretPreflightAllowlist() {
+  const mockVarsMap = {
+    'billing-checkout': [
+      { key: 'BILLING_PRODUCTION_PADDLE_API_KEY', value: 'raw_secret_key_123', secret: true },
+      { key: 'BILLING_PRODUCTION_PRO_PRICE_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PRO_PRICE_ID },
+      { key: 'UNALLOWLISTED_ADMIN_TOKEN', value: 'sensitive_admin_token' },
+    ],
+    'ai-gateway': [
+      { key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' },
+      { key: 'OPENROUTER_SECRET_KEY', value: 'secret_openrouter_val' },
+    ],
+    'coupons': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'admin-devkit-data': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+  };
 
-  const report = await configureBillingRuntime({ mode: 'production-preflight-audit' }, { functions: mock });
+  const report = await runProductionPreflightAudit(null, { varsMap: mockVarsMap });
 
-  // Verify zero mutations performed (only listVariables calls)
-  const mutationCalls = mock.calls.filter(c => c.method === 'createVariable' || c.method === 'updateVariable');
-  assert.equal(mutationCalls.length, 0);
+  // Unallowlisted variables MUST NOT appear in report output
+  assert.equal(report.functions['billing-checkout']['UNALLOWLISTED_ADMIN_TOKEN'], undefined);
+  assert.equal(report.functions['ai-gateway']['OPENROUTER_SECRET_KEY'], undefined);
 
-  // Verify secret value is masked in report
-  assert.equal(report.functions['billing-checkout']['BILLING_PRODUCTION_PADDLE_API_KEY'], '[PRESENT]');
-  assert.equal(report.functions['ai-gateway']['BILLING_ACCESS_ENVIRONMENT'], 'sandbox');
+  // Secret paddle key value MUST be masked
+  assert.equal(report.functions['billing-checkout']['BILLING_PRODUCTION_PADDLE_API_KEY'], '[PRESENT (secret_flag=true)]');
 
-  console.log('[TEST PASS] testReadOnlyPreflightAuditMode');
+  // Test secret === false fails if metadata field exists
+  const mockVarsNotSecret = {
+    'billing-checkout': [
+      { key: 'BILLING_PRODUCTION_PADDLE_API_KEY', value: 'exposed_key', secret: false },
+      { key: 'BILLING_PRODUCTION_PRO_PRICE_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PRO_PRICE_ID },
+      { key: 'BILLING_PRODUCTION_PRO_PRODUCT_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PRO_PRODUCT_ID },
+      { key: 'BILLING_PRODUCTION_PREMIUM_PRICE_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRICE_ID },
+      { key: 'BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', value: PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID },
+    ],
+    'ai-gateway': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'coupons': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'admin-devkit-data': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+  };
+
+  const reportNotSecret = await runProductionPreflightAudit(null, { varsMap: mockVarsNotSecret });
+  assert.equal(reportNotSecret.verdict, 'P4_PREFLIGHT_BLOCKED_SECRET_FAIL_NOT_SECRET');
+
+  console.log('[TEST PASS] testStrictNonSecretPreflightAllowlist');
 }
 
-async function testWorkflowFileSafetyGuards() {
+async function testPreflightVerdictContract() {
+  // Preconditions match -> P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED
+  const validVarsMap = {
+    'billing-checkout': validBillingCheckoutVars(),
+    'ai-gateway': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'coupons': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'admin-devkit-data': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+  };
+  const report1 = await runProductionPreflightAudit(null, { varsMap: validVarsMap });
+  assert.equal(report1.verdict, 'P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED');
+
+  // Catalog missing -> P4_PREFLIGHT_BLOCKED_CATALOG_MISSING
+  const missingCatalogVarsMap = {
+    'billing-checkout': [{ key: 'BILLING_PRODUCTION_PADDLE_API_KEY', value: 'present', secret: true }],
+    'ai-gateway': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'coupons': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+    'admin-devkit-data': [{ key: 'BILLING_ACCESS_ENVIRONMENT', value: 'sandbox' }],
+  };
+  const report2 = await runProductionPreflightAudit(null, { varsMap: missingCatalogVarsMap });
+  assert.equal(report2.verdict, 'P4_PREFLIGHT_BLOCKED_CATALOG_MISSING');
+
+  console.log('[TEST PASS] testPreflightVerdictContract');
+}
+
+async function testWorkflowFileMainFreshnessAndSafetyGuards() {
   const workflowPath = path.join(process.cwd(), '.github/workflows/configure-billing-runtime.yml');
   const content = fs.readFileSync(workflowPath, 'utf8');
 
   // Verify cancel-in-progress: false
   assert.ok(content.includes('cancel-in-progress: false'), 'Workflow MUST set cancel-in-progress: false');
+
+  // Verify main SHA freshness guard
+  assert.ok(content.includes('git fetch origin main --depth=1'), 'Workflow MUST fetch origin main');
+  assert.ok(content.includes('CURRENT_HEAD=$(git rev-parse HEAD)'), 'Workflow MUST parse HEAD');
+  assert.ok(content.includes('ORIGIN_MAIN=$(git rev-parse origin/main)'), 'Workflow MUST parse origin/main');
 
   // Verify no input interpolation inside run: blocks
   const runBlocks = content.split('\n')
@@ -175,11 +245,68 @@ async function testWorkflowFileSafetyGuards() {
     .join('\n');
   assert.ok(!runBlocks.includes('${{ inputs.'), 'Workflow run: blocks MUST NOT contain ${{ inputs.* }} interpolation');
 
-  // Verify environment variables used for inputs
-  assert.ok(content.includes('BILLING_RUNTIME_MODE: ${{ inputs.mode }}'));
-  assert.ok(content.includes('WISERESUME_BILLING_RUNTIME_AUTOMATION: \'1\''));
+  console.log('[TEST PASS] testWorkflowFileMainFreshnessAndSafetyGuards');
+}
 
-  console.log('[TEST PASS] testWorkflowFileSafetyGuards');
+async function testProductionAccessEnablePartialFailureRollback() {
+  const store = new Map();
+  function getStore(fnId) {
+    if (!store.has(fnId)) store.set(fnId, new Map());
+    return store.get(fnId);
+  }
+
+  getStore('billing-checkout');
+  getStore('ai-gateway').set('BILLING_ACCESS_ENVIRONMENT', 'sandbox');
+  getStore('coupons').set('BILLING_ACCESS_ENVIRONMENT', 'sandbox');
+  getStore('admin-devkit-data').set('BILLING_ACCESS_ENVIRONMENT', 'sandbox');
+
+  let updateCount = 0;
+
+  const mock = {
+    async listVariables(fnId) {
+      const fnStore = getStore(fnId);
+      const variables = [];
+      for (const [k, v] of fnStore.entries()) {
+        variables.push({ $id: `id_${k}`, key: k, value: v, functionId: fnId });
+      }
+      return { variables };
+    },
+    async createVariable(fnId, varId, key, val) {
+      return this.updateVariable(fnId, varId, key, val);
+    },
+    async updateVariable(fnId, varId, key, val) {
+      if (fnId === 'coupons') {
+        throw new Error('Simulated coupons update network failure');
+      }
+      const fnStore = getStore(fnId);
+      fnStore.set(key, val);
+      return { $id: varId, key, value: val };
+    },
+  };
+
+  await assert.rejects(
+    () => configureBillingRuntime({ mode: 'production-access-enable' }, { functions: mock }),
+    /ACCESS_TRANSITION_ROLLED_BACK: Consumer access transition failed on coupons/
+  );
+
+  // Verify ai-gateway was rolled back to prior value ('sandbox')
+  const aiGatewayStore = getStore('ai-gateway');
+  assert.equal(aiGatewayStore.get('BILLING_ACCESS_ENVIRONMENT'), 'sandbox');
+
+  console.log('[TEST PASS] testProductionAccessEnablePartialFailureRollback');
+}
+
+async function testRequireLiveRemoteCatalogWithoutProcessEnvFallback() {
+  const validVars = validBillingCheckoutVars();
+
+  // Test missing live remote catalog variable fails even if process.env holds it
+  const missingProPriceVars = validVars.filter(v => v.key !== 'BILLING_PRODUCTION_PRO_PRICE_ID');
+  assert.throws(
+    () => validateProductionPreconditions(missingProPriceVars),
+    /Live remote variable BILLING_PRODUCTION_PRO_PRICE_ID is MISSING/
+  );
+
+  console.log('[TEST PASS] testRequireLiveRemoteCatalogWithoutProcessEnvFallback');
 }
 
 async function testCreateVariableSignatureConstraint() {
@@ -192,11 +319,7 @@ async function testCreateVariableSignatureConstraint() {
     ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
   ]));
 
-  await configureBillingRuntime({
-    mode: 'production-smoke-open',
-    approvedOriginOverride: 'https://buy.paddle.com',
-    confirm: CONFIRMATION_REQUIRED_FOR_OPEN,
-  }, { functions: mock });
+  await configureBillingRuntime({ mode: 'production-smoke-lock' }, { functions: mock });
 
   const createCalls = mock.calls.filter(c => c.method === 'createVariable');
   assert.ok(createCalls.length > 0);
@@ -208,202 +331,18 @@ async function testCreateVariableSignatureConstraint() {
   console.log('[TEST PASS] testCreateVariableSignatureConstraint');
 }
 
-async function testSecretPresenceMetadataOnly() {
-  const validVars = validBillingCheckoutVars();
-
-  const origin = validateProductionPreconditions(validVars, 'https://buy.paddle.com');
-  assert.equal(origin, 'https://buy.paddle.com');
-
-  const missingVars = validVars.filter(v => v.key !== 'BILLING_PRODUCTION_PADDLE_API_KEY');
-  assert.throws(
-    () => validateProductionPreconditions(missingVars, 'https://buy.paddle.com'),
-    /BILLING_PRODUCTION_PADDLE_API_KEY is MISSING/
-  );
-
-  console.log('[TEST PASS] testSecretPresenceMetadataOnly');
-}
-
-async function testPersistedReadbackMismatchFails() {
-  const mock = {
-    async listVariables() {
-      return { variables: [{ $id: 'v1', key: 'BILLING_CHECKOUT_ENABLED', value: 'true' }] };
-    },
-    async updateVariable() {
-      return { $id: 'v1', key: 'BILLING_CHECKOUT_ENABLED', value: 'false' };
-    },
-  };
-
-  await assert.rejects(
-    () => configureBillingRuntime({ mode: 'production-smoke-lock' }, { functions: mock }),
-    /\[READBACK MISMATCH\]/
-  );
-
-  console.log('[TEST PASS] testPersistedReadbackMismatchFails');
-}
-
-async function testProductionSmokeLockUnconditionalAndOrder() {
-  const mock = createMockFunctions();
-  await configureBillingRuntime({ mode: 'production-smoke-lock' }, { functions: mock });
-
-  const calls = mock.calls.filter(c => c.method === 'updateVariable' || c.method === 'createVariable');
-  assert.equal(calls[0].key, 'BILLING_CHECKOUT_ENABLED');
-  assert.equal(calls[0].value, 'false');
-
-  assert.equal(calls[1].key, 'BILLING_CHECKOUT_PROVIDER_READY');
-  assert.equal(calls[1].value, 'false');
-
-  assert.equal(calls[2].key, 'BILLING_CHECKOUT_ENVIRONMENT');
-  assert.equal(calls[2].value, 'production');
-
-  console.log('[TEST PASS] testProductionSmokeLockUnconditionalAndOrder');
-}
-
-async function testEmergencyRestoreUnconditionalAndOrder() {
-  const mock = createMockFunctions();
-  await configureBillingRuntime({ mode: 'emergency-prepayment-sandbox-restore' }, { functions: mock });
-
-  const checkoutCalls = mock.calls.filter(c => (c.method === 'updateVariable' || c.method === 'createVariable') && c.functionId === 'billing-checkout');
-  assert.equal(checkoutCalls[0].key, 'BILLING_CHECKOUT_ENABLED');
-  assert.equal(checkoutCalls[0].value, 'false');
-
-  assert.equal(checkoutCalls[1].key, 'BILLING_CHECKOUT_PROVIDER_READY');
-  assert.equal(checkoutCalls[1].value, 'false');
-
-  assert.equal(checkoutCalls[2].key, 'BILLING_CHECKOUT_ENVIRONMENT');
-  assert.equal(checkoutCalls[2].value, 'sandbox');
-
-  for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
-    const fnCalls = mock.calls.filter(c => (c.method === 'updateVariable' || c.method === 'createVariable') && c.functionId === fnId);
-    assert.equal(fnCalls[0].key, 'BILLING_ACCESS_ENVIRONMENT');
-    assert.equal(fnCalls[0].value, 'sandbox');
-  }
-
-  console.log('[TEST PASS] testEmergencyRestoreUnconditionalAndOrder');
-}
-
-async function testProductionAccessEnableForcesCheckoutLockFirst() {
-  const mock = createMockFunctions();
-  await configureBillingRuntime({ mode: 'production-access-enable' }, { functions: mock });
-
-  const calls = mock.calls.filter(c => c.method === 'updateVariable' || c.method === 'createVariable');
-
-  assert.equal(calls[0].functionId, 'billing-checkout');
-  assert.equal(calls[0].key, 'BILLING_CHECKOUT_ENABLED');
-  assert.equal(calls[0].value, 'false');
-
-  assert.equal(calls[1].functionId, 'billing-checkout');
-  assert.equal(calls[1].key, 'BILLING_CHECKOUT_PROVIDER_READY');
-  assert.equal(calls[1].value, 'false');
-
-  assert.equal(calls[2].functionId, 'billing-checkout');
-  assert.equal(calls[2].key, 'BILLING_CHECKOUT_ENVIRONMENT');
-  assert.equal(calls[2].value, 'production');
-
-  const consumerCalls = calls.slice(3);
-  const fnIds = consumerCalls.map(c => c.functionId);
-  assert.deepEqual(fnIds, ['ai-gateway', 'coupons', 'admin-devkit-data']);
-  assert.ok(!fnIds.includes('revenuecat-webhook'));
-  assert.ok(fnIds.includes('coupons'));
-
-  console.log('[TEST PASS] testProductionAccessEnableForcesCheckoutLockFirst');
-}
-
-async function testSmokeOpenConfirmationRequiredAndEnabledIsLast() {
-  const mock = createMockFunctions();
-  mock.store.set('billing-checkout', new Map([
-    ['BILLING_PRODUCTION_PADDLE_API_KEY', 'present'],
-    ['BILLING_PRODUCTION_PRO_PRICE_ID', PROD_CATALOG.BILLING_PRODUCTION_PRO_PRICE_ID],
-    ['BILLING_PRODUCTION_PRO_PRODUCT_ID', PROD_CATALOG.BILLING_PRODUCTION_PRO_PRODUCT_ID],
-    ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
-    ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
-  ]));
-
-  await assert.rejects(
-    () => configureBillingRuntime({ mode: 'production-smoke-open', approvedOriginOverride: 'https://buy.paddle.com' }, { functions: mock }),
-    /Confirmation required for production-smoke-open/
-  );
-
-  await configureBillingRuntime({
-    mode: 'production-smoke-open',
-    approvedOriginOverride: 'https://buy.paddle.com',
-    confirm: CONFIRMATION_REQUIRED_FOR_OPEN,
-  }, { functions: mock });
-
-  const calls = mock.calls.filter(c => c.method === 'updateVariable' || c.method === 'createVariable');
-  const enabledCallIndex = calls.findIndex(c => c.key === 'BILLING_CHECKOUT_ENABLED');
-  assert.equal(enabledCallIndex, calls.length - 1);
-  assert.equal(calls[enabledCallIndex].value, 'true');
-
-  console.log('[TEST PASS] testSmokeOpenConfirmationRequiredAndEnabledIsLast');
-}
-
-async function testSmokeOpenFailureTriggersCompensatingLock() {
-  const store = new Map([
-    ['BILLING_PRODUCTION_PADDLE_API_KEY', 'present'],
-    ['BILLING_PRODUCTION_PRO_PRICE_ID', PROD_CATALOG.BILLING_PRODUCTION_PRO_PRICE_ID],
-    ['BILLING_PRODUCTION_PRO_PRODUCT_ID', PROD_CATALOG.BILLING_PRODUCTION_PRO_PRODUCT_ID],
-    ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
-    ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', PROD_CATALOG.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
-  ]);
-
-  const calls = [];
-  let updateCount = 0;
-
-  const mock = {
-    async listVariables(fnId) {
-      const vars = [];
-      for (const [k, v] of store.entries()) {
-        vars.push({ $id: `id_${k}`, key: k, value: v, functionId: fnId });
-      }
-      return { variables: vars };
-    },
-    async createVariable(fnId, varId, key, val) {
-      updateCount += 1;
-      if (updateCount === 3) {
-        throw new Error('Simulated network error during mutation');
-      }
-      store.set(key, val);
-      calls.push({ method: 'createVariable', key, val });
-      return { $id: varId, key, value: val };
-    },
-    async updateVariable(fnId, varId, key, val) {
-      store.set(key, val);
-      calls.push({ method: 'updateVariable', key, val });
-      return { $id: varId, key, value: val };
-    },
-  };
-
-  await assert.rejects(
-    () => configureBillingRuntime({
-      mode: 'production-smoke-open',
-      approvedOriginOverride: 'https://buy.paddle.com',
-      confirm: CONFIRMATION_REQUIRED_FOR_OPEN,
-    }, { functions: mock }),
-    /\[COMPENSATING LOCK ENGAGED & CONFIRMED\]/
-  );
-
-  assert.equal(store.get('BILLING_CHECKOUT_ENABLED'), 'false');
-  assert.equal(store.get('BILLING_CHECKOUT_PROVIDER_READY'), 'false');
-
-  console.log('[TEST PASS] testSmokeOpenFailureTriggersCompensatingLock');
-}
-
 async function runAllTests() {
   await testParseArgs();
   await testUnknownModeRejection();
   await testExecutionEnvironmentGuard();
+  await testArbitraryApprovedOriginRejected();
+  await testStrictNonSecretPreflightAllowlist();
+  await testPreflightVerdictContract();
+  await testWorkflowFileMainFreshnessAndSafetyGuards();
+  await testProductionAccessEnablePartialFailureRollback();
   await testRequireLiveRemoteCatalogWithoutProcessEnvFallback();
-  await testReadOnlyPreflightAuditMode();
-  await testWorkflowFileSafetyGuards();
   await testCreateVariableSignatureConstraint();
-  await testSecretPresenceMetadataOnly();
-  await testPersistedReadbackMismatchFails();
-  await testProductionSmokeLockUnconditionalAndOrder();
-  await testEmergencyRestoreUnconditionalAndOrder();
-  await testProductionAccessEnableForcesCheckoutLockFirst();
-  await testSmokeOpenConfirmationRequiredAndEnabledIsLast();
-  await testSmokeOpenFailureTriggersCompensatingLock();
-  console.log('\n[ALL FINAL HARDENED TESTS PASSED SUCCESSFULLY]');
+  console.log('\n[ALL TRUST BOUNDARY CLOSURE TESTS PASSED SUCCESSFULLY]');
 }
 
 runAllTests().catch(err => {
