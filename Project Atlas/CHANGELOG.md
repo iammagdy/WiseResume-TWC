@@ -1,5 +1,12 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-30 - RevenueCat webhook secret deployment and redelivery diagnostic
+
+- **Verdict:** `REVENUECAT_WEBHOOK_REDELIVERY_AUTH_REJECTED`. Targeted deployment workflow `33302510002` deployed `revenuecat-webhook` (Active deployment: `6a93eea77fa8571b8f5a`).
+- **Lifecycle & Diagnostic:** Variable `REVENUECAT_WEBHOOK_AUTH_SECRET` presence verified with length 64. Incoming webhook execution `6a93eedf05bcd111854a` was rejected with HTTP 401 (`token_length=64 secret_configured=yes secret_length=64 lengths_equal=yes`) indicating token content divergence.
+- **State & Gates:** Appwrite state remained unmutated (`free` plan, 0 ledger rows) with zero synthetic data. `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
+- **Report:** [`reports/2026-08-30-revenuecat-webhook-reconciliation-diagnostic-closeout.md`](./reports/2026-08-30-revenuecat-webhook-reconciliation-diagnostic-closeout.md)
+
 ## 2026-08-30 - Pro Sandbox payment completion and RevenueCat webhook reconciliation diagnostic
 
 - **Verdict:** `REVENUECAT_ACTIVE_APPWRITE_RECONCILIATION_BLOCKED`. Under owner authorization, test payment was completed in Paddle Sandbox for the existing authorized Pro transaction (`checkout.completed`).

@@ -1,21 +1,20 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `REVENUECAT_ACTIVE_APPWRITE_RECONCILIATION_BLOCKED` — Under owner authorization, the existing Pro Sandbox transaction was completed in Paddle Sandbox (`checkout.completed`). Paddle automatically notified RevenueCat Sandbox, and RevenueCat dispatched its lifecycle webhook to Appwrite Function `revenuecat-webhook` (execution `6a93eb0c83a6eba0bba8`). The webhook was rejected with HTTP 401 due to a secret configuration mismatch (`token_length=64 secret_configured=yes secret_length=69 lengths_equal=no`). Appwrite state remains unmutated (Free plan / 0 ledger rows). Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
+**Status:** `REVENUECAT_WEBHOOK_REDELIVERY_AUTH_REJECTED` — Targeted deployment workflow `33302510002` deployed `revenuecat-webhook` (Active deployment: `6a93eea77fa8571b8f5a` on Node-22). Live presence of `REVENUECAT_WEBHOOK_AUTH_SECRET` is verified (length 64). Webhook execution `6a93eedf05bcd111854a` was rejected with HTTP 401 (`token_length=64 secret_configured=yes secret_length=64 lengths_equal=yes`) indicating token content mismatch. Appwrite state remains unmutated (Free plan / 0 ledger rows). Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
 
-## Payments Pro Sandbox payment completion & webhook reconciliation diagnostic — 2026-08-30
+## Payments RevenueCat webhook secret alignment & redelivery diagnostic — 2026-08-30
 
-* **Verdict:** `REVENUECAT_ACTIVE_APPWRITE_RECONCILIATION_BLOCKED`. Test payment on the authorized Pro Sandbox transaction was completed in Paddle Sandbox (`checkout.completed`).
-* **RevenueCat & Webhook Result:** RevenueCat Sandbox ingested the purchase and dispatched its lifecycle webhook to Appwrite Function `revenuecat-webhook`. Execution `6a93eb0c83a6eba0bba8` rejected the request with HTTP 401 because the incoming bearer token length (64) does not match the configured Appwrite secret length (69).
-* **Appwrite State:** Remained unmutated (`free` plan, 0 ledger rows, 5 daily credits). No manual grants were applied.
+* **Verdict:** `REVENUECAT_WEBHOOK_REDELIVERY_AUTH_REJECTED`. Targeted deployment workflow `33302510002` deployed `revenuecat-webhook` (Active: `6a93eea77fa8571b8f5a`).
+* **Execution Result:** Webhook execution `6a93eedf05bcd111854a` returned HTTP 401 with sanitized log `token_length=64 secret_configured=yes secret_length=64 lengths_equal=yes`. Lengths are aligned at 64 characters, but token string comparison failed.
+* **Appwrite State:** Remained unmutated (`free` plan, 0 ledger rows, 5 daily credits).
 * **Gate & Production Safety:** `BILLING_CHECKOUT_ENABLED=false` remains disabled; Production billing remains disabled.
-* **Next Action:** Align the authorization token in RevenueCat Sandbox Webhook settings with the `REVENUECAT_WEBHOOK_SECRET` variable in Appwrite Function `revenuecat-webhook`, then trigger re-delivery of the initial purchase event from RevenueCat.
-* **Report:** [`reports/2026-08-30-pro-sandbox-payment-completion-diagnostic-closeout.md`](./reports/2026-08-30-pro-sandbox-payment-completion-diagnostic-closeout.md)
+* **Report:** [`reports/2026-08-30-revenuecat-webhook-reconciliation-diagnostic-closeout.md`](./reports/2026-08-30-revenuecat-webhook-reconciliation-diagnostic-closeout.md)
 
 ## Payments Sandbox Paddle credential wiring & deployment — 2026-08-30
 
