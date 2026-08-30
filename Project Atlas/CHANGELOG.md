@@ -1,5 +1,11 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-30 - Ultimate Sandbox billing & entitlement full lifecycle verified end-to-end
+
+- **Verdict:** `ULTIMATE_SANDBOX_END_TO_END_VERIFIED`. Full lifecycle proven for Ultimate (`premium`) from Paddle Sandbox checkout creation and payment completion through RevenueCat Sandbox ingestion, Appwrite webhook processing (`HTTP 200`), genuine ledger and provider-state persistence (`plan=premium`, `entitlement_id=premium`, `status=active`), Ultimate plan resolution, unlimited (Infinity) daily AI credits, and UI persistence.
+- **Integrity & Bounds:** Dedicated fresh disposable QA account used; protected Pro and historical Ultimate fixtures untouched; exactly 1 Paddle transaction, 0 duplicate sessions, zero synthetic/manual database grants. `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
+- **Report:** [`reports/2026-08-30-ultimate-sandbox-end-to-end-verified-closeout.md`](./reports/2026-08-30-ultimate-sandbox-end-to-end-verified-closeout.md)
+
 ## 2026-08-30 - Pro Sandbox billing & entitlement full lifecycle verified end-to-end
 
 - **Verdict:** `PRO_SANDBOX_END_TO_END_VERIFIED`. Full lifecycle proven from Paddle Sandbox checkout creation and payment completion through RevenueCat Sandbox ingestion, Appwrite webhook processing (`HTTP 200` on execution `6a93f45d25b5a94613f5`), genuine ledger and provider-state persistence, Pro plan resolution, 50 daily AI credits, and UI persistence.
