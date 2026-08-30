@@ -1,0 +1,57 @@
+name: Configure Billing Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Target billing runtime mode'
+        required: true
+        type: choice
+        options:
+          - production-smoke-open
+          - production-smoke-lock
+          - production-access-enable
+          - emergency-prepayment-sandbox-restore
+      approved_origin:
+        description: 'Optional approved checkout HTTPS origin override (e.g. https://buy.paddle.com)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: configure-billing-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        # actions/checkout v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        # actions/setup-node v4.4.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Configure Appwrite billing runtime mode
+        env:
+          APPWRITE_ENDPOINT: https://fra.cloud.appwrite.io/v1
+          APPWRITE_PROJECT_ID: 69fd362b001eb325a192
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          BILLING_PRODUCTION_PRO_PRICE_ID: pri_01m192gqtw1cxrkctafjcahmfe
+          BILLING_PRODUCTION_PRO_PRODUCT_ID: pro_01m1924dqce7nd69khnakxftzw
+          BILLING_PRODUCTION_PREMIUM_PRICE_ID: pri_01m192m6bwzvarmcr05c78by7r
+          BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: pro_01m192jr9nzd6k5ysa6yhk5aq7
+        run: node scripts/configure_billing_runtime.cjs --mode="${{ inputs.mode }}" --approved-origin="${{ inputs.approved_origin }}"

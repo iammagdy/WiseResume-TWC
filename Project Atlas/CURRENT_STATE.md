@@ -1,12 +1,32 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `P3_PRODUCTION_WEBHOOK_ROUTING_CONFIG_VERIFIED_WITH_TEST_TRANSPORT_EVIDENCE` — Owner updated RevenueCat outbound webhook environment scope to `Both Production and Sandbox` targeting `https://revenuecat-webhook.wiseresume.app`. Authenticated `TEST` transport returned HTTP 200 (`acknowledged`, `mutated=false`). DB ledger (2) and subscription state (2) unchanged. `PRODUCTION_DELIVERY_NOT_YET_PROVEN` preserved because no genuine Production purchase has been executed. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled.
+**Status:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` — Root cause identified: existing deployment workflow and helper script do not manage non-secret billing runtime gate variables (`BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER_READY`, `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`). Dedicated automation workflow (`.github/workflows/configure-billing-runtime.yml`), script (`scripts/configure_billing_runtime.cjs`), and unit tests implemented. PR open awaiting merge/verification. Live Appwrite runtime variables unchanged; Production billing remains strictly disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments Phase P4 Production billing runtime gate automation remediation — 2026-08-30
+
+* **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation implemented, PR open awaiting merge and live verification).
+* **Root Cause Identified:** The existing deployment workflow (`deploy-appwrite-hubs.yml`) and deploy helper script (`deploy_hubs.cjs`) sync secret keys and catalog IDs but do NOT expose or manage runtime environment gate variables. Redeploying function source code merely to toggle runtime variables is prohibited.
+* **Remediation Implemented:**
+  - Dedicated workflow created: `.github/workflows/configure-billing-runtime.yml`
+  - Dedicated CLI script created: `scripts/configure_billing_runtime.cjs`
+  - Unit tests added: `tests/scripts/configure_billing_runtime.test.cjs` (PASS)
+* **Supported Modes Matrix:**
+  1. `production-smoke-open`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=true`, `ENABLED=true`, `APPROVED_ORIGIN` validated.
+  2. `production-smoke-lock`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=false`, `ENABLED=false`.
+  3. `production-access-enable`: `billing-checkout` locked; `BILLING_ACCESS_ENVIRONMENT=production` set on `ai-gateway`, `coupons`, `admin-devkit-data` (EXCLUDES `revenuecat-webhook`).
+  4. `emergency-prepayment-sandbox-restore`: Reverts `billing-checkout` to `sandbox` / `false` and resets access consumers to `sandbox`.
+* **Fail-Closed Safety:**
+  - Precondition check requires `BILLING_PRODUCTION_PADDLE_API_KEY` presence and exact Production catalog IDs on `billing-checkout`.
+  - Missing/invalid HTTPS origin throws `P4_APPROVED_ORIGIN_REQUIRES_EXECUTION_TIME_VERIFICATION`.
+  - Immediate readback verification fails closed on mismatch.
+* **Current Safety State:** Live Appwrite variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+* **Next action:** Owner reviews and merges PR `feat/production-billing-runtime-gates`. After merge, execute mode verification prior to controlled smoke.
 
 ## Payments Phase P3 RevenueCat Production webhook routing verified — 2026-08-30
 
@@ -32,7 +52,7 @@
 * **Schema Reconciliation:** `SCHEMA_RECONCILIATION_SUCCEEDED` — RevenueCat provider-state schemas and billing checkout schemas reported ready. No schema mutation was observed or reported.
 * **Historical Run Note:** Initial P2 workflow `33309686634` failed pre-deploy at Step 7 due to stale manifest before PR #248 merged; no Appwrite Functions deployed in that run.
 * **Safety Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. `BILLING_CHECKOUT_PROVIDER_READY=false`. `BILLING_CHECKOUT_ENVIRONMENT=sandbox`. `BILLING_ACCESS_ENVIRONMENT` unconfigured. Frontend `paymentsEnabled: false`. DB counts: `revenuecat_event_ledger` 2/2, `revenuecat_subscription_state` 2/2. Zero checkouts or payments created. Production billing remains disabled.
-* **Warnings / Operational Risk:** Production RevenueCat webhook routing remains `UNVERIFIED` / `OWNER_ACTION_REQUIRED`. No Production transaction authorized. Public billing disabled.
+* **Historical Warning:** [RESOLVED BY P3] RevenueCat Production webhook configuration and official TEST transport verified; genuine Production lifecycle delivery remains unproven until P4.
 * **Next action:** Verify RevenueCat Production webhook routing to `https://revenuecat-webhook.wiseresume.app` via non-secret evidence before any controlled transaction phase.
 
 ## Payments Phase P2 Appwrite source hash manifest recovery (PR #248 MERGED @ ba5a785e) — 2026-08-30
