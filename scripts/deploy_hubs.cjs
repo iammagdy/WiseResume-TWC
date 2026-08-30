@@ -735,6 +735,15 @@ async function ensureRevenueCatWebhookVariables() {
     await ensureVariable('revenuecat-webhook', 'REVENUECAT_WEBHOOK_AUTH_SECRET', process.env.REVENUECAT_WEBHOOK_AUTH_SECRET);
 }
 
+async function ensureBillingCheckoutVariables() {
+    const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
+        await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
+    if (!sandboxPaddleKey) {
+        throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required to deploy billing-checkout');
+    }
+    await ensureVariable('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY', sandboxPaddleKey);
+}
+
 async function ensureCouponsWiseHireVariables(fnIds) {
     for (const fnId of fnIds) {
         for (const [key, value] of [
@@ -895,6 +904,7 @@ async function syncVariablesForHubs(hubIds) {
     }
 
     if (selected.has('billing-checkout')) {
+        await ensureBillingCheckoutVariables();
         console.log('\nEnsuring billing checkout schemas...');
         execSync('node scripts/setup_billing_checkout_schema.cjs', { cwd: ROOT, stdio: 'inherit' });
     }
@@ -993,6 +1003,14 @@ async function run() {
         }
     }
 
+    if (hubsToDeploy.some(hub => hub.id === 'billing-checkout')) {
+        const sandboxPaddleKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY ||
+            await existingVariableValue('billing-checkout', 'BILLING_SANDBOX_PADDLE_API_KEY');
+        if (!sandboxPaddleKey) {
+            throw new Error('BILLING_SANDBOX_PADDLE_API_KEY is required before deploying billing-checkout');
+        }
+    }
+
     console.log(`Deploying selected hubs only: ${hubsToDeploy.map(h => h.id).join(', ')}`);
 
     const deployed = [];
@@ -1025,7 +1043,17 @@ async function run() {
     console.log('\nAll requested hubs processed successfully.');
 }
 
-run().catch(e => {
-    console.error('Fatal:', e.message);
-    process.exit(1);
-});
+if (require.main === module) {
+    run().catch(e => {
+        console.error('Fatal:', e.message);
+        process.exit(1);
+    });
+}
+
+module.exports = {
+    ensureBillingCheckoutVariables,
+    ensureVariable,
+    existingVariableValue,
+    syncVariablesForHubs,
+    run,
+};

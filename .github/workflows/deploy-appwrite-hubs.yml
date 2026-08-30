@@ -154,6 +154,7 @@ jobs:
           PORTFOLIO_JWT_SECRET: ${{ secrets.PORTFOLIO_JWT_SECRET }}
           PASSWORD_RESET_OTP_SECRET: ${{ secrets.PASSWORD_RESET_OTP_SECRET }}
           REVENUECAT_WEBHOOK_AUTH_SECRET: ${{ secrets.REVENUECAT_WEBHOOK_AUTH_SECRET }}
+          BILLING_SANDBOX_PADDLE_API_KEY: ${{ secrets.BILLING_SANDBOX_PADDLE_API_KEY }}
           HUB_TARGET: ${{ steps.targets.outputs.targets_csv }}
         run: node scripts/deploy_hubs.cjs --only="${HUB_TARGET}"
 
