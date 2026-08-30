@@ -12,6 +12,10 @@ on:
           - production-smoke-lock
           - production-access-enable
           - emergency-prepayment-sandbox-restore
+      confirm_smoke_open:
+        description: 'Required exact confirmation string for production-smoke-open: OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT'
+        required: false
+        type: string
       approved_origin:
         description: 'Optional approved checkout HTTPS origin override (e.g. https://buy.paddle.com)'
         required: false
@@ -29,6 +33,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Guard against non-main branch execution
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "[FATAL] configure-billing-runtime workflow can ONLY be executed from refs/heads/main. Current ref: ${{ github.ref }}"
+            exit 1
+          fi
+
       - name: Checkout repository
         # actions/checkout v4.2.2
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -54,4 +65,4 @@ jobs:
           BILLING_PRODUCTION_PRO_PRODUCT_ID: pro_01m1924dqce7nd69khnakxftzw
           BILLING_PRODUCTION_PREMIUM_PRICE_ID: pri_01m192m6bwzvarmcr05c78by7r
           BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: pro_01m192jr9nzd6k5ysa6yhk5aq7
-        run: node scripts/configure_billing_runtime.cjs --mode="${{ inputs.mode }}" --approved-origin="${{ inputs.approved_origin }}"
+        run: node scripts/configure_billing_runtime.cjs --mode="${{ inputs.mode }}" --confirm="${{ inputs.confirm_smoke_open }}" --approved-origin="${{ inputs.approved_origin }}"

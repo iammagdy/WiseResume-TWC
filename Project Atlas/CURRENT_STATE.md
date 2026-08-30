@@ -53,7 +53,7 @@
 * **Historical Run Note:** Initial P2 workflow `33309686634` failed pre-deploy at Step 7 due to stale manifest before PR #248 merged; no Appwrite Functions deployed in that run.
 * **Safety Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. `BILLING_CHECKOUT_PROVIDER_READY=false`. `BILLING_CHECKOUT_ENVIRONMENT=sandbox`. `BILLING_ACCESS_ENVIRONMENT` unconfigured. Frontend `paymentsEnabled: false`. DB counts: `revenuecat_event_ledger` 2/2, `revenuecat_subscription_state` 2/2. Zero checkouts or payments created. Production billing remains disabled.
 * **Historical Warning:** [RESOLVED BY P3] RevenueCat Production webhook configuration and official TEST transport verified; genuine Production lifecycle delivery remains unproven until P4.
-* **Next action:** Verify RevenueCat Production webhook routing to `https://revenuecat-webhook.wiseresume.app` via non-secret evidence before any controlled transaction phase.
+* **Next action:** [COMPLETED / SUPERSEDED BY P3] Outbound RevenueCat webhook environment scope updated to Both Production and Sandbox; verified via official TEST transport.
 
 ## Payments Phase P2 Appwrite source hash manifest recovery (PR #248 MERGED @ ba5a785e) — 2026-08-30
 

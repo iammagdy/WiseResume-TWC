@@ -39,19 +39,28 @@ const PROD_CATALOG = Object.freeze({
   BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: 'pro_01m192jr9nzd6k5ysa6yhk5aq7',
 });
 
+const CONFIRMATION_REQUIRED_FOR_OPEN = 'OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT';
+
 function parseArgs(argv = process.argv) {
   let mode = '';
   let approvedOriginOverride = '';
+  let confirm = '';
 
   for (const arg of argv) {
     if (arg.startsWith('--mode=')) {
       mode = arg.slice(arg.indexOf('=') + 1).trim();
     } else if (arg.startsWith('--approved-origin=')) {
       approvedOriginOverride = arg.slice(arg.indexOf('=') + 1).trim();
+    } else if (arg.startsWith('--confirm=')) {
+      confirm = arg.slice(arg.indexOf('=') + 1).trim();
     }
   }
 
-  return { mode, approvedOriginOverride };
+  if (!confirm && process.env.CONFIRM_SMOKE_OPEN) {
+    confirm = process.env.CONFIRM_SMOKE_OPEN.trim();
+  }
+
+  return { mode, approvedOriginOverride, confirm };
 }
 
 function getAppwriteClients(env = process.env) {
@@ -80,49 +89,41 @@ async function fetchFunctionVariables(functions, functionId) {
   }
 }
 
-async function setOrUpdateVariable(functions, functionId, key, value, existingVars) {
+async function setOrUpdateVariable(functions, functionId, key, value) {
+  const existingVars = await fetchFunctionVariables(functions, functionId);
   const existing = existingVars.find(v => v.key === key);
-  let updated;
 
   if (existing) {
     if (existing.value === value) {
       console.log(`[VAR UNCHANGED] ${functionId} -> ${key} = ${value}`);
       return;
     }
-    updated = await functions.updateVariable(functionId, existing.$id, key, value);
+    await functions.updateVariable(functionId, existing.$id, key, value);
   } else {
-    updated = await functions.createVariable(functionId, key, value);
+    const variableId = sdk.ID ? sdk.ID.unique() : `var_${Date.now()}`;
+    await functions.createVariable(functionId, variableId, key, value);
   }
 
-  if (!updated || updated.value !== value) {
-    throw new Error(`[READBACK MISMATCH] Failed to verify ${functionId} -> ${key} = ${value}. Readback value: ${updated?.value}`);
+  // REAL PERSISTED READBACK VERIFICATION
+  const freshVars = await fetchFunctionVariables(functions, functionId);
+  const verified = freshVars.find(v => v.key === key);
+
+  if (!verified || verified.value !== value) {
+    throw new Error(`[READBACK MISMATCH] Failed to verify persisted ${functionId} -> ${key} = "${value}". Readback value: "${verified?.value || 'MISSING'}"`);
   }
 
   console.log(`[VAR SET PASS] ${functionId} -> ${key} = ${value}`);
 }
 
-async function deleteVariableIfExists(functions, functionId, key, existingVars) {
-  const existing = existingVars.find(v => v.key === key);
-  if (!existing) {
-    console.log(`[VAR ABSENT] ${functionId} -> ${key}`);
-    return;
-  }
-
-  await functions.deleteVariable(functionId, existing.$id);
-  const recheck = await fetchFunctionVariables(functions, functionId);
-  if (recheck.some(v => v.key === key)) {
-    throw new Error(`[DELETE MISMATCH] Failed to delete ${functionId} -> ${key}`);
-  }
-
-  console.log(`[VAR DELETED PASS] ${functionId} -> ${key}`);
-}
-
 function validateProductionPreconditions(billingCheckoutVars, approvedOriginOverride = '') {
+  // SECRET PRESENCE METADATA-ONLY CHECK
   const prodKeyVar = billingCheckoutVars.find(v => v.key === 'BILLING_PRODUCTION_PADDLE_API_KEY');
-  if (!prodKeyVar || !prodKeyVar.value) {
-    throw new Error('Precondition failed: BILLING_PRODUCTION_PADDLE_API_KEY is missing on billing-checkout function');
+  if (!prodKeyVar) {
+    throw new Error('Precondition failed: BILLING_PRODUCTION_PADDLE_API_KEY is MISSING on billing-checkout function');
   }
+  console.log('[SECRET METADATA] BILLING_PRODUCTION_PADDLE_API_KEY = PRESENT');
 
+  // CATALOG PRECONDITIONS
   for (const [catalogKey, expectedValue] of Object.entries(PROD_CATALOG)) {
     const found = billingCheckoutVars.find(v => v.key === catalogKey);
     const value = found ? found.value : process.env[catalogKey];
@@ -131,6 +132,7 @@ function validateProductionPreconditions(billingCheckoutVars, approvedOriginOver
     }
   }
 
+  // APPROVED ORIGIN PRECONDITION
   const foundOrigin = approvedOriginOverride ||
     process.env.BILLING_CHECKOUT_APPROVED_ORIGIN ||
     billingCheckoutVars.find(v => v.key === 'BILLING_CHECKOUT_APPROVED_ORIGIN')?.value ||
@@ -144,64 +146,20 @@ function validateProductionPreconditions(billingCheckoutVars, approvedOriginOver
   return sanitizedOrigin;
 }
 
-function buildTargetMatrix(mode, approvedOrigin = '') {
-  const matrix = [];
-
-  if (mode === 'production-smoke-open') {
-    matrix.push({
-      functionId: 'billing-checkout',
-      vars: [
-        ['BILLING_CHECKOUT_ENVIRONMENT', 'production'],
-        ['BILLING_CHECKOUT_PROVIDER_READY', 'true'],
-        ['BILLING_CHECKOUT_ENABLED', 'true'],
-        ...(approvedOrigin ? [['BILLING_CHECKOUT_APPROVED_ORIGIN', approvedOrigin]] : []),
-      ],
-    });
-  } else if (mode === 'production-smoke-lock') {
-    matrix.push({
-      functionId: 'billing-checkout',
-      vars: [
-        ['BILLING_CHECKOUT_ENVIRONMENT', 'production'],
-        ['BILLING_CHECKOUT_PROVIDER_READY', 'false'],
-        ['BILLING_CHECKOUT_ENABLED', 'false'],
-      ],
-    });
-  } else if (mode === 'production-access-enable') {
-    matrix.push({
-      functionId: 'billing-checkout',
-      vars: [
-        ['BILLING_CHECKOUT_ENVIRONMENT', 'production'],
-        ['BILLING_CHECKOUT_PROVIDER_READY', 'false'],
-        ['BILLING_CHECKOUT_ENABLED', 'false'],
-      ],
-    });
-    for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
-      matrix.push({
-        functionId: fnId,
-        vars: [['BILLING_ACCESS_ENVIRONMENT', 'production']],
-      });
-    }
-  } else if (mode === 'emergency-prepayment-sandbox-restore') {
-    matrix.push({
-      functionId: 'billing-checkout',
-      vars: [
-        ['BILLING_CHECKOUT_ENVIRONMENT', 'sandbox'],
-        ['BILLING_CHECKOUT_PROVIDER_READY', 'false'],
-        ['BILLING_CHECKOUT_ENABLED', 'false'],
-      ],
-    });
-    for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
-      matrix.push({
-        functionId: fnId,
-        vars: [['BILLING_ACCESS_ENVIRONMENT', 'sandbox']],
-      });
-    }
+async function engageCompensatingLock(functions) {
+  console.log('[COMPENSATING LOCK] Attempting immediate fail-closed lock on billing-checkout...');
+  try {
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
+    console.log('[COMPENSATING LOCK] Lock engaged and verified successfully.');
+    return true;
+  } catch (err) {
+    console.error(`[CRITICAL FAIL-OPEN HAZARD] Failed to engage compensating lock: ${err.message}`);
+    return false;
   }
-
-  return matrix;
 }
 
-async function configureBillingRuntime({ mode, approvedOriginOverride }, dependencies = {}) {
+async function configureBillingRuntime({ mode, approvedOriginOverride, confirm }, dependencies = {}) {
   if (!mode || !ALLOWED_MODES.has(mode)) {
     throw new Error(`Invalid or missing mode: "${mode}". Allowed modes: ${Array.from(ALLOWED_MODES).join(', ')}`);
   }
@@ -210,18 +168,66 @@ async function configureBillingRuntime({ mode, approvedOriginOverride }, depende
 
   const functions = dependencies.functions || getAppwriteClients().functions;
 
-  let approvedOrigin = '';
-  if (mode !== 'emergency-prepayment-sandbox-restore') {
+  if (mode === 'production-smoke-open') {
+    if (confirm !== CONFIRMATION_REQUIRED_FOR_OPEN) {
+      throw new Error(`Confirmation required for production-smoke-open: pass --confirm=${CONFIRMATION_REQUIRED_FOR_OPEN}`);
+    }
+
     const billingCheckoutVars = dependencies.billingCheckoutVars || await fetchFunctionVariables(functions, 'billing-checkout');
-    approvedOrigin = validateProductionPreconditions(billingCheckoutVars, approvedOriginOverride);
-  }
+    const approvedOrigin = validateProductionPreconditions(billingCheckoutVars, approvedOriginOverride);
 
-  const matrix = buildTargetMatrix(mode, approvedOrigin);
+    // SAFE MUTATION ORDER FOR SMOKE OPEN
+    // 1. Environment -> production
+    // 2. Provider ready -> true
+    // 3. Approved origin -> (if set)
+    // 4. LAST: Enabled -> true
+    let mutationStarted = false;
+    try {
+      mutationStarted = true;
+      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
+      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'true');
+      if (approvedOrigin) {
+        await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_APPROVED_ORIGIN', approvedOrigin);
+      }
+      // ENABLED IS THE VERY LAST MUTATION
+      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'true');
+    } catch (err) {
+      if (mutationStarted) {
+        const locked = await engageCompensatingLock(functions);
+        if (locked) {
+          throw new Error(`[COMPENSATING LOCK ENGAGED & CONFIRMED] Operation failed during production-smoke-open, checkout safety lock re-engaged: ${err.message}`);
+        } else {
+          throw new Error(`[CRITICAL FAIL-OPEN HAZARD] OWNER ACTION REQUIRED IMMEDIATELY: Failed during production-smoke-open and compensating lock failed: ${err.message}`);
+        }
+      }
+      throw err;
+    }
 
-  for (const item of matrix) {
-    const existingVars = dependencies.existingVarsMap?.[item.functionId] || await fetchFunctionVariables(functions, item.functionId);
-    for (const [key, value] of item.vars) {
-      await setOrUpdateVariable(functions, item.functionId, key, value, existingVars);
+  } else if (mode === 'production-smoke-lock') {
+    // UNCONDITIONAL SAFETY LOCK (ENABLED=false FIRST)
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
+
+  } else if (mode === 'production-access-enable') {
+    // FORCE CHECKOUT LOCKED FIRST BEFORE CHANGING ACCESS CONSUMERS
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
+
+    // ONLY THEN WRITE TO ACCESS CONSUMERS (NEVER REVENUECAT-WEBHOOK)
+    for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
+      await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', 'production');
+    }
+
+  } else if (mode === 'emergency-prepayment-sandbox-restore') {
+    // UNCONDITIONAL RESTORE (ENABLED=false FIRST)
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'sandbox');
+
+    for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
+      await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', 'sandbox');
     }
   }
 
@@ -229,8 +235,8 @@ async function configureBillingRuntime({ mode, approvedOriginOverride }, depende
 }
 
 async function main() {
-  const { mode, approvedOriginOverride } = parseArgs();
-  await configureBillingRuntime({ mode, approvedOriginOverride });
+  const { mode, approvedOriginOverride, confirm } = parseArgs();
+  await configureBillingRuntime({ mode, approvedOriginOverride, confirm });
 }
 
 if (require.main === module) {
@@ -244,8 +250,9 @@ module.exports = {
   ALLOWED_MODES,
   ACCESS_CONSUMER_FUNCTIONS,
   PROD_CATALOG,
+  CONFIRMATION_REQUIRED_FOR_OPEN,
   parseArgs,
   validateProductionPreconditions,
-  buildTargetMatrix,
   configureBillingRuntime,
+  setOrUpdateVariable,
 };
