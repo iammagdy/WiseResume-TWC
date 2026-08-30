@@ -19,11 +19,11 @@
   - Duplicate Webhook: `NONE` (Exactly 1 WiseResume Appwrite outbound webhook exists).
 * **TEST Transport Verification:** Official RevenueCat `TEST` event handled cleanly by deployed `revenuecat-webhook` (`6a941e0dbd0c2cf9ce40`, Node-22, status `ready`). Response: HTTP 200 (`{ status: 'success', data: { ok: true, outcome: 'acknowledged', code: 'test_acknowledged', mutated: false } }`).
 * **Database & Safety Boundary:** `revenuecat_event_ledger` 2 -> 2 (unchanged), `revenuecat_subscription_state` 2 -> 2 (unchanged). Zero entitlement mutations, zero credit mutations, zero checkouts, zero Production payments.
-* **Important Delivery Boundary:** `PRODUCTION_DELIVERY_NOT_YET_PROVEN` — Outbound configuration and authenticated transport are 100% verified, but no genuine Production lifecycle event has been executed yet.
+* **Important Delivery Boundary:** `PRODUCTION_DELIVERY_NOT_YET_PROVEN` — Outbound webhook configuration and official authenticated TEST transport are verified. No genuine Production lifecycle event has been executed yet.
 * **Current Safety State:** `BILLING_CHECKOUT_ENABLED=false` preserved. `BILLING_CHECKOUT_PROVIDER_READY=false`. `BILLING_CHECKOUT_ENVIRONMENT=sandbox`. `BILLING_ACCESS_ENVIRONMENT` unconfigured. Frontend `paymentsEnabled: false`. Production billing remains strictly disabled.
 * **Next action:** PLAN — but do not execute — one controlled Production Pro smoke transaction phase (under separate owner authorization).
 
-## Payments Phase P2 Appwrite targeted deployment complete (PR #248 MERGED @ ba5a785e) — 2026-08-30
+## Payments Phase P2 Appwrite targeted deployment complete — 2026-08-30
 
 * **Verdict:** `P2_TARGETED_DEPLOYMENT_VERIFIED_WITH_WARNINGS`. Workflow `33310801069` on target `billing-checkout,revenuecat-webhook` succeeded on `main` (`ba5a785ee54a84194fac8630af3370f9f3a9ccf0`).
 * **Appwrite Deployments:**

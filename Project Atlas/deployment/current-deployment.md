@@ -54,11 +54,15 @@ Appwrite Functions are deployed independently from the frontend application usin
 
 ### Phase P1/P2/P3 Production Billing Deployment & Webhook Routing Status — 2026-08-30
 
-* **PR #247 & #248 Merged:** Production catalog & fail-closed deploy guards merged (`78c0afc9`); source hash manifest merged (`ba5a785e`).
-* **Phase P2 Active Deployments:** Workflow run `33310801069` deployed `billing-checkout` (`6a941dfe80f78ba25dbf`, Node-22, ready) and `revenuecat-webhook` (`6a941e0dbd0c2cf9ce40`, Node-22, ready).
+* **PR #247 & #248 Merged:** PR #247 merged (`78c0afc9`) with Production Paddle catalog & fail-closed deploy guards. PR #248 merged (`ba5a785e`) updating source-hash manifest for `revenuecat-webhook` (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
+* **Phase P2 Deployment History:**
+  - Initial P2 workflow run `33309686634` failed pre-deploy at source-hash manifest guard; zero Appwrite Functions were deployed by that failed run.
+  - Successful P2 workflow run `33310801069` targeted `billing-checkout,revenuecat-webhook` on `main` (`ba5a785e`).
+  - Active deployments: `billing-checkout` (`6a941dfe80f78ba25dbf`, Node-22, status `ready`) and `revenuecat-webhook` (`6a941e0dbd0c2cf9ce40`, Node-22, status `ready`).
+  - Schema reconciliation status: `SCHEMA_RECONCILIATION_SUCCEEDED` — RevenueCat provider-state and billing checkout schemas reported ready; no schema mutation was observed or reported.
 * **Phase P3 Webhook Routing Verified:** Owner updated RevenueCat outbound webhook environment scope to `Both Production and Sandbox` targeting `https://revenuecat-webhook.wiseresume.app` with `Authorization: Bearer <secret>` (`AUTH_HEADER_PRESENT`).
 * **TEST Transport:** Handled clean `TEST` event with HTTP 200 (`acknowledged`, `mutated=false`). DB ledger (2) and subscription state (2) unchanged.
-* **Important Delivery Boundary:** `PRODUCTION_DELIVERY_NOT_YET_PROVEN` — Outbound configuration and transport verified, but zero genuine Production purchases executed.
+* **Important Delivery Boundary:** `PRODUCTION_DELIVERY_NOT_YET_PROVEN` — Outbound webhook configuration and official authenticated TEST transport are verified. No genuine Production lifecycle event has been executed yet.
 * **Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled.
 
 ### Current WiseResume Payments Sandbox runtime readiness — 2026-08-28
