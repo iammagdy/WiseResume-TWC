@@ -1,17 +1,20 @@
 # WiseResume Atlas Master Changelog
 
-## 2026-08-30 - Phase P1 Production billing repository wiring (uncommitted, pending PR)
+## 2026-08-30 - Phase P1 Production billing repository wiring (PR #247 OPEN)
 
-- **Verdict:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR`. Repository-side Production billing wiring is implemented and all tests pass. No deployment, no Production billing enabled, no real transaction, no secrets exposed.
-- **Changes (5 files, 50 insertions, 0 deletions):**
-  - `appwrite-hubs/revenuecat-webhook/src/main.js`: Added Production Paddle price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`) to `PRODUCT_TO_PLAN`. Sandbox entries preserved unchanged.
+- **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. Repository-side Production billing wiring implementation is committed and pushed on branch `fix/production-billing-wiring` (commit `134c0288551d6474e0f60e87b2037ce84ac856a0`). Pull Request #247 is OPEN against `main`.
+- **Changes in PR #247 (10 files changed):**
+  - `appwrite-hubs/revenuecat-webhook/src/main.js`: Added Production Paddle price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`) to `PRODUCT_TO_PLAN`. Sandbox entries preserved.
   - `.github/workflows/deploy-appwrite-hubs.yml`: Wired `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 non-secret Production catalog ID env vars into the deploy step.
-  - `scripts/deploy_hubs.cjs`: Extended `ensureBillingCheckoutVariables` to sync Production API key (optional — skipped if absent for Sandbox-only deploys) and all 4 Production catalog ID variables to the Appwrite Function. Existing Sandbox key guard unchanged.
-  - `tests/hubs/revenuecat-webhook.test.cjs`: New test — Production price IDs map correctly; Sandbox entries preserved; no 'ultimate' value persists.
-  - `tests/hubs/billing-checkout.test.cjs`: New assertions — `readConfig` with `BILLING_CHECKOUT_ENVIRONMENT=production` resolves `BILLING_PRODUCTION_*` catalog IDs; Sandbox environment never picks up Production IDs.
-- **Test Results:** `revenuecat-webhook.test.cjs` 11/11 pass; `billing-checkout.test.cjs` all assertions pass. Exit 0 on both.
-- **Integrity & Bounds:** `billing-checkout/src/main.js` NOT changed (already supports Production via env prefix). `BILLING_CHECKOUT_ENABLED=false` unchanged. `paymentsEnabled: false` unchanged. No deployment, no console change, no real checkout/payment.
-- **Next action:** Owner creates PR and merges to `origin/main`. After merge, proceed to Phase P2 (Appwrite Function deployment with Production variables).
+  - `scripts/deploy_hubs.cjs`: Extended `ensureBillingCheckoutVariables` and `run()` pre-deploy guard to fail closed if Production billing is configured without `BILLING_PRODUCTION_PADDLE_API_KEY`. Sandbox-only deploys remain compatible.
+  - `tests/hubs/billing-checkout-deployment.test.cjs`: Added fail-closed Production key validation test and workflow variable assertions (6/6 pass).
+  - `tests/hubs/deployment-hardening.test.cjs`: Updated workflow secret assertions and deployable hub lockfile filter (7/7 pass).
+  - `tests/hubs/revenuecat-webhook.test.cjs`: Added Production price ID resolution test (11/11 pass).
+  - `tests/hubs/billing-checkout.test.cjs`: Added Production catalog `readConfig` assertions (PASS).
+  - `Project Atlas/CHANGELOG.md`, `CURRENT_STATE.md`, `WHERE_WE_STOPPED.md`: Documentation closeout and PR reconciliation.
+- **Validation Results:** `git diff --check` PASS, `Typecheck + portfolio tests` PASS, `Security regression suite` PASS, `Vercel` PASS, `npx tsc --noEmit` PASS, `npm run build` PASS.
+- **Integrity & Bounds:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false` unchanged. `paymentsEnabled: false` unchanged. Zero merges performed, zero Appwrite deployments performed, no real checkout/payment.
+- **Next action:** Owner reviews and merges PR #247 to `main`. After merge and separate owner authorization, proceed to Phase P2 (Appwrite Function deployment with Production variables).
 
 ## 2026-08-30 - Production billing readiness audit and rollout plan completed
 

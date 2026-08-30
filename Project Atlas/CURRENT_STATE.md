@@ -1,23 +1,23 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR` — Phase P1 repository-side Production billing wiring is implemented locally and all tests pass (revenuecat-webhook 11/11, billing-checkout, deployment hardening, function policy). Seven files modified (76 insertions, 1 deletion). No deployment, no Production billing enabled, no real transaction, zero secrets exposed. Awaiting owner PR creation and merge.
+**Status:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE` — Phase P1 repository-side Production billing wiring is committed and pushed on branch `fix/production-billing-wiring` (commit `134c0288551d6474e0f60e87b2037ce84ac856a0`). Pull Request #247 is OPEN against `main` (10 files changed). No merge has occurred, no deployment has occurred, no Production billing enabled, zero secrets exposed. Awaiting owner PR review and merge.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
 
-## Payments Phase P1 Production billing repository wiring complete — 2026-08-30
+## Payments Phase P1 Production billing repository wiring (PR #247 OPEN) — 2026-08-30
 
-* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR`. Repository-side Production billing wiring implemented and fully verified locally.
-* **Changes:**
+* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. Repository-side Production billing wiring implemented, committed, pushed, and PR #247 opened.
+* **Changes in PR #247 (10 files changed):**
   - `appwrite-hubs/revenuecat-webhook/src/main.js`: `PRODUCT_TO_PLAN` additively extended with Production price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`). Sandbox entries preserved.
   - `.github/workflows/deploy-appwrite-hubs.yml`: `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 Production catalog ID env vars wired into deploy step.
-  - `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` extended to sync Production API key (optional — skipped if absent for Sandbox-only deploys) and 4 Production catalog ID vars to the Appwrite Function.
-  - `tests/hubs/revenuecat-webhook.test.cjs`, `billing-checkout.test.cjs`, `billing-checkout-deployment.test.cjs`, `deployment-hardening.test.cjs`: All unit & deployment regression tests updated and passing.
+  - `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` and `run()` pre-deploy guard extended to fail closed if Production billing is configured without `BILLING_PRODUCTION_PADDLE_API_KEY`.
+  - `tests/hubs/`: Updated unit & deployment regression tests (6/6 billing-checkout-deployment, 7/7 deployment-hardening, 11/11 revenuecat-webhook).
 * **Current boundary:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false`. `paymentsEnabled: false`. No deployment performed; Production billing remains disabled. Zero secret values exposed.
-* **Next action:** Owner creates PR from `main` branch of worktree `D:/WiseResume-TWC-sandbox-paddle-wiring` and merges. Next phase: P2 deployment of Appwrite Functions with Production variables.
+* **Next action:** Owner reviews and merges PR #247 into `main`. Next phase: Phase P2 targeted Appwrite deployment of `billing-checkout` and `revenuecat-webhook` with Production variables after merge and separate authorization.
 
 ## Payments Production billing readiness audit complete — 2026-08-30
 

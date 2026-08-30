@@ -1,22 +1,23 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-30
-**Status:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR` — Phase P1 repository wiring for Production billing is implemented and all tests pass. Five files changed (50 insertions, 0 deletions). No deployment occurred, no Production billing enabled, no real transaction, no secrets exposed. Awaiting owner PR creation and merge.
+**Status:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE` — Phase P1 repository wiring for Production billing is committed and pushed on branch `fix/production-billing-wiring` (commit `134c0288551d6474e0f60e87b2037ce84ac856a0`). Pull Request #247 is OPEN against `main` (10 files changed). CI checks (`Typecheck + portfolio tests`, `Security regression suite`, `Vercel`) passed. No merge has occurred, no deployment has occurred, no Production billing enabled, zero secrets exposed. Awaiting owner review and merge.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
-## Phase P1 Production billing repository wiring complete — 2026-08-30
+## Phase P1 Production billing repository wiring (PR #247 OPEN) — 2026-08-30
 
-* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_COMPLETE_AWAITING_PR`. All four targeted code changes are implemented and verified. Tests pass 11/11 (revenuecat-webhook) and all billing-checkout assertions. `git diff --check` clean.
-* **Changes:**
+* **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. All four targeted code changes implemented, committed, pushed, and PR #247 opened. Tests pass 11/11 (revenuecat-webhook), 6/6 (billing-checkout-deployment), 7/7 (deployment-hardening), 4/4 (appwrite-function-policy). `git diff --check` clean.
+* **Changes in PR #247 (10 files changed):**
   * `revenuecat-webhook/src/main.js`: `PRODUCT_TO_PLAN` extended additively with Production price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`). Sandbox entries preserved.
   * `.github/workflows/deploy-appwrite-hubs.yml`: `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 non-secret Production catalog ID env vars wired into deploy step.
-  * `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` extended to optionally sync `BILLING_PRODUCTION_PADDLE_API_KEY` and 4 Production catalog ID vars. Sandbox key guard unchanged.
-  * `tests/hubs/revenuecat-webhook.test.cjs` + `billing-checkout.test.cjs`: Focused Production catalog tests added.
+  * `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` and `run()` pre-deploy guard extended to fail closed if Production billing is configured without `BILLING_PRODUCTION_PADDLE_API_KEY`. Sandbox-only deploys remain compatible.
+  * `tests/hubs/`: Unit & deployment regression tests updated and passing.
+  * `Project Atlas/`: CHANGELOG, CURRENT_STATE, WHERE_WE_STOPPED reconciled.
 * **Status boundary:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false`. `paymentsEnabled: false`. No deployment, no console change.
-* **Next action:** Owner creates PR from `D:/WiseResume-TWC-sandbox-paddle-wiring` (branch `main`) and merges. After merge, proceed to Phase P2: deploy `billing-checkout` and `revenuecat-webhook` with Production variables via GitHub Actions workflow (`--only=billing-checkout,revenuecat-webhook`).
+* **Next action:** Owner reviews and merges PR #247 to `main`. After merge and separate owner authorization, proceed to Phase P2: deploy `billing-checkout` and `revenuecat-webhook` with Production variables via GitHub Actions workflow (`--only=billing-checkout,revenuecat-webhook`).
 
 ## WiseResume Production billing readiness audit complete — 2026-08-30
 
