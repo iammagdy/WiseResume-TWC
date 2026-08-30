@@ -1,7 +1,7 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` — Root cause identified: existing deployment workflow and helper script do not manage non-secret billing runtime gate variables (`BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER_READY`, `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`). Dedicated automation workflow (`.github/workflows/configure-billing-runtime.yml`), script (`scripts/configure_billing_runtime.cjs`), and unit tests implemented. PR open awaiting merge/verification. Live Appwrite runtime variables unchanged; Production billing remains strictly disabled.
+**Status:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` — Root cause identified and remediated in PR #251: existing deployment workflow and helper script do not manage non-secret billing runtime gate variables (`BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER_READY`, `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`). Hardened automation workflow (`.github/workflows/configure-billing-runtime.yml`), CLI script (`scripts/configure_billing_runtime.cjs`), read-only audit mode (`production-preflight-audit`), main-branch guard, concurrency serialization (`cancel-in-progress: false`), and unit tests implemented. PR open awaiting merge/verification. Live Appwrite runtime variables unchanged; Production billing remains strictly disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
@@ -10,23 +10,25 @@
 
 ## Payments Phase P4 Production billing runtime gate automation remediation — 2026-08-30
 
-* **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation implemented, PR open awaiting merge and live verification).
+* **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation & live-config safety hardening implemented, PR #251 open awaiting merge and live verification).
 * **Root Cause Identified:** The existing deployment workflow (`deploy-appwrite-hubs.yml`) and deploy helper script (`deploy_hubs.cjs`) sync secret keys and catalog IDs but do NOT expose or manage runtime environment gate variables. Redeploying function source code merely to toggle runtime variables is prohibited.
-* **Remediation Implemented:**
-  - Dedicated workflow created: `.github/workflows/configure-billing-runtime.yml`
-  - Dedicated CLI script created: `scripts/configure_billing_runtime.cjs`
-  - Unit tests added: `tests/scripts/configure_billing_runtime.test.cjs` (PASS)
+* **Remediation & Hardening Implemented:**
+  - Dedicated workflow created: `.github/workflows/configure-billing-runtime.yml` (env-mapped inputs, zero shell interpolation, `cancel-in-progress: false`, fail-closed `refs/heads/main` guard).
+  - Dedicated CLI script created: `scripts/configure_billing_runtime.cjs` (SDK `createVariable(fnId, varId, key, val)`, persisted API readback verification, repository automation marker requirement `WISERESUME_BILLING_RUNTIME_AUTOMATION=1`).
+  - Read-only preflight audit mode added: `production-preflight-audit` (zero mutations, safe metadata logging).
+  - Unit tests added: `tests/scripts/configure_billing_runtime.test.cjs` (14/14 PASS).
 * **Supported Modes Matrix:**
-  1. `production-smoke-open`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=true`, `ENABLED=true`, `APPROVED_ORIGIN` validated.
-  2. `production-smoke-lock`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=false`, `ENABLED=false`.
-  3. `production-access-enable`: `billing-checkout` locked; `BILLING_ACCESS_ENVIRONMENT=production` set on `ai-gateway`, `coupons`, `admin-devkit-data` (EXCLUDES `revenuecat-webhook`).
-  4. `emergency-prepayment-sandbox-restore`: Reverts `billing-checkout` to `sandbox` / `false` and resets access consumers to `sandbox`.
+  1. `production-preflight-audit`: Read-only preflight audit (zero mutations).
+  2. `production-smoke-open`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=true`, `ENABLED=true` (requires confirmation string, `ENABLED=true` set LAST, compensating lock on failure).
+  3. `production-smoke-lock`: Unconditional kill switch (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=production`).
+  4. `production-access-enable`: Forces checkout lock FIRST; then `BILLING_ACCESS_ENVIRONMENT=production` set on `ai-gateway`, `coupons`, `admin-devkit-data` (EXCLUDES `revenuecat-webhook`).
+  5. `emergency-prepayment-sandbox-restore`: Unconditional restore (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, consumer access envs $\rightarrow$ `sandbox`).
 * **Fail-Closed Safety:**
-  - Precondition check requires `BILLING_PRODUCTION_PADDLE_API_KEY` presence and exact Production catalog IDs on `billing-checkout`.
-  - Missing/invalid HTTPS origin throws `P4_APPROVED_ORIGIN_REQUIRES_EXECUTION_TIME_VERIFICATION`.
-  - Immediate readback verification fails closed on mismatch.
+  - Precondition check requires live remote `BILLING_PRODUCTION_PADDLE_API_KEY` presence metadata and exact live remote Production catalog IDs on `billing-checkout` (NO `process.env` fallback).
+  - Unverified origin blocks `smoke-open` with `P4_APPROVED_ORIGIN_REQUIRES_EXECUTION_TIME_VERIFICATION`.
+  - Immediate persisted readback verification fails closed on mismatch.
 * **Current Safety State:** Live Appwrite variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
-* **Next action:** Owner reviews and merges PR `feat/production-billing-runtime-gates`. After merge, execute mode verification prior to controlled smoke.
+* **Next action:** Owner reviews and merges PR #251 (`feat/production-billing-runtime-gates`). After merge, execute `production-preflight-audit` workflow dispatch prior to controlled smoke.
 
 ## Payments Phase P3 RevenueCat Production webhook routing verified — 2026-08-30
 

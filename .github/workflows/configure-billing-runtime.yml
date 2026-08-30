@@ -8,6 +8,7 @@ on:
         required: true
         type: choice
         options:
+          - production-preflight-audit
           - production-smoke-open
           - production-smoke-lock
           - production-access-enable
@@ -17,7 +18,7 @@ on:
         required: false
         type: string
       approved_origin:
-        description: 'Optional approved checkout HTTPS origin override (e.g. https://buy.paddle.com)'
+        description: 'Optional approved checkout HTTPS origin override'
         required: false
         type: string
 
@@ -26,7 +27,7 @@ permissions:
 
 concurrency:
   group: configure-billing-runtime-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false # Prohibit cancellation to guarantee in-flight compensating locks finish
 
 jobs:
   configure:
@@ -65,4 +66,8 @@ jobs:
           BILLING_PRODUCTION_PRO_PRODUCT_ID: pro_01m1924dqce7nd69khnakxftzw
           BILLING_PRODUCTION_PREMIUM_PRICE_ID: pri_01m192m6bwzvarmcr05c78by7r
           BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: pro_01m192jr9nzd6k5ysa6yhk5aq7
-        run: node scripts/configure_billing_runtime.cjs --mode="${{ inputs.mode }}" --confirm="${{ inputs.confirm_smoke_open }}" --approved-origin="${{ inputs.approved_origin }}"
+          WISERESUME_BILLING_RUNTIME_AUTOMATION: '1'
+          BILLING_RUNTIME_MODE: ${{ inputs.mode }}
+          BILLING_RUNTIME_CONFIRM: ${{ inputs.confirm_smoke_open }}
+          BILLING_RUNTIME_APPROVED_ORIGIN: ${{ inputs.approved_origin }}
+        run: node scripts/configure_billing_runtime.cjs

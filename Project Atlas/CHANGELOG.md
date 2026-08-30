@@ -2,10 +2,10 @@
 
 ## 2026-08-30 - Phase P4 Production billing runtime gate automation remediation
 
-- **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation implemented, PR open awaiting merge and live verification).
-- **Automation Remediation:** Created `.github/workflows/configure-billing-runtime.yml`, `scripts/configure_billing_runtime.cjs`, and unit tests `tests/scripts/configure_billing_runtime.test.cjs`.
-- **Supported Modes:** `production-smoke-open`, `production-smoke-lock`, `production-access-enable`, `emergency-prepayment-sandbox-restore`.
-- **Consumer Isolation & Fail-Closed Safety:** `BILLING_ACCESS_ENVIRONMENT` targets `ai-gateway`, `coupons`, and `admin-devkit-data` (EXCLUDES `revenuecat-webhook`). Preconditions validate `BILLING_PRODUCTION_PADDLE_API_KEY`, Production catalog IDs, and HTTPS approved origin. Readback mismatch fails closed.
+- **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation & live-config safety hardening implemented, PR #251 open awaiting merge and live verification).
+- **Automation & Hardening Remediation:** Created `.github/workflows/configure-billing-runtime.yml` (env-mapped inputs, zero shell interpolation, `cancel-in-progress: false`, fail-closed main guard), `scripts/configure_billing_runtime.cjs` (read-only preflight audit mode `production-preflight-audit`, live remote catalog enforcement without `process.env` fallbacks, repository automation marker requirement), and unit tests `tests/scripts/configure_billing_runtime.test.cjs` (14/14 PASS).
+- **Supported Modes:** `production-preflight-audit`, `production-smoke-open`, `production-smoke-lock`, `production-access-enable`, `emergency-prepayment-sandbox-restore`.
+- **Consumer Isolation & Fail-Closed Safety:** `BILLING_ACCESS_ENVIRONMENT` targets `ai-gateway`, `coupons`, and `admin-devkit-data` (EXCLUDES `revenuecat-webhook`). Preconditions validate live remote `BILLING_PRODUCTION_PADDLE_API_KEY` presence metadata and exact live remote Production catalog IDs. Readback mismatch fails closed.
 - **Integrity & Bounds:** Live Appwrite runtime variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero checkouts or real payments created.
 
 ## 2026-08-30 - Phase P3 RevenueCat Production webhook routing verified

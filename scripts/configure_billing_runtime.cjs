@@ -1,25 +1,9 @@
 'use strict';
 
 const sdk = require('node-appwrite');
-const fs = require('fs');
-const path = require('path');
-
-function loadEnvFile(fileName) {
-  const filePath = path.join(process.cwd(), fileName);
-  if (!fs.existsSync(filePath)) return;
-  const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue;
-    const [key, ...rest] = trimmed.split('=');
-    if (!key || process.env[key]) continue;
-    process.env[key] = rest.join('=').replace(/^["']|["']$/g, '');
-  }
-}
-
-loadEnvFile('.env.deploy');
 
 const ALLOWED_MODES = new Set([
+  'production-preflight-audit',
   'production-smoke-open',
   'production-smoke-lock',
   'production-access-enable',
@@ -41,10 +25,10 @@ const PROD_CATALOG = Object.freeze({
 
 const CONFIRMATION_REQUIRED_FOR_OPEN = 'OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT';
 
-function parseArgs(argv = process.argv) {
-  let mode = '';
-  let approvedOriginOverride = '';
-  let confirm = '';
+function parseArgs(argv = process.argv, env = process.env) {
+  let mode = env.BILLING_RUNTIME_MODE || '';
+  let approvedOriginOverride = env.BILLING_RUNTIME_APPROVED_ORIGIN || '';
+  let confirm = env.BILLING_RUNTIME_CONFIRM || '';
 
   for (const arg of argv) {
     if (arg.startsWith('--mode=')) {
@@ -56,11 +40,21 @@ function parseArgs(argv = process.argv) {
     }
   }
 
-  if (!confirm && process.env.CONFIRM_SMOKE_OPEN) {
-    confirm = process.env.CONFIRM_SMOKE_OPEN.trim();
+  return { mode, approvedOriginOverride, confirm };
+}
+
+function assertExecutionEnvironment(env = process.env) {
+  const isAutomationMarker = env.WISERESUME_BILLING_RUNTIME_AUTOMATION === '1';
+  const isCI = env.GITHUB_ACTIONS === 'true';
+  const isMain = env.GITHUB_REF === 'refs/heads/main';
+
+  if (!isAutomationMarker) {
+    throw new Error('[FATAL EXECUTION GUARD] Execution blocked: script must be executed via approved repository automation (WISERESUME_BILLING_RUNTIME_AUTOMATION=1).');
   }
 
-  return { mode, approvedOriginOverride, confirm };
+  if (isCI && !isMain) {
+    throw new Error(`[FATAL EXECUTION GUARD] Execution blocked: billing runtime automation can only run on refs/heads/main. Current ref: ${env.GITHUB_REF}`);
+  }
 }
 
 function getAppwriteClients(env = process.env) {
@@ -116,25 +110,31 @@ async function setOrUpdateVariable(functions, functionId, key, value) {
 }
 
 function validateProductionPreconditions(billingCheckoutVars, approvedOriginOverride = '') {
-  // SECRET PRESENCE METADATA-ONLY CHECK
+  // 1. SECRET PRESENCE METADATA-ONLY CHECK
   const prodKeyVar = billingCheckoutVars.find(v => v.key === 'BILLING_PRODUCTION_PADDLE_API_KEY');
   if (!prodKeyVar) {
     throw new Error('Precondition failed: BILLING_PRODUCTION_PADDLE_API_KEY is MISSING on billing-checkout function');
   }
-  console.log('[SECRET METADATA] BILLING_PRODUCTION_PADDLE_API_KEY = PRESENT');
+  const isSecretFlag = prodKeyVar.secret !== undefined
+    ? `secret_flag=${Boolean(prodKeyVar.secret)}`
+    : prodKeyVar.type !== undefined
+      ? `type=${prodKeyVar.type}`
+      : 'secret_flag_unsupported';
+  console.log(`[SECRET METADATA] BILLING_PRODUCTION_PADDLE_API_KEY = PRESENT (${isSecretFlag})`);
 
-  // CATALOG PRECONDITIONS
+  // 2. LIVE REMOTE PRODUCTION CATALOG ENFORCEMENT (NO process.env FALLBACK)
   for (const [catalogKey, expectedValue] of Object.entries(PROD_CATALOG)) {
     const found = billingCheckoutVars.find(v => v.key === catalogKey);
-    const value = found ? found.value : process.env[catalogKey];
-    if (value !== expectedValue) {
-      throw new Error(`Precondition failed: ${catalogKey} mismatch. Expected ${expectedValue}, found ${value || 'missing'}`);
+    if (!found || !found.value) {
+      throw new Error(`Precondition failed: Live remote variable ${catalogKey} is MISSING on billing-checkout function.`);
+    }
+    if (found.value !== expectedValue) {
+      throw new Error(`Precondition failed: Live remote variable ${catalogKey} mismatch. Expected ${expectedValue}, found ${found.value}`);
     }
   }
 
-  // APPROVED ORIGIN PRECONDITION
+  // 3. APPROVED ORIGIN PRECONDITION
   const foundOrigin = approvedOriginOverride ||
-    process.env.BILLING_CHECKOUT_APPROVED_ORIGIN ||
     billingCheckoutVars.find(v => v.key === 'BILLING_CHECKOUT_APPROVED_ORIGIN')?.value ||
     '';
 
@@ -144,6 +144,41 @@ function validateProductionPreconditions(billingCheckoutVars, approvedOriginOver
   }
 
   return sanitizedOrigin;
+}
+
+async function runProductionPreflightAudit(functions, dependencies = {}) {
+  console.log('--- [READ-ONLY PREFLIGHT AUDIT START] ---');
+  const auditReport = { timestamp: new Date().toISOString(), functions: {} };
+
+  const allTargets = ['billing-checkout', ...ACCESS_CONSUMER_FUNCTIONS, 'revenuecat-webhook'];
+
+  for (const fnId of allTargets) {
+    const vars = dependencies.varsMap?.[fnId] || await fetchFunctionVariables(functions, fnId);
+    auditReport.functions[fnId] = {};
+
+    for (const v of vars) {
+      const isSecret = v.key.includes('KEY') || v.key.includes('SECRET');
+      auditReport.functions[fnId][v.key] = isSecret ? '[PRESENT]' : v.value;
+      if (isSecret) {
+        const flagInfo = v.secret !== undefined ? `secret_flag=${v.secret}` : 'secret_flag_unsupported';
+        console.log(`[AUDIT METADATA] ${fnId} -> ${v.key}: PRESENT (${flagInfo})`);
+      } else {
+        console.log(`[AUDIT CONFIG] ${fnId} -> ${v.key}: ${v.value}`);
+      }
+    }
+  }
+
+  const bcVars = auditReport.functions['billing-checkout'] || {};
+  const hasProdKey = Boolean(bcVars['BILLING_PRODUCTION_PADDLE_API_KEY']);
+  const proPrice = bcVars['BILLING_PRODUCTION_PRO_PRICE_ID'];
+  const approvedOrigin = bcVars['BILLING_CHECKOUT_APPROVED_ORIGIN'] || '[NOT_CONFIGURED]';
+
+  console.log(`[AUDIT SUMMARY] Paddle Prod Key: ${hasProdKey ? 'PRESENT' : 'MISSING'}`);
+  console.log(`[AUDIT SUMMARY] Pro Price ID: ${proPrice || 'MISSING'}`);
+  console.log(`[AUDIT SUMMARY] Approved Origin: ${approvedOrigin}`);
+  console.log('--- [READ-ONLY PREFLIGHT AUDIT COMPLETE - ZERO MUTATIONS PERFORMED] ---');
+
+  return auditReport;
 }
 
 async function engageCompensatingLock(functions) {
@@ -167,6 +202,10 @@ async function configureBillingRuntime({ mode, approvedOriginOverride, confirm }
   console.log(`Starting billing runtime configuration for mode: ${mode}`);
 
   const functions = dependencies.functions || getAppwriteClients().functions;
+
+  if (mode === 'production-preflight-audit') {
+    return await runProductionPreflightAudit(functions, dependencies);
+  }
 
   if (mode === 'production-smoke-open') {
     if (confirm !== CONFIRMATION_REQUIRED_FOR_OPEN) {
@@ -235,6 +274,7 @@ async function configureBillingRuntime({ mode, approvedOriginOverride, confirm }
 }
 
 async function main() {
+  assertExecutionEnvironment();
   const { mode, approvedOriginOverride, confirm } = parseArgs();
   await configureBillingRuntime({ mode, approvedOriginOverride, confirm });
 }
@@ -252,7 +292,9 @@ module.exports = {
   PROD_CATALOG,
   CONFIRMATION_REQUIRED_FOR_OPEN,
   parseArgs,
+  assertExecutionEnvironment,
   validateProductionPreconditions,
+  runProductionPreflightAudit,
   configureBillingRuntime,
   setOrUpdateVariable,
 };
