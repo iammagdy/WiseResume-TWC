@@ -1,11 +1,19 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-29
-**Status:** `PROVIDER_DIAGNOSTIC_RUNTIME_READY` — the public Sandbox implementation, environment isolation, additive schema, and targeted `billing-checkout` deployment are complete. The reservation TTL root cause is fixed; provider-boundary diagnostics are now active. Checkout and Production billing remain disabled pending one separately authorized controlled Pro diagnostic retry.
+**Last Verified:** 2026-08-30
+**Status:** `SANDBOX_PADDLE_CREDENTIAL_WIRED_RUNTIME_READY_FOR_CONTROLLED_RETRY` — The missing runtime credential root cause (`provider.runtime_configuration` / `missing_runtime_credential`) was resolved by wiring `BILLING_SANDBOX_PADDLE_API_KEY` into `.github/workflows/deploy-appwrite-hubs.yml` and `scripts/deploy_hubs.cjs` via PR #238 (`4cec8a5a11f4910234bfde7d4be9f008abdf4cc8`). Targeted Appwrite workflow `33300882649` deployed `billing-checkout` (Active deployment: `6a93e5480fd534667144` on Node-22). Live presence of `BILLING_SANDBOX_PADDLE_API_KEY` is verified safely. Live scopes remain `[databases.write, documents.read, documents.write]`. Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## WiseResume Sandbox Paddle credential wiring & deployment — 2026-08-30
+
+* **Verdict:** `SANDBOX_PADDLE_CREDENTIAL_WIRED_RUNTIME_READY_FOR_CONTROLLED_RETRY`. The confirmed missing-credential root cause is resolved with repository secret attachment. PR [#238](https://github.com/iammagdy/WiseResume-TWC/pull/238) merged at `4cec8a5a11f4910234bfde7d4be9f008abdf4cc8`.
+* **Deployment and Verification:** Workflow `33300882649` deployed only `billing-checkout` (Active: `6a93e5480fd534667144` on Node-22). Variable presence of `BILLING_SANDBOX_PADDLE_API_KEY` is confirmed via safe presence metadata. Scopes remain `databases.write`, `documents.read`, `documents.write`.
+* **Safety & Gates:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains disabled. Zero secret values were exposed. No checkout, provider transaction, RevenueCat ingestion, or entitlement/credit mutation occurred.
+* **Next action:** Owner must separately authorize exactly one controlled Pro Sandbox diagnostic retry. Checkout must be disabled immediately on any failure.
+* **Report:** [`reports/2026-08-30-sandbox-paddle-credential-wired-closeout.md`](./reports/2026-08-30-sandbox-paddle-credential-wired-closeout.md)
 
 ## WiseResume Sandbox provider-boundary diagnostic deployment — 2026-08-29
 

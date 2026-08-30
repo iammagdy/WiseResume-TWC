@@ -1,5 +1,12 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-30 - Sandbox Paddle runtime credential wiring and deployment
+
+- **Verdict:** `SANDBOX_PADDLE_CREDENTIAL_WIRED_RUNTIME_READY_FOR_CONTROLLED_RETRY`. Confirmed missing-credential root cause (`provider.runtime_configuration` / `missing_runtime_credential`) was resolved by wiring `BILLING_SANDBOX_PADDLE_API_KEY` into `.github/workflows/deploy-appwrite-hubs.yml` and `scripts/deploy_hubs.cjs` via PR #238 (`4cec8a5a11f4910234bfde7d4be9f008abdf4cc8`).
+- **Deployment and Verification:** Targeted workflow `33300882649` deployed only `billing-checkout` (Active deployment: `6a93e5480fd534667144` on Node-22). Live presence of `BILLING_SANDBOX_PADDLE_API_KEY` is confirmed via safe presence metadata. Function scopes remain `[databases.write, documents.read, documents.write]`.
+- **Safety & Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains disabled. Zero secret values were exposed. No checkout, provider transaction, RevenueCat ingestion, or entitlement/credit mutation occurred.
+- **Report:** [`reports/2026-08-30-sandbox-paddle-credential-wired-closeout.md`](./reports/2026-08-30-sandbox-paddle-credential-wired-closeout.md)
+
 ## 2026-08-29 - Sanitized provider-boundary diagnostics deployed
 
 - **Verdict:** `PROVIDER_DIAGNOSTIC_RUNTIME_READY`. Provider root cause remains `UNPROVEN`; the previously observed generic provider failure can occur during provider creation, validation, or post-provider Appwrite persistence.
