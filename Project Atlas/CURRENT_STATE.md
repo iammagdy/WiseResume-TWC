@@ -1,20 +1,21 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `PRO_SANDBOX_TRANSACTION_CREATED_READY_FOR_COMPLETION` — Exactly one controlled Pro Sandbox checkout attempt was executed for disposable QA user `6a93e7800015d158e4d6` under owner authorization. `billing-checkout` execution `6a93e7c28b46344ccbdd` returned HTTP 200 / success and created Paddle Sandbox transaction `txn_01m18w2n8ge1a09wk0fm4c434s` matching Pro catalog (`pri_01m0fnjspex6yqqf6w9v9apaxg` / `pro_01m0fn08h7tmzm5cphvcvd30g6`). Session `session_bb21a6b59caad4283bd8bd537cbf` was persisted with state `created`. Checkout gate was immediately restored to `BILLING_CHECKOUT_ENABLED=false`. Production billing remains disabled.
+**Status:** `REVENUECAT_ACTIVE_APPWRITE_RECONCILIATION_BLOCKED` — Under owner authorization, the existing Pro Sandbox transaction was completed in Paddle Sandbox (`checkout.completed`). Paddle automatically notified RevenueCat Sandbox, and RevenueCat dispatched its lifecycle webhook to Appwrite Function `revenuecat-webhook` (execution `6a93eb0c83a6eba0bba8`). The webhook was rejected with HTTP 401 due to a secret configuration mismatch (`token_length=64 secret_configured=yes secret_length=69 lengths_equal=no`). Appwrite state remains unmutated (Free plan / 0 ledger rows). Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
 
-## Payments controlled Pro Sandbox retry — 2026-08-30
+## Payments Pro Sandbox payment completion & webhook reconciliation diagnostic — 2026-08-30
 
-* **Verdict:** `PRO_SANDBOX_TRANSACTION_CREATED_READY_FOR_COMPLETION`. Under explicit authorization, `BILLING_CHECKOUT_ENABLED` was temporarily enabled and exactly one Pro checkout attempt was performed.
-* **Execution & Provider Result:** Execution `6a93e7c28b46344ccbdd` succeeded (HTTP 200). Outbound Paddle Sandbox API request succeeded and created transaction `txn_01m18w2n8ge1a09wk0fm4c434s` (1 item, Pro product/price, quantity 1, automatic collection, environment `sandbox`, canonical custom data mapping to user `6a93e7800015d158e4d6`).
-* **Appwrite State:** Session `session_bb21a6b59caad4283bd8bd537cbf` persisted to `billing_checkout_sessions` with state `created`. Zero manual mutations were applied; QA account currently remains Free pending payment completion.
-* **Gate Restoration:** `BILLING_CHECKOUT_ENABLED=false` was restored immediately post-attempt and verified. Production billing remains disabled.
-* **Report:** [`reports/2026-08-30-controlled-pro-sandbox-retry-report.md`](./reports/2026-08-30-controlled-pro-sandbox-retry-report.md)
+* **Verdict:** `REVENUECAT_ACTIVE_APPWRITE_RECONCILIATION_BLOCKED`. Test payment on the authorized Pro Sandbox transaction was completed in Paddle Sandbox (`checkout.completed`).
+* **RevenueCat & Webhook Result:** RevenueCat Sandbox ingested the purchase and dispatched its lifecycle webhook to Appwrite Function `revenuecat-webhook`. Execution `6a93eb0c83a6eba0bba8` rejected the request with HTTP 401 because the incoming bearer token length (64) does not match the configured Appwrite secret length (69).
+* **Appwrite State:** Remained unmutated (`free` plan, 0 ledger rows, 5 daily credits). No manual grants were applied.
+* **Gate & Production Safety:** `BILLING_CHECKOUT_ENABLED=false` remains disabled; Production billing remains disabled.
+* **Next Action:** Align the authorization token in RevenueCat Sandbox Webhook settings with the `REVENUECAT_WEBHOOK_SECRET` variable in Appwrite Function `revenuecat-webhook`, then trigger re-delivery of the initial purchase event from RevenueCat.
+* **Report:** [`reports/2026-08-30-pro-sandbox-payment-completion-diagnostic-closeout.md`](./reports/2026-08-30-pro-sandbox-payment-completion-diagnostic-closeout.md)
 
 ## Payments Sandbox Paddle credential wiring & deployment — 2026-08-30
 
