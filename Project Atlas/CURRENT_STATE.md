@@ -8,6 +8,14 @@
 
 ---
 
+## Payments Production billing readiness audit complete — 2026-08-30
+
+* **Verdict:** `PRODUCTION_BILLING_READINESS_WITH_BLOCKERS`. Read-only audit completed.
+* **Backend Readiness:** `billing-checkout` and `revenuecat-webhook` functions, schemas, security bounds, and resolution logic are 100% production-ready.
+* **Blockers:** Production Paddle API key, catalog price/product IDs, GitHub workflow secret exposure, `revenuecat-webhook` product mapping table update, and Production RevenueCat configuration are required from owner before production launch.
+* **Current boundary:** Production billing remains strictly `DISABLED`. Zero secret values exposed; zero production mutations performed.
+* **Report:** [`reports/2026-08-30-production-billing-readiness-audit-closeout.md`](./reports/2026-08-30-production-billing-readiness-audit-closeout.md)
+
 ## Payments Ultimate Sandbox end-to-end lifecycle verified — 2026-08-30
 
 * **Verdict:** `ULTIMATE_SANDBOX_END_TO_END_VERIFIED`. Complete end-to-end verification succeeded.
