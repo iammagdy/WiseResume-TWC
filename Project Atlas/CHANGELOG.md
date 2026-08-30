@@ -1,5 +1,12 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-30 - Pro Sandbox payment completion and RevenueCat webhook reconciliation diagnostic
+
+- **Verdict:** `REVENUECAT_ACTIVE_APPWRITE_RECONCILIATION_BLOCKED`. Under owner authorization, test payment was completed in Paddle Sandbox for the existing authorized Pro transaction (`checkout.completed`).
+- **Lifecycle & Diagnostic:** Paddle notified RevenueCat Sandbox, and RevenueCat dispatched its lifecycle webhook to Appwrite Function `revenuecat-webhook`. Execution `6a93eb0c83a6eba0bba8` rejected the webhook with HTTP 401 due to a secret configuration mismatch (`token_length=64 secret_configured=yes secret_length=69 lengths_equal=no`).
+- **Appwrite State & Gates:** Appwrite state remained unmutated (`free` plan / 0 ledger rows) with zero artificial grants. `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
+- **Report:** [`reports/2026-08-30-pro-sandbox-payment-completion-diagnostic-closeout.md`](./reports/2026-08-30-pro-sandbox-payment-completion-diagnostic-closeout.md)
+
 ## 2026-08-30 - Controlled Pro Sandbox checkout attempt and Paddle transaction creation
 
 - **Verdict:** `PRO_SANDBOX_TRANSACTION_CREATED_READY_FOR_COMPLETION`. Under explicit owner authorization, `BILLING_CHECKOUT_ENABLED` was temporarily enabled and exactly one Pro checkout attempt was performed for disposable QA user `6a93e7800015d158e4d6`.
