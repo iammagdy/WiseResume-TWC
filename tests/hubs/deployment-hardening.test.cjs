@@ -77,6 +77,15 @@ test('the AI runtime receipt schema is provisioned before any receipt-writing hu
   }
 });
 
+test('the deployment workflow passes BILLING_SANDBOX_PADDLE_API_KEY to deploy_hubs.cjs and avoids production keys', () => {
+  const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
+  assert.match(
+    workflow,
+    /BILLING_SANDBOX_PADDLE_API_KEY:\s*\$\{\{\s*secrets\.BILLING_SANDBOX_PADDLE_API_KEY\s*\}\}/,
+  );
+  assert.doesNotMatch(workflow, /BILLING_PRODUCTION_PADDLE_API_KEY/);
+});
+
 test('every deployable hub lockfile is present and tracked by Git', () => {
   const script = read('scripts/deploy_hubs.cjs');
   assert.match(script, /missing package-lock\.json/);
