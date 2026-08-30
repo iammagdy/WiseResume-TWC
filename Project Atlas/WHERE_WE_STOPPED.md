@@ -1,13 +1,25 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-30
-**Status:** `P2_SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE` — PR #247 was merged to `main` (`78c0afc9`). P2 workflow run `33309686634` failed pre-deploy at Step 7 (`Ensure source hash manifest is committed`) because `revenuecat-webhook/src/main.js` hash changed without updating `src/lib/devkit/sourceHashes.generated.json`. Recovery PR opened to sync the manifest. Zero Appwrite Functions deployed, zero schema changes, zero database writes. Production billing remains strictly disabled.
+**Status:** `P2_TARGETED_DEPLOYMENT_VERIFIED_WITH_WARNINGS` — Targeted deployment of `billing-checkout` (`6a941dfe80f78ba25dbf`) and `revenuecat-webhook` (`6a941e0dbd0c2cf9ce40`) succeeded via workflow run `33310801069` on `main` (`ba5a785e`). Node-22 active, safe presence of `BILLING_PRODUCTION_PADDLE_API_KEY` and Production catalog IDs confirmed, RevenueCat source hash `704b896e...` verified, schema reconciliation succeeded. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
-## Phase P2 Appwrite source hash manifest recovery (PR OPEN) — 2026-08-30
+## Phase P2 Appwrite targeted deployment complete — 2026-08-30
+
+* **Verdict:** `P2_TARGETED_DEPLOYMENT_VERIFIED_WITH_WARNINGS`. Workflow run `33310801069` (`target=billing-checkout,revenuecat-webhook`) completed successfully on `main` (`ba5a785ee54a84194fac8630af3370f9f3a9ccf0`).
+* **Deployments:**
+  - `billing-checkout`: Active deployment ID `6a941dfe80f78ba25dbf`, Node-22, status `ready`. `BILLING_PRODUCTION_PADDLE_API_KEY` presence confirmed (value never exposed). Four Production catalog IDs synced (`pri_01m192gqtw1cxrkctafjcahmfe`, `pro_01m1924dqce7nd69khnakxftzw`, `pri_01m192m6bwzvarmcr05c78by7r`, `pro_01m192jr9nzd6k5ysa6yhk5aq7`).
+  - `revenuecat-webhook`: Active deployment ID `6a941e0dbd0c2cf9ce40`, Node-22, status `ready`. Deployed source hash parity confirmed (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`). `REVENUECAT_WEBHOOK_AUTH_SECRET` presence confirmed.
+* **Schema Status:** `SCHEMA_RECONCILIATION_SUCCEEDED` — RevenueCat provider-state schemas and billing checkout schemas reported ready. No schema mutation was observed or reported.
+* **Historical Run Note:** Initial P2 workflow `33309686634` failed pre-deploy at Step 7 due to stale manifest before PR #248 merged; no Appwrite Functions deployed in that run.
+* **Safety Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. `BILLING_CHECKOUT_PROVIDER_READY=false`. `BILLING_CHECKOUT_ENVIRONMENT=sandbox`. `BILLING_ACCESS_ENVIRONMENT` unconfigured. Frontend `paymentsEnabled: false`. DB counts: `revenuecat_event_ledger` 2/2, `revenuecat_subscription_state` 2/2. Zero checkouts or payments created. Production billing remains disabled.
+* **Warnings / Operational Risk:** Production RevenueCat webhook delivery/routing remains `UNVERIFIED` / `OWNER_ACTION_REQUIRED`. No Production transaction authorized. Public billing disabled.
+* **Next action:** Verify RevenueCat Production webhook routing to `https://revenuecat-webhook.wiseresume.app` via non-secret evidence before any controlled transaction phase.
+
+## Phase P2 Appwrite source hash manifest recovery (PR #248 MERGED @ ba5a785e) — 2026-08-30
 
 * **Verdict:** `SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE`. Source hash manifest regenerated (`revenuecat-webhook` hash updated to `704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
 * **Failed Run:** Workflow `33309686634` (`target=billing-checkout,revenuecat-webhook`) failed pre-deploy at Step 7 (`git diff --exit-code -- src/lib/devkit/sourceHashes.generated.json`).

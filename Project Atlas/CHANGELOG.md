@@ -1,6 +1,16 @@
 # WiseResume Atlas Master Changelog
 
-## 2026-08-30 - Fix Appwrite source hash manifest for revenuecat-webhook (Recovery PR)
+## 2026-08-30 - Phase P2 Appwrite targeted deployment complete
+
+- **Verdict:** `P2_TARGETED_DEPLOYMENT_VERIFIED_WITH_WARNINGS`. Targeted deployment workflow `33310801069` on `main` (`ba5a785ee54a84194fac8630af3370f9f3a9ccf0`) completed with `success` for targets `billing-checkout,revenuecat-webhook`.
+- **Appwrite Deployments:** `billing-checkout` (`6a941dfe80f78ba25dbf`, Node-22, ready) and `revenuecat-webhook` (`6a941e0dbd0c2cf9ce40`, Node-22, ready).
+- **Wiring & Secrets:** Safe presence of `BILLING_PRODUCTION_PADDLE_API_KEY` and 4 Production catalog IDs synced to `billing-checkout`. `REVENUECAT_WEBHOOK_AUTH_SECRET` presence synced to `revenuecat-webhook`. `revenuecat-webhook` deployed source hash verified (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
+- **Schema Reconciliation:** `SCHEMA_RECONCILIATION_SUCCEEDED` — RevenueCat provider-state schemas and billing checkout schemas reported ready. No schema mutation was observed or reported.
+- **Historical Run Record:** Original run `33309686634` recorded as failed pre-deploy attempt (stale source hash manifest prior to PR #248 merge).
+- **Integrity & Safety Bounds:** `BILLING_CHECKOUT_ENABLED=false` preserved. `BILLING_CHECKOUT_PROVIDER_READY=false`. `BILLING_CHECKOUT_ENVIRONMENT=sandbox`. `BILLING_ACCESS_ENVIRONMENT` unconfigured. Frontend `paymentsEnabled: false`. DB counts 2/2 before/after. Production billing remains strictly disabled. Zero real checkouts/payments.
+- **Next Action:** RevenueCat Production webhook routing verification (`OWNER_ACTION_REQUIRED`).
+
+## 2026-08-30 - Fix Appwrite source hash manifest for revenuecat-webhook (PR #248 MERGED @ ba5a785e)
 
 - **Verdict:** `SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE`. Regenerated `src/lib/devkit/sourceHashes.generated.json` to reflect `revenuecat-webhook` source changes from PR #247 (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
 - **Context:** Initial P2 workflow run `33309686634` on target `billing-checkout,revenuecat-webhook` failed pre-deploy at Step 7 (`Ensure source hash manifest is committed`) because PR #247 modified `revenuecat-webhook/src/main.js` without updating the manifest. Zero Appwrite Functions deployed, zero schema changes, zero database mutations.

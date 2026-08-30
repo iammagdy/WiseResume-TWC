@@ -54,10 +54,14 @@ Appwrite Functions are deployed independently from the frontend application usin
 
 ### Phase P1/P2 Production Billing Wiring & Deployment Status — 2026-08-30
 
-* **PR #247 Merged:** PR #247 merged into `main` at `78c0afc9c9bdc7c962d57f6fee1c8ad20e408526` with Production Paddle catalog, secret fail-closed deploy enforcement, and RevenueCat Production price mappings.
-* **Phase P2 Attempt:** Workflow run `33309686634` (`target=billing-checkout,revenuecat-webhook`) failed pre-deploy at Step 7 (`Ensure source hash manifest is committed`) due to out-of-sync `src/lib/devkit/sourceHashes.generated.json`. Zero Appwrite Functions deployed, zero schema changes, zero database mutations.
-* **Recovery PR:** Source hash manifest regenerated (`revenuecat-webhook` hash updated to `704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
-* **Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled.
+* **PR #247 & #248 Merged:** PR #247 merged to `main` (`78c0afc9`) with Production Paddle catalog & fail-closed deploy guards. PR #248 merged to `main` (`ba5a785e`) updating source hash manifest for `revenuecat-webhook` (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
+* **Phase P2 Successful Run:** Workflow run `33310801069` on `main` (`ba5a785e`) succeeded for target `billing-checkout,revenuecat-webhook`.
+* **Active Deployments:**
+  - `billing-checkout`: `6a941dfe80f78ba25dbf`, Node-22, status `ready`. `BILLING_PRODUCTION_PADDLE_API_KEY` presence confirmed (value never exposed). Four Production catalog IDs synced.
+  - `revenuecat-webhook`: `6a941e0dbd0c2cf9ce40`, Node-22, status `ready`. Deployed source hash `704b896e...` verified. `REVENUECAT_WEBHOOK_AUTH_SECRET` presence confirmed.
+* **Schema Status:** `SCHEMA_RECONCILIATION_SUCCEEDED` — Provider-state and billing checkout schemas reported ready. No schema mutation observed or reported.
+* **Historical Run Note:** Initial run `33309686634` failed pre-deploy at Step 7 before PR #248 merged; 0 Appwrite Functions deployed in that run.
+* **Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled.
 
 ### Current WiseResume Payments Sandbox runtime readiness — 2026-08-28
 
