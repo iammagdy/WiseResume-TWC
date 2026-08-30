@@ -52,6 +52,13 @@ Appwrite Functions are deployed independently from the frontend application usin
 * **Appwrite Deployments:** `job-feed-sync` `6a637988c75fbc22829a`, `get-remote-jobs` `6a63799d79e6a27a64f3`, and `track-job-action` `6a6379ae192857be7a6e`; all `ready`.
 * **Verification:** 28/28 live policy matches; anonymous probes to internal-only and authenticated-user targets were denied; one authorized sync completed. Browser-only authenticated flows remain pending.
 
+### Phase P1/P2 Production Billing Wiring & Deployment Status — 2026-08-30
+
+* **PR #247 Merged:** PR #247 merged into `main` at `78c0afc9c9bdc7c962d57f6fee1c8ad20e408526` with Production Paddle catalog, secret fail-closed deploy enforcement, and RevenueCat Production price mappings.
+* **Phase P2 Attempt:** Workflow run `33309686634` (`target=billing-checkout,revenuecat-webhook`) failed pre-deploy at Step 7 (`Ensure source hash manifest is committed`) due to out-of-sync `src/lib/devkit/sourceHashes.generated.json`. Zero Appwrite Functions deployed, zero schema changes, zero database mutations.
+* **Recovery PR:** Source hash manifest regenerated (`revenuecat-webhook` hash updated to `704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
+* **Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled.
+
 ### Current WiseResume Payments Sandbox runtime readiness — 2026-08-28
 
 * **Diagnostic deployment:** PR #229 merged at `88b411af877d9cd33a098508f27e0ef9f080e849`; targeted workflow `33206687391` deployed only `billing-checkout`. The active deployment is `6a91ea0e63105206adf6`, Node-22, Manual source. It adds only sanitized allowlisted diagnostics for unexpected `AppwriteCheckoutStore.reserve()` failures; public error behavior is unchanged.

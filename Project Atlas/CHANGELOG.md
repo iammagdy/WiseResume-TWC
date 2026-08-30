@@ -1,6 +1,13 @@
 # WiseResume Atlas Master Changelog
 
-## 2026-08-30 - Phase P1 Production billing repository wiring (PR #247 OPEN)
+## 2026-08-30 - Fix Appwrite source hash manifest for revenuecat-webhook (Recovery PR)
+
+- **Verdict:** `SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE`. Regenerated `src/lib/devkit/sourceHashes.generated.json` to reflect `revenuecat-webhook` source changes from PR #247 (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
+- **Context:** Initial P2 workflow run `33309686634` on target `billing-checkout,revenuecat-webhook` failed pre-deploy at Step 7 (`Ensure source hash manifest is committed`) because PR #247 modified `revenuecat-webhook/src/main.js` without updating the manifest. Zero Appwrite Functions deployed, zero schema changes, zero database mutations.
+- **Integrity & Bounds:** `BILLING_CHECKOUT_ENABLED=false` unchanged. `paymentsEnabled: false` unchanged. Production billing remains strictly disabled.
+- **Next Action:** Merge this recovery PR, then separately authorize a NEW Phase P2 targeted deployment run.
+
+## 2026-08-30 - Phase P1 Production billing repository wiring (PR #247 MERGED to main @ 78c0afc9)
 
 - **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. Repository-side Production billing wiring implementation is committed and pushed on branch `fix/production-billing-wiring` (commit `134c0288551d6474e0f60e87b2037ce84ac856a0`). Pull Request #247 is OPEN against `main`.
 - **Changes in PR #247 (10 files changed):**

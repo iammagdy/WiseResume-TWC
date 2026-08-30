@@ -1,14 +1,21 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE` — Phase P1 repository-side Production billing wiring is committed and pushed on branch `fix/production-billing-wiring` (commit `134c0288551d6474e0f60e87b2037ce84ac856a0`). Pull Request #247 is OPEN against `main` (10 files changed). No merge has occurred, no deployment has occurred, no Production billing enabled, zero secrets exposed. Awaiting owner PR review and merge.
+**Status:** `P2_SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE` — PR #247 was merged to `main` (`78c0afc9`). The initial P2 targeted workflow run `33309686634` failed pre-deploy at Step 7 (`Ensure source hash manifest is committed`) due to un-manifested source changes in `revenuecat-webhook/src/main.js`. Source hash manifest `src/lib/devkit/sourceHashes.generated.json` has been recomputed. Zero Appwrite Functions deployed, zero schema changes, zero database writes. Production billing remains strictly disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
 
-## Payments Phase P1 Production billing repository wiring (PR #247 OPEN) — 2026-08-30
+## Payments Phase P2 Appwrite source hash manifest recovery (PR OPEN) — 2026-08-30
+
+* **Verdict:** `SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE`. Source hash manifest recomputed locally via `node scripts/compute-source-hashes.mjs`.
+* **Root Cause:** PR #247 modified `appwrite-hubs/revenuecat-webhook/src/main.js` without updating `src/lib/devkit/sourceHashes.generated.json`. Workflow `33309686634` (`target=billing-checkout,revenuecat-webhook`) failed pre-deploy at Step 7.
+* **Current boundary:** 0 Appwrite Functions deployed, 0 schema changes, 0 database writes. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains disabled.
+* **Next action:** Merge this recovery PR, then separately authorize a NEW Phase P2 targeted deployment run.
+
+## Payments Phase P1 Production billing repository wiring (PR #247 MERGED @ 78c0afc9) — 2026-08-30
 
 * **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. Repository-side Production billing wiring implemented, committed, pushed, and PR #247 opened.
 * **Changes in PR #247 (10 files changed):**
