@@ -21,10 +21,10 @@
 
 ## Phase P2 Appwrite source hash manifest recovery (PR #248 MERGED @ ba5a785e) — 2026-08-30
 
-* **Verdict:** `SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE`. Source hash manifest regenerated (`revenuecat-webhook` hash updated to `704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
+* **Verdict:** `SOURCE_HASH_RECOVERY_MERGED_TO_MAIN`. Source hash manifest regenerated (`revenuecat-webhook` hash updated to `704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`) and merged via PR #248 (`ba5a785e`).
 * **Failed Run:** Workflow `33309686634` (`target=billing-checkout,revenuecat-webhook`) failed pre-deploy at Step 7 (`git diff --exit-code -- src/lib/devkit/sourceHashes.generated.json`).
-* **Status Boundary:** 0 Appwrite Functions deployed, 0 schema changes, 0 database writes. `BILLING_CHECKOUT_ENABLED=false` preserved.
-* **Next action:** Merge this recovery PR to `main`, then separately authorize a NEW Phase P2 targeted deployment run.
+* **Status Boundary:** 0 Appwrite Functions deployed in run `33309686634`. `BILLING_CHECKOUT_ENABLED=false` preserved.
+* **Next action:** [COMPLETED] PR #248 merged to main (`ba5a785e`) and subsequent NEW Phase P2 targeted deployment run `33310801069` succeeded.
 
 ## Phase P1 Production billing repository wiring (PR #247 MERGED @ 78c0afc9) — 2026-08-30
 
@@ -35,14 +35,14 @@
   * `scripts/deploy_hubs.cjs`: `ensureBillingCheckoutVariables` and `run()` pre-deploy guard extended to fail closed if Production billing is configured without `BILLING_PRODUCTION_PADDLE_API_KEY`. Sandbox-only deploys remain compatible.
   * `tests/hubs/`: Unit & deployment regression tests updated and passing.
   * `Project Atlas/`: CHANGELOG, CURRENT_STATE, WHERE_WE_STOPPED reconciled.
-* **Status boundary:** PR #247 merged; initial P2 workflow `33309686634` failed pre-deploy due to stale manifest; 0 Appwrite Functions deployed; `BILLING_CHECKOUT_ENABLED=false`; `paymentsEnabled: false`; Production billing remains strictly disabled.
-* **Next action:** Merge source-hash recovery PR #248 to `main`. After merge and separate owner authorization, proceed to a NEW Phase P2 targeted deployment run (`--only=billing-checkout,revenuecat-webhook`).
+* **Status boundary:** PR #247 merged; initial P2 workflow `33309686634` failed pre-deploy due to stale manifest; 0 Appwrite Functions deployed in P1; `BILLING_CHECKOUT_ENABLED=false`; `paymentsEnabled: false`; Production billing remains strictly disabled.
+* **Next action:** [COMPLETED / SUPERSEDED BY P2 DEPLOYMENT] PR #248 merged to main and Phase P2 targeted deployment run `33310801069` succeeded.
 
 ## WiseResume Production billing readiness audit complete — 2026-08-30
 
 * **Verdict:** `PRODUCTION_BILLING_READINESS_WITH_BLOCKERS`. Complete read-only audit completed.
 * **Backend Readiness:** `billing-checkout` and `revenuecat-webhook` functions, schemas, security bounds, and resolution logic are 100% production-ready.
-* **Blockers:** Production Paddle API key, catalog price/product IDs, GitHub workflow secret exposure, `revenuecat-webhook` product mapping table update, and Production RevenueCat configuration are required from owner before production launch.
+* **Blockers (Historical Audit State):** [RESOLVED / SUPERSEDED BY P1/P2] Production Paddle API key, catalog price/product IDs, workflow secrets, and revenuecat-webhook mappings were wired in P1/P2. Current remaining blocker: Production RevenueCat webhook routing verification (`UNVERIFIED` / `OWNER_ACTION_REQUIRED`) and owner authorization for controlled Production transaction.
 * **Current boundary:** Production billing remains strictly `DISABLED`. Zero secret values exposed; zero production mutations performed.
 * **Report:** [`reports/2026-08-30-production-billing-readiness-audit-closeout.md`](./reports/2026-08-30-production-billing-readiness-audit-closeout.md)
 

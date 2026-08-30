@@ -12,10 +12,10 @@
 
 ## 2026-08-30 - Fix Appwrite source hash manifest for revenuecat-webhook (PR #248 MERGED @ ba5a785e)
 
-- **Verdict:** `SOURCE_HASH_RECOVERY_PR_OPEN_AWAITING_OWNER_MERGE`. Regenerated `src/lib/devkit/sourceHashes.generated.json` to reflect `revenuecat-webhook` source changes from PR #247 (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
+- **Verdict:** `SOURCE_HASH_RECOVERY_MERGED_TO_MAIN`. Regenerated `src/lib/devkit/sourceHashes.generated.json` to reflect `revenuecat-webhook` source changes from PR #247 (`704b896e0460187b21d84e1f42f208088baf4c3d128971f0c114137435e27cdd`).
 - **Context:** Initial P2 workflow run `33309686634` on target `billing-checkout,revenuecat-webhook` failed pre-deploy at Step 7 (`Ensure source hash manifest is committed`) because PR #247 modified `revenuecat-webhook/src/main.js` without updating the manifest. Zero Appwrite Functions deployed, zero schema changes, zero database mutations.
 - **Integrity & Bounds:** `BILLING_CHECKOUT_ENABLED=false` unchanged. `paymentsEnabled: false` unchanged. Production billing remains strictly disabled.
-- **Next Action:** Merge this recovery PR, then separately authorize a NEW Phase P2 targeted deployment run.
+- **Next Action:** [COMPLETED] Manifest recovery PR #248 merged to main (`ba5a785e`). Subsequent NEW Phase P2 targeted deployment run `33310801069` succeeded.
 
 ## 2026-08-30 - Phase P1 Production billing repository wiring (PR #247 MERGED to main @ 78c0afc9)
 
@@ -30,8 +30,8 @@
   - `tests/hubs/billing-checkout.test.cjs`: Added Production catalog `readConfig` assertions (PASS).
   - `Project Atlas/CHANGELOG.md`, `CURRENT_STATE.md`, `WHERE_WE_STOPPED.md`: Documentation closeout and PR reconciliation.
 - **Validation Results:** `git diff --check` PASS, `Typecheck + portfolio tests` PASS, `Security regression suite` PASS, `Vercel` PASS, `npx tsc --noEmit` PASS, `npm run build` PASS.
-- **Integrity & Bounds:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false` unchanged. `paymentsEnabled: false` unchanged. PR #247 merged successfully; zero Appwrite deployments performed; initial P2 deployment attempt failed pre-deploy due to stale manifest; Production billing remains strictly disabled.
-- **Next action:** Merge source-hash recovery PR #248, then separately authorize a NEW Phase P2 targeted deployment run (`--only=billing-checkout,revenuecat-webhook`).
+- **Integrity & Bounds:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false` unchanged. `paymentsEnabled: false` unchanged. PR #247 merged successfully; zero Appwrite deployments performed in P1; initial P2 deployment attempt failed pre-deploy due to stale manifest; Production billing remains strictly disabled.
+- **Next action:** [COMPLETED / SUPERSEDED BY P2 DEPLOYMENT] PR #248 merged to main and Phase P2 targeted deployment run `33310801069` succeeded.
 
 ## 2026-08-30 - Production billing readiness audit and rollout plan completed
 
