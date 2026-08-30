@@ -1,12 +1,20 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `SANDBOX_PADDLE_CREDENTIAL_WIRED_RUNTIME_READY_FOR_CONTROLLED_RETRY` — GitHub secret `BILLING_SANDBOX_PADDLE_API_KEY` was wired into the deployment workflow and `scripts/deploy_hubs.cjs` via PR #238 (`4cec8a5a11f4910234bfde7d4be9f008abdf4cc8`). Targeted Appwrite deployment workflow `33300882649` deployed `billing-checkout`, reaching active deployment `6a93e5480fd534667144` on Node-22. `BILLING_SANDBOX_PADDLE_API_KEY` presence was verified safely via metadata. Function scopes remain `[databases.write, documents.read, documents.write]`. Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
+**Status:** `PRO_SANDBOX_TRANSACTION_CREATED_READY_FOR_COMPLETION` — Exactly one controlled Pro Sandbox checkout attempt was executed for disposable QA user `6a93e7800015d158e4d6` under owner authorization. `billing-checkout` execution `6a93e7c28b46344ccbdd` returned HTTP 200 / success and created Paddle Sandbox transaction `txn_01m18w2n8ge1a09wk0fm4c434s` matching Pro catalog (`pri_01m0fnjspex6yqqf6w9v9apaxg` / `pro_01m0fn08h7tmzm5cphvcvd30g6`). Session `session_bb21a6b59caad4283bd8bd537cbf` was persisted with state `created`. Checkout gate was immediately restored to `BILLING_CHECKOUT_ENABLED=false`. Production billing remains disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments controlled Pro Sandbox retry — 2026-08-30
+
+* **Verdict:** `PRO_SANDBOX_TRANSACTION_CREATED_READY_FOR_COMPLETION`. Under explicit authorization, `BILLING_CHECKOUT_ENABLED` was temporarily enabled and exactly one Pro checkout attempt was performed.
+* **Execution & Provider Result:** Execution `6a93e7c28b46344ccbdd` succeeded (HTTP 200). Outbound Paddle Sandbox API request succeeded and created transaction `txn_01m18w2n8ge1a09wk0fm4c434s` (1 item, Pro product/price, quantity 1, automatic collection, environment `sandbox`, canonical custom data mapping to user `6a93e7800015d158e4d6`).
+* **Appwrite State:** Session `session_bb21a6b59caad4283bd8bd537cbf` persisted to `billing_checkout_sessions` with state `created`. Zero manual mutations were applied; QA account currently remains Free pending payment completion.
+* **Gate Restoration:** `BILLING_CHECKOUT_ENABLED=false` was restored immediately post-attempt and verified. Production billing remains disabled.
+* **Report:** [`reports/2026-08-30-controlled-pro-sandbox-retry-report.md`](./reports/2026-08-30-controlled-pro-sandbox-retry-report.md)
 
 ## Payments Sandbox Paddle credential wiring & deployment — 2026-08-30
 
