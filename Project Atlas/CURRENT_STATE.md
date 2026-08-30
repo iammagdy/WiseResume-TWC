@@ -1,12 +1,21 @@
 # WiseResume Current Production State Snapshot
 
 **Last Verified:** 2026-08-30
-**Status:** `PRO_SANDBOX_END_TO_END_VERIFIED` — The complete Pro billing and entitlement lifecycle is verified end-to-end in Sandbox: Paddle checkout creation & test payment (`checkout.completed`) -> RevenueCat Sandbox ingestion (`pro` entitlement active) -> Appwrite `revenuecat-webhook` execution (HTTP 200 / `INITIAL_PURCHASE -> processed`) -> genuine `revenuecat_event_ledger` document (`rce_5bd50567c70f0a4a6f91916fd480f`) -> genuine `revenuecat_subscription_state` document (`rcs_42c302ce8e3ca4eb6bb5a20f76edd`, `plan=pro`, `environment=SANDBOX`, `status=active`) -> effective plan resolved to Pro with 50 daily AI credits -> persistence verified. Zero duplicate transactions, zero synthetic writes, `BILLING_CHECKOUT_ENABLED=false` restored, and Production billing remains disabled.
+**Status:** `ULTIMATE_SANDBOX_END_TO_END_VERIFIED` — The complete Ultimate (internal plan: `premium`) billing and entitlement lifecycle is verified end-to-end in Sandbox: Paddle checkout creation & test payment (`checkout.completed`) -> RevenueCat Sandbox ingestion (`premium` entitlement active) -> Appwrite `revenuecat-webhook` execution (HTTP 200 / `INITIAL_PURCHASE -> processed`) -> genuine `revenuecat_event_ledger` document -> genuine `revenuecat_subscription_state` document (`plan=premium`, `environment=SANDBOX`, `status=active`) -> effective plan resolved to Ultimate with unlimited (Infinity) daily AI credits -> UI and persistence verified. Zero duplicate transactions, zero synthetic writes, protected fixtures untouched, `BILLING_CHECKOUT_ENABLED=false` restored, and Production billing remains disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments Ultimate Sandbox end-to-end lifecycle verified — 2026-08-30
+
+* **Verdict:** `ULTIMATE_SANDBOX_END_TO_END_VERIFIED`. Complete end-to-end verification succeeded.
+* **Webhook Execution:** Succeeded with HTTP 200 (`INITIAL_PURCHASE -> processed`).
+* **Database State:** Genuine `revenuecat_event_ledger` and `revenuecat_subscription_state` documents created (`plan=premium`, `entitlement_id=premium`, `environment=SANDBOX`, `status=active`).
+* **Plan & Credits:** Resolved to Ultimate (`premium`) with unlimited (Infinity) daily AI credits; persistence verified.
+* **Gate & Production Safety:** `BILLING_CHECKOUT_ENABLED=false` verified; Production billing strictly disabled; protected fixtures untouched.
+* **Report:** [`reports/2026-08-30-ultimate-sandbox-end-to-end-verified-closeout.md`](./reports/2026-08-30-ultimate-sandbox-end-to-end-verified-closeout.md)
 
 ## Payments Pro Sandbox end-to-end lifecycle verified — 2026-08-30
 
