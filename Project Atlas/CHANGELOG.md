@@ -1,5 +1,12 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-30 - Controlled Pro Sandbox checkout attempt and Paddle transaction creation
+
+- **Verdict:** `PRO_SANDBOX_TRANSACTION_CREATED_READY_FOR_COMPLETION`. Under explicit owner authorization, `BILLING_CHECKOUT_ENABLED` was temporarily enabled and exactly one Pro checkout attempt was performed for disposable QA user `6a93e7800015d158e4d6`.
+- **Outcome:** `billing-checkout` execution `6a93e7c28b46344ccbdd` returned HTTP 200 / success and created Paddle Sandbox transaction `txn_01m18w2n8ge1a09wk0fm4c434s` matching Pro catalog (`pri_01m0fnjspex6yqqf6w9v9apaxg` / `pro_01m0fn08h7tmzm5cphvcvd30g6`).
+- **State & Gate:** Session `session_bb21a6b59caad4283bd8bd537cbf` persisted in Appwrite with state `created`. Checkout gate was immediately restored to `BILLING_CHECKOUT_ENABLED=false` and verified. Production billing remains disabled.
+- **Report:** [`reports/2026-08-30-controlled-pro-sandbox-retry-report.md`](./reports/2026-08-30-controlled-pro-sandbox-retry-report.md)
+
 ## 2026-08-30 - Sandbox Paddle runtime credential wiring and deployment
 
 - **Verdict:** `SANDBOX_PADDLE_CREDENTIAL_WIRED_RUNTIME_READY_FOR_CONTROLLED_RETRY`. Confirmed missing-credential root cause (`provider.runtime_configuration` / `missing_runtime_credential`) was resolved by wiring `BILLING_SANDBOX_PADDLE_API_KEY` into `.github/workflows/deploy-appwrite-hubs.yml` and `scripts/deploy_hubs.cjs` via PR #238 (`4cec8a5a11f4910234bfde7d4be9f008abdf4cc8`).
