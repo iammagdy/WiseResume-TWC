@@ -9,21 +9,25 @@ const root = path.resolve(__dirname, '../..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8').replace(/\r\n/g, '\n');
 const { parseExplicitHubTargets } = require('../../scripts/appwrite-function-policy.cjs');
 
-test('deploy-appwrite-hubs workflow exposes BILLING_SANDBOX_PADDLE_API_KEY to deployment step', () => {
+test('deploy-appwrite-hubs workflow exposes Sandbox and Production billing variables to deployment step', () => {
   const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
   assert.match(
     workflow,
     /BILLING_SANDBOX_PADDLE_API_KEY:\s*\$\{\{\s*secrets\.BILLING_SANDBOX_PADDLE_API_KEY\s*\}\}/,
     'Workflow must expose BILLING_SANDBOX_PADDLE_API_KEY from secrets',
   );
-  assert.doesNotMatch(
+  assert.match(
     workflow,
-    /BILLING_PRODUCTION_PADDLE_API_KEY/,
-    'Workflow must NOT expose Production Paddle key',
+    /BILLING_PRODUCTION_PADDLE_API_KEY:\s*\$\{\{\s*secrets\.BILLING_PRODUCTION_PADDLE_API_KEY\s*\}\}/,
+    'Workflow must expose BILLING_PRODUCTION_PADDLE_API_KEY from secrets',
   );
+  assert.match(workflow, /BILLING_PRODUCTION_PRO_PRICE_ID:\s*pri_01m192gqtw1cxrkctafjcahmfe/);
+  assert.match(workflow, /BILLING_PRODUCTION_PRO_PRODUCT_ID:\s*pro_01m1924dqce7nd69khnakxftzw/);
+  assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRICE_ID:\s*pri_01m192m6bwzvarmcr05c78by7r/);
+  assert.match(workflow, /BILLING_PRODUCTION_PREMIUM_PRODUCT_ID:\s*pro_01m192jr9nzd6k5ysa6yhk5aq7/);
 });
 
-test('scripts/deploy_hubs.cjs synchronizes BILLING_SANDBOX_PADDLE_API_KEY only for billing-checkout', () => {
+test('scripts/deploy_hubs.cjs synchronizes billing secrets only for billing-checkout', () => {
   const script = read('scripts/deploy_hubs.cjs');
   assert.match(
     script,
@@ -35,7 +39,12 @@ test('scripts/deploy_hubs.cjs synchronizes BILLING_SANDBOX_PADDLE_API_KEY only f
     /ensureVariable\('billing-checkout',\s*'BILLING_SANDBOX_PADDLE_API_KEY'/,
     'deploy_hubs.cjs must set BILLING_SANDBOX_PADDLE_API_KEY on billing-checkout',
   );
-  // Verify other hubs do not receive the billing secret
+  assert.match(
+    script,
+    /ensureVariable\('billing-checkout',\s*'BILLING_PRODUCTION_PADDLE_API_KEY'/,
+    'deploy_hubs.cjs must set BILLING_PRODUCTION_PADDLE_API_KEY on billing-checkout when present',
+  );
+  // Verify other hubs do not receive billing secrets
   const nonBillingHubs = [
     'ai-gateway', 'ai-health', 'resume-section-ai', 'job-import', 'revenuecat-webhook',
     'admin-sentry', 'email-service', 'portfolio-gate', 'get-public-portfolio',
@@ -47,12 +56,17 @@ test('scripts/deploy_hubs.cjs synchronizes BILLING_SANDBOX_PADDLE_API_KEY only f
       new RegExp(`ensureVariable\\(['\\"]${hub}['\\"],\\s*['\\"]BILLING_SANDBOX_PADDLE_API_KEY['\\"]`),
       `Hub ${hub} must not receive BILLING_SANDBOX_PADDLE_API_KEY`,
     );
+    assert.doesNotMatch(
+      script,
+      new RegExp(`ensureVariable\\(['\\"]${hub}['\\"],\\s*['\\"]BILLING_PRODUCTION_PADDLE_API_KEY['\\"]`),
+      `Hub ${hub} must not receive BILLING_PRODUCTION_PADDLE_API_KEY`,
+    );
   }
 });
 
-test('ensureBillingCheckoutVariables fails closed when secret is absent from both env and remote', async () => {
+test('ensureBillingCheckoutVariables fails closed when Sandbox secret is absent', async () => {
   const deployHubs = require('../../scripts/deploy_hubs.cjs');
-  const originalEnv = process.env.BILLING_SANDBOX_PADDLE_API_KEY;
+  const originalSandboxEnv = process.env.BILLING_SANDBOX_PADDLE_API_KEY;
   delete process.env.BILLING_SANDBOX_PADDLE_API_KEY;
   try {
     await assert.rejects(
@@ -60,10 +74,38 @@ test('ensureBillingCheckoutVariables fails closed when secret is absent from bot
         await deployHubs.ensureBillingCheckoutVariables();
       },
       /BILLING_SANDBOX_PADDLE_API_KEY is required to deploy billing-checkout/,
-      'Must fail closed with clear error message when secret is absent',
+      'Must fail closed with clear error message when Sandbox secret is absent',
     );
   } finally {
-    if (originalEnv) process.env.BILLING_SANDBOX_PADDLE_API_KEY = originalEnv;
+    if (originalSandboxEnv) process.env.BILLING_SANDBOX_PADDLE_API_KEY = originalSandboxEnv;
+  }
+});
+
+test('ensureBillingCheckoutVariables fails closed when configured for Production and BILLING_PRODUCTION_PADDLE_API_KEY is absent', async () => {
+  const deployHubs = require('../../scripts/deploy_hubs.cjs');
+  const originalProdKey = process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
+  const originalProPrice = process.env.BILLING_PRODUCTION_PRO_PRICE_ID;
+  const originalSandboxKey = process.env.BILLING_SANDBOX_PADDLE_API_KEY;
+
+  process.env.BILLING_SANDBOX_PADDLE_API_KEY = 'sandbox-key-fixture';
+  process.env.BILLING_PRODUCTION_PRO_PRICE_ID = 'pri_01m192gqtw1cxrkctafjcahmfe';
+  delete process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
+
+  try {
+    await assert.rejects(
+      async () => {
+        await deployHubs.ensureBillingCheckoutVariables();
+      },
+      /BILLING_PRODUCTION_PADDLE_API_KEY is required to deploy billing-checkout when configured for Production/,
+      'Must fail closed when Production catalog is configured but Production key is absent',
+    );
+  } finally {
+    if (originalProdKey !== undefined) process.env.BILLING_PRODUCTION_PADDLE_API_KEY = originalProdKey;
+    else delete process.env.BILLING_PRODUCTION_PADDLE_API_KEY;
+    if (originalProPrice !== undefined) process.env.BILLING_PRODUCTION_PRO_PRICE_ID = originalProPrice;
+    else delete process.env.BILLING_PRODUCTION_PRO_PRICE_ID;
+    if (originalSandboxKey !== undefined) process.env.BILLING_SANDBOX_PADDLE_API_KEY = originalSandboxKey;
+    else delete process.env.BILLING_SANDBOX_PADDLE_API_KEY;
   }
 });
 

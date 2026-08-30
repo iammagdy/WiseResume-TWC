@@ -11,6 +11,8 @@ const {
 const { __test } = webhook;
 const PRO_PRODUCT = 'pri_01m0fnjspex6yqqf6w9v9apaxg';
 const PREMIUM_PRODUCT = 'pri_01m0fnq9hetwdwm9e1sa49n08s';
+const PRO_PRODUCT_PROD = 'pri_01m192gqtw1cxrkctafjcahmfe';
+const PREMIUM_PRODUCT_PROD = 'pri_01m192m6bwzvarmcr05c78by7r';
 const nowMs = Date.parse('2026-08-22T12:00:00.000Z');
 
 function event(overrides = {}) {
@@ -82,6 +84,23 @@ test('normalizes Ultimate only for defensive reads and never treats it as a pers
   assert.equal(resolveEffectivePlan({ subscription: { plan: 'ultimate' } }).plan, 'premium');
   assert.equal(__test.resolvePlanForEvent(event({ product_id: PREMIUM_PRODUCT, entitlement_ids: ['premium'] })), 'premium');
   assert.equal(__test.resolvePlanForEvent(event({ product_id: PREMIUM_PRODUCT, entitlement_ids: ['ultimate'] })), null);
+});
+
+test('Production Paddle price IDs map to correct internal plans and Sandbox entries are preserved', () => {
+  // Sandbox entries unchanged.
+  assert.equal(__test.resolvePlanForEvent(event({ product_id: PRO_PRODUCT, entitlement_ids: ['pro'] })), 'pro');
+  assert.equal(__test.resolvePlanForEvent(event({ product_id: PREMIUM_PRODUCT, entitlement_ids: ['premium'] })), 'premium');
+  // Production entries resolve correctly.
+  assert.equal(__test.resolvePlanForEvent(event({ product_id: PRO_PRODUCT_PROD, entitlement_ids: ['pro'] })), 'pro');
+  assert.equal(__test.resolvePlanForEvent(event({ product_id: PREMIUM_PRODUCT_PROD, entitlement_ids: ['premium'] })), 'premium');
+  // Production price IDs do not resolve when entitlement does not match.
+  assert.equal(__test.resolvePlanForEvent(event({ product_id: PRO_PRODUCT_PROD, entitlement_ids: ['premium'] })), null);
+  assert.equal(__test.resolvePlanForEvent(event({ product_id: PREMIUM_PRODUCT_PROD, entitlement_ids: ['pro'] })), null);
+  // No 'ultimate' value ever persists from Production price IDs.
+  assert.ok(!JSON.stringify([
+    __test.resolvePlanForEvent(event({ product_id: PRO_PRODUCT_PROD, entitlement_ids: ['pro'] })),
+    __test.resolvePlanForEvent(event({ product_id: PREMIUM_PRODUCT_PROD, entitlement_ids: ['premium'] })),
+  ]).includes('ultimate'));
 });
 
 test('rejects missing or invalid Authorization before JSON/database mutation', () => {

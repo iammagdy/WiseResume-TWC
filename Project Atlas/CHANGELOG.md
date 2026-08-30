@@ -1,5 +1,21 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-30 - Phase P1 Production billing repository wiring (PR #247 OPEN)
+
+- **Verdict:** `P1_PRODUCTION_BILLING_WIRING_PR_OPEN_AWAITING_OWNER_MERGE`. Repository-side Production billing wiring implementation is committed and pushed on branch `fix/production-billing-wiring` (commit `134c0288551d6474e0f60e87b2037ce84ac856a0`). Pull Request #247 is OPEN against `main`.
+- **Changes in PR #247 (10 files changed):**
+  - `appwrite-hubs/revenuecat-webhook/src/main.js`: Added Production Paddle price IDs (`pri_01m192gqtw1cxrkctafjcahmfe → pro`, `pri_01m192m6bwzvarmcr05c78by7r → premium`) to `PRODUCT_TO_PLAN`. Sandbox entries preserved.
+  - `.github/workflows/deploy-appwrite-hubs.yml`: Wired `BILLING_PRODUCTION_PADDLE_API_KEY` (from GitHub Secret) and 4 non-secret Production catalog ID env vars into the deploy step.
+  - `scripts/deploy_hubs.cjs`: Extended `ensureBillingCheckoutVariables` and `run()` pre-deploy guard to fail closed if Production billing is configured without `BILLING_PRODUCTION_PADDLE_API_KEY`. Sandbox-only deploys remain compatible.
+  - `tests/hubs/billing-checkout-deployment.test.cjs`: Added fail-closed Production key validation test and workflow variable assertions (6/6 pass).
+  - `tests/hubs/deployment-hardening.test.cjs`: Updated workflow secret assertions and deployable hub lockfile filter (7/7 pass).
+  - `tests/hubs/revenuecat-webhook.test.cjs`: Added Production price ID resolution test (11/11 pass).
+  - `tests/hubs/billing-checkout.test.cjs`: Added Production catalog `readConfig` assertions (PASS).
+  - `Project Atlas/CHANGELOG.md`, `CURRENT_STATE.md`, `WHERE_WE_STOPPED.md`: Documentation closeout and PR reconciliation.
+- **Validation Results:** `git diff --check` PASS, `Typecheck + portfolio tests` PASS, `Security regression suite` PASS, `Vercel` PASS, `npx tsc --noEmit` PASS, `npm run build` PASS.
+- **Integrity & Bounds:** `billing-checkout/src/main.js` NOT changed. `BILLING_CHECKOUT_ENABLED=false` unchanged. `paymentsEnabled: false` unchanged. Zero merges performed, zero Appwrite deployments performed, no real checkout/payment.
+- **Next action:** Owner reviews and merges PR #247 to `main`. After merge and separate owner authorization, proceed to Phase P2 (Appwrite Function deployment with Production variables).
+
 ## 2026-08-30 - Production billing readiness audit and rollout plan completed
 
 - **Verdict:** `PRODUCTION_BILLING_READINESS_WITH_BLOCKERS`. Read-only audit of Production Paddle catalog, secret contracts, RevenueCat integration, Appwrite functions, frontend gates, routing, and lifecycle risk completed.

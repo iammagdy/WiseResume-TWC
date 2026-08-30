@@ -77,13 +77,16 @@ test('the AI runtime receipt schema is provisioned before any receipt-writing hu
   }
 });
 
-test('the deployment workflow passes BILLING_SANDBOX_PADDLE_API_KEY to deploy_hubs.cjs and avoids production keys', () => {
+test('the deployment workflow passes BILLING_SANDBOX_PADDLE_API_KEY and BILLING_PRODUCTION_PADDLE_API_KEY to deploy_hubs.cjs', () => {
   const workflow = read('.github/workflows/deploy-appwrite-hubs.yml');
   assert.match(
     workflow,
     /BILLING_SANDBOX_PADDLE_API_KEY:\s*\$\{\{\s*secrets\.BILLING_SANDBOX_PADDLE_API_KEY\s*\}\}/,
   );
-  assert.doesNotMatch(workflow, /BILLING_PRODUCTION_PADDLE_API_KEY/);
+  assert.match(
+    workflow,
+    /BILLING_PRODUCTION_PADDLE_API_KEY:\s*\$\{\{\s*secrets\.BILLING_PRODUCTION_PADDLE_API_KEY\s*\}\}/,
+  );
 });
 
 test('every deployable hub lockfile is present and tracked by Git', () => {
@@ -92,7 +95,7 @@ test('every deployable hub lockfile is present and tracked by Git', () => {
   assert.match(script, /npm ci --omit=dev --ignore-scripts/);
 
   for (const entry of fs.readdirSync(path.join(root, 'appwrite-hubs'), { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() || entry.name.startsWith('shared-')) continue;
     const hubDir = path.join(root, 'appwrite-hubs', entry.name);
     if (fs.existsSync(path.join(hubDir, 'package.json'))) {
       assertTrackedLockfile(root, entry.name);

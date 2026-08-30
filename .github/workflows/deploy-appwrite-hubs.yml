@@ -155,6 +155,11 @@ jobs:
           PASSWORD_RESET_OTP_SECRET: ${{ secrets.PASSWORD_RESET_OTP_SECRET }}
           REVENUECAT_WEBHOOK_AUTH_SECRET: ${{ secrets.REVENUECAT_WEBHOOK_AUTH_SECRET }}
           BILLING_SANDBOX_PADDLE_API_KEY: ${{ secrets.BILLING_SANDBOX_PADDLE_API_KEY }}
+          BILLING_PRODUCTION_PADDLE_API_KEY: ${{ secrets.BILLING_PRODUCTION_PADDLE_API_KEY }}
+          BILLING_PRODUCTION_PRO_PRICE_ID: pri_01m192gqtw1cxrkctafjcahmfe
+          BILLING_PRODUCTION_PRO_PRODUCT_ID: pro_01m1924dqce7nd69khnakxftzw
+          BILLING_PRODUCTION_PREMIUM_PRICE_ID: pri_01m192m6bwzvarmcr05c78by7r
+          BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: pro_01m192jr9nzd6k5ysa6yhk5aq7
           HUB_TARGET: ${{ steps.targets.outputs.targets_csv }}
         run: node scripts/deploy_hubs.cjs --only="${HUB_TARGET}"
 

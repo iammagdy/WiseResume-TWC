@@ -25,6 +25,9 @@ const PRODUCT_TO_PLAN = Object.freeze({
   // Paddle Sandbox catalog identifiers. Keep internal values pro|premium.
   pri_01m0fnjspex6yqqf6w9v9apaxg: 'pro',
   pri_01m0fnq9hetwdwm9e1sa49n08s: 'premium',
+  // Paddle Production catalog identifiers. Keep internal values pro|premium.
+  pri_01m192gqtw1cxrkctafjcahmfe: 'pro',
+  pri_01m192m6bwzvarmcr05c78by7r: 'premium',
 });
 const ENTITLEMENT_TO_PLAN = Object.freeze({ pro: 'pro', premium: 'premium' });
 const LEDGER_RETENTION_DAYS = 90;

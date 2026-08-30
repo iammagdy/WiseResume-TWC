@@ -858,6 +858,11 @@ assert.throws(
 }
 assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'sandbox', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod', BILLING_SANDBOX_PREMIUM_PRICE_ID: 'su', BILLING_SANDBOX_PREMIUM_PRODUCT_ID: 'suprod' }).catalog.pro.priceId, 'sp');
 assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'production', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod' }).catalog.pro.priceId, '');
+// Production environment resolves BILLING_PRODUCTION_* catalog variables.
+assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'production', BILLING_PRODUCTION_PRO_PRICE_ID: 'pri_01m192gqtw1cxrkctafjcahmfe', BILLING_PRODUCTION_PRO_PRODUCT_ID: 'pro_01m1924dqce7nd69khnakxftzw', BILLING_PRODUCTION_PREMIUM_PRICE_ID: 'pri_01m192m6bwzvarmcr05c78by7r', BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: 'pro_01m192jr9nzd6k5ysa6yhk5aq7' }).catalog.pro.priceId, 'pri_01m192gqtw1cxrkctafjcahmfe');
+assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'production', BILLING_PRODUCTION_PRO_PRICE_ID: 'pri_01m192gqtw1cxrkctafjcahmfe', BILLING_PRODUCTION_PRO_PRODUCT_ID: 'pro_01m1924dqce7nd69khnakxftzw', BILLING_PRODUCTION_PREMIUM_PRICE_ID: 'pri_01m192m6bwzvarmcr05c78by7r', BILLING_PRODUCTION_PREMIUM_PRODUCT_ID: 'pro_01m192jr9nzd6k5ysa6yhk5aq7' }).catalog.premium.priceId, 'pri_01m192m6bwzvarmcr05c78by7r');
+// Sandbox environment never picks up Production catalog IDs.
+assert.equal(readConfig({ BILLING_CHECKOUT_ENVIRONMENT: 'sandbox', BILLING_PRODUCTION_PRO_PRICE_ID: 'pri_01m192gqtw1cxrkctafjcahmfe', BILLING_SANDBOX_PRO_PRICE_ID: 'sp', BILLING_SANDBOX_PRO_PRODUCT_ID: 'sprod', BILLING_SANDBOX_PREMIUM_PRICE_ID: 'su', BILLING_SANDBOX_PREMIUM_PRODUCT_ID: 'suprod' }).catalog.pro.priceId, 'sp');
 
 console.log('✓ billing-checkout: authenticated, fail-closed, environment-isolated, automatic-only, idempotent, rate-limited, non-granting contract OK');
 }
