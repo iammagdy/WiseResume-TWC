@@ -1,12 +1,20 @@
 # WiseResume Current Production State Snapshot
 
-**Last Verified:** 2026-08-28
-**Status:** `DIAGNOSTIC_RUNTIME_READY_FOR_CONTROLLED_RETRY` — Public Sandbox billing code, environment isolation, additive checkout schema, and targeted reserve-stage diagnostic deployment are complete and fail-closed. Checkout remains disabled; the exact unexpected reservation operation is `UNPROVEN` until a separately authorized single retry records its allowlisted internal stage. Production payments remain disabled.
+**Last Verified:** 2026-08-30
+**Status:** `SANDBOX_PADDLE_CREDENTIAL_WIRED_RUNTIME_READY_FOR_CONTROLLED_RETRY` — GitHub secret `BILLING_SANDBOX_PADDLE_API_KEY` was wired into the deployment workflow and `scripts/deploy_hubs.cjs` via PR #238 (`4cec8a5a11f4910234bfde7d4be9f008abdf4cc8`). Targeted Appwrite deployment workflow `33300882649` deployed `billing-checkout`, reaching active deployment `6a93e5480fd534667144` on Node-22. `BILLING_SANDBOX_PADDLE_API_KEY` presence was verified safely via metadata. Function scopes remain `[databases.write, documents.read, documents.write]`. Checkout gate `BILLING_CHECKOUT_ENABLED=false` and Production billing remain disabled.
 
 **Repository:** `iammagdy/WiseResume-TWC`
 **Production:** `https://wiseresume.app`
 
 ---
+
+## Payments Sandbox Paddle credential wiring & deployment — 2026-08-30
+
+* **Verdict:** `SANDBOX_PADDLE_CREDENTIAL_WIRED_RUNTIME_READY_FOR_CONTROLLED_RETRY`. Following owner configuration of `BILLING_SANDBOX_PADDLE_API_KEY` in GitHub Repository Secrets, PR [#238](https://github.com/iammagdy/WiseResume-TWC/pull/238) merged at `4cec8a5a11f4910234bfde7d4be9f008abdf4cc8`.
+* **Deployment & Verification:** Targeted workflow `33300882649` deployed only `billing-checkout` (Active deployment: `6a93e5480fd534667144` on Node-22). Live variable presence of `BILLING_SANDBOX_PADDLE_API_KEY` was confirmed via safe metadata without exposing secret values.
+* **Current boundary:** `BILLING_CHECKOUT_ENABLED=false` remains preserved. Production billing remains disabled. Scopes remain `databases.write`, `documents.read`, `documents.write`. No checkout, provider transaction, RevenueCat ingestion, or entitlement/credit mutation occurred.
+* **Next action:** Separate owner authorization is required for exactly one controlled Pro Sandbox diagnostic retry. Checkout must be disabled immediately on any failure.
+* **Report:** [`reports/2026-08-30-sandbox-paddle-credential-wired-closeout.md`](./reports/2026-08-30-sandbox-paddle-credential-wired-closeout.md)
 
 ## Payments reserve-stage diagnostic deployment — 2026-08-28
 
