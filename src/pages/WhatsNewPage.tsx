@@ -99,7 +99,7 @@ export default function WhatsNewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground aurora-page-root flex flex-col" dir={direction}>
+    <div className="min-h-screen bg-background text-foreground aurora-page-root flex flex-col overflow-x-hidden" dir={direction}>
       {/* Sticky Navigation Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-xs">
         <div className="flex items-center justify-between px-4 sm:px-6 h-16 max-w-6xl mx-auto w-full">
