@@ -1,5 +1,18 @@
 # WiseResume Atlas Master Changelog
 
+## 2026-08-31 - Phase P4 Production catalog reconciliation & preflight hardening
+
+- **Verdict:** `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING` (Live read-only audit run `33366751713` executed on `main` at `958c32a6f7fc5e3640ab406c6fdab609bc17c7e7` with zero mutations; remediation PR #253 on branch `fix/p4-production-catalog-reconciliation` open awaiting owner merge).
+- **PR #251 Merged:** Merged into `main` at commit `958c32a6f7fc5e3640ab406c6fdab609bc17c7e7`.
+- **Live Audit Evidence:** Executed mode `production-preflight-audit` on `main` (`33366751713`). Returned verdict `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING`. `ENABLED=false`, `PROVIDER_READY=true`, `ENVIRONMENT=sandbox`, approved origin `https://wiseresume.app` (`UNVERIFIED`), Production Paddle API key `PRESENT` (`secret=true`), access environments `[UNCONFIGURED]`. Production catalog keys exist as variables on `billing-checkout` but API-visible values returned empty (`UNVERIFIED_CATALOG_VARIABLE_STATE`).
+- **Remediation & Automation Added:**
+  - Added safe `production-catalog-reconcile` mode requiring exact confirmation string `RECONCILE_PRODUCTION_CATALOG_NON_SECRET` (forces `ENABLED=false` check, sets `PROVIDER_READY=false` first, keeps `ENVIRONMENT=sandbox`, writes 4 catalog variables with explicit `secret=false`, fresh readback verification, and final post-check invariants).
+  - Hardened `deploy_hubs.cjs` with `ensureNonSecretCatalogVariable()` enforcing explicit `secret=false` and fresh readback for Production catalog IDs.
+  - Enhanced `runProductionPreflightAudit()` to classify safe catalog metadata explicitly (`P4_PREFLIGHT_BLOCKED_CATALOG_SECRET`/`SECRET_UNVERIFIED`/`EMPTY`/`MISSING`/`MISMATCH`).
+  - Fixed workflow exit code semantics: blocked preflight audit verdicts exit non-zero after printing the safe read-only audit report.
+  - Unit tests added in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (18 focused test suites / 18 PASSED).
+- **Integrity & Bounds:** Live Appwrite runtime variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+
 ## 2026-08-31 - Phase P4 Production billing runtime gate automation remediation
 
 - **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation & live-config safety hardening implemented, PR #251 open awaiting merge and live verification).

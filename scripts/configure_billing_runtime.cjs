@@ -4,6 +4,7 @@ const sdk = require('node-appwrite');
 
 const ALLOWED_MODES = new Set([
   'production-preflight-audit',
+  'production-catalog-reconcile',
   'production-smoke-open',
   'production-smoke-lock',
   'production-access-enable',
@@ -44,21 +45,26 @@ const SECRET_PRESENCE_KEYS = Object.freeze({
 });
 
 const CONFIRMATION_REQUIRED_FOR_OPEN = 'OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT';
+const CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE = 'RECONCILE_PRODUCTION_CATALOG_NON_SECRET';
 const APPROVED_PRODUCTION_CHECKOUT_ORIGIN = ''; // Unverified until live preflight evidence proves correct host
 
 function parseArgs(argv = process.argv, env = process.env) {
   let mode = env.BILLING_RUNTIME_MODE || '';
   let confirm = env.BILLING_RUNTIME_CONFIRM || '';
+  let confirmCatalogReconcile = env.BILLING_RUNTIME_CONFIRM_CATALOG_RECONCILE || '';
 
   for (const arg of argv) {
     if (arg.startsWith('--mode=')) {
       mode = arg.slice(arg.indexOf('=') + 1).trim();
     } else if (arg.startsWith('--confirm=')) {
       confirm = arg.slice(arg.indexOf('=') + 1).trim();
+    } else if (arg.startsWith('--confirm-catalog-reconcile=')) {
+      confirmCatalogReconcile = arg.slice(arg.indexOf('=') + 1).trim();
     }
   }
 
-  return { mode, confirm };
+  // NO CROSS-MODE CONFIRMATION FALLBACK OR LEAKAGE.
+  return { mode, confirm, confirmCatalogReconcile };
 }
 
 function assertExecutionEnvironment(env = process.env) {
@@ -103,35 +109,79 @@ async function fetchFunctionVariables(functions, functionId) {
   }
 }
 
-async function setOrUpdateVariable(functions, functionId, key, value) {
+async function setOrUpdateVariable(functions, functionId, key, value, isSecret = false) {
   const existingVars = await fetchFunctionVariables(functions, functionId);
   const existing = existingVars.find(v => v.key === key);
 
   if (existing) {
-    if (existing.value === value) {
-      console.log(`[VAR UNCHANGED] ${functionId} -> ${key} = ${value}`);
+    if (existing.value === value && Boolean(existing.secret) === isSecret) {
+      console.log(`[VAR UNCHANGED] ${functionId} -> ${key} = ${isSecret ? '[SECRET_MASKED]' : value} (secret=${isSecret})`);
       return;
     }
-    await functions.updateVariable(functionId, existing.$id, key, value);
+    await functions.updateVariable(functionId, existing.$id, key, value, isSecret);
   } else {
     const variableId = sdk.ID ? sdk.ID.unique() : `var_${Date.now()}`;
-    await functions.createVariable(functionId, variableId, key, value);
+    await functions.createVariable(functionId, variableId, key, value, isSecret);
   }
 
   // REAL PERSISTED READBACK VERIFICATION
   const freshVars = await fetchFunctionVariables(functions, functionId);
   const verified = freshVars.find(v => v.key === key);
 
-  if (!verified || verified.value !== value) {
-    throw new Error(`[READBACK MISMATCH] Failed to verify persisted ${functionId} -> ${key} = "${value}". Readback value: "${verified?.value || 'MISSING'}"`);
+  if (!verified) {
+    throw new Error(`[READBACK MISMATCH] Failed to verify persisted ${functionId} -> ${key}. Readback variable MISSING.`);
   }
 
-  console.log(`[VAR SET PASS] ${functionId} -> ${key} = ${value}`);
+  if (verified.secret !== isSecret && verified.secret !== undefined) {
+    throw new Error(`[READBACK MISMATCH] ${functionId} -> ${key} secret flag mismatch. Expected secret=${isSecret}, got secret=${verified.secret}`);
+  }
+
+  if (!isSecret && verified.value !== value) {
+    throw new Error(`[READBACK MISMATCH] Failed to verify persisted non-secret ${functionId} -> ${key} = "${value}". Readback value: "${verified.value || 'EMPTY_OR_UNREADABLE'}"`);
+  }
+
+  console.log(`[VAR SET PASS] ${functionId} -> ${key} = ${isSecret ? '[SECRET_MASKED]' : value} (secret=${isSecret})`);
+}
+
+async function setOrUpdateCatalogNonSecretVariable(functions, functionId, key, value) {
+  const existingVars = await fetchFunctionVariables(functions, functionId);
+  const existing = existingVars.find(v => v.key === key);
+
+  if (existing) {
+    if (existing.value === value && existing.secret === false) {
+      console.log(`[CATALOG VAR UNCHANGED] ${functionId} -> ${key} = ${value} (secret=false)`);
+    } else {
+      await functions.updateVariable(functionId, existing.$id, key, value, false);
+      console.log(`[CATALOG VAR UPDATED] ${functionId} -> ${key} = ${value} (secret=false)`);
+    }
+  } else {
+    const variableId = sdk.ID ? sdk.ID.unique() : `var_${Date.now()}`;
+    await functions.createVariable(functionId, variableId, key, value, false);
+    console.log(`[CATALOG VAR CREATED] ${functionId} -> ${key} = ${value} (secret=false)`);
+  }
+
+  // REAL PERSISTED READBACK VERIFICATION WITH STRICT secret === false
+  const freshVars = await fetchFunctionVariables(functions, functionId);
+  const verified = freshVars.find(v => v.key === key);
+
+  if (!verified) {
+    throw new Error(`P4_CATALOG_RECONCILIATION_SECRET_METADATA_UNVERIFIED: Failed to verify persisted ${functionId} -> ${key}. Readback variable MISSING.`);
+  }
+
+  if (verified.secret !== false) {
+    throw new Error(`P4_CATALOG_RECONCILIATION_SECRET_METADATA_UNVERIFIED: ${functionId} -> ${key} secret metadata is unverified or not explicitly false. Got secret=${verified.secret === undefined ? 'UNVERIFIED' : verified.secret}`);
+  }
+
+  if (verified.value !== value) {
+    throw new Error(`[READBACK MISMATCH] Failed to verify persisted catalog ${functionId} -> ${key} = "${value}". Readback value: "${verified.value || 'EMPTY'}"`);
+  }
+
+  console.log(`[CATALOG VAR VERIFIED] ${functionId} -> ${key} = ${value} (secret=false)`);
 }
 
 async function restoreConsumerExactState(functions, fnId, prior) {
   if (prior.exists && prior.value !== null) {
-    await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', prior.value);
+    await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', prior.value, false);
   } else {
     const currentVars = await fetchFunctionVariables(functions, fnId);
     const existingCurrent = currentVars.find(v => v.key === 'BILLING_ACCESS_ENVIRONMENT');
@@ -161,11 +211,17 @@ function validateProductionPreconditions(billingCheckoutVars) {
     : 'SECRET_FLAG_UNVERIFIED';
   console.log(`[SECRET METADATA] BILLING_PRODUCTION_PADDLE_API_KEY = PRESENT (${isSecretFlag})`);
 
-  // 2. LIVE REMOTE PRODUCTION CATALOG ENFORCEMENT (NO process.env FALLBACK)
+  // 2. LIVE REMOTE PRODUCTION CATALOG ENFORCEMENT (NO process.env FALLBACK, MUST BE NON-SECRET WITH secret === false)
   for (const [catalogKey, expectedValue] of Object.entries(PROD_CATALOG)) {
     const found = billingCheckoutVars.find(v => v.key === catalogKey);
-    if (!found || !found.value) {
+    if (!found) {
       throw new Error(`Precondition failed: Live remote variable ${catalogKey} is MISSING on billing-checkout function.`);
+    }
+    if (found.secret !== false) {
+      throw new Error(`Precondition failed: Live remote variable ${catalogKey} secret metadata is not explicitly false (got secret=${found.secret === undefined ? 'UNVERIFIED' : found.secret}).`);
+    }
+    if (!found.value) {
+      throw new Error(`Precondition failed: Live remote variable ${catalogKey} value is EMPTY on billing-checkout function.`);
     }
     if (found.value !== expectedValue) {
       throw new Error(`Precondition failed: Live remote variable ${catalogKey} mismatch. Expected ${expectedValue}, found ${found.value}`);
@@ -189,7 +245,8 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
 
   const targets = ['billing-checkout', ...ACCESS_CONSUMER_FUNCTIONS];
   let secretMetadataStatus = 'PASS';
-  let catalogStatus = 'MATCH';
+  let catalogVerdict = null;
+  let catalogStatusSummary = 'MATCH';
   let accessDriftFnId = null;
 
   for (const fnId of targets) {
@@ -202,7 +259,7 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
       const found = vars.find(v => v.key === key);
       if (found) {
         auditReport.functions[fnId][key] = found.value;
-        console.log(`[AUDIT CONFIG] ${fnId} -> ${key}: ${found.value}`);
+        console.log(`[AUDIT CONFIG] ${fnId} -> ${key}: ${found.secret === true ? '[SECRET_MASKED]' : found.value}`);
         if (ACCESS_CONSUMER_FUNCTIONS.includes(fnId) && key === 'BILLING_ACCESS_ENVIRONMENT') {
           if (found.value !== 'sandbox' && found.value !== '[UNCONFIGURED]') {
             accessDriftFnId = fnId;
@@ -232,12 +289,43 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
   }
 
   const bcVars = auditReport.functions['billing-checkout'] || {};
+  const bcRawVars = dependencies.varsMap?.['billing-checkout'] || await fetchFunctionVariables(functions, 'billing-checkout');
   const hasProdKey = bcVars['BILLING_PRODUCTION_PADDLE_API_KEY'] && bcVars['BILLING_PRODUCTION_PADDLE_API_KEY'].includes('PRESENT');
 
+  // SAFE DETAILED CATALOG AUDIT CLASSIFICATION WITH STRICT UNVERIFIED DISCRIMINATION
   for (const [catalogKey, expectedValue] of Object.entries(PROD_CATALOG)) {
-    if (bcVars[catalogKey] !== expectedValue) {
-      catalogStatus = bcVars[catalogKey] ? 'MISMATCH' : 'MISSING';
+    const found = bcRawVars.find(v => v.key === catalogKey);
+    let valStatus = 'MATCH';
+    let secretMetadataStr = 'UNVERIFIED';
+
+    if (found) {
+      if (found.secret === true) secretMetadataStr = 'true';
+      else if (found.secret === false) secretMetadataStr = 'false';
+      else secretMetadataStr = 'UNVERIFIED';
     }
+
+    if (!found) {
+      valStatus = 'MISSING';
+      if (!catalogVerdict) catalogVerdict = 'P4_PREFLIGHT_BLOCKED_CATALOG_MISSING';
+    } else if (found.secret === true) {
+      valStatus = 'UNREADABLE_SECRET';
+      if (!catalogVerdict) catalogVerdict = 'P4_PREFLIGHT_BLOCKED_CATALOG_SECRET';
+    } else if (found.secret === undefined) {
+      valStatus = 'UNREADABLE_SECRET';
+      if (!catalogVerdict) catalogVerdict = 'P4_PREFLIGHT_BLOCKED_CATALOG_SECRET_UNVERIFIED';
+    } else if (found.secret === false && !found.value) {
+      valStatus = 'EMPTY';
+      if (!catalogVerdict) catalogVerdict = 'P4_PREFLIGHT_BLOCKED_CATALOG_EMPTY';
+    } else if (found.secret === false && found.value !== expectedValue) {
+      valStatus = 'MISMATCH';
+      if (!catalogVerdict) catalogVerdict = 'P4_PREFLIGHT_BLOCKED_CATALOG_MISMATCH';
+    }
+
+    console.log(`[CATALOG METADATA] ${catalogKey}: presence=${found ? 'PRESENT' : 'MISSING'}, secret_flag=${secretMetadataStr}, status=${valStatus}`);
+  }
+
+  if (catalogVerdict) {
+    catalogStatusSummary = catalogVerdict.replace('P4_PREFLIGHT_BLOCKED_CATALOG_', '');
   }
 
   const liveOrigin = bcVars['BILLING_CHECKOUT_APPROVED_ORIGIN'] || '';
@@ -247,8 +335,8 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
 
   if (secretMetadataStatus !== 'PASS') {
     auditReport.verdict = `P4_PREFLIGHT_BLOCKED_SECRET_${secretMetadataStatus}`;
-  } else if (catalogStatus !== 'MATCH') {
-    auditReport.verdict = `P4_PREFLIGHT_BLOCKED_CATALOG_${catalogStatus}`;
+  } else if (catalogVerdict !== null) {
+    auditReport.verdict = catalogVerdict;
   } else if (bcVars['BILLING_CHECKOUT_ENABLED'] !== 'false') {
     auditReport.verdict = 'P4_PREFLIGHT_BLOCKED_CHECKOUT_ENABLED';
   } else if (bcVars['BILLING_CHECKOUT_PROVIDER_READY'] !== 'false') {
@@ -262,7 +350,7 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
   }
 
   console.log(`[AUDIT SUMMARY] Paddle Prod Key: ${hasProdKey ? 'PRESENT' : 'MISSING'}`);
-  console.log(`[AUDIT SUMMARY] Catalog Status: ${catalogStatus}`);
+  console.log(`[AUDIT SUMMARY] Catalog Status: ${catalogStatusSummary}`);
   console.log(`[AUDIT SUMMARY] Checkout Enabled: ${bcVars['BILLING_CHECKOUT_ENABLED'] || '[UNCONFIGURED]'}`);
   console.log(`[AUDIT SUMMARY] Provider Ready: ${bcVars['BILLING_CHECKOUT_PROVIDER_READY'] || '[UNCONFIGURED]'}`);
   console.log(`[AUDIT SUMMARY] Checkout Env: ${bcVars['BILLING_CHECKOUT_ENVIRONMENT'] || '[UNCONFIGURED]'}`);
@@ -277,8 +365,8 @@ async function runProductionPreflightAudit(functions, dependencies = {}) {
 async function engageCompensatingLock(functions) {
   console.log('[COMPENSATING LOCK] Attempting immediate fail-closed lock on billing-checkout...');
   try {
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false', false);
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false', false);
     console.log('[COMPENSATING LOCK] Lock engaged and verified successfully.');
     return true;
   } catch (err) {
@@ -287,7 +375,7 @@ async function engageCompensatingLock(functions) {
   }
 }
 
-async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
+async function configureBillingRuntime({ mode, confirm, confirmCatalogReconcile }, dependencies = {}) {
   if (!mode || !ALLOWED_MODES.has(mode)) {
     throw new Error(`Invalid or missing mode: "${mode}". Allowed modes: ${Array.from(ALLOWED_MODES).join(', ')}`);
   }
@@ -300,7 +388,63 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
     return await runProductionPreflightAudit(functions, dependencies);
   }
 
-  if (mode === 'production-smoke-open') {
+  if (mode === 'production-catalog-reconcile') {
+    // 1. EXACT CONFIRMATION STRING REQUIREMENT (STRICT ISOLATED FIELD ONLY)
+    if (confirmCatalogReconcile !== CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE) {
+      throw new Error(`Confirmation required for production-catalog-reconcile: pass --confirm-catalog-reconcile=${CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE}`);
+    }
+
+    const preRunVars = dependencies.billingCheckoutVars || await fetchFunctionVariables(functions, 'billing-checkout');
+    const preRunOrigin = preRunVars.find(v => v.key === 'BILLING_CHECKOUT_APPROVED_ORIGIN')?.value || '';
+
+    // 2. VERIFY CHECKOUT ENABLED IS FALSE FIRST
+    const currentEnabled = preRunVars.find(v => v.key === 'BILLING_CHECKOUT_ENABLED')?.value;
+    if (currentEnabled !== 'false') {
+      throw new Error(`[CATALOG RECONCILIATION BLOCKED] BILLING_CHECKOUT_ENABLED must be false (found: "${currentEnabled || 'UNCONFIGURED'}")`);
+    }
+
+    // 3. FORCE PROVIDER_READY=false FIRST WITH READBACK
+    console.log('[CATALOG RECONCILE] Step 1/3: Forcing BILLING_CHECKOUT_PROVIDER_READY = false...');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false', false);
+
+    // 4. KEEP CHECKOUT ENVIRONMENT SANDBOX
+    console.log('[CATALOG RECONCILE] Step 2/3: Ensuring BILLING_CHECKOUT_ENVIRONMENT = sandbox...');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'sandbox', false);
+
+    // 5. RECONCILE EXACTLY THE FOUR PRODUCTION CATALOG VARIABLES (secret=false)
+    console.log('[CATALOG RECONCILE] Step 3/3: Reconciling Production catalog variables with explicit secret=false...');
+    for (const [catalogKey, expectedValue] of Object.entries(PROD_CATALOG)) {
+      try {
+        await setOrUpdateCatalogNonSecretVariable(functions, 'billing-checkout', catalogKey, expectedValue);
+      } catch (err) {
+        console.error(`[CATALOG RECONCILIATION PARTIAL FAILURE] Failed to reconcile ${catalogKey}: ${err.message}`);
+        throw new Error(`P4_CATALOG_RECONCILIATION_PARTIAL_BLOCKED: Failed to reconcile catalog variable ${catalogKey}: ${err.message}`);
+      }
+    }
+
+    // 6. FINAL RECONCILIATION INVARIANT POST-CHECK
+    console.log('[CATALOG RECONCILE] Performing fresh final reconciliation invariant post-check...');
+    const postVars = await fetchFunctionVariables(functions, 'billing-checkout');
+    const postEnabled = postVars.find(v => v.key === 'BILLING_CHECKOUT_ENABLED')?.value;
+    const postReady = postVars.find(v => v.key === 'BILLING_CHECKOUT_PROVIDER_READY')?.value;
+    const postEnv = postVars.find(v => v.key === 'BILLING_CHECKOUT_ENVIRONMENT')?.value;
+    const postOrigin = postVars.find(v => v.key === 'BILLING_CHECKOUT_APPROVED_ORIGIN')?.value || '';
+
+    if (postEnabled !== 'false' || postReady !== 'false' || postEnv !== 'sandbox' || postOrigin !== preRunOrigin) {
+      throw new Error(`P4_CATALOG_RECONCILIATION_POSTCHECK_BLOCKED: Post-reconciliation invariant check failed. ENABLED=${postEnabled}, PROVIDER_READY=${postReady}, ENVIRONMENT=${postEnv}, APPROVED_ORIGIN=${postOrigin}`);
+    }
+
+    for (const [catalogKey, expectedValue] of Object.entries(PROD_CATALOG)) {
+      const v = postVars.find(item => item.key === catalogKey);
+      if (!v || v.value !== expectedValue || v.secret !== false) {
+        throw new Error(`P4_CATALOG_RECONCILIATION_POSTCHECK_BLOCKED: Post-check failed for ${catalogKey}. value=${v?.value}, secret=${v?.secret}`);
+      }
+    }
+
+    console.log('[CATALOG RECONCILE SUCCESS] Production catalog reconciled cleanly and verified with post-check invariants');
+    return { verdict: 'P4_CATALOG_RECONCILIATION_SUCCESS' };
+
+  } else if (mode === 'production-smoke-open') {
     if (confirm !== CONFIRMATION_REQUIRED_FOR_OPEN) {
       throw new Error(`Confirmation required for production-smoke-open: pass --confirm=${CONFIRMATION_REQUIRED_FOR_OPEN}`);
     }
@@ -311,12 +455,12 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
     let mutationStarted = false;
     try {
       mutationStarted = true;
-      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
-      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'true');
+      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production', false);
+      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'true', false);
       if (approvedOrigin) {
-        await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_APPROVED_ORIGIN', approvedOrigin);
+        await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_APPROVED_ORIGIN', approvedOrigin, false);
       }
-      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'true');
+      await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'true', false);
     } catch (err) {
       if (mutationStarted) {
         const locked = await engageCompensatingLock(functions);
@@ -330,15 +474,15 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
     }
 
   } else if (mode === 'production-smoke-lock') {
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false', false);
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false', false);
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production', false);
 
   } else if (mode === 'production-access-enable') {
     // FORCE CHECKOUT LOCKED FIRST BEFORE CHANGING ACCESS CONSUMERS
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false', false);
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false', false);
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'production', false);
 
     // SNAPSHOT EXACT PRIOR STATE FOR ALL THREE CONSUMERS BEFORE ANY MUTATION
     const priorSnapshots = new Map();
@@ -357,7 +501,7 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
 
     for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
       try {
-        await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', 'production');
+        await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', 'production', false);
       } catch (err) {
         transitionError = err;
         failedFnId = fnId;
@@ -387,12 +531,12 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
     }
 
   } else if (mode === 'emergency-prepayment-sandbox-restore') {
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false');
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false');
-    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'sandbox');
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENABLED', 'false', false);
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_PROVIDER_READY', 'false', false);
+    await setOrUpdateVariable(functions, 'billing-checkout', 'BILLING_CHECKOUT_ENVIRONMENT', 'sandbox', false);
 
     for (const fnId of ACCESS_CONSUMER_FUNCTIONS) {
-      await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', 'sandbox');
+      await setOrUpdateVariable(functions, fnId, 'BILLING_ACCESS_ENVIRONMENT', 'sandbox', false);
     }
   }
 
@@ -401,8 +545,13 @@ async function configureBillingRuntime({ mode, confirm }, dependencies = {}) {
 
 async function main() {
   assertExecutionEnvironment();
-  const { mode, confirm } = parseArgs();
-  await configureBillingRuntime({ mode, confirm });
+  const { mode, confirm, confirmCatalogReconcile } = parseArgs();
+  const result = await configureBillingRuntime({ mode, confirm, confirmCatalogReconcile });
+
+  if (mode === 'production-preflight-audit' && result?.verdict && result.verdict !== 'P4_PREFLIGHT_SAFE_BUT_ORIGIN_UNVERIFIED') {
+    console.error(`[FATAL PREFLIGHT VERDICT] Audit finished with blocked verdict: ${result.verdict}`);
+    process.exit(1);
+  }
 }
 
 if (require.main === module) {
@@ -419,6 +568,7 @@ module.exports = {
   SAFE_NON_SECRET_ALLOWLIST,
   SECRET_PRESENCE_KEYS,
   CONFIRMATION_REQUIRED_FOR_OPEN,
+  CONFIRMATION_REQUIRED_FOR_CATALOG_RECONCILE,
   APPROVED_PRODUCTION_CHECKOUT_ORIGIN,
   parseArgs,
   assertExecutionEnvironment,
@@ -426,5 +576,6 @@ module.exports = {
   runProductionPreflightAudit,
   configureBillingRuntime,
   setOrUpdateVariable,
+  setOrUpdateCatalogNonSecretVariable,
   restoreConsumerExactState,
 };

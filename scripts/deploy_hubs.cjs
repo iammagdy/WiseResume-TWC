@@ -396,6 +396,31 @@ async function ensureVariable(fnId, key, value) {
     }
 }
 
+async function ensureNonSecretCatalogVariable(fnId, key, value) {
+    if (!value) throw new Error(`Missing required catalog ID value for ${key}`);
+    const vars = await functions.listVariables(fnId);
+    const existing = (vars.variables || []).find(v => v.key === key);
+
+    if (existing) {
+        if (existing.value === value && existing.secret === false) {
+            console.log(`  [CATALOG UNCHANGED] ${key} on ${fnId} (secret=false)`);
+            return;
+        }
+        await functions.updateVariable(fnId, existing.$id, key, value, false);
+        console.log(`  Updated ${key} on ${fnId} (secret=false)`);
+    } else {
+        await functions.createVariable(fnId, sdk.ID.unique(), key, value, false);
+        console.log(`  Created ${key} on ${fnId} (secret=false)`);
+    }
+
+    // Fresh persisted readback
+    const fresh = await functions.listVariables(fnId);
+    const verified = (fresh.variables || []).find(v => v.key === key);
+    if (!verified || verified.value !== value || verified.secret !== false) {
+        throw new Error(`[CATALOG DEPLOY READBACK FAILURE] Failed to verify non-secret ${key} on ${fnId}. Got secret: ${verified?.secret}`);
+    }
+}
+
 async function existingVariableValue(fnId, key) {
     try {
         const vars = await functions.listVariables(fnId);
@@ -778,14 +803,14 @@ async function ensureBillingCheckoutVariables() {
         await ensureVariable('billing-checkout', 'BILLING_PRODUCTION_PADDLE_API_KEY', productionPaddleKey);
     }
 
-    // Sync Production catalog IDs (non-secret, hardcoded in the workflow env).
+    // Sync Production catalog IDs (strict non-secret helper with explicit secret=false and readback).
     for (const [key, value] of [
         ['BILLING_PRODUCTION_PRO_PRICE_ID', process.env.BILLING_PRODUCTION_PRO_PRICE_ID],
         ['BILLING_PRODUCTION_PRO_PRODUCT_ID', process.env.BILLING_PRODUCTION_PRO_PRODUCT_ID],
         ['BILLING_PRODUCTION_PREMIUM_PRICE_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRICE_ID],
         ['BILLING_PRODUCTION_PREMIUM_PRODUCT_ID', process.env.BILLING_PRODUCTION_PREMIUM_PRODUCT_ID],
     ]) {
-        if (value) await ensureVariable('billing-checkout', key, value);
+        if (value) await ensureNonSecretCatalogVariable('billing-checkout', key, value);
     }
 }
 

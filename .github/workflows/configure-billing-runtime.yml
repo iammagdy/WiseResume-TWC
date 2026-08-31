@@ -9,12 +9,17 @@ on:
         type: choice
         options:
           - production-preflight-audit
+          - production-catalog-reconcile
           - production-smoke-open
           - production-smoke-lock
           - production-access-enable
           - emergency-prepayment-sandbox-restore
       confirm_smoke_open:
         description: 'Required exact confirmation string for production-smoke-open: OPEN_ONE_PRODUCTION_SMOKE_CHECKOUT'
+        required: false
+        type: string
+      confirm_catalog_reconcile:
+        description: 'Required exact confirmation string for production-catalog-reconcile: RECONCILE_PRODUCTION_CATALOG_NON_SECRET'
         required: false
         type: string
 
@@ -79,4 +84,5 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           BILLING_RUNTIME_MODE: ${{ inputs.mode }}
           BILLING_RUNTIME_CONFIRM: ${{ inputs.confirm_smoke_open }}
+          BILLING_RUNTIME_CONFIRM_CATALOG_RECONCILE: ${{ inputs.confirm_catalog_reconcile }}
         run: node scripts/configure_billing_runtime.cjs

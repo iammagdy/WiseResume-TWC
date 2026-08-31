@@ -1,33 +1,31 @@
 # Project Atlas — Active Operational & Handover State
 
 **Last Verified:** 2026-08-31
-**Status:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` — Root cause identified and remediated in PR #251: existing deployment workflow and helper script do not manage non-secret billing runtime gate variables (`BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER_READY`, `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`). Hardened automation workflow (`.github/workflows/configure-billing-runtime.yml`), CLI script (`scripts/configure_billing_runtime.cjs`), read-only audit mode (`production-preflight-audit`), preflight access drift blocking (`P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE`), PR Validation CI integration (`.github/workflows/pr-validation.yml`), exact prior-state rollback with `deleteVariable` for unconfigured consumers, main-branch guard, concurrency serialization (`cancel-in-progress: false`), and unit tests implemented. PR open awaiting merge/verification. Live Appwrite runtime variables unchanged; Production billing remains strictly disabled.
+**Status:** `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING` — PR #251 merged into `main` (`958c32a6f7fc5e3640ab406c6fdab609bc17c7e7`). Live read-only preflight workflow run `33366751713` executed cleanly on `main` with zero mutations and returned verdict `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING`. Live facts: `ENABLED=false`, `PROVIDER_READY=true`, `ENVIRONMENT=sandbox`, approved origin `https://wiseresume.app` (`UNVERIFIED`), Production Paddle API key `PRESENT` (`secret=true`), access environments `[UNCONFIGURED]`. Causal root cause classified as `UNVERIFIED_CATALOG_VARIABLE_STATE`. Remediation branch `fix/p4-production-catalog-reconciliation` hardened with dedicated confirmation string (`RECONCILE_PRODUCTION_CATALOG_NON_SECRET`), strict `secret=false` readback proof, false-unchanged update fix, `secret=UNVERIFIED` preflight classification, post-check invariant verification, deploy helper hardening, and unit tests. PR #253 open awaiting owner merge. Production billing remains strictly disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
 
-## Phase P4 Production billing runtime gate automation remediation — 2026-08-31
+## Phase P4 Production catalog reconciliation & preflight hardening — 2026-08-31
 
-* **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation & live-config safety hardening implemented, PR #251 open awaiting merge and live verification).
-* **Root Cause Identified:** Existing deployment workflow (`deploy-appwrite-hubs.yml`) and deploy helper script (`deploy_hubs.cjs`) sync secret keys and catalog IDs but do NOT expose or manage runtime environment gate variables. Redeploying function source code merely to toggle runtime variables is prohibited.
+* **Verdict:** `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING` (Live audit run `33366751713` complete; remediation PR #253 on branch `fix/p4-production-catalog-reconciliation` open awaiting owner merge).
+* **PR #251 Status:** Merged into `main` at commit `958c32a6f7fc5e3640ab406c6fdab609bc17c7e7`.
+* **Live Preflight Evidence (Run 33366751713):**
+  - Mode: `production-preflight-audit` (Read-only, zero mutations performed).
+  - Verdict: `P4_PREFLIGHT_BLOCKED_CATALOG_MISSING`.
+  - `billing-checkout`: `BILLING_CHECKOUT_ENABLED=false`, `BILLING_CHECKOUT_PROVIDER_READY=true`, `BILLING_CHECKOUT_ENVIRONMENT=sandbox`, `BILLING_CHECKOUT_APPROVED_ORIGIN=https://wiseresume.app`.
+  - Production Paddle API Key: `PRESENT` (`secret_flag=true`).
+  - Production Catalog Variables: Keys exist but API-visible values empty. Causal classification: `UNVERIFIED_CATALOG_VARIABLE_STATE`.
+  - Access Consumers: `ai-gateway`, `coupons`, `admin-devkit-data` all `[UNCONFIGURED]` (no drift).
 * **Remediation & Hardening Implemented:**
-  - Dedicated workflow created: `.github/workflows/configure-billing-runtime.yml` (env-mapped inputs, zero shell interpolation, `cancel-in-progress: false`, fail-closed `refs/heads/main` guard, HEAD vs origin/main freshness check).
-  - PR Validation CI wired: `.github/workflows/pr-validation.yml` now automatically executes `node --check scripts/configure_billing_runtime.cjs` and `node tests/scripts/configure_billing_runtime.test.cjs` on every PR to main.
-  - Dedicated CLI script created: `scripts/configure_billing_runtime.cjs` (SDK `createVariable`/`deleteVariable` contracts, persisted API readback verification, repository automation marker requirement `WISERESUME_BILLING_RUNTIME_AUTOMATION=1`).
-  - Read-only preflight audit mode added: `production-preflight-audit` (zero mutations, safe allowlisted metadata logging, gate baseline checks `ENABLED=false`, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, access environment drift blocking `P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE`).
-  - Unit tests added: `tests/scripts/configure_billing_runtime.test.cjs` (9/9 PASS).
-* **Supported Modes Matrix:**
-  1. `production-preflight-audit`: Read-only preflight audit (zero mutations, baseline & access drift checks).
-  2. `production-smoke-open`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=true`, `ENABLED=true` (requires confirmation string, `ENABLED=true` set LAST, compensating lock on failure).
-  3. `production-smoke-lock`: Unconditional kill switch (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=production`).
-  4. `production-access-enable`: Forces checkout lock FIRST; snapshots exact prior consumer states (preserving unconfigured absence); on failure, restores ALL consumers to prior states via `deleteVariable` or value update (`ACCESS_TRANSITION_ROLLED_BACK`).
-  5. `emergency-prepayment-sandbox-restore`: Unconditional restore (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, consumer access envs $\rightarrow$ `sandbox`).
-* **Fail-Closed Safety:**
-  - Precondition check requires live remote `BILLING_PRODUCTION_PADDLE_API_KEY` presence metadata and exact live remote Production catalog IDs on `billing-checkout` (NO `process.env` fallback).
-  - Unverified origin blocks `smoke-open` with `P4_APPROVED_ORIGIN_REQUIRES_EXECUTION_TIME_VERIFICATION`.
-  - Immediate persisted readback verification fails closed on mismatch.
-* **Current Safety State:** Live Appwrite variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+  - Added safe `production-catalog-reconcile` mode requiring exact confirmation string `RECONCILE_PRODUCTION_CATALOG_NON_SECRET` (forces `ENABLED=false` check, sets `PROVIDER_READY=false` first, keeps `ENVIRONMENT=sandbox`, writes 4 catalog variables with explicit `secret=false`, fresh readback verification, and final post-check invariants).
+  - Hardened `deploy_hubs.cjs` with `ensureNonSecretCatalogVariable()` enforcing explicit `secret=false` and fresh readback for Production catalog IDs.
+  - Enhanced `runProductionPreflightAudit()` to classify catalog statuses explicitly (`P4_PREFLIGHT_BLOCKED_CATALOG_SECRET`/`SECRET_UNVERIFIED`/`EMPTY`/`MISSING`/`MISMATCH`).
+  - Fixed preflight workflow exit semantics: blocked audit verdicts exit non-zero after printing the safe read-only audit report.
+  - Unit tests added in `tests/scripts/configure_billing_runtime.test.cjs` and `tests/hubs/billing-checkout-deployment.test.cjs` (18 focused test suites / 18 PASSED).
+* **Current Safety State:** Live Appwrite variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+* **Next action:** Owner merges PR #253 (`fix/p4-production-catalog-reconciliation`). After merge, execute `production-catalog-reconcile` workflow dispatch with exact confirmation, then rerun `production-preflight-audit`.
 * **Next action:** Owner reviews and merges PR #251 (`feat/production-billing-runtime-gates`). After merge, execute `production-preflight-audit` workflow dispatch prior to controlled smoke.
 
 ## Phase P3 RevenueCat Production webhook routing verified — 2026-08-30
