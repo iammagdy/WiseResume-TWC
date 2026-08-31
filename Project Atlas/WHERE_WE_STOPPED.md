@@ -1,11 +1,34 @@
 # Project Atlas — Active Operational & Handover State
 
-**Last Verified:** 2026-08-30
-**Status:** `P3_PRODUCTION_WEBHOOK_ROUTING_CONFIG_VERIFIED_WITH_TEST_TRANSPORT_EVIDENCE` — Owner updated RevenueCat outbound webhook environment scope to `Both Production and Sandbox` targeting `https://revenuecat-webhook.wiseresume.app`. Authenticated `TEST` transport returned HTTP 200 (`acknowledged`, `mutated=false`). DB ledger (2) and subscription state (2) unchanged. `PRODUCTION_DELIVERY_NOT_YET_PROVEN` preserved because no genuine Production purchase has been executed. `BILLING_CHECKOUT_ENABLED=false` preserved. Production billing remains strictly disabled.
+**Last Verified:** 2026-08-31
+**Status:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` — Root cause identified and remediated in PR #251: existing deployment workflow and helper script do not manage non-secret billing runtime gate variables (`BILLING_CHECKOUT_ENABLED`, `BILLING_CHECKOUT_PROVIDER_READY`, `BILLING_CHECKOUT_ENVIRONMENT`, `BILLING_ACCESS_ENVIRONMENT`). Hardened automation workflow (`.github/workflows/configure-billing-runtime.yml`), CLI script (`scripts/configure_billing_runtime.cjs`), read-only audit mode (`production-preflight-audit`), preflight access drift blocking (`P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE`), PR Validation CI integration (`.github/workflows/pr-validation.yml`), exact prior-state rollback with `deleteVariable` for unconfigured consumers, main-branch guard, concurrency serialization (`cancel-in-progress: false`), and unit tests implemented. PR open awaiting merge/verification. Live Appwrite runtime variables unchanged; Production billing remains strictly disabled.
 
 **Location:** `Project Atlas/WHERE_WE_STOPPED.md`
 
 ---
+
+## Phase P4 Production billing runtime gate automation remediation — 2026-08-31
+
+* **Verdict:** `P4_PLAN_BLOCKED_REPOSITORY_AUTOMATION_GAP` (In-code remediation & live-config safety hardening implemented, PR #251 open awaiting merge and live verification).
+* **Root Cause Identified:** Existing deployment workflow (`deploy-appwrite-hubs.yml`) and deploy helper script (`deploy_hubs.cjs`) sync secret keys and catalog IDs but do NOT expose or manage runtime environment gate variables. Redeploying function source code merely to toggle runtime variables is prohibited.
+* **Remediation & Hardening Implemented:**
+  - Dedicated workflow created: `.github/workflows/configure-billing-runtime.yml` (env-mapped inputs, zero shell interpolation, `cancel-in-progress: false`, fail-closed `refs/heads/main` guard, HEAD vs origin/main freshness check).
+  - PR Validation CI wired: `.github/workflows/pr-validation.yml` now automatically executes `node --check scripts/configure_billing_runtime.cjs` and `node tests/scripts/configure_billing_runtime.test.cjs` on every PR to main.
+  - Dedicated CLI script created: `scripts/configure_billing_runtime.cjs` (SDK `createVariable`/`deleteVariable` contracts, persisted API readback verification, repository automation marker requirement `WISERESUME_BILLING_RUNTIME_AUTOMATION=1`).
+  - Read-only preflight audit mode added: `production-preflight-audit` (zero mutations, safe allowlisted metadata logging, gate baseline checks `ENABLED=false`, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, access environment drift blocking `P4_PREFLIGHT_BLOCKED_ACCESS_ENVIRONMENT_STATE`).
+  - Unit tests added: `tests/scripts/configure_billing_runtime.test.cjs` (9/9 PASS).
+* **Supported Modes Matrix:**
+  1. `production-preflight-audit`: Read-only preflight audit (zero mutations, baseline & access drift checks).
+  2. `production-smoke-open`: `billing-checkout` $\rightarrow$ `ENVIRONMENT=production`, `PROVIDER_READY=true`, `ENABLED=true` (requires confirmation string, `ENABLED=true` set LAST, compensating lock on failure).
+  3. `production-smoke-lock`: Unconditional kill switch (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=production`).
+  4. `production-access-enable`: Forces checkout lock FIRST; snapshots exact prior consumer states (preserving unconfigured absence); on failure, restores ALL consumers to prior states via `deleteVariable` or value update (`ACCESS_TRANSITION_ROLLED_BACK`).
+  5. `emergency-prepayment-sandbox-restore`: Unconditional restore (`ENABLED=false` FIRST, `PROVIDER_READY=false`, `ENVIRONMENT=sandbox`, consumer access envs $\rightarrow$ `sandbox`).
+* **Fail-Closed Safety:**
+  - Precondition check requires live remote `BILLING_PRODUCTION_PADDLE_API_KEY` presence metadata and exact live remote Production catalog IDs on `billing-checkout` (NO `process.env` fallback).
+  - Unverified origin blocks `smoke-open` with `P4_APPROVED_ORIGIN_REQUIRES_EXECUTION_TIME_VERIFICATION`.
+  - Immediate persisted readback verification fails closed on mismatch.
+* **Current Safety State:** Live Appwrite variables unchanged. `BILLING_CHECKOUT_ENABLED=false` preserved. `paymentsEnabled: false` preserved. Production billing remains strictly disabled. Zero real checkouts/payments created.
+* **Next action:** Owner reviews and merges PR #251 (`feat/production-billing-runtime-gates`). After merge, execute `production-preflight-audit` workflow dispatch prior to controlled smoke.
 
 ## Phase P3 RevenueCat Production webhook routing verified — 2026-08-30
 
@@ -31,8 +54,8 @@
 * **Schema Status:** `SCHEMA_RECONCILIATION_SUCCEEDED` — RevenueCat provider-state schemas and billing checkout schemas reported ready. No schema mutation was observed or reported.
 * **Historical Run Note:** Initial P2 workflow `33309686634` failed pre-deploy at Step 7 due to stale manifest before PR #248 merged; no Appwrite Functions deployed in that run.
 * **Safety Boundary:** `BILLING_CHECKOUT_ENABLED=false` preserved. `BILLING_CHECKOUT_PROVIDER_READY=false`. `BILLING_CHECKOUT_ENVIRONMENT=sandbox`. `BILLING_ACCESS_ENVIRONMENT` unconfigured. Frontend `paymentsEnabled: false`. DB counts: `revenuecat_event_ledger` 2/2, `revenuecat_subscription_state` 2/2. Zero checkouts or payments created. Production billing remains disabled.
-* **Warnings / Operational Risk:** Production RevenueCat webhook delivery/routing remains `UNVERIFIED` / `OWNER_ACTION_REQUIRED`. No Production transaction authorized. Public billing disabled.
-* **Next action:** Verify RevenueCat Production webhook routing to `https://revenuecat-webhook.wiseresume.app` via non-secret evidence before any controlled transaction phase.
+* **Historical Warning:** [RESOLVED BY P3] RevenueCat Production webhook configuration and official TEST transport verified; genuine Production lifecycle delivery remains unproven until P4.
+* **Next action:** [COMPLETED / SUPERSEDED BY P3] Outbound RevenueCat webhook environment scope updated to Both Production and Sandbox; verified via official TEST transport.
 
 ## Phase P2 Appwrite source hash manifest recovery (PR #248 MERGED @ ba5a785e) — 2026-08-30
 
