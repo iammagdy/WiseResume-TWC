@@ -7,12 +7,12 @@
 
 ## WiseResume What's New Page Content Reconciliation & UX Redesign — 2026-08-31
 
-* **Verdict:** `PR_READY_FOR_REVIEW` (PR #258 open on `feat/whats-new-release-hub`; What's New page `/whats-new` fully audited, release history reconciled with 24 customer-facing items, UX redesigned into a modern Product Updates Hub, and unit tests passing 29/29; NOT merged; NOT production deployed; NOT production/browser verified).
+* **Verdict:** `VERIFIED_READY` (PR #258 merged into `main` at commit `6424c1da4f3797987fd6169683a2904eefc51667`; automatic Vercel Production deployment `Fa12ew9DmoWZFZv4iRAEgKovbtuF` completed with status `SUCCESS`; Playwright Chromium live production QA passed desktop/mobile LTR/RTL verification at `https://wiseresume.app/whats-new` and `/ar/whats-new`).
 * **Content Reconciliation:** Reconciled 24 customer-facing release items spanning October 2025 through August 31, 2026. Featured release set to Remote Jobs Feed (`/jobs`). Reconciled dates matching PR merge history (Remote Jobs Feed in August 2026; Portfolio Visitor AI Assistant in March 2026; Legal Policy Updates in August 2026). Removed unproven Coming Soon items and internal Appwrite permission mechanics.
 * **UX Redesign:** Extracted dataset into `src/data/whatsNewData.ts`, updated `src/pages/WhatsNewPage.tsx` with top hero header, featured release card, 7 interactive category filter tabs, 4 month jump selector pills, direct anchor link copying (`#id`), progressive disclosure toggle for 2025 releases, and canonical legal footer links (`/privacy`, `/terms`, `/refund-policy`).
-* **Localization:** Native English LTR and Arabic RTL (`/ar/whats-new`) rendering supported.
+* **Localization & Mobile QA:** Native English LTR and Arabic RTL (`/ar/whats-new`) rendering supported. Mobile horizontal scroll overflow regression fixed (`scrollWidth === clientWidth === 390px`).
 * **Validation:** `cmd /c npx tsc --noEmit` PASS (0 errors); `npx vitest` PASS (29/29 tests passed across `landingRouteContract.test.ts`, `productTrustCopy.test.ts`, and `WhatsNewPage.test.tsx`).
-* **Verification Boundary:** Implemented: YES, Locally Tested: YES (29/29), Pushed: YES (`feat/whats-new-release-hub`), PR #258: OPEN, Production Deployed: NO, Live Production Browser Verified: NO.
+* **Verification Boundary:** Implemented: YES, Locally Tested: YES (29/29), Merged: YES (`6424c1da`), Production Deployed: YES (`Fa12ew9DmoWZFZv4iRAEgKovbtuF`), Live Production Browser Verified: YES.
 
 ## Phase P4 Paddle Domain Review Readiness & Legal Accuracy Hardening — 2026-08-31
 
