@@ -29,7 +29,7 @@ describe('WhatsNewPage', () => {
 
     expect(screen.getAllByText(/What's New in WiseResume/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Featured Update/i)).toBeInTheDocument();
-    expect(screen.getByText(/Remote Jobs Feed Integrated into Workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/Remote Jobs Feed Integrated into WiseResume/i)).toBeInTheDocument();
   });
 
   it('filters release items when category tab is clicked', () => {

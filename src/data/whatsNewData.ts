@@ -96,23 +96,23 @@ export const whatsNewReleases: ReleaseUpdate[] = [
     icon: Briefcase,
     featured: true,
     title: {
-      en: 'Remote Jobs Feed Integrated into Workspace',
-      ar: 'خلاصة الوظائف عن بُعد داخل مساحة العمل',
+      en: 'Remote Jobs Feed Integrated into WiseResume',
+      ar: 'خلاصة الوظائف عن بُعد داخل WiseResume',
     },
     description: {
-      en: 'Explore relevant remote career opportunities directly from your WiseResume dashboard and seamlessly tailor your resume to match targeted positions.',
-      ar: 'استكشف الفرص الوظيفية عن بُعد مباشرة من لوحة تحكم WiseResume وقم بتكييف سيرتك الذاتية بسهولة.',
+      en: 'Explore relevant remote career opportunities through the WiseResume Remote Jobs Feed and tailor your resume for targeted positions.',
+      ar: 'استكشف الفرص الوظيفية المتاحة عن بُعد عبر خلاصة وظائف WiseResume وقم بتكييف سيرتك الذاتية بسهولة.',
     },
     highlights: {
       en: [
-        'Browse active remote tech and business listings directly in your workspace',
+        'Browse active remote tech and business job listings',
         'One-click transition from job listing to AI resume tailoring',
-        'Organize saved roles directly in your Application Tracker board',
+        'Organize saved roles in your Application Tracker board',
       ],
       ar: [
-        'تصفح الوظائف المتاحة عن بُعد في التقنية والأعمال مباشرة من مساحة العمل',
+        'تصفح الوظائف المتاحة عن بُعد في مجالات التقنية والأعمال',
         'الانتقال بنقرة واحدة من تفاصيل الوظيفة إلى تخصيص السيرة الذاتية بالذكاء الاصطناعي',
-        'تنظيم الوظائف المحفوظة مباشرة في لوحة متابعة الطلبات',
+        'تنظيم الوظائف المحفوظة في لوحة متابعة الطلبات',
       ],
     },
   },
@@ -198,19 +198,19 @@ export const whatsNewReleases: ReleaseUpdate[] = [
       ar: 'تحسين حماية الخصوصية والتفاعل للملفات الشخصية العامة',
     },
     description: {
-      en: 'Enhanced privacy controls for public portfolio pages, safeguarding public contact details and preventing automated script collection without interrupting human visitors.',
-      ar: 'تحسين حماية الخصوصية والأمان للتفاعلات على صفحات الملفات الشخصية العامة لحماية بيانات الاتصال ومنع الجمع الآلي.',
+      en: 'Enhanced privacy controls for public portfolio pages, safeguarding public contact details and protecting shared links.',
+      ar: 'تحسين حماية الخصوصية والتفاعل لصفحات الملفات الشخصية العامة لحماية بيانات الاتصال والروابط المشاركة.',
     },
     highlights: {
       en: [
         'Protected public contact details against casual automated collection scripts',
-        'Applied validation rate limits to public interactions and share links',
-        'Strengthened document-level privacy controls across user resume data',
+        'Improved safeguards for public interactions and shared links',
+        'Strengthened privacy protections around resume data',
       ],
       ar: [
         'حماية بيانات الاتصال العامة من برامج التجميع الآلي العشوائية',
-        'تطبيق قيود حماية وتأكيد على التفاعلات العامة وروابط المشاركة',
-        'تعزيز إعدادات الخصوصية والحماية لمستندات السيرة الذاتية',
+        'تحسين وسائل الحماية للتفاعلات العامة والروابط المشاركة',
+        'تعزيز حماية الخصوصية والأمان لبيانات السيرة الذاتية',
       ],
     },
   },
